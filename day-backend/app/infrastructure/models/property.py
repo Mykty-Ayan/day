@@ -67,6 +67,9 @@ class PropertyModel(Base):
     audit_logs: Mapped[list["PropertyAuditLogModel"]] = relationship(
         back_populates="property", cascade="all, delete-orphan"
     )
+    bookings: Mapped[list["BookingModel"]] = relationship(  # type: ignore[name-defined]  # noqa: F821
+        back_populates="property"
+    )
 
     __table_args__ = (
         UniqueConstraint("company_id", "internal_name", name="uq_property_company_internal_name"),

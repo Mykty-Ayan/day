@@ -9,6 +9,7 @@ from app.infrastructure.database import Base
 
 # Import all ORM models so Base.metadata is populated for autogenerate
 import app.infrastructure.models.property  # noqa: F401
+import app.infrastructure.models.booking  # noqa: F401
 
 config = context.config
 if config.config_file_name is not None:
