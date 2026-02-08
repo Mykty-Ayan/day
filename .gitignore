@@ -38,6 +38,8 @@ coverage/
 htmlcov/
 .pytest_cache/
 .coverage
+playwright-report/
+test-results/
 
 # MinIO data
 docker/minio-data/

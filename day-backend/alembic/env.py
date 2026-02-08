@@ -7,6 +7,9 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 
 from app.infrastructure.database import Base
 
+# Import all ORM models so Base.metadata is populated for autogenerate
+import app.infrastructure.models.property  # noqa: F401
+
 config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
