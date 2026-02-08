@@ -1,0 +1,401 @@
+---
+title: PMS — Entity Relationship Diagram
+---
+erDiagram
+
+    %% ═══════════════════════════════════════
+    %% DOMAIN 1: IDENTITY & ACCESS
+    %% ═══════════════════════════════════════
+
+    companies {
+        uuid id PK
+        varchar name "Название организации"
+        varchar status "active | suspended | deleted"
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    users {
+        uuid id PK
+        uuid company_id FK
+        varchar email UK
+        varchar phone UK
+        varchar name
+        varchar role "super_admin | host | hostess | cleaner | sales_manager"
+        varchar status "active | invited | blocked"
+        varchar password_hash
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    otp_codes {
+        uuid id PK
+        uuid user_id FK
+        varchar code
+        varchar channel "sms | email"
+        boolean is_used
+        timestamp expires_at
+        timestamp created_at
+    }
+
+    invitations {
+        uuid id PK
+        uuid company_id FK
+        uuid invited_by FK "users.id"
+        varchar email
+        varchar phone
+        varchar role
+        varchar token UK
+        varchar status "pending | accepted | expired"
+        timestamp expires_at
+        timestamp created_at
+    }
+
+    documents {
+        uuid id PK
+        uuid company_id FK
+        uuid user_id FK
+        varchar type "identity_doc | offer_agreement"
+        varchar file_url
+        varchar file_name
+        varchar status "pending | verified | rejected"
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    refresh_tokens {
+        uuid id PK
+        uuid user_id FK
+        varchar token UK
+        varchar device_info
+        timestamp expires_at
+        timestamp created_at
+    }
+
+    companies ||--o{ users : "has"
+    companies ||--o{ invitations : "has"
+    companies ||--o{ documents : "has"
+    users ||--o{ otp_codes : "receives"
+    users ||--o{ invitations : "sends"
+    users ||--o{ documents : "uploads"
+    users ||--o{ refresh_tokens : "has"
+
+    %% ═══════════════════════════════════════
+    %% DOMAIN 2: PROPERTY
+    %% ═══════════════════════════════════════
+
+    properties {
+        uuid id PK
+        uuid company_id FK
+        varchar name "Публичное название"
+        varchar internal_name "Внутреннее название"
+        varchar type "apartment | house | room"
+        varchar status "new | active | paused | archived"
+        text description
+        varchar source_url "Ссылка на источник"
+        float latitude
+        float longitude
+        varchar address_full
+        varchar apartment_number "Квартира"
+        varchar entrance "Подъезд"
+        varchar block "Блок"
+        int floor
+        int rooms "Комнатность"
+        int beds "Спальные места"
+        float area_living "Жилая площадь"
+        float area_total "Общая площадь"
+        text check_in_instructions
+        text check_out_instructions
+        text house_rules
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    property_photos {
+        uuid id PK
+        uuid property_id FK
+        varchar url
+        int sort_order
+        boolean is_cover
+        timestamp created_at
+    }
+
+    amenities {
+        uuid id PK
+        varchar name UK
+        varchar icon
+        varchar category "bathroom | kitchen | entertainment | safety | etc"
+    }
+
+    property_amenities {
+        uuid property_id FK
+        uuid amenity_id FK
+    }
+
+    pricing_configs {
+        uuid id PK
+        uuid property_id FK
+        decimal base_price "Базовая цена за сутки"
+        decimal weekend_markup "Наценка выходные"
+        decimal default_deposit "Залог по умолчанию"
+        decimal extra_adult_price
+        decimal extra_child_price
+        int base_guests "Кол-во гостей в базовой цене"
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    seasonal_prices {
+        uuid id PK
+        uuid pricing_config_id FK
+        varchar name "Новый год, Лето и тд"
+        date start_date
+        date end_date
+        decimal price_per_night
+        timestamp created_at
+    }
+
+    discount_rules {
+        uuid id PK
+        uuid pricing_config_id FK
+        int min_nights "От 7 ночей"
+        decimal discount_percent "10%"
+        decimal discount_fixed "или фикс скидка"
+        timestamp created_at
+    }
+
+    property_audit_logs {
+        uuid id PK
+        uuid property_id FK
+        uuid changed_by FK "users.id"
+        varchar field_name
+        text old_value
+        text new_value
+        varchar action "create | update | status_change"
+        timestamp created_at
+    }
+
+    properties ||--o{ property_photos : "has"
+    properties ||--o{ property_amenities : "has"
+    amenities ||--o{ property_amenities : "linked"
+    properties ||--|| pricing_configs : "has"
+    pricing_configs ||--o{ seasonal_prices : "has"
+    pricing_configs ||--o{ discount_rules : "has"
+    properties ||--o{ property_audit_logs : "tracked"
+    companies ||--o{ properties : "owns"
+
+    %% ═══════════════════════════════════════
+    %% DOMAIN 3: BOOKING
+    %% ═══════════════════════════════════════
+
+    guests {
+        uuid id PK
+        uuid company_id FK
+        varchar name
+        varchar phone
+        varchar email
+        text notes
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    group_bookings {
+        uuid id PK
+        uuid company_id FK
+        int adults_count
+        int children_count
+        varchar status "pending | confirmed | cancelled"
+        text notes
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    bookings {
+        uuid id PK
+        uuid company_id FK
+        uuid property_id FK
+        uuid guest_id FK
+        uuid group_booking_id FK "nullable"
+        date check_in
+        date check_out
+        varchar source "direct | booking | airbnb | other"
+        varchar status "pending | confirmed | checked_in | checked_out | completed | cancelled"
+        varchar gantt_color "#FF5733"
+        varchar gantt_icon "nullable"
+        decimal total_price
+        decimal calculated_price "Калькулятор"
+        int adults_count
+        int children_count
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    booking_payments {
+        uuid id PK
+        uuid booking_id FK
+        decimal amount
+        varchar type "payment | refund"
+        varchar method "cash | card | transfer"
+        varchar status "pending | completed | failed"
+        text note
+        timestamp paid_at
+        timestamp created_at
+    }
+
+    booking_deposits {
+        uuid id PK
+        uuid booking_id FK
+        decimal amount
+        varchar status "pending | paid | returned | held | partially_held"
+        decimal held_amount "при частичном удержании"
+        text reason "причина удержания"
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    booking_files {
+        uuid id PK
+        uuid booking_id FK
+        varchar file_url
+        varchar file_name
+        varchar file_type
+        timestamp created_at
+    }
+
+    booking_comments {
+        uuid id PK
+        uuid booking_id FK
+        uuid author_id FK "users.id"
+        text content
+        timestamp created_at
+    }
+
+    booking_contracts {
+        uuid id PK
+        uuid booking_id FK
+        varchar template_url "шаблон оферты"
+        varchar generated_url "сгенерированный договор"
+        varchar status "draft | sent | signed"
+        timestamp signed_at
+        timestamp created_at
+    }
+
+    booking_audit_logs {
+        uuid id PK
+        uuid booking_id FK
+        uuid changed_by FK "users.id"
+        varchar field_name
+        text old_value
+        text new_value
+        varchar action "create | update | status_change | move"
+        timestamp created_at
+    }
+
+    companies ||--o{ guests : "has"
+    companies ||--o{ group_bookings : "has"
+    properties ||--o{ bookings : "has"
+    guests ||--o{ bookings : "books"
+    group_bookings ||--o{ bookings : "contains"
+    bookings ||--o{ booking_payments : "has"
+    bookings ||--o{ booking_deposits : "has"
+    bookings ||--o{ booking_files : "has"
+    bookings ||--o{ booking_comments : "has"
+    bookings ||--o| booking_contracts : "has"
+    bookings ||--o{ booking_audit_logs : "tracked"
+
+    %% ═══════════════════════════════════════
+    %% DOMAIN 4: CLEANING
+    %% ═══════════════════════════════════════
+
+    cleaning_tasks {
+        uuid id PK
+        uuid company_id FK
+        uuid property_id FK
+        uuid booking_id FK "nullable - post checkout"
+        uuid cleaner_id FK "users.id"
+        varchar type "post_checkout | mid_stay | on_demand"
+        varchar status "pending | assigned | in_progress | done | verified"
+        date scheduled_date
+        time scheduled_time "привязка к checkout time"
+        text notes
+        timestamp started_at
+        timestamp completed_at
+        timestamp verified_at
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    cleaning_checklist_templates {
+        uuid id PK
+        uuid company_id FK
+        varchar name "Стандартная уборка"
+        timestamp created_at
+    }
+
+    cleaning_checklist_items {
+        uuid id PK
+        uuid template_id FK
+        varchar title "Помыть ванную"
+        int sort_order
+    }
+
+    cleaning_reports {
+        uuid id PK
+        uuid task_id FK
+        uuid cleaner_id FK "users.id"
+        varchar status "submitted | approved | rejected"
+        text notes
+        timestamp submitted_at
+        timestamp created_at
+    }
+
+    cleaning_report_photos {
+        uuid id PK
+        uuid report_id FK
+        varchar url
+        varchar room_type "bathroom | kitchen | bedroom | other"
+        jsonb metadata "EXIF: lat, lng, timestamp"
+        boolean metadata_verified
+        timestamp created_at
+    }
+
+    cleaning_report_checklist {
+        uuid id PK
+        uuid report_id FK
+        uuid checklist_item_id FK
+        boolean is_done
+        text note "опционально"
+    }
+
+    cleaner_routes {
+        uuid id PK
+        uuid company_id FK
+        uuid cleaner_id FK "users.id"
+        date route_date
+        jsonb ordered_task_ids "упорядоченный список task_id"
+        jsonb route_polyline "оптимизированный маршрут"
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    cleaner_ratings {
+        uuid id PK
+        uuid company_id FK
+        uuid cleaner_id FK "users.id"
+        uuid task_id FK "nullable"
+        uuid rated_by FK "users.id"
+        int score "1-5"
+        text review
+        jsonb kpi_metrics "скорость, качество, и тд"
+        timestamp created_at
+    }
+
+    cleaning_tasks ||--o| cleaning_reports : "has"
+    cleaning_reports ||--o{ cleaning_report_photos : "has"
+    cleaning_reports ||--o{ cleaning_report_checklist : "has"
+    cleaning_checklist_templates ||--o{ cleaning_checklist_items : "has"
+    properties ||--o{ cleaning_tasks : "needs"
+    companies ||--o{ cleaning_tasks : "has"
+    companies ||--o{ cleaner_routes : "has"
+    companies ||--o{ cleaner_ratings : "has"
+    companies ||--o{ cleaning_checklist_templates : "has"
