@@ -178,8 +178,8 @@ async def create_booking(
 
 @booking_router.get("", response_model=BookingListResponse)
 async def list_bookings(
-    offset: int = Query(default=0, ge=0),
-    limit: int = Query(default=50, ge=1, le=100),
+    page: int = Query(default=1, ge=1),
+    per_page: int = Query(default=50, ge=1, le=100),
     status: BookingStatus | None = None,
     property_id: uuid.UUID | None = None,
     source: BookingSource | None = None,
@@ -190,10 +190,11 @@ async def list_bookings(
 ):
     repos = _repos(session)
     svc = ListBookingsService(repos["booking"])
+    offset = (page - 1) * per_page
     result = await svc.execute(
         company_id,
         offset=offset,
-        limit=limit,
+        limit=per_page,
         status=status,
         property_id=property_id,
         source=source,
@@ -215,11 +216,13 @@ async def list_bookings(
             )
         )
 
+    pages = (result.total + per_page - 1) // per_page if result.total > 0 else 1
     return BookingListResponse(
         items=items,
         total=result.total,
-        offset=result.offset,
-        limit=result.limit,
+        page=page,
+        per_page=per_page,
+        pages=pages,
     )
 
 

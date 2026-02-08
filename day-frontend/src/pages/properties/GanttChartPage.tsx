@@ -27,7 +27,7 @@ export default function GanttChartPage() {
   const rows: GanttRow[] = useMemo(() => {
     if (!ganttData) return []
     return ganttData.properties.map((p) => ({
-      property: p.property,
+      property: p,
       bookings: p.bookings,
     }))
   }, [ganttData])

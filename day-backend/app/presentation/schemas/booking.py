@@ -112,8 +112,9 @@ class BookingMove(BaseModel):
 class BookingListResponse(BaseModel):
     items: list[BookingResponse]
     total: int
-    offset: int
-    limit: int
+    page: int
+    per_page: int
+    pages: int
 
 
 # ---------- Payment ----------
