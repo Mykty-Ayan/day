@@ -10,7 +10,8 @@ interface Props {
 }
 
 export default function PropertyCard({ property, index }: Props) {
-  const coverPhoto = property.photos.find((p) => p.is_cover) || property.photos[0]
+  const photos = property.photos ?? []
+  const coverPhoto = photos.find((p) => p.is_cover) || photos[0]
 
   return (
     <Link to="/properties/$propertyId" params={{ propertyId: property.id }}>

@@ -96,8 +96,9 @@ class PropertyStatusChange(BaseModel):
 class PropertyListResponse(BaseModel):
     items: list[PropertyResponse]
     total: int
-    offset: int
-    limit: int
+    page: int
+    per_page: int
+    pages: int
 
 
 # ---------- Photos ----------
@@ -228,11 +229,7 @@ class PropertyAuditLogResponse(BaseModel):
 # ---------- Full detail ----------
 
 
-class PropertyDetailResponse(BaseModel):
-    property: PropertyResponse
-    photos: list[PropertyPhotoResponse]
-    amenities: list[AmenityResponse]
+class PropertyDetailResponse(PropertyResponse):
+    photos: list[PropertyPhotoResponse] = []
+    amenities: list[AmenityResponse] = []
     pricing: PricingConfigResponse | None = None
-    seasonal_prices: list[SeasonalPriceResponse]
-    discount_rules: list[DiscountRuleResponse]
-    audit_logs: list[PropertyAuditLogResponse]

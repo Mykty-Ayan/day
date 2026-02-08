@@ -154,8 +154,8 @@ async def create_property(
 
 @router.get("", response_model=PropertyListResponse)
 async def list_properties(
-    offset: int = Query(default=0, ge=0),
-    limit: int = Query(default=50, ge=1, le=100),
+    page: int = Query(default=1, ge=1),
+    per_page: int = Query(default=50, ge=1, le=100),
     status: PropertyStatus | None = None,
     search: str | None = None,
     session: AsyncSession = Depends(get_session),
@@ -163,12 +163,15 @@ async def list_properties(
 ):
     repos = _repos(session)
     svc = ListPropertiesService(repos["property"])
-    result = await svc.execute(company_id, offset=offset, limit=limit, status=status, search=search)
+    offset = (page - 1) * per_page
+    result = await svc.execute(company_id, offset=offset, limit=per_page, status=status, search=search)
+    pages = (result.total + per_page - 1) // per_page if result.total > 0 else 1
     return PropertyListResponse(
         items=[_to_property_response(p) for p in result.items],
         total=result.total,
-        offset=result.offset,
-        limit=result.limit,
+        page=page,
+        per_page=per_page,
+        pages=pages,
     )
 
 
@@ -192,14 +195,12 @@ async def get_property(
         detail = await svc.execute(property_id, company_id)
     except ValueError:
         raise HTTPException(status_code=404, detail="Property not found")
+    prop = _to_property_response(detail.property)
     return PropertyDetailResponse(
-        property=_to_property_response(detail.property),
+        **prop.model_dump(),
         photos=[PropertyPhotoResponse.model_validate(p, from_attributes=True) for p in detail.photos],
         amenities=[AmenityResponse.model_validate(a, from_attributes=True) for a in detail.amenities],
         pricing=PricingConfigResponse.model_validate(detail.pricing, from_attributes=True) if detail.pricing else None,
-        seasonal_prices=[SeasonalPriceResponse.model_validate(s, from_attributes=True) for s in detail.seasonal_prices],
-        discount_rules=[DiscountRuleResponse.model_validate(d, from_attributes=True) for d in detail.discount_rules],
-        audit_logs=[PropertyAuditLogResponse.model_validate(a, from_attributes=True) for a in detail.audit_logs],
     )
 
 

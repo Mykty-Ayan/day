@@ -54,7 +54,7 @@ export async function changeBookingStatus(
   id: string,
   status: BookingStatus,
 ): Promise<Booking> {
-  const res = await apiClient.post(`/bookings/${id}/status`, { status })
+  const res = await apiClient.post(`/bookings/${id}/status`, { target_status: status })
   return res.data
 }
 
@@ -156,7 +156,7 @@ export async function getGanttData(
   startDate: string,
   endDate: string,
 ): Promise<GanttData> {
-  const res = await apiClient.get('/bookings/gantt', {
+  const res = await apiClient.get('/gantt', {
     params: { start_date: startDate, end_date: endDate },
   })
   return res.data
