@@ -9,9 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.application.cleaning.assign_cleaner import AssignCleanerService
-from app.application.cleaning.change_task_status import (
-    ChangeCleaningTaskStatusService,
-)
+from app.application.cleaning.change_task_status import ChangeCleaningTaskStatusService
 from app.application.cleaning.create_task import (
     CreateCleaningTaskInput,
     CreateCleaningTaskService,
