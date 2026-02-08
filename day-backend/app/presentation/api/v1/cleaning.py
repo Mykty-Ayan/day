@@ -16,6 +16,8 @@ from app.application.cleaning.create_task import (
 )
 from app.application.cleaning.manage_checklists import (
     ChecklistItemInput as ChecklistItemInputApp,
+)
+from app.application.cleaning.manage_checklists import (
     CreateChecklistTemplateInput,
     ManageChecklistsService,
 )
@@ -25,7 +27,11 @@ from app.application.cleaning.rate_cleaner import (
 )
 from app.application.cleaning.submit_report import (
     ReportChecklistInput as ReportChecklistInputApp,
+)
+from app.application.cleaning.submit_report import (
     ReportPhotoInput as ReportPhotoInputApp,
+)
+from app.application.cleaning.submit_report import (
     SubmitReportInput,
     SubmitReportService,
 )
