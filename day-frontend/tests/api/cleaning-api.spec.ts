@@ -1,14 +1,5 @@
 import { test, expect } from '../fixtures/api-helpers'
-import { API_BASE, futureDate, uniqueName } from '../fixtures/test-data'
-
-// Cleaning status transitions
-const CLEANING_VALID_TRANSITIONS: Record<string, string[]> = {
-  pending: ['assigned'],
-  assigned: ['in_progress'],
-  in_progress: ['done'],
-  done: ['verified'],
-  verified: [],
-}
+import { futureDate, uniqueName } from '../fixtures/test-data'
 
 // Track cleaning task IDs for cleanup
 const cleaningIdsToCleanup: string[] = []

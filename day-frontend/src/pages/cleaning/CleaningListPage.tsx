@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion'
-import { Plus, Search, SprayCan } from 'lucide-react'
+import { Plus, SprayCan } from 'lucide-react'
 import { useState } from 'react'
 import { Link, useNavigate } from '@tanstack/react-router'
 

@@ -159,7 +159,7 @@ test.describe('Cleaning Task CRUD - E2E', () => {
 
   test('task appears in list after API creation', async ({ page, request }) => {
     const prop = await setupActiveProperty(request)
-    const task = await createTaskViaApi(request, prop.id)
+    await createTaskViaApi(request, prop.id)
 
     await page.goto('/cleaning')
     await page.waitForLoadState('networkidle')
@@ -172,10 +172,10 @@ test.describe('Cleaning Task CRUD - E2E', () => {
     const prop = await setupActiveProperty(request)
 
     // Create a pending task
-    const pendingTask = await createTaskViaApi(request, prop.id)
+    await createTaskViaApi(request, prop.id)
 
     // Create a task and assign it (make it assigned)
-    const assignedTask = await createTaskViaApi(request, prop.id, {
+    await createTaskViaApi(request, prop.id, {
       cleaner_id: '00000000-0000-0000-0000-000000000099',
     })
 
@@ -354,7 +354,7 @@ test.describe('Cleaning Task CRUD - E2E', () => {
 
   test('click task row navigates to detail', async ({ page, request }) => {
     const prop = await setupActiveProperty(request)
-    const task = await createTaskViaApi(request, prop.id)
+    await createTaskViaApi(request, prop.id)
 
     await page.goto('/cleaning')
     await page.waitForLoadState('networkidle')

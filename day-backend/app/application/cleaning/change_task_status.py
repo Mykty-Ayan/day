@@ -24,7 +24,6 @@ class ChangeCleaningTaskStatusService:
         if task.company_id != company_id:
             raise ValueError("Task does not belong to company")
 
-        old_status = task.status
         task.change_status(target_status)
 
         now = datetime.utcnow()

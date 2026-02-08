@@ -9,7 +9,9 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.application.cleaning.assign_cleaner import AssignCleanerService
-from app.application.cleaning.change_task_status import ChangeCleaningTaskStatusService
+from app.application.cleaning.change_task_status import (
+    ChangeCleaningTaskStatusService,
+)
 from app.application.cleaning.create_task import (
     CreateCleaningTaskInput,
     CreateCleaningTaskService,
@@ -19,7 +21,10 @@ from app.application.cleaning.manage_checklists import (
     CreateChecklistTemplateInput,
     ManageChecklistsService,
 )
-from app.application.cleaning.rate_cleaner import RateCleanerInput, RateCleanerService
+from app.application.cleaning.rate_cleaner import (
+    RateCleanerInput,
+    RateCleanerService,
+)
 from app.application.cleaning.submit_report import (
     ReportChecklistInput as ReportChecklistInputApp,
     ReportPhotoInput as ReportPhotoInputApp,
