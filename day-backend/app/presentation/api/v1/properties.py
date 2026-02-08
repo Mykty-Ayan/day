@@ -23,7 +23,6 @@ from app.application.property.manage_pricing import (
 from app.application.property.update_property import (
     UpdatePropertyInput,
     UpdatePropertyService,
-    _UNSET,
 )
 from app.domain.property.entities import DiscountRule, SeasonalPrice
 from app.domain.property.value_objects import PropertyStatus
@@ -65,6 +64,7 @@ amenity_router = APIRouter(prefix="/amenities", tags=["amenities"])
 
 
 # ---------- helpers ----------
+
 
 def _repos(session: AsyncSession):
     return {
@@ -154,8 +154,8 @@ async def create_property(
 
 @router.get("", response_model=PropertyListResponse)
 async def list_properties(
-    offset: int = Query(default=0, ge=0),
-    limit: int = Query(default=50, ge=1, le=100),
+    page: int = Query(default=1, ge=1),
+    per_page: int = Query(default=50, ge=1, le=100),
     status: PropertyStatus | None = None,
     search: str | None = None,
     session: AsyncSession = Depends(get_session),
@@ -163,14 +163,15 @@ async def list_properties(
 ):
     repos = _repos(session)
     svc = ListPropertiesService(repos["property"])
-    result = await svc.execute(
-        company_id, offset=offset, limit=limit, status=status, search=search
-    )
+    offset = (page - 1) * per_page
+    result = await svc.execute(company_id, offset=offset, limit=per_page, status=status, search=search)
+    pages = (result.total + per_page - 1) // per_page if result.total > 0 else 1
     return PropertyListResponse(
         items=[_to_property_response(p) for p in result.items],
         total=result.total,
-        offset=result.offset,
-        limit=result.limit,
+        page=page,
+        per_page=per_page,
+        pages=pages,
     )
 
 
@@ -182,21 +183,24 @@ async def get_property(
 ):
     repos = _repos(session)
     svc = GetPropertyService(
-        repos["property"], repos["photo"], repos["amenity"],
-        repos["pricing"], repos["seasonal"], repos["discount"], repos["audit"],
+        repos["property"],
+        repos["photo"],
+        repos["amenity"],
+        repos["pricing"],
+        repos["seasonal"],
+        repos["discount"],
+        repos["audit"],
     )
     try:
         detail = await svc.execute(property_id, company_id)
     except ValueError:
         raise HTTPException(status_code=404, detail="Property not found")
+    prop = _to_property_response(detail.property)
     return PropertyDetailResponse(
-        property=_to_property_response(detail.property),
+        **prop.model_dump(),
         photos=[PropertyPhotoResponse.model_validate(p, from_attributes=True) for p in detail.photos],
         amenities=[AmenityResponse.model_validate(a, from_attributes=True) for a in detail.amenities],
         pricing=PricingConfigResponse.model_validate(detail.pricing, from_attributes=True) if detail.pricing else None,
-        seasonal_prices=[SeasonalPriceResponse.model_validate(s, from_attributes=True) for s in detail.seasonal_prices],
-        discount_rules=[DiscountRuleResponse.model_validate(d, from_attributes=True) for d in detail.discount_rules],
-        audit_logs=[PropertyAuditLogResponse.model_validate(a, from_attributes=True) for a in detail.audit_logs],
     )
 
 
@@ -237,9 +241,7 @@ async def change_property_status(
     repos = _repos(session)
     svc = ChangePropertyStatusService(repos["property"], repos["audit"])
     try:
-        result = await svc.execute(
-            property_id, company_id, body.target_status, changed_by=user_id
-        )
+        result = await svc.execute(property_id, company_id, body.target_status, changed_by=user_id)
         await session.commit()
         return _to_property_response(result)
     except ValueError as e:
@@ -261,8 +263,11 @@ async def add_photo(
     svc = ManagePhotosService(repos["property"], repos["photo"])
     try:
         result = await svc.add_photo(
-            property_id, company_id, body.url,
-            sort_order=body.sort_order, is_cover=body.is_cover,
+            property_id,
+            company_id,
+            body.url,
+            sort_order=body.sort_order,
+            is_cover=body.is_cover,
         )
         await session.commit()
         return PropertyPhotoResponse.model_validate(result, from_attributes=True)
@@ -339,9 +344,7 @@ async def set_property_amenities(
     repos = _repos(session)
     svc = ManageAmenitiesService(repos["amenity"], repos["property"])
     try:
-        result = await svc.set_property_amenities(
-            property_id, company_id, body.amenity_ids
-        )
+        result = await svc.set_property_amenities(property_id, company_id, body.amenity_ids)
         await session.commit()
         return [AmenityResponse.model_validate(a, from_attributes=True) for a in result]
     except ValueError as e:
@@ -360,12 +363,11 @@ async def upsert_pricing(
     company_id: uuid.UUID = Depends(get_company_id),
 ):
     repos = _repos(session)
-    svc = ManagePricingService(
-        repos["property"], repos["pricing"], repos["seasonal"], repos["discount"]
-    )
+    svc = ManagePricingService(repos["property"], repos["pricing"], repos["seasonal"], repos["discount"])
     try:
         result = await svc.upsert_pricing(
-            property_id, company_id,
+            property_id,
+            company_id,
             PricingConfigInput(
                 base_price=body.base_price,
                 weekend_markup=body.weekend_markup,
@@ -389,9 +391,7 @@ async def get_pricing(
     company_id: uuid.UUID = Depends(get_company_id),
 ):
     repos = _repos(session)
-    svc = ManagePricingService(
-        repos["property"], repos["pricing"], repos["seasonal"], repos["discount"]
-    )
+    svc = ManagePricingService(repos["property"], repos["pricing"], repos["seasonal"], repos["discount"])
     try:
         return await svc.get_pricing(property_id, company_id)
     except ValueError:
@@ -413,12 +413,11 @@ async def add_seasonal_price(
     company_id: uuid.UUID = Depends(get_company_id),
 ):
     repos = _repos(session)
-    svc = ManagePricingService(
-        repos["property"], repos["pricing"], repos["seasonal"], repos["discount"]
-    )
+    svc = ManagePricingService(repos["property"], repos["pricing"], repos["seasonal"], repos["discount"])
     try:
         result = await svc.add_seasonal_price(
-            property_id, company_id,
+            property_id,
+            company_id,
             SeasonalPrice(
                 name=body.name,
                 start_date=body.start_date,
@@ -441,9 +440,7 @@ async def delete_seasonal_price(
     company_id: uuid.UUID = Depends(get_company_id),
 ):
     repos = _repos(session)
-    svc = ManagePricingService(
-        repos["property"], repos["pricing"], repos["seasonal"], repos["discount"]
-    )
+    svc = ManagePricingService(repos["property"], repos["pricing"], repos["seasonal"], repos["discount"])
     try:
         await svc.delete_seasonal_price(property_id, company_id, season_id)
         await session.commit()
@@ -462,9 +459,7 @@ async def list_seasonal_prices(
     company_id: uuid.UUID = Depends(get_company_id),
 ):
     repos = _repos(session)
-    svc = ManagePricingService(
-        repos["property"], repos["pricing"], repos["seasonal"], repos["discount"]
-    )
+    svc = ManagePricingService(repos["property"], repos["pricing"], repos["seasonal"], repos["discount"])
     try:
         return [
             SeasonalPriceResponse.model_validate(s, from_attributes=True)
@@ -489,12 +484,11 @@ async def add_discount_rule(
     company_id: uuid.UUID = Depends(get_company_id),
 ):
     repos = _repos(session)
-    svc = ManagePricingService(
-        repos["property"], repos["pricing"], repos["seasonal"], repos["discount"]
-    )
+    svc = ManagePricingService(repos["property"], repos["pricing"], repos["seasonal"], repos["discount"])
     try:
         result = await svc.add_discount_rule(
-            property_id, company_id,
+            property_id,
+            company_id,
             DiscountRule(
                 min_nights=body.min_nights,
                 discount_percent=body.discount_percent,
@@ -516,9 +510,7 @@ async def delete_discount_rule(
     company_id: uuid.UUID = Depends(get_company_id),
 ):
     repos = _repos(session)
-    svc = ManagePricingService(
-        repos["property"], repos["pricing"], repos["seasonal"], repos["discount"]
-    )
+    svc = ManagePricingService(repos["property"], repos["pricing"], repos["seasonal"], repos["discount"])
     try:
         await svc.delete_discount_rule(property_id, company_id, discount_id)
         await session.commit()
@@ -537,9 +529,7 @@ async def list_discount_rules(
     company_id: uuid.UUID = Depends(get_company_id),
 ):
     repos = _repos(session)
-    svc = ManagePricingService(
-        repos["property"], repos["pricing"], repos["seasonal"], repos["discount"]
-    )
+    svc = ManagePricingService(repos["property"], repos["pricing"], repos["seasonal"], repos["discount"])
     try:
         return [
             DiscountRuleResponse.model_validate(d, from_attributes=True)
@@ -566,4 +556,4 @@ async def get_audit_log(
     if prop is None or prop.company_id != company_id:
         raise HTTPException(status_code=404, detail="Property not found")
     logs = await repos["audit"].list_by_property(property_id, offset=offset, limit=limit)
-    return [PropertyAuditLogResponse.model_validate(l, from_attributes=True) for l in logs]
+    return [PropertyAuditLogResponse.model_validate(entry, from_attributes=True) for entry in logs]

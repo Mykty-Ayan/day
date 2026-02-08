@@ -1,0 +1,235 @@
+import { useState } from 'react'
+import { motion } from 'framer-motion'
+import { Plus, Search, ChevronLeft, ChevronRight, ArrowRight } from 'lucide-react'
+import { Link, useNavigate } from '@tanstack/react-router'
+import { useBookings } from '../../hooks/useBookings'
+import { useProperties } from '../../hooks/useProperties'
+import type { BookingStatus, BookingSource } from '../../types/booking'
+import BookingStatusBadge from '../../components/booking/BookingStatusBadge'
+
+const STATUS_TABS: { value: BookingStatus | 'all'; label: string }[] = [
+  { value: 'all', label: 'All' },
+  { value: 'pending', label: 'Pending' },
+  { value: 'confirmed', label: 'Confirmed' },
+  { value: 'checked_in', label: 'Checked In' },
+  { value: 'completed', label: 'Completed' },
+  { value: 'cancelled', label: 'Cancelled' },
+]
+
+const SOURCE_OPTIONS: { value: BookingSource | 'all'; label: string }[] = [
+  { value: 'all', label: 'All Sources' },
+  { value: 'direct', label: 'Direct' },
+  { value: 'booking', label: 'Booking.com' },
+  { value: 'airbnb', label: 'Airbnb' },
+  { value: 'other', label: 'Other' },
+]
+
+export default function BookingListPage() {
+  const navigate = useNavigate()
+  const [search, setSearch] = useState('')
+  const [statusFilter, setStatusFilter] = useState<BookingStatus | 'all'>('all')
+  const [sourceFilter, setSourceFilter] = useState<BookingSource | 'all'>('all')
+  const [propertyFilter, setPropertyFilter] = useState('')
+  const [page, setPage] = useState(1)
+
+  const { data: propertiesData } = useProperties({ per_page: 100, status: 'active' })
+  const properties = propertiesData?.items ?? []
+
+  const { data, isLoading } = useBookings({
+    page,
+    per_page: 20,
+    status: statusFilter === 'all' ? undefined : statusFilter,
+    source: sourceFilter === 'all' ? undefined : sourceFilter,
+    property_id: propertyFilter || undefined,
+    search: search || undefined,
+  })
+
+  return (
+    <div className="p-6 max-w-7xl mx-auto w-full">
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4 }}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between mb-6">
+          <h1 className="text-xl font-bold text-gray-900">Bookings</h1>
+          <Link to="/bookings/new">
+            <motion.button
+              whileTap={{ scale: 0.97 }}
+              className="flex items-center gap-2 bg-black text-white hover:bg-gray-800 rounded-xl px-6 py-2.5 font-semibold shadow-lg transition-colors"
+            >
+              <Plus className="w-4 h-4" />
+              New Booking
+            </motion.button>
+          </Link>
+        </div>
+
+        {/* Search and filters */}
+        <div className="flex flex-col gap-3 mb-6">
+          <div className="flex flex-col sm:flex-row gap-3">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => { setSearch(e.target.value); setPage(1) }}
+                placeholder="Search by guest name or phone..."
+                className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 pl-9 outline-none focus:ring-2 focus:ring-black/10 text-gray-800 text-sm"
+              />
+            </div>
+            <select
+              value={propertyFilter}
+              onChange={(e) => { setPropertyFilter(e.target.value); setPage(1) }}
+              className="bg-gray-50 border border-gray-200 rounded-xl p-3 outline-none focus:ring-2 focus:ring-black/10 text-sm text-gray-700"
+            >
+              <option value="">All Properties</option>
+              {properties.map((p) => (
+                <option key={p.id} value={p.id}>{p.internal_name}</option>
+              ))}
+            </select>
+            <select
+              value={sourceFilter}
+              onChange={(e) => { setSourceFilter(e.target.value as BookingSource | 'all'); setPage(1) }}
+              className="bg-gray-50 border border-gray-200 rounded-xl p-3 outline-none focus:ring-2 focus:ring-black/10 text-sm text-gray-700"
+            >
+              {SOURCE_OPTIONS.map((s) => (
+                <option key={s.value} value={s.value}>{s.label}</option>
+              ))}
+            </select>
+          </div>
+          <div className="flex gap-1 bg-gray-50 border border-gray-200 rounded-xl p-1 self-start">
+            {STATUS_TABS.map((tab) => (
+              <button
+                key={tab.value}
+                onClick={() => { setStatusFilter(tab.value); setPage(1) }}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${
+                  statusFilter === tab.value
+                    ? 'bg-white text-gray-900 shadow-sm'
+                    : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Content */}
+        {isLoading ? (
+          <div className="flex items-center justify-center py-20">
+            <div className="w-6 h-6 border-2 border-gray-200 border-t-gray-900 rounded-full animate-spin" />
+          </div>
+        ) : !data || data.items.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-20">
+            <p className="text-sm text-gray-500 mb-4">No bookings found</p>
+            <Link to="/bookings/new">
+              <motion.button
+                whileTap={{ scale: 0.97 }}
+                className="flex items-center gap-2 bg-black text-white hover:bg-gray-800 rounded-xl px-6 py-2.5 font-semibold shadow-lg transition-colors"
+              >
+                <Plus className="w-4 h-4" />
+                Create your first booking
+              </motion.button>
+            </Link>
+          </div>
+        ) : (
+          <>
+            {/* Table */}
+            <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-gray-100 bg-gray-50">
+                    <th className="text-left px-4 py-3 text-xs font-bold text-gray-400 uppercase tracking-wider">Property</th>
+                    <th className="text-left px-4 py-3 text-xs font-bold text-gray-400 uppercase tracking-wider">Guest</th>
+                    <th className="text-left px-4 py-3 text-xs font-bold text-gray-400 uppercase tracking-wider">Dates</th>
+                    <th className="text-left px-4 py-3 text-xs font-bold text-gray-400 uppercase tracking-wider">Status</th>
+                    <th className="text-left px-4 py-3 text-xs font-bold text-gray-400 uppercase tracking-wider">Source</th>
+                    <th className="text-right px-4 py-3 text-xs font-bold text-gray-400 uppercase tracking-wider">Total</th>
+                    <th className="w-10" />
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.items.map((booking, i) => (
+                    <motion.tr
+                      key={booking.id}
+                      initial={{ opacity: 0, y: 5 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.2, delay: i * 0.02 }}
+                      onClick={() => navigate({ to: '/bookings/$bookingId', params: { bookingId: booking.id } })}
+                      className="border-b border-gray-50 hover:bg-gray-50 cursor-pointer transition-colors"
+                    >
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-2">
+                          <div
+                            className="w-2 h-2 rounded-full shrink-0"
+                            style={{ backgroundColor: booking.gantt_color || '#3B82F6' }}
+                          />
+                          <span className="text-sm font-medium text-gray-900 truncate max-w-[160px]">
+                            {booking.property_internal_name || booking.property_name}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className="text-sm text-gray-700">{booking.guest_name}</span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className="text-sm text-gray-600">
+                          {formatDate(booking.check_in)} <ArrowRight className="w-3 h-3 inline text-gray-400" /> {formatDate(booking.check_out)}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <BookingStatusBadge status={booking.status} />
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className="text-xs text-gray-500 capitalize">{booking.source}</span>
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <span className="text-sm font-semibold text-gray-900">
+                          ${booking.total_price.toLocaleString()}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <ChevronRight className="w-4 h-4 text-gray-300" />
+                      </td>
+                    </motion.tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Pagination */}
+            {data.pages > 1 && (
+              <div className="flex items-center justify-center gap-2 mt-8">
+                <motion.button
+                  whileTap={{ scale: 0.97 }}
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  disabled={page <= 1}
+                  className="p-2 rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </motion.button>
+                <span className="text-xs font-bold text-gray-500 px-3">
+                  Page {data.page} of {data.pages}
+                </span>
+                <motion.button
+                  whileTap={{ scale: 0.97 }}
+                  onClick={() => setPage((p) => Math.min(data.pages, p + 1))}
+                  disabled={page >= data.pages}
+                  className="p-2 rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </motion.button>
+              </div>
+            )}
+          </>
+        )}
+      </motion.div>
+    </div>
+  )
+}
+
+function formatDate(dateStr: string): string {
+  const d = new Date(dateStr)
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+}

@@ -47,7 +47,7 @@ export async function changePropertyStatus(
   id: string,
   status: PropertyStatus,
 ): Promise<Property> {
-  const res = await apiClient.post(`/properties/${id}/status`, { status })
+  const res = await apiClient.post(`/properties/${id}/status`, { target_status: status })
   return res.data
 }
 

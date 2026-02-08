@@ -1,5 +1,6 @@
 import { createRootRoute, Outlet, Link, useRouterState } from '@tanstack/react-router'
-import { Building2, CalendarRange } from 'lucide-react'
+import { Building2, CalendarRange, CalendarDays, Clock } from 'lucide-react'
+import ToastContainer from '../components/ui/Toast'
 
 export const Route = createRootRoute({
   component: RootLayout,
@@ -8,6 +9,8 @@ export const Route = createRootRoute({
 const navItems = [
   { to: '/properties', label: 'Properties', icon: Building2 },
   { to: '/properties/gantt', label: 'Chess Chart', icon: CalendarRange },
+  { to: '/bookings', label: 'Bookings', icon: CalendarDays },
+  { to: '/bookings/today', label: 'Today', icon: Clock },
 ] as const
 
 function RootLayout() {
@@ -42,6 +45,7 @@ function RootLayout() {
       <main className="flex flex-1 flex-col">
         <Outlet />
       </main>
+      <ToastContainer />
     </div>
   )
 }

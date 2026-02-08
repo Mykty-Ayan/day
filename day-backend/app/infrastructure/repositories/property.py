@@ -6,7 +6,6 @@ from decimal import Decimal
 
 from sqlalchemy import delete, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
 
 from app.domain.property.entities import (
     Amenity,
@@ -42,7 +41,6 @@ from app.infrastructure.models.property import (
     PropertyPhotoModel,
     SeasonalPriceModel,
 )
-
 
 # ---------- helpers ----------
 

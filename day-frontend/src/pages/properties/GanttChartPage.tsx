@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react'
 import { motion } from 'framer-motion'
 import { ChevronLeft, ChevronRight, CalendarRange } from 'lucide-react'
-import { useProperties } from '../../hooks/useProperties'
+import { useGanttData } from '../../hooks/useBookings'
 import GanttChart from '../../components/property/GanttChart'
 import type { GanttRow } from '../../components/property/GanttChart'
 
@@ -10,17 +10,27 @@ const monthNames = [
   'July', 'August', 'September', 'October', 'November', 'December',
 ]
 
+function toDateStr(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
 export default function GanttChartPage() {
   const now = new Date()
   const [year, setYear] = useState(now.getFullYear())
   const [month, setMonth] = useState(now.getMonth())
 
-  const { data, isLoading } = useProperties({ per_page: 100 })
+  const startDate = toDateStr(new Date(year, month, 1))
+  const endDate = toDateStr(new Date(year, month + 1, 0))
+
+  const { data: ganttData, isLoading } = useGanttData(startDate, endDate)
 
   const rows: GanttRow[] = useMemo(() => {
-    if (!data) return []
-    return data.items.map((property) => ({ property }))
-  }, [data])
+    if (!ganttData) return []
+    return ganttData.properties.map((p) => ({
+      property: p,
+      bookings: p.bookings,
+    }))
+  }, [ganttData])
 
   function prevMonth() {
     if (month === 0) {

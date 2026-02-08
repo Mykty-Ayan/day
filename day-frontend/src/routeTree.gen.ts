@@ -11,9 +11,13 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as PropertiesIndexRouteImport } from './routes/properties/index'
+import { Route as BookingsIndexRouteImport } from './routes/bookings/index'
 import { Route as PropertiesNewRouteImport } from './routes/properties/new'
 import { Route as PropertiesGanttRouteImport } from './routes/properties/gantt'
 import { Route as PropertiesPropertyIdRouteImport } from './routes/properties/$propertyId'
+import { Route as BookingsTodayRouteImport } from './routes/bookings/today'
+import { Route as BookingsNewRouteImport } from './routes/bookings/new'
+import { Route as BookingsBookingIdRouteImport } from './routes/bookings/$bookingId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -23,6 +27,11 @@ const IndexRoute = IndexRouteImport.update({
 const PropertiesIndexRoute = PropertiesIndexRouteImport.update({
   id: '/properties/',
   path: '/properties/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const BookingsIndexRoute = BookingsIndexRouteImport.update({
+  id: '/bookings/',
+  path: '/bookings/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PropertiesNewRoute = PropertiesNewRouteImport.update({
@@ -40,58 +49,101 @@ const PropertiesPropertyIdRoute = PropertiesPropertyIdRouteImport.update({
   path: '/properties/$propertyId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const BookingsTodayRoute = BookingsTodayRouteImport.update({
+  id: '/bookings/today',
+  path: '/bookings/today',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const BookingsNewRoute = BookingsNewRouteImport.update({
+  id: '/bookings/new',
+  path: '/bookings/new',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const BookingsBookingIdRoute = BookingsBookingIdRouteImport.update({
+  id: '/bookings/$bookingId',
+  path: '/bookings/$bookingId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/bookings/$bookingId': typeof BookingsBookingIdRoute
+  '/bookings/new': typeof BookingsNewRoute
+  '/bookings/today': typeof BookingsTodayRoute
   '/properties/$propertyId': typeof PropertiesPropertyIdRoute
   '/properties/gantt': typeof PropertiesGanttRoute
   '/properties/new': typeof PropertiesNewRoute
+  '/bookings/': typeof BookingsIndexRoute
   '/properties/': typeof PropertiesIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/bookings/$bookingId': typeof BookingsBookingIdRoute
+  '/bookings/new': typeof BookingsNewRoute
+  '/bookings/today': typeof BookingsTodayRoute
   '/properties/$propertyId': typeof PropertiesPropertyIdRoute
   '/properties/gantt': typeof PropertiesGanttRoute
   '/properties/new': typeof PropertiesNewRoute
+  '/bookings': typeof BookingsIndexRoute
   '/properties': typeof PropertiesIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/bookings/$bookingId': typeof BookingsBookingIdRoute
+  '/bookings/new': typeof BookingsNewRoute
+  '/bookings/today': typeof BookingsTodayRoute
   '/properties/$propertyId': typeof PropertiesPropertyIdRoute
   '/properties/gantt': typeof PropertiesGanttRoute
   '/properties/new': typeof PropertiesNewRoute
+  '/bookings/': typeof BookingsIndexRoute
   '/properties/': typeof PropertiesIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/bookings/$bookingId'
+    | '/bookings/new'
+    | '/bookings/today'
     | '/properties/$propertyId'
     | '/properties/gantt'
     | '/properties/new'
+    | '/bookings/'
     | '/properties/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/bookings/$bookingId'
+    | '/bookings/new'
+    | '/bookings/today'
     | '/properties/$propertyId'
     | '/properties/gantt'
     | '/properties/new'
+    | '/bookings'
     | '/properties'
   id:
     | '__root__'
     | '/'
+    | '/bookings/$bookingId'
+    | '/bookings/new'
+    | '/bookings/today'
     | '/properties/$propertyId'
     | '/properties/gantt'
     | '/properties/new'
+    | '/bookings/'
     | '/properties/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  BookingsBookingIdRoute: typeof BookingsBookingIdRoute
+  BookingsNewRoute: typeof BookingsNewRoute
+  BookingsTodayRoute: typeof BookingsTodayRoute
   PropertiesPropertyIdRoute: typeof PropertiesPropertyIdRoute
   PropertiesGanttRoute: typeof PropertiesGanttRoute
   PropertiesNewRoute: typeof PropertiesNewRoute
+  BookingsIndexRoute: typeof BookingsIndexRoute
   PropertiesIndexRoute: typeof PropertiesIndexRoute
 }
 
@@ -109,6 +161,13 @@ declare module '@tanstack/react-router' {
       path: '/properties'
       fullPath: '/properties/'
       preLoaderRoute: typeof PropertiesIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/bookings/': {
+      id: '/bookings/'
+      path: '/bookings'
+      fullPath: '/bookings/'
+      preLoaderRoute: typeof BookingsIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/properties/new': {
@@ -132,14 +191,39 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PropertiesPropertyIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/bookings/today': {
+      id: '/bookings/today'
+      path: '/bookings/today'
+      fullPath: '/bookings/today'
+      preLoaderRoute: typeof BookingsTodayRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/bookings/new': {
+      id: '/bookings/new'
+      path: '/bookings/new'
+      fullPath: '/bookings/new'
+      preLoaderRoute: typeof BookingsNewRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/bookings/$bookingId': {
+      id: '/bookings/$bookingId'
+      path: '/bookings/$bookingId'
+      fullPath: '/bookings/$bookingId'
+      preLoaderRoute: typeof BookingsBookingIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  BookingsBookingIdRoute: BookingsBookingIdRoute,
+  BookingsNewRoute: BookingsNewRoute,
+  BookingsTodayRoute: BookingsTodayRoute,
   PropertiesPropertyIdRoute: PropertiesPropertyIdRoute,
   PropertiesGanttRoute: PropertiesGanttRoute,
   PropertiesNewRoute: PropertiesNewRoute,
+  BookingsIndexRoute: BookingsIndexRoute,
   PropertiesIndexRoute: PropertiesIndexRoute,
 }
 export const routeTree = rootRouteImport

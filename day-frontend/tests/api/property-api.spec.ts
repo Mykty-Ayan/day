@@ -38,7 +38,7 @@ test.describe('Property API - CRUD', () => {
     createProperty,
     api,
   }) => {
-    const property = await createProperty({ internal_name: 'unique-dup-test' })
+    await createProperty({ internal_name: 'unique-dup-test' })
     const res = await api.post('/properties', {
       data: createTestProperty({ internal_name: 'unique-dup-test' }),
     })
