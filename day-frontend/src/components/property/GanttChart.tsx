@@ -1,14 +1,13 @@
 import { useMemo, useRef, useState, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useNavigate } from '@tanstack/react-router'
-import type { Property } from '../../types/property'
-import type { Booking, BookingStatus } from '../../types/booking'
+import type { Booking, BookingStatus, GanttPropertySummary } from '../../types/booking'
 import { showToast } from '../ui/Toast'
 import { moveBooking } from '../../api/bookings'
 import { useQueryClient } from '@tanstack/react-query'
 
 export interface GanttRow {
-  property: Property
+  property: GanttPropertySummary
   bookings: Booking[]
 }
 

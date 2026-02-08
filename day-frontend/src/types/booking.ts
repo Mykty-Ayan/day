@@ -1,4 +1,3 @@
-import type { Property } from './property'
 
 export type BookingStatus = 'pending' | 'confirmed' | 'checked_in' | 'checked_out' | 'completed' | 'cancelled'
 export type BookingSource = 'direct' | 'booking' | 'airbnb' | 'other'
@@ -126,12 +125,18 @@ export interface PriceCalculation {
   total: number
 }
 
+export interface GanttPropertySummary {
+  id: string
+  name: string
+  internal_name: string
+  type: string
+}
+
 export interface GanttData {
   properties: GanttPropertyRow[]
 }
 
-export interface GanttPropertyRow {
-  property: Property
+export interface GanttPropertyRow extends GanttPropertySummary {
   bookings: Booking[]
 }
 
