@@ -8,7 +8,6 @@ import {
 } from '../fixtures/test-data'
 
 test.describe('Booking CRUD - E2E', () => {
-  let propertyId: string
   let bookingIdsToCleanup: string[] = []
   let propertyIdsToCleanup: string[] = []
 
@@ -45,10 +44,10 @@ test.describe('Booking CRUD - E2E', () => {
 
   test.afterEach(async ({ request }) => {
     for (const id of bookingIdsToCleanup) {
-      try { await request.delete(`${API_BASE}/bookings/${id}`) } catch {}
+      try { await request.delete(`${API_BASE}/bookings/${id}`) } catch { /* cleanup */ }
     }
     for (const id of propertyIdsToCleanup) {
-      try { await request.delete(`${API_BASE}/properties/${id}`) } catch {}
+      try { await request.delete(`${API_BASE}/properties/${id}`) } catch { /* cleanup */ }
     }
     bookingIdsToCleanup = []
     propertyIdsToCleanup = []

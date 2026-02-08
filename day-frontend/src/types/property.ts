@@ -111,7 +111,7 @@ export interface PropertyCreateInput {
   house_rules?: string
 }
 
-export interface PropertyUpdateInput extends Partial<PropertyCreateInput> {}
+export type PropertyUpdateInput = Partial<PropertyCreateInput>
 
 export interface PricingInput {
   base_price: number

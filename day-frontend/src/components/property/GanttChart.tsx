@@ -151,7 +151,7 @@ export default function GanttChart({ rows, year, month, onCellClick }: Props) {
     } else {
       navigate({
         to: '/bookings/new',
-        search: { property_id: propertyId, check_in: dateStr } as any,
+        search: { property_id: propertyId, check_in: dateStr } as Record<string, string>,
       })
     }
   }

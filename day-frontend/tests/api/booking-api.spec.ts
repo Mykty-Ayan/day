@@ -6,7 +6,6 @@ import {
   createTestComment,
   createTestPriceCalcInput,
   futureDate,
-  BOOKING_VALID_TRANSITIONS,
   type BookingStatus,
 } from '../fixtures/test-data'
 

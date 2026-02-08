@@ -23,7 +23,6 @@ from app.application.booking.price_calculator import PriceCalculatorService
 from app.application.booking.update_booking import (
     UpdateBookingInput,
     UpdateBookingService,
-    _UNSET,
 )
 from app.domain.booking.entities import BookingComment, BookingFile
 from app.domain.booking.value_objects import BookingSource, BookingStatus
@@ -61,9 +60,9 @@ from app.presentation.schemas.booking import (
     DepositAction,
     DepositCreate,
     DepositResponse,
+    GanttBookingResponse,
     GanttDataResponse,
     GanttPropertyResponse,
-    GanttBookingResponse,
     GuestListResponse,
     GuestResponse,
     PaymentCreate,
@@ -103,7 +102,12 @@ def _price_calculator(repos):
     return PriceCalculatorService(repos["pricing"], repos["seasonal"], repos["discount"])
 
 
-def _to_booking_response(b, guest_name: str | None = None, property_name: str | None = None, property_internal_name: str | None = None) -> BookingResponse:
+def _to_booking_response(
+    b,
+    guest_name: str | None = None,
+    property_name: str | None = None,
+    property_internal_name: str | None = None,
+) -> BookingResponse:
     return BookingResponse(
         id=b.id,
         company_id=b.company_id,
@@ -141,8 +145,11 @@ async def create_booking(
 ):
     repos = _repos(session)
     svc = CreateBookingService(
-        repos["booking"], repos["guest"], repos["property"],
-        repos["audit"], _price_calculator(repos),
+        repos["booking"],
+        repos["guest"],
+        repos["property"],
+        repos["audit"],
+        _price_calculator(repos),
     )
     try:
         result = await svc.execute(
@@ -185,9 +192,13 @@ async def list_bookings(
     svc = ListBookingsService(repos["booking"])
     result = await svc.execute(
         company_id,
-        offset=offset, limit=limit, status=status,
-        property_id=property_id, source=source,
-        date_from=date_from, date_to=date_to,
+        offset=offset,
+        limit=limit,
+        status=status,
+        property_id=property_id,
+        source=source,
+        date_from=date_from,
+        date_to=date_to,
     )
 
     # Enrich with guest and property names
@@ -195,12 +206,14 @@ async def list_bookings(
     for b in result.items:
         guest = await repos["guest"].get_by_id(b.guest_id)
         prop = await repos["property"].get_by_id(b.property_id)
-        items.append(_to_booking_response(
-            b,
-            guest_name=guest.name if guest else None,
-            property_name=prop.name if prop else None,
-            property_internal_name=prop.internal_name if prop else None,
-        ))
+        items.append(
+            _to_booking_response(
+                b,
+                guest_name=guest.name if guest else None,
+                property_name=prop.name if prop else None,
+                property_internal_name=prop.internal_name if prop else None,
+            )
+        )
 
     return BookingListResponse(
         items=items,
@@ -221,7 +234,9 @@ async def get_today(
 
     # Bookings checking in today
     all_bookings = await repos["booking"].list_by_company_date_range(
-        company_id, today, tomorrow,
+        company_id,
+        today,
+        tomorrow,
     )
 
     check_ins = []
@@ -257,9 +272,15 @@ async def get_booking(
 ):
     repos = _repos(session)
     svc = GetBookingService(
-        repos["booking"], repos["guest"], repos["property"],
-        repos["payment"], repos["deposit"], repos["file"],
-        repos["comment"], repos["contract"], repos["audit"],
+        repos["booking"],
+        repos["guest"],
+        repos["property"],
+        repos["payment"],
+        repos["deposit"],
+        repos["file"],
+        repos["comment"],
+        repos["contract"],
+        repos["audit"],
     )
     try:
         detail = await svc.execute(booking_id, company_id)
@@ -318,9 +339,7 @@ async def change_booking_status(
     repos = _repos(session)
     svc = ChangeBookingStatusService(repos["booking"], repos["audit"])
     try:
-        result = await svc.execute(
-            booking_id, company_id, body.target_status, changed_by=user_id
-        )
+        result = await svc.execute(booking_id, company_id, body.target_status, changed_by=user_id)
         await session.commit()
         return _to_booking_response(result)
     except ValueError as e:
@@ -339,9 +358,7 @@ async def move_booking(
     repos = _repos(session)
     svc = MoveBookingService(repos["booking"], repos["property"], repos["audit"])
     try:
-        result = await svc.execute(
-            booking_id, company_id, body.target_property_id, changed_by=user_id
-        )
+        result = await svc.execute(booking_id, company_id, body.target_property_id, changed_by=user_id)
         await session.commit()
         return _to_booking_response(result)
     except ValueError as e:
@@ -362,8 +379,11 @@ async def calculate_price(
     calc = _price_calculator(repos)
     try:
         result = await calc.calculate(
-            body.property_id, body.check_in, body.check_out,
-            body.adults_count, body.children_count,
+            body.property_id,
+            body.check_in,
+            body.check_out,
+            body.adults_count,
+            body.children_count,
         )
         return PriceCalculateResponse(
             nights=result.nights,
@@ -392,7 +412,12 @@ async def add_payment(
     svc = ManagePaymentsService(repos["booking"], repos["payment"])
     try:
         result = await svc.add_payment(
-            booking_id, company_id, body.amount, body.type, body.method, body.note,
+            booking_id,
+            company_id,
+            body.amount,
+            body.type,
+            body.method,
+            body.note,
         )
         await session.commit()
         return PaymentResponse.model_validate(result, from_attributes=True)
@@ -452,8 +477,12 @@ async def deposit_action(
     svc = ManageDepositsService(repos["booking"], repos["deposit"])
     try:
         result = await svc.perform_action(
-            booking_id, deposit_id, company_id,
-            body.action, body.held_amount, body.reason,
+            booking_id,
+            deposit_id,
+            company_id,
+            body.action,
+            body.held_amount,
+            body.reason,
         )
         await session.commit()
         return DepositResponse.model_validate(result, from_attributes=True)
@@ -590,7 +619,7 @@ async def get_audit_log(
     if booking is None or booking.company_id != company_id:
         raise HTTPException(status_code=404, detail="Booking not found")
     logs = await repos["audit"].list_by_booking(booking_id, offset=offset, limit=limit)
-    return [BookingAuditLogResponse.model_validate(l, from_attributes=True) for l in logs]
+    return [BookingAuditLogResponse.model_validate(entry, from_attributes=True) for entry in logs]
 
 
 # ---------- Gantt ----------
@@ -648,7 +677,10 @@ async def list_guests(
 ):
     repos = _repos(session)
     guests = await repos["guest"].get_by_company(
-        company_id, offset=offset, limit=limit, search=search,
+        company_id,
+        offset=offset,
+        limit=limit,
+        search=search,
     )
     total = await repos["guest"].count_by_company(company_id, search=search)
     return GuestListResponse(

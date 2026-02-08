@@ -3,7 +3,6 @@ import {
   createTestProperty,
   createTestBooking,
   createTestPricing,
-  futureDate,
   API_BASE,
 } from '../fixtures/test-data'
 
@@ -53,10 +52,10 @@ test.describe('Booking Status Transitions - E2E', () => {
 
   test.afterEach(async ({ request }) => {
     for (const id of bookingIdsToCleanup) {
-      try { await request.delete(`${API_BASE}/bookings/${id}`) } catch {}
+      try { await request.delete(`${API_BASE}/bookings/${id}`) } catch { /* cleanup */ }
     }
     for (const id of propertyIdsToCleanup) {
-      try { await request.delete(`${API_BASE}/properties/${id}`) } catch {}
+      try { await request.delete(`${API_BASE}/properties/${id}`) } catch { /* cleanup */ }
     }
     bookingIdsToCleanup = []
     propertyIdsToCleanup = []

@@ -27,12 +27,19 @@ import {
   useDeleteBookingFile,
 } from '../../hooks/useBookings'
 import type {
+  Booking,
+  BookingAuditLog,
+  BookingComment,
+  BookingDeposit,
+  BookingFile,
+  BookingPayment,
   BookingStatus,
-  PaymentInput,
-  PaymentType,
-  PaymentMethod,
-  DepositActionInput,
   DepositAction,
+  DepositActionInput,
+  Guest,
+  PaymentInput,
+  PaymentMethod,
+  PaymentType,
 } from '../../types/booking'
 import BookingStatusBadge from '../../components/booking/BookingStatusBadge'
 
@@ -188,7 +195,7 @@ export default function BookingDetailPage() {
 }
 
 // --- Overview Tab ---
-function OverviewTab({ booking, guest }: { booking: any; guest: any }) {
+function OverviewTab({ booking, guest }: { booking: Booking; guest: Guest }) {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
       {/* Booking Info */}
@@ -240,7 +247,7 @@ function OverviewTab({ booking, guest }: { booking: any; guest: any }) {
   )
 }
 
-function InfoRow({ icon: Icon, label, value }: { icon: any; label: string; value: string }) {
+function InfoRow({ icon: Icon, label, value }: { icon: React.ComponentType<{ className?: string }>; label: string; value: string }) {
   return (
     <div className="flex items-center gap-3">
       <Icon className="w-4 h-4 text-gray-400" />
@@ -251,7 +258,7 @@ function InfoRow({ icon: Icon, label, value }: { icon: any; label: string; value
 }
 
 // --- Payments Tab ---
-function PaymentsTab({ bookingId, payments, totalPrice }: { bookingId: string; payments: any[]; totalPrice: number }) {
+function PaymentsTab({ bookingId, payments, totalPrice }: { bookingId: string; payments: BookingPayment[]; totalPrice: number }) {
   const addPayment = useAddPayment(bookingId)
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState({ amount: '', type: 'payment' as PaymentType, method: 'cash' as PaymentMethod, note: '' })
@@ -406,7 +413,7 @@ function PaymentsTab({ bookingId, payments, totalPrice }: { bookingId: string; p
 }
 
 // --- Deposits Tab ---
-function DepositsTab({ bookingId, deposits }: { bookingId: string; deposits: any[] }) {
+function DepositsTab({ bookingId, deposits }: { bookingId: string; deposits: BookingDeposit[] }) {
   const createDep = useCreateDeposit(bookingId)
   const [newAmount, setNewAmount] = useState('')
   const [showCreate, setShowCreate] = useState(false)
@@ -475,7 +482,7 @@ function DepositsTab({ bookingId, deposits }: { bookingId: string; deposits: any
   )
 }
 
-function DepositCard({ bookingId, deposit }: { bookingId: string; deposit: any }) {
+function DepositCard({ bookingId, deposit }: { bookingId: string; deposit: BookingDeposit }) {
   const depAction = useDepositAction(bookingId, deposit.id)
   const [actionForm, setActionForm] = useState<{ action: DepositAction; held_amount: string; reason: string } | null>(null)
 
@@ -594,7 +601,7 @@ function DepositCard({ bookingId, deposit }: { bookingId: string; deposit: any }
 }
 
 // --- Files & Comments Tab ---
-function FilesCommentsTab({ bookingId, files, comments }: { bookingId: string; files: any[]; comments: any[] }) {
+function FilesCommentsTab({ bookingId, files, comments }: { bookingId: string; files: BookingFile[]; comments: BookingComment[] }) {
   const uploadFile = useUploadBookingFile(bookingId)
   const deleteFile = useDeleteBookingFile(bookingId)
   const addComment = useAddComment(bookingId)
@@ -702,7 +709,7 @@ function FilesCommentsTab({ bookingId, files, comments }: { bookingId: string; f
 }
 
 // --- History Tab ---
-function HistoryTab({ auditLogs }: { auditLogs: any[] }) {
+function HistoryTab({ auditLogs }: { auditLogs: BookingAuditLog[] }) {
   return (
     <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
       <h2 className="text-sm font-bold text-gray-900 mb-4">Activity History</h2>

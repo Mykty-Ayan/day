@@ -1,15 +1,15 @@
 import asyncio
 from logging.config import fileConfig
 
-from alembic import context
 from sqlalchemy import pool
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
-from app.infrastructure.database import Base
+import app.infrastructure.models.booking  # noqa: F401
 
 # Import all ORM models so Base.metadata is populated for autogenerate
 import app.infrastructure.models.property  # noqa: F401
-import app.infrastructure.models.booking  # noqa: F401
+from alembic import context
+from app.infrastructure.database import Base
 
 config = context.config
 if config.config_file_name is not None:

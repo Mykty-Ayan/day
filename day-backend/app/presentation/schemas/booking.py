@@ -10,13 +10,11 @@ from app.domain.booking.value_objects import (
     BookingAuditAction,
     BookingSource,
     BookingStatus,
-    ContractStatus,
     DepositStatus,
     PaymentMethod,
     PaymentStatus,
     PaymentType,
 )
-
 
 # ---------- Guest ----------
 

@@ -13,7 +13,6 @@ from app.domain.property.value_objects import (
     PropertyType,
 )
 
-
 # ---------- Property ----------
 
 

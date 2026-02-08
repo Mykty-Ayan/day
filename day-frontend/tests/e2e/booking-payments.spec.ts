@@ -3,7 +3,6 @@ import {
   createTestProperty,
   createTestBooking,
   createTestPricing,
-  futureDate,
   API_BASE,
 } from '../fixtures/test-data'
 
@@ -42,10 +41,10 @@ test.describe('Booking Payments - E2E', () => {
 
   test.afterEach(async ({ request }) => {
     for (const id of bookingIdsToCleanup) {
-      try { await request.delete(`${API_BASE}/bookings/${id}`) } catch {}
+      try { await request.delete(`${API_BASE}/bookings/${id}`) } catch { /* cleanup */ }
     }
     for (const id of propertyIdsToCleanup) {
-      try { await request.delete(`${API_BASE}/properties/${id}`) } catch {}
+      try { await request.delete(`${API_BASE}/properties/${id}`) } catch { /* cleanup */ }
     }
     bookingIdsToCleanup = []
     propertyIdsToCleanup = []
@@ -161,10 +160,9 @@ test.describe('Booking Payments - E2E', () => {
     const booking = await createBookingViaApi(request, prop.id)
 
     // Create deposit via API
-    const depositRes = await request.post(`${API_BASE}/bookings/${booking.id}/deposits`, {
+    await request.post(`${API_BASE}/bookings/${booking.id}/deposits`, {
       data: { amount: 100 },
     })
-    const deposit = await depositRes.json()
 
     await page.goto(`/bookings/${booking.id}`)
     await page.waitForLoadState('networkidle')

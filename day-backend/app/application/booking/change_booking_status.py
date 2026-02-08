@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import uuid
 
-from app.domain.booking.entities import BookingAuditLog, Booking
+from app.domain.booking.entities import Booking, BookingAuditLog
 from app.domain.booking.repositories import (
     BookingAuditLogRepository,
     BookingRepository,

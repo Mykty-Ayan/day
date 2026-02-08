@@ -56,7 +56,7 @@ export default function CreateBookingPage() {
   const createBooking = useCreateBooking()
   const [form, setForm] = useState<FormData>(initialForm)
   const [errors, setErrors] = useState<Record<string, string>>({})
-  const [guestSearch, setGuestSearch] = useState('')
+  const guestSearch = form.guest_phone.length >= 3 ? form.guest_phone : ''
   const [showGuestSuggestions, setShowGuestSuggestions] = useState(false)
 
   const { data: propertiesData } = useProperties({ per_page: 100, status: 'active' })
@@ -91,14 +91,6 @@ export default function CreateBookingPage() {
 
   const { data: priceData, isFetching: priceLoading } = useCalculatePrice(debouncedPriceParams)
 
-  // Guest phone auto-search
-  useEffect(() => {
-    if (form.guest_phone.length >= 3) {
-      setGuestSearch(form.guest_phone)
-    } else {
-      setGuestSearch('')
-    }
-  }, [form.guest_phone])
 
   function updateField<K extends keyof FormData>(key: K, value: FormData[K]) {
     setForm((f) => ({ ...f, [key]: value }))

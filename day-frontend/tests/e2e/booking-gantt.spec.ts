@@ -3,7 +3,6 @@ import {
   createTestProperty,
   createTestBooking,
   createTestPricing,
-  futureDate,
   API_BASE,
 } from '../fixtures/test-data'
 
@@ -44,10 +43,10 @@ test.describe('Booking Gantt Chart - E2E', () => {
 
   test.afterEach(async ({ request }) => {
     for (const id of bookingIdsToCleanup) {
-      try { await request.delete(`${API_BASE}/bookings/${id}`) } catch {}
+      try { await request.delete(`${API_BASE}/bookings/${id}`) } catch { /* cleanup */ }
     }
     for (const id of propertyIdsToCleanup) {
-      try { await request.delete(`${API_BASE}/properties/${id}`) } catch {}
+      try { await request.delete(`${API_BASE}/properties/${id}`) } catch { /* cleanup */ }
     }
     bookingIdsToCleanup = []
     propertyIdsToCleanup = []
@@ -123,7 +122,7 @@ test.describe('Booking Gantt Chart - E2E', () => {
     checkOutDate.setDate(checkOutDate.getDate() + 3)
     const checkOut = checkOutDate.toISOString().slice(0, 10)
 
-    const booking = await createBookingViaApi(request, prop.id, {
+    await createBookingViaApi(request, prop.id, {
       check_in: checkIn,
       check_out: checkOut,
       guest_name: 'Tooltip Test Guest',
@@ -157,7 +156,7 @@ test.describe('Booking Gantt Chart - E2E', () => {
     checkOutDate.setDate(checkOutDate.getDate() + 3)
     const checkOut = checkOutDate.toISOString().slice(0, 10)
 
-    const booking = await createBookingViaApi(request, prop.id, {
+    await createBookingViaApi(request, prop.id, {
       check_in: checkIn,
       check_out: checkOut,
     })

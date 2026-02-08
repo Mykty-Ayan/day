@@ -52,7 +52,6 @@ from app.infrastructure.models.booking import (
     GuestModel,
 )
 
-
 # ---------- helpers ----------
 
 

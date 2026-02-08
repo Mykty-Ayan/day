@@ -4,9 +4,7 @@ import uuid
 from dataclasses import dataclass
 from datetime import date
 
-from app.domain.booking.entities import Booking
 from app.domain.booking.repositories import BookingRepository, GuestRepository
-from app.domain.property.entities import Property
 from app.domain.property.repositories import PropertyRepository
 from app.domain.property.value_objects import PropertyStatus
 

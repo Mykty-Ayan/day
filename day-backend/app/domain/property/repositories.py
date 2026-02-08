@@ -3,7 +3,6 @@ from __future__ import annotations
 import abc
 import uuid
 
-from app.domain.property.value_objects import PropertyStatus
 from app.domain.property.entities import (
     Amenity,
     DiscountRule,
@@ -13,6 +12,7 @@ from app.domain.property.entities import (
     PropertyPhoto,
     SeasonalPrice,
 )
+from app.domain.property.value_objects import PropertyStatus
 
 
 class PropertyRepository(abc.ABC):
