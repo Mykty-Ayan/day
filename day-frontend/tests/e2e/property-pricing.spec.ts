@@ -191,7 +191,7 @@ test.describe('Property Pricing - E2E', () => {
       `${API_BASE}/properties/${prop.id}/pricing/seasonal`,
       { data: createTestSeasonalPrice({ name: 'Delete-Me-Season' }) },
     )
-    const seasonal = await seasonalRes.json()
+    await seasonalRes.json()
 
     await page.goto(`/properties/${prop.id}`)
     await page.waitForLoadState('networkidle')
