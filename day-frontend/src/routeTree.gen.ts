@@ -12,12 +12,16 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as PropertiesIndexRouteImport } from './routes/properties/index'
 import { Route as BookingsIndexRouteImport } from './routes/bookings/index'
+import { Route as CleaningIndexRouteImport } from './routes/cleaning/index'
 import { Route as PropertiesNewRouteImport } from './routes/properties/new'
 import { Route as PropertiesGanttRouteImport } from './routes/properties/gantt'
 import { Route as PropertiesPropertyIdRouteImport } from './routes/properties/$propertyId'
 import { Route as BookingsTodayRouteImport } from './routes/bookings/today'
 import { Route as BookingsNewRouteImport } from './routes/bookings/new'
 import { Route as BookingsBookingIdRouteImport } from './routes/bookings/$bookingId'
+import { Route as CleaningNewRouteImport } from './routes/cleaning/new'
+import { Route as CleaningChecklistsRouteImport } from './routes/cleaning/checklists'
+import { Route as CleaningTaskIdRouteImport } from './routes/cleaning/$taskId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -32,6 +36,11 @@ const PropertiesIndexRoute = PropertiesIndexRouteImport.update({
 const BookingsIndexRoute = BookingsIndexRouteImport.update({
   id: '/bookings/',
   path: '/bookings/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CleaningIndexRoute = CleaningIndexRouteImport.update({
+  id: '/cleaning/',
+  path: '/cleaning/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PropertiesNewRoute = PropertiesNewRouteImport.update({
@@ -64,16 +73,35 @@ const BookingsBookingIdRoute = BookingsBookingIdRouteImport.update({
   path: '/bookings/$bookingId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CleaningNewRoute = CleaningNewRouteImport.update({
+  id: '/cleaning/new',
+  path: '/cleaning/new',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CleaningChecklistsRoute = CleaningChecklistsRouteImport.update({
+  id: '/cleaning/checklists',
+  path: '/cleaning/checklists',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CleaningTaskIdRoute = CleaningTaskIdRouteImport.update({
+  id: '/cleaning/$taskId',
+  path: '/cleaning/$taskId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/bookings/$bookingId': typeof BookingsBookingIdRoute
   '/bookings/new': typeof BookingsNewRoute
   '/bookings/today': typeof BookingsTodayRoute
+  '/cleaning/$taskId': typeof CleaningTaskIdRoute
+  '/cleaning/checklists': typeof CleaningChecklistsRoute
+  '/cleaning/new': typeof CleaningNewRoute
   '/properties/$propertyId': typeof PropertiesPropertyIdRoute
   '/properties/gantt': typeof PropertiesGanttRoute
   '/properties/new': typeof PropertiesNewRoute
   '/bookings/': typeof BookingsIndexRoute
+  '/cleaning/': typeof CleaningIndexRoute
   '/properties/': typeof PropertiesIndexRoute
 }
 export interface FileRoutesByTo {
@@ -81,10 +109,14 @@ export interface FileRoutesByTo {
   '/bookings/$bookingId': typeof BookingsBookingIdRoute
   '/bookings/new': typeof BookingsNewRoute
   '/bookings/today': typeof BookingsTodayRoute
+  '/cleaning/$taskId': typeof CleaningTaskIdRoute
+  '/cleaning/checklists': typeof CleaningChecklistsRoute
+  '/cleaning/new': typeof CleaningNewRoute
   '/properties/$propertyId': typeof PropertiesPropertyIdRoute
   '/properties/gantt': typeof PropertiesGanttRoute
   '/properties/new': typeof PropertiesNewRoute
   '/bookings': typeof BookingsIndexRoute
+  '/cleaning': typeof CleaningIndexRoute
   '/properties': typeof PropertiesIndexRoute
 }
 export interface FileRoutesById {
@@ -93,10 +125,14 @@ export interface FileRoutesById {
   '/bookings/$bookingId': typeof BookingsBookingIdRoute
   '/bookings/new': typeof BookingsNewRoute
   '/bookings/today': typeof BookingsTodayRoute
+  '/cleaning/$taskId': typeof CleaningTaskIdRoute
+  '/cleaning/checklists': typeof CleaningChecklistsRoute
+  '/cleaning/new': typeof CleaningNewRoute
   '/properties/$propertyId': typeof PropertiesPropertyIdRoute
   '/properties/gantt': typeof PropertiesGanttRoute
   '/properties/new': typeof PropertiesNewRoute
   '/bookings/': typeof BookingsIndexRoute
+  '/cleaning/': typeof CleaningIndexRoute
   '/properties/': typeof PropertiesIndexRoute
 }
 export interface FileRouteTypes {
@@ -106,10 +142,14 @@ export interface FileRouteTypes {
     | '/bookings/$bookingId'
     | '/bookings/new'
     | '/bookings/today'
+    | '/cleaning/$taskId'
+    | '/cleaning/checklists'
+    | '/cleaning/new'
     | '/properties/$propertyId'
     | '/properties/gantt'
     | '/properties/new'
     | '/bookings/'
+    | '/cleaning/'
     | '/properties/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -117,10 +157,14 @@ export interface FileRouteTypes {
     | '/bookings/$bookingId'
     | '/bookings/new'
     | '/bookings/today'
+    | '/cleaning/$taskId'
+    | '/cleaning/checklists'
+    | '/cleaning/new'
     | '/properties/$propertyId'
     | '/properties/gantt'
     | '/properties/new'
     | '/bookings'
+    | '/cleaning'
     | '/properties'
   id:
     | '__root__'
@@ -128,10 +172,14 @@ export interface FileRouteTypes {
     | '/bookings/$bookingId'
     | '/bookings/new'
     | '/bookings/today'
+    | '/cleaning/$taskId'
+    | '/cleaning/checklists'
+    | '/cleaning/new'
     | '/properties/$propertyId'
     | '/properties/gantt'
     | '/properties/new'
     | '/bookings/'
+    | '/cleaning/'
     | '/properties/'
   fileRoutesById: FileRoutesById
 }
@@ -140,10 +188,14 @@ export interface RootRouteChildren {
   BookingsBookingIdRoute: typeof BookingsBookingIdRoute
   BookingsNewRoute: typeof BookingsNewRoute
   BookingsTodayRoute: typeof BookingsTodayRoute
+  CleaningTaskIdRoute: typeof CleaningTaskIdRoute
+  CleaningChecklistsRoute: typeof CleaningChecklistsRoute
+  CleaningNewRoute: typeof CleaningNewRoute
   PropertiesPropertyIdRoute: typeof PropertiesPropertyIdRoute
   PropertiesGanttRoute: typeof PropertiesGanttRoute
   PropertiesNewRoute: typeof PropertiesNewRoute
   BookingsIndexRoute: typeof BookingsIndexRoute
+  CleaningIndexRoute: typeof CleaningIndexRoute
   PropertiesIndexRoute: typeof PropertiesIndexRoute
 }
 
@@ -168,6 +220,13 @@ declare module '@tanstack/react-router' {
       path: '/bookings'
       fullPath: '/bookings/'
       preLoaderRoute: typeof BookingsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/cleaning/': {
+      id: '/cleaning/'
+      path: '/cleaning'
+      fullPath: '/cleaning/'
+      preLoaderRoute: typeof CleaningIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/properties/new': {
@@ -212,6 +271,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof BookingsBookingIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/cleaning/new': {
+      id: '/cleaning/new'
+      path: '/cleaning/new'
+      fullPath: '/cleaning/new'
+      preLoaderRoute: typeof CleaningNewRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/cleaning/checklists': {
+      id: '/cleaning/checklists'
+      path: '/cleaning/checklists'
+      fullPath: '/cleaning/checklists'
+      preLoaderRoute: typeof CleaningChecklistsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/cleaning/$taskId': {
+      id: '/cleaning/$taskId'
+      path: '/cleaning/$taskId'
+      fullPath: '/cleaning/$taskId'
+      preLoaderRoute: typeof CleaningTaskIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -220,10 +300,14 @@ const rootRouteChildren: RootRouteChildren = {
   BookingsBookingIdRoute: BookingsBookingIdRoute,
   BookingsNewRoute: BookingsNewRoute,
   BookingsTodayRoute: BookingsTodayRoute,
+  CleaningTaskIdRoute: CleaningTaskIdRoute,
+  CleaningChecklistsRoute: CleaningChecklistsRoute,
+  CleaningNewRoute: CleaningNewRoute,
   PropertiesPropertyIdRoute: PropertiesPropertyIdRoute,
   PropertiesGanttRoute: PropertiesGanttRoute,
   PropertiesNewRoute: PropertiesNewRoute,
   BookingsIndexRoute: BookingsIndexRoute,
+  CleaningIndexRoute: CleaningIndexRoute,
   PropertiesIndexRoute: PropertiesIndexRoute,
 }
 export const routeTree = rootRouteImport
