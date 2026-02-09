@@ -42,6 +42,13 @@ import type {
   PaymentType,
 } from '../../types/booking'
 import BookingStatusBadge from '../../components/booking/BookingStatusBadge'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '../../components/ui/select'
 
 const TABS = ['Overview', 'Payments', 'Deposits', 'Files & Comments', 'History'] as const
 type Tab = (typeof TABS)[number]
@@ -327,15 +334,19 @@ function PaymentsTab({ bookingId, payments, totalPrice }: { bookingId: string; p
               placeholder="Amount"
               className="bg-gray-50 border border-gray-200 rounded-xl p-3 outline-none focus:ring-2 focus:ring-black/10 text-sm"
             />
-            <select
+            <Select
               value={form.method}
-              onChange={(e) => setForm((f) => ({ ...f, method: e.target.value as PaymentMethod }))}
-              className="bg-gray-50 border border-gray-200 rounded-xl p-3 outline-none focus:ring-2 focus:ring-black/10 text-sm"
+              onValueChange={(value) => setForm((f) => ({ ...f, method: value as PaymentMethod }))}
             >
-              <option value="cash">Cash</option>
-              <option value="card">Card</option>
-              <option value="transfer">Transfer</option>
-            </select>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="cash">Cash</SelectItem>
+                <SelectItem value="card">Card</SelectItem>
+                <SelectItem value="transfer">Transfer</SelectItem>
+              </SelectContent>
+            </Select>
             <input
               type="text"
               value={form.note}

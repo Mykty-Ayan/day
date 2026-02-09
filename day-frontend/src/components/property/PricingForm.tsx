@@ -2,6 +2,14 @@ import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { Plus, X, Loader2 } from 'lucide-react'
 import type { PricingConfig, SeasonalPrice, DiscountRule } from '../../types/property'
+import DatePicker from '../ui/date-picker'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '../ui/select'
 
 interface Props {
   pricing: PricingConfig | null
@@ -35,6 +43,8 @@ export default function PricingForm({
   const [extraAdult, setExtraAdult] = useState(String(pricing?.extra_adult_price ?? ''))
   const [extraChild, setExtraChild] = useState(String(pricing?.extra_child_price ?? ''))
   const [baseGuests, setBaseGuests] = useState(String(pricing?.base_guests ?? ''))
+  const seasonalPrices = pricing?.seasonal_prices ?? []
+  const discountRules = pricing?.discount_rules ?? []
 
   const [seasonalName, setSeasonalName] = useState('')
   const [seasonalStart, setSeasonalStart] = useState('')
@@ -44,6 +54,7 @@ export default function PricingForm({
   const [discountNights, setDiscountNights] = useState('')
   const [discountType, setDiscountType] = useState<'percent' | 'fixed'>('percent')
   const [discountValue, setDiscountValue] = useState('')
+  const discountStep = discountType === 'percent' ? 1 : 1000
 
   function handleSaveBase() {
     onSaveBase({
@@ -94,7 +105,7 @@ export default function PricingForm({
             <input
               type="number"
               min="0"
-              step="0.01"
+              step="1000"
               value={basePrice}
               onChange={(e) => setBasePrice(e.target.value)}
               className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 outline-none focus:ring-2 focus:ring-black/10 text-gray-800 text-sm"
@@ -107,6 +118,7 @@ export default function PricingForm({
             <input
               type="number"
               min="0"
+              step="1"
               value={weekendMarkup}
               onChange={(e) => setWeekendMarkup(e.target.value)}
               className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 outline-none focus:ring-2 focus:ring-black/10 text-gray-800 text-sm"
@@ -119,7 +131,7 @@ export default function PricingForm({
             <input
               type="number"
               min="0"
-              step="0.01"
+              step="1000"
               value={deposit}
               onChange={(e) => setDeposit(e.target.value)}
               className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 outline-none focus:ring-2 focus:ring-black/10 text-gray-800 text-sm"
@@ -132,6 +144,7 @@ export default function PricingForm({
             <input
               type="number"
               min="1"
+              step="1"
               value={baseGuests}
               onChange={(e) => setBaseGuests(e.target.value)}
               className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 outline-none focus:ring-2 focus:ring-black/10 text-gray-800 text-sm"
@@ -144,7 +157,7 @@ export default function PricingForm({
             <input
               type="number"
               min="0"
-              step="0.01"
+              step="1000"
               value={extraAdult}
               onChange={(e) => setExtraAdult(e.target.value)}
               className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 outline-none focus:ring-2 focus:ring-black/10 text-gray-800 text-sm"
@@ -157,7 +170,7 @@ export default function PricingForm({
             <input
               type="number"
               min="0"
-              step="0.01"
+              step="1000"
               value={extraChild}
               onChange={(e) => setExtraChild(e.target.value)}
               className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 outline-none focus:ring-2 focus:ring-black/10 text-gray-800 text-sm"
@@ -178,7 +191,7 @@ export default function PricingForm({
       {/* Seasonal prices */}
       <div>
         <h3 className="text-sm font-bold text-gray-900 mb-3">Seasonal Prices</h3>
-        {pricing?.seasonal_prices.map((sp: SeasonalPrice) => (
+        {seasonalPrices.map((sp: SeasonalPrice) => (
           <div
             key={sp.id}
             className="flex items-center justify-between bg-gray-50 border border-gray-200 rounded-xl p-3 mb-2"
@@ -200,33 +213,34 @@ export default function PricingForm({
             </div>
           </div>
         ))}
-        <div className="grid grid-cols-4 gap-2 mt-2">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 mt-2">
           <input
             type="text"
             value={seasonalName}
             onChange={(e) => setSeasonalName(e.target.value)}
             placeholder="Name"
-            className="bg-gray-50 border border-gray-200 rounded-xl p-2.5 outline-none focus:ring-2 focus:ring-black/10 text-gray-800 text-sm"
+            className="w-full bg-gray-50 border border-gray-200 rounded-xl p-2.5 outline-none focus:ring-2 focus:ring-black/10 text-gray-800 text-sm"
           />
-          <input
-            type="date"
+          <DatePicker
             value={seasonalStart}
-            onChange={(e) => setSeasonalStart(e.target.value)}
-            className="bg-gray-50 border border-gray-200 rounded-xl p-2.5 outline-none focus:ring-2 focus:ring-black/10 text-gray-800 text-sm"
+            onChange={setSeasonalStart}
+            placeholder="Start date"
           />
-          <input
-            type="date"
+          <DatePicker
             value={seasonalEnd}
-            onChange={(e) => setSeasonalEnd(e.target.value)}
-            className="bg-gray-50 border border-gray-200 rounded-xl p-2.5 outline-none focus:ring-2 focus:ring-black/10 text-gray-800 text-sm"
+            onChange={setSeasonalEnd}
+            placeholder="End date"
+            minDate={seasonalStart || undefined}
           />
-          <div className="flex gap-2">
+          <div className="flex gap-2 min-w-0">
             <input
               type="number"
               value={seasonalPrice}
               onChange={(e) => setSeasonalPrice(e.target.value)}
               placeholder="Price"
-              className="flex-1 bg-gray-50 border border-gray-200 rounded-xl p-2.5 outline-none focus:ring-2 focus:ring-black/10 text-gray-800 text-sm"
+              step="1000"
+              min="0"
+              className="flex-1 min-w-0 bg-gray-50 border border-gray-200 rounded-xl p-2.5 outline-none focus:ring-2 focus:ring-black/10 text-gray-800 text-sm"
             />
             <motion.button
               whileTap={{ scale: 0.97 }}
@@ -242,7 +256,7 @@ export default function PricingForm({
       {/* Discount rules */}
       <div>
         <h3 className="text-sm font-bold text-gray-900 mb-3">Discount Rules</h3>
-        {pricing?.discount_rules.map((dr: DiscountRule) => (
+        {discountRules.map((dr: DiscountRule) => (
           <div
             key={dr.id}
             className="flex items-center justify-between bg-gray-50 border border-gray-200 rounded-xl p-3 mb-2"
@@ -258,35 +272,38 @@ export default function PricingForm({
             </button>
           </div>
         ))}
-        <div className="flex gap-2 mt-2">
+        <div className="flex flex-col sm:flex-row gap-2 mt-2">
           <input
             type="number"
             min="1"
+            step="1"
             value={discountNights}
             onChange={(e) => setDiscountNights(e.target.value)}
             placeholder="Min nights"
-            className="flex-1 bg-gray-50 border border-gray-200 rounded-xl p-2.5 outline-none focus:ring-2 focus:ring-black/10 text-gray-800 text-sm"
+            className="w-full sm:flex-1 min-w-0 bg-gray-50 border border-gray-200 rounded-xl p-2.5 outline-none focus:ring-2 focus:ring-black/10 text-gray-800 text-sm"
           />
-          <select
-            value={discountType}
-            onChange={(e) => setDiscountType(e.target.value as 'percent' | 'fixed')}
-            className="bg-gray-50 border border-gray-200 rounded-xl p-2.5 outline-none focus:ring-2 focus:ring-black/10 text-gray-800 text-sm"
-          >
-            <option value="percent">Percent</option>
-            <option value="fixed">Fixed</option>
-          </select>
+          <Select value={discountType} onValueChange={(v) => setDiscountType(v as 'percent' | 'fixed')}>
+            <SelectTrigger className="w-full sm:w-28 shrink-0">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="percent">Percent</SelectItem>
+              <SelectItem value="fixed">Fixed</SelectItem>
+            </SelectContent>
+          </Select>
           <input
             type="number"
             min="0"
+            step={discountStep}
             value={discountValue}
             onChange={(e) => setDiscountValue(e.target.value)}
             placeholder="Value"
-            className="flex-1 bg-gray-50 border border-gray-200 rounded-xl p-2.5 outline-none focus:ring-2 focus:ring-black/10 text-gray-800 text-sm"
+            className="w-full sm:flex-1 min-w-0 bg-gray-50 border border-gray-200 rounded-xl p-2.5 outline-none focus:ring-2 focus:ring-black/10 text-gray-800 text-sm"
           />
           <motion.button
             whileTap={{ scale: 0.97 }}
             onClick={handleAddDiscount}
-            className="shrink-0 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-xl p-2.5 text-gray-700"
+            className="shrink-0 w-full sm:w-auto bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-xl p-2.5 text-gray-700"
           >
             <Plus className="w-4 h-4" />
           </motion.button>
