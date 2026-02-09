@@ -11,17 +11,17 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as PropertiesIndexRouteImport } from './routes/properties/index'
-import { Route as BookingsIndexRouteImport } from './routes/bookings/index'
 import { Route as CleaningIndexRouteImport } from './routes/cleaning/index'
+import { Route as BookingsIndexRouteImport } from './routes/bookings/index'
 import { Route as PropertiesNewRouteImport } from './routes/properties/new'
 import { Route as PropertiesGanttRouteImport } from './routes/properties/gantt'
 import { Route as PropertiesPropertyIdRouteImport } from './routes/properties/$propertyId'
-import { Route as BookingsTodayRouteImport } from './routes/bookings/today'
-import { Route as BookingsNewRouteImport } from './routes/bookings/new'
-import { Route as BookingsBookingIdRouteImport } from './routes/bookings/$bookingId'
 import { Route as CleaningNewRouteImport } from './routes/cleaning/new'
 import { Route as CleaningChecklistsRouteImport } from './routes/cleaning/checklists'
 import { Route as CleaningTaskIdRouteImport } from './routes/cleaning/$taskId'
+import { Route as BookingsTodayRouteImport } from './routes/bookings/today'
+import { Route as BookingsNewRouteImport } from './routes/bookings/new'
+import { Route as BookingsBookingIdRouteImport } from './routes/bookings/$bookingId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -33,14 +33,14 @@ const PropertiesIndexRoute = PropertiesIndexRouteImport.update({
   path: '/properties/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const BookingsIndexRoute = BookingsIndexRouteImport.update({
-  id: '/bookings/',
-  path: '/bookings/',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const CleaningIndexRoute = CleaningIndexRouteImport.update({
   id: '/cleaning/',
   path: '/cleaning/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const BookingsIndexRoute = BookingsIndexRouteImport.update({
+  id: '/bookings/',
+  path: '/bookings/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PropertiesNewRoute = PropertiesNewRouteImport.update({
@@ -58,21 +58,6 @@ const PropertiesPropertyIdRoute = PropertiesPropertyIdRouteImport.update({
   path: '/properties/$propertyId',
   getParentRoute: () => rootRouteImport,
 } as any)
-const BookingsTodayRoute = BookingsTodayRouteImport.update({
-  id: '/bookings/today',
-  path: '/bookings/today',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const BookingsNewRoute = BookingsNewRouteImport.update({
-  id: '/bookings/new',
-  path: '/bookings/new',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const BookingsBookingIdRoute = BookingsBookingIdRouteImport.update({
-  id: '/bookings/$bookingId',
-  path: '/bookings/$bookingId',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const CleaningNewRoute = CleaningNewRouteImport.update({
   id: '/cleaning/new',
   path: '/cleaning/new',
@@ -86,6 +71,21 @@ const CleaningChecklistsRoute = CleaningChecklistsRouteImport.update({
 const CleaningTaskIdRoute = CleaningTaskIdRouteImport.update({
   id: '/cleaning/$taskId',
   path: '/cleaning/$taskId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const BookingsTodayRoute = BookingsTodayRouteImport.update({
+  id: '/bookings/today',
+  path: '/bookings/today',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const BookingsNewRoute = BookingsNewRouteImport.update({
+  id: '/bookings/new',
+  path: '/bookings/new',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const BookingsBookingIdRoute = BookingsBookingIdRouteImport.update({
+  id: '/bookings/$bookingId',
+  path: '/bookings/$bookingId',
   getParentRoute: () => rootRouteImport,
 } as any)
 
@@ -215,18 +215,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PropertiesIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/bookings/': {
-      id: '/bookings/'
-      path: '/bookings'
-      fullPath: '/bookings/'
-      preLoaderRoute: typeof BookingsIndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/cleaning/': {
       id: '/cleaning/'
       path: '/cleaning'
       fullPath: '/cleaning/'
       preLoaderRoute: typeof CleaningIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/bookings/': {
+      id: '/bookings/'
+      path: '/bookings'
+      fullPath: '/bookings/'
+      preLoaderRoute: typeof BookingsIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/properties/new': {
@@ -250,27 +250,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PropertiesPropertyIdRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/bookings/today': {
-      id: '/bookings/today'
-      path: '/bookings/today'
-      fullPath: '/bookings/today'
-      preLoaderRoute: typeof BookingsTodayRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/bookings/new': {
-      id: '/bookings/new'
-      path: '/bookings/new'
-      fullPath: '/bookings/new'
-      preLoaderRoute: typeof BookingsNewRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/bookings/$bookingId': {
-      id: '/bookings/$bookingId'
-      path: '/bookings/$bookingId'
-      fullPath: '/bookings/$bookingId'
-      preLoaderRoute: typeof BookingsBookingIdRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/cleaning/new': {
       id: '/cleaning/new'
       path: '/cleaning/new'
@@ -290,6 +269,27 @@ declare module '@tanstack/react-router' {
       path: '/cleaning/$taskId'
       fullPath: '/cleaning/$taskId'
       preLoaderRoute: typeof CleaningTaskIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/bookings/today': {
+      id: '/bookings/today'
+      path: '/bookings/today'
+      fullPath: '/bookings/today'
+      preLoaderRoute: typeof BookingsTodayRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/bookings/new': {
+      id: '/bookings/new'
+      path: '/bookings/new'
+      fullPath: '/bookings/new'
+      preLoaderRoute: typeof BookingsNewRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/bookings/$bookingId': {
+      id: '/bookings/$bookingId'
+      path: '/bookings/$bookingId'
+      fullPath: '/bookings/$bookingId'
+      preLoaderRoute: typeof BookingsBookingIdRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
