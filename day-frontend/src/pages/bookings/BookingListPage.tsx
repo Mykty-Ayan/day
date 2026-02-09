@@ -6,6 +6,14 @@ import { useBookings } from '../../hooks/useBookings'
 import { useProperties } from '../../hooks/useProperties'
 import type { BookingStatus, BookingSource } from '../../types/booking'
 import BookingStatusBadge from '../../components/booking/BookingStatusBadge'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '../../components/ui/select'
+import { ToggleGroup, ToggleGroupItem } from '../../components/ui/toggle-group'
 
 const STATUS_TABS: { value: BookingStatus | 'all'; label: string }[] = [
   { value: 'all', label: 'All' },
@@ -29,7 +37,7 @@ export default function BookingListPage() {
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<BookingStatus | 'all'>('all')
   const [sourceFilter, setSourceFilter] = useState<BookingSource | 'all'>('all')
-  const [propertyFilter, setPropertyFilter] = useState('')
+  const [propertyFilter, setPropertyFilter] = useState('all')
   const [page, setPage] = useState(1)
 
   const { data: propertiesData } = useProperties({ per_page: 100, status: 'active' })
@@ -40,7 +48,7 @@ export default function BookingListPage() {
     per_page: 20,
     status: statusFilter === 'all' ? undefined : statusFilter,
     source: sourceFilter === 'all' ? undefined : sourceFilter,
-    property_id: propertyFilter || undefined,
+    property_id: propertyFilter === 'all' ? undefined : propertyFilter,
     search: search || undefined,
   })
 
@@ -78,41 +86,54 @@ export default function BookingListPage() {
                 className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 pl-9 outline-none focus:ring-2 focus:ring-black/10 text-gray-800 text-sm"
               />
             </div>
-            <select
+            <Select
               value={propertyFilter}
-              onChange={(e) => { setPropertyFilter(e.target.value); setPage(1) }}
-              className="bg-gray-50 border border-gray-200 rounded-xl p-3 outline-none focus:ring-2 focus:ring-black/10 text-sm text-gray-700"
+              onValueChange={(value) => { setPropertyFilter(value); setPage(1) }}
             >
-              <option value="">All Properties</option>
-              {properties.map((p) => (
-                <option key={p.id} value={p.id}>{p.internal_name}</option>
-              ))}
-            </select>
-            <select
+              <SelectTrigger className="w-full sm:w-56">
+                <SelectValue placeholder="All Properties" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Properties</SelectItem>
+                {properties.map((p) => (
+                  <SelectItem key={p.id} value={p.id}>
+                    {p.internal_name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select
               value={sourceFilter}
-              onChange={(e) => { setSourceFilter(e.target.value as BookingSource | 'all'); setPage(1) }}
-              className="bg-gray-50 border border-gray-200 rounded-xl p-3 outline-none focus:ring-2 focus:ring-black/10 text-sm text-gray-700"
+              onValueChange={(value) => { setSourceFilter(value as BookingSource | 'all'); setPage(1) }}
             >
-              {SOURCE_OPTIONS.map((s) => (
-                <option key={s.value} value={s.value}>{s.label}</option>
-              ))}
-            </select>
+              <SelectTrigger className="w-full sm:w-44">
+                <SelectValue placeholder="All Sources" />
+              </SelectTrigger>
+              <SelectContent>
+                {SOURCE_OPTIONS.map((s) => (
+                  <SelectItem key={s.value} value={s.value}>
+                    {s.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
-          <div className="flex gap-1 bg-gray-50 border border-gray-200 rounded-xl p-1 self-start">
+          <ToggleGroup
+            type="single"
+            value={statusFilter}
+            onValueChange={(value) => {
+              if (!value) return
+              setStatusFilter(value as BookingStatus | 'all')
+              setPage(1)
+            }}
+            className="self-start"
+          >
             {STATUS_TABS.map((tab) => (
-              <button
-                key={tab.value}
-                onClick={() => { setStatusFilter(tab.value); setPage(1) }}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${
-                  statusFilter === tab.value
-                    ? 'bg-white text-gray-900 shadow-sm'
-                    : 'text-gray-500 hover:text-gray-700'
-                }`}
-              >
+              <ToggleGroupItem key={tab.value} value={tab.value}>
                 {tab.label}
-              </button>
+              </ToggleGroupItem>
             ))}
-          </div>
+          </ToggleGroup>
         </div>
 
         {/* Content */}

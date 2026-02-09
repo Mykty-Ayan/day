@@ -5,6 +5,17 @@ import { useNavigate } from '@tanstack/react-router'
 import { useCreateBooking, useCalculatePrice, useGuests } from '../../hooks/useBookings'
 import { useProperties } from '../../hooks/useProperties'
 import type { BookingSource, BookingCreateInput, PriceCalculateInput } from '../../types/booking'
+import type { AxiosError } from 'axios'
+import DatePicker from '../../components/ui/date-picker'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '../../components/ui/select'
+import { ToggleGroup, ToggleGroupItem } from '../../components/ui/toggle-group'
+import NumberInput from '../../components/ui/number-input'
 
 const SOURCES: { value: BookingSource; label: string }[] = [
   { value: 'direct', label: 'Direct' },
@@ -91,6 +102,16 @@ export default function CreateBookingPage() {
 
   const { data: priceData, isFetching: priceLoading } = useCalculatePrice(debouncedPriceParams)
 
+  function getErrorMessage(err: unknown): string | null {
+    if (!err) return null
+    const axiosErr = err as AxiosError<{ detail?: string; message?: string }>
+    return (
+      axiosErr?.response?.data?.detail ||
+      axiosErr?.response?.data?.message ||
+      (axiosErr as Error).message ||
+      null
+    )
+  }
 
   function updateField<K extends keyof FormData>(key: K, value: FormData[K]) {
     setForm((f) => ({ ...f, [key]: value }))
@@ -140,8 +161,6 @@ export default function CreateBookingPage() {
     })
   }
 
-  const todayStr = new Date().toISOString().split('T')[0]
-
   return (
     <div className="p-6 max-w-6xl mx-auto w-full">
       <motion.div
@@ -175,20 +194,23 @@ export default function CreateBookingPage() {
                 <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">
                   Property
                 </label>
-                <select
-                  value={form.property_id}
-                  onChange={(e) => updateField('property_id', e.target.value)}
-                  className={`w-full bg-gray-50 border rounded-xl p-3 outline-none focus:ring-2 focus:ring-black/10 text-sm ${
-                    errors.property_id ? 'border-red-300' : 'border-gray-200'
-                  }`}
+                <Select
+                  value={form.property_id || undefined}
+                  onValueChange={(value) => updateField('property_id', value)}
                 >
-                  <option value="">Select property...</option>
-                  {properties.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.internal_name} ({p.name})
-                    </option>
-                  ))}
-                </select>
+                  <SelectTrigger
+                    className={errors.property_id ? 'border-red-300' : ''}
+                  >
+                    <SelectValue placeholder="Select property..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {properties.map((p) => (
+                      <SelectItem key={p.id} value={p.id}>
+                        {p.internal_name} ({p.name})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
                 {errors.property_id && (
                   <p className="text-xs text-red-500 mt-1">{errors.property_id}</p>
                 )}
@@ -200,14 +222,12 @@ export default function CreateBookingPage() {
                   <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">
                     Check-in
                   </label>
-                  <input
-                    type="date"
+                  <DatePicker
                     value={form.check_in}
-                    min={todayStr}
-                    onChange={(e) => updateField('check_in', e.target.value)}
-                    className={`w-full bg-gray-50 border rounded-xl p-3 outline-none focus:ring-2 focus:ring-black/10 text-sm ${
-                      errors.check_in ? 'border-red-300' : 'border-gray-200'
-                    }`}
+                    onChange={(value) => updateField('check_in', value)}
+                    minDate={new Date()}
+                    placeholder="Select date"
+                    className={errors.check_in ? 'border-red-300' : ''}
                   />
                   {errors.check_in && (
                     <p className="text-xs text-red-500 mt-1">{errors.check_in}</p>
@@ -217,14 +237,12 @@ export default function CreateBookingPage() {
                   <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">
                     Check-out
                   </label>
-                  <input
-                    type="date"
+                  <DatePicker
                     value={form.check_out}
-                    min={form.check_in || todayStr}
-                    onChange={(e) => updateField('check_out', e.target.value)}
-                    className={`w-full bg-gray-50 border rounded-xl p-3 outline-none focus:ring-2 focus:ring-black/10 text-sm ${
-                      errors.check_out ? 'border-red-300' : 'border-gray-200'
-                    }`}
+                    onChange={(value) => updateField('check_out', value)}
+                    minDate={form.check_in || new Date()}
+                    placeholder="Select date"
+                    className={errors.check_out ? 'border-red-300' : ''}
                   />
                   {errors.check_out && (
                     <p className="text-xs text-red-500 mt-1">{errors.check_out}</p>
@@ -324,23 +342,21 @@ export default function CreateBookingPage() {
                 <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
                   Source
                 </label>
-                <div className="flex gap-2 flex-wrap">
+                <ToggleGroup
+                  type="single"
+                  value={form.source}
+                  onValueChange={(value) => {
+                    if (!value) return
+                    updateField('source', value as BookingSource)
+                  }}
+                  className="flex flex-wrap"
+                >
                   {SOURCES.map((s) => (
-                    <motion.button
-                      key={s.value}
-                      whileTap={{ scale: 0.97 }}
-                      type="button"
-                      onClick={() => updateField('source', s.value)}
-                      className={`px-4 py-2 rounded-xl text-xs font-bold transition-colors border ${
-                        form.source === s.value
-                          ? 'bg-black text-white border-black'
-                          : 'bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100'
-                      }`}
-                    >
+                    <ToggleGroupItem key={s.value} value={s.value}>
                       {s.label}
-                    </motion.button>
+                    </ToggleGroupItem>
                   ))}
-                </div>
+                </ToggleGroup>
               </div>
 
               {/* Guests Count */}
@@ -350,14 +366,14 @@ export default function CreateBookingPage() {
                     <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">
                       Adults
                     </label>
-                    <input
-                      type="number"
-                      min={1}
+                    <NumberInput
                       value={form.adults_count}
-                      onChange={(e) => updateField('adults_count', Math.max(1, parseInt(e.target.value) || 1))}
-                      className={`w-full bg-gray-50 border rounded-xl p-3 outline-none focus:ring-2 focus:ring-black/10 text-sm ${
-                        errors.adults_count ? 'border-red-300' : 'border-gray-200'
-                      }`}
+                      onChange={(value) =>
+                        updateField('adults_count', Math.max(1, parseInt(value) || 1))
+                      }
+                      min={1}
+                      step={1}
+                      inputClassName={errors.adults_count ? 'border-red-300' : ''}
                     />
                     {errors.adults_count && (
                       <p className="text-xs text-red-500 mt-1">{errors.adults_count}</p>
@@ -367,12 +383,13 @@ export default function CreateBookingPage() {
                     <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">
                       Children
                     </label>
-                    <input
-                      type="number"
-                      min={0}
+                    <NumberInput
                       value={form.children_count}
-                      onChange={(e) => updateField('children_count', Math.max(0, parseInt(e.target.value) || 0))}
-                      className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 outline-none focus:ring-2 focus:ring-black/10 text-sm"
+                      onChange={(value) =>
+                        updateField('children_count', Math.max(0, parseInt(value) || 0))
+                      }
+                      min={0}
+                      step={1}
                     />
                   </div>
                 </div>
@@ -424,7 +441,8 @@ export default function CreateBookingPage() {
             {createBooking.isError && (
               <div className="mt-4 bg-red-50 border border-red-200 rounded-xl p-3">
                 <p className="text-sm text-red-600">
-                  Failed to create booking. Please try again.
+                  {getErrorMessage(createBooking.error) ||
+                    'Failed to create booking. Please try again.'}
                 </p>
               </div>
             )}

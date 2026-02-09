@@ -8,6 +8,15 @@ import { showToast } from '../../components/ui/Toast'
 import { useCreateCleaningTask } from '../../hooks/useCleaning'
 import { useProperties } from '../../hooks/useProperties'
 import type { CleaningType } from '../../types/cleaning'
+import DatePicker from '../../components/ui/date-picker'
+import TimePicker from '../../components/ui/time-picker'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '../../components/ui/select'
 
 interface FormData {
   property_id: string
@@ -94,23 +103,24 @@ export default function CreateCleaningTaskPage() {
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Property *
             </label>
-            <select
-              value={form.property_id}
-              onChange={(e) => {
-                setForm({ ...form, property_id: e.target.value })
+            <Select
+              value={form.property_id || undefined}
+              onValueChange={(value) => {
+                setForm({ ...form, property_id: value })
                 setErrors({ ...errors, property_id: '' })
               }}
-              className={`w-full bg-gray-50 border rounded-xl p-3 outline-none focus:ring-2 focus:ring-black/10 text-sm ${
-                errors.property_id ? 'border-red-300' : 'border-gray-200'
-              }`}
             >
-              <option value="">Select property...</option>
-              {propertiesData?.items.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name} ({p.internal_name})
-                </option>
-              ))}
-            </select>
+              <SelectTrigger className={errors.property_id ? 'border-red-300' : ''}>
+                <SelectValue placeholder="Select property..." />
+              </SelectTrigger>
+              <SelectContent>
+                {propertiesData?.items.map((p) => (
+                  <SelectItem key={p.id} value={p.id}>
+                    {p.name} ({p.internal_name})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             {errors.property_id && (
               <p className="text-red-500 text-xs mt-1">{errors.property_id}</p>
             )}
@@ -121,17 +131,21 @@ export default function CreateCleaningTaskPage() {
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Type
             </label>
-            <select
+            <Select
               value={form.type}
-              onChange={(e) =>
-                setForm({ ...form, type: e.target.value as CleaningType })
+              onValueChange={(value) =>
+                setForm({ ...form, type: value as CleaningType })
               }
-              className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 outline-none focus:ring-2 focus:ring-black/10 text-sm"
             >
-              <option value="post_checkout">Post Checkout</option>
-              <option value="mid_stay">Mid Stay</option>
-              <option value="on_demand">On Demand</option>
-            </select>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="post_checkout">Post Checkout</SelectItem>
+                <SelectItem value="mid_stay">Mid Stay</SelectItem>
+                <SelectItem value="on_demand">On Demand</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           {/* Scheduled Date */}
@@ -140,26 +154,24 @@ export default function CreateCleaningTaskPage() {
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Scheduled Date
               </label>
-              <input
-                type="date"
+              <DatePicker
                 value={form.scheduled_date}
-                onChange={(e) =>
-                  setForm({ ...form, scheduled_date: e.target.value })
+                onChange={(value) =>
+                  setForm({ ...form, scheduled_date: value })
                 }
-                className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 outline-none focus:ring-2 focus:ring-black/10 text-sm"
+                placeholder="Select date"
               />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Scheduled Time
               </label>
-              <input
-                type="time"
+              <TimePicker
                 value={form.scheduled_time}
-                onChange={(e) =>
-                  setForm({ ...form, scheduled_time: e.target.value })
+                onChange={(value) =>
+                  setForm({ ...form, scheduled_time: value })
                 }
-                className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 outline-none focus:ring-2 focus:ring-black/10 text-sm"
+                placeholder="Select time"
               />
             </div>
           </div>
@@ -183,7 +195,7 @@ export default function CreateCleaningTaskPage() {
           <Link to="/cleaning">
             <Button variant="secondary">Cancel</Button>
           </Link>
-          <Button disabled={createMutation.isPending}>
+          <Button type="submit" disabled={createMutation.isPending}>
             {createMutation.isPending ? 'Creating...' : 'Create Task'}
           </Button>
         </div>

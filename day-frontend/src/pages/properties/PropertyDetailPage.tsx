@@ -23,9 +23,10 @@ import {
   useDeleteDiscountRule,
   usePropertyAuditLog,
 } from '../../hooks/useProperties'
-import type { PropertyStatus } from '../../types/property'
+import type { PropertyStatus, PricingInput } from '../../types/property'
 import StatusBadge from '../../components/property/StatusBadge'
 import PricingForm from '../../components/property/PricingForm'
+import { showToast } from '../../components/ui/Toast'
 
 function getStatusActions(status: PropertyStatus): { label: string; target: PropertyStatus; icon: typeof Play }[] {
   switch (status) {
@@ -57,6 +58,12 @@ export default function PropertyDetailPage() {
   const addDiscount = useAddDiscountRule(propertyId)
   const deleteDiscount = useDeleteDiscountRule(propertyId)
   const { data: auditLog = [] } = usePropertyAuditLog(propertyId)
+  const handleSavePricing = (data: PricingInput) => {
+    savePricing.mutate(data, {
+      onSuccess: () => showToast('success', 'Pricing saved'),
+      onError: (err: Error) => showToast('error', err.message || 'Failed to save pricing'),
+    })
+  }
 
   if (isLoading) {
     return (
@@ -271,7 +278,7 @@ export default function PropertyDetailPage() {
               <h2 className="text-sm font-bold text-gray-900 mb-4">Pricing</h2>
               <PricingForm
                 pricing={pricing ?? null}
-                onSaveBase={(data) => savePricing.mutate(data)}
+                onSaveBase={handleSavePricing}
                 onAddSeasonal={(data) => addSeasonal.mutate(data)}
                 onDeleteSeasonal={(id) => deleteSeasonal.mutate(id)}
                 onAddDiscount={(data) => addDiscount.mutate(data)}

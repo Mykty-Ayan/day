@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState, useCallback } from 'react'
+import { useMemo, useRef, useState, useCallback, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useNavigate } from '@tanstack/react-router'
 import type { Booking, BookingStatus, GanttPropertySummary } from '../../types/booking'
@@ -56,8 +56,11 @@ export default function GanttChart({ rows, year, month, onCellClick }: Props) {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const scrollRef = useRef<HTMLDivElement>(null)
+  const autoScrollKeyRef = useRef<string | null>(null)
   const days = useMemo(() => getDaysInMonth(year, month), [year, month])
   const today = new Date()
+  const todayYear = today.getFullYear()
+  const todayMonth = today.getMonth()
   const todayStr = toDateStr(today)
 
   const sortedRows = useMemo(
@@ -72,6 +75,30 @@ export default function GanttChart({ rows, year, month, onCellClick }: Props) {
   const [dragBooking, setDragBooking] = useState<Booking | null>(null)
   const [dragOverPropertyId, setDragOverPropertyId] = useState<string | null>(null)
   const [isDragging, setIsDragging] = useState(false)
+
+  useEffect(() => {
+    const container = scrollRef.current
+    if (!container) return
+
+    const isCurrentMonth = year === todayYear && month === todayMonth
+    if (!isCurrentMonth) {
+      autoScrollKeyRef.current = null
+      return
+    }
+
+    const scrollKey = `${year}-${month}`
+    if (autoScrollKeyRef.current === scrollKey) return
+
+    const todayIndex = days.findIndex((day) => toDateStr(day) === todayStr)
+    if (todayIndex < 0) return
+
+    const target = Math.max(
+      0,
+      todayIndex * CELL_W - container.clientWidth / 2 + CELL_W / 2,
+    )
+    container.scrollLeft = target
+    autoScrollKeyRef.current = scrollKey
+  }, [days, month, todayMonth, todayStr, todayYear, year])
 
   const handleDragStart = useCallback((e: React.DragEvent, booking: Booking) => {
     setDragBooking(booking)

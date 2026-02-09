@@ -5,6 +5,7 @@ import { Link } from '@tanstack/react-router'
 import { useProperties } from '../../hooks/useProperties'
 import type { PropertyStatus } from '../../types/property'
 import PropertyCard from '../../components/property/PropertyCard'
+import { ToggleGroup, ToggleGroupItem } from '../../components/ui/toggle-group'
 
 const statusTabs: { value: PropertyStatus | 'all'; label: string }[] = [
   { value: 'all', label: 'All' },
@@ -62,24 +63,21 @@ export default function PropertyListPage() {
               className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 pl-9 outline-none focus:ring-2 focus:ring-black/10 text-gray-800 text-sm"
             />
           </div>
-          <div className="flex gap-1 bg-gray-50 border border-gray-200 rounded-xl p-1">
+          <ToggleGroup
+            type="single"
+            value={statusFilter}
+            onValueChange={(value) => {
+              if (!value) return
+              setStatusFilter(value as PropertyStatus | 'all')
+              setPage(1)
+            }}
+          >
             {statusTabs.map((tab) => (
-              <button
-                key={tab.value}
-                onClick={() => {
-                  setStatusFilter(tab.value)
-                  setPage(1)
-                }}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${
-                  statusFilter === tab.value
-                    ? 'bg-white text-gray-900 shadow-sm'
-                    : 'text-gray-500 hover:text-gray-700'
-                }`}
-              >
+              <ToggleGroupItem key={tab.value} value={tab.value}>
                 {tab.label}
-              </button>
+              </ToggleGroupItem>
             ))}
-          </div>
+          </ToggleGroup>
         </div>
 
         {/* Content */}

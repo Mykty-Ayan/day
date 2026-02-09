@@ -14,3 +14,14 @@ body {
 #root {
   min-height: 100vh;
 }
+
+/* Hide native number spinners inside custom NumberInput */
+.number-input {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+.number-input::-webkit-outer-spin-button,
+.number-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}

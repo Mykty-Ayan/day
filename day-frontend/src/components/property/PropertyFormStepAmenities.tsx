@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react'
 import { Search } from 'lucide-react'
 import { useAmenities } from '../../hooks/useProperties'
 import type { AmenityCategory } from '../../types/property'
+import { Checkbox } from '../ui/checkbox'
 
 const categoryLabels: Record<AmenityCategory, string> = {
   bathroom: 'Bathroom',
@@ -82,41 +83,25 @@ export default function PropertyFormStepAmenities({ selectedIds, onChange }: Pro
               {items.map((amenity) => {
                 const isSelected = selectedIds.includes(amenity.id)
                 return (
-                  <button
+                  <label
                     key={amenity.id}
-                    type="button"
-                    onClick={() => toggle(amenity.id)}
-                    className={`flex items-center gap-2 px-3 py-2 rounded-xl text-sm border transition-all text-left ${
+                    className={`flex items-center gap-2 px-3 py-2 rounded-xl text-sm border transition-all text-left cursor-pointer ${
                       isSelected
                         ? 'bg-black text-white border-black'
                         : 'bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100'
                     }`}
                   >
-                    <span
-                      className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 ${
+                    <Checkbox
+                      checked={isSelected}
+                      onCheckedChange={() => toggle(amenity.id)}
+                      className={
                         isSelected
-                          ? 'bg-white border-white'
-                          : 'border-gray-300'
-                      }`}
-                    >
-                      {isSelected && (
-                        <svg
-                          className="w-3 h-3 text-black"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                          strokeWidth={3}
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            d="M5 13l4 4L19 7"
-                          />
-                        </svg>
-                      )}
-                    </span>
+                          ? 'border-white data-[state=checked]:bg-white data-[state=checked]:text-black'
+                          : ''
+                      }
+                    />
                     {amenity.name}
-                  </button>
+                  </label>
                 )
               })}
             </div>
