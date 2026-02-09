@@ -1,8 +1,9 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import { Plus, X, Loader2 } from 'lucide-react'
 import type { PricingConfig, SeasonalPrice, DiscountRule } from '../../types/property'
 import DatePicker from '../ui/date-picker'
+import NumberInput from '../ui/number-input'
 import {
   Select,
   SelectContent,
@@ -56,14 +57,30 @@ export default function PricingForm({
   const [discountValue, setDiscountValue] = useState('')
   const discountStep = discountType === 'percent' ? 1 : 1000
 
+  useEffect(() => {
+    if (!pricing) return
+    setBasePrice(String(pricing.base_price ?? ''))
+    setWeekendMarkup(String(pricing.weekend_markup ?? ''))
+    setDeposit(String(pricing.default_deposit ?? ''))
+    setExtraAdult(String(pricing.extra_adult_price ?? ''))
+    setExtraChild(String(pricing.extra_child_price ?? ''))
+    setBaseGuests(String(pricing.base_guests ?? ''))
+  }, [pricing?.id, pricing?.updated_at])
+
+  function parseNumber(value: string, fallback = 0) {
+    const normalized = value.replace(/\s+/g, '').replace(',', '.')
+    const parsed = Number.parseFloat(normalized)
+    return Number.isFinite(parsed) ? parsed : fallback
+  }
+
   function handleSaveBase() {
     onSaveBase({
-      base_price: parseFloat(basePrice) || 0,
-      weekend_markup: parseFloat(weekendMarkup) || 0,
-      default_deposit: parseFloat(deposit) || 0,
-      extra_adult_price: parseFloat(extraAdult) || 0,
-      extra_child_price: parseFloat(extraChild) || 0,
-      base_guests: parseInt(baseGuests) || 1,
+      base_price: parseNumber(basePrice, 0),
+      weekend_markup: parseNumber(weekendMarkup, 0),
+      default_deposit: parseNumber(deposit, 0),
+      extra_adult_price: parseNumber(extraAdult, 0),
+      extra_child_price: parseNumber(extraChild, 0),
+      base_guests: Math.max(1, parseInt(baseGuests) || 1),
     })
   }
 
@@ -73,7 +90,7 @@ export default function PricingForm({
       name: seasonalName,
       start_date: seasonalStart,
       end_date: seasonalEnd,
-      price: parseFloat(seasonalPrice),
+      price: parseNumber(seasonalPrice, 0),
     })
     setSeasonalName('')
     setSeasonalStart('')
@@ -86,7 +103,7 @@ export default function PricingForm({
     onAddDiscount({
       min_nights: parseInt(discountNights),
       type: discountType,
-      value: parseFloat(discountValue),
+      value: parseNumber(discountValue, 0),
     })
     setDiscountNights('')
     setDiscountValue('')
@@ -102,82 +119,71 @@ export default function PricingForm({
             <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">
               Base Price
             </label>
-            <input
-              type="number"
-              min="0"
-              step="1000"
+            <NumberInput
               value={basePrice}
-              onChange={(e) => setBasePrice(e.target.value)}
-              className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 outline-none focus:ring-2 focus:ring-black/10 text-gray-800 text-sm"
+              onChange={setBasePrice}
+              min={0}
+              step={1000}
             />
           </div>
           <div>
             <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">
               Weekend Markup (%)
             </label>
-            <input
-              type="number"
-              min="0"
-              step="1"
+            <NumberInput
               value={weekendMarkup}
-              onChange={(e) => setWeekendMarkup(e.target.value)}
-              className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 outline-none focus:ring-2 focus:ring-black/10 text-gray-800 text-sm"
+              onChange={setWeekendMarkup}
+              min={0}
+              step={1}
             />
           </div>
           <div>
             <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">
               Default Deposit
             </label>
-            <input
-              type="number"
-              min="0"
-              step="1000"
+            <NumberInput
               value={deposit}
-              onChange={(e) => setDeposit(e.target.value)}
-              className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 outline-none focus:ring-2 focus:ring-black/10 text-gray-800 text-sm"
+              onChange={setDeposit}
+              min={0}
+              step={1000}
             />
           </div>
           <div>
             <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">
               Base Guests
             </label>
-            <input
-              type="number"
-              min="1"
-              step="1"
+            <NumberInput
               value={baseGuests}
-              onChange={(e) => setBaseGuests(e.target.value)}
-              className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 outline-none focus:ring-2 focus:ring-black/10 text-gray-800 text-sm"
+              onChange={setBaseGuests}
+              min={1}
+              step={1}
             />
           </div>
           <div>
             <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">
               Extra Adult Price
             </label>
-            <input
-              type="number"
-              min="0"
-              step="1000"
+            <NumberInput
               value={extraAdult}
-              onChange={(e) => setExtraAdult(e.target.value)}
-              className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 outline-none focus:ring-2 focus:ring-black/10 text-gray-800 text-sm"
+              onChange={setExtraAdult}
+              min={0}
+              step={1000}
             />
           </div>
           <div>
             <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">
               Extra Child Price
             </label>
-            <input
-              type="number"
-              min="0"
-              step="1000"
+            <NumberInput
               value={extraChild}
-              onChange={(e) => setExtraChild(e.target.value)}
-              className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 outline-none focus:ring-2 focus:ring-black/10 text-gray-800 text-sm"
+              onChange={setExtraChild}
+              min={0}
+              step={1000}
             />
           </div>
         </div>
         <motion.button
+          type="button"
           whileTap={{ scale: 0.97 }}
           onClick={handleSaveBase}
           disabled={isSaving}
@@ -233,16 +239,17 @@ export default function PricingForm({
             minDate={seasonalStart || undefined}
           />
           <div className="flex gap-2 min-w-0">
-            <input
-              type="number"
+            <NumberInput
               value={seasonalPrice}
-              onChange={(e) => setSeasonalPrice(e.target.value)}
+              onChange={setSeasonalPrice}
+              min={0}
+              step={1000}
               placeholder="Price"
-              step="1000"
-              min="0"
-              className="flex-1 min-w-0 bg-gray-50 border border-gray-200 rounded-xl p-2.5 outline-none focus:ring-2 focus:ring-black/10 text-gray-800 text-sm"
+              inputClassName="p-2.5 text-sm"
+              className="flex-1 min-w-0"
             />
             <motion.button
+              type="button"
               whileTap={{ scale: 0.97 }}
               onClick={handleAddSeasonal}
               className="shrink-0 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-xl p-2.5 text-gray-700"
@@ -273,14 +280,14 @@ export default function PricingForm({
           </div>
         ))}
         <div className="flex flex-col sm:flex-row gap-2 mt-2">
-          <input
-            type="number"
-            min="1"
-            step="1"
+          <NumberInput
             value={discountNights}
-            onChange={(e) => setDiscountNights(e.target.value)}
+            onChange={setDiscountNights}
+            min={1}
+            step={1}
             placeholder="Min nights"
-            className="w-full sm:flex-1 min-w-0 bg-gray-50 border border-gray-200 rounded-xl p-2.5 outline-none focus:ring-2 focus:ring-black/10 text-gray-800 text-sm"
+            inputClassName="p-2.5 text-sm"
+            className="w-full sm:flex-1 min-w-0"
           />
           <Select value={discountType} onValueChange={(v) => setDiscountType(v as 'percent' | 'fixed')}>
             <SelectTrigger className="w-full sm:w-28 shrink-0">
@@ -291,16 +298,17 @@ export default function PricingForm({
               <SelectItem value="fixed">Fixed</SelectItem>
             </SelectContent>
           </Select>
-          <input
-            type="number"
-            min="0"
-            step={discountStep}
+          <NumberInput
             value={discountValue}
-            onChange={(e) => setDiscountValue(e.target.value)}
+            onChange={setDiscountValue}
+            min={0}
+            step={discountStep}
             placeholder="Value"
-            className="w-full sm:flex-1 min-w-0 bg-gray-50 border border-gray-200 rounded-xl p-2.5 outline-none focus:ring-2 focus:ring-black/10 text-gray-800 text-sm"
+            inputClassName="p-2.5 text-sm"
+            className="w-full sm:flex-1 min-w-0"
           />
           <motion.button
+            type="button"
             whileTap={{ scale: 0.97 }}
             onClick={handleAddDiscount}
             className="shrink-0 w-full sm:w-auto bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-xl p-2.5 text-gray-700"

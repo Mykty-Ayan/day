@@ -9,6 +9,7 @@ import { useCreateCleaningTask } from '../../hooks/useCleaning'
 import { useProperties } from '../../hooks/useProperties'
 import type { CleaningType } from '../../types/cleaning'
 import DatePicker from '../../components/ui/date-picker'
+import TimePicker from '../../components/ui/time-picker'
 import {
   Select,
   SelectContent,
@@ -165,13 +166,12 @@ export default function CreateCleaningTaskPage() {
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Scheduled Time
               </label>
-              <input
-                type="time"
+              <TimePicker
                 value={form.scheduled_time}
-                onChange={(e) =>
-                  setForm({ ...form, scheduled_time: e.target.value })
+                onChange={(value) =>
+                  setForm({ ...form, scheduled_time: value })
                 }
-                className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 outline-none focus:ring-2 focus:ring-black/10 text-sm"
+                placeholder="Select time"
               />
             </div>
           </div>
@@ -195,7 +195,7 @@ export default function CreateCleaningTaskPage() {
           <Link to="/cleaning">
             <Button variant="secondary">Cancel</Button>
           </Link>
-          <Button disabled={createMutation.isPending}>
+          <Button type="submit" disabled={createMutation.isPending}>
             {createMutation.isPending ? 'Creating...' : 'Create Task'}
           </Button>
         </div>

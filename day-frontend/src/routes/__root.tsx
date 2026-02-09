@@ -17,6 +17,14 @@ const navItems = [
 
 function RootLayout() {
   const pathname = useRouterState({ select: (s) => s.location.pathname })
+  const activeItem = navItems.reduce<{ to: string } | null>((best, item) => {
+    const matches = pathname === item.to || pathname.startsWith(`${item.to}/`)
+    if (!matches) return best
+    if (!best || item.to.length > best.to.length) {
+      return item
+    }
+    return best
+  }, null)
 
   return (
     <div className="min-h-screen bg-white flex flex-col">
@@ -26,7 +34,7 @@ function RootLayout() {
         </Link>
         <nav className="flex items-center gap-1">
           {navItems.map(({ to, label, icon: Icon }) => {
-            const isActive = pathname.startsWith(to)
+            const isActive = activeItem?.to === to
             return (
               <Link
                 key={to}

@@ -49,6 +49,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '../../components/ui/select'
+import NumberInput from '../../components/ui/number-input'
 
 const TABS = ['Overview', 'Payments', 'Deposits', 'Files & Comments', 'History'] as const
 type Tab = (typeof TABS)[number]
@@ -212,7 +213,7 @@ function OverviewTab({ booking, guest }: { booking: Booking; guest: Guest }) {
           <InfoRow icon={Calendar} label="Check-in" value={formatDate(booking.check_in)} />
           <InfoRow icon={Calendar} label="Check-out" value={formatDate(booking.check_out)} />
           <InfoRow icon={Users} label="Guests" value={`${booking.adults_count} adult${booking.adults_count !== 1 ? 's' : ''}${booking.children_count > 0 ? `, ${booking.children_count} child${booking.children_count !== 1 ? 'ren' : ''}` : ''}`} />
-          <InfoRow icon={DollarSign} label="Total Price" value={`$${booking.total_price.toLocaleString()}`} />
+          <InfoRow icon={DollarSign} label="Total Price" value={`$${formatMoney(booking.total_price)}`} />
           <div className="flex items-center gap-3 pt-1">
             <span className="text-xs text-gray-500 w-24">Source</span>
             <span className="text-sm text-gray-900 capitalize">{booking.source}</span>
@@ -264,6 +265,25 @@ function InfoRow({ icon: Icon, label, value }: { icon: React.ComponentType<{ cla
   )
 }
 
+const moneyFormatter = new Intl.NumberFormat('en-US', {
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+})
+
+function normalizeNumber(value: number | string | null | undefined): number {
+  if (typeof value === 'number') return value
+  if (typeof value === 'string') {
+    const normalized = value.replace(/\s+/g, '').replace(',', '.')
+    const parsed = Number.parseFloat(normalized)
+    return Number.isFinite(parsed) ? parsed : 0
+  }
+  return 0
+}
+
+function formatMoney(value: number | string | null | undefined): string {
+  return moneyFormatter.format(normalizeNumber(value))
+}
+
 // --- Payments Tab ---
 function PaymentsTab({ bookingId, payments, totalPrice }: { bookingId: string; payments: BookingPayment[]; totalPrice: number }) {
   const addPayment = useAddPayment(bookingId)
@@ -272,12 +292,18 @@ function PaymentsTab({ bookingId, payments, totalPrice }: { bookingId: string; p
 
   const totalPaid = payments
     .filter((p) => p.status === 'completed')
-    .reduce((sum, p) => sum + (p.type === 'payment' ? p.amount : -p.amount), 0)
+    .reduce((sum, p) => {
+      const amount = normalizeNumber(p.amount)
+      return sum + (p.type === 'payment' ? amount : -amount)
+    }, 0)
+  const total = normalizeNumber(totalPrice)
+  const remaining = total - totalPaid
 
   function handleSubmit() {
-    if (!form.amount) return
+    const amount = normalizeNumber(form.amount)
+    if (!amount || amount <= 0) return
     addPayment.mutate(
-      { amount: parseFloat(form.amount), type: form.type, method: form.method, note: form.note || undefined } as PaymentInput,
+      { amount, type: form.type, method: form.method, note: form.note || undefined } as PaymentInput,
       {
         onSuccess: () => {
           setForm({ amount: '', type: 'payment', method: 'cash', note: '' })
@@ -294,7 +320,7 @@ function PaymentsTab({ bookingId, payments, totalPrice }: { bookingId: string; p
         <div>
           <p className="text-xs text-gray-500">Total / Paid / Remaining</p>
           <p className="text-sm font-bold text-gray-900">
-            ${totalPrice.toLocaleString()} / ${totalPaid.toLocaleString()} / ${(totalPrice - totalPaid).toLocaleString()}
+            ${formatMoney(total)} / ${formatMoney(totalPaid)} / ${formatMoney(remaining)}
           </p>
         </div>
         <div className="flex gap-2">
@@ -326,13 +352,12 @@ function PaymentsTab({ bookingId, payments, totalPrice }: { bookingId: string; p
             Add {form.type === 'payment' ? 'Payment' : 'Refund'}
           </h3>
           <div className="grid grid-cols-3 gap-3">
-            <input
-              type="number"
-              step="0.01"
+            <NumberInput
               value={form.amount}
-              onChange={(e) => setForm((f) => ({ ...f, amount: e.target.value }))}
+              onChange={(value) => setForm((f) => ({ ...f, amount: value }))}
+              min={0}
+              step={1000}
               placeholder="Amount"
-              className="bg-gray-50 border border-gray-200 rounded-xl p-3 outline-none focus:ring-2 focus:ring-black/10 text-sm"
             />
             <Select
               value={form.method}
@@ -396,7 +421,7 @@ function PaymentsTab({ bookingId, payments, totalPrice }: { bookingId: string; p
               {payments.map((p) => (
                 <tr key={p.id} className="border-b border-gray-50">
                   <td className="px-4 py-3 text-sm font-semibold text-gray-900">
-                    {p.type === 'refund' ? '-' : ''}${p.amount.toLocaleString()}
+                    {p.type === 'refund' ? '-' : ''}${formatMoney(Math.abs(normalizeNumber(p.amount)))}
                   </td>
                   <td className="px-4 py-3 text-xs text-gray-600 capitalize">{p.type}</td>
                   <td className="px-4 py-3 text-xs text-gray-600 capitalize">{p.method}</td>
@@ -430,9 +455,10 @@ function DepositsTab({ bookingId, deposits }: { bookingId: string; deposits: Boo
   const [showCreate, setShowCreate] = useState(false)
 
   function handleCreate() {
-    if (!newAmount) return
+    const amount = normalizeNumber(newAmount)
+    if (!amount || amount <= 0) return
     createDep.mutate(
-      { amount: parseFloat(newAmount) },
+      { amount },
       { onSuccess: () => { setNewAmount(''); setShowCreate(false) } },
     )
   }
@@ -457,13 +483,13 @@ function DepositsTab({ bookingId, deposits }: { bookingId: string; deposits: Boo
         >
           <h3 className="text-sm font-bold text-gray-900 mb-3">New Deposit</h3>
           <div className="flex gap-3">
-            <input
-              type="number"
-              step="0.01"
+            <NumberInput
               value={newAmount}
-              onChange={(e) => setNewAmount(e.target.value)}
+              onChange={setNewAmount}
+              min={0}
+              step={1000}
               placeholder="Amount"
-              className="bg-gray-50 border border-gray-200 rounded-xl p-3 outline-none focus:ring-2 focus:ring-black/10 text-sm flex-1"
+              className="flex-1"
             />
             <motion.button
               whileTap={{ scale: 0.97 }}
@@ -501,7 +527,7 @@ function DepositCard({ bookingId, deposit }: { bookingId: string; deposit: Booki
     if (!actionForm) return
     const input: DepositActionInput = {
       action: actionForm.action,
-      ...(actionForm.action === 'partial_hold' && { held_amount: parseFloat(actionForm.held_amount) }),
+      ...(actionForm.action === 'partial_hold' && { held_amount: normalizeNumber(actionForm.held_amount) }),
       ...((actionForm.action === 'hold' || actionForm.action === 'partial_hold') && actionForm.reason && { reason: actionForm.reason }),
     }
     depAction.mutate(input, { onSuccess: () => setActionForm(null) })
@@ -519,9 +545,9 @@ function DepositCard({ bookingId, deposit }: { bookingId: string; deposit: Booki
     <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
       <div className="flex items-center justify-between mb-3">
         <div>
-          <p className="text-sm font-bold text-gray-900">${deposit.amount.toLocaleString()}</p>
+          <p className="text-sm font-bold text-gray-900">${formatMoney(deposit.amount)}</p>
           {deposit.held_amount > 0 && (
-            <p className="text-xs text-gray-500">Held: ${deposit.held_amount.toLocaleString()}</p>
+            <p className="text-xs text-gray-500">Held: ${formatMoney(deposit.held_amount)}</p>
           )}
         </div>
         <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase ${depositStatusStyle[deposit.status] || 'bg-gray-100 text-gray-700'}`}>
@@ -576,13 +602,12 @@ function DepositCard({ bookingId, deposit }: { bookingId: string; deposit: Booki
       {actionForm && (actionForm.action === 'hold' || actionForm.action === 'partial_hold') && (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-3 space-y-2">
           {actionForm.action === 'partial_hold' && (
-            <input
-              type="number"
-              step="0.01"
+            <NumberInput
               value={actionForm.held_amount}
-              onChange={(e) => setActionForm((f) => f && { ...f, held_amount: e.target.value })}
+              onChange={(value) => setActionForm((f) => f && { ...f, held_amount: value })}
+              min={0}
+              step={1000}
               placeholder="Amount to hold"
-              className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 outline-none focus:ring-2 focus:ring-black/10 text-sm"
             />
           )}
           <input

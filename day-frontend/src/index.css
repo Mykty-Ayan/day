@@ -15,13 +15,13 @@ body {
   min-height: 100vh;
 }
 
-/* Hide native number spinners for a cleaner shadcn-style look */
-input[type='number'] {
+/* Hide native number spinners inside custom NumberInput */
+.number-input {
   -moz-appearance: textfield;
   appearance: textfield;
 }
-input[type='number']::-webkit-outer-spin-button,
-input[type='number']::-webkit-inner-spin-button {
+.number-input::-webkit-outer-spin-button,
+.number-input::-webkit-inner-spin-button {
   -webkit-appearance: none;
   margin: 0;
 }
