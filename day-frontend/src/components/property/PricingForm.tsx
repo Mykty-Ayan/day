@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { Plus, X, Loader2 } from 'lucide-react'
 import type { PricingConfig, SeasonalPrice, DiscountRule } from '../../types/property'
@@ -29,7 +29,7 @@ interface Props {
   isSaving: boolean
 }
 
-export default function PricingForm({
+function PricingFormInner({
   pricing,
   onSaveBase,
   onAddSeasonal,
@@ -56,16 +56,6 @@ export default function PricingForm({
   const [discountType, setDiscountType] = useState<'percent' | 'fixed'>('percent')
   const [discountValue, setDiscountValue] = useState('')
   const discountStep = discountType === 'percent' ? 1 : 1000
-
-  useEffect(() => {
-    if (!pricing) return
-    setBasePrice(String(pricing.base_price ?? ''))
-    setWeekendMarkup(String(pricing.weekend_markup ?? ''))
-    setDeposit(String(pricing.default_deposit ?? ''))
-    setExtraAdult(String(pricing.extra_adult_price ?? ''))
-    setExtraChild(String(pricing.extra_child_price ?? ''))
-    setBaseGuests(String(pricing.base_guests ?? ''))
-  }, [pricing?.id, pricing?.updated_at])
 
   function parseNumber(value: string, fallback = 0) {
     const normalized = value.replace(/\s+/g, '').replace(',', '.')
@@ -319,4 +309,11 @@ export default function PricingForm({
       </div>
     </div>
   )
+}
+
+export default function PricingForm(props: Props) {
+  const pricingKey = props.pricing
+    ? `${props.pricing.id}:${props.pricing.updated_at ?? '0'}`
+    : 'new'
+  return <PricingFormInner key={pricingKey} {...props} />
 }
