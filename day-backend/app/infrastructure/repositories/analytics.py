@@ -6,7 +6,7 @@ import uuid
 from datetime import date, timedelta
 from decimal import Decimal
 
-from sqlalchemy import case, cast, func, Integer, Numeric, select, and_
+from sqlalchemy import Integer, Numeric, and_, case, cast, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.domain.analytics.entities import PropertyMetrics, TimeSeriesPoint

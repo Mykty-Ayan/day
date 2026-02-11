@@ -10,7 +10,6 @@ from pydantic import BaseModel, ConfigDict
 
 from app.domain.analytics.value_objects import Granularity, PeriodPreset
 
-
 # ---------- Request Schemas ----------
 
 

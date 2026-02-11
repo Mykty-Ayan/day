@@ -1,7 +1,5 @@
 import { test, expect } from '../fixtures/api-helpers'
 import {
-  createTestBooking,
-  createTestPricing,
   createTestPayment,
   futureDate,
 } from '../fixtures/test-data'
