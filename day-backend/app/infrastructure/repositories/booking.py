@@ -370,6 +370,8 @@ class SqlBookingRepository(BookingRepository):
         property_id: uuid.UUID,
         start_date: date,
         end_date: date,
+        *,
+        company_id: uuid.UUID | None = None,
     ) -> list[Booking]:
         stmt = (
             select(BookingModel)
@@ -381,6 +383,8 @@ class SqlBookingRepository(BookingRepository):
             )
             .order_by(BookingModel.check_in)
         )
+        if company_id is not None:
+            stmt = stmt.where(BookingModel.company_id == company_id)
         result = await self._session.scalars(stmt)
         return [_model_to_booking(m) for m in result.all()]
 
@@ -565,6 +569,10 @@ class SqlBookingFileRepository(BookingFileRepository):
         await self._session.flush()
         await self._session.refresh(model)
         return _model_to_file(model)
+
+    async def get_by_id(self, file_id: uuid.UUID) -> BookingFile | None:
+        result = await self._session.get(BookingFileModel, file_id)
+        return _model_to_file(result) if result else None
 
     async def list_by_booking(self, booking_id: uuid.UUID) -> list[BookingFile]:
         stmt = (

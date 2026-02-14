@@ -6,7 +6,7 @@ export type PaymentMethod = 'cash' | 'card' | 'transfer'
 export type PaymentStatus = 'pending' | 'completed' | 'failed'
 export type DepositStatus = 'pending' | 'paid' | 'returned' | 'held' | 'partially_held'
 export type DepositAction = 'pay' | 'return' | 'hold' | 'partial_hold'
-export type ContractStatus = 'draft' | 'sent' | 'signed'
+export type ContractStatus = 'draft' | 'generated' | 'sent' | 'signed'
 
 export interface Guest {
   id: string

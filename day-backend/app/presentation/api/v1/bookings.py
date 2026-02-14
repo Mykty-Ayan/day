@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+import re
 import uuid
 from datetime import date, timedelta
+from urllib.parse import quote, urlparse
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
+from fastapi.responses import Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.application.booking.change_booking_status import ChangeBookingStatusService
@@ -24,6 +27,7 @@ from app.application.booking.update_booking import (
     UpdateBookingInput,
     UpdateBookingService,
 )
+from app.config import settings
 from app.domain.booking.entities import BookingComment, BookingFile
 from app.domain.booking.value_objects import BookingSource, BookingStatus
 from app.infrastructure.database import get_session
@@ -43,6 +47,11 @@ from app.infrastructure.repositories.property import (
     SqlPropertyRepository,
     SqlSeasonalPriceRepository,
 )
+from app.infrastructure.storage.s3 import (
+    FileTooLargeError,
+    download_booking_file,
+    upload_booking_file,
+)
 from app.presentation.api.deps import get_company_id, get_user_id
 from app.presentation.schemas.booking import (
     BookingAuditLogResponse,
@@ -50,7 +59,6 @@ from app.presentation.schemas.booking import (
     BookingCommentResponse,
     BookingCreate,
     BookingDetailResponse,
-    BookingFileCreate,
     BookingFileResponse,
     BookingListResponse,
     BookingMove,
@@ -131,6 +139,44 @@ def _to_booking_response(
         created_at=b.created_at,
         updated_at=b.updated_at,
     )
+
+
+def _public_file_url(url: str) -> str:
+    if not url:
+        return url
+
+    if settings.S3_PUBLIC_ENDPOINT:
+        base = settings.S3_PUBLIC_ENDPOINT.rstrip("/")
+        path = urlparse(url).path
+        return f"{base}{path}"
+
+    parsed = urlparse(url)
+    if parsed.hostname == "minio" and parsed.port == 9000:
+        return parsed._replace(netloc="localhost:9000").geturl()
+
+    return url
+
+
+def _to_file_response(f: BookingFile) -> BookingFileResponse:
+    return BookingFileResponse(
+        id=f.id,
+        booking_id=f.booking_id,
+        file_url=_public_file_url(f.file_url),
+        file_name=f.file_name,
+        file_type=f.file_type,
+        created_at=f.created_at,
+    )
+
+
+def _content_disposition(filename: str) -> str:
+    safe = re.sub(r'[\x00-\x1f\x7f"]+', "", filename).strip()
+    if not safe:
+        safe = "download"
+    fallback = safe.encode("ascii", "ignore").decode("ascii")
+    if not fallback:
+        fallback = "download"
+    encoded = quote(safe)
+    return f'attachment; filename="{fallback}"; filename*=UTF-8\'\'{encoded}'
 
 
 # ---------- Booking CRUD ----------
@@ -300,7 +346,7 @@ async def get_booking(
         guest=GuestResponse.model_validate(detail.guest, from_attributes=True) if detail.guest else None,
         payments=[PaymentResponse.model_validate(p, from_attributes=True) for p in detail.payments],
         deposits=[DepositResponse.model_validate(d, from_attributes=True) for d in detail.deposits],
-        files=[BookingFileResponse.model_validate(f, from_attributes=True) for f in detail.files],
+        files=[_to_file_response(f) for f in detail.files],
         comments=[BookingCommentResponse.model_validate(c, from_attributes=True) for c in detail.comments],
         audit_logs=[BookingAuditLogResponse.model_validate(a, from_attributes=True) for a in detail.audit_logs],
     )
@@ -515,7 +561,7 @@ async def list_deposits(
 @booking_router.post("/{booking_id}/files", response_model=BookingFileResponse, status_code=201)
 async def add_file(
     booking_id: uuid.UUID,
-    body: BookingFileCreate,
+    file: UploadFile = File(...),
     session: AsyncSession = Depends(get_session),
     company_id: uuid.UUID = Depends(get_company_id),
 ):
@@ -524,16 +570,26 @@ async def add_file(
     if booking is None or booking.company_id != company_id:
         raise HTTPException(status_code=404, detail="Booking not found")
 
+    try:
+        file_url = await upload_booking_file(
+            booking_id=booking_id,
+            file_obj=file.file,
+            filename=file.filename,
+            content_type=file.content_type,
+        )
+    except Exception:
+        raise HTTPException(status_code=500, detail="Failed to upload file")
+
     result = await repos["file"].create(
         BookingFile(
             booking_id=booking_id,
-            file_url=body.file_url,
-            file_name=body.file_name,
-            file_type=body.file_type,
+            file_url=file_url,
+            file_name=file.filename or "file",
+            file_type=file.content_type or "application/octet-stream",
         )
     )
     await session.commit()
-    return BookingFileResponse.model_validate(result, from_attributes=True)
+    return _to_file_response(result)
 
 
 @booking_router.get("/{booking_id}/files", response_model=list[BookingFileResponse])
@@ -547,7 +603,42 @@ async def list_files(
     if booking is None or booking.company_id != company_id:
         raise HTTPException(status_code=404, detail="Booking not found")
     result = await repos["file"].list_by_booking(booking_id)
-    return [BookingFileResponse.model_validate(f, from_attributes=True) for f in result]
+    return [_to_file_response(f) for f in result]
+
+
+@booking_router.get("/{booking_id}/files/{file_id}/download")
+async def download_file(
+    booking_id: uuid.UUID,
+    file_id: uuid.UUID,
+    session: AsyncSession = Depends(get_session),
+    company_id: uuid.UUID = Depends(get_company_id),
+):
+    repos = _repos(session)
+    booking = await repos["booking"].get_by_id(booking_id)
+    if booking is None or booking.company_id != company_id:
+        raise HTTPException(status_code=404, detail="Booking not found")
+
+    file_rec = await repos["file"].get_by_id(file_id)
+    if file_rec is None or file_rec.booking_id != booking_id:
+        raise HTTPException(status_code=404, detail="File not found")
+
+    try:
+        data, content_type = await download_booking_file(file_url=file_rec.file_url)
+    except FileTooLargeError as exc:
+        raise HTTPException(
+            status_code=413,
+            detail=f"File too large (max {exc.max_bytes} bytes)",
+        )
+    except Exception:
+        raise HTTPException(status_code=500, detail="Failed to download file")
+
+    filename = file_rec.file_name or "file"
+    headers = {"Content-Disposition": _content_disposition(filename)}
+    return Response(
+        content=data,
+        media_type=content_type or "application/octet-stream",
+        headers=headers,
+    )
 
 
 @booking_router.delete("/{booking_id}/files/{file_id}", status_code=204)

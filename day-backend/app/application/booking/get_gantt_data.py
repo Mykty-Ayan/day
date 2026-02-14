@@ -66,7 +66,10 @@ class GetGanttDataService:
                 continue
 
             bookings = await self._booking_repo.list_by_property_date_range(
-                prop.id, start_date, end_date,
+                prop.id,
+                start_date,
+                end_date,
+                company_id=company_id,
             )
 
             gantt_bookings: list[GanttBooking] = []

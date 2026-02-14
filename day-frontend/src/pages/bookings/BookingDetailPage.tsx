@@ -683,8 +683,8 @@ function FilesCommentsTab({ bookingId, files, comments }: { bookingId: string; f
                 <span className="text-sm text-gray-700 truncate">{f.file_name}</span>
                 <div className="flex gap-1">
                   <a
-                    href={f.file_url}
-                    download
+                    href={`/api/v1/bookings/${bookingId}/files/${f.id}/download`}
+                    download={f.file_name}
                     className="p-1 hover:bg-gray-200 rounded transition-colors"
                   >
                     <Download className="w-3.5 h-3.5 text-gray-500" />

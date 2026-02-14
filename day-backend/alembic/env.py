@@ -1,10 +1,12 @@
 import asyncio
+import os
 from logging.config import fileConfig
 
 from sqlalchemy import pool
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
 import app.infrastructure.models.booking  # noqa: F401
+import app.infrastructure.models.cleaning  # noqa: F401
 
 # Import all ORM models so Base.metadata is populated for autogenerate
 import app.infrastructure.models.property  # noqa: F401
@@ -14,6 +16,11 @@ from app.infrastructure.database import Base
 config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
+
+# Prefer DATABASE_URL from environment (e.g. docker-compose env_file).
+env_db_url = os.getenv("DATABASE_URL")
+if env_db_url:
+    config.set_main_option("sqlalchemy.url", env_db_url)
 
 target_metadata = Base.metadata
 

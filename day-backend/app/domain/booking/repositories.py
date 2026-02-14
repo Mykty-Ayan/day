@@ -100,6 +100,8 @@ class BookingRepository(abc.ABC):
         property_id: uuid.UUID,
         start_date: date,
         end_date: date,
+        *,
+        company_id: uuid.UUID | None = None,
     ) -> list[Booking]: ...
 
     @abc.abstractmethod
@@ -155,6 +157,9 @@ class BookingDepositRepository(abc.ABC):
 class BookingFileRepository(abc.ABC):
     @abc.abstractmethod
     async def create(self, file: BookingFile) -> BookingFile: ...
+
+    @abc.abstractmethod
+    async def get_by_id(self, file_id: uuid.UUID) -> BookingFile | None: ...
 
     @abc.abstractmethod
     async def list_by_booking(self, booking_id: uuid.UUID) -> list[BookingFile]: ...
