@@ -13,6 +13,13 @@ from botocore.exceptions import ClientError
 from app.config import settings
 
 
+class FileTooLargeError(Exception):
+    def __init__(self, max_bytes: int, actual_bytes: int | None = None) -> None:
+        self.max_bytes = max_bytes
+        self.actual_bytes = actual_bytes
+        super().__init__("File exceeds maximum download size")
+
+
 def _s3_client():
     return boto3.client(
         "s3",
@@ -114,10 +121,16 @@ async def upload_booking_file(
 async def download_booking_file(*, file_url: str) -> tuple[bytes, str | None]:
     client = _s3_client()
     key = _extract_key(file_url)
+    max_bytes = settings.S3_MAX_DOWNLOAD_BYTES
 
     def _get():
         obj = client.get_object(Bucket=settings.S3_BUCKET, Key=key)
-        body = obj["Body"].read()
+        content_length = obj.get("ContentLength")
+        if content_length is not None and content_length > max_bytes:
+            raise FileTooLargeError(max_bytes=max_bytes, actual_bytes=content_length)
+        body = obj["Body"].read(max_bytes + 1)
+        if len(body) > max_bytes:
+            raise FileTooLargeError(max_bytes=max_bytes, actual_bytes=len(body))
         return body, obj.get("ContentType")
 
     return await asyncio.to_thread(_get)

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 import uuid
 from datetime import date, timedelta
 from urllib.parse import quote, urlparse
@@ -46,7 +47,11 @@ from app.infrastructure.repositories.property import (
     SqlPropertyRepository,
     SqlSeasonalPriceRepository,
 )
-from app.infrastructure.storage.s3 import download_booking_file, upload_booking_file
+from app.infrastructure.storage.s3 import (
+    FileTooLargeError,
+    download_booking_file,
+    upload_booking_file,
+)
 from app.presentation.api.deps import get_company_id, get_user_id
 from app.presentation.schemas.booking import (
     BookingAuditLogResponse,
@@ -164,11 +169,13 @@ def _to_file_response(f: BookingFile) -> BookingFileResponse:
 
 
 def _content_disposition(filename: str) -> str:
-    safe = filename.replace('"', "")
+    safe = re.sub(r'[\x00-\x1f\x7f"]+', "", filename).strip()
+    if not safe:
+        safe = "download"
     fallback = safe.encode("ascii", "ignore").decode("ascii")
     if not fallback:
         fallback = "download"
-    encoded = quote(filename)
+    encoded = quote(safe)
     return f'attachment; filename="{fallback}"; filename*=UTF-8\'\'{encoded}'
 
 
@@ -617,6 +624,11 @@ async def download_file(
 
     try:
         data, content_type = await download_booking_file(file_url=file_rec.file_url)
+    except FileTooLargeError as exc:
+        raise HTTPException(
+            status_code=413,
+            detail=f"File too large (max {exc.max_bytes} bytes)",
+        )
     except Exception:
         raise HTTPException(status_code=500, detail="Failed to download file")
 

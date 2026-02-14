@@ -11,7 +11,8 @@ class Settings(BaseSettings):
         validation_alias=AliasChoices("S3_ENDPOINT", "S3_ENDPOINT_URL"),
     )
     S3_PUBLIC_ENDPOINT: str | None = None
-    S3_PUBLIC_READ: bool = True
+    S3_PUBLIC_READ: bool = False
+    S3_MAX_DOWNLOAD_BYTES: int = 25 * 1024 * 1024
     S3_ACCESS_KEY: str = ""
     S3_SECRET_KEY: str = ""
     S3_BUCKET: str = Field(
