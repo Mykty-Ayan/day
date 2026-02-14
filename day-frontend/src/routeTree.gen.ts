@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as PropertiesIndexRouteImport } from './routes/properties/index'
 import { Route as CleaningIndexRouteImport } from './routes/cleaning/index'
 import { Route as BookingsIndexRouteImport } from './routes/bookings/index'
+import { Route as AnalyticsIndexRouteImport } from './routes/analytics/index'
 import { Route as PropertiesNewRouteImport } from './routes/properties/new'
 import { Route as PropertiesGanttRouteImport } from './routes/properties/gantt'
 import { Route as PropertiesPropertyIdRouteImport } from './routes/properties/$propertyId'
@@ -41,6 +42,11 @@ const CleaningIndexRoute = CleaningIndexRouteImport.update({
 const BookingsIndexRoute = BookingsIndexRouteImport.update({
   id: '/bookings/',
   path: '/bookings/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AnalyticsIndexRoute = AnalyticsIndexRouteImport.update({
+  id: '/analytics/',
+  path: '/analytics/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PropertiesNewRoute = PropertiesNewRouteImport.update({
@@ -100,6 +106,7 @@ export interface FileRoutesByFullPath {
   '/properties/$propertyId': typeof PropertiesPropertyIdRoute
   '/properties/gantt': typeof PropertiesGanttRoute
   '/properties/new': typeof PropertiesNewRoute
+  '/analytics/': typeof AnalyticsIndexRoute
   '/bookings/': typeof BookingsIndexRoute
   '/cleaning/': typeof CleaningIndexRoute
   '/properties/': typeof PropertiesIndexRoute
@@ -115,6 +122,7 @@ export interface FileRoutesByTo {
   '/properties/$propertyId': typeof PropertiesPropertyIdRoute
   '/properties/gantt': typeof PropertiesGanttRoute
   '/properties/new': typeof PropertiesNewRoute
+  '/analytics': typeof AnalyticsIndexRoute
   '/bookings': typeof BookingsIndexRoute
   '/cleaning': typeof CleaningIndexRoute
   '/properties': typeof PropertiesIndexRoute
@@ -131,6 +139,7 @@ export interface FileRoutesById {
   '/properties/$propertyId': typeof PropertiesPropertyIdRoute
   '/properties/gantt': typeof PropertiesGanttRoute
   '/properties/new': typeof PropertiesNewRoute
+  '/analytics/': typeof AnalyticsIndexRoute
   '/bookings/': typeof BookingsIndexRoute
   '/cleaning/': typeof CleaningIndexRoute
   '/properties/': typeof PropertiesIndexRoute
@@ -148,6 +157,7 @@ export interface FileRouteTypes {
     | '/properties/$propertyId'
     | '/properties/gantt'
     | '/properties/new'
+    | '/analytics/'
     | '/bookings/'
     | '/cleaning/'
     | '/properties/'
@@ -163,6 +173,7 @@ export interface FileRouteTypes {
     | '/properties/$propertyId'
     | '/properties/gantt'
     | '/properties/new'
+    | '/analytics'
     | '/bookings'
     | '/cleaning'
     | '/properties'
@@ -178,6 +189,7 @@ export interface FileRouteTypes {
     | '/properties/$propertyId'
     | '/properties/gantt'
     | '/properties/new'
+    | '/analytics/'
     | '/bookings/'
     | '/cleaning/'
     | '/properties/'
@@ -194,6 +206,7 @@ export interface RootRouteChildren {
   PropertiesPropertyIdRoute: typeof PropertiesPropertyIdRoute
   PropertiesGanttRoute: typeof PropertiesGanttRoute
   PropertiesNewRoute: typeof PropertiesNewRoute
+  AnalyticsIndexRoute: typeof AnalyticsIndexRoute
   BookingsIndexRoute: typeof BookingsIndexRoute
   CleaningIndexRoute: typeof CleaningIndexRoute
   PropertiesIndexRoute: typeof PropertiesIndexRoute
@@ -227,6 +240,13 @@ declare module '@tanstack/react-router' {
       path: '/bookings'
       fullPath: '/bookings/'
       preLoaderRoute: typeof BookingsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/analytics/': {
+      id: '/analytics/'
+      path: '/analytics'
+      fullPath: '/analytics/'
+      preLoaderRoute: typeof AnalyticsIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/properties/new': {
@@ -306,6 +326,7 @@ const rootRouteChildren: RootRouteChildren = {
   PropertiesPropertyIdRoute: PropertiesPropertyIdRoute,
   PropertiesGanttRoute: PropertiesGanttRoute,
   PropertiesNewRoute: PropertiesNewRoute,
+  AnalyticsIndexRoute: AnalyticsIndexRoute,
   BookingsIndexRoute: BookingsIndexRoute,
   CleaningIndexRoute: CleaningIndexRoute,
   PropertiesIndexRoute: PropertiesIndexRoute,
