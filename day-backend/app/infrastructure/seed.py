@@ -7,24 +7,40 @@ from __future__ import annotations
 
 import asyncio
 import uuid
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, time, timedelta
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.infrastructure.database import async_session
 from app.infrastructure.models.booking import (
     BookingAuditLogModel,
     BookingDepositModel,
+    BookingCommentModel,
+    BookingContractModel,
+    BookingFileModel,
     BookingModel,
     BookingPaymentModel,
     GuestModel,
+    GroupBookingModel,
+)
+from app.infrastructure.models.cleaning import (
+    CleaningChecklistItemModel,
+    CleaningChecklistTemplateModel,
+    CleaningReportChecklistModel,
+    CleaningReportModel,
+    CleaningReportPhotoModel,
+    CleaningTaskModel,
+    CleanerRatingModel,
+    CleanerRouteModel,
 )
 from app.infrastructure.models.property import (
     AmenityModel,
     DiscountRuleModel,
     PricingConfigModel,
     PropertyAmenityModel,
+    PropertyAuditLogModel,
+    PropertyPhotoModel,
     PropertyModel,
     SeasonalPriceModel,
 )
@@ -45,6 +61,23 @@ GANTT_COLORS = [
     "#8B5CF6",  # violet
     "#EC4899",  # pink
     "#06B6D4",  # cyan
+]
+
+TEST_USER_ID = uuid.UUID("00000000-0000-0000-0000-00000000a001")
+CLEANER_IDS = [
+    uuid.UUID("00000000-0000-0000-0000-00000000c101"),
+    uuid.UUID("00000000-0000-0000-0000-00000000c102"),
+    uuid.UUID("00000000-0000-0000-0000-00000000c103"),
+]
+
+PHOTO_URLS = [
+    "https://placehold.co/1200x800?text=Property+Photo+1",
+    "https://placehold.co/1200x800?text=Property+Photo+2",
+    "https://placehold.co/1200x800?text=Property+Photo+3",
+]
+FILE_URLS = [
+    "https://placehold.co/800x600?text=Booking+File+1",
+    "https://placehold.co/800x600?text=Booking+File+2",
 ]
 
 
@@ -312,6 +345,59 @@ async def seed_properties(
     return property_ids
 
 
+async def seed_property_extras(
+    session: AsyncSession, property_ids: list[uuid.UUID]
+) -> None:
+    if not property_ids:
+        return
+
+    print("\n--- Property Photos & Audit Logs ---")
+    for idx, prop_id in enumerate(property_ids):
+        existing_photo = await session.scalar(
+            select(PropertyPhotoModel).where(PropertyPhotoModel.property_id == prop_id).limit(1)
+        )
+        if not existing_photo:
+            for photo_idx, url in enumerate(PHOTO_URLS):
+                session.add(PropertyPhotoModel(
+                    id=uuid.uuid4(),
+                    property_id=prop_id,
+                    url=url,
+                    sort_order=photo_idx,
+                    is_cover=photo_idx == 0,
+                ))
+            print(f"  [+] Added photos for property #{idx + 1}")
+        else:
+            print(f"  [skip] Property photos already exist for property #{idx + 1}")
+
+        existing_log = await session.scalar(
+            select(PropertyAuditLogModel).where(PropertyAuditLogModel.property_id == prop_id).limit(1)
+        )
+        if not existing_log:
+            session.add(PropertyAuditLogModel(
+                id=uuid.uuid4(),
+                property_id=prop_id,
+                changed_by=TEST_USER_ID,
+                field_name="*",
+                old_value=None,
+                new_value=None,
+                action="create",
+            ))
+            session.add(PropertyAuditLogModel(
+                id=uuid.uuid4(),
+                property_id=prop_id,
+                changed_by=TEST_USER_ID,
+                field_name="description",
+                old_value=None,
+                new_value="Updated description for demo purposes",
+                action="update",
+            ))
+            print(f"  [+] Added audit logs for property #{idx + 1}")
+        else:
+            print(f"  [skip] Property audit logs already exist for property #{idx + 1}")
+
+    await session.flush()
+
+
 async def seed_guests(session: AsyncSession) -> list[uuid.UUID]:
     """Create guests and return list of guest IDs."""
     guest_ids: list[uuid.UUID] = []
@@ -347,7 +433,7 @@ async def seed_bookings(
     session: AsyncSession,
     property_ids: list[uuid.UUID],
     guest_ids: list[uuid.UUID],
-) -> None:
+) -> list[dict]:
     """Create bookings with various statuses, payments, and deposits."""
 
     # Check if bookings already exist for this company
@@ -355,8 +441,27 @@ async def seed_bookings(
         select(BookingModel).where(BookingModel.company_id == COMPANY_ID).limit(1)
     )
     if existing:
+        rows = await session.execute(
+            select(
+                BookingModel.id,
+                BookingModel.property_id,
+                BookingModel.status,
+                BookingModel.check_in,
+                BookingModel.check_out,
+            ).where(BookingModel.company_id == COMPANY_ID)
+        )
+        bookings_out = [
+            {
+                "id": row.id,
+                "property_id": row.property_id,
+                "status": row.status,
+                "check_in": row.check_in,
+                "check_out": row.check_out,
+            }
+            for row in rows
+        ]
         print("  [skip] Bookings already exist, skipping...")
-        return
+        return bookings_out
 
     bookings_data = [
         # Property 0 (Sunset Apartment) - 4 bookings
@@ -493,6 +598,7 @@ async def seed_bookings(
     ]
 
     booking_ids: list[uuid.UUID] = []
+    bookings_out: list[dict] = []
     for i, b in enumerate(bookings_data):
         booking_id = uuid.uuid4()
         session.add(BookingModel(
@@ -511,6 +617,13 @@ async def seed_bookings(
             children_count=b["children"],
         ))
         booking_ids.append(booking_id)
+        bookings_out.append({
+            "id": booking_id,
+            "property_id": property_ids[b["property_idx"]],
+            "status": b["status"],
+            "check_in": b["check_in"],
+            "check_out": b["check_out"],
+        })
 
         # Audit log for creation
         session.add(BookingAuditLogModel(
@@ -556,6 +669,415 @@ async def seed_bookings(
 
     await session.flush()
     print(f"\n  Total bookings created: {len(bookings_data)}")
+    return bookings_out
+
+
+async def seed_group_bookings(
+    session: AsyncSession,
+    bookings_out: list[dict],
+) -> None:
+    if not bookings_out:
+        return
+
+    existing = await session.scalar(
+        select(GroupBookingModel).where(GroupBookingModel.company_id == COMPANY_ID).limit(1)
+    )
+    if existing:
+        print("\n--- Group Bookings ---")
+        print("  [skip] Group bookings already exist")
+        return
+
+    print("\n--- Group Bookings ---")
+    group_id = uuid.uuid4()
+    session.add(GroupBookingModel(
+        id=group_id,
+        company_id=COMPANY_ID,
+        adults_count=4,
+        children_count=2,
+        status="confirmed",
+        notes="Test group booking",
+    ))
+
+    assign_ids = [b["id"] for b in bookings_out[:2]]
+    for bid in assign_ids:
+        await session.execute(
+            update(BookingModel)
+            .where(BookingModel.id == bid)
+            .values(group_booking_id=group_id)
+        )
+        session.add(BookingAuditLogModel(
+            id=uuid.uuid4(),
+            booking_id=bid,
+            changed_by=TEST_USER_ID,
+            field_name="group_booking_id",
+            old_value=None,
+            new_value=str(group_id),
+            action="update",
+        ))
+
+    print(f"  [+] Group booking created and linked to {len(assign_ids)} bookings")
+    await session.flush()
+
+
+async def seed_booking_extras(
+    session: AsyncSession,
+    bookings_out: list[dict],
+) -> None:
+    if not bookings_out:
+        return
+
+    print("\n--- Booking Files / Comments / Contracts ---")
+    for idx, b in enumerate(bookings_out):
+        booking_id = b["id"]
+
+        if not await _exists(session, BookingFileModel, booking_id=booking_id):
+            session.add(BookingFileModel(
+                id=uuid.uuid4(),
+                booking_id=booking_id,
+                file_url=FILE_URLS[0],
+                file_name=f"booking-{idx + 1}-passport.jpg",
+                file_type="image/jpeg",
+            ))
+            session.add(BookingFileModel(
+                id=uuid.uuid4(),
+                booking_id=booking_id,
+                file_url=FILE_URLS[1],
+                file_name=f"booking-{idx + 1}-contract.pdf",
+                file_type="application/pdf",
+            ))
+            print(f"  [+] Files for booking #{idx + 1}")
+        else:
+            print(f"  [skip] Files already exist for booking #{idx + 1}")
+
+        if not await _exists(session, BookingCommentModel, booking_id=booking_id):
+            session.add(BookingCommentModel(
+                id=uuid.uuid4(),
+                booking_id=booking_id,
+                author_id=TEST_USER_ID,
+                content="Test comment: guest prefers late check-in.",
+            ))
+            print(f"  [+] Comment for booking #{idx + 1}")
+        else:
+            print(f"  [skip] Comments already exist for booking #{idx + 1}")
+
+        if not await _exists(session, BookingContractModel, booking_id=booking_id):
+            session.add(BookingContractModel(
+                id=uuid.uuid4(),
+                booking_id=booking_id,
+                template_url="https://placehold.co/800x600?text=Contract+Template",
+                generated_url="https://placehold.co/800x600?text=Generated+Contract",
+                status="generated",
+                signed_at=None,
+            ))
+            print(f"  [+] Contract for booking #{idx + 1}")
+        else:
+            print(f"  [skip] Contracts already exist for booking #{idx + 1}")
+
+    await session.flush()
+
+
+async def seed_cleaning_checklists(session: AsyncSession) -> list[uuid.UUID]:
+    existing = await session.scalar(
+        select(CleaningChecklistTemplateModel)
+        .where(CleaningChecklistTemplateModel.company_id == COMPANY_ID)
+        .limit(1)
+    )
+    if existing:
+        rows = await session.execute(
+            select(CleaningChecklistItemModel.id)
+            .join(CleaningChecklistTemplateModel)
+            .where(CleaningChecklistTemplateModel.company_id == COMPANY_ID)
+        )
+        return [row.id for row in rows]
+
+    print("\n--- Cleaning Checklists ---")
+    template_id = uuid.uuid4()
+    session.add(CleaningChecklistTemplateModel(
+        id=template_id,
+        company_id=COMPANY_ID,
+        name="Standard Turnover",
+    ))
+
+    items = [
+        "Vacuum and mop floors",
+        "Replace linens and towels",
+        "Clean bathroom and mirrors",
+        "Wipe kitchen surfaces",
+        "Empty trash bins",
+        "Check amenities & supplies",
+    ]
+
+    item_ids: list[uuid.UUID] = []
+    for order, title in enumerate(items):
+        item_id = uuid.uuid4()
+        session.add(CleaningChecklistItemModel(
+            id=item_id,
+            template_id=template_id,
+            title=title,
+            sort_order=order,
+        ))
+        item_ids.append(item_id)
+
+    deep_id = uuid.uuid4()
+    session.add(CleaningChecklistTemplateModel(
+        id=deep_id,
+        company_id=COMPANY_ID,
+        name="Deep Clean",
+    ))
+    for order, title in enumerate([
+        "Clean inside appliances",
+        "Wash windows",
+        "Steam clean upholstery",
+    ]):
+        session.add(CleaningChecklistItemModel(
+            id=uuid.uuid4(),
+            template_id=deep_id,
+            title=title,
+            sort_order=order,
+        ))
+
+    print("  [+] Cleaning checklist templates and items created")
+    await session.flush()
+    return item_ids
+
+
+async def seed_cleaning_tasks(
+    session: AsyncSession,
+    property_ids: list[uuid.UUID],
+    bookings_out: list[dict],
+) -> list[dict]:
+    existing = await session.scalar(
+        select(CleaningTaskModel).where(CleaningTaskModel.company_id == COMPANY_ID).limit(1)
+    )
+    if existing:
+        rows = await session.execute(
+            select(
+                CleaningTaskModel.id,
+                CleaningTaskModel.status,
+                CleaningTaskModel.cleaner_id,
+                CleaningTaskModel.scheduled_date,
+            ).where(CleaningTaskModel.company_id == COMPANY_ID)
+        )
+        return [
+            {
+                "id": row.id,
+                "status": row.status,
+                "cleaner_id": row.cleaner_id,
+                "scheduled_date": row.scheduled_date,
+            }
+            for row in rows
+        ]
+
+    if not property_ids:
+        return []
+
+    print("\n--- Cleaning Tasks ---")
+    tasks_data = []
+
+    def _safe_prop(idx: int) -> uuid.UUID:
+        return property_ids[idx % len(property_ids)]
+
+    if bookings_out:
+        b0 = bookings_out[0]
+        tasks_data.append({
+            "property_id": b0["property_id"],
+            "booking_id": b0["id"],
+            "type": "post_checkout",
+            "status": "completed",
+            "cleaner_id": CLEANER_IDS[0],
+            "scheduled_date": b0["check_out"],
+            "scheduled_time": time(11, 0),
+            "started_at": datetime.utcnow() - timedelta(hours=3),
+            "completed_at": datetime.utcnow() - timedelta(hours=1),
+        })
+
+    if len(bookings_out) > 1:
+        b1 = bookings_out[1]
+        tasks_data.append({
+            "property_id": b1["property_id"],
+            "booking_id": b1["id"],
+            "type": "mid_stay",
+            "status": "assigned",
+            "cleaner_id": CLEANER_IDS[1],
+            "scheduled_date": TODAY + timedelta(days=1),
+            "scheduled_time": time(12, 0),
+            "started_at": None,
+            "completed_at": None,
+        })
+
+    tasks_data.extend([
+        {
+            "property_id": _safe_prop(2),
+            "booking_id": None,
+            "type": "on_demand",
+            "status": "pending",
+            "cleaner_id": None,
+            "scheduled_date": TODAY + timedelta(days=2),
+            "scheduled_time": time(14, 30),
+            "started_at": None,
+            "completed_at": None,
+        },
+        {
+            "property_id": _safe_prop(3),
+            "booking_id": None,
+            "type": "post_checkout",
+            "status": "in_progress",
+            "cleaner_id": CLEANER_IDS[2],
+            "scheduled_date": TODAY,
+            "scheduled_time": time(10, 0),
+            "started_at": datetime.utcnow() - timedelta(hours=1),
+            "completed_at": None,
+        },
+    ])
+
+    tasks_out: list[dict] = []
+    for i, t in enumerate(tasks_data):
+        task_id = uuid.uuid4()
+        session.add(CleaningTaskModel(
+            id=task_id,
+            company_id=COMPANY_ID,
+            property_id=t["property_id"],
+            booking_id=t["booking_id"],
+            cleaner_id=t["cleaner_id"],
+            type=t["type"],
+            status=t["status"],
+            scheduled_date=t["scheduled_date"],
+            scheduled_time=t["scheduled_time"],
+            notes="Auto-generated test task",
+            started_at=t["started_at"],
+            completed_at=t["completed_at"],
+        ))
+        tasks_out.append({
+            "id": task_id,
+            "status": t["status"],
+            "cleaner_id": t["cleaner_id"],
+            "scheduled_date": t["scheduled_date"],
+        })
+        print(f"  [+] Cleaning task #{i + 1} ({t['status']})")
+
+    await session.flush()
+    return tasks_out
+
+
+async def seed_cleaning_reports(
+    session: AsyncSession,
+    tasks_out: list[dict],
+    checklist_item_ids: list[uuid.UUID],
+) -> None:
+    if not tasks_out:
+        return
+
+    print("\n--- Cleaning Reports ---")
+    for idx, task in enumerate(tasks_out):
+        if task["status"] != "completed":
+            continue
+
+        existing = await session.scalar(
+            select(CleaningReportModel).where(CleaningReportModel.task_id == task["id"]).limit(1)
+        )
+        if existing:
+            print(f"  [skip] Report already exists for task #{idx + 1}")
+            continue
+
+        report_id = uuid.uuid4()
+        cleaner_id = task["cleaner_id"] or CLEANER_IDS[0]
+        session.add(CleaningReportModel(
+            id=report_id,
+            task_id=task["id"],
+            cleaner_id=cleaner_id,
+            status="submitted",
+            notes="Test report: all key areas cleaned.",
+            submitted_at=datetime.utcnow(),
+        ))
+
+        for photo_idx in range(3):
+            session.add(CleaningReportPhotoModel(
+                id=uuid.uuid4(),
+                report_id=report_id,
+                url=f"https://placehold.co/800x600?text=Report+Photo+{photo_idx + 1}",
+                room_type=["kitchen", "bathroom", "bedroom"][photo_idx],
+                metadata_json={
+                    "lat": 34.05,
+                    "lng": -118.24,
+                    "taken_at": datetime.utcnow().isoformat(),
+                },
+                metadata_verified=photo_idx == 0,
+            ))
+
+        for item_id in checklist_item_ids[:5]:
+            session.add(CleaningReportChecklistModel(
+                id=uuid.uuid4(),
+                report_id=report_id,
+                checklist_item_id=item_id,
+                is_done=True,
+                note=None,
+            ))
+
+        print(f"  [+] Report for task #{idx + 1}")
+
+    await session.flush()
+
+
+async def seed_cleaner_routes(
+    session: AsyncSession,
+    tasks_out: list[dict],
+) -> None:
+    if not tasks_out:
+        return
+
+    existing = await session.scalar(
+        select(CleanerRouteModel).where(CleanerRouteModel.company_id == COMPANY_ID).limit(1)
+    )
+    if existing:
+        print("\n--- Cleaner Routes ---")
+        print("  [skip] Cleaner routes already exist")
+        return
+
+    task_ids = [str(t["id"]) for t in tasks_out[:3]]
+    session.add(CleanerRouteModel(
+        id=uuid.uuid4(),
+        company_id=COMPANY_ID,
+        cleaner_id=CLEANER_IDS[0],
+        route_date=TODAY,
+        ordered_task_ids=task_ids,
+        route_polyline={"polyline": "abcd1234"},
+    ))
+    print("\n--- Cleaner Routes ---")
+    print("  [+] Cleaner route created")
+    await session.flush()
+
+
+async def seed_cleaner_ratings(
+    session: AsyncSession,
+    tasks_out: list[dict],
+) -> None:
+    if not tasks_out:
+        return
+
+    existing = await session.scalar(
+        select(CleanerRatingModel).where(CleanerRatingModel.company_id == COMPANY_ID).limit(1)
+    )
+    if existing:
+        print("\n--- Cleaner Ratings ---")
+        print("  [skip] Cleaner ratings already exist")
+        return
+
+    print("\n--- Cleaner Ratings ---")
+    for task in tasks_out:
+        if task["status"] != "completed":
+            continue
+        session.add(CleanerRatingModel(
+            id=uuid.uuid4(),
+            company_id=COMPANY_ID,
+            cleaner_id=task["cleaner_id"] or CLEANER_IDS[0],
+            task_id=task["id"],
+            rated_by=TEST_USER_ID,
+            score=5,
+            review="Great job, spotless and on time.",
+            kpi_metrics={"speed": 5, "quality": 5, "attention_to_detail": 5},
+        ))
+    print("  [+] Ratings created for completed tasks")
+    await session.flush()
 
 
 # ---------- Main ----------
@@ -572,12 +1094,21 @@ async def main() -> None:
 
             print("\n--- Properties ---")
             property_ids = await seed_properties(session, amenity_map)
+            await seed_property_extras(session, property_ids)
 
             print("\n--- Guests ---")
             guest_ids = await seed_guests(session)
 
             print("\n--- Bookings ---")
-            await seed_bookings(session, property_ids, guest_ids)
+            bookings_out = await seed_bookings(session, property_ids, guest_ids)
+            await seed_group_bookings(session, bookings_out)
+            await seed_booking_extras(session, bookings_out)
+
+            checklist_item_ids = await seed_cleaning_checklists(session)
+            tasks_out = await seed_cleaning_tasks(session, property_ids, bookings_out)
+            await seed_cleaning_reports(session, tasks_out, checklist_item_ids)
+            await seed_cleaner_routes(session, tasks_out)
+            await seed_cleaner_ratings(session, tasks_out)
 
             await session.commit()
             print("\n" + "=" * 50)

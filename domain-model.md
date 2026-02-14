@@ -335,7 +335,7 @@ BookingContract (Entity)
 ├── booking_id: UUID
 ├── template_url: string        — шаблон оферты
 ├── generated_url: string       — сгенерированный договор
-├── status: ContractStatus      — draft | sent | signed
+├── status: ContractStatus      — draft | generated | sent | signed
 ├── signed_at: timestamp
 └── created_at: timestamp
 

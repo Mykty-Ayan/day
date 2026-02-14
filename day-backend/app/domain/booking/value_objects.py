@@ -64,6 +64,7 @@ _DEPOSIT_TRANSITIONS: dict[DepositStatus, set[DepositStatus]] = {
 
 class ContractStatus(str, enum.Enum):
     DRAFT = "draft"
+    GENERATED = "generated"
     SENT = "sent"
     SIGNED = "signed"
 

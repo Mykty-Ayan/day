@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
-import { Plus, Search, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Plus, Search, ChevronLeft, ChevronRight, LayoutGrid, Grid2X2, List } from 'lucide-react'
 import { Link } from '@tanstack/react-router'
 import { useProperties } from '../../hooks/useProperties'
 import type { PropertyStatus } from '../../types/property'
@@ -19,6 +19,7 @@ export default function PropertyListPage() {
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<PropertyStatus | 'all'>('all')
   const [page, setPage] = useState(1)
+  const [viewMode, setViewMode] = useState<'large' | 'medium' | 'list'>('large')
 
   const { data, isLoading } = useProperties({
     page,
@@ -78,6 +79,33 @@ export default function PropertyListPage() {
               </ToggleGroupItem>
             ))}
           </ToggleGroup>
+          <ToggleGroup
+            type="single"
+            value={viewMode}
+            onValueChange={(value) => {
+              if (!value) return
+              setViewMode(value as 'large' | 'medium' | 'list')
+            }}
+          >
+            <ToggleGroupItem value="large" aria-label="Large tiles">
+              <span className="inline-flex items-center gap-1">
+                <LayoutGrid className="w-3.5 h-3.5" />
+                Large
+              </span>
+            </ToggleGroupItem>
+            <ToggleGroupItem value="medium" aria-label="Medium tiles">
+              <span className="inline-flex items-center gap-1">
+                <Grid2X2 className="w-3.5 h-3.5" />
+                Medium
+              </span>
+            </ToggleGroupItem>
+            <ToggleGroupItem value="list" aria-label="List view">
+              <span className="inline-flex items-center gap-1">
+                <List className="w-3.5 h-3.5" />
+                List
+              </span>
+            </ToggleGroupItem>
+          </ToggleGroup>
         </div>
 
         {/* Content */}
@@ -101,9 +129,17 @@ export default function PropertyListPage() {
         ) : (
           <>
             {/* Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div
+              className={`grid ${
+                viewMode === 'large'
+                  ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4'
+                  : viewMode === 'medium'
+                    ? 'grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3'
+                    : 'grid-cols-1 gap-2'
+              }`}
+            >
               {data.items.map((property, i) => (
-                <PropertyCard key={property.id} property={property} index={i} />
+                <PropertyCard key={property.id} property={property} index={i} variant={viewMode} />
               ))}
             </div>
 
