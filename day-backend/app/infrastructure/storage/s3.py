@@ -77,7 +77,13 @@ def _extract_key(file_url: str) -> str:
     return path
 
 
-async def upload_booking_file(*, booking_id: uuid.UUID, file_obj, filename: str | None, content_type: str | None) -> str:
+async def upload_booking_file(
+    *,
+    booking_id: uuid.UUID,
+    file_obj,
+    filename: str | None,
+    content_type: str | None,
+) -> str:
     client = _s3_client()
     await asyncio.to_thread(_ensure_bucket, client)
     await asyncio.to_thread(_ensure_public_read, client)
