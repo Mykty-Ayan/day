@@ -38,9 +38,10 @@ test.describe('Property API - CRUD', () => {
     createProperty,
     api,
   }) => {
-    await createProperty({ internal_name: 'unique-dup-test' })
+    const internalName = `unique-dup-test-${Date.now()}`
+    await createProperty({ internal_name: internalName })
     const res = await api.post('/properties', {
-      data: createTestProperty({ internal_name: 'unique-dup-test' }),
+      data: createTestProperty({ internal_name: internalName }),
     })
     // Expect conflict or validation error
     expect([409, 422]).toContain(res.status())

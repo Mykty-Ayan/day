@@ -4,7 +4,7 @@ import uuid
 from datetime import date, datetime
 from decimal import Decimal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import AliasChoices, BaseModel, ConfigDict, Field
 
 from app.domain.booking.value_objects import (
     BookingAuditAction,
@@ -76,7 +76,10 @@ class BookingUpdate(BaseModel):
 
 
 class BookingResponse(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_encoders={Decimal: float},
+    )
 
     id: uuid.UUID
     company_id: uuid.UUID
@@ -102,7 +105,10 @@ class BookingResponse(BaseModel):
 
 
 class BookingStatusChange(BaseModel):
-    target_status: BookingStatus
+    # Accept both `target_status` (current) and `status` (legacy tests/clients)
+    target_status: BookingStatus = Field(
+        validation_alias=AliasChoices("target_status", "status")
+    )
 
 
 class BookingMove(BaseModel):
@@ -128,7 +134,10 @@ class PaymentCreate(BaseModel):
 
 
 class PaymentResponse(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_encoders={Decimal: float},
+    )
 
     id: uuid.UUID
     booking_id: uuid.UUID
@@ -155,7 +164,10 @@ class DepositAction(BaseModel):
 
 
 class DepositResponse(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_encoders={Decimal: float},
+    )
 
     id: uuid.UUID
     booking_id: uuid.UUID
@@ -216,6 +228,8 @@ class PriceCalculateRequest(BaseModel):
 
 
 class PriceCalculateResponse(BaseModel):
+    model_config = ConfigDict(json_encoders={Decimal: float})
+
     nights: int
     base_total: Decimal
     weekend_surcharge: Decimal

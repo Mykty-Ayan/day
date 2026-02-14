@@ -18,7 +18,7 @@ class AnalyticsRepository(abc.ABC):
         date_from: date,
         date_to: date,
         *,
-        property_id: uuid.UUID | None = None,
+        property_ids: list[uuid.UUID] | None = None,
         source: str | None = None,
     ) -> list[PropertyMetrics]:
         ...
@@ -31,7 +31,7 @@ class AnalyticsRepository(abc.ABC):
         date_to: date,
         granularity: Granularity,
         *,
-        property_id: uuid.UUID | None = None,
+        property_ids: list[uuid.UUID] | None = None,
         source: str | None = None,
     ) -> list[TimeSeriesPoint]:
         ...

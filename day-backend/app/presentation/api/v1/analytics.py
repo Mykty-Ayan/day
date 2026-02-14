@@ -68,7 +68,7 @@ async def get_metrics(
     date_from: date | None = Query(default=None),
     date_to: date | None = Query(default=None),
     period: PeriodPreset | None = Query(default=None),
-    property_id: uuid.UUID | None = Query(default=None),
+    property_id: list[uuid.UUID] | None = Query(default=None),
     source: str | None = Query(default=None),
     session: AsyncSession = Depends(get_session),
     company_id: uuid.UUID = Depends(get_company_id),
@@ -84,7 +84,7 @@ async def get_metrics(
                 company_id=company_id,
                 date_from=resolved_from,
                 date_to=resolved_to,
-                property_id=property_id,
+                property_ids=property_id,
                 source=source,
             )
         )
@@ -136,7 +136,7 @@ async def get_time_series(
     date_to: date | None = Query(default=None),
     period: PeriodPreset | None = Query(default=None),
     granularity: Granularity = Query(default=Granularity.DAY),
-    property_id: uuid.UUID | None = Query(default=None),
+    property_id: list[uuid.UUID] | None = Query(default=None),
     source: str | None = Query(default=None),
     session: AsyncSession = Depends(get_session),
     company_id: uuid.UUID = Depends(get_company_id),
@@ -153,7 +153,7 @@ async def get_time_series(
                 date_from=resolved_from,
                 date_to=resolved_to,
                 granularity=granularity,
-                property_id=property_id,
+                property_ids=property_id,
                 source=source,
             )
         )
@@ -183,7 +183,7 @@ async def export_csv(
     date_from: date | None = Query(default=None),
     date_to: date | None = Query(default=None),
     period: PeriodPreset | None = Query(default=None),
-    property_id: uuid.UUID | None = Query(default=None),
+    property_id: list[uuid.UUID] | None = Query(default=None),
     source: str | None = Query(default=None),
     session: AsyncSession = Depends(get_session),
     company_id: uuid.UUID = Depends(get_company_id),
@@ -199,7 +199,7 @@ async def export_csv(
                 company_id=company_id,
                 date_from=resolved_from,
                 date_to=resolved_to,
-                property_id=property_id,
+                property_ids=property_id,
                 source=source,
             )
         )

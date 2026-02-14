@@ -32,11 +32,13 @@ class SqlAnalyticsRepository(AnalyticsRepository):
         date_from: date,
         date_to: date,
         *,
-        property_id: uuid.UUID | None = None,
+        property_ids: list[uuid.UUID] | None = None,
         source: str | None = None,
     ) -> list[PropertyMetrics]:
         total_period_days = (date_to - date_from).days
         if total_period_days <= 0:
+            return []
+        if property_ids is not None and len(property_ids) == 0:
             return []
 
         # Sub-query: payments per booking
@@ -95,8 +97,8 @@ class SqlAnalyticsRepository(AnalyticsRepository):
             .where(PropertyModel.status.notin_(["archived"]))
         )
 
-        if property_id is not None:
-            stmt = stmt.where(PropertyModel.id == property_id)
+        if property_ids is not None:
+            stmt = stmt.where(PropertyModel.id.in_(property_ids))
         if source is not None:
             stmt = stmt.where(BookingModel.source == source)
 
@@ -159,12 +161,14 @@ class SqlAnalyticsRepository(AnalyticsRepository):
         date_to: date,
         granularity: Granularity,
         *,
-        property_id: uuid.UUID | None = None,
+        property_ids: list[uuid.UUID] | None = None,
         source: str | None = None,
     ) -> list[TimeSeriesPoint]:
         # Generate period buckets
         buckets = _generate_buckets(date_from, date_to, granularity)
         if not buckets:
+            return []
+        if property_ids is not None and len(property_ids) == 0:
             return []
 
         # Fetch relevant bookings
@@ -182,8 +186,8 @@ class SqlAnalyticsRepository(AnalyticsRepository):
                 BookingModel.check_out > date_from,
             )
         )
-        if property_id is not None:
-            stmt = stmt.where(BookingModel.property_id == property_id)
+        if property_ids is not None:
+            stmt = stmt.where(BookingModel.property_id.in_(property_ids))
         if source is not None:
             stmt = stmt.where(BookingModel.source == source)
 
@@ -197,8 +201,8 @@ class SqlAnalyticsRepository(AnalyticsRepository):
                 PropertyModel.status.notin_(["archived"]),
             )
         )
-        if property_id is not None:
-            prop_stmt = prop_stmt.where(PropertyModel.id == property_id)
+        if property_ids is not None:
+            prop_stmt = prop_stmt.where(PropertyModel.id.in_(property_ids))
         prop_count = (await self._session.scalar(prop_stmt)) or 1
 
         # Fill buckets

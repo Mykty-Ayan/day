@@ -72,7 +72,10 @@ export default function GanttChart({ rows, year, month, onCellClick }: Props) {
   const [tooltip, setTooltip] = useState<{ booking: Booking; x: number; y: number } | null>(null)
 
   // Drag state
-  const [dragBooking, setDragBooking] = useState<Booking | null>(null)
+  const [dragBooking, setDragBooking] = useState<{
+    booking: Booking
+    sourcePropertyId: string
+  } | null>(null)
   const [dragOverPropertyId, setDragOverPropertyId] = useState<string | null>(null)
   const [isDragging, setIsDragging] = useState(false)
 
@@ -92,16 +95,18 @@ export default function GanttChart({ rows, year, month, onCellClick }: Props) {
     const todayIndex = days.findIndex((day) => toDateStr(day) === todayStr)
     if (todayIndex < 0) return
 
-    const target = Math.max(
-      0,
-      todayIndex * CELL_W - container.clientWidth / 2 + CELL_W / 2,
-    )
+    const maxScrollLeft = Math.max(0, container.scrollWidth - container.clientWidth)
+    const target = Math.min(todayIndex * CELL_W, maxScrollLeft)
     container.scrollLeft = target
     autoScrollKeyRef.current = scrollKey
   }, [days, month, todayMonth, todayStr, todayYear, year])
 
-  const handleDragStart = useCallback((e: React.DragEvent, booking: Booking) => {
-    setDragBooking(booking)
+  const handleDragStart = useCallback((
+    e: React.DragEvent,
+    booking: Booking,
+    sourcePropertyId: string,
+  ) => {
+    setDragBooking({ booking, sourcePropertyId })
     setIsDragging(true)
     e.dataTransfer.effectAllowed = 'move'
     e.dataTransfer.setData('text/plain', booking.id)
@@ -128,13 +133,13 @@ export default function GanttChart({ rows, year, month, onCellClick }: Props) {
     setDragOverPropertyId(null)
     setIsDragging(false)
 
-    if (!dragBooking || dragBooking.property_id === targetPropertyId) {
+    if (!dragBooking || dragBooking.sourcePropertyId === targetPropertyId) {
       setDragBooking(null)
       return
     }
 
     try {
-      await moveBooking(dragBooking.id, { target_property_id: targetPropertyId })
+      await moveBooking(dragBooking.booking.id, { target_property_id: targetPropertyId })
       queryClient.invalidateQueries({ queryKey: ['gantt-data'] })
       queryClient.invalidateQueries({ queryKey: ['bookings'] })
       showToast('success', 'Booking moved successfully')
@@ -297,7 +302,7 @@ export default function GanttChart({ rows, year, month, onCellClick }: Props) {
                     <div
                       key={booking.id}
                       draggable
-                      onDragStart={(e) => handleDragStart(e, booking)}
+                      onDragStart={(e) => handleDragStart(e, booking, row.property.id)}
                       onDragEnd={handleDragEnd}
                       onClick={(e) => {
                         e.stopPropagation()

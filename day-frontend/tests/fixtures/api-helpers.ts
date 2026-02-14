@@ -8,6 +8,8 @@ import {
   type TestBookingInput,
 } from './test-data'
 
+let backendPreflightDone = false
+
 interface ApiFixtures {
   api: APIRequestContext
   createProperty: (overrides?: Partial<TestPropertyInput>) => Promise<{ id: string; [key: string]: unknown }>
@@ -22,6 +24,62 @@ interface ApiFixtures {
   createdBookingIds: string[]
 }
 
+function normalizeApiPath(url: string): string {
+  return url.replace(/^\/+/, '')
+}
+
+function normalizeApiContextPaths(ctx: APIRequestContext): void {
+  const methods = ['get', 'post', 'put', 'patch', 'delete'] as const
+
+  for (const method of methods) {
+    const original = ctx[method].bind(ctx)
+    ;(ctx as unknown as Record<string, unknown>)[method] = (url: string, options?: unknown) =>
+      original(normalizeApiPath(url), options)
+  }
+}
+
+async function failIf404(
+  api: APIRequestContext,
+  path: string,
+  method: 'GET' | 'POST',
+  data?: unknown,
+): Promise<void> {
+  const requestPath = path.replace(/^\/+/, '')
+  const displayPath = `/${requestPath}`
+  const response =
+    method === 'GET'
+      ? await api.get(requestPath)
+      : await api.post(requestPath, data === undefined ? {} : { data })
+
+  if (response.status() !== 404) {
+    return
+  }
+
+  const body = await response.text()
+  throw new Error(
+    [
+      `[Backend preflight] ${method} ${API_BASE}${displayPath} returned 404.`,
+      `Response: ${body}`,
+      'Likely tests are hitting a non-day-backend process on :8000.',
+      'Start day-backend from this repository and avoid reusing an existing server on port 8000.',
+    ].join(' '),
+  )
+}
+
+async function verifyBackendRoutes(api: APIRequestContext): Promise<void> {
+  const health = await api.get('health')
+  if (health.status() !== 200) {
+    throw new Error(
+      `[Backend preflight] GET ${API_BASE}/health must return 200, got ${health.status()} ${await health.text()}`,
+    )
+  }
+
+  await failIf404(api, 'properties', 'GET')
+  await failIf404(api, 'bookings', 'GET')
+  await failIf404(api, 'checklists', 'GET')
+  await failIf404(api, 'properties', 'POST', {})
+}
+
 /**
  * Extended test fixture that provides:
  * - `api`: Playwright APIRequestContext targeting the backend
@@ -33,11 +91,18 @@ interface ApiFixtures {
 export const test = base.extend<ApiFixtures>({
   api: async ({ playwright }, use) => {
     const ctx = await playwright.request.newContext({
-      baseURL: API_BASE,
+      baseURL: `${API_BASE}/`,
       extraHTTPHeaders: {
         'Content-Type': 'application/json',
       },
     })
+    normalizeApiContextPaths(ctx)
+
+    if (!backendPreflightDone) {
+      await verifyBackendRoutes(ctx)
+      backendPreflightDone = true
+    }
+
     await use(ctx)
     await ctx.dispose()
   },
@@ -55,7 +120,7 @@ export const test = base.extend<ApiFixtures>({
   createProperty: async ({ api, createdPropertyIds }, use) => {
     const fn = async (overrides: Partial<TestPropertyInput> = {}) => {
       const data = createTestProperty(overrides)
-      const response = await api.post('/properties', { data })
+      const response = await api.post('properties', { data })
       if (!response.ok()) {
         throw new Error(
           `Failed to create property: ${response.status()} ${await response.text()}`,
@@ -71,7 +136,7 @@ export const test = base.extend<ApiFixtures>({
     // Cleanup: attempt to delete all created properties
     for (const id of createdPropertyIds) {
       try {
-        await api.delete(`/properties/${id}`)
+        await api.delete(`properties/${id}`)
       } catch {
         // Best-effort cleanup; ignore errors
       }
@@ -83,8 +148,8 @@ export const test = base.extend<ApiFixtures>({
       const prop = await createProperty()
 
       // Activate it
-      const statusRes = await api.post(`/properties/${prop.id}/status`, {
-        data: { status: 'active' },
+      const statusRes = await api.post(`properties/${prop.id}/status`, {
+        data: { target_status: 'active' },
       })
       if (!statusRes.ok()) {
         throw new Error(`Failed to activate property: ${statusRes.status()}`)
@@ -92,7 +157,7 @@ export const test = base.extend<ApiFixtures>({
 
       // Set pricing
       const pricing = createTestPricing()
-      const pricingRes = await api.put(`/properties/${prop.id}/pricing`, {
+      const pricingRes = await api.put(`properties/${prop.id}/pricing`, {
         data: pricing,
       })
       if (!pricingRes.ok()) {
@@ -111,7 +176,7 @@ export const test = base.extend<ApiFixtures>({
       overrides: Partial<Omit<TestBookingInput, 'property_id'>> = {},
     ) => {
       const data = createTestBooking(propertyId, overrides)
-      const response = await api.post('/bookings', { data })
+      const response = await api.post('bookings', { data })
       if (!response.ok()) {
         throw new Error(
           `Failed to create booking: ${response.status()} ${await response.text()}`,
@@ -127,7 +192,7 @@ export const test = base.extend<ApiFixtures>({
     // Cleanup bookings (before properties since bookings depend on properties)
     for (const id of createdBookingIds) {
       try {
-        await api.delete(`/bookings/${id}`)
+        await api.delete(`bookings/${id}`)
       } catch {
         // Best-effort cleanup
       }
