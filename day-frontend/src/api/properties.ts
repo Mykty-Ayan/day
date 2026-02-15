@@ -118,12 +118,29 @@ export async function createOrUpdatePricing(
   data: PricingInput,
 ): Promise<PricingConfig> {
   const res = await apiClient.put(`/properties/${propertyId}/pricing`, data)
-  return res.data
+  const base = res.data as Omit<PricingConfig, 'seasonal_prices' | 'discount_rules'>
+  return {
+    ...base,
+    seasonal_prices: [],
+    discount_rules: [],
+  }
 }
 
-export async function getPricing(propertyId: string): Promise<PricingConfig> {
+export async function getPricing(propertyId: string): Promise<PricingConfig | null> {
   const res = await apiClient.get(`/properties/${propertyId}/pricing`)
-  return res.data
+  const base = res.data as Omit<PricingConfig, 'seasonal_prices' | 'discount_rules'> | null
+  if (!base) return null
+
+  const [seasonal_prices, discount_rules] = await Promise.all([
+    listSeasonalPrices(propertyId),
+    listDiscountRules(propertyId),
+  ])
+
+  return {
+    ...base,
+    seasonal_prices,
+    discount_rules,
+  }
 }
 
 export async function addSeasonalPrice(
@@ -134,6 +151,11 @@ export async function addSeasonalPrice(
     `/properties/${propertyId}/pricing/seasonal`,
     data,
   )
+  return res.data
+}
+
+export async function listSeasonalPrices(propertyId: string): Promise<SeasonalPrice[]> {
+  const res = await apiClient.get(`/properties/${propertyId}/pricing/seasonal`)
   return res.data
 }
 
@@ -154,6 +176,11 @@ export async function addDiscountRule(
     `/properties/${propertyId}/pricing/discounts`,
     data,
   )
+  return res.data
+}
+
+export async function listDiscountRules(propertyId: string): Promise<DiscountRule[]> {
+  const res = await apiClient.get(`/properties/${propertyId}/pricing/discounts`)
   return res.data
 }
 

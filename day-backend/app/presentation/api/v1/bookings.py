@@ -313,7 +313,7 @@ async def get_today(
     return TodayCheckResponse(check_ins=check_ins, check_outs=check_outs)
 
 
-@booking_router.get("/{booking_id}", response_model=BookingDetailResponse)
+@booking_router.get("/{booking_id:uuid}", response_model=BookingDetailResponse)
 async def get_booking(
     booking_id: uuid.UUID,
     session: AsyncSession = Depends(get_session),
@@ -352,7 +352,7 @@ async def get_booking(
     )
 
 
-@booking_router.patch("/{booking_id}", response_model=BookingResponse)
+@booking_router.patch("/{booking_id:uuid}", response_model=BookingResponse)
 async def update_booking(
     booking_id: uuid.UUID,
     body: BookingUpdate,
@@ -377,7 +377,7 @@ async def update_booking(
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@booking_router.post("/{booking_id}/status", response_model=BookingResponse)
+@booking_router.post("/{booking_id:uuid}/status", response_model=BookingResponse)
 async def change_booking_status(
     booking_id: uuid.UUID,
     body: BookingStatusChange,
@@ -396,7 +396,7 @@ async def change_booking_status(
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@booking_router.post("/{booking_id}/move", response_model=BookingResponse)
+@booking_router.post("/{booking_id:uuid}/move", response_model=BookingResponse)
 async def move_booking(
     booking_id: uuid.UUID,
     body: BookingMove,
@@ -450,7 +450,7 @@ async def calculate_price(
 # ---------- Payments ----------
 
 
-@booking_router.post("/{booking_id}/payments", response_model=PaymentResponse, status_code=201)
+@booking_router.post("/{booking_id:uuid}/payments", response_model=PaymentResponse, status_code=201)
 async def add_payment(
     booking_id: uuid.UUID,
     body: PaymentCreate,
@@ -475,7 +475,7 @@ async def add_payment(
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@booking_router.get("/{booking_id}/payments", response_model=list[PaymentResponse])
+@booking_router.get("/{booking_id:uuid}/payments", response_model=list[PaymentResponse])
 async def list_payments(
     booking_id: uuid.UUID,
     session: AsyncSession = Depends(get_session),
@@ -493,7 +493,7 @@ async def list_payments(
 # ---------- Deposits ----------
 
 
-@booking_router.post("/{booking_id}/deposits", response_model=DepositResponse, status_code=201)
+@booking_router.post("/{booking_id:uuid}/deposits", response_model=DepositResponse, status_code=201)
 async def create_deposit(
     booking_id: uuid.UUID,
     body: DepositCreate,
@@ -512,7 +512,7 @@ async def create_deposit(
 
 
 @booking_router.post(
-    "/{booking_id}/deposits/{deposit_id}/action",
+    "/{booking_id:uuid}/deposits/{deposit_id}/action",
     response_model=DepositResponse,
 )
 async def deposit_action(
@@ -540,7 +540,7 @@ async def deposit_action(
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@booking_router.get("/{booking_id}/deposits", response_model=list[DepositResponse])
+@booking_router.get("/{booking_id:uuid}/deposits", response_model=list[DepositResponse])
 async def list_deposits(
     booking_id: uuid.UUID,
     session: AsyncSession = Depends(get_session),
@@ -558,7 +558,7 @@ async def list_deposits(
 # ---------- Files ----------
 
 
-@booking_router.post("/{booking_id}/files", response_model=BookingFileResponse, status_code=201)
+@booking_router.post("/{booking_id:uuid}/files", response_model=BookingFileResponse, status_code=201)
 async def add_file(
     booking_id: uuid.UUID,
     file: UploadFile = File(...),
@@ -592,7 +592,7 @@ async def add_file(
     return _to_file_response(result)
 
 
-@booking_router.get("/{booking_id}/files", response_model=list[BookingFileResponse])
+@booking_router.get("/{booking_id:uuid}/files", response_model=list[BookingFileResponse])
 async def list_files(
     booking_id: uuid.UUID,
     session: AsyncSession = Depends(get_session),
@@ -606,7 +606,7 @@ async def list_files(
     return [_to_file_response(f) for f in result]
 
 
-@booking_router.get("/{booking_id}/files/{file_id}/download")
+@booking_router.get("/{booking_id:uuid}/files/{file_id}/download")
 async def download_file(
     booking_id: uuid.UUID,
     file_id: uuid.UUID,
@@ -641,7 +641,7 @@ async def download_file(
     )
 
 
-@booking_router.delete("/{booking_id}/files/{file_id}", status_code=204)
+@booking_router.delete("/{booking_id:uuid}/files/{file_id}", status_code=204)
 async def delete_file(
     booking_id: uuid.UUID,
     file_id: uuid.UUID,
@@ -659,7 +659,7 @@ async def delete_file(
 # ---------- Comments ----------
 
 
-@booking_router.post("/{booking_id}/comments", response_model=BookingCommentResponse, status_code=201)
+@booking_router.post("/{booking_id:uuid}/comments", response_model=BookingCommentResponse, status_code=201)
 async def add_comment(
     booking_id: uuid.UUID,
     body: BookingCommentCreate,
@@ -683,7 +683,7 @@ async def add_comment(
     return BookingCommentResponse.model_validate(result, from_attributes=True)
 
 
-@booking_router.get("/{booking_id}/comments", response_model=list[BookingCommentResponse])
+@booking_router.get("/{booking_id:uuid}/comments", response_model=list[BookingCommentResponse])
 async def list_comments(
     booking_id: uuid.UUID,
     session: AsyncSession = Depends(get_session),
@@ -700,7 +700,7 @@ async def list_comments(
 # ---------- Audit Log ----------
 
 
-@booking_router.get("/{booking_id}/audit-log", response_model=list[BookingAuditLogResponse])
+@booking_router.get("/{booking_id:uuid}/audit-log", response_model=list[BookingAuditLogResponse])
 async def get_audit_log(
     booking_id: uuid.UUID,
     offset: int = Query(default=0, ge=0),
@@ -719,16 +719,7 @@ async def get_audit_log(
 # ---------- Gantt ----------
 
 
-@gantt_router.get("", response_model=GanttDataResponse)
-async def get_gantt_data(
-    start_date: date = Query(...),
-    end_date: date = Query(...),
-    session: AsyncSession = Depends(get_session),
-    company_id: uuid.UUID = Depends(get_company_id),
-):
-    repos = _repos(session)
-    svc = GetGanttDataService(repos["property"], repos["booking"], repos["guest"])
-    result = await svc.execute(company_id, start_date, end_date)
+def _build_gantt_response(result) -> GanttDataResponse:
     return GanttDataResponse(
         properties=[
             GanttPropertyResponse(
@@ -756,6 +747,20 @@ async def get_gantt_data(
             for p in result.properties
         ]
     )
+
+
+@booking_router.get("/gantt", response_model=GanttDataResponse)
+@gantt_router.get("", response_model=GanttDataResponse)
+async def get_gantt_data(
+    start_date: date = Query(...),
+    end_date: date = Query(...),
+    session: AsyncSession = Depends(get_session),
+    company_id: uuid.UUID = Depends(get_company_id),
+):
+    repos = _repos(session)
+    svc = GetGanttDataService(repos["property"], repos["booking"], repos["guest"])
+    result = await svc.execute(company_id, start_date, end_date)
+    return _build_gantt_response(result)
 
 
 # ---------- Guests ----------

@@ -9,6 +9,23 @@ import {
 } from 'lucide-react'
 import type { AnalyticsSummary } from '../../types/analytics'
 
+const formatNumber = (
+  value: number | string,
+  options?: Intl.NumberFormatOptions,
+) => Number(value || 0).toLocaleString(undefined, options)
+
+const formatCurrency = (value: number | string, digits = 2) =>
+  `$${formatNumber(value, {
+    minimumFractionDigits: digits,
+    maximumFractionDigits: digits,
+  })}`
+
+const formatPercent = (value: number | string, digits = 1) =>
+  `${formatNumber(value, {
+    minimumFractionDigits: digits,
+    maximumFractionDigits: digits,
+  })}%`
+
 const cards = [
   {
     key: 'revenue',
@@ -16,7 +33,7 @@ const cards = [
     icon: DollarSign,
     color: 'text-emerald-600',
     bg: 'bg-emerald-50',
-    format: (s: AnalyticsSummary) => `$${s.total_revenue.toLocaleString()}`,
+    format: (s: AnalyticsSummary) => formatCurrency(s.total_revenue, 2),
   },
   {
     key: 'profit',
@@ -24,7 +41,7 @@ const cards = [
     icon: TrendingUp,
     color: 'text-blue-600',
     bg: 'bg-blue-50',
-    format: (s: AnalyticsSummary) => `$${s.total_profit.toLocaleString()}`,
+    format: (s: AnalyticsSummary) => formatCurrency(s.total_profit, 2),
   },
   {
     key: 'bookings',
@@ -32,7 +49,7 @@ const cards = [
     icon: CalendarDays,
     color: 'text-purple-600',
     bg: 'bg-purple-50',
-    format: (s: AnalyticsSummary) => s.total_bookings.toString(),
+    format: (s: AnalyticsSummary) => formatNumber(s.total_bookings),
   },
   {
     key: 'occupancy',
@@ -40,7 +57,7 @@ const cards = [
     icon: Percent,
     color: 'text-amber-600',
     bg: 'bg-amber-50',
-    format: (s: AnalyticsSummary) => `${Number(s.overall_occupancy_rate).toFixed(1)}%`,
+    format: (s: AnalyticsSummary) => formatPercent(s.overall_occupancy_rate, 1),
   },
   {
     key: 'adr',
@@ -48,7 +65,7 @@ const cards = [
     icon: BarChart3,
     color: 'text-indigo-600',
     bg: 'bg-indigo-50',
-    format: (s: AnalyticsSummary) => `$${Number(s.overall_adr).toFixed(0)}`,
+    format: (s: AnalyticsSummary) => formatCurrency(s.overall_adr, 0),
   },
   {
     key: 'properties',
@@ -56,7 +73,7 @@ const cards = [
     icon: Building2,
     color: 'text-gray-600',
     bg: 'bg-gray-50',
-    format: (s: AnalyticsSummary) => s.properties_count.toString(),
+    format: (s: AnalyticsSummary) => formatNumber(s.properties_count),
   },
 ] as const
 

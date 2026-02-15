@@ -38,12 +38,12 @@ class FakeAnalyticsRepository(AnalyticsRepository):
         date_from: date,
         date_to: date,
         *,
-        property_id: uuid.UUID | None = None,
+        property_ids: list[uuid.UUID] | None = None,
         source: str | None = None,
     ) -> list[PropertyMetrics]:
         result = self._metrics
-        if property_id is not None:
-            result = [m for m in result if m.property_id == property_id]
+        if property_ids is not None:
+            result = [m for m in result if m.property_id in property_ids]
         return result
 
     async def get_time_series(
@@ -53,7 +53,7 @@ class FakeAnalyticsRepository(AnalyticsRepository):
         date_to: date,
         granularity: Granularity,
         *,
-        property_id: uuid.UUID | None = None,
+        property_ids: list[uuid.UUID] | None = None,
         source: str | None = None,
     ) -> list[TimeSeriesPoint]:
         return self._time_series
@@ -310,7 +310,7 @@ class TestCalculateMetricsService:
                 company_id=COMPANY_ID,
                 date_from=date(2025, 1, 1),
                 date_to=date(2025, 1, 31),
-                property_id=pid1,
+                property_ids=[pid1],
             )
         )
 

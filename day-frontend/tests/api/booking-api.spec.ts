@@ -540,9 +540,7 @@ test.describe('Booking API - Gantt Data', () => {
     expect(body.properties).toBeInstanceOf(Array)
     expect(body.properties.length).toBeGreaterThanOrEqual(1)
 
-    const row = body.properties.find(
-      (r: { property: { id: string } }) => r.property.id === prop.id,
-    )
+    const row = body.properties.find((r: { id: string }) => r.id === prop.id)
     expect(row).toBeTruthy()
     expect(row.bookings.length).toBeGreaterThanOrEqual(1)
   })

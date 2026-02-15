@@ -17,7 +17,7 @@ class GetTimeSeriesInput:
     date_from: date
     date_to: date
     granularity: Granularity = Granularity.DAY
-    property_id: uuid.UUID | None = None
+    property_ids: list[uuid.UUID] | None = None
     source: str | None = None
 
 
@@ -34,6 +34,6 @@ class GetTimeSeriesService:
             inp.date_from,
             inp.date_to,
             inp.granularity,
-            property_id=inp.property_id,
+            property_ids=inp.property_ids,
             source=inp.source,
         )

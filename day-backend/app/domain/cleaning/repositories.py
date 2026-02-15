@@ -89,6 +89,9 @@ class CleaningChecklistItemRepository(abc.ABC):
     ) -> list[CleaningChecklistItem]: ...
 
     @abc.abstractmethod
+    async def reorder(self, template_id: uuid.UUID, item_ids: list[uuid.UUID]) -> None: ...
+
+    @abc.abstractmethod
     async def delete(self, item_id: uuid.UUID) -> None: ...
 
     @abc.abstractmethod

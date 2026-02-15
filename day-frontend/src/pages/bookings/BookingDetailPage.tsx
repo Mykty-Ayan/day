@@ -54,6 +54,17 @@ import NumberInput from '../../components/ui/number-input'
 const TABS = ['Overview', 'Payments', 'Deposits', 'Files & Comments', 'History'] as const
 type Tab = (typeof TABS)[number]
 
+const RAW_API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1'
+
+function apiUrl(path: string): string {
+  const trimmedBase = RAW_API_BASE_URL.replace(/\/+$/, '')
+  const normalizedBase = /^https?:\/\//.test(trimmedBase)
+    ? trimmedBase
+    : `/${trimmedBase.replace(/^\/+/, '')}`
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`
+  return `${normalizedBase}${normalizedPath}`
+}
+
 interface StatusAction {
   label: string
   target: BookingStatus
@@ -683,7 +694,7 @@ function FilesCommentsTab({ bookingId, files, comments }: { bookingId: string; f
                 <span className="text-sm text-gray-700 truncate">{f.file_name}</span>
                 <div className="flex gap-1">
                   <a
-                    href={`/api/v1/bookings/${bookingId}/files/${f.id}/download`}
+                    href={apiUrl(`/bookings/${bookingId}/files/${f.id}/download`)}
                     download={f.file_name}
                     className="p-1 hover:bg-gray-200 rounded transition-colors"
                   >
@@ -763,11 +774,15 @@ function HistoryTab({ auditLogs }: { auditLogs: BookingAuditLog[] }) {
               </div>
               <div className="flex-1">
                 <p className="text-sm text-gray-700">{entry.action}</p>
-                {entry.field_name && (
+                {(entry.action === 'create' || entry.field_name === '*') ? (
+                  <p className="text-xs text-gray-500 mt-0.5">
+                    <span className="text-green-600">created</span>
+                  </p>
+                ) : entry.field_name ? (
                   <p className="text-xs text-gray-500 mt-0.5">
                     {entry.field_name}: <span className="line-through text-red-400">{entry.old_value || 'null'}</span> <ArrowRight className="w-3 h-3 inline text-gray-400" /> <span className="text-green-600">{entry.new_value || 'null'}</span>
                   </p>
-                )}
+                ) : null}
                 <p className="text-xs text-gray-400 mt-0.5">
                   {entry.changed_by && `by ${entry.changed_by} · `}{new Date(entry.created_at).toLocaleString()}
                 </p>

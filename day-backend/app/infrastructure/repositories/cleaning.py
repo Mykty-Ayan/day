@@ -334,6 +334,19 @@ class SqlCleaningChecklistItemRepository(CleaningChecklistItemRepository):
         result = await self._session.scalars(stmt)
         return [_model_to_checklist_item(m) for m in result.all()]
 
+    async def reorder(self, template_id: uuid.UUID, item_ids: list[uuid.UUID]) -> None:
+        for sort_order, item_id in enumerate(item_ids):
+            stmt = (
+                update(CleaningChecklistItemModel)
+                .where(
+                    CleaningChecklistItemModel.template_id == template_id,
+                    CleaningChecklistItemModel.id == item_id,
+                )
+                .values(sort_order=sort_order)
+            )
+            await self._session.execute(stmt)
+        await self._session.flush()
+
     async def delete(self, item_id: uuid.UUID) -> None:
         stmt = delete(CleaningChecklistItemModel).where(
             CleaningChecklistItemModel.id == item_id

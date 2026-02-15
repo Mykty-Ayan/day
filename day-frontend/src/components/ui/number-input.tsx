@@ -53,8 +53,13 @@ export default function NumberInput({
   function handleStep(direction: 1 | -1) {
     if (disabled) return
     const current = parseNumber(value)
-    const base = current ?? (typeof min === 'number' ? min : 0)
-    const next = clampValue(base + direction * step)
+    if (current === null) {
+      const initial = typeof min === 'number' ? min : direction * step
+      onChange(formatWithStep(clampValue(initial), step))
+      return
+    }
+
+    const next = clampValue(current + direction * step)
     onChange(formatWithStep(next, step))
   }
 

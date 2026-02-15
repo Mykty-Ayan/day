@@ -55,10 +55,22 @@ class GetGanttDataService:
         start_date: date,
         end_date: date,
     ) -> GanttData:
-        # Get all active properties for company
-        properties = await self._property_repo.list_by_company(
-            company_id, limit=100
-        )
+        # Load all properties in batches to avoid truncating large portfolios.
+        properties = []
+        offset = 0
+        batch_size = 200
+        while True:
+            batch = await self._property_repo.list_by_company(
+                company_id,
+                offset=offset,
+                limit=batch_size,
+            )
+            if not batch:
+                break
+            properties.extend(batch)
+            if len(batch) < batch_size:
+                break
+            offset += batch_size
 
         result: list[GanttProperty] = []
         for prop in properties:

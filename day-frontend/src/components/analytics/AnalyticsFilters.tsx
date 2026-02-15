@@ -5,10 +5,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from '../ui/select'
+import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover'
 import { ToggleGroup, ToggleGroupItem } from '../ui/toggle-group'
 import type { PeriodPreset, Granularity } from '../../types/analytics'
 import type { Property } from '../../types/property'
-import { Download } from 'lucide-react'
+import { Checkbox } from '../ui/checkbox'
+import { cn } from '../../lib/utils'
+import { ChevronDown, Download } from 'lucide-react'
 import { motion } from 'framer-motion'
 
 const PERIOD_OPTIONS: { value: PeriodPreset; label: string }[] = [
@@ -37,8 +40,8 @@ interface Props {
   onPeriodChange: (period: PeriodPreset) => void
   granularity: Granularity
   onGranularityChange: (granularity: Granularity) => void
-  propertyId: string
-  onPropertyChange: (id: string) => void
+  propertyIds: string[]
+  onPropertyChange: (ids: string[]) => void
   source: string
   onSourceChange: (source: string) => void
   properties: Property[]
@@ -50,13 +53,37 @@ export default function AnalyticsFilterBar({
   onPeriodChange,
   granularity,
   onGranularityChange,
-  propertyId,
+  propertyIds,
   onPropertyChange,
   source,
   onSourceChange,
   properties,
   onExport,
 }: Props) {
+  const selectedProperties = properties.filter((p) => propertyIds.includes(p.id))
+  const propertyLabel =
+    selectedProperties.length === 0
+      ? 'All Properties'
+      : selectedProperties.length === 1
+        ? selectedProperties[0].internal_name
+        : `${selectedProperties.length} properties`
+  const propertyTitle =
+    selectedProperties.length <= 1
+      ? propertyLabel
+      : selectedProperties.map((p) => p.internal_name).join(', ')
+
+  const isAllSelected = propertyIds.length === 0
+
+  const toggleProperty = (id: string) => {
+    if (propertyIds.includes(id)) {
+      onPropertyChange(propertyIds.filter((pid) => pid !== id))
+      return
+    }
+    onPropertyChange([...propertyIds, id])
+  }
+
+  const clearProperties = () => onPropertyChange([])
+
   return (
     <div className="flex flex-col gap-3">
       <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
@@ -92,19 +119,71 @@ export default function AnalyticsFilterBar({
       </div>
 
       <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
-        <Select value={propertyId} onValueChange={onPropertyChange}>
-          <SelectTrigger className="w-full sm:w-56">
-            <SelectValue placeholder="All Properties" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Properties</SelectItem>
-            {properties.map((p) => (
-              <SelectItem key={p.id} value={p.id}>
-                {p.internal_name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <Popover>
+          <PopoverTrigger asChild>
+            <button
+              type="button"
+              className={cn(
+                'flex h-11 w-full items-center justify-between rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700 shadow-sm',
+                'focus:outline-none focus:ring-2 focus:ring-black/10',
+                'sm:w-56',
+              )}
+              title={propertyTitle}
+            >
+              <span className="truncate">{propertyLabel}</span>
+              <ChevronDown className="h-4 w-4 text-gray-400" />
+            </button>
+          </PopoverTrigger>
+          <PopoverContent className="w-64 p-2" align="start">
+            <div className="max-h-64 overflow-auto">
+              <label
+                htmlFor="analytics-all-properties"
+                className={cn(
+                  'flex w-full cursor-pointer items-center gap-2 rounded-lg px-2 py-2 text-sm text-gray-700',
+                  'hover:bg-gray-100',
+                )}
+              >
+                <Checkbox
+                  id="analytics-all-properties"
+                  checked={isAllSelected}
+                  onCheckedChange={(checked) => {
+                    if (checked) clearProperties()
+                  }}
+                />
+                <span className="truncate">All Properties</span>
+              </label>
+
+              <div className="my-1 h-px bg-gray-100" />
+
+              {properties.length === 0 ? (
+                <div className="px-2 py-2 text-sm text-gray-400">
+                  No properties available
+                </div>
+              ) : (
+                properties.map((p) => {
+                  const checked = propertyIds.includes(p.id)
+                  return (
+                    <label
+                      key={p.id}
+                      htmlFor={`analytics-property-${p.id}`}
+                      className={cn(
+                        'flex w-full cursor-pointer items-center gap-2 rounded-lg px-2 py-2 text-sm text-gray-700',
+                        'hover:bg-gray-100',
+                      )}
+                    >
+                      <Checkbox
+                        id={`analytics-property-${p.id}`}
+                        checked={checked}
+                        onCheckedChange={() => toggleProperty(p.id)}
+                      />
+                      <span className="truncate">{p.internal_name}</span>
+                    </label>
+                  )
+                })
+              )}
+            </div>
+          </PopoverContent>
+        </Popover>
 
         <Select value={source} onValueChange={onSourceChange}>
           <SelectTrigger className="w-full sm:w-44">

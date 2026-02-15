@@ -61,6 +61,6 @@ export interface AnalyticsFilters {
   date_to?: string
   period?: PeriodPreset
   granularity?: Granularity
-  property_id?: string
+  property_ids?: string[]
   source?: string
 }

@@ -4,7 +4,7 @@ import uuid
 from datetime import date, datetime
 from decimal import Decimal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import AliasChoices, BaseModel, ConfigDict, Field, computed_field, model_validator
 
 from app.domain.property.value_objects import (
     AmenityCategory,
@@ -90,7 +90,10 @@ class PropertyResponse(BaseModel):
 
 
 class PropertyStatusChange(BaseModel):
-    target_status: PropertyStatus
+    # Accept both `target_status` (current) and `status` (legacy tests/clients)
+    target_status: PropertyStatus = Field(
+        validation_alias=AliasChoices("target_status", "status")
+    )
 
 
 class PropertyListResponse(BaseModel):
@@ -160,7 +163,10 @@ class PricingConfigCreate(BaseModel):
 
 
 class PricingConfigResponse(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_encoders={Decimal: float},
+    )
 
     id: uuid.UUID
     property_id: uuid.UUID
@@ -178,11 +184,19 @@ class SeasonalPriceCreate(BaseModel):
     name: str = Field(..., min_length=1, max_length=255)
     start_date: date
     end_date: date
-    price_per_night: Decimal = Field(..., ge=0)
+    # Accept both `price_per_night` (current) and `price` (legacy tests/clients)
+    price_per_night: Decimal = Field(
+        ...,
+        ge=0,
+        validation_alias=AliasChoices("price_per_night", "price"),
+    )
 
 
 class SeasonalPriceResponse(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_encoders={Decimal: float},
+    )
 
     id: uuid.UUID
     pricing_config_id: uuid.UUID
@@ -192,15 +206,44 @@ class SeasonalPriceResponse(BaseModel):
     price_per_night: Decimal
     created_at: datetime | None = None
 
+    @computed_field
+    @property
+    def price(self) -> Decimal:
+        # Backward-compatible mirror for clients expecting `price`.
+        return self.price_per_night
+
 
 class DiscountRuleCreate(BaseModel):
     min_nights: int = Field(..., ge=1)
     discount_percent: Decimal = Field(default=Decimal("0"), ge=0, le=100)
     discount_fixed: Decimal = Field(default=Decimal("0"), ge=0)
 
+    @model_validator(mode="before")
+    @classmethod
+    def _accept_legacy_shape(cls, data):
+        # Backward-compatible input: { type: 'percent'|'fixed', value: number }
+        if not isinstance(data, dict):
+            return data
+
+        rule_type = data.get("type")
+        value = data.get("value")
+        if rule_type is None or value is None:
+            return data
+
+        if rule_type == "percent":
+            data.setdefault("discount_percent", value)
+            data.setdefault("discount_fixed", 0)
+        elif rule_type == "fixed":
+            data.setdefault("discount_fixed", value)
+            data.setdefault("discount_percent", 0)
+        return data
+
 
 class DiscountRuleResponse(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_encoders={Decimal: float},
+    )
 
     id: uuid.UUID
     pricing_config_id: uuid.UUID
@@ -208,6 +251,16 @@ class DiscountRuleResponse(BaseModel):
     discount_percent: Decimal
     discount_fixed: Decimal
     created_at: datetime | None = None
+
+    @computed_field
+    @property
+    def type(self) -> str:
+        return "percent" if self.discount_percent > 0 else "fixed"
+
+    @computed_field
+    @property
+    def value(self) -> Decimal:
+        return self.discount_percent if self.discount_percent > 0 else self.discount_fixed
 
 
 # ---------- Audit ----------

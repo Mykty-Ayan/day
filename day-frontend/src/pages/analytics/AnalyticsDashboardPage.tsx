@@ -14,13 +14,13 @@ import { showToast } from '../../components/ui/Toast'
 export default function AnalyticsDashboardPage() {
   const [period, setPeriod] = useState<PeriodPreset>('month')
   const [granularity, setGranularity] = useState<Granularity>('day')
-  const [propertyId, setPropertyId] = useState('all')
+  const [propertyIds, setPropertyIds] = useState<string[]>([])
   const [source, setSource] = useState('all')
 
   const filters = {
     period,
     granularity,
-    property_id: propertyId === 'all' ? undefined : propertyId,
+    property_ids: propertyIds.length > 0 ? propertyIds : undefined,
     source: source === 'all' ? undefined : source,
   }
 
@@ -65,8 +65,8 @@ export default function AnalyticsDashboardPage() {
             onPeriodChange={setPeriod}
             granularity={granularity}
             onGranularityChange={setGranularity}
-            propertyId={propertyId}
-            onPropertyChange={setPropertyId}
+            propertyIds={propertyIds}
+            onPropertyChange={setPropertyIds}
             source={source}
             onSourceChange={setSource}
             properties={properties}

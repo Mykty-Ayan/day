@@ -16,9 +16,11 @@ import {
   listCleaningTasks,
   listPropertyCleaningHistory,
   rateCleaner,
+  reorderChecklistItems,
   submitReport,
 } from '../api/cleaning'
 import type {
+  ChecklistTemplateDetail,
   ChecklistTemplateCreateInput,
   CleaningStatus,
   CleaningTaskCreateInput,
@@ -160,6 +162,58 @@ export function useDeleteChecklistItem(templateId: string) {
   return useMutation({
     mutationFn: (itemId: string) => deleteChecklistItem(templateId, itemId),
     onSuccess: () => {
+      qc.invalidateQueries({ queryKey: [CHECKLIST_KEY, templateId] })
+    },
+  })
+}
+
+export function useReorderChecklistItems(templateId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (itemIds: string[]) => reorderChecklistItems(templateId, itemIds),
+    onMutate: async (itemIds) => {
+      await qc.cancelQueries({ queryKey: [CHECKLIST_KEY, templateId] })
+      const previous = qc.getQueryData<ChecklistTemplateDetail | undefined>([
+        CHECKLIST_KEY,
+        templateId,
+      ])
+
+      if (previous) {
+        const itemMap = new Map(previous.items.map((item) => [item.id, item]))
+        const reorderedItems = itemIds.map((itemId, index) => ({
+          ...itemMap.get(itemId)!,
+          sort_order: index,
+        }))
+
+        qc.setQueryData<ChecklistTemplateDetail>(
+          [CHECKLIST_KEY, templateId],
+          {
+            ...previous,
+            items: reorderedItems,
+          },
+        )
+      }
+
+      return { previous }
+    },
+    onError: (_error, _variables, context) => {
+      if (context?.previous) {
+        qc.setQueryData([CHECKLIST_KEY, templateId], context.previous)
+      }
+    },
+    onSuccess: (items) => {
+      qc.setQueryData<ChecklistTemplateDetail | undefined>(
+        [CHECKLIST_KEY, templateId],
+        (current) => {
+          if (!current) return current
+          return {
+            ...current,
+            items,
+          }
+        },
+      )
+    },
+    onSettled: () => {
       qc.invalidateQueries({ queryKey: [CHECKLIST_KEY, templateId] })
     },
   })

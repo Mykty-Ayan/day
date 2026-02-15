@@ -149,7 +149,8 @@ async def create_property(
         return _to_property_response(result)
     except ValueError as e:
         await session.rollback()
-        raise HTTPException(status_code=400, detail=str(e))
+        status_code = 409 if "already exists" in str(e).lower() else 400
+        raise HTTPException(status_code=status_code, detail=str(e))
 
 
 @router.get("", response_model=PropertyListResponse)

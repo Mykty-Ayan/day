@@ -16,7 +16,7 @@ class CalculateMetricsInput:
     company_id: uuid.UUID
     date_from: date
     date_to: date
-    property_id: uuid.UUID | None = None
+    property_ids: list[uuid.UUID] | None = None
     source: str | None = None
 
 
@@ -38,7 +38,7 @@ class CalculateMetricsService:
             inp.company_id,
             inp.date_from,
             inp.date_to,
-            property_id=inp.property_id,
+            property_ids=inp.property_ids,
             source=inp.source,
         )
 

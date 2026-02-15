@@ -101,7 +101,11 @@ class ChecklistTemplateDetailResponse(BaseModel):
 
 class ChecklistItemAdd(BaseModel):
     title: str = Field(..., min_length=1, max_length=500)
-    sort_order: int = 0
+    sort_order: int | None = None
+
+
+class ChecklistItemReorder(BaseModel):
+    item_ids: list[uuid.UUID] = Field(..., min_length=1)
 
 
 # ---------- Cleaning Report ----------

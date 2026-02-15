@@ -279,10 +279,34 @@ export default function PropertyDetailPage() {
               <PricingForm
                 pricing={pricing ?? null}
                 onSaveBase={handleSavePricing}
-                onAddSeasonal={(data) => addSeasonal.mutate(data)}
-                onDeleteSeasonal={(id) => deleteSeasonal.mutate(id)}
-                onAddDiscount={(data) => addDiscount.mutate(data)}
-                onDeleteDiscount={(id) => deleteDiscount.mutate(id)}
+                onAddSeasonal={(data) =>
+                  addSeasonal.mutate(data, {
+                    onSuccess: () => showToast('success', 'Seasonal price added'),
+                    onError: (err: Error) =>
+                      showToast('error', err.message || 'Failed to add seasonal price'),
+                  })
+                }
+                onDeleteSeasonal={(id) =>
+                  deleteSeasonal.mutate(id, {
+                    onSuccess: () => showToast('success', 'Seasonal price removed'),
+                    onError: (err: Error) =>
+                      showToast('error', err.message || 'Failed to remove seasonal price'),
+                  })
+                }
+                onAddDiscount={(data) =>
+                  addDiscount.mutate(data, {
+                    onSuccess: () => showToast('success', 'Discount rule added'),
+                    onError: (err: Error) =>
+                      showToast('error', err.message || 'Failed to add discount rule'),
+                  })
+                }
+                onDeleteDiscount={(id) =>
+                  deleteDiscount.mutate(id, {
+                    onSuccess: () => showToast('success', 'Discount rule removed'),
+                    onError: (err: Error) =>
+                      showToast('error', err.message || 'Failed to remove discount rule'),
+                  })
+                }
                 isSaving={savePricing.isPending}
               />
             </div>

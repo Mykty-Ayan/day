@@ -20,7 +20,7 @@ class AnalyticsFilters(BaseModel):
     date_to: date | None = None
     period: PeriodPreset | None = None
     granularity: Granularity = Granularity.DAY
-    property_id: uuid.UUID | None = None
+    property_id: list[uuid.UUID] | None = None
     source: str | None = None
 
 
@@ -28,7 +28,10 @@ class AnalyticsFilters(BaseModel):
 
 
 class PropertyMetricsResponse(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_encoders={Decimal: float},
+    )
 
     property_id: uuid.UUID
     property_name: str
@@ -47,7 +50,10 @@ class PropertyMetricsResponse(BaseModel):
 
 
 class AnalyticsSummaryResponse(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_encoders={Decimal: float},
+    )
 
     total_revenue: Decimal
     total_expenses: Decimal
@@ -73,7 +79,10 @@ class AnalyticsMetricsResponse(BaseModel):
 
 
 class TimeSeriesPointResponse(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_encoders={Decimal: float},
+    )
 
     period_start: date | None = None
     period_label: str

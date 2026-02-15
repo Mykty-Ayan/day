@@ -51,6 +51,7 @@ from app.infrastructure.repositories.property import SqlPropertyRepository
 from app.presentation.api.deps import get_company_id, get_user_id
 from app.presentation.schemas.cleaning import (
     ChecklistItemAdd,
+    ChecklistItemReorder,
     ChecklistItemResponse,
     ChecklistTemplateCreate,
     ChecklistTemplateDetailResponse,
@@ -419,6 +420,31 @@ async def add_checklist_item(
         result = await svc.add_item(template_id, company_id, body.title, body.sort_order)
         await session.commit()
         return ChecklistItemResponse.model_validate(result, from_attributes=True)
+    except ValueError as e:
+        await session.rollback()
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@checklist_router.post(
+    "/{template_id}/reorder-items",
+    response_model=list[ChecklistItemResponse],
+)
+@checklist_router.post(
+    "/{template_id}/items/reorder",
+    response_model=list[ChecklistItemResponse],
+)
+async def reorder_checklist_items(
+    template_id: uuid.UUID,
+    body: ChecklistItemReorder,
+    session: AsyncSession = Depends(get_session),
+    company_id: uuid.UUID = Depends(get_company_id),
+):
+    repos = _repos(session)
+    svc = ManageChecklistsService(repos["template"], repos["item"])
+    try:
+        items = await svc.reorder_items(template_id, company_id, body.item_ids)
+        await session.commit()
+        return [ChecklistItemResponse.model_validate(i, from_attributes=True) for i in items]
     except ValueError as e:
         await session.rollback()
         raise HTTPException(status_code=400, detail=str(e))
