@@ -107,11 +107,24 @@ export async function deleteChecklistTemplate(id: string): Promise<void> {
 export async function addChecklistItem(
   templateId: string,
   title: string,
-  sortOrder = 0,
+  sortOrder?: number,
 ): Promise<ChecklistItem> {
-  const res = await apiClient.post(`/checklists/${templateId}/items`, {
+  const payload: { title: string; sort_order?: number } = {
     title,
-    sort_order: sortOrder,
+  }
+  if (sortOrder !== undefined) {
+    payload.sort_order = sortOrder
+  }
+  const res = await apiClient.post(`/checklists/${templateId}/items`, payload)
+  return res.data
+}
+
+export async function reorderChecklistItems(
+  templateId: string,
+  itemIds: string[],
+): Promise<ChecklistItem[]> {
+  const res = await apiClient.post(`/checklists/${templateId}/reorder-items`, {
+    item_ids: itemIds,
   })
   return res.data
 }

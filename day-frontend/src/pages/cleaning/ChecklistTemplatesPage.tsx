@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from 'framer-motion'
-import { ClipboardList, Plus, Trash2 } from 'lucide-react'
+import { ClipboardList, GripVertical, Plus, Trash2 } from 'lucide-react'
 import { useState } from 'react'
 
 import Button from '../../components/ui/Button'
@@ -11,7 +11,9 @@ import {
   useCreateChecklistTemplate,
   useDeleteChecklistItem,
   useDeleteChecklistTemplate,
+  useReorderChecklistItems,
 } from '../../hooks/useCleaning'
+import type { ChecklistItem } from '../../types/cleaning'
 
 export default function ChecklistTemplatesPage() {
   const { data: templates, isLoading } = useChecklistTemplates()
@@ -53,14 +55,17 @@ export default function ChecklistTemplatesPage() {
       transition={{ duration: 0.4 }}
       className="p-6 max-w-5xl mx-auto"
     >
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-3">
+      <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex min-w-0 items-center gap-3">
           <ClipboardList className="w-6 h-6 text-gray-400" />
           <h1 className="text-2xl font-bold text-gray-900">
             Checklist Templates
           </h1>
         </div>
-        <Button onClick={() => setShowCreate(!showCreate)}>
+        <Button
+          onClick={() => setShowCreate(!showCreate)}
+          className="inline-flex items-center gap-1 self-start whitespace-nowrap sm:self-auto"
+        >
           <Plus className="w-4 h-4 mr-1" />
           New Template
         </Button>
@@ -155,7 +160,9 @@ function TemplateDetail({ templateId }: { templateId: string }) {
   const { data, isLoading } = useChecklistTemplate(templateId)
   const addItemMutation = useAddChecklistItem(templateId)
   const deleteItemMutation = useDeleteChecklistItem(templateId)
+  const reorderMutation = useReorderChecklistItems(templateId)
   const [newItemTitle, setNewItemTitle] = useState('')
+  const [draggingId, setDraggingId] = useState<string | null>(null)
 
   function handleAddItem() {
     if (!newItemTitle.trim()) return
@@ -175,6 +182,44 @@ function TemplateDetail({ templateId }: { templateId: string }) {
   }
 
   if (!data) return null
+  const items = data.items
+
+  function reorderList(
+    list: ChecklistItem[],
+    sourceId: string,
+    targetId: string,
+  ): ChecklistItem[] {
+    const sourceIndex = list.findIndex((item) => item.id === sourceId)
+    const targetIndex = list.findIndex((item) => item.id === targetId)
+    if (sourceIndex === -1 || targetIndex === -1 || sourceIndex === targetIndex) {
+      return list
+    }
+
+    const next = [...list]
+    const [moved] = next.splice(sourceIndex, 1)
+    next.splice(targetIndex, 0, moved)
+    return next
+  }
+
+  function handleDrop(targetId: string) {
+    if (!draggingId) return
+    if (draggingId === targetId) {
+      setDraggingId(null)
+      return
+    }
+
+    const next = reorderList(items, draggingId, targetId)
+    if (next === items) {
+      setDraggingId(null)
+      return
+    }
+    reorderMutation.mutate(next.map((item) => item.id), {
+      onError: (err: Error) => {
+        showToast('error', err.message)
+      },
+    })
+    setDraggingId(null)
+  }
 
   return (
     <div className="bg-white rounded-2xl border border-gray-200 p-6">
@@ -183,14 +228,30 @@ function TemplateDetail({ templateId }: { templateId: string }) {
       </h2>
 
       <div className="space-y-2 mb-4">
-        {data.items.map((item) => (
+        {items.map((item, index) => (
           <div
             key={item.id}
-            className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+            draggable={!reorderMutation.isPending}
+            onDragStart={(e) => {
+              setDraggingId(item.id)
+              e.dataTransfer.effectAllowed = 'move'
+            }}
+            onDragOver={(e) => {
+              e.preventDefault()
+              e.dataTransfer.dropEffect = 'move'
+            }}
+            onDragEnd={() => setDraggingId(null)}
+            onDrop={() => handleDrop(item.id)}
+            className={`flex items-center justify-between p-3 rounded-lg border transition-colors ${
+              draggingId === item.id
+                ? 'bg-gray-100 border-gray-300'
+                : 'bg-gray-50 border-transparent'
+            } ${reorderMutation.isPending ? 'cursor-progress' : 'cursor-grab'}`}
           >
             <div className="flex items-center gap-3">
+              <GripVertical className="w-4 h-4 text-gray-300" />
               <span className="text-xs text-gray-400 w-6">
-                {item.sort_order + 1}.
+                {index + 1}.
               </span>
               <span className="text-sm">{item.title}</span>
             </div>

@@ -443,6 +443,46 @@ test.describe('Cleaning API - Checklist Templates', () => {
     expect(item.template_id).toBe(tpl.id)
   })
 
+  test('POST /checklists/:id/reorder-items - reorder items', async ({ api }) => {
+    const cr = await api.post('/checklists', {
+      data: {
+        name: `Tpl ${uniqueName('tpl')}`,
+        items: [
+          { title: 'Task A', sort_order: 0 },
+          { title: 'Task B', sort_order: 1 },
+          { title: 'Task C', sort_order: 2 },
+        ],
+      },
+    })
+    const tpl = await cr.json()
+    templateIdsToCleanup.push(tpl.id)
+
+    const detailBefore = await api.get(`/checklists/${tpl.id}`)
+    const beforeBody = await detailBefore.json()
+    const reorderedIds = [
+      beforeBody.items[2].id,
+      beforeBody.items[0].id,
+      beforeBody.items[1].id,
+    ]
+
+    const reorderRes = await api.post(`/checklists/${tpl.id}/reorder-items`, {
+      data: { item_ids: reorderedIds },
+    })
+    expect(reorderRes.ok()).toBeTruthy()
+    const reordered = await reorderRes.json()
+    expect(reordered).toBeInstanceOf(Array)
+    expect(reordered[0].sort_order).toBe(0)
+    expect(reordered[1].sort_order).toBe(1)
+    expect(reordered[2].sort_order).toBe(2)
+
+    const detailAfter = await api.get(`/checklists/${tpl.id}`)
+    expect(detailAfter.ok()).toBeTruthy()
+    const afterBody = await detailAfter.json()
+    expect(afterBody.items[0].title).toBe('Task C')
+    expect(afterBody.items[1].title).toBe('Task A')
+    expect(afterBody.items[2].title).toBe('Task B')
+  })
+
   test('DELETE /checklists/:id/items/:itemId - remove item', async ({
     api,
   }) => {

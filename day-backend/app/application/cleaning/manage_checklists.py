@@ -83,13 +83,18 @@ class ManageChecklistsService:
         template_id: uuid.UUID,
         company_id: uuid.UUID,
         title: str,
-        sort_order: int = 0,
+        sort_order: int | None = None,
     ) -> CleaningChecklistItem:
         template = await self._template_repo.get_by_id(template_id)
         if template is None:
             raise ValueError("Checklist template not found")
         if template.company_id != company_id:
             raise ValueError("Template does not belong to company")
+        if sort_order is not None and sort_order < 0:
+            raise ValueError("sort_order must be non-negative")
+        if sort_order is None:
+            existing_items = await self._item_repo.list_by_template(template_id)
+            sort_order = max((i.sort_order for i in existing_items), default=-1) + 1
         return await self._item_repo.create(
             CleaningChecklistItem(
                 template_id=template_id,
@@ -97,6 +102,32 @@ class ManageChecklistsService:
                 sort_order=sort_order,
             )
         )
+
+    async def reorder_items(
+        self,
+        template_id: uuid.UUID,
+        company_id: uuid.UUID,
+        item_ids: list[uuid.UUID],
+    ) -> list[CleaningChecklistItem]:
+        template = await self._template_repo.get_by_id(template_id)
+        if template is None:
+            raise ValueError("Checklist template not found")
+        if template.company_id != company_id:
+            raise ValueError("Template does not belong to company")
+        if not item_ids:
+            raise ValueError("item_ids cannot be empty")
+
+        current_items = await self._item_repo.list_by_template(template_id)
+        current_ids = [item.id for item in current_items]
+        if len(item_ids) != len(current_ids):
+            raise ValueError("Reorder request must include all template items")
+        if len(set(item_ids)) != len(item_ids):
+            raise ValueError("Reorder request contains duplicate item IDs")
+        if set(item_ids) != set(current_ids):
+            raise ValueError("Reorder request contains unknown item IDs")
+
+        await self._item_repo.reorder(template_id, item_ids)
+        return await self._item_repo.list_by_template(template_id)
 
     async def delete_item(
         self,

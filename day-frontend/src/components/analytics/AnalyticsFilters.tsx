@@ -136,19 +136,22 @@ export default function AnalyticsFilterBar({
           </PopoverTrigger>
           <PopoverContent className="w-64 p-2" align="start">
             <div className="max-h-64 overflow-auto">
-              <button
-                type="button"
-                onClick={clearProperties}
+              <label
+                htmlFor="analytics-all-properties"
                 className={cn(
-                  'flex w-full items-center gap-2 rounded-lg px-2 py-2 text-sm text-gray-700',
+                  'flex w-full cursor-pointer items-center gap-2 rounded-lg px-2 py-2 text-sm text-gray-700',
                   'hover:bg-gray-100',
                 )}
-                role="checkbox"
-                aria-checked={isAllSelected}
               >
-                <Checkbox checked={isAllSelected} className="pointer-events-none" />
+                <Checkbox
+                  id="analytics-all-properties"
+                  checked={isAllSelected}
+                  onCheckedChange={(checked) => {
+                    if (checked) clearProperties()
+                  }}
+                />
                 <span className="truncate">All Properties</span>
-              </button>
+              </label>
 
               <div className="my-1 h-px bg-gray-100" />
 
@@ -160,20 +163,21 @@ export default function AnalyticsFilterBar({
                 properties.map((p) => {
                   const checked = propertyIds.includes(p.id)
                   return (
-                    <button
+                    <label
                       key={p.id}
-                      type="button"
-                      onClick={() => toggleProperty(p.id)}
+                      htmlFor={`analytics-property-${p.id}`}
                       className={cn(
-                        'flex w-full items-center gap-2 rounded-lg px-2 py-2 text-sm text-gray-700',
+                        'flex w-full cursor-pointer items-center gap-2 rounded-lg px-2 py-2 text-sm text-gray-700',
                         'hover:bg-gray-100',
                       )}
-                      role="checkbox"
-                      aria-checked={checked}
                     >
-                      <Checkbox checked={checked} className="pointer-events-none" />
+                      <Checkbox
+                        id={`analytics-property-${p.id}`}
+                        checked={checked}
+                        onCheckedChange={() => toggleProperty(p.id)}
+                      />
                       <span className="truncate">{p.internal_name}</span>
-                    </button>
+                    </label>
                   )
                 })
               )}
