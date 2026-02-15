@@ -1,9 +1,12 @@
 import { useMemo, useState } from 'react'
 import { motion } from 'framer-motion'
 import { ChevronLeft, ChevronRight, CalendarRange } from 'lucide-react'
+import { useQueries } from '@tanstack/react-query'
 import { useGanttData } from '../../hooks/useBookings'
+import { getPricing } from '../../api/properties'
 import GanttChart from '../../components/property/GanttChart'
 import type { GanttRow } from '../../components/property/GanttChart'
+import type { PricingConfig } from '../../types/property'
 import {
   Select,
   SelectContent,
@@ -29,8 +32,10 @@ export default function GanttChartPage() {
   const [rowsPerPage, setRowsPerPage] = useState<RowsPerPage>('25')
   const [page, setPage] = useState(1)
 
-  const startDate = toDateStr(new Date(year, month, 1))
-  const endDate = toDateStr(new Date(year, month + 1, 0))
+  const rangeStartDate = useMemo(() => new Date(year, month - 1, 1), [year, month])
+  const rangeEndDate = useMemo(() => new Date(year, month + 2, 0), [year, month])
+  const startDate = toDateStr(rangeStartDate)
+  const endDate = toDateStr(rangeEndDate)
 
   const { data: ganttData, isLoading } = useGanttData(startDate, endDate)
 
@@ -56,6 +61,29 @@ export default function GanttChartPage() {
     const start = (currentPage - 1) * pageSize
     return sortedRows.slice(start, start + pageSize)
   }, [currentPage, pageSize, rowsPerPage, sortedRows])
+
+  const visiblePropertyIds = useMemo(
+    () => visibleRows.map((row) => row.property.id),
+    [visibleRows],
+  )
+
+  const pricingQueries = useQueries({
+    queries: visiblePropertyIds.map((propertyId) => ({
+      queryKey: ['pricing', propertyId],
+      queryFn: () => getPricing(propertyId),
+      staleTime: 60_000,
+    })),
+  })
+
+  const pricingByProperty = useMemo(() => {
+    return visiblePropertyIds.reduce<Record<string, PricingConfig | null | undefined>>(
+      (acc, propertyId, index) => {
+        acc[propertyId] = pricingQueries[index]?.data
+        return acc
+      },
+      {},
+    )
+  }, [pricingQueries, visiblePropertyIds])
 
   const rangeStart = sortedRows.length === 0
     ? 0
@@ -191,7 +219,14 @@ export default function GanttChartPage() {
             <div className="w-6 h-6 border-2 border-gray-200 border-t-gray-900 rounded-full animate-spin" />
           </div>
         ) : (
-          <GanttChart rows={visibleRows} year={year} month={month} />
+          <GanttChart
+            rows={visibleRows}
+            year={year}
+            month={month}
+            rangeStart={startDate}
+            rangeEnd={endDate}
+            pricingByProperty={pricingByProperty}
+          />
         )}
       </motion.div>
     </div>

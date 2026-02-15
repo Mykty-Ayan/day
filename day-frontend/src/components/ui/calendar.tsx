@@ -16,28 +16,28 @@ function Calendar({
       showOutsideDays={showOutsideDays}
       className={cn('p-3', className)}
       classNames={{
-        months: 'flex flex-col sm:flex-row gap-4',
-        month: 'space-y-4',
-        caption: 'flex justify-center pt-1 relative items-center',
+        months: 'flex flex-col gap-4',
+        month: 'space-y-3',
+        month_caption: 'relative flex h-8 items-center justify-center',
         caption_label: 'text-sm font-semibold text-gray-900',
-        nav: 'flex items-center gap-1',
-        nav_button:
-          'h-7 w-7 rounded-lg border border-gray-200 bg-white text-gray-600 hover:bg-gray-50',
-        nav_button_previous: 'absolute left-1',
-        nav_button_next: 'absolute right-1',
-        table: 'w-full border-collapse space-y-1',
-        head_row: 'flex',
-        head_cell: 'w-9 text-center text-[0.7rem] font-semibold text-gray-400',
-        row: 'flex w-full mt-2',
-        cell: 'h-9 w-9 text-center text-sm p-0 relative',
-        day:
+        nav: 'absolute inset-x-0 top-0 flex items-center justify-between px-1',
+        button_previous:
+          'h-7 w-7 rounded-lg border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 disabled:opacity-50',
+        button_next:
+          'h-7 w-7 rounded-lg border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 disabled:opacity-50',
+        month_grid: 'w-full border-collapse',
+        weekdays: 'flex',
+        weekday: 'w-9 text-center text-[0.7rem] font-semibold text-gray-400',
+        weeks: 'space-y-1',
+        week: 'flex w-full',
+        day: 'h-9 w-9 p-0 text-center text-sm',
+        day_button:
           'h-9 w-9 rounded-lg font-medium text-gray-700 hover:bg-gray-100 focus:outline-none',
-        day_selected:
-          'bg-black text-white hover:bg-black focus:bg-black',
-        day_today: 'bg-gray-100 text-gray-900',
-        day_outside: 'text-gray-400 opacity-70',
-        day_disabled: 'text-gray-300 opacity-50',
-        day_hidden: 'invisible',
+        selected: 'bg-black text-white hover:bg-black focus:bg-black',
+        today: 'bg-gray-100 text-gray-900',
+        outside: 'text-gray-400 opacity-70',
+        disabled: 'text-gray-300 opacity-50',
+        hidden: 'invisible',
         ...classNames,
       }}
       components={{

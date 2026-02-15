@@ -3,7 +3,8 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { ArrowLeft, ArrowRight, Check, Loader2 } from 'lucide-react'
 import { useNavigate } from '@tanstack/react-router'
 import { useCreateProperty } from '../../hooks/useProperties'
-import type { PropertyType, PropertyCreateInput } from '../../types/property'
+import { createOrUpdatePricing } from '../../api/properties'
+import type { PropertyType, PropertyCreateInput, PricingInput } from '../../types/property'
 import PropertyFormStepBasic from '../../components/property/PropertyFormStepBasic'
 import PropertyFormStepAddress from '../../components/property/PropertyFormStepAddress'
 import PropertyFormStepDetails from '../../components/property/PropertyFormStepDetails'
@@ -73,12 +74,38 @@ const initialForm: FormData = {
   amenityIds: [],
 }
 
+function hasPricingInput(pricing: FormData['pricing']): boolean {
+  return Object.values(pricing).some((value) => value.trim() !== '')
+}
+
+function toPricingInput(pricing: FormData['pricing']): PricingInput {
+  const toNumber = (value: string, fallback: number): number => {
+    const parsed = Number.parseFloat(value)
+    return Number.isFinite(parsed) ? parsed : fallback
+  }
+
+  const toInt = (value: string, fallback: number): number => {
+    const parsed = Number.parseInt(value, 10)
+    return Number.isFinite(parsed) ? parsed : fallback
+  }
+
+  return {
+    base_price: toNumber(pricing.base_price, 0),
+    weekend_markup: toNumber(pricing.weekend_markup, 0),
+    default_deposit: toNumber(pricing.default_deposit, 0),
+    extra_adult_price: toNumber(pricing.extra_adult_price, 0),
+    extra_child_price: toNumber(pricing.extra_child_price, 0),
+    base_guests: Math.max(1, toInt(pricing.base_guests, 1)),
+  }
+}
+
 export default function CreatePropertyPage() {
   const navigate = useNavigate()
   const createProperty = useCreateProperty()
   const [step, setStep] = useState(0)
   const [form, setForm] = useState<FormData>(initialForm)
   const [errors, setErrors] = useState<Record<string, string>>({})
+  const [submitError, setSubmitError] = useState<string | null>(null)
   const [direction, setDirection] = useState(1)
 
   function validateStep(): boolean {
@@ -105,6 +132,8 @@ export default function CreatePropertyPage() {
   async function handleSubmit() {
     if (!validateStep()) return
 
+    setSubmitError(null)
+
     const payload: PropertyCreateInput = {
       name: form.basic.name,
       internal_name: form.basic.internal_name,
@@ -127,11 +156,17 @@ export default function CreatePropertyPage() {
       house_rules: form.rules.house_rules || undefined,
     }
 
-    createProperty.mutate(payload, {
-      onSuccess: (property) => {
-        navigate({ to: '/properties/$propertyId', params: { propertyId: property.id } })
-      },
-    })
+    try {
+      const property = await createProperty.mutateAsync(payload)
+
+      if (hasPricingInput(form.pricing)) {
+        await createOrUpdatePricing(property.id, toPricingInput(form.pricing))
+      }
+
+      navigate({ to: '/properties/$propertyId', params: { propertyId: property.id } })
+    } catch {
+      setSubmitError('Failed to create property. Please try again.')
+    }
   }
 
   const isLast = step === STEPS.length - 1
@@ -227,11 +262,9 @@ export default function CreatePropertyPage() {
         </div>
 
         {/* Error message */}
-        {createProperty.isError && (
+        {submitError && (
           <div className="mt-4 bg-red-50 border border-red-200 rounded-xl p-3">
-            <p className="text-sm text-red-600">
-              Failed to create property. Please try again.
-            </p>
+            <p className="text-sm text-red-600">{submitError}</p>
           </div>
         )}
 
