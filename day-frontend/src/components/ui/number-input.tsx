@@ -54,7 +54,14 @@ export default function NumberInput({
     if (disabled) return
     const current = parseNumber(value)
     if (current === null) {
-      const initial = typeof min === 'number' ? min : direction * step
+      let initial: number
+      if (direction === 1) {
+        // For empty values, increment should start from a meaningful first step,
+        // not from 0 when min is zero (e.g. amount inputs).
+        initial = typeof min === 'number' && min > 0 ? min : step
+      } else {
+        initial = typeof min === 'number' ? min : -step
+      }
       onChange(formatWithStep(clampValue(initial), step))
       return
     }

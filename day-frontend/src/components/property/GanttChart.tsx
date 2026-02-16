@@ -580,7 +580,11 @@ export default function GanttChart({
                       onDragEnd={handleDragEnd}
                       onClick={(e) => {
                         e.stopPropagation()
-                        navigate({ to: '/bookings/$bookingId', params: { bookingId: booking.id } })
+                        navigate({
+                          to: '/bookings/$bookingId',
+                          params: { bookingId: booking.id },
+                          search: { from: 'gantt' } as Record<string, string>,
+                        })
                       }}
                       onMouseEnter={(e) => {
                         const rect = e.currentTarget.getBoundingClientRect()
