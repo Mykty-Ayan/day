@@ -239,9 +239,10 @@ export function useTodayChecks() {
 
 // --- Guests ---
 
-export function useGuests(filters: GuestFilters = {}) {
+export function useGuests(filters: GuestFilters = {}, enabled = true) {
   return useQuery({
     queryKey: [GUESTS_KEY, filters],
     queryFn: () => listGuests(filters),
+    enabled,
   })
 }

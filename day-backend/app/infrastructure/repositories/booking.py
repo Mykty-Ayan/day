@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 import uuid
 from datetime import date, datetime
 from decimal import Decimal
@@ -177,6 +178,31 @@ def _model_to_audit(m: BookingAuditLogModel) -> BookingAuditLog:
     )
 
 
+def _digits_only(value: str) -> str:
+    return re.sub(r"\D+", "", value)
+
+
+def _phone_digits_expr():
+    # Normalize stored phone values for search without separators.
+    expr = func.coalesce(GuestModel.phone, "")
+    for ch in ("+", "-", "(", ")", " ", "."):
+        expr = func.replace(expr, ch, "")
+    return expr
+
+
+def _guest_search_clause(search: str):
+    query = search.strip()
+    name_or_raw_phone = (GuestModel.name.ilike(f"%{query}%")) | (
+        GuestModel.phone.ilike(f"%{query}%")
+    )
+
+    digits = _digits_only(query)
+    if not digits:
+        return name_or_raw_phone
+
+    return name_or_raw_phone | _phone_digits_expr().ilike(f"%{digits}%")
+
+
 # ---------- implementations ----------
 
 
@@ -212,10 +238,7 @@ class SqlGuestRepository(GuestRepository):
     ) -> list[Guest]:
         stmt = select(GuestModel).where(GuestModel.company_id == company_id)
         if search:
-            stmt = stmt.where(
-                (GuestModel.name.ilike(f"%{search}%"))
-                | (GuestModel.phone.ilike(f"%{search}%"))
-            )
+            stmt = stmt.where(_guest_search_clause(search))
         stmt = stmt.order_by(GuestModel.created_at.desc()).offset(offset).limit(limit)
         result = await self._session.scalars(stmt)
         return [_model_to_guest(m) for m in result.all()]
@@ -227,10 +250,7 @@ class SqlGuestRepository(GuestRepository):
             GuestModel.company_id == company_id
         )
         if search:
-            stmt = stmt.where(
-                (GuestModel.name.ilike(f"%{search}%"))
-                | (GuestModel.phone.ilike(f"%{search}%"))
-            )
+            stmt = stmt.where(_guest_search_clause(search))
         result = await self._session.scalar(stmt)
         return result or 0
 
@@ -241,8 +261,7 @@ class SqlGuestRepository(GuestRepository):
             select(GuestModel)
             .where(
                 GuestModel.company_id == company_id,
-                (GuestModel.name.ilike(f"%{query}%"))
-                | (GuestModel.phone.ilike(f"%{query}%")),
+                _guest_search_clause(query),
             )
             .limit(20)
         )

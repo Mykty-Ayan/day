@@ -776,7 +776,7 @@ function HistoryTab({ auditLogs }: { auditLogs: BookingAuditLog[] }) {
                 <p className="text-sm text-gray-700">{entry.action}</p>
                 {(entry.action === 'create' || entry.field_name === '*') ? (
                   <p className="text-xs text-gray-500 mt-0.5">
-                    <span className="text-green-600">created</span>
+                    record: <span className="line-through text-red-400">null</span> <ArrowRight className="w-3 h-3 inline text-gray-400" /> <span className="text-green-600">created</span>
                   </p>
                 ) : entry.field_name ? (
                   <p className="text-xs text-gray-500 mt-0.5">

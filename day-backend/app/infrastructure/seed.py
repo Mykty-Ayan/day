@@ -93,16 +93,16 @@ AMENITIES = [
 
 PROPERTIES = [
     {
-        "name": "Sunset Apartment",
-        "internal_name": "sunset-apt",
+        "name": "Alatau Apartment",
+        "internal_name": "alatau-apt",
         "type": "apartment",
         "status": "active",
-        "address_full": "123 Sunset Blvd, Los Angeles, CA",
+        "address_full": "Dostyk Ave 120, Almaty, Kazakhstan",
         "rooms": 2,
         "beds": 4,
         "area_total": 85.0,
         "area_living": 65.0,
-        "description": "A beautiful sunset-facing apartment with modern amenities.",
+        "description": "Modern apartment near Kok Tobe with city and mountain views.",
         "pricing": {
             "base_price": 25000,
             "weekend_markup": 5000,
@@ -114,16 +114,16 @@ PROPERTIES = [
         "amenities": ["Wi-Fi", "Air Conditioning", "Kitchen"],
     },
     {
-        "name": "Mountain House",
-        "internal_name": "mountain-house",
+        "name": "Medeu Chalet",
+        "internal_name": "medeu-chalet",
         "type": "house",
         "status": "active",
-        "address_full": "45 Pine Ridge Rd, Aspen, CO",
+        "address_full": "Gornaya St 45, Almaty Region, Kazakhstan",
         "rooms": 4,
         "beds": 8,
         "area_total": 200.0,
         "area_living": 150.0,
-        "description": "Spacious mountain retreat with stunning views.",
+        "description": "Spacious mountain retreat close to Medeu and Shymbulak.",
         "pricing": {
             "base_price": 50000,
             "weekend_markup": 10000,
@@ -135,16 +135,16 @@ PROPERTIES = [
         "amenities": ["Wi-Fi", "Air Conditioning", "Parking", "Kitchen", "Pool"],
     },
     {
-        "name": "City Studio",
+        "name": "Astana City Studio",
         "internal_name": "city-studio",
         "type": "room",
         "status": "active",
-        "address_full": "789 Main St, Apt 3B, New York, NY",
+        "address_full": "Kabanbay Batyr Ave 17, Astana, Kazakhstan",
         "rooms": 1,
         "beds": 2,
         "area_total": 35.0,
         "area_living": 28.0,
-        "description": "Compact studio in the heart of the city.",
+        "description": "Compact studio in the city center near EXPO area.",
         "pricing": {
             "base_price": 15000,
             "weekend_markup": 3000,
@@ -156,16 +156,16 @@ PROPERTIES = [
         "amenities": ["Wi-Fi", "Air Conditioning"],
     },
     {
-        "name": "Beach Villa",
-        "internal_name": "beach-villa",
+        "name": "Aktau Caspian Villa",
+        "internal_name": "aktau-caspian-villa",
         "type": "house",
         "status": "active",
-        "address_full": "12 Ocean Drive, Miami, FL",
+        "address_full": "Microdistrict 15, Aktau, Kazakhstan",
         "rooms": 3,
         "beds": 6,
         "area_total": 160.0,
         "area_living": 120.0,
-        "description": "Luxurious beachfront villa with private access.",
+        "description": "Large villa near the Caspian seafront promenade.",
         "pricing": {
             "base_price": 45000,
             "weekend_markup": 8000,
@@ -177,16 +177,16 @@ PROPERTIES = [
         "amenities": ["Wi-Fi", "Air Conditioning", "Parking", "Pool"],
     },
     {
-        "name": "Downtown Loft",
-        "internal_name": "downtown-loft",
+        "name": "Shymkent Downtown Loft",
+        "internal_name": "shymkent-downtown-loft",
         "type": "apartment",
         "status": "active",
-        "address_full": "456 Broadway, San Francisco, CA",
+        "address_full": "Tauke Khan Ave 56, Shymkent, Kazakhstan",
         "rooms": 2,
         "beds": 3,
         "area_total": 75.0,
         "area_living": 55.0,
-        "description": "Modern loft with open floor plan downtown.",
+        "description": "Bright loft in downtown Shymkent near major cafes.",
         "pricing": {
             "base_price": 30000,
             "weekend_markup": 6000,
@@ -200,16 +200,16 @@ PROPERTIES = [
 ]
 
 GUESTS = [
-    {"name": "John Smith", "phone": "+1-555-0101", "email": "john.smith@example.com"},
-    {"name": "Maria Garcia", "phone": "+1-555-0102", "email": "maria.garcia@example.com"},
-    {"name": "James Wilson", "phone": "+1-555-0103", "email": "james.wilson@example.com"},
-    {"name": "Sarah Johnson", "phone": "+1-555-0104", "email": "sarah.johnson@example.com"},
-    {"name": "Michael Brown", "phone": "+1-555-0105", "email": "michael.brown@example.com"},
-    {"name": "Emily Davis", "phone": "+1-555-0106", "email": "emily.davis@example.com"},
-    {"name": "Robert Taylor", "phone": "+1-555-0107", "email": "robert.taylor@example.com"},
-    {"name": "Lisa Anderson", "phone": "+1-555-0108", "email": "lisa.anderson@example.com"},
-    {"name": "David Martinez", "phone": "+1-555-0109", "email": "david.martinez@example.com"},
-    {"name": "Jennifer Thomas", "phone": "+1-555-0110", "email": "jennifer.thomas@example.com"},
+    {"name": "Aruzhan Sarsenova", "phone": "+7-701-555-0101", "email": "aruzhan.sarsenova@example.com"},
+    {"name": "Nurlan Abdrakhmanov", "phone": "+7-702-555-0102", "email": "nurlan.abdrakhmanov@example.com"},
+    {"name": "Dana Tolegen", "phone": "+7-705-555-0103", "email": "dana.tolegen@example.com"},
+    {"name": "Alibek Mukhanov", "phone": "+7-707-555-0104", "email": "alibek.mukhanov@example.com"},
+    {"name": "Aigerim Kenzhebek", "phone": "+7-708-555-0105", "email": "aigerim.kenzhebek@example.com"},
+    {"name": "Madiyar Orazbay", "phone": "+7-747-555-0106", "email": "madiyar.orazbay@example.com"},
+    {"name": "Kamila Seitzhan", "phone": "+7-771-555-0107", "email": "kamila.seitzhan@example.com"},
+    {"name": "Yerlan Nurgaliyev", "phone": "+7-775-555-0108", "email": "yerlan.nurgaliyev@example.com"},
+    {"name": "Sabina Akhmetova", "phone": "+7-776-555-0109", "email": "sabina.akhmetova@example.com"},
+    {"name": "Dias Rakhimzhan", "phone": "+7-778-555-0110", "email": "dias.rakhimzhan@example.com"},
 ]
 
 
@@ -695,7 +695,7 @@ async def seed_group_bookings(
         adults_count=4,
         children_count=2,
         status="confirmed",
-        notes="Test group booking",
+        notes="Demo group booking",
     ))
 
     assign_ids = [b["id"] for b in bookings_out[:2]]
@@ -754,7 +754,7 @@ async def seed_booking_extras(
                 id=uuid.uuid4(),
                 booking_id=booking_id,
                 author_id=TEST_USER_ID,
-                content="Test comment: guest prefers late check-in.",
+                content="Demo comment: guest prefers late check-in.",
             ))
             print(f"  [+] Comment for booking #{idx + 1}")
         else:
@@ -986,7 +986,7 @@ async def seed_cleaning_reports(
             task_id=task["id"],
             cleaner_id=cleaner_id,
             status="submitted",
-            notes="Test report: all key areas cleaned.",
+            notes="Demo report: all key areas cleaned.",
             submitted_at=datetime.utcnow(),
         ))
 
@@ -997,8 +997,8 @@ async def seed_cleaning_reports(
                 url=f"https://placehold.co/800x600?text=Report+Photo+{photo_idx + 1}",
                 room_type=["kitchen", "bathroom", "bedroom"][photo_idx],
                 metadata_json={
-                    "lat": 34.05,
-                    "lng": -118.24,
+                    "lat": 43.2389,
+                    "lng": 76.8897,
                     "taken_at": datetime.utcnow().isoformat(),
                 },
                 metadata_verified=photo_idx == 0,

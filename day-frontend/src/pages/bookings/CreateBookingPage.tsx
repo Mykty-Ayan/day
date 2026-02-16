@@ -107,17 +107,18 @@ export default function CreateBookingPage() {
     check_out: prefill.checkOut,
   }))
   const [errors, setErrors] = useState<Record<string, string>>({})
-  const guestSearch = form.guest_phone.length >= 3 ? form.guest_phone : ''
+  const guestSearch = form.guest_phone.trim()
+  const canSearchGuests = guestSearch.length >= 2
   const [showGuestSuggestions, setShowGuestSuggestions] = useState(false)
 
   const { data: propertiesData } = useProperties({ per_page: 100, status: 'active' })
   const properties = propertiesData?.items ?? []
 
-  const { data: guestsData } = useGuests({
-    search: guestSearch || undefined,
-    per_page: 5,
-  })
-  const guestSuggestions = guestsData?.items ?? []
+  const { data: guestsData } = useGuests(
+    { search: guestSearch, limit: 5 },
+    canSearchGuests,
+  )
+  const guestSuggestions = canSearchGuests ? (guestsData?.items ?? []) : []
 
   // Debounced price calculation params
   const [debouncedPriceParams, setDebouncedPriceParams] = useState<PriceCalculateInput | null>(null)
@@ -345,7 +346,7 @@ export default function CreateBookingPage() {
                     )}
 
                     {/* Guest suggestions */}
-                    {showGuestSuggestions && guestSuggestions.length > 0 && (
+                    {showGuestSuggestions && canSearchGuests && guestSuggestions.length > 0 && (
                       <div className="absolute z-20 top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden">
                         {guestSuggestions.map((g) => (
                           <button

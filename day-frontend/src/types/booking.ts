@@ -215,6 +215,13 @@ export interface MoveBookingInput {
 
 export interface GuestFilters {
   search?: string
-  page?: number
-  per_page?: number
+  offset?: number
+  limit?: number
+}
+
+export interface GuestListResponse {
+  items: Guest[]
+  total: number
+  offset: number
+  limit: number
 }
