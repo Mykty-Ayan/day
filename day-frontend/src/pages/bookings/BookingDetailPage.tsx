@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   ArrowLeft,
@@ -626,7 +626,7 @@ function DepositsTab({ bookingId, deposits }: { bookingId: string; deposits: Boo
         </div>
       ) : (
         deposits.map((dep) => (
-          <DepositCard key={dep.id} bookingId={bookingId} deposit={dep} />
+          <DepositCard key={`${dep.id}-${dep.status}`} bookingId={bookingId} deposit={dep} />
         ))
       )}
     </div>
@@ -636,12 +636,6 @@ function DepositsTab({ bookingId, deposits }: { bookingId: string; deposits: Boo
 function DepositCard({ bookingId, deposit }: { bookingId: string; deposit: BookingDeposit }) {
   const depAction = useDepositAction(bookingId, deposit.id)
   const [actionForm, setActionForm] = useState<{ action: DepositAction; held_amount: string; reason: string } | null>(null)
-
-  useEffect(() => {
-    if (deposit.status !== 'paid') {
-      setActionForm(null)
-    }
-  }, [deposit.status])
 
   function handleAction() {
     if (!actionForm) return
