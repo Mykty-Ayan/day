@@ -20,8 +20,8 @@ class PropertyStatus(str, enum.Enum):
 _ALLOWED_TRANSITIONS: dict[PropertyStatus, set[PropertyStatus]] = {
     PropertyStatus.NEW: {PropertyStatus.ACTIVE},
     PropertyStatus.ACTIVE: {PropertyStatus.PAUSED, PropertyStatus.ARCHIVED},
-    PropertyStatus.PAUSED: {PropertyStatus.ACTIVE},
-    # ARCHIVED has no outgoing transitions
+    PropertyStatus.PAUSED: {PropertyStatus.ACTIVE, PropertyStatus.ARCHIVED},
+    PropertyStatus.ARCHIVED: {PropertyStatus.ACTIVE},
 }
 
 

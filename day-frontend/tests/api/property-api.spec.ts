@@ -265,7 +265,7 @@ test.describe('Property API - Status Transitions', () => {
     expect([400, 422]).toContain(res.status())
   })
 
-  test('POST /properties/:id/status - rejects transition from archived', async ({
+  test('POST /properties/:id/status - restores archived property (archived -> active)', async ({
     createProperty,
     api,
   }) => {
@@ -279,11 +279,12 @@ test.describe('Property API - Status Transitions', () => {
       data: { status: 'archived' },
     })
 
-    // archived -> active should fail
+    // archived -> active should succeed
     const res = await api.post(`/properties/${prop.id}/status`, {
       data: { status: 'active' },
     })
-    expect([400, 422]).toContain(res.status())
+    expect(res.ok()).toBeTruthy()
+    expect((await res.json()).status).toBe('active')
   })
 
   test('POST /properties/:id/status - validates all transitions against rules', async ({

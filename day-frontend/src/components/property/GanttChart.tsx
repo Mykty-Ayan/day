@@ -351,7 +351,9 @@ export default function GanttChart({
                 {monthSegments.map((segment, idx) => (
                   <div
                     key={segment.key}
-                    className={`relative shrink-0 overflow-clip border-r border-r-gray-300 ${
+                    className={`relative box-border shrink-0 overflow-clip ${
+                      idx > 0 ? 'border-l border-l-gray-300' : ''
+                    } ${
                       idx % 2 === 0 ? 'bg-gray-50' : 'bg-gray-100/60'
                     }`}
                     style={{ width: segment.daysCount * CELL_W }}

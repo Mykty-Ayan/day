@@ -138,9 +138,11 @@ export interface DiscountRuleInput {
 export interface PropertyAuditLog {
   id: string
   property_id: string
-  user_id: string
+  changed_by: string | null
   action: string
-  changes: Record<string, unknown>
+  field_name: string | null
+  old_value: string | null
+  new_value: string | null
   created_at: string
 }
 
