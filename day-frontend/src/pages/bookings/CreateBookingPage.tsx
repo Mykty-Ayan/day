@@ -62,10 +62,50 @@ const initialForm: FormData = {
   notes: '',
 }
 
+interface BookingPrefill {
+  propertyId: string
+  checkIn: string
+  checkOut: string
+  from: string
+}
+
+function isDateOnly(value: string): boolean {
+  return /^\d{4}-\d{2}-\d{2}$/.test(value)
+}
+
+function getBookingPrefill(): BookingPrefill {
+  if (typeof window === 'undefined') {
+    return { propertyId: '', checkIn: '', checkOut: '', from: '' }
+  }
+
+  const params = new URLSearchParams(window.location.search)
+  const propertyId = params.get('property_id') || ''
+  const checkInRaw = params.get('check_in') || ''
+  const checkOutRaw = params.get('check_out') || ''
+  const from = params.get('from') || ''
+
+  const checkIn = isDateOnly(checkInRaw) ? checkInRaw : ''
+  const checkOut = isDateOnly(checkOutRaw) ? checkOutRaw : ''
+
+  // Accept only a valid forward range to avoid broken prefilled states.
+  return {
+    propertyId,
+    checkIn,
+    checkOut: checkIn && checkOut && checkIn < checkOut ? checkOut : '',
+    from,
+  }
+}
+
 export default function CreateBookingPage() {
+  const prefill = useMemo(() => getBookingPrefill(), [])
   const navigate = useNavigate()
   const createBooking = useCreateBooking()
-  const [form, setForm] = useState<FormData>(initialForm)
+  const [form, setForm] = useState<FormData>(() => ({
+    ...initialForm,
+    property_id: prefill.propertyId,
+    check_in: prefill.checkIn,
+    check_out: prefill.checkOut,
+  }))
   const [errors, setErrors] = useState<Record<string, string>>({})
   const guestSearch = form.guest_phone.length >= 3 ? form.guest_phone : ''
   const [showGuestSuggestions, setShowGuestSuggestions] = useState(false)
@@ -161,6 +201,15 @@ export default function CreateBookingPage() {
     })
   }
 
+  function handleBack() {
+    // Preserve navigation context when booking is opened from gantt range selection.
+    if (prefill.from === 'gantt') {
+      navigate({ to: '/properties/gantt' })
+      return
+    }
+    navigate({ to: '/bookings' })
+  }
+
   return (
     <div className="p-6 max-w-6xl mx-auto w-full">
       <motion.div
@@ -172,7 +221,7 @@ export default function CreateBookingPage() {
         <div className="flex items-center gap-3 mb-6">
           <motion.button
             whileTap={{ scale: 0.97 }}
-            onClick={() => navigate({ to: '/bookings' })}
+            onClick={handleBack}
             className="p-2 rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-50 transition-colors"
           >
             <ArrowLeft className="w-4 h-4" />

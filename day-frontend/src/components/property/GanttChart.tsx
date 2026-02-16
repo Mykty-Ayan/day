@@ -20,6 +20,10 @@ interface Props {
   rangeEnd: string
   pricingByProperty?: Record<string, PricingConfig | null | undefined>
   onCellClick?: (propertyId: string, date: string) => void
+  pendingSelection?: {
+    propertyId: string
+    checkIn: string
+  } | null
 }
 
 function getDaysInRange(start: Date, end: Date): Date[] {
@@ -109,6 +113,15 @@ function getMonthLabel(date: Date): string {
   return `${shortMonthNames[date.getMonth()]} ${date.getFullYear()}`
 }
 
+function formatPreviewDate(dateStr: string): string {
+  const d = parseDateOnly(dateStr)
+  return `${shortMonthNames[d.getMonth()]} ${d.getDate()}`
+}
+
+function formatNights(nights: number): string {
+  return `${nights} night${nights === 1 ? '' : 's'}`
+}
+
 export default function GanttChart({
   rows,
   year,
@@ -117,6 +130,7 @@ export default function GanttChart({
   rangeEnd,
   pricingByProperty,
   onCellClick,
+  pendingSelection,
 }: Props) {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
@@ -177,6 +191,14 @@ export default function GanttChart({
 
   // Tooltip state
   const [tooltip, setTooltip] = useState<{ booking: Booking; x: number; y: number } | null>(null)
+  const [hoverPreview, setHoverPreview] = useState<{ propertyId: string; date: string } | null>(null)
+  const [rangePreviewTooltip, setRangePreviewTooltip] = useState<{
+    left: number
+    top: number
+    checkIn: string
+    checkOut: string
+    nights: number
+  } | null>(null)
 
   // Drag state
   const [dragBooking, setDragBooking] = useState<{
@@ -254,6 +276,14 @@ export default function GanttChart({
     setDragBooking(null)
   }, [dragBooking, queryClient])
 
+  // Active preview end date while hovering after selecting check-in.
+  const pendingPreviewEnd = useMemo(() => {
+    if (!pendingSelection || !hoverPreview) return null
+    if (hoverPreview.propertyId !== pendingSelection.propertyId) return null
+    if (hoverPreview.date <= pendingSelection.checkIn) return null
+    return hoverPreview.date
+  }, [hoverPreview, pendingSelection])
+
   function getBarPosition(booking: Booking): { left: number; width: number } | null {
     const checkIn = parseDateOnly(booking.check_in)
     const checkOut = parseDateOnly(booking.check_out)
@@ -289,7 +319,11 @@ export default function GanttChart({
     } else {
       navigate({
         to: '/bookings/new',
-        search: { property_id: propertyId, check_in: dateStr } as Record<string, string>,
+        search: {
+          property_id: propertyId,
+          check_in: dateStr,
+          from: 'gantt',
+        } as Record<string, string>,
       })
     }
   }
@@ -414,6 +448,12 @@ export default function GanttChart({
                 onDragOver={(e) => handleDragOver(e, row.property.id)}
                 onDragLeave={handleDragLeave}
                 onDrop={(e) => handleDrop(e, row.property.id)}
+                onMouseLeave={() => {
+                  if (hoverPreview?.propertyId === row.property.id) {
+                    setHoverPreview(null)
+                    setRangePreviewTooltip(null)
+                  }
+                }}
               >
                 {/* Day cells */}
                 {days.map((day) => {
@@ -421,6 +461,21 @@ export default function GanttChart({
                   const isWeekend = day.getDay() === 0 || day.getDay() === 6
                   const isToday = toDateStr(day) === todayStr
                   const isMonthStart = day.getDate() === 1
+                  const isPendingRow = pendingSelection?.propertyId === row.property.id
+                  const isPendingCheckIn = isPendingRow
+                    && pendingSelection.checkIn === dayKey
+                  const isPendingRangeDay = Boolean(
+                    isPendingRow
+                      && pendingSelection
+                      && pendingPreviewEnd
+                      && pendingSelection.checkIn < dayKey
+                      && dayKey < pendingPreviewEnd,
+                  )
+                  const isPendingCheckOutCandidate = Boolean(
+                    isPendingRow
+                      && pendingPreviewEnd
+                      && dayKey === pendingPreviewEnd,
+                  )
                   const hasBooking = isBookedOnDate(row.bookings, day)
                   const nightlyRate = hasBooking
                     ? null
@@ -428,7 +483,9 @@ export default function GanttChart({
                   return (
                     <div
                       key={dayKey}
-                      className={`shrink-0 border-r border-gray-100 cursor-pointer hover:bg-gray-100/50 transition-colors ${
+                      className={`relative shrink-0 border-r border-gray-100 cursor-pointer transition-colors ${
+                        isPendingRow ? 'hover:bg-violet-100/90' : 'hover:bg-gray-100/50'
+                      } ${
                         isMonthStart ? 'border-l border-l-gray-300' : ''
                       } ${
                         isToday
@@ -436,8 +493,67 @@ export default function GanttChart({
                           : isWeekend
                             ? 'bg-gray-50'
                             : ''
+                      } ${
+                        isPendingRangeDay ? 'bg-emerald-100/70' : ''
+                      } ${
+                        // Full-cell endpoint highlights make selected dates visible at a glance.
+                        isPendingCheckIn
+                          ? 'bg-blue-100 ring-2 ring-inset ring-blue-500 border-blue-200'
+                          : isPendingCheckOutCandidate
+                            ? 'bg-amber-100 ring-2 ring-inset ring-amber-500 border-amber-200'
+                          : ''
                       }`}
                       style={{ width: CELL_W, height: ROW_H }}
+                      onMouseEnter={(e) => {
+                        if (!pendingSelection || pendingSelection.propertyId !== row.property.id) {
+                          setRangePreviewTooltip(null)
+                          return
+                        }
+                        setHoverPreview((prev) => (
+                          prev?.propertyId === row.property.id && prev.date === dayKey
+                            ? prev
+                            : { propertyId: row.property.id, date: dayKey }
+                        ))
+                        if (dayKey > pendingSelection.checkIn) {
+                          const checkInDate = parseDateOnly(pendingSelection.checkIn)
+                          const checkOutDate = parseDateOnly(dayKey)
+                          const nights = Math.max(
+                            1,
+                            Math.round((checkOutDate.getTime() - checkInDate.getTime()) / 86400000),
+                          )
+                          const cursorX = e.clientX
+                          const cursorY = e.clientY
+                          const tooltipW = 190
+                          const tooltipH = 84
+                          const gap = 16
+                          const viewportW = window.innerWidth
+                          const viewportH = window.innerHeight
+
+                          let left = cursorX + gap
+                          let top = cursorY + gap
+
+                          // Flip tooltip near edges so it doesn't cover cursor or exit viewport.
+                          if (left + tooltipW > viewportW - 8) {
+                            left = cursorX - tooltipW - gap
+                          }
+                          if (top + tooltipH > viewportH - 8) {
+                            top = cursorY - tooltipH - gap
+                          }
+
+                          left = Math.max(8, left)
+                          top = Math.max(8, top)
+
+                          setRangePreviewTooltip({
+                            left,
+                            top,
+                            checkIn: pendingSelection.checkIn,
+                            checkOut: dayKey,
+                            nights,
+                          })
+                        } else {
+                          setRangePreviewTooltip(null)
+                        }
+                      }}
                       onClick={() => handleCellClick(row.property.id, day)}
                     >
                       {nightlyRate !== null && (
@@ -513,6 +629,31 @@ export default function GanttChart({
 
       {/* Tooltip */}
       <AnimatePresence>
+        {rangePreviewTooltip && pendingPreviewEnd && pendingSelection && (
+          <motion.div
+            initial={{ opacity: 0, y: 4, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 4, scale: 0.98 }}
+            transition={{ duration: 0.15 }}
+            className="fixed z-40 rounded-xl border border-emerald-300/30 bg-emerald-950/95 px-3 py-2 text-white shadow-xl pointer-events-none"
+            style={{
+              left: rangePreviewTooltip.left,
+              top: rangePreviewTooltip.top,
+            }}
+          >
+            <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-emerald-200/80">
+              Stay preview
+            </p>
+            <p className="mt-0.5 text-xs font-semibold">
+              {formatPreviewDate(rangePreviewTooltip.checkIn)}
+              {' -> '}
+              {formatPreviewDate(rangePreviewTooltip.checkOut)}
+            </p>
+            <p className="mt-1 inline-flex rounded-md bg-white/15 px-2 py-0.5 text-[11px] font-semibold text-emerald-100">
+              {formatNights(rangePreviewTooltip.nights)}
+            </p>
+          </motion.div>
+        )}
         {tooltip && (
           <motion.div
             initial={{ opacity: 0, y: 5 }}
