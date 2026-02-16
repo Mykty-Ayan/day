@@ -360,6 +360,12 @@ export default function CreateBookingPage() {
                                 guest_phone: g.phone,
                                 guest_email: g.email || '',
                               }))
+                              setErrors((e) => {
+                                const next = { ...e }
+                                delete next.guest_name
+                                delete next.guest_phone
+                                return next
+                              })
                               setShowGuestSuggestions(false)
                             }}
                             className="w-full text-left px-3 py-2 hover:bg-gray-50 transition-colors"
@@ -545,7 +551,11 @@ export default function CreateBookingPage() {
                     <PriceLine label="Weekend surcharge" amount={priceData.weekend_surcharge} />
                   )}
                   {priceData.seasonal_adjustment !== 0 && (
-                    <PriceLine label="Seasonal adjustment" amount={priceData.seasonal_adjustment} />
+                    <PriceLine
+                      label="Seasonal adjustment"
+                      amount={priceData.seasonal_adjustment}
+                      signed
+                    />
                   )}
                   {priceData.extra_guest_surcharge > 0 && (
                     <PriceLine label="Extra guest surcharge" amount={priceData.extra_guest_surcharge} />
@@ -575,12 +585,24 @@ export default function CreateBookingPage() {
   )
 }
 
-function PriceLine({ label, amount, isDiscount }: { label: string; amount: number; isDiscount?: boolean }) {
+function PriceLine({
+  label,
+  amount,
+  isDiscount,
+  signed,
+}: {
+  label: string
+  amount: number
+  isDiscount?: boolean
+  signed?: boolean
+}) {
+  const signPrefix = signed ? (amount >= 0 ? '+' : '-') : isDiscount ? '-' : ''
+
   return (
     <div className="flex justify-between items-center">
       <span className="text-sm text-gray-600">{label}</span>
       <span className={`text-sm font-medium ${isDiscount ? 'text-green-600' : 'text-gray-900'}`}>
-        {isDiscount ? '-' : ''}${Math.abs(amount).toLocaleString()}
+        {signPrefix}${Math.abs(amount).toLocaleString()}
       </span>
     </div>
   )

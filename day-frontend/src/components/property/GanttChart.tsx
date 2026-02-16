@@ -122,6 +122,80 @@ function formatNights(nights: number): string {
   return `${nights} night${nights === 1 ? '' : 's'}`
 }
 
+function getBookingNights(checkIn: string, checkOut: string): number {
+  const start = parseDateOnly(checkIn).getTime()
+  const end = parseDateOnly(checkOut).getTime()
+  const nights = Math.round((end - start) / (24 * 60 * 60 * 1000))
+  return Math.max(0, nights)
+}
+
+function formatBookingDateRangeShort(checkIn: string, checkOut: string): string {
+  const start = parseDateOnly(checkIn)
+  const checkoutDate = parseDateOnly(checkOut)
+  const end = new Date(checkoutDate.getFullYear(), checkoutDate.getMonth(), checkoutDate.getDate() - 1)
+
+  if (end < start) {
+    return `${start.getDate()} ${shortMonthNames[start.getMonth()]}`
+  }
+
+  const sameYear = start.getFullYear() === end.getFullYear()
+  const sameMonth = sameYear && start.getMonth() === end.getMonth()
+
+  if (sameMonth) {
+    return `${start.getDate()}-${end.getDate()} ${shortMonthNames[start.getMonth()]}`
+  }
+
+  const startPart = `${start.getDate()} ${shortMonthNames[start.getMonth()]}`
+  const endPart = sameYear
+    ? `${end.getDate()} ${shortMonthNames[end.getMonth()]}`
+    : `${end.getDate()} ${shortMonthNames[end.getMonth()]} ${end.getFullYear()}`
+
+  return `${startPart} - ${endPart}`
+}
+
+function formatTooltipPrice(value: number): string {
+  const abs = Math.abs(value)
+  if (abs >= 1_000_000) {
+    const inMillions = value / 1_000_000
+    return `$${Number.isInteger(inMillions) ? inMillions : inMillions.toFixed(1)}m`
+  }
+  if (abs >= 1_000) {
+    const inThousands = value / 1_000
+    return `$${Number.isInteger(inThousands) ? inThousands : inThousands.toFixed(1)}k`
+  }
+  return `$${Math.round(value)}`
+}
+
+function formatGuestsCompact(adults: number, children: number): string {
+  if (children > 0) return `${adults}A+${children}C`
+  return `${adults}A`
+}
+
+const tooltipStatusLabel: Record<BookingStatus, string> = {
+  pending: 'Pending',
+  confirmed: 'Confirmed',
+  checked_in: 'In house',
+  checked_out: 'Checked out',
+  completed: 'Completed',
+  cancelled: 'Cancelled',
+}
+
+const tooltipStatusTone: Record<BookingStatus, string> = {
+  pending: 'bg-slate-200/20 text-slate-100',
+  confirmed: 'bg-sky-300/20 text-sky-100',
+  checked_in: 'bg-emerald-300/20 text-emerald-100',
+  checked_out: 'bg-amber-300/20 text-amber-100',
+  completed: 'bg-green-300/20 text-green-100',
+  cancelled: 'bg-rose-300/20 text-rose-100',
+}
+
+const sourceLabelShort: Record<Booking['source'], string> = {
+  direct: 'Direct',
+  booking: 'Bcom',
+  airbnb: 'Airbnb',
+  other: 'Other',
+}
+
 export default function GanttChart({
   rows,
   year,
@@ -664,20 +738,36 @@ export default function GanttChart({
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 5 }}
             transition={{ duration: 0.15 }}
-            className="fixed z-50 bg-gray-900 text-white rounded-xl px-3 py-2 shadow-lg pointer-events-none"
+            className="pointer-events-none fixed z-50 max-w-[280px] rounded-xl border border-white/10 bg-gray-950/95 px-3 py-2.5 text-white shadow-lg backdrop-blur-sm"
             style={{
               left: tooltip.x,
               top: tooltip.y - 8,
               transform: 'translate(-50%, -100%)',
             }}
           >
-            <p className="text-xs font-bold">{tooltip.booking.guest_name}</p>
-            <p className="text-[10px] text-gray-300 mt-0.5">
-              {new Date(tooltip.booking.check_in).toLocaleDateString()} - {new Date(tooltip.booking.check_out).toLocaleDateString()}
+            <div className="flex items-center gap-2">
+              <p className="max-w-[175px] truncate text-sm font-semibold text-white">
+                {tooltip.booking.guest_name}
+              </p>
+              <span
+                className={`rounded-md px-1.5 py-0.5 text-[10px] font-semibold ${tooltipStatusTone[tooltip.booking.status]}`}
+              >
+                {tooltipStatusLabel[tooltip.booking.status]}
+              </span>
+            </div>
+            <p className="mt-1 text-[11px] text-gray-300">
+              {formatBookingDateRangeShort(tooltip.booking.check_in, tooltip.booking.check_out)}
+              {' · '}
+              {getBookingNights(tooltip.booking.check_in, tooltip.booking.check_out)}N
             </p>
-            <div className="flex items-center gap-2 mt-0.5">
-              <span className="text-[10px] text-gray-300 capitalize">{tooltip.booking.status.replace('_', ' ')}</span>
-              <span className="text-[10px] text-gray-300">${tooltip.booking.total_price.toLocaleString()}</span>
+            <div className="mt-1 flex items-center gap-1.5 text-[11px] text-gray-300">
+              <span>{formatGuestsCompact(tooltip.booking.adults_count, tooltip.booking.children_count)}</span>
+              <span className="text-gray-500">•</span>
+              <span>{sourceLabelShort[tooltip.booking.source]}</span>
+              <span className="text-gray-500">•</span>
+              <span className="font-semibold text-white">
+                {formatTooltipPrice(tooltip.booking.total_price)}
+              </span>
             </div>
           </motion.div>
         )}

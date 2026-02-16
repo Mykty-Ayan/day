@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { ArrowLeft, ArrowRight, Check, Loader2 } from 'lucide-react'
 import { useNavigate } from '@tanstack/react-router'
 import { useCreateProperty } from '../../hooks/useProperties'
-import { createOrUpdatePricing } from '../../api/properties'
+import { createOrUpdatePricing, linkAmenities } from '../../api/properties'
 import type { PropertyType, PropertyCreateInput, PricingInput } from '../../types/property'
 import PropertyFormStepBasic from '../../components/property/PropertyFormStepBasic'
 import PropertyFormStepAddress from '../../components/property/PropertyFormStepAddress'
@@ -161,6 +161,9 @@ export default function CreatePropertyPage() {
 
       if (hasPricingInput(form.pricing)) {
         await createOrUpdatePricing(property.id, toPricingInput(form.pricing))
+      }
+      if (form.amenityIds.length > 0) {
+        await linkAmenities(property.id, form.amenityIds)
       }
 
       navigate({ to: '/properties/$propertyId', params: { propertyId: property.id } })
