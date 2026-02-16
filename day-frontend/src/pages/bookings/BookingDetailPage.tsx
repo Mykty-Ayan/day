@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   ArrowLeft,
@@ -15,7 +15,7 @@ import {
   Loader2,
   Send,
 } from 'lucide-react'
-import { Link, useParams } from '@tanstack/react-router'
+import { useNavigate, useParams } from '@tanstack/react-router'
 import {
   useBooking,
   useChangeBookingStatus,
@@ -98,9 +98,24 @@ function getStatusActions(status: BookingStatus): StatusAction[] {
 
 export default function BookingDetailPage() {
   const { bookingId } = useParams({ strict: false }) as { bookingId: string }
+  const navigate = useNavigate()
   const { data: detail, isLoading } = useBooking(bookingId)
   const changeStatus = useChangeBookingStatus(bookingId)
   const [activeTab, setActiveTab] = useState<Tab>('Overview')
+  const from = useMemo(() => {
+    if (typeof window === 'undefined') return ''
+    const params = new URLSearchParams(window.location.search)
+    return params.get('from') || ''
+  }, [])
+  const isFromGantt = from === 'gantt'
+
+  function handleBack() {
+    if (isFromGantt) {
+      navigate({ to: '/properties/gantt' })
+      return
+    }
+    navigate({ to: '/bookings' })
+  }
 
   if (isLoading) {
     return (
@@ -129,13 +144,14 @@ export default function BookingDetailPage() {
         transition={{ duration: 0.4 }}
       >
         {/* Back */}
-        <Link
-          to="/bookings"
+        <button
+          type="button"
+          onClick={handleBack}
           className="inline-flex items-center gap-1 text-xs font-bold text-gray-500 hover:text-gray-900 mb-4 transition-colors"
         >
           <ArrowLeft className="w-4 h-4" />
-          Back to bookings
-        </Link>
+          {isFromGantt ? 'Back to gantt' : 'Back to bookings'}
+        </button>
 
         {/* Header */}
         <div className="flex items-start justify-between mb-6">
@@ -195,7 +211,13 @@ export default function BookingDetailPage() {
               <OverviewTab booking={booking} guest={guest} />
             )}
             {activeTab === 'Payments' && (
-              <PaymentsTab bookingId={bookingId} payments={detail.payments} totalPrice={booking.total_price} />
+              <PaymentsTab
+                bookingId={bookingId}
+                payments={detail.payments}
+                totalPrice={booking.total_price}
+                checkIn={booking.check_in}
+                checkOut={booking.check_out}
+              />
             )}
             {activeTab === 'Deposits' && (
               <DepositsTab bookingId={bookingId} deposits={detail.deposits} />
@@ -296,10 +318,23 @@ function formatMoney(value: number | string | null | undefined): string {
 }
 
 // --- Payments Tab ---
-function PaymentsTab({ bookingId, payments, totalPrice }: { bookingId: string; payments: BookingPayment[]; totalPrice: number }) {
+function PaymentsTab({
+  bookingId,
+  payments,
+  totalPrice,
+  checkIn,
+  checkOut,
+}: {
+  bookingId: string
+  payments: BookingPayment[]
+  totalPrice: number
+  checkIn: string
+  checkOut: string
+}) {
   const addPayment = useAddPayment(bookingId)
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState({ amount: '', type: 'payment' as PaymentType, method: 'cash' as PaymentMethod, note: '' })
+  const amountStep = 1000
 
   const totalPaid = payments
     .filter((p) => p.status === 'completed')
@@ -309,6 +344,36 @@ function PaymentsTab({ bookingId, payments, totalPrice }: { bookingId: string; p
     }, 0)
   const total = normalizeNumber(totalPrice)
   const remaining = total - totalPaid
+  const isOverpaid = remaining < 0
+  const overpaid = Math.max(0, -remaining)
+  const payableRemaining = Math.max(0, remaining)
+  const refundableAmount = Math.max(0, totalPaid)
+  const nightsMs =
+    new Date(`${checkOut}T00:00:00Z`).getTime() - new Date(`${checkIn}T00:00:00Z`).getTime()
+  const nights = Math.max(1, Math.round(nightsMs / (24 * 60 * 60 * 1000)))
+  const nightlyRate = total > 0 ? total / nights : 0
+
+  const quickOptionsRaw =
+    form.type === 'payment'
+      ? [
+          { label: '100%', value: total },
+          { label: '50%', value: total * 0.5 },
+          { label: 'Daily', value: nightlyRate },
+        ]
+      : [
+          ...(isOverpaid ? [{ label: 'Overpaid', value: overpaid }] : []),
+          { label: 'Total', value: refundableAmount },
+          { label: '50%', value: refundableAmount * 0.5 },
+          { label: 'First day', value: nightlyRate },
+        ]
+
+  const seenQuickValues = new Set<number>()
+  const quickOptions = quickOptionsRaw.filter(({ value }) => {
+    if (!Number.isFinite(value) || value <= 0) return false
+    if (seenQuickValues.has(value)) return false
+    seenQuickValues.add(value)
+    return true
+  })
 
   function handleSubmit() {
     const amount = normalizeNumber(form.amount)
@@ -329,9 +394,14 @@ function PaymentsTab({ bookingId, payments, totalPrice }: { bookingId: string; p
       {/* Summary */}
       <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm flex items-center justify-between">
         <div>
-          <p className="text-xs text-gray-500">Total / Paid / Remaining</p>
+          <p className="text-xs text-gray-500">
+            {isOverpaid ? 'Total / Paid / Overpaid' : 'Total / Paid / Remaining'}
+          </p>
           <p className="text-sm font-bold text-gray-900">
-            ${formatMoney(total)} / ${formatMoney(totalPaid)} / ${formatMoney(remaining)}
+            ${formatMoney(total)} / ${formatMoney(totalPaid)} /{' '}
+            <span className={isOverpaid ? 'text-red-600' : ''}>
+              ${formatMoney(isOverpaid ? overpaid : payableRemaining)}
+            </span>
           </p>
         </div>
         <div className="flex gap-2">
@@ -367,7 +437,7 @@ function PaymentsTab({ bookingId, payments, totalPrice }: { bookingId: string; p
               value={form.amount}
               onChange={(value) => setForm((f) => ({ ...f, amount: value }))}
               min={0}
-              step={1000}
+              step={amountStep}
               placeholder="Amount"
             />
             <Select
@@ -391,6 +461,20 @@ function PaymentsTab({ bookingId, payments, totalPrice }: { bookingId: string; p
               className="bg-gray-50 border border-gray-200 rounded-xl p-3 outline-none focus:ring-2 focus:ring-black/10 text-sm"
             />
           </div>
+          {quickOptions.length > 0 && (
+            <div className="flex flex-wrap gap-2 mt-3">
+              {quickOptions.map((option) => (
+                <button
+                  key={`${form.type}-${option.label}-${option.value}`}
+                  type="button"
+                  onClick={() => setForm((f) => ({ ...f, amount: String(option.value) }))}
+                  className="px-3 py-1.5 rounded-full border border-gray-200 bg-white hover:bg-gray-900 hover:text-white text-xs font-semibold text-gray-700 transition-all"
+                >
+                  {option.label} (${formatMoney(option.value)})
+                </button>
+              ))}
+            </div>
+          )}
           <div className="flex gap-2 mt-3">
             <motion.button
               whileTap={{ scale: 0.97 }}
@@ -464,6 +548,11 @@ function DepositsTab({ bookingId, deposits }: { bookingId: string; deposits: Boo
   const createDep = useCreateDeposit(bookingId)
   const [newAmount, setNewAmount] = useState('')
   const [showCreate, setShowCreate] = useState(false)
+  const quickDepositOptions = [
+    { label: '5k', value: 5000 },
+    { label: '10k', value: 10000 },
+    { label: '20k', value: 20000 },
+  ]
 
   function handleCreate() {
     const amount = normalizeNumber(newAmount)
@@ -493,26 +582,40 @@ function DepositsTab({ bookingId, deposits }: { bookingId: string; deposits: Boo
           className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm"
         >
           <h3 className="text-sm font-bold text-gray-900 mb-3">New Deposit</h3>
-          <div className="flex gap-3">
-            <NumberInput
-              value={newAmount}
-              onChange={setNewAmount}
-              min={0}
-              step={1000}
-              placeholder="Amount"
-              className="flex-1"
-            />
-            <motion.button
-              whileTap={{ scale: 0.97 }}
-              onClick={handleCreate}
-              disabled={createDep.isPending}
-              className="bg-black text-white hover:bg-gray-800 rounded-xl px-4 py-2 text-xs font-bold disabled:opacity-50"
-            >
-              {createDep.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Create'}
-            </motion.button>
-            <button onClick={() => setShowCreate(false)} className="text-xs font-bold text-gray-500 hover:text-gray-700 px-2">
-              Cancel
-            </button>
+          <div className="space-y-3">
+            <div className="flex gap-3">
+              <NumberInput
+                value={newAmount}
+                onChange={setNewAmount}
+                min={0}
+                step={1000}
+                placeholder="Amount"
+                className="flex-1"
+              />
+              <motion.button
+                whileTap={{ scale: 0.97 }}
+                onClick={handleCreate}
+                disabled={createDep.isPending}
+                className="bg-black text-white hover:bg-gray-800 rounded-xl px-4 py-2 text-xs font-bold disabled:opacity-50"
+              >
+                {createDep.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Create'}
+              </motion.button>
+              <button onClick={() => setShowCreate(false)} className="text-xs font-bold text-gray-500 hover:text-gray-700 px-2">
+                Cancel
+              </button>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {quickDepositOptions.map((option) => (
+                <button
+                  key={option.label}
+                  type="button"
+                  onClick={() => setNewAmount(String(option.value))}
+                  className="px-3 py-1.5 rounded-full border border-gray-200 bg-white hover:bg-gray-900 hover:text-white text-xs font-semibold text-gray-700 transition-all"
+                >
+                  {option.label} (${formatMoney(option.value)})
+                </button>
+              ))}
+            </div>
           </div>
         </motion.div>
       )}
@@ -523,7 +626,7 @@ function DepositsTab({ bookingId, deposits }: { bookingId: string; deposits: Boo
         </div>
       ) : (
         deposits.map((dep) => (
-          <DepositCard key={dep.id} bookingId={bookingId} deposit={dep} />
+          <DepositCard key={`${dep.id}-${dep.status}`} bookingId={bookingId} deposit={dep} />
         ))
       )}
     </div>
@@ -574,7 +677,10 @@ function DepositCard({ bookingId, deposit }: { bookingId: string; deposit: Booki
         {deposit.status === 'pending' && (
           <motion.button
             whileTap={{ scale: 0.97 }}
-            onClick={() => depAction.mutate({ action: 'pay' })}
+            onClick={() => {
+              setActionForm(null)
+              depAction.mutate({ action: 'pay' })
+            }}
             disabled={depAction.isPending}
             className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl px-3 py-1.5 text-xs font-bold disabled:opacity-50"
           >
@@ -585,7 +691,10 @@ function DepositCard({ bookingId, deposit }: { bookingId: string; deposit: Booki
           <>
             <motion.button
               whileTap={{ scale: 0.97 }}
-              onClick={() => depAction.mutate({ action: 'return' })}
+              onClick={() => {
+                setActionForm(null)
+                depAction.mutate({ action: 'return' })
+              }}
               disabled={depAction.isPending}
               className="bg-green-600 hover:bg-green-700 text-white rounded-xl px-3 py-1.5 text-xs font-bold disabled:opacity-50"
             >
@@ -610,7 +719,7 @@ function DepositCard({ bookingId, deposit }: { bookingId: string; deposit: Booki
       </div>
 
       {/* Action form for hold/partial_hold */}
-      {actionForm && (actionForm.action === 'hold' || actionForm.action === 'partial_hold') && (
+      {deposit.status === 'paid' && actionForm && (actionForm.action === 'hold' || actionForm.action === 'partial_hold') && (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-3 space-y-2">
           {actionForm.action === 'partial_hold' && (
             <NumberInput
@@ -776,7 +885,7 @@ function HistoryTab({ auditLogs }: { auditLogs: BookingAuditLog[] }) {
                 <p className="text-sm text-gray-700">{entry.action}</p>
                 {(entry.action === 'create' || entry.field_name === '*') ? (
                   <p className="text-xs text-gray-500 mt-0.5">
-                    <span className="text-green-600">created</span>
+                    record: <span className="line-through text-red-400">null</span> <ArrowRight className="w-3 h-3 inline text-gray-400" /> <span className="text-green-600">created</span>
                   </p>
                 ) : entry.field_name ? (
                   <p className="text-xs text-gray-500 mt-0.5">

@@ -74,6 +74,7 @@ export function useChangePropertyStatus(id: string) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: [PROPERTIES_KEY] })
       qc.invalidateQueries({ queryKey: [PROPERTY_KEY, id] })
+      qc.invalidateQueries({ queryKey: [AUDIT_LOG_KEY, id] })
     },
   })
 }

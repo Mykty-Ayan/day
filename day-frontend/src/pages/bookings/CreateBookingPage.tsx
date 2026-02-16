@@ -62,22 +62,63 @@ const initialForm: FormData = {
   notes: '',
 }
 
+interface BookingPrefill {
+  propertyId: string
+  checkIn: string
+  checkOut: string
+  from: string
+}
+
+function isDateOnly(value: string): boolean {
+  return /^\d{4}-\d{2}-\d{2}$/.test(value)
+}
+
+function getBookingPrefill(): BookingPrefill {
+  if (typeof window === 'undefined') {
+    return { propertyId: '', checkIn: '', checkOut: '', from: '' }
+  }
+
+  const params = new URLSearchParams(window.location.search)
+  const propertyId = params.get('property_id') || ''
+  const checkInRaw = params.get('check_in') || ''
+  const checkOutRaw = params.get('check_out') || ''
+  const from = params.get('from') || ''
+
+  const checkIn = isDateOnly(checkInRaw) ? checkInRaw : ''
+  const checkOut = isDateOnly(checkOutRaw) ? checkOutRaw : ''
+
+  // Accept only a valid forward range to avoid broken prefilled states.
+  return {
+    propertyId,
+    checkIn,
+    checkOut: checkIn && checkOut && checkIn < checkOut ? checkOut : '',
+    from,
+  }
+}
+
 export default function CreateBookingPage() {
+  const prefill = useMemo(() => getBookingPrefill(), [])
   const navigate = useNavigate()
   const createBooking = useCreateBooking()
-  const [form, setForm] = useState<FormData>(initialForm)
+  const [form, setForm] = useState<FormData>(() => ({
+    ...initialForm,
+    property_id: prefill.propertyId,
+    check_in: prefill.checkIn,
+    check_out: prefill.checkOut,
+  }))
   const [errors, setErrors] = useState<Record<string, string>>({})
-  const guestSearch = form.guest_phone.length >= 3 ? form.guest_phone : ''
+  const guestSearch = form.guest_phone.trim()
+  const canSearchGuests = guestSearch.length >= 2
   const [showGuestSuggestions, setShowGuestSuggestions] = useState(false)
 
   const { data: propertiesData } = useProperties({ per_page: 100, status: 'active' })
   const properties = propertiesData?.items ?? []
 
-  const { data: guestsData } = useGuests({
-    search: guestSearch || undefined,
-    per_page: 5,
-  })
-  const guestSuggestions = guestsData?.items ?? []
+  const { data: guestsData } = useGuests(
+    { search: guestSearch, limit: 5 },
+    canSearchGuests,
+  )
+  const guestSuggestions = canSearchGuests ? (guestsData?.items ?? []) : []
 
   // Debounced price calculation params
   const [debouncedPriceParams, setDebouncedPriceParams] = useState<PriceCalculateInput | null>(null)
@@ -161,6 +202,15 @@ export default function CreateBookingPage() {
     })
   }
 
+  function handleBack() {
+    // Preserve navigation context when booking is opened from gantt range selection.
+    if (prefill.from === 'gantt') {
+      navigate({ to: '/properties/gantt' })
+      return
+    }
+    navigate({ to: '/bookings' })
+  }
+
   return (
     <div className="p-6 max-w-6xl mx-auto w-full">
       <motion.div
@@ -172,7 +222,7 @@ export default function CreateBookingPage() {
         <div className="flex items-center gap-3 mb-6">
           <motion.button
             whileTap={{ scale: 0.97 }}
-            onClick={() => navigate({ to: '/bookings' })}
+            onClick={handleBack}
             className="p-2 rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-50 transition-colors"
           >
             <ArrowLeft className="w-4 h-4" />
@@ -296,7 +346,7 @@ export default function CreateBookingPage() {
                     )}
 
                     {/* Guest suggestions */}
-                    {showGuestSuggestions && guestSuggestions.length > 0 && (
+                    {showGuestSuggestions && canSearchGuests && guestSuggestions.length > 0 && (
                       <div className="absolute z-20 top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden">
                         {guestSuggestions.map((g) => (
                           <button
@@ -310,6 +360,12 @@ export default function CreateBookingPage() {
                                 guest_phone: g.phone,
                                 guest_email: g.email || '',
                               }))
+                              setErrors((e) => {
+                                const next = { ...e }
+                                delete next.guest_name
+                                delete next.guest_phone
+                                return next
+                              })
                               setShowGuestSuggestions(false)
                             }}
                             className="w-full text-left px-3 py-2 hover:bg-gray-50 transition-colors"
@@ -495,7 +551,11 @@ export default function CreateBookingPage() {
                     <PriceLine label="Weekend surcharge" amount={priceData.weekend_surcharge} />
                   )}
                   {priceData.seasonal_adjustment !== 0 && (
-                    <PriceLine label="Seasonal adjustment" amount={priceData.seasonal_adjustment} />
+                    <PriceLine
+                      label="Seasonal adjustment"
+                      amount={priceData.seasonal_adjustment}
+                      signed
+                    />
                   )}
                   {priceData.extra_guest_surcharge > 0 && (
                     <PriceLine label="Extra guest surcharge" amount={priceData.extra_guest_surcharge} />
@@ -525,12 +585,24 @@ export default function CreateBookingPage() {
   )
 }
 
-function PriceLine({ label, amount, isDiscount }: { label: string; amount: number; isDiscount?: boolean }) {
+function PriceLine({
+  label,
+  amount,
+  isDiscount,
+  signed,
+}: {
+  label: string
+  amount: number
+  isDiscount?: boolean
+  signed?: boolean
+}) {
+  const signPrefix = signed ? (amount >= 0 ? '+' : '-') : isDiscount ? '-' : ''
+
   return (
     <div className="flex justify-between items-center">
       <span className="text-sm text-gray-600">{label}</span>
       <span className={`text-sm font-medium ${isDiscount ? 'text-green-600' : 'text-gray-900'}`}>
-        {isDiscount ? '-' : ''}${Math.abs(amount).toLocaleString()}
+        {signPrefix}${Math.abs(amount).toLocaleString()}
       </span>
     </div>
   )

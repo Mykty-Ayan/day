@@ -30,6 +30,7 @@ class ListBookingsService:
         status: BookingStatus | None = None,
         property_id: uuid.UUID | None = None,
         source: BookingSource | None = None,
+        search: str | None = None,
         date_from: date | None = None,
         date_to: date | None = None,
     ) -> BookingListResult:
@@ -40,6 +41,7 @@ class ListBookingsService:
             status=status,
             property_id=property_id,
             source=source,
+            search=search,
             date_from=date_from,
             date_to=date_to,
         )
@@ -48,6 +50,7 @@ class ListBookingsService:
             status=status,
             property_id=property_id,
             source=source,
+            search=search,
             date_from=date_from,
             date_to=date_to,
         )

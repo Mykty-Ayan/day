@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion'
 import {
   ArrowLeft,
+  ArrowRight,
   Building2,
   DoorOpen,
   Bed,
@@ -45,6 +46,10 @@ function getStatusActions(status: PropertyStatus): { label: string; target: Prop
     case 'archived':
       return [{ label: 'Activate', target: 'active', icon: Play }]
   }
+}
+
+function formatAuditValue(value: string | null): string {
+  return value ?? 'null'
 }
 
 export default function PropertyDetailPage() {
@@ -328,8 +333,27 @@ export default function PropertyDetailPage() {
                       <div className="mt-0.5">
                         <Clock className="w-3.5 h-3.5 text-gray-400" />
                       </div>
-                      <div>
+                      <div className="flex-1">
                         <p className="text-sm text-gray-700">{entry.action}</p>
+                        {(entry.action === 'create' || entry.field_name === '*') ? (
+                          <p className="text-xs text-gray-500 mt-0.5">
+                            record:{' '}
+                            <span className="line-through text-red-400">null</span>{' '}
+                            <ArrowRight className="w-3 h-3 inline text-gray-400" />{' '}
+                            <span className="text-green-600">created</span>
+                          </p>
+                        ) : entry.field_name ? (
+                          <p className="text-xs text-gray-500 mt-0.5">
+                            {entry.field_name}:{' '}
+                            <span className="line-through text-red-400">
+                              {formatAuditValue(entry.old_value)}
+                            </span>{' '}
+                            <ArrowRight className="w-3 h-3 inline text-gray-400" />{' '}
+                            <span className="text-green-600">
+                              {formatAuditValue(entry.new_value)}
+                            </span>
+                          </p>
+                        ) : null}
                         <p className="text-xs text-gray-400 mt-0.5">
                           {new Date(entry.created_at).toLocaleString()}
                         </p>

@@ -34,7 +34,7 @@ export default function Button({
   return (
     <motion.button
       whileTap={resolvedVariant !== 'disabled' ? { scale: 0.97 } : undefined}
-      className={`rounded-xl px-6 py-2.5 font-semibold transition-all ${variantClasses[resolvedVariant]} ${className}`}
+      className={`inline-flex items-center justify-center gap-2 rounded-xl px-6 py-2.5 font-semibold transition-all whitespace-nowrap ${variantClasses[resolvedVariant]} ${className}`}
       disabled={disabled}
       onClick={onClick}
       type={type}

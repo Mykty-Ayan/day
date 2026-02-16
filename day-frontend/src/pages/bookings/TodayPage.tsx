@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion'
-import { LogIn, LogOut, Phone, ArrowRight } from 'lucide-react'
+import { LogIn, LogOut, Users, Phone, ArrowRight } from 'lucide-react'
 import { useNavigate } from '@tanstack/react-router'
 import { useTodayChecks, useChangeBookingStatus } from '../../hooks/useBookings'
 import type { Booking, BookingStatus } from '../../types/booking'
@@ -11,6 +11,7 @@ export default function TodayPage() {
 
   const checkIns = data?.check_ins ?? []
   const checkOuts = data?.check_outs ?? []
+  const inHouse = data?.in_house ?? []
 
   return (
     <div className="p-6 max-w-5xl mx-auto w-full">
@@ -26,7 +27,7 @@ export default function TodayPage() {
             <div className="w-6 h-6 border-2 border-gray-200 border-t-gray-900 rounded-full animate-spin" />
           </div>
         ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
             {/* Check-ins */}
             <div>
               <div className="flex items-center gap-2 mb-4">
@@ -47,8 +48,8 @@ export default function TodayPage() {
                       key={booking.id}
                       booking={booking}
                       index={i}
-                      actionLabel="Check In"
-                      actionTarget="checked_in"
+                      actionLabel={booking.status === 'confirmed' ? 'Check In' : undefined}
+                      actionTarget={booking.status === 'confirmed' ? 'checked_in' : undefined}
                       actionColor="bg-emerald-600 hover:bg-emerald-700"
                       onClick={() => navigate({ to: '/bookings/$bookingId', params: { bookingId: booking.id } })}
                     />
@@ -77,9 +78,36 @@ export default function TodayPage() {
                       key={booking.id}
                       booking={booking}
                       index={i}
-                      actionLabel="Check Out"
-                      actionTarget="checked_out"
+                      actionLabel={booking.status === 'checked_in' ? 'Check Out' : undefined}
+                      actionTarget={booking.status === 'checked_in' ? 'checked_out' : undefined}
                       actionColor="bg-amber-600 hover:bg-amber-700"
+                      onClick={() => navigate({ to: '/bookings/$bookingId', params: { bookingId: booking.id } })}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* In-house */}
+            <div>
+              <div className="flex items-center gap-2 mb-4">
+                <Users className="w-4 h-4 text-blue-600" />
+                <h2 className="text-sm font-bold text-gray-900">
+                  In-House
+                  <span className="ml-2 text-gray-400">({inHouse.length})</span>
+                </h2>
+              </div>
+              {inHouse.length === 0 ? (
+                <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
+                  <p className="text-sm text-gray-500 text-center py-4">No guests staying now</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {inHouse.map((booking, i) => (
+                    <TodayCard
+                      key={booking.id}
+                      booking={booking}
+                      index={i}
                       onClick={() => navigate({ to: '/bookings/$bookingId', params: { bookingId: booking.id } })}
                     />
                   ))}
@@ -103,12 +131,13 @@ function TodayCard({
 }: {
   booking: Booking
   index: number
-  actionLabel: string
-  actionTarget: BookingStatus
-  actionColor: string
+  actionLabel?: string
+  actionTarget?: BookingStatus
+  actionColor?: string
   onClick: () => void
 }) {
   const changeStatus = useChangeBookingStatus(booking.id)
+  const canRunAction = Boolean(actionLabel && actionTarget && actionColor)
 
   return (
     <motion.div
@@ -140,17 +169,20 @@ function TodayCard({
             <BookingStatusBadge status={booking.status} />
           </div>
         </div>
-        <motion.button
-          whileTap={{ scale: 0.97 }}
-          onClick={(e) => {
-            e.stopPropagation()
-            changeStatus.mutate(actionTarget)
-          }}
-          disabled={changeStatus.isPending}
-          className={`${actionColor} text-white rounded-xl px-3 py-1.5 text-xs font-bold shrink-0 ml-3 disabled:opacity-50`}
-        >
-          {changeStatus.isPending ? '...' : actionLabel}
-        </motion.button>
+        {canRunAction && (
+          <motion.button
+            whileTap={{ scale: 0.97 }}
+            onClick={(e) => {
+              e.stopPropagation()
+              if (!actionTarget) return
+              changeStatus.mutate(actionTarget)
+            }}
+            disabled={changeStatus.isPending}
+            className={`${actionColor ?? ''} text-white rounded-xl px-3 py-1.5 text-xs font-bold shrink-0 ml-3 disabled:opacity-50`}
+          >
+            {changeStatus.isPending ? '...' : actionLabel}
+          </motion.button>
+        )}
       </div>
     </motion.div>
   )

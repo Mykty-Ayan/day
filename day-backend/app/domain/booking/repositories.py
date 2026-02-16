@@ -78,6 +78,7 @@ class BookingRepository(abc.ABC):
         status: BookingStatus | None = None,
         property_id: uuid.UUID | None = None,
         source: BookingSource | None = None,
+        search: str | None = None,
         date_from: date | None = None,
         date_to: date | None = None,
     ) -> list[Booking]: ...
@@ -90,6 +91,7 @@ class BookingRepository(abc.ABC):
         status: BookingStatus | None = None,
         property_id: uuid.UUID | None = None,
         source: BookingSource | None = None,
+        search: str | None = None,
         date_from: date | None = None,
         date_to: date | None = None,
     ) -> int: ...

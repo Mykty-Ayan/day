@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { motion } from 'framer-motion'
 import { ChevronLeft, ChevronRight, CalendarRange } from 'lucide-react'
 import { useQueries } from '@tanstack/react-query'
+import { useNavigate } from '@tanstack/react-router'
 import { useGanttData } from '../../hooks/useBookings'
 import { getPricing } from '../../api/properties'
 import GanttChart from '../../components/property/GanttChart'
@@ -21,16 +22,34 @@ const monthNames = [
 ]
 
 type RowsPerPage = '10' | '25' | '50' | 'all'
+interface PendingSelection {
+  propertyId: string
+  checkIn: string
+}
 
 function toDateStr(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
+function parseDateOnly(dateStr: string): Date {
+  const [y, m, d] = dateStr.split('-').map(Number)
+  return new Date(y, (m || 1) - 1, d || 1)
+}
+
+function addDays(dateStr: string, days: number): string {
+  const date = parseDateOnly(dateStr)
+  date.setDate(date.getDate() + days)
+  return toDateStr(date)
+}
+
 export default function GanttChartPage() {
+  const navigate = useNavigate()
   const [year, setYear] = useState(() => new Date().getFullYear())
   const [month, setMonth] = useState(() => new Date().getMonth())
   const [rowsPerPage, setRowsPerPage] = useState<RowsPerPage>('25')
   const [page, setPage] = useState(1)
+  // Keeps the first click state for the 2-step check-in/check-out flow.
+  const [pendingSelection, setPendingSelection] = useState<PendingSelection | null>(null)
 
   const rangeStartDate = useMemo(() => new Date(year, month - 1, 1), [year, month])
   const rangeEndDate = useMemo(() => new Date(year, month + 2, 0), [year, month])
@@ -66,7 +85,6 @@ export default function GanttChartPage() {
     () => visibleRows.map((row) => row.property.id),
     [visibleRows],
   )
-
   const pricingQueries = useQueries({
     queries: visiblePropertyIds.map((propertyId) => ({
       queryKey: ['pricing', propertyId],
@@ -94,7 +112,47 @@ export default function GanttChartPage() {
     ? sortedRows.length
     : Math.min(currentPage * pageSize, sortedRows.length)
 
+  function handleCellClick(propertyId: string, date: string) {
+    // First click selects check-in, second valid click on the same row selects check-out.
+    if (!pendingSelection || pendingSelection.propertyId !== propertyId) {
+      setPendingSelection({ propertyId, checkIn: date })
+      return
+    }
+
+    if (date === pendingSelection.checkIn) {
+      setPendingSelection(null)
+      navigate({
+        to: '/bookings/new',
+        search: {
+          property_id: propertyId,
+          check_in: date,
+          check_out: addDays(date, 1),
+          from: 'gantt',
+        } as Record<string, string>,
+      })
+      return
+    }
+
+    if (date < pendingSelection.checkIn) {
+      setPendingSelection({ propertyId, checkIn: date })
+      return
+    }
+
+    const checkIn = pendingSelection.checkIn
+    setPendingSelection(null)
+    navigate({
+      to: '/bookings/new',
+      search: {
+        property_id: propertyId,
+        check_in: checkIn,
+        check_out: date,
+        from: 'gantt',
+      } as Record<string, string>,
+    })
+  }
+
   function prevMonth() {
+    setPendingSelection(null)
     if (month === 0) {
       setMonth(11)
       setYear((y) => y - 1)
@@ -104,6 +162,7 @@ export default function GanttChartPage() {
   }
 
   function nextMonth() {
+    setPendingSelection(null)
     if (month === 11) {
       setMonth(0)
       setYear((y) => y + 1)
@@ -113,6 +172,7 @@ export default function GanttChartPage() {
   }
 
   function goToday() {
+    setPendingSelection(null)
     const now = new Date()
     setYear(now.getFullYear())
     setMonth(now.getMonth())
@@ -171,6 +231,7 @@ export default function GanttChartPage() {
               <Select
                 value={rowsPerPage}
                 onValueChange={(value) => {
+                  setPendingSelection(null)
                   setRowsPerPage(value as RowsPerPage)
                   setPage(1)
                 }}
@@ -191,7 +252,10 @@ export default function GanttChartPage() {
               <div className="flex items-center gap-2">
                 <motion.button
                   whileTap={{ scale: 0.97 }}
-                  onClick={() => setPage(Math.max(1, currentPage - 1))}
+                  onClick={() => {
+                    setPendingSelection(null)
+                    setPage(Math.max(1, currentPage - 1))
+                  }}
                   disabled={currentPage <= 1}
                   className="p-2 rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed"
                 >
@@ -202,7 +266,10 @@ export default function GanttChartPage() {
                 </span>
                 <motion.button
                   whileTap={{ scale: 0.97 }}
-                  onClick={() => setPage(Math.min(totalPages, currentPage + 1))}
+                  onClick={() => {
+                    setPendingSelection(null)
+                    setPage(Math.min(totalPages, currentPage + 1))
+                  }}
                   disabled={currentPage >= totalPages}
                   className="p-2 rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed"
                 >
@@ -226,6 +293,8 @@ export default function GanttChartPage() {
             rangeStart={startDate}
             rangeEnd={endDate}
             pricingByProperty={pricingByProperty}
+            onCellClick={handleCellClick}
+            pendingSelection={pendingSelection}
           />
         )}
       </motion.div>

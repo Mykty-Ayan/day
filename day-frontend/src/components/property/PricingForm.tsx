@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { format, isValid, parseISO } from 'date-fns'
 import { motion } from 'framer-motion'
 import { Plus, X, Loader2 } from 'lucide-react'
 import type { PricingConfig, SeasonalPrice, DiscountRule } from '../../types/property'
@@ -27,6 +28,12 @@ interface Props {
   onAddDiscount: (data: { min_nights: number; type: 'percent' | 'fixed'; value: number }) => void
   onDeleteDiscount: (id: string) => void
   isSaving: boolean
+}
+
+function formatSeasonalDate(value: string): string {
+  const parsed = parseISO(value)
+  if (!isValid(parsed)) return value
+  return format(parsed, 'dd MMM yyyy')
 }
 
 function PricingFormInner({
@@ -63,6 +70,13 @@ function PricingFormInner({
     return Number.isFinite(parsed) ? parsed : fallback
   }
 
+  const seasonalReady =
+    seasonalName.trim().length > 0 &&
+    seasonalStart.length > 0 &&
+    seasonalEnd.length > 0 &&
+    seasonalEnd >= seasonalStart &&
+    parseNumber(seasonalPrice, -1) >= 0
+
   function handleSaveBase() {
     onSaveBase({
       base_price: parseNumber(basePrice, 0),
@@ -75,12 +89,14 @@ function PricingFormInner({
   }
 
   function handleAddSeasonal() {
-    if (!seasonalName || !seasonalStart || !seasonalEnd || !seasonalPrice) return
+    if (!seasonalReady) return
+    const nextPrice = parseNumber(seasonalPrice, -1)
+    if (nextPrice < 0) return
     onAddSeasonal({
-      name: seasonalName,
+      name: seasonalName.trim(),
       start_date: seasonalStart,
       end_date: seasonalEnd,
-      price: parseNumber(seasonalPrice, 0),
+      price: nextPrice,
     })
     setSeasonalName('')
     setSeasonalStart('')
@@ -187,15 +203,20 @@ function PricingFormInner({
       {/* Seasonal prices */}
       <div>
         <h3 className="text-sm font-bold text-gray-900 mb-3">Seasonal Prices</h3>
+        {seasonalPrices.length === 0 && (
+          <p className="mb-3 rounded-xl border border-dashed border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-500">
+            No seasonal rules yet. Add a date range and custom nightly price below.
+          </p>
+        )}
         {seasonalPrices.map((sp: SeasonalPrice) => (
           <div
             key={sp.id}
-            className="flex items-center justify-between bg-gray-50 border border-gray-200 rounded-xl p-3 mb-2"
+            className="mb-2 flex items-center justify-between rounded-xl border border-gray-200 bg-gray-50 p-3"
           >
             <div>
-              <span className="text-sm font-semibold text-gray-900">{sp.name}</span>
-              <span className="text-xs text-gray-500 ml-2">
-                {sp.start_date} - {sp.end_date}
+              <span className="text-sm font-semibold text-gray-900">{sp.name.trim()}</span>
+              <span className="ml-2 text-xs text-gray-500">
+                {formatSeasonalDate(sp.start_date)} - {formatSeasonalDate(sp.end_date)}
               </span>
             </div>
             <div className="flex items-center gap-2">
@@ -209,26 +230,28 @@ function PricingFormInner({
             </div>
           </div>
         ))}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 mt-2">
+        <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-6">
           <input
             type="text"
             value={seasonalName}
             onChange={(e) => setSeasonalName(e.target.value)}
             placeholder="Name"
-            className="w-full bg-gray-50 border border-gray-200 rounded-xl p-2.5 outline-none focus:ring-2 focus:ring-black/10 text-gray-800 text-sm"
+            className="w-full rounded-xl border border-gray-200 bg-gray-50 p-2.5 text-sm text-gray-800 outline-none focus:ring-2 focus:ring-black/10 xl:col-span-2"
           />
           <DatePicker
             value={seasonalStart}
             onChange={setSeasonalStart}
             placeholder="Start date"
+            className="xl:col-span-1"
           />
           <DatePicker
             value={seasonalEnd}
             onChange={setSeasonalEnd}
             placeholder="End date"
             minDate={seasonalStart || undefined}
+            className="xl:col-span-1"
           />
-          <div className="flex gap-2 min-w-0">
+          <div className="min-w-0 xl:col-span-1">
             <NumberInput
               value={seasonalPrice}
               onChange={setSeasonalPrice}
@@ -236,17 +259,19 @@ function PricingFormInner({
               step={1000}
               placeholder="Price"
               inputClassName="p-2.5 text-sm"
-              className="flex-1 min-w-0"
+              className="min-w-0"
             />
-            <motion.button
-              type="button"
-              whileTap={{ scale: 0.97 }}
-              onClick={handleAddSeasonal}
-              className="shrink-0 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-xl p-2.5 text-gray-700"
-            >
-              <Plus className="w-4 h-4" />
-            </motion.button>
           </div>
+          <motion.button
+            type="button"
+            whileTap={{ scale: 0.97 }}
+            onClick={handleAddSeasonal}
+            disabled={!seasonalReady}
+            className="h-11 shrink-0 rounded-xl bg-black px-4 text-white transition-colors hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-50 xl:col-span-1"
+            aria-label="Add seasonal price"
+          >
+            <Plus className="mx-auto h-4 w-4" />
+          </motion.button>
         </div>
       </div>
 

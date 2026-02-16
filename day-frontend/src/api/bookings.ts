@@ -18,8 +18,8 @@ import type {
   MoveBookingInput,
   GanttData,
   TodayChecks,
-  Guest,
   GuestFilters,
+  GuestListResponse,
 } from '../types/booking'
 import type { PaginatedResponse } from '../types/property'
 
@@ -173,7 +173,7 @@ export async function getTodayChecks(): Promise<TodayChecks> {
 
 export async function listGuests(
   filters: GuestFilters = {},
-): Promise<PaginatedResponse<Guest>> {
+): Promise<GuestListResponse> {
   const res = await apiClient.get('/guests', { params: filters })
   return res.data
 }

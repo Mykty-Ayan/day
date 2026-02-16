@@ -111,8 +111,8 @@ export function createTestDiscountRule(
 export const VALID_TRANSITIONS: Record<string, string[]> = {
   new: ['active'],
   active: ['paused', 'archived'],
-  paused: ['active'],
-  archived: [],
+  paused: ['active', 'archived'],
+  archived: ['active'],
 }
 
 // --- Booking factories ---

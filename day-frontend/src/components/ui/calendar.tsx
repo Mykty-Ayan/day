@@ -14,28 +14,35 @@ function Calendar({
   return (
     <DayPicker
       showOutsideDays={showOutsideDays}
-      className={cn('p-3', className)}
+      className={cn('p-2', className)}
       classNames={{
         months: 'flex flex-col gap-4',
-        month: 'space-y-3',
-        month_caption: 'relative flex h-8 items-center justify-center',
-        caption_label: 'text-sm font-semibold text-gray-900',
-        nav: 'absolute inset-x-0 top-0 flex items-center justify-between px-1',
+        month: 'space-y-4',
+        month_caption: 'relative flex h-10 items-center justify-center px-9',
+        caption_label: 'text-base font-semibold tracking-tight text-gray-900',
+        nav: 'absolute inset-x-0 top-0 flex h-10 items-center justify-between px-1',
         button_previous:
-          'h-7 w-7 rounded-lg border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 disabled:opacity-50',
+          'h-8 w-8 rounded-xl border border-gray-200 bg-white text-gray-600 transition-colors hover:bg-gray-50 disabled:opacity-50',
         button_next:
-          'h-7 w-7 rounded-lg border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 disabled:opacity-50',
+          'h-8 w-8 rounded-xl border border-gray-200 bg-white text-gray-600 transition-colors hover:bg-gray-50 disabled:opacity-50',
         month_grid: 'w-full border-collapse',
-        weekdays: 'flex',
-        weekday: 'w-9 text-center text-[0.7rem] font-semibold text-gray-400',
+        weekdays: 'grid grid-cols-7 gap-1',
+        weekday: 'h-8 text-center text-xs font-semibold uppercase tracking-wide text-gray-400',
         weeks: 'space-y-1',
-        week: 'flex w-full',
-        day: 'h-9 w-9 p-0 text-center text-sm',
+        week: 'grid grid-cols-7 gap-1',
+        day: 'p-0 text-center text-sm',
         day_button:
-          'h-9 w-9 rounded-lg font-medium text-gray-700 hover:bg-gray-100 focus:outline-none',
-        selected: 'bg-black text-white hover:bg-black focus:bg-black',
-        today: 'bg-gray-100 text-gray-900',
-        outside: 'text-gray-400 opacity-70',
+          'h-10 w-10 rounded-xl font-medium text-gray-700 transition-colors hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/15',
+        selected:
+          'bg-black text-white hover:bg-black [&>button]:bg-black [&>button]:text-white [&>button]:shadow-sm [&>button]:hover:bg-black',
+        today:
+          'bg-gray-100 text-gray-900 font-semibold [&>button]:bg-gray-100 [&>button]:text-gray-900 [&>button]:font-semibold',
+        outside: 'text-gray-400 opacity-70 [&>button]:text-gray-400 [&>button]:opacity-70',
+        range_start:
+          'bg-black text-white [&>button]:bg-black [&>button]:text-white [&>button]:hover:bg-black',
+        range_end:
+          'bg-black text-white [&>button]:bg-black [&>button]:text-white [&>button]:hover:bg-black',
+        range_middle: 'bg-gray-100 text-gray-900 [&>button]:bg-gray-100 [&>button]:text-gray-900',
         disabled: 'text-gray-300 opacity-50',
         hidden: 'invisible',
         ...classNames,

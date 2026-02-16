@@ -115,7 +115,7 @@ test.describe('Property Status Transitions - E2E', () => {
     })
   })
 
-  test('archived property has no status change buttons', async ({
+  test('archived property only shows activate button', async ({
     page,
     request,
   }) => {
@@ -132,11 +132,13 @@ test.describe('Property Status Transitions - E2E', () => {
     await page.goto(`/properties/${prop.id}`)
     await page.waitForLoadState('networkidle')
 
-    // No activate, pause, or archive buttons should be visible
+    // Archived can be restored, but cannot be paused/archived again directly
     await expect(
       page.getByRole('button', { name: /activate/i }),
-    ).not.toBeVisible({ timeout: 2000 })
-    await expect(page.getByRole('button', { name: /pause/i })).not.toBeVisible({
+    ).toBeVisible({ timeout: 5000 })
+    await expect(
+      page.getByRole('button', { name: /pause/i }),
+    ).not.toBeVisible({
       timeout: 2000,
     })
     await expect(
