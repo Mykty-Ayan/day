@@ -192,7 +192,10 @@ export default function BookingListPage() {
                         </div>
                       </td>
                       <td className="px-4 py-3">
-                        <span className="text-sm text-gray-700">{booking.guest_name}</span>
+                        <div className="flex flex-col">
+                          <span className="text-sm text-gray-700">{booking.guest_name}</span>
+                          <span className="text-xs text-gray-400">{booking.guest_phone || 'No phone'}</span>
+                        </div>
                       </td>
                       <td className="px-4 py-3">
                         <span className="text-sm text-gray-600">

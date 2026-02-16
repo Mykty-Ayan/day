@@ -36,6 +36,7 @@ export interface Booking {
   adults_count: number
   children_count: number
   guest_name: string
+  guest_phone?: string | null
   property_name: string
   property_internal_name: string
   created_at: string
@@ -143,6 +144,7 @@ export interface GanttPropertyRow extends GanttPropertySummary {
 export interface TodayChecks {
   check_ins: Booking[]
   check_outs: Booking[]
+  in_house: Booking[]
 }
 
 export interface BookingCreateInput {

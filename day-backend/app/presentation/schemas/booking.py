@@ -98,6 +98,7 @@ class BookingResponse(BaseModel):
     children_count: int
     notes: str | None = None
     guest_name: str | None = None
+    guest_phone: str | None = None
     property_name: str | None = None
     property_internal_name: str | None = None
     created_at: datetime | None = None
@@ -286,6 +287,7 @@ class TodayBookingItem(BaseModel):
 class TodayCheckResponse(BaseModel):
     check_ins: list[TodayBookingItem]
     check_outs: list[TodayBookingItem]
+    in_house: list[TodayBookingItem]
 
 
 # ---------- Audit ----------

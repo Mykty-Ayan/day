@@ -36,7 +36,7 @@ export default function CleaningListPage() {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4 }}
-      className="p-6 max-w-7xl mx-auto"
+      className="p-6 max-w-7xl mx-auto w-full"
     >
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
@@ -44,15 +44,15 @@ export default function CleaningListPage() {
           <h1 className="text-2xl font-bold text-gray-900">Cleaning Tasks</h1>
         </div>
         <Link to="/cleaning/new">
-          <Button>
-            <Plus className="w-4 h-4 mr-1" />
+          <Button className="min-w-[168px]">
+            <Plus className="w-4 h-4" />
             New Task
           </Button>
         </Link>
       </div>
 
       {/* Status Tabs */}
-      <div className="flex gap-1 p-1 bg-gray-100 rounded-xl mb-6 overflow-x-auto">
+      <div className="flex gap-1 p-1 bg-gray-100 rounded-xl mb-6 w-full overflow-x-auto">
         {STATUS_TABS.map((tab) => (
           <button
             key={tab.value}
@@ -60,7 +60,7 @@ export default function CleaningListPage() {
               setStatusFilter(tab.value)
               setPage(1)
             }}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${
+            className={`basis-0 grow min-w-[120px] px-4 py-2 rounded-lg text-sm font-medium text-center transition-all whitespace-nowrap ${
               statusFilter === tab.value
                 ? 'bg-white text-gray-900 shadow-sm'
                 : 'text-gray-500 hover:text-gray-700'
@@ -71,15 +71,15 @@ export default function CleaningListPage() {
         ))}
       </div>
 
-      {isLoading ? (
-        <div className="text-center py-12 text-gray-400">Loading...</div>
-      ) : !data?.items.length ? (
-        <div className="text-center py-12 text-gray-400">
-          No cleaning tasks found
-        </div>
-      ) : (
-        <>
-          <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+      <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden min-h-[220px]">
+        {isLoading ? (
+          <div className="text-center py-12 text-gray-400">Loading...</div>
+        ) : !data?.items.length ? (
+          <div className="text-center py-12 text-gray-400">
+            No cleaning tasks found
+          </div>
+        ) : (
+          <>
             <table className="w-full">
               <thead>
                 <tr className="bg-gray-50 text-left text-xs text-gray-500 uppercase tracking-wider">
@@ -132,27 +132,27 @@ export default function CleaningListPage() {
                 ))}
               </tbody>
             </table>
-          </div>
+          </>
+        )}
+      </div>
 
-          {/* Pagination */}
-          {data.pages > 1 && (
-            <div className="flex justify-center gap-2 mt-6">
-              {Array.from({ length: data.pages }, (_, i) => i + 1).map((p) => (
-                <button
-                  key={p}
-                  onClick={() => setPage(p)}
-                  className={`w-8 h-8 rounded-lg text-sm font-medium ${
-                    page === p
-                      ? 'bg-black text-white'
-                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                  }`}
-                >
-                  {p}
-                </button>
-              ))}
-            </div>
-          )}
-        </>
+      {/* Pagination */}
+      {!isLoading && Boolean(data?.items.length) && data && data.pages > 1 && (
+        <div className="flex justify-center gap-2 mt-6">
+          {Array.from({ length: data.pages }, (_, i) => i + 1).map((p) => (
+            <button
+              key={p}
+              onClick={() => setPage(p)}
+              className={`w-8 h-8 rounded-lg text-sm font-medium ${
+                page === p
+                  ? 'bg-black text-white'
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              }`}
+            >
+              {p}
+            </button>
+          ))}
+        </div>
       )}
     </motion.div>
   )

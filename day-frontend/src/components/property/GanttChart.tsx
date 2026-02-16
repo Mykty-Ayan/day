@@ -131,8 +131,7 @@ function getBookingNights(checkIn: string, checkOut: string): number {
 
 function formatBookingDateRangeShort(checkIn: string, checkOut: string): string {
   const start = parseDateOnly(checkIn)
-  const checkoutDate = parseDateOnly(checkOut)
-  const end = new Date(checkoutDate.getFullYear(), checkoutDate.getMonth(), checkoutDate.getDate() - 1)
+  const end = parseDateOnly(checkOut)
 
   if (end < start) {
     return `${start.getDate()} ${shortMonthNames[start.getMonth()]}`

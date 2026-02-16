@@ -46,6 +46,13 @@ from app.infrastructure.models.cleaning import (
 # ---------- helpers ----------
 
 
+def _normalize_cleaning_status(value: str) -> CleaningStatus:
+    # Backward compatibility: legacy seeded records used "completed".
+    if value == "completed":
+        return CleaningStatus.DONE
+    return CleaningStatus(value)
+
+
 def _model_to_task(m: CleaningTaskModel) -> CleaningTask:
     return CleaningTask(
         id=m.id,
@@ -54,7 +61,7 @@ def _model_to_task(m: CleaningTaskModel) -> CleaningTask:
         booking_id=m.booking_id,
         cleaner_id=m.cleaner_id,
         type=CleaningType(m.type),
-        status=CleaningStatus(m.status),
+        status=_normalize_cleaning_status(m.status),
         scheduled_date=m.scheduled_date,
         scheduled_time=m.scheduled_time,
         notes=m.notes,
@@ -178,7 +185,10 @@ class SqlCleaningTaskRepository(CleaningTaskRepository):
 
     def _apply_filters(self, stmt, *, status=None, property_id=None, cleaner_id=None, date_from=None, date_to=None):
         if status is not None:
-            stmt = stmt.where(CleaningTaskModel.status == status.value)
+            if status == CleaningStatus.DONE:
+                stmt = stmt.where(CleaningTaskModel.status.in_(["done", "completed"]))
+            else:
+                stmt = stmt.where(CleaningTaskModel.status == status.value)
         if property_id is not None:
             stmt = stmt.where(CleaningTaskModel.property_id == property_id)
         if cleaner_id is not None:

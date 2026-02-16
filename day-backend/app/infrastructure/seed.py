@@ -883,7 +883,7 @@ async def seed_cleaning_tasks(
             "property_id": b0["property_id"],
             "booking_id": b0["id"],
             "type": "post_checkout",
-            "status": "completed",
+            "status": "done",
             "cleaner_id": CLEANER_IDS[0],
             "scheduled_date": b0["check_out"],
             "scheduled_time": time(11, 0),
@@ -969,7 +969,7 @@ async def seed_cleaning_reports(
 
     print("\n--- Cleaning Reports ---")
     for idx, task in enumerate(tasks_out):
-        if task["status"] != "completed":
+        if task["status"] != "done":
             continue
 
         existing = await session.scalar(
@@ -1064,7 +1064,7 @@ async def seed_cleaner_ratings(
 
     print("\n--- Cleaner Ratings ---")
     for task in tasks_out:
-        if task["status"] != "completed":
+        if task["status"] != "done":
             continue
         session.add(CleanerRatingModel(
             id=uuid.uuid4(),
@@ -1076,7 +1076,7 @@ async def seed_cleaner_ratings(
             review="Great job, spotless and on time.",
             kpi_metrics={"speed": 5, "quality": 5, "attention_to_detail": 5},
         ))
-    print("  [+] Ratings created for completed tasks")
+    print("  [+] Ratings created for done tasks")
     await session.flush()
 
 

@@ -31,6 +31,17 @@ function toDateStr(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
+function parseDateOnly(dateStr: string): Date {
+  const [y, m, d] = dateStr.split('-').map(Number)
+  return new Date(y, (m || 1) - 1, d || 1)
+}
+
+function addDays(dateStr: string, days: number): string {
+  const date = parseDateOnly(dateStr)
+  date.setDate(date.getDate() + days)
+  return toDateStr(date)
+}
+
 export default function GanttChartPage() {
   const navigate = useNavigate()
   const [year, setYear] = useState(() => new Date().getFullYear())
@@ -110,6 +121,15 @@ export default function GanttChartPage() {
 
     if (date === pendingSelection.checkIn) {
       setPendingSelection(null)
+      navigate({
+        to: '/bookings/new',
+        search: {
+          property_id: propertyId,
+          check_in: date,
+          check_out: addDays(date, 1),
+          from: 'gantt',
+        } as Record<string, string>,
+      })
       return
     }
 

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   ArrowLeft,
@@ -637,6 +637,12 @@ function DepositCard({ bookingId, deposit }: { bookingId: string; deposit: Booki
   const depAction = useDepositAction(bookingId, deposit.id)
   const [actionForm, setActionForm] = useState<{ action: DepositAction; held_amount: string; reason: string } | null>(null)
 
+  useEffect(() => {
+    if (deposit.status !== 'paid') {
+      setActionForm(null)
+    }
+  }, [deposit.status])
+
   function handleAction() {
     if (!actionForm) return
     const input: DepositActionInput = {
@@ -677,7 +683,10 @@ function DepositCard({ bookingId, deposit }: { bookingId: string; deposit: Booki
         {deposit.status === 'pending' && (
           <motion.button
             whileTap={{ scale: 0.97 }}
-            onClick={() => depAction.mutate({ action: 'pay' })}
+            onClick={() => {
+              setActionForm(null)
+              depAction.mutate({ action: 'pay' })
+            }}
             disabled={depAction.isPending}
             className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl px-3 py-1.5 text-xs font-bold disabled:opacity-50"
           >
@@ -688,7 +697,10 @@ function DepositCard({ bookingId, deposit }: { bookingId: string; deposit: Booki
           <>
             <motion.button
               whileTap={{ scale: 0.97 }}
-              onClick={() => depAction.mutate({ action: 'return' })}
+              onClick={() => {
+                setActionForm(null)
+                depAction.mutate({ action: 'return' })
+              }}
               disabled={depAction.isPending}
               className="bg-green-600 hover:bg-green-700 text-white rounded-xl px-3 py-1.5 text-xs font-bold disabled:opacity-50"
             >
@@ -713,7 +725,7 @@ function DepositCard({ bookingId, deposit }: { bookingId: string; deposit: Booki
       </div>
 
       {/* Action form for hold/partial_hold */}
-      {actionForm && (actionForm.action === 'hold' || actionForm.action === 'partial_hold') && (
+      {deposit.status === 'paid' && actionForm && (actionForm.action === 'hold' || actionForm.action === 'partial_hold') && (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-3 space-y-2">
           {actionForm.action === 'partial_hold' && (
             <NumberInput

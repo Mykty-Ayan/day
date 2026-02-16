@@ -113,6 +113,7 @@ def _price_calculator(repos):
 def _to_booking_response(
     b,
     guest_name: str | None = None,
+    guest_phone: str | None = None,
     property_name: str | None = None,
     property_internal_name: str | None = None,
 ) -> BookingResponse:
@@ -134,6 +135,7 @@ def _to_booking_response(
         children_count=b.children_count,
         notes=b.notes,
         guest_name=guest_name,
+        guest_phone=guest_phone,
         property_name=property_name,
         property_internal_name=property_internal_name,
         created_at=b.created_at,
@@ -229,6 +231,7 @@ async def list_bookings(
     status: BookingStatus | None = None,
     property_id: uuid.UUID | None = None,
     source: BookingSource | None = None,
+    search: str | None = None,
     date_from: date | None = None,
     date_to: date | None = None,
     session: AsyncSession = Depends(get_session),
@@ -244,6 +247,7 @@ async def list_bookings(
         status=status,
         property_id=property_id,
         source=source,
+        search=search,
         date_from=date_from,
         date_to=date_to,
     )
@@ -257,6 +261,7 @@ async def list_bookings(
             _to_booking_response(
                 b,
                 guest_name=guest.name if guest else None,
+                guest_phone=guest.phone if guest else None,
                 property_name=prop.name if prop else None,
                 property_internal_name=prop.internal_name if prop else None,
             )
@@ -279,17 +284,20 @@ async def get_today(
 ):
     repos = _repos(session)
     today = date.today()
+    yesterday = today - timedelta(days=1)
     tomorrow = today + timedelta(days=1)
 
-    # Bookings checking in today
+    # Include yesterday->tomorrow overlap so check_out == today is not dropped
+    # by half-open interval logic in list_by_company_date_range.
     all_bookings = await repos["booking"].list_by_company_date_range(
         company_id,
-        today,
+        yesterday,
         tomorrow,
     )
 
     check_ins = []
     check_outs = []
+    in_house = []
 
     for b in all_bookings:
         guest = await repos["guest"].get_by_id(b.guest_id)
@@ -305,12 +313,26 @@ async def get_today(
             adults_count=b.adults_count,
             children_count=b.children_count,
         )
-        if b.check_in == today:
+        if (
+            b.check_in == today
+            and b.status in {BookingStatus.PENDING, BookingStatus.CONFIRMED}
+        ):
             check_ins.append(item)
-        if b.check_out == today:
+        if b.check_out == today and b.status == BookingStatus.CHECKED_IN:
             check_outs.append(item)
+        if (
+            b.status == BookingStatus.CHECKED_IN
+            and b.check_in is not None
+            and b.check_out is not None
+            and b.check_in <= today < b.check_out
+        ):
+            in_house.append(item)
 
-    return TodayCheckResponse(check_ins=check_ins, check_outs=check_outs)
+    return TodayCheckResponse(
+        check_ins=check_ins,
+        check_outs=check_outs,
+        in_house=in_house,
+    )
 
 
 @booking_router.get("/{booking_id:uuid}", response_model=BookingDetailResponse)
@@ -340,6 +362,7 @@ async def get_booking(
         booking=_to_booking_response(
             detail.booking,
             guest_name=detail.guest.name if detail.guest else None,
+            guest_phone=detail.guest.phone if detail.guest else None,
             property_name=detail.property_name,
             property_internal_name=detail.property_internal_name,
         ),
