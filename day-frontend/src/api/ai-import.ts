@@ -5,6 +5,7 @@ import type {
   ImportConfirmInput,
   BatchImportInput,
 } from '../types/ai-import'
+import type { Property } from '../types/property'
 
 export async function startImport(data: ImportStartInput): Promise<ImportJob> {
   const res = await apiClient.post('/ai/import', data)
@@ -27,7 +28,7 @@ export async function getImportJob(id: string): Promise<ImportJob> {
 export async function confirmImport(
   id: string,
   data: ImportConfirmInput,
-): Promise<ImportJob> {
+): Promise<Property> {
   const res = await apiClient.post(`/ai/import/${id}/confirm`, data)
   return res.data
 }

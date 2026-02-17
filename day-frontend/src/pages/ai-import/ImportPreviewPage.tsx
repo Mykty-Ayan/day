@@ -216,8 +216,10 @@ export default function ImportPreviewPage() {
     if (!mappedData) return
     setSubmitError(null)
     try {
-      await confirmImport.mutateAsync({ property_data: mappedData as unknown as Record<string, unknown> })
-      navigate({ to: '/properties' })
+      const property = await confirmImport.mutateAsync({
+        property_data: mappedData as unknown as Record<string, unknown>,
+      })
+      navigate({ to: '/properties/$propertyId', params: { propertyId: property.id } })
     } catch {
       setSubmitError('Failed to create property. Please try again.')
     }

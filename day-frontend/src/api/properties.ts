@@ -30,6 +30,38 @@ export async function listProperties(
   return res.data
 }
 
+export async function listAllProperties(
+  filters: Omit<PropertyFilters, 'page' | 'per_page'> = {},
+): Promise<PaginatedResponse<Property>> {
+  const per_page = 100
+  let page = 1
+  let pages = 1
+  let total = 0
+  const items: Property[] = []
+
+  while (page <= pages) {
+    const res = await apiClient.get('/properties', {
+      params: { ...filters, page, per_page },
+    })
+    const data = res.data as PaginatedResponse<Property>
+
+    items.push(...data.items)
+    total = data.total
+    pages = data.pages
+
+    if (data.items.length === 0) break
+    page += 1
+  }
+
+  return {
+    items,
+    total,
+    page: 1,
+    per_page: items.length || per_page,
+    pages: 1,
+  }
+}
+
 export async function getProperty(id: string): Promise<Property> {
   const res = await apiClient.get(`/properties/${id}`)
   return res.data

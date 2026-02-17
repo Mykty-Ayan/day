@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useState, type DragEvent } from 'react'
 import { motion } from 'framer-motion'
-import { Pencil, Eye, X, ImageOff, ExternalLink, Download } from 'lucide-react'
+import { Pencil, Eye, X, ImageOff, ExternalLink, Download, GripVertical, Star } from 'lucide-react'
 import type { MappedPropertyData } from '../../types/ai-import'
 import apiClient from '../../api/client'
 
@@ -80,6 +80,8 @@ function FieldRow({
 
 export default function PropertyPreviewForm({ data, onChange }: Props) {
   const [editing, setEditing] = useState(true)
+  const [draggingPhotoIndex, setDraggingPhotoIndex] = useState<number | null>(null)
+  const [dragOverPhotoIndex, setDragOverPhotoIndex] = useState<number | null>(null)
 
   function handleFieldChange(field: string, value: string) {
     const numericFields = ['latitude', 'longitude', 'rooms', 'beds', 'area_total', 'area_living', 'floor', 'base_price']
@@ -111,6 +113,50 @@ export default function PropertyPreviewForm({ data, onChange }: Props) {
     const next = [...data.photos]
     next.splice(index, 1)
     onChange({ ...data, photos: next })
+  }
+
+  function movePhoto(fromIndex: number, toIndex: number) {
+    if (fromIndex === toIndex || fromIndex < 0 || toIndex < 0) return
+    const next = [...data.photos]
+    const [moved] = next.splice(fromIndex, 1)
+    if (!moved) return
+    next.splice(toIndex, 0, moved)
+    onChange({ ...data, photos: next })
+  }
+
+  function handleSetMainPhoto(index: number) {
+    movePhoto(index, 0)
+  }
+
+  function handlePhotoDragStart(event: DragEvent<HTMLDivElement>, index: number) {
+    if (!editing) return
+    setDraggingPhotoIndex(index)
+    event.dataTransfer.effectAllowed = 'move'
+    event.dataTransfer.setData('text/plain', String(index))
+  }
+
+  function handlePhotoDragOver(event: DragEvent<HTMLDivElement>, index: number) {
+    if (!editing) return
+    event.preventDefault()
+    event.dataTransfer.dropEffect = 'move'
+    if (dragOverPhotoIndex !== index) {
+      setDragOverPhotoIndex(index)
+    }
+  }
+
+  function handlePhotoDrop(event: DragEvent<HTMLDivElement>, dropIndex: number) {
+    if (!editing) return
+    event.preventDefault()
+    const fallbackIndex = Number(event.dataTransfer.getData('text/plain'))
+    const sourceIndex = draggingPhotoIndex ?? (Number.isNaN(fallbackIndex) ? -1 : fallbackIndex)
+    movePhoto(sourceIndex, dropIndex)
+    setDraggingPhotoIndex(null)
+    setDragOverPhotoIndex(null)
+  }
+
+  function handlePhotoDragEnd() {
+    setDraggingPhotoIndex(null)
+    setDragOverPhotoIndex(null)
   }
 
   function buildDownloadName(url: string, index: number): string {
@@ -306,10 +352,33 @@ export default function PropertyPreviewForm({ data, onChange }: Props) {
             ({data.photos.length})
           </span>
         </h4>
+        {editing && data.photos.length > 0 && (
+          <p className="text-[11px] text-gray-400 mb-3">
+            Drag photos to reorder. The first photo is used as the main photo.
+          </p>
+        )}
         {data.photos.length > 0 ? (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
             {data.photos.map((url, i) => (
-              <div key={`${url}-${i}`} className="relative group aspect-[4/3] bg-gray-100 rounded-lg overflow-hidden">
+              <div
+                key={`${url}-${i}`}
+                draggable={editing}
+                onDragStart={(event) => handlePhotoDragStart(event, i)}
+                onDragOver={(event) => handlePhotoDragOver(event, i)}
+                onDrop={(event) => handlePhotoDrop(event, i)}
+                onDragEnd={handlePhotoDragEnd}
+                className={`relative group aspect-[4/3] bg-gray-100 rounded-lg overflow-hidden border border-transparent transition-all ${
+                  editing ? 'cursor-move' : ''
+                } ${
+                  draggingPhotoIndex === i
+                    ? 'opacity-60 scale-[0.98]'
+                    : ''
+                } ${
+                  dragOverPhotoIndex === i && draggingPhotoIndex !== i
+                    ? 'ring-2 ring-gray-400 border-gray-300'
+                    : ''
+                }`}
+              >
                 <a
                   href={url}
                   target="_blank"
@@ -334,6 +403,11 @@ export default function PropertyPreviewForm({ data, onChange }: Props) {
                     }}
                   />
                 </a>
+                {editing && (
+                  <div className="absolute top-1.5 left-1.5 bg-white/90 border border-gray-200 rounded-lg p-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <GripVertical className="w-3 h-3 text-gray-500" />
+                  </div>
+                )}
                 <div className="absolute bottom-1.5 left-1.5 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                   <a
                     href={url}
@@ -355,15 +429,35 @@ export default function PropertyPreviewForm({ data, onChange }: Props) {
                     <Download className="w-3 h-3 text-gray-600" />
                   </button>
                 </div>
+                {i === 0 && (
+                  <span className="absolute bottom-1.5 right-1.5 bg-amber-400 text-white text-[10px] font-bold uppercase px-2 py-0.5 rounded-md">
+                    Main
+                  </span>
+                )}
                 {editing && (
-                  <button
-                    type="button"
-                    onClick={() => handleRemovePhoto(i)}
-                    className="absolute top-1.5 right-1.5 bg-white/90 hover:bg-red-50 border border-gray-200 rounded-lg p-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                    aria-label={`Remove photo ${i + 1}`}
-                  >
-                    <X className="w-3 h-3 text-gray-600 hover:text-red-500" />
-                  </button>
+                  <div className="absolute top-1.5 right-1.5 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button
+                      type="button"
+                      onClick={() => handleSetMainPhoto(i)}
+                      className={`border rounded-lg p-1 ${
+                        i === 0
+                          ? 'bg-amber-400 border-amber-400 text-white'
+                          : 'bg-white/90 hover:bg-amber-50 border-gray-200 text-gray-600 hover:text-amber-600'
+                      }`}
+                      aria-label={`Set photo ${i + 1} as main`}
+                      title="Set as main photo"
+                    >
+                      <Star className="w-3 h-3" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleRemovePhoto(i)}
+                      className="bg-white/90 hover:bg-red-50 border border-gray-200 rounded-lg p-1"
+                      aria-label={`Remove photo ${i + 1}`}
+                    >
+                      <X className="w-3 h-3 text-gray-600 hover:text-red-500" />
+                    </button>
+                  </div>
                 )}
               </div>
             ))}

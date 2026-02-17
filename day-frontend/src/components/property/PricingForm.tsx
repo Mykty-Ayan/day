@@ -36,6 +36,11 @@ function formatSeasonalDate(value: string): string {
   return format(parsed, 'dd MMM yyyy')
 }
 
+const primaryActionButtonClass =
+  'flex items-center justify-center gap-2 rounded-xl bg-black text-white hover:bg-gray-800 px-6 py-2.5 font-semibold shadow-lg transition-colors disabled:cursor-not-allowed disabled:opacity-50'
+const fixedActionButtonClass =
+  `${primaryActionButtonClass} h-11 w-full sm:w-60`
+
 function PricingFormInner({
   pricing,
   onSaveBase,
@@ -77,6 +82,11 @@ function PricingFormInner({
     seasonalEnd >= seasonalStart &&
     parseNumber(seasonalPrice, -1) >= 0
 
+  const discountReady =
+    Number.parseInt(discountNights, 10) > 0 &&
+    discountValue.trim().length > 0 &&
+    parseNumber(discountValue, -1) >= 0
+
   function handleSaveBase() {
     onSaveBase({
       base_price: parseNumber(basePrice, 0),
@@ -105,7 +115,7 @@ function PricingFormInner({
   }
 
   function handleAddDiscount() {
-    if (!discountNights || !discountValue) return
+    if (!discountReady) return
     onAddDiscount({
       min_nights: parseInt(discountNights),
       type: discountType,
@@ -193,7 +203,7 @@ function PricingFormInner({
           whileTap={{ scale: 0.97 }}
           onClick={handleSaveBase}
           disabled={isSaving}
-          className="mt-3 flex items-center gap-2 bg-black text-white hover:bg-gray-800 rounded-xl px-6 py-2.5 font-semibold shadow-lg transition-colors disabled:opacity-50"
+          className={`mt-3 ${fixedActionButtonClass}`}
         >
           {isSaving && <Loader2 className="w-4 h-4 animate-spin" />}
           Save Pricing
@@ -203,11 +213,6 @@ function PricingFormInner({
       {/* Seasonal prices */}
       <div>
         <h3 className="text-sm font-bold text-gray-900 mb-3">Seasonal Prices</h3>
-        {seasonalPrices.length === 0 && (
-          <p className="mb-3 rounded-xl border border-dashed border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-500">
-            No seasonal rules yet. Add a date range and custom nightly price below.
-          </p>
-        )}
         {seasonalPrices.map((sp: SeasonalPrice) => (
           <div
             key={sp.id}
@@ -266,11 +271,10 @@ function PricingFormInner({
             type="button"
             whileTap={{ scale: 0.97 }}
             onClick={handleAddSeasonal}
-            disabled={!seasonalReady}
-            className="h-11 shrink-0 rounded-xl bg-black px-4 text-white transition-colors hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-50 xl:col-span-1"
+            className={`${fixedActionButtonClass} shrink-0 justify-self-start xl:col-span-1`}
             aria-label="Add seasonal price"
           >
-            <Plus className="mx-auto h-4 w-4" />
+            <Plus className="h-5 w-5" />
           </motion.button>
         </div>
       </div>
@@ -326,9 +330,10 @@ function PricingFormInner({
             type="button"
             whileTap={{ scale: 0.97 }}
             onClick={handleAddDiscount}
-            className="shrink-0 w-full sm:w-auto bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-xl p-2.5 text-gray-700"
+            className={fixedActionButtonClass}
+            aria-label="Add discount rule"
           >
-            <Plus className="w-4 h-4" />
+            <Plus className="h-5 w-5" />
           </motion.button>
         </div>
       </div>
