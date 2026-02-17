@@ -76,6 +76,14 @@ export interface ChecklistTemplateCreateInput {
   items?: { title: string; sort_order?: number }[]
 }
 
+export interface ChecklistTemplateUpdateInput {
+  name: string
+}
+
+export interface ChecklistItemUpdateInput {
+  title: string
+}
+
 // Cleaning Report
 export interface CleaningReport {
   id: string

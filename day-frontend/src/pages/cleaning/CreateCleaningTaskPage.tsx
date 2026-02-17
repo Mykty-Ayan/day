@@ -82,7 +82,7 @@ export default function CreateCleaningTaskPage() {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4 }}
-      className="p-6 max-w-2xl mx-auto"
+      className="w-full max-w-4xl mx-auto px-4 py-6 sm:px-6"
     >
       <Link
         to="/cleaning"
@@ -92,12 +92,12 @@ export default function CreateCleaningTaskPage() {
         Back
       </Link>
 
-      <h1 className="text-2xl font-bold text-gray-900 mb-6">
+      <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-6">
         Create Cleaning Task
       </h1>
 
       <form onSubmit={handleSubmit} className="space-y-6">
-        <div className="bg-white rounded-2xl border border-gray-200 p-6 space-y-4">
+        <div className="bg-white rounded-2xl border border-gray-200 p-4 sm:p-6 md:p-8 space-y-4 sm:space-y-5">
           {/* Property */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -149,7 +149,7 @@ export default function CreateCleaningTaskPage() {
           </div>
 
           {/* Scheduled Date */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Scheduled Date
@@ -191,11 +191,17 @@ export default function CreateCleaningTaskPage() {
           </div>
         </div>
 
-        <div className="flex justify-end gap-3">
-          <Link to="/cleaning">
-            <Button variant="secondary">Cancel</Button>
+        <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-3">
+          <Link to="/cleaning" className="w-full sm:w-auto">
+            <Button variant="secondary" className="w-full sm:w-auto">
+              Cancel
+            </Button>
           </Link>
-          <Button type="submit" disabled={createMutation.isPending}>
+          <Button
+            type="submit"
+            disabled={createMutation.isPending}
+            className="w-full sm:w-auto sm:min-w-[170px]"
+          >
             {createMutation.isPending ? 'Creating...' : 'Create Task'}
           </Button>
         </div>

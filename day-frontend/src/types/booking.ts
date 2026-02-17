@@ -39,6 +39,7 @@ export interface Booking {
   guest_phone?: string | null
   property_name: string
   property_internal_name: string
+  property_status?: 'new' | 'active' | 'paused' | 'archived'
   created_at: string
   updated_at: string
 }

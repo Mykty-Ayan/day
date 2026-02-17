@@ -17,7 +17,7 @@ const statusTabs: { value: PropertyStatus | 'all'; label: string }[] = [
 
 export default function PropertyListPage() {
   const [search, setSearch] = useState('')
-  const [statusFilter, setStatusFilter] = useState<PropertyStatus | 'all'>('all')
+  const [statusFilter, setStatusFilter] = useState<PropertyStatus | 'all'>('active')
   const [page, setPage] = useState(1)
   const [viewMode, setViewMode] = useState<'large' | 'medium' | 'list'>('large')
 

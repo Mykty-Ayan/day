@@ -23,6 +23,14 @@ import type {
 } from '../types/booking'
 import type { PaginatedResponse } from '../types/property'
 
+function getLocalDateParam(): string {
+  const now = new Date()
+  const year = now.getFullYear()
+  const month = String(now.getMonth() + 1).padStart(2, '0')
+  const day = String(now.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
 // --- Bookings ---
 
 export async function listBookings(
@@ -165,7 +173,9 @@ export async function getGanttData(
 // --- Today ---
 
 export async function getTodayChecks(): Promise<TodayChecks> {
-  const res = await apiClient.get('/bookings/today')
+  const res = await apiClient.get('/bookings/today', {
+    params: { date: getLocalDateParam() },
+  })
   return res.data
 }
 

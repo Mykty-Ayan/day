@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from 'framer-motion'
-import { ClipboardList, GripVertical, Plus, Trash2 } from 'lucide-react'
+import { Check, ClipboardList, GripVertical, Pencil, Plus, Trash2, X } from 'lucide-react'
 import { useState } from 'react'
 
 import Button from '../../components/ui/Button'
@@ -12,6 +12,8 @@ import {
   useDeleteChecklistItem,
   useDeleteChecklistTemplate,
   useReorderChecklistItems,
+  useUpdateChecklistItem,
+  useUpdateChecklistTemplate,
 } from '../../hooks/useCleaning'
 import type { ChecklistItem } from '../../types/cleaning'
 
@@ -19,9 +21,12 @@ export default function ChecklistTemplatesPage() {
   const { data: templates, isLoading } = useChecklistTemplates()
   const createMutation = useCreateChecklistTemplate()
   const deleteMutation = useDeleteChecklistTemplate()
+  const updateTemplateMutation = useUpdateChecklistTemplate()
   const [showCreate, setShowCreate] = useState(false)
   const [newName, setNewName] = useState('')
   const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [editingTemplateId, setEditingTemplateId] = useState<string | null>(null)
+  const [templateNameDraft, setTemplateNameDraft] = useState('')
 
   function handleCreate() {
     if (!newName.trim()) return
@@ -48,12 +53,46 @@ export default function ChecklistTemplatesPage() {
     })
   }
 
+  function startTemplateEdit(id: string, currentName: string) {
+    setEditingTemplateId(id)
+    setTemplateNameDraft(currentName)
+  }
+
+  function cancelTemplateEdit() {
+    setEditingTemplateId(null)
+    setTemplateNameDraft('')
+  }
+
+  function submitTemplateEdit(id: string, currentName: string) {
+    const name = templateNameDraft.trim()
+    if (!name) {
+      showToast('error', 'Template name is required')
+      return
+    }
+    if (name === currentName) {
+      cancelTemplateEdit()
+      return
+    }
+    updateTemplateMutation.mutate(
+      { id, data: { name } },
+      {
+        onSuccess: () => {
+          showToast('success', 'Template updated')
+          cancelTemplateEdit()
+        },
+        onError: (err: Error) => {
+          showToast('error', err.message)
+        },
+      },
+    )
+  }
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4 }}
-      className="p-6 max-w-5xl mx-auto"
+      className="w-full max-w-[1180px] mx-auto px-4 py-6 sm:px-6"
     >
       <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex min-w-0 items-center gap-3">
@@ -77,7 +116,7 @@ export default function ChecklistTemplatesPage() {
           animate={{ opacity: 1, height: 'auto' }}
           className="bg-white rounded-2xl border border-gray-200 p-4 mb-6"
         >
-          <div className="flex gap-3">
+          <div className="flex flex-col gap-3 sm:flex-row">
             <input
               type="text"
               placeholder="Template name..."
@@ -89,6 +128,7 @@ export default function ChecklistTemplatesPage() {
             <Button
               onClick={handleCreate}
               disabled={createMutation.isPending || !newName.trim()}
+              className="w-full sm:w-auto"
             >
               Create
             </Button>
@@ -96,9 +136,9 @@ export default function ChecklistTemplatesPage() {
         </motion.div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 lg:justify-center">
         {/* Template List */}
-        <div className="space-y-3">
+        <div className="min-w-0 space-y-3 xl:w-[540px]">
           {isLoading ? (
             <div className="text-center py-8 text-gray-400">Loading...</div>
           ) : !templates?.length ? (
@@ -118,17 +158,85 @@ export default function ChecklistTemplatesPage() {
                 }`}
                 onClick={() => setSelectedId(t.id)}
               >
-                <div className="flex items-center justify-between">
-                  <span className="font-medium text-sm">{t.name}</span>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      handleDelete(t.id)
-                    }}
-                    className="text-gray-300 hover:text-red-500 transition-colors"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                <div className="flex min-w-0 items-center justify-between gap-2">
+                  {editingTemplateId === t.id ? (
+                    <input
+                      autoFocus
+                      value={templateNameDraft}
+                      onChange={(e) => setTemplateNameDraft(e.target.value)}
+                      onClick={(e) => e.stopPropagation()}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault()
+                          submitTemplateEdit(t.id, t.name)
+                        }
+                        if (e.key === 'Escape') {
+                          e.preventDefault()
+                          cancelTemplateEdit()
+                        }
+                      }}
+                      className="min-w-0 flex-1 rounded-lg border border-gray-300 bg-white px-2 py-1 text-sm outline-none focus:ring-2 focus:ring-black/10"
+                    />
+                  ) : (
+                    <span
+                      className="min-w-0 flex-1 truncate font-medium text-sm"
+                      title={t.name}
+                      onDoubleClick={(e) => {
+                        e.stopPropagation()
+                        startTemplateEdit(t.id, t.name)
+                      }}
+                    >
+                      {t.name}
+                    </span>
+                  )}
+                  <div className="flex items-center gap-1">
+                    {editingTemplateId === t.id ? (
+                      <>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            submitTemplateEdit(t.id, t.name)
+                          }}
+                          disabled={updateTemplateMutation.isPending}
+                          className="shrink-0 text-gray-400 hover:text-emerald-600 transition-colors disabled:opacity-50"
+                          aria-label="Save template name"
+                        >
+                          <Check className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            cancelTemplateEdit()
+                          }}
+                          className="shrink-0 text-gray-400 hover:text-gray-700 transition-colors"
+                          aria-label="Cancel editing template name"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </>
+                    ) : (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          startTemplateEdit(t.id, t.name)
+                        }}
+                        className="shrink-0 text-gray-300 hover:text-gray-700 transition-colors"
+                        aria-label="Edit template name"
+                      >
+                        <Pencil className="w-4 h-4" />
+                      </button>
+                    )}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handleDelete(t.id)
+                      }}
+                      className="shrink-0 text-gray-300 hover:text-red-500 transition-colors"
+                      aria-label="Delete template"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
                 <p className="text-xs text-gray-400 mt-1">
                   Created {new Date(t.created_at).toLocaleDateString()}
@@ -146,6 +254,7 @@ export default function ChecklistTemplatesPage() {
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -20 }}
+              className="min-w-0 w-full xl:w-[540px]"
             >
               <TemplateDetail templateId={selectedId} />
             </motion.div>
@@ -161,8 +270,11 @@ function TemplateDetail({ templateId }: { templateId: string }) {
   const addItemMutation = useAddChecklistItem(templateId)
   const deleteItemMutation = useDeleteChecklistItem(templateId)
   const reorderMutation = useReorderChecklistItems(templateId)
+  const updateItemMutation = useUpdateChecklistItem(templateId)
   const [newItemTitle, setNewItemTitle] = useState('')
   const [draggingId, setDraggingId] = useState<string | null>(null)
+  const [editingItemId, setEditingItemId] = useState<string | null>(null)
+  const [itemTitleDraft, setItemTitleDraft] = useState('')
 
   function handleAddItem() {
     if (!newItemTitle.trim()) return
@@ -221,9 +333,46 @@ function TemplateDetail({ templateId }: { templateId: string }) {
     setDraggingId(null)
   }
 
+  function startItemEdit(item: ChecklistItem) {
+    setEditingItemId(item.id)
+    setItemTitleDraft(item.title)
+  }
+
+  function cancelItemEdit() {
+    setEditingItemId(null)
+    setItemTitleDraft('')
+  }
+
+  function submitItemEdit(item: ChecklistItem) {
+    const title = itemTitleDraft.trim()
+    if (!title) {
+      showToast('error', 'Item title is required')
+      return
+    }
+    if (title === item.title) {
+      cancelItemEdit()
+      return
+    }
+    updateItemMutation.mutate(
+      {
+        itemId: item.id,
+        data: { title },
+      },
+      {
+        onSuccess: () => {
+          showToast('success', 'Item updated')
+          cancelItemEdit()
+        },
+        onError: (err: Error) => {
+          showToast('error', err.message)
+        },
+      },
+    )
+  }
+
   return (
-    <div className="bg-white rounded-2xl border border-gray-200 p-6">
-      <h2 className="text-lg font-semibold text-gray-900 mb-4">
+    <div className="w-full min-w-0 bg-white rounded-2xl border border-gray-200 p-4 sm:p-6">
+      <h2 className="text-lg font-semibold text-gray-900 mb-4 break-words">
         {data.template.name}
       </h2>
 
@@ -231,7 +380,7 @@ function TemplateDetail({ templateId }: { templateId: string }) {
         {items.map((item, index) => (
           <div
             key={item.id}
-            draggable={!reorderMutation.isPending}
+            draggable={!reorderMutation.isPending && editingItemId !== item.id}
             onDragStart={(e) => {
               setDraggingId(item.id)
               e.dataTransfer.effectAllowed = 'move'
@@ -242,30 +391,98 @@ function TemplateDetail({ templateId }: { templateId: string }) {
             }}
             onDragEnd={() => setDraggingId(null)}
             onDrop={() => handleDrop(item.id)}
-            className={`flex items-center justify-between p-3 rounded-lg border transition-colors ${
+            className={`flex max-w-full items-center gap-3 overflow-hidden p-3 rounded-lg border transition-colors ${
               draggingId === item.id
                 ? 'bg-gray-100 border-gray-300'
                 : 'bg-gray-50 border-transparent'
             } ${reorderMutation.isPending ? 'cursor-progress' : 'cursor-grab'}`}
           >
-            <div className="flex items-center gap-3">
-              <GripVertical className="w-4 h-4 text-gray-300" />
-              <span className="text-xs text-gray-400 w-6">
+            <div className="flex min-w-0 flex-1 items-center gap-3">
+              <GripVertical className="w-4 h-4 shrink-0 text-gray-300" />
+              <span className="w-6 shrink-0 text-xs text-gray-400">
                 {index + 1}.
               </span>
-              <span className="text-sm">{item.title}</span>
+              {editingItemId === item.id ? (
+                <input
+                  autoFocus
+                  value={itemTitleDraft}
+                  onChange={(e) => setItemTitleDraft(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault()
+                      submitItemEdit(item)
+                    }
+                    if (e.key === 'Escape') {
+                      e.preventDefault()
+                      cancelItemEdit()
+                    }
+                  }}
+                  onClick={(e) => e.stopPropagation()}
+                  className="min-w-0 flex-1 rounded-lg border border-gray-300 bg-white px-2 py-1 text-sm outline-none focus:ring-2 focus:ring-black/10"
+                />
+              ) : (
+                <span
+                  className="min-w-0 flex-1 truncate text-sm"
+                  title={item.title}
+                  onDoubleClick={(e) => {
+                    e.stopPropagation()
+                    startItemEdit(item)
+                  }}
+                >
+                  {item.title}
+                </span>
+              )}
             </div>
-            <button
-              onClick={() => deleteItemMutation.mutate(item.id)}
-              className="text-gray-300 hover:text-red-500 transition-colors"
-            >
-              <Trash2 className="w-3.5 h-3.5" />
-            </button>
+            <div className="flex items-center gap-1">
+              {editingItemId === item.id ? (
+                <>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      submitItemEdit(item)
+                    }}
+                    disabled={updateItemMutation.isPending}
+                    className="shrink-0 text-gray-400 hover:text-emerald-600 transition-colors disabled:opacity-50"
+                    aria-label="Save checklist item"
+                  >
+                    <Check className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      cancelItemEdit()
+                    }}
+                    className="shrink-0 text-gray-400 hover:text-gray-700 transition-colors"
+                    aria-label="Cancel checklist item editing"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </>
+              ) : (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    startItemEdit(item)
+                  }}
+                  className="shrink-0 text-gray-300 hover:text-gray-700 transition-colors"
+                  aria-label="Edit checklist item"
+                >
+                  <Pencil className="w-3.5 h-3.5" />
+                </button>
+              )}
+              <button
+                onClick={() => deleteItemMutation.mutate(item.id)}
+                className="shrink-0 text-gray-300 hover:text-red-500 transition-colors"
+                aria-label="Delete checklist item"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+              </button>
+            </div>
           </div>
         ))}
       </div>
 
-      <div className="flex gap-2">
+      <div className="flex flex-col gap-2 sm:flex-row">
         <input
           type="text"
           placeholder="New item..."
@@ -277,6 +494,7 @@ function TemplateDetail({ templateId }: { templateId: string }) {
         <Button
           onClick={handleAddItem}
           disabled={addItemMutation.isPending || !newItemTitle.trim()}
+          className="w-full sm:w-auto sm:min-w-[96px]"
         >
           Add
         </Button>

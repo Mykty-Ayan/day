@@ -56,6 +56,8 @@ from app.presentation.schemas.cleaning import (
     ChecklistTemplateCreate,
     ChecklistTemplateDetailResponse,
     ChecklistTemplateResponse,
+    ChecklistTemplateUpdate,
+    ChecklistItemUpdate,
     CleanerKPIResponse,
     CleanerRatingResponse,
     CleaningReportDetailResponse,
@@ -407,6 +409,24 @@ async def delete_checklist_template(
         raise HTTPException(status_code=404, detail=str(e))
 
 
+@checklist_router.patch("/{template_id}", response_model=ChecklistTemplateResponse)
+async def update_checklist_template(
+    template_id: uuid.UUID,
+    body: ChecklistTemplateUpdate,
+    session: AsyncSession = Depends(get_session),
+    company_id: uuid.UUID = Depends(get_company_id),
+):
+    repos = _repos(session)
+    svc = ManageChecklistsService(repos["template"], repos["item"])
+    try:
+        result = await svc.update_template(template_id, company_id, body.name)
+        await session.commit()
+        return ChecklistTemplateResponse.model_validate(result, from_attributes=True)
+    except ValueError as e:
+        await session.rollback()
+        raise HTTPException(status_code=400, detail=str(e))
+
+
 @checklist_router.post("/{template_id}/items", response_model=ChecklistItemResponse, status_code=201)
 async def add_checklist_item(
     template_id: uuid.UUID,
@@ -418,6 +438,25 @@ async def add_checklist_item(
     svc = ManageChecklistsService(repos["template"], repos["item"])
     try:
         result = await svc.add_item(template_id, company_id, body.title, body.sort_order)
+        await session.commit()
+        return ChecklistItemResponse.model_validate(result, from_attributes=True)
+    except ValueError as e:
+        await session.rollback()
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@checklist_router.patch("/{template_id}/items/{item_id}", response_model=ChecklistItemResponse)
+async def update_checklist_item(
+    template_id: uuid.UUID,
+    item_id: uuid.UUID,
+    body: ChecklistItemUpdate,
+    session: AsyncSession = Depends(get_session),
+    company_id: uuid.UUID = Depends(get_company_id),
+):
+    repos = _repos(session)
+    svc = ManageChecklistsService(repos["template"], repos["item"])
+    try:
+        result = await svc.update_item(template_id, item_id, company_id, body.title)
         await session.commit()
         return ChecklistItemResponse.model_validate(result, from_attributes=True)
     except ValueError as e:

@@ -279,11 +279,12 @@ async def list_bookings(
 
 @booking_router.get("/today", response_model=TodayCheckResponse)
 async def get_today(
+    date_value: date | None = Query(default=None, alias="date"),
     session: AsyncSession = Depends(get_session),
     company_id: uuid.UUID = Depends(get_company_id),
 ):
     repos = _repos(session)
-    today = date.today()
+    today = date_value or date.today()
     yesterday = today - timedelta(days=1)
     tomorrow = today + timedelta(days=1)
 
@@ -307,6 +308,7 @@ async def get_today(
             guest_name=guest.name if guest else "Unknown",
             property_name=prop.name if prop else "",
             property_internal_name=prop.internal_name if prop else "",
+            property_status=prop.status if prop else None,
             check_in=b.check_in,
             check_out=b.check_out,
             status=b.status,

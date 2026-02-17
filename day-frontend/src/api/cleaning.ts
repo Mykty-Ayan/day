@@ -1,9 +1,11 @@
 import apiClient from './client'
 import type {
   ChecklistItem,
+  ChecklistItemUpdateInput,
   ChecklistTemplate,
   ChecklistTemplateCreateInput,
   ChecklistTemplateDetail,
+  ChecklistTemplateUpdateInput,
   CleanerKPI,
   CleanerRating,
   CleaningReport,
@@ -104,6 +106,14 @@ export async function deleteChecklistTemplate(id: string): Promise<void> {
   await apiClient.delete(`/checklists/${id}`)
 }
 
+export async function updateChecklistTemplate(
+  id: string,
+  data: ChecklistTemplateUpdateInput,
+): Promise<ChecklistTemplate> {
+  const res = await apiClient.patch(`/checklists/${id}`, data)
+  return res.data
+}
+
 export async function addChecklistItem(
   templateId: string,
   title: string,
@@ -134,6 +144,15 @@ export async function deleteChecklistItem(
   itemId: string,
 ): Promise<void> {
   await apiClient.delete(`/checklists/${templateId}/items/${itemId}`)
+}
+
+export async function updateChecklistItem(
+  templateId: string,
+  itemId: string,
+  data: ChecklistItemUpdateInput,
+): Promise<ChecklistItem> {
+  const res = await apiClient.patch(`/checklists/${templateId}/items/${itemId}`, data)
+  return res.data
 }
 
 // ---------- Ratings ----------

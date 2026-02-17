@@ -78,6 +78,20 @@ class ManageChecklistsService:
         await self._item_repo.delete_by_template(template_id)
         await self._template_repo.delete(template_id)
 
+    async def update_template(
+        self,
+        template_id: uuid.UUID,
+        company_id: uuid.UUID,
+        name: str,
+    ) -> CleaningChecklistTemplate:
+        template = await self._template_repo.get_by_id(template_id)
+        if template is None:
+            raise ValueError("Checklist template not found")
+        if template.company_id != company_id:
+            raise ValueError("Template does not belong to company")
+        template.name = name
+        return await self._template_repo.update(template)
+
     async def add_item(
         self,
         template_id: uuid.UUID,
@@ -128,6 +142,26 @@ class ManageChecklistsService:
 
         await self._item_repo.reorder(template_id, item_ids)
         return await self._item_repo.list_by_template(template_id)
+
+    async def update_item(
+        self,
+        template_id: uuid.UUID,
+        item_id: uuid.UUID,
+        company_id: uuid.UUID,
+        title: str,
+    ) -> CleaningChecklistItem:
+        template = await self._template_repo.get_by_id(template_id)
+        if template is None:
+            raise ValueError("Checklist template not found")
+        if template.company_id != company_id:
+            raise ValueError("Template does not belong to company")
+
+        item = await self._item_repo.get_by_id(item_id)
+        if item is None or item.template_id != template_id:
+            raise ValueError("Checklist item not found")
+
+        item.title = title
+        return await self._item_repo.update(item)
 
     async def delete_item(
         self,
