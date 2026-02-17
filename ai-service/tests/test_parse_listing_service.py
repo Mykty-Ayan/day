@@ -139,3 +139,36 @@ class TestParseListingService:
 
         assert result.confidence == 0.0
         assert result.raw_data == {}
+
+    @pytest.mark.asyncio
+    async def test_coordinates_fallback_from_map_block(self):
+        parser = FakeParser(
+            content=(
+                "listing content\n\n"
+                "[KRISHA_META]\n"
+                "complex_name: Meridian Apartments\n"
+                "microdistrict: mkr Akkent\n"
+                "street: Nauryzbay batyra\n"
+                "house_number: 28\n"
+                "floor: 12\n\n"
+                "[MAP_COORDINATES]\n"
+                "latitude: 43.261494803805\n"
+                "longitude: 76.899913108869\n"
+            ),
+            source_type=SourceType.KRISHA,
+        )
+        service = ParseListingService(
+            parser_factory=lambda st: parser,
+            extractor=FakeExtractor(result={"name": "Test"}),
+            mapper=FakeMapper(confidence=0.5),
+        )
+
+        result = await service.execute(ParseListingInput(url="https://krisha.kz/a/show/1000485079"))
+
+        assert result.raw_data["latitude"] == 43.261494803805
+        assert result.raw_data["longitude"] == 76.899913108869
+        assert result.raw_data["complex_name"] == "Meridian Apartments"
+        assert result.raw_data["microdistrict"] == "mkr Akkent"
+        assert result.raw_data["street"] == "Nauryzbay batyra"
+        assert result.raw_data["house_number"] == "28"
+        assert result.raw_data["floor"] == 12

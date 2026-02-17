@@ -275,6 +275,90 @@ class TestAirbnbParserHTTP:
 
 
 class TestKrishaParserHTTP:
+    def test_extracts_complex_name(self):
+        html = (
+            '<div class="offer__info-item" data-name="map.complex">'
+            '<div class="offer__advert-short-info">'
+            '<a href="/complex/show/almaty/meridian/">Meridian Apartments</a>'
+            "</div>"
+            "</div>"
+        )
+        complex_name = KrishaParser._extract_complex_name(html)
+        assert complex_name == "Meridian Apartments"
+
+    def test_extracts_complex_name_from_description_fallback(self):
+        html = '<script>window.data={"advert":{"description":"жил. комплекс City Plus, 10 этажей"}};</script>'
+        complex_name = KrishaParser._extract_complex_name(html)
+        assert complex_name == "City Plus"
+
+    def test_extracts_floor(self):
+        html = (
+            '<div class="offer__info-item" data-name="flat.floor">'
+            '<div class="offer__advert-short-info">12 из 12</div>'
+            "</div>"
+        )
+        floor = KrishaParser._extract_floor(html)
+        assert floor == 12
+
+    def test_extracts_microdistrict(self):
+        html = '<script>window.data={"advert":{"address":{"microdistrict":"mkr_Akkent"}}};</script>'
+        microdistrict = KrishaParser._extract_microdistrict(html)
+        assert microdistrict == "mkr Akkent"
+
+    def test_extracts_street_and_house_number(self):
+        html = '<script>window.data={"advert":{"address":{"street":"Nauryzbay_batyra","house_num":"28"}}};</script>'
+        street = KrishaParser._extract_street(html)
+        house_number = KrishaParser._extract_house_number(html)
+        assert street == "Nauryzbay batyra"
+        assert house_number == "28"
+
+    def test_extracts_coordinates_from_map_json(self):
+        html = '<script>window.data = {"advert":{"map":{"lat":43.261494803805,"lon":76.899913108869}}};</script>'
+        coords = KrishaParser._extract_coordinates(html)
+        assert coords == (43.261494803805, 76.899913108869)
+
+    def test_extracts_coordinates_from_map_json_reversed_order(self):
+        html = (
+            '<script>window.data = {"advert":{"map":{"lon":76.899913108869,'
+            '"zoom":14,"lat":43.261494803805}}};</script>'
+        )
+        coords = KrishaParser._extract_coordinates(html)
+        assert coords == (43.261494803805, 76.899913108869)
+
+    def test_extracts_coordinates_from_lat_lng_fallback(self):
+        html = '<script>window.digitalData={"product":{"latLng":"43.2611,76.8945"}};</script>'
+        coords = KrishaParser._extract_coordinates(html)
+        assert coords == (43.2611, 76.8945)
+
+    @pytest.mark.asyncio
+    async def test_includes_coordinates_block_in_content(self):
+        html = (
+            "<html><body>"
+            "<h1>1-комнатная квартира</h1>"
+            '<script>window.data = {"advert":{"map":{"lat":43.261494803805,"lon":76.899913108869},'
+            '"address":{"street":"Nauryzbay_batyra","house_num":"28"},'
+            '"description":"жил. комплекс City Plus, 10 этажей"}};</script>'
+            '<div class="offer__info-item" data-name="flat.floor">'
+            '<div class="offer__advert-short-info">1 из 5</div>'
+            "</div>"
+            "</body></html>"
+        )
+        mock_response = _mock_httpx_response(html)
+        patcher, _ = _patch_httpx_client(mock_response)
+
+        with patcher:
+            parser = KrishaParser()
+            result = await parser.fetch_content("https://krisha.kz/a/show/12345")
+
+        assert "[MAP_COORDINATES]" in result
+        assert "latitude: 43.261494803805" in result
+        assert "longitude: 76.899913108869" in result
+        assert "[KRISHA_META]" in result
+        assert "complex_name: City Plus" in result
+        assert "street: Nauryzbay batyra" in result
+        assert "house_number: 28" in result
+        assert "floor: 1" in result
+
     @pytest.mark.asyncio
     async def test_returns_cleaned_content(self):
         html = (

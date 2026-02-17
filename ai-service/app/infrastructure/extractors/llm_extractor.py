@@ -17,6 +17,7 @@ extract structured data about the property.
 Return a JSON object with the following fields (use null for missing data):
 {
     "name": "Property title/name",
+    "internal_name": "Short descriptive internal label in Latin (e.g. Meridian 12 floor)",
     "type": "apartment | house | room",
     "description": "Property description",
     "latitude": 0.0,
@@ -38,6 +39,13 @@ Return a JSON object with the following fields (use null for missing data):
 Important:
 - Return ONLY the JSON object, no markdown or additional text.
 - Use null for any field you cannot determine from the listing.
+- If listing content contains a [MAP_COORDINATES] block, use those exact values for latitude/longitude.
+- For internal_name, generate a concise descriptive latin label (complex/street/floor if available).
+- For internal_name, prioritize residential complex name (if present) + floor.
+- If no residential complex is present, use microdistrict + floor for internal_name.
+- If both complex and microdistrict are missing, use street + house number + floor for internal_name.
+- For internal_name, transliterate non-latin text to latin.
+- For internal_name, avoid numeric-only values and generic placeholders.
 - For type, normalize to one of: apartment, house, room.
 - For amenities, return a list of strings.
 - For photos, return a list of image URLs found in the listing.

@@ -78,7 +78,7 @@ function FieldRow({
 }
 
 export default function PropertyPreviewForm({ data, onChange }: Props) {
-  const [editing, setEditing] = useState(false)
+  const [editing, setEditing] = useState(true)
 
   function handleFieldChange(field: string, value: string) {
     const numericFields = ['latitude', 'longitude', 'rooms', 'beds', 'area_total', 'area_living', 'floor', 'base_price']

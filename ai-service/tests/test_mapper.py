@@ -23,8 +23,7 @@ class TestSlugify:
 
     def test_unicode_characters(self):
         result = _slugify("Квартира в центре")
-        # Cyrillic should be stripped, leaving empty -> unnamed-property
-        assert result == "unnamed-property"
+        assert result == "kvartira-v-tsentre"
 
     def test_empty_string(self):
         assert _slugify("") == "unnamed-property"
@@ -238,6 +237,70 @@ class TestDefaultPropertyMapper:
         assert prop.rooms is None
         assert prop.beds is None
         assert prop.base_price is None
+
+    def test_map_lat_lon_aliases(self):
+        mapper = DefaultPropertyMapper()
+        raw = {"lat": 43.261494803805, "lon": 76.899913108869}
+        prop = mapper.map_to_property(raw, "https://example.com/test", SourceType.OTHER)
+        assert prop.latitude == 43.261494803805
+        assert prop.longitude == 76.899913108869
+
+    def test_map_prefers_llm_internal_name(self):
+        mapper = DefaultPropertyMapper()
+        raw = {
+            "name": "1-комнатная квартира, Райымбека",
+            "internal_name": "raimbek-1-room-apartment",
+        }
+        prop = mapper.map_to_property(raw, "https://krisha.kz/a/show/123", SourceType.KRISHA)
+
+        assert prop.internal_name == "raimbek-1-room-apartment"
+
+    def test_map_uses_complex_and_floor_when_available(self):
+        mapper = DefaultPropertyMapper()
+        raw = {
+            "name": "1-комнатная квартира, Сейфуллина 416",
+            "internal_name": "1-416",
+            "complex_name": "Meridian Apartments",
+            "floor": 12,
+        }
+        prop = mapper.map_to_property(raw, "https://krisha.kz/a/show/100088", SourceType.KRISHA)
+
+        assert prop.internal_name == "meridian-apartments-12-floor"
+
+    def test_map_uses_microdistrict_and_floor_when_complex_missing(self):
+        mapper = DefaultPropertyMapper()
+        raw = {
+            "name": "1-комнатная квартира, мкр Аккент",
+            "internal_name": "1-7",
+            "microdistrict": "mkr Akkent",
+            "floor": 7,
+        }
+        prop = mapper.map_to_property(raw, "https://krisha.kz/a/show/690068587", SourceType.KRISHA)
+
+        assert prop.internal_name == "mkr-akkent-7-floor"
+
+    def test_map_uses_street_house_and_floor_when_complex_and_microdistrict_missing(self):
+        mapper = DefaultPropertyMapper()
+        raw = {
+            "name": "1-комнатная квартира",
+            "internal_name": "1-5",
+            "street": "Наурызбай батыра",
+            "house_number": "28",
+            "floor": 1,
+        }
+        prop = mapper.map_to_property(raw, "https://krisha.kz/a/show/2303047", SourceType.KRISHA)
+
+        assert prop.internal_name == "nauryzbai-batyra-28-1-floor"
+
+    def test_map_avoids_weak_internal_name_and_falls_back(self):
+        mapper = DefaultPropertyMapper()
+        raw = {
+            "name": "1-комнатная квартира, Райымбека",
+            "internal_name": "1",
+        }
+        prop = mapper.map_to_property(raw, "https://krisha.kz/a/show/123", SourceType.KRISHA)
+
+        assert prop.internal_name == "1-komnatnaya-kvartira-raiymbeka"
 
 
 class TestConfidenceCalculation:
