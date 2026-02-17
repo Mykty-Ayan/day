@@ -27,12 +27,13 @@ class StartImportService:
         self._ai_client = ai_client
 
     async def execute(self, inp: StartImportInput) -> ImportJob:
-        source_type = ImportSource.detect_from_url(inp.source_url)
+        normalized_url = ImportSource.normalize_url(inp.source_url)
+        source_type = ImportSource.detect_from_url(normalized_url)
 
         job = ImportJob(
             id=uuid.uuid4(),
             company_id=inp.company_id,
-            source_url=inp.source_url,
+            source_url=normalized_url,
             user_prompt=inp.user_prompt,
             status=ImportJobStatus.PENDING,
             source_type=source_type,
@@ -46,7 +47,7 @@ class StartImportService:
             job = await self._import_job_repo.update(job)
 
             result = await self._ai_client.parse_listing(
-                url=inp.source_url,
+                url=normalized_url,
                 user_prompt=inp.user_prompt,
             )
 

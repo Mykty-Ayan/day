@@ -1,6 +1,7 @@
 """Unit tests for AI migration application services."""
 
 import uuid
+from decimal import Decimal
 
 import pytest
 
@@ -147,6 +148,24 @@ class FakeAIServiceClient:
         return self._result
 
 
+class FakePricingService:
+    def __init__(self) -> None:
+        self.calls: list[tuple[uuid.UUID, uuid.UUID, Decimal]] = []
+
+    async def upsert_pricing(self, property_id, company_id, inp):
+        self.calls.append((property_id, company_id, inp.base_price))
+        return None
+
+
+class FakePhotosService:
+    def __init__(self) -> None:
+        self.calls: list[tuple[uuid.UUID, uuid.UUID, str, int, bool]] = []
+
+    async def add_photo(self, property_id, company_id, url, *, sort_order=0, is_cover=False):
+        self.calls.append((property_id, company_id, url, sort_order, is_cover))
+        return None
+
+
 # ---------- Constants ----------
 
 
@@ -210,6 +229,23 @@ class TestStartImportService:
         assert ai_client.call_count == 1
         assert ai_client.last_url == "https://booking.com/hotel/test"
         assert ai_client.last_prompt == "2br apt"
+
+    @pytest.mark.asyncio
+    async def test_normalizes_krisha_legacy_show_url_before_save_and_parse(self):
+        repo = FakeImportJobRepository()
+        ai_client = FakeAIServiceClient()
+        svc = StartImportService(repo, ai_client)
+
+        result = await svc.execute(
+            StartImportInput(
+                company_id=COMPANY_ID,
+                source_url="https://krisha.kz/show/690725054",
+            )
+        )
+
+        assert result.source_url == "https://krisha.kz/a/show/690725054"
+        assert ai_client.last_url == "https://krisha.kz/a/show/690725054"
+        assert result.source_type == ImportSource.KRISHA
 
     @pytest.mark.asyncio
     async def test_updates_job_on_success_with_extracted_data(self):
@@ -500,6 +536,54 @@ class TestConfirmImportService:
         assert result.beds == 4
         assert result.address_full == "123 Beach Road"
         assert result.company_id == COMPANY_ID
+
+    @pytest.mark.asyncio
+    async def test_persists_base_price_and_photos_when_present(self):
+        import_repo = FakeImportJobRepository()
+        property_repo = FakePropertyRepository()
+        audit_repo = FakePropertyAuditLogRepository()
+        create_property_svc = CreatePropertyService(property_repo, audit_repo)
+        pricing_svc = FakePricingService()
+        photos_svc = FakePhotosService()
+        svc = ConfirmImportService(import_repo, create_property_svc, pricing_svc, photos_svc)
+
+        job = ImportJob(
+            company_id=COMPANY_ID,
+            source_url="https://krisha.kz/a/show/690725054",
+            status=ImportJobStatus.COMPLETED,
+        )
+        await import_repo.save(job)
+
+        result = await svc.execute(
+            ConfirmImportInput(
+                job_id=job.id,
+                company_id=COMPANY_ID,
+                property_data={
+                    "name": "Gauhartas",
+                    "internal_name": "gauhartas-13-floor",
+                    "type": "apartment",
+                    "base_price": 12000,
+                    "photos": [
+                        "https://krisha-photos.kcdn.online/webp/a/1-full.jpg",
+                        "https://krisha-photos.kcdn.online/webp/a/2-full.jpg",
+                        "https://krisha-photos.kcdn.online/webp/a/1-full.jpg",
+                    ],
+                },
+            )
+        )
+
+        assert result.name == "Gauhartas"
+        assert len(pricing_svc.calls) == 1
+        assert pricing_svc.calls[0][0] == result.id
+        assert pricing_svc.calls[0][1] == COMPANY_ID
+        assert pricing_svc.calls[0][2] == Decimal("12000")
+        assert len(photos_svc.calls) == 2
+        assert photos_svc.calls[0][2] == "https://krisha-photos.kcdn.online/webp/a/1-full.jpg"
+        assert photos_svc.calls[0][3] == 0
+        assert photos_svc.calls[0][4] is True
+        assert photos_svc.calls[1][2] == "https://krisha-photos.kcdn.online/webp/a/2-full.jpg"
+        assert photos_svc.calls[1][3] == 1
+        assert photos_svc.calls[1][4] is False
 
     @pytest.mark.asyncio
     async def test_updates_job_status(self):

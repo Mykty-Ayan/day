@@ -7,6 +7,18 @@ from app.domain.value_objects import SourceType
 
 
 class TestSourceType:
+    def test_normalize_krisha_show_url(self):
+        url = "https://krisha.kz/show/690725054"
+        assert SourceType.normalize_url(url) == "https://krisha.kz/a/show/690725054"
+
+    def test_normalize_krisha_show_url_without_scheme(self):
+        url = "krisha.kz/show/690725054"
+        assert SourceType.normalize_url(url) == "https://krisha.kz/a/show/690725054"
+
+    def test_normalize_krisha_show_url_preserves_query(self):
+        url = "https://www.krisha.kz/show/690725054?srchid=abc"
+        assert SourceType.normalize_url(url) == "https://krisha.kz/a/show/690725054?srchid=abc"
+
     def test_detect_booking_url(self):
         url = "https://www.booking.com/hotel/kz/cozy-apartment.html"
         assert SourceType.detect_from_url(url) == SourceType.BOOKING
@@ -25,6 +37,10 @@ class TestSourceType:
 
     def test_detect_krisha_url(self):
         url = "https://krisha.kz/a/show/12345"
+        assert SourceType.detect_from_url(url) == SourceType.KRISHA
+
+    def test_detect_krisha_legacy_show_url(self):
+        url = "https://krisha.kz/show/12345"
         assert SourceType.detect_from_url(url) == SourceType.KRISHA
 
     def test_detect_unknown_url(self):

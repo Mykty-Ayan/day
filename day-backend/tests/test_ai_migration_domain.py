@@ -37,6 +37,16 @@ class TestImportJobStatus:
 
 
 class TestImportSource:
+    def test_normalize_krisha_legacy_show_url(self):
+        assert ImportSource.normalize_url("https://krisha.kz/show/2303047") == "https://krisha.kz/a/show/2303047"
+
+    def test_normalize_krisha_legacy_show_url_without_scheme(self):
+        assert ImportSource.normalize_url("krisha.kz/show/2303047") == "https://krisha.kz/a/show/2303047"
+
+    def test_normalize_krisha_preserves_query(self):
+        url = "https://www.krisha.kz/show/2303047?srchid=abc"
+        assert ImportSource.normalize_url(url) == "https://krisha.kz/a/show/2303047?srchid=abc"
+
     def test_detect_booking_url(self):
         assert ImportSource.detect_from_url("https://www.booking.com/hotel/kz/test.html") == ImportSource.BOOKING
 
@@ -45,6 +55,9 @@ class TestImportSource:
 
     def test_detect_krisha_url(self):
         assert ImportSource.detect_from_url("https://krisha.kz/a/show/12345") == ImportSource.KRISHA
+
+    def test_detect_krisha_legacy_show_url(self):
+        assert ImportSource.detect_from_url("https://krisha.kz/show/12345") == ImportSource.KRISHA
 
     def test_detect_unknown_url(self):
         assert ImportSource.detect_from_url("https://example.com/listing") == ImportSource.OTHER

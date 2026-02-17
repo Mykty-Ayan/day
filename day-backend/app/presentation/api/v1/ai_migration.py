@@ -3,8 +3,12 @@
 from __future__ import annotations
 
 import uuid
+from pathlib import Path
+from urllib.parse import urlsplit
 
+import httpx
 from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.application.ai_migration.confirm_import import ConfirmImportInput, ConfirmImportService
@@ -12,11 +16,20 @@ from app.application.ai_migration.get_import import GetImportInput, GetImportSer
 from app.application.ai_migration.list_imports import ListImportsInput, ListImportsService
 from app.application.ai_migration.start_import import StartImportInput, StartImportService
 from app.application.property.create_property import CreatePropertyService
+from app.application.property.manage_photos import ManagePhotosService
+from app.application.property.manage_pricing import ManagePricingService
 from app.config import settings
 from app.infrastructure.ai_service_client import AIServiceClient
 from app.infrastructure.database import get_session
 from app.infrastructure.repositories.ai_migration import SqlImportJobRepository
-from app.infrastructure.repositories.property import SqlPropertyAuditLogRepository, SqlPropertyRepository
+from app.infrastructure.repositories.property import (
+    SqlDiscountRuleRepository,
+    SqlPricingConfigRepository,
+    SqlPropertyAuditLogRepository,
+    SqlPropertyPhotoRepository,
+    SqlPropertyRepository,
+    SqlSeasonalPriceRepository,
+)
 from app.presentation.api.deps import get_company_id, get_user_id
 from app.presentation.schemas.ai_migration import (
     ImportBatchRequest,
@@ -29,6 +42,7 @@ from app.presentation.schemas.ai_migration import (
 from app.presentation.schemas.property import PropertyResponse
 
 ai_migration_router = APIRouter(prefix="/ai", tags=["ai-migration"])
+_ALLOWED_PHOTO_HOSTS = {"krisha-photos.kcdn.online"}
 
 
 # ---------- helpers ----------
@@ -38,12 +52,41 @@ def _repos(session: AsyncSession):
     return {
         "import_job": SqlImportJobRepository(session),
         "property": SqlPropertyRepository(session),
+        "photo": SqlPropertyPhotoRepository(session),
+        "pricing": SqlPricingConfigRepository(session),
+        "seasonal": SqlSeasonalPriceRepository(session),
+        "discount": SqlDiscountRuleRepository(session),
         "audit": SqlPropertyAuditLogRepository(session),
     }
 
 
 def _ai_client() -> AIServiceClient:
     return AIServiceClient(base_url=settings.AI_SERVICE_URL)
+
+
+def _normalize_external_photo_url(url: str) -> str:
+    candidate = url.strip()
+    if not candidate:
+        raise ValueError("Photo URL is empty")
+
+    parsed = urlsplit(candidate)
+    if parsed.scheme not in {"http", "https"}:
+        raise ValueError("Only http/https photo URLs are allowed")
+
+    host = parsed.netloc.lower()
+    if (
+        host not in _ALLOWED_PHOTO_HOSTS
+        and not (host.startswith("photos-") and host.endswith(".krisha.kz"))
+    ):
+        raise ValueError("Photo host is not allowed")
+
+    return candidate
+
+
+def _filename_from_url(url: str) -> str:
+    parsed = urlsplit(url)
+    name = Path(parsed.path).name
+    return name if name else "photo.jpg"
 
 
 def _to_job_response(job) -> ImportJobResponse:
@@ -166,7 +209,9 @@ async def confirm_import(
 ):
     repos = _repos(session)
     create_property_svc = CreatePropertyService(repos["property"], repos["audit"])
-    svc = ConfirmImportService(repos["import_job"], create_property_svc)
+    pricing_svc = ManagePricingService(repos["property"], repos["pricing"], repos["seasonal"], repos["discount"])
+    photos_svc = ManagePhotosService(repos["property"], repos["photo"])
+    svc = ConfirmImportService(repos["import_job"], create_property_svc, pricing_svc, photos_svc)
     try:
         result = await svc.execute(
             ConfirmImportInput(
@@ -215,4 +260,36 @@ async def batch_import(
     return ImportBatchResponse(
         jobs=[_to_job_response(j) for j in jobs],
         total_submitted=len(jobs),
+    )
+
+
+@ai_migration_router.get("/photo/download")
+async def download_external_photo(
+    url: str = Query(..., min_length=1, max_length=2048),
+):
+    try:
+        normalized_url = _normalize_external_photo_url(url)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+
+    timeout = httpx.Timeout(20.0)
+    try:
+        async with httpx.AsyncClient(timeout=timeout, follow_redirects=True) as client:
+            upstream = await client.get(normalized_url)
+            upstream.raise_for_status()
+    except httpx.HTTPError as e:
+        raise HTTPException(status_code=422, detail=f"Failed to download photo: {e}") from e
+
+    content_type = upstream.headers.get("content-type", "application/octet-stream").split(";")[0].strip()
+    if not content_type.startswith("image/"):
+        raise HTTPException(status_code=422, detail="URL does not point to an image")
+
+    filename = _filename_from_url(normalized_url)
+    return Response(
+        content=upstream.content,
+        media_type=content_type,
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
+            "Cache-Control": "private, max-age=60",
+        },
     )

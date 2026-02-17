@@ -2,8 +2,11 @@ from __future__ import annotations
 
 import uuid
 from dataclasses import dataclass
+from decimal import Decimal, InvalidOperation
 
 from app.application.property.create_property import CreatePropertyInput, CreatePropertyService
+from app.application.property.manage_photos import ManagePhotosService
+from app.application.property.manage_pricing import ManagePricingService, PricingConfigInput
 from app.domain.ai_migration.repositories import ImportJobRepository
 from app.domain.ai_migration.value_objects import ImportJobStatus
 from app.domain.property.entities import Property
@@ -23,9 +26,40 @@ class ConfirmImportService:
         self,
         import_job_repo: ImportJobRepository,
         create_property_svc: CreatePropertyService,
+        pricing_svc: ManagePricingService | None = None,
+        photos_svc: ManagePhotosService | None = None,
     ) -> None:
         self._import_job_repo = import_job_repo
         self._create_property_svc = create_property_svc
+        self._pricing_svc = pricing_svc
+        self._photos_svc = photos_svc
+
+    @staticmethod
+    def _safe_decimal(value: object) -> Decimal | None:
+        if value is None:
+            return None
+        try:
+            return Decimal(str(value))
+        except (InvalidOperation, ValueError, TypeError):
+            return None
+
+    @staticmethod
+    def _extract_photo_urls(value: object) -> list[str]:
+        if not isinstance(value, list):
+            return []
+        seen: set[str] = set()
+        urls: list[str] = []
+        for item in value:
+            if not isinstance(item, str):
+                continue
+            url = item.strip()
+            if not url.startswith(("http://", "https://")):
+                continue
+            if url in seen:
+                continue
+            seen.add(url)
+            urls.append(url)
+        return urls
 
     async def execute(self, inp: ConfirmImportInput) -> Property:
         job = await self._import_job_repo.get_by_id(inp.job_id)
@@ -60,4 +94,27 @@ class ConfirmImportService:
             changed_by=inp.changed_by,
         )
 
-        return await self._create_property_svc.execute(prop_input)
+        created = await self._create_property_svc.execute(prop_input)
+
+        # Persist extracted nightly base price into pricing config if provided.
+        if self._pricing_svc is not None:
+            base_price = self._safe_decimal(data.get("base_price"))
+            if base_price is not None and base_price >= 0:
+                await self._pricing_svc.upsert_pricing(
+                    created.id,
+                    inp.company_id,
+                    PricingConfigInput(base_price=base_price),
+                )
+
+        # Persist extracted photos as property photos.
+        if self._photos_svc is not None:
+            for idx, url in enumerate(self._extract_photo_urls(data.get("photos"))[:40]):
+                await self._photos_svc.add_photo(
+                    created.id,
+                    inp.company_id,
+                    url,
+                    sort_order=idx,
+                    is_cover=(idx == 0),
+                )
+
+        return created

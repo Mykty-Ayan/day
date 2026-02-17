@@ -5,11 +5,38 @@ from __future__ import annotations
 import pytest
 
 from app.application.parse_listing import ParseListingInput, ParseListingService
+from app.domain.services import ContentParser
 from app.domain.value_objects import SourceType
 from tests.conftest import FailingExtractor, FailingParser, FakeExtractor, FakeMapper, FakeParser
 
 
 class TestParseListingService:
+    @pytest.mark.asyncio
+    async def test_normalizes_krisha_legacy_url(self):
+        class RecordingParser(ContentParser):
+            def __init__(self) -> None:
+                self.last_url: str | None = None
+
+            async def fetch_content(self, url: str) -> str:
+                self.last_url = url
+                return "listing content"
+
+            def get_source_type(self) -> SourceType:
+                return SourceType.KRISHA
+
+        parser = RecordingParser()
+        service = ParseListingService(
+            parser_factory=lambda st: parser,
+            extractor=FakeExtractor(result={"name": "Test"}),
+            mapper=FakeMapper(confidence=0.5),
+        )
+
+        result = await service.execute(ParseListingInput(url="https://krisha.kz/show/690725054"))
+
+        assert parser.last_url == "https://krisha.kz/a/show/690725054"
+        assert result.source_url == "https://krisha.kz/a/show/690725054"
+        assert result.property_data.source_url == "https://krisha.kz/a/show/690725054"
+
     @pytest.mark.asyncio
     async def test_successful_parse(self):
         raw = {"name": "Test Property", "type": "apartment"}

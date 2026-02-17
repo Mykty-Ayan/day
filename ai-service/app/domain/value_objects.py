@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import enum
+import re
+from urllib.parse import urlsplit, urlunsplit
 
 
 class SourceType(str, enum.Enum):
@@ -10,8 +12,34 @@ class SourceType(str, enum.Enum):
     OTHER = "other"
 
     @staticmethod
+    def normalize_url(url: str) -> str:
+        """Normalize known source URL variants to a canonical form."""
+        candidate = (url or "").strip()
+        if not candidate:
+            return candidate
+
+        # Accept scheme-less Krisha URLs like "krisha.kz/show/12345".
+        if candidate.lower().startswith(("krisha.kz/", "www.krisha.kz/")):
+            candidate = f"https://{candidate}"
+
+        parsed = urlsplit(candidate)
+        host = parsed.netloc.lower()
+        if host.startswith("www."):
+            host = host[4:]
+
+        if host != "krisha.kz":
+            return candidate
+
+        match = re.match(r"^/(?:a/)?show/(\d+)/?$", parsed.path)
+        if not match:
+            return candidate
+
+        listing_id = match.group(1)
+        return urlunsplit(("https", "krisha.kz", f"/a/show/{listing_id}", parsed.query, parsed.fragment))
+
+    @staticmethod
     def detect_from_url(url: str) -> SourceType:
-        url_lower = url.lower()
+        url_lower = SourceType.normalize_url(url).lower()
         if "booking.com" in url_lower:
             return SourceType.BOOKING
         if "airbnb" in url_lower:

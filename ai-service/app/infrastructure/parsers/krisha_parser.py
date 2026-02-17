@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import logging
 import re
 
@@ -44,6 +45,7 @@ class KrishaParser(BaseParser):
         r"жил\.?\s*комплекс\s+([^,.;\"\\<\n]+)",
         re.IGNORECASE,
     )
+    _WINDOW_DATA_MARKER = "window.data"
 
     def get_source_type(self) -> SourceType:
         return SourceType.KRISHA
@@ -148,6 +150,92 @@ class KrishaParser(BaseParser):
         if not match:
             return None
         return cls._normalize_meta_value(match.group(1))
+
+    @classmethod
+    def _extract_window_data(cls, html: str) -> dict | None:
+        """Extract and decode window.data JSON object from Krisha page."""
+        marker_idx = html.find(cls._WINDOW_DATA_MARKER)
+        if marker_idx == -1:
+            return None
+
+        start_idx = html.find("{", marker_idx)
+        if start_idx == -1:
+            return None
+
+        depth = 0
+        in_string = False
+        escape = False
+        end_idx: int | None = None
+
+        for idx in range(start_idx, len(html)):
+            ch = html[idx]
+            if in_string:
+                if escape:
+                    escape = False
+                elif ch == "\\":
+                    escape = True
+                elif ch == '"':
+                    in_string = False
+                continue
+
+            if ch == '"':
+                in_string = True
+            elif ch == "{":
+                depth += 1
+            elif ch == "}":
+                depth -= 1
+                if depth == 0:
+                    end_idx = idx + 1
+                    break
+
+        if end_idx is None:
+            return None
+
+        payload = html[start_idx:end_idx]
+        try:
+            decoded = json.loads(payload)
+        except json.JSONDecodeError:
+            return None
+
+        return decoded if isinstance(decoded, dict) else None
+
+    @staticmethod
+    def _dedupe(items: list[str]) -> list[str]:
+        seen: set[str] = set()
+        out: list[str] = []
+        for item in items:
+            if item in seen:
+                continue
+            seen.add(item)
+            out.append(item)
+        return out
+
+    def _extract_images(self, html: str) -> list[str]:
+        """
+        Extract listing photos from Krisha window.data advert payload.
+        Falls back to generic image extraction if structured photos are unavailable.
+        """
+        data = self._extract_window_data(html)
+        if data:
+            advert = data.get("advert")
+            if isinstance(advert, dict):
+                photos = advert.get("photos")
+                if isinstance(photos, list):
+                    urls: list[str] = []
+                    for photo in photos:
+                        if not isinstance(photo, dict):
+                            continue
+                        src = photo.get("src")
+                        if isinstance(src, str) and src.startswith("http"):
+                            urls.append(src)
+                    urls = self._dedupe(urls)
+                    if urls:
+                        return urls
+
+        # Fallback: keep only Krisha photo CDN links to avoid article banners.
+        fallback_urls = super()._extract_images(html)
+        fallback_urls = [u for u in fallback_urls if "krisha-photos." in u]
+        return self._dedupe(fallback_urls)
 
     async def fetch_content(self, url: str) -> str:
         logger.info("Fetching Krisha.kz listing: %s", url)

@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
-import { Pencil, Eye, X, ImageOff } from 'lucide-react'
+import { Pencil, Eye, X, ImageOff, ExternalLink, Download } from 'lucide-react'
 import type { MappedPropertyData } from '../../types/ai-import'
+import apiClient from '../../api/client'
 
 interface Props {
   data: MappedPropertyData
@@ -110,6 +111,38 @@ export default function PropertyPreviewForm({ data, onChange }: Props) {
     const next = [...data.photos]
     next.splice(index, 1)
     onChange({ ...data, photos: next })
+  }
+
+  function buildDownloadName(url: string, index: number): string {
+    try {
+      const pathname = new URL(url).pathname
+      const tail = pathname.split('/').filter(Boolean).pop()
+      if (tail && tail.includes('.')) return tail
+    } catch {
+      // Ignore URL parsing errors and use fallback name.
+    }
+    return `photo-${index + 1}.jpg`
+  }
+
+  async function handleDownloadPhoto(url: string, index: number) {
+    try {
+      const response = await apiClient.get('/ai/photo/download', {
+        params: { url },
+        responseType: 'blob',
+      })
+      const blob = response.data as Blob
+      const objectUrl = URL.createObjectURL(blob)
+
+      const link = document.createElement('a')
+      link.href = objectUrl
+      link.download = buildDownloadName(url, index)
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      URL.revokeObjectURL(objectUrl)
+    } catch {
+      window.open(url, '_blank', 'noopener,noreferrer')
+    }
   }
 
   return (
@@ -277,22 +310,51 @@ export default function PropertyPreviewForm({ data, onChange }: Props) {
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
             {data.photos.map((url, i) => (
               <div key={`${url}-${i}`} className="relative group aspect-[4/3] bg-gray-100 rounded-lg overflow-hidden">
-                <img
-                  src={url}
-                  alt={`Property photo ${i + 1}`}
-                  className="w-full h-full object-cover"
-                  onError={(e) => {
-                    const target = e.currentTarget
-                    target.style.display = 'none'
-                    const parent = target.parentElement
-                    if (parent && !parent.querySelector('.fallback-icon')) {
-                      const fallback = document.createElement('div')
-                      fallback.className = 'fallback-icon absolute inset-0 flex items-center justify-center'
-                      fallback.innerHTML = '<span class="text-xs text-gray-400">Failed to load</span>'
-                      parent.appendChild(fallback)
-                    }
-                  }}
-                />
+                <a
+                  href={url}
+                  target="_blank"
+                  rel="noreferrer"
+                  title="Open full size"
+                  className="block w-full h-full"
+                >
+                  <img
+                    src={url}
+                    alt={`Property photo ${i + 1}`}
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      const target = e.currentTarget
+                      target.style.display = 'none'
+                      const parent = target.parentElement
+                      if (parent && !parent.querySelector('.fallback-icon')) {
+                        const fallback = document.createElement('div')
+                        fallback.className = 'fallback-icon absolute inset-0 flex items-center justify-center'
+                        fallback.innerHTML = '<span class="text-xs text-gray-400">Failed to load</span>'
+                        parent.appendChild(fallback)
+                      }
+                    }}
+                  />
+                </a>
+                <div className="absolute bottom-1.5 left-1.5 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <a
+                    href={url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="bg-white/90 hover:bg-gray-50 border border-gray-200 rounded-lg p-1"
+                    aria-label={`Open photo ${i + 1}`}
+                    title="Open full size"
+                  >
+                    <ExternalLink className="w-3 h-3 text-gray-600" />
+                  </a>
+                  <button
+                    type="button"
+                    onClick={() => void handleDownloadPhoto(url, i)}
+                    className="bg-white/90 hover:bg-gray-50 border border-gray-200 rounded-lg p-1"
+                    aria-label={`Download photo ${i + 1}`}
+                    title="Download"
+                  >
+                    <Download className="w-3 h-3 text-gray-600" />
+                  </button>
+                </div>
                 {editing && (
                   <button
                     type="button"

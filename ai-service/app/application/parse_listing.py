@@ -106,14 +106,15 @@ class ParseListingService:
         return complex_name, microdistrict, floor, street, house_number
 
     async def execute(self, inp: ParseListingInput) -> ParseResult:
-        source_type = SourceType.detect_from_url(inp.url)
+        normalized_url = SourceType.normalize_url(inp.url)
+        source_type = SourceType.detect_from_url(normalized_url)
         parser = self._parser_factory(source_type)
 
         warnings: list[str] = []
 
         # Fetch content
         try:
-            content = await parser.fetch_content(inp.url)
+            content = await parser.fetch_content(normalized_url)
         except Exception as e:
             raise ValueError(f"Failed to fetch listing: {e}") from e
         if not content.strip():
@@ -155,11 +156,11 @@ class ParseListingService:
             raw_data["house_number"] = house_number
 
         # Map to property entity
-        property_data = self._mapper.map_to_property(raw_data, inp.url, source_type)
+        property_data = self._mapper.map_to_property(raw_data, normalized_url, source_type)
         confidence = self._mapper.calculate_confidence(property_data)
 
         return ParseResult(
-            source_url=inp.url,
+            source_url=normalized_url,
             source_type=source_type,
             raw_data=raw_data,
             property_data=property_data,

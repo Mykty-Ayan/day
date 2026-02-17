@@ -330,6 +330,21 @@ class TestKrishaParserHTTP:
         coords = KrishaParser._extract_coordinates(html)
         assert coords == (43.2611, 76.8945)
 
+    def test_extracts_images_from_window_data_photos_only(self):
+        html = (
+            '<script>window.data = {"advert":{"photos":['
+            '{"src":"https://krisha-photos.kcdn.online/webp/a/1-full.jpg"},'
+            '{"src":"https://krisha-photos.kcdn.online/webp/a/2-full.jpg"}'
+            ']}};</script>'
+            '<img src="https://example.com/banner.jpg" />'
+        )
+        parser = KrishaParser()
+        images = parser._extract_images(html)
+        assert images == [
+            "https://krisha-photos.kcdn.online/webp/a/1-full.jpg",
+            "https://krisha-photos.kcdn.online/webp/a/2-full.jpg",
+        ]
+
     @pytest.mark.asyncio
     async def test_includes_coordinates_block_in_content(self):
         html = (
@@ -337,10 +352,13 @@ class TestKrishaParserHTTP:
             "<h1>1-комнатная квартира</h1>"
             '<script>window.data = {"advert":{"map":{"lat":43.261494803805,"lon":76.899913108869},'
             '"address":{"street":"Nauryzbay_batyra","house_num":"28"},'
-            '"description":"жил. комплекс City Plus, 10 этажей"}};</script>'
+            '"description":"жил. комплекс City Plus, 10 этажей",'
+            '"photos":[{"src":"https://krisha-photos.kcdn.online/webp/a/1-full.jpg"}]'
+            "}};</script>"
             '<div class="offer__info-item" data-name="flat.floor">'
             '<div class="offer__advert-short-info">1 из 5</div>'
             "</div>"
+            '<img src="https://krisha.kz/static/images/article-banner.jpg" />'
             "</body></html>"
         )
         mock_response = _mock_httpx_response(html)
@@ -358,6 +376,8 @@ class TestKrishaParserHTTP:
         assert "street: Nauryzbay batyra" in result
         assert "house_number: 28" in result
         assert "floor: 1" in result
+        assert "https://krisha-photos.kcdn.online/webp/a/1-full.jpg" in result
+        assert "article-banner" not in result
 
     @pytest.mark.asyncio
     async def test_returns_cleaned_content(self):
