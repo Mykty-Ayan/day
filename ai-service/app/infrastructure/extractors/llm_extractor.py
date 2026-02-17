@@ -1,0 +1,155 @@
+from __future__ import annotations
+
+import json
+import logging
+
+import httpx
+
+from app.config import settings
+from app.domain.services import DataExtractor
+from app.domain.value_objects import SourceType
+
+logger = logging.getLogger(__name__)
+
+SYSTEM_PROMPT = """You are a property data extraction assistant. Given the text content of a property listing page,
+extract structured data about the property.
+
+Return a JSON object with the following fields (use null for missing data):
+{
+    "name": "Property title/name",
+    "type": "apartment | house | room",
+    "description": "Property description",
+    "latitude": 0.0,
+    "longitude": 0.0,
+    "address_full": "Full address string",
+    "rooms": 0,
+    "beds": 0,
+    "area_total": 0.0,
+    "area_living": 0.0,
+    "floor": 0,
+    "check_in_instructions": "Check-in details",
+    "check_out_instructions": "Check-out details",
+    "house_rules": "House rules",
+    "amenities": ["amenity1", "amenity2"],
+    "base_price": 0.0,
+    "photos": ["url1", "url2"]
+}
+
+Important:
+- Return ONLY the JSON object, no markdown or additional text.
+- Use null for any field you cannot determine from the listing.
+- For type, normalize to one of: apartment, house, room.
+- For amenities, return a list of strings.
+- For photos, return a list of image URLs found in the listing.
+- For base_price, extract the nightly/daily rate if available.
+"""
+
+SOURCE_HINTS: dict[SourceType, str] = {
+    SourceType.BOOKING: "This is a Booking.com listing. Look for property details in structured data sections.",
+    SourceType.AIRBNB: "This is an Airbnb listing. Look for property details in the listing description.",
+    SourceType.KRISHA: "This is a Krisha.kz listing (Kazakhstan real estate). Prices may be in KZT or USD.",
+    SourceType.OTHER: "This is a generic property listing.",
+}
+
+
+class LLMExtractor(DataExtractor):
+    """Extracts structured property data from text content using an LLM API."""
+
+    async def extract(self, content: str, source_type: SourceType, user_prompt: str | None = None) -> dict:
+        # Check for API key availability
+        if settings.LLM_PROVIDER == "openai" and not settings.OPENAI_API_KEY:
+            logger.warning("No OpenAI API key configured; returning empty extraction result")
+            return {}
+        if settings.LLM_PROVIDER == "anthropic" and not settings.ANTHROPIC_API_KEY:
+            logger.warning("No Anthropic API key configured; returning empty extraction result")
+            return {}
+
+        # Truncate content to fit within LLM context window
+        truncated_content = content[: settings.MAX_CONTENT_LENGTH]
+
+        # Build user message
+        source_hint = SOURCE_HINTS.get(source_type, "")
+        user_message = f"{source_hint}\n\nListing content:\n{truncated_content}"
+        if user_prompt:
+            user_message += f"\n\nAdditional instructions: {user_prompt}"
+
+        if settings.LLM_PROVIDER == "anthropic":
+            return await self._call_anthropic(user_message)
+        return await self._call_openai(user_message)
+
+    async def _call_openai(self, user_message: str) -> dict:
+        """Call OpenAI Chat Completions API."""
+        url = "https://api.openai.com/v1/chat/completions"
+        headers = {
+            "Authorization": f"Bearer {settings.OPENAI_API_KEY}",
+            "Content-Type": "application/json",
+        }
+        payload = {
+            "model": settings.LLM_MODEL,
+            "messages": [
+                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "user", "content": user_message},
+            ],
+            "temperature": 0.1,
+            "response_format": {"type": "json_object"},
+        }
+
+        timeout = httpx.Timeout(settings.REQUEST_TIMEOUT)
+        async with httpx.AsyncClient(timeout=timeout) as client:
+            response = await client.post(url, json=payload, headers=headers)
+            response.raise_for_status()
+            data = response.json()
+
+        content = data["choices"][0]["message"]["content"]
+        return self._parse_json_response(content)
+
+    async def _call_anthropic(self, user_message: str) -> dict:
+        """Call Anthropic Messages API."""
+        url = "https://api.anthropic.com/v1/messages"
+        headers = {
+            "x-api-key": settings.ANTHROPIC_API_KEY,
+            "anthropic-version": "2023-06-01",
+            "Content-Type": "application/json",
+        }
+        payload = {
+            "model": settings.LLM_MODEL,
+            "max_tokens": 4096,
+            "system": SYSTEM_PROMPT,
+            "messages": [
+                {"role": "user", "content": user_message},
+            ],
+            "temperature": 0.1,
+        }
+
+        timeout = httpx.Timeout(settings.REQUEST_TIMEOUT)
+        async with httpx.AsyncClient(timeout=timeout) as client:
+            response = await client.post(url, json=payload, headers=headers)
+            response.raise_for_status()
+            data = response.json()
+
+        content = data["content"][0]["text"]
+        return self._parse_json_response(content)
+
+    @staticmethod
+    def _parse_json_response(content: str) -> dict:
+        """Parse JSON from LLM response, handling potential markdown wrapping."""
+        content = content.strip()
+
+        # Strip markdown code fences if present
+        if content.startswith("```"):
+            lines = content.splitlines()
+            # Remove first line (```json or ```) and last line (```)
+            lines = [line for line in lines if not line.strip().startswith("```")]
+            content = "\n".join(lines).strip()
+
+        try:
+            result = json.loads(content)
+        except json.JSONDecodeError:
+            logger.warning("Failed to parse LLM response as JSON: %.200s", content)
+            return {}
+
+        if not isinstance(result, dict):
+            logger.warning("LLM response is not a dict: %s", type(result).__name__)
+            return {}
+
+        return result

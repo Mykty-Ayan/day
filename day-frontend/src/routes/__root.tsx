@@ -1,5 +1,5 @@
 import { createRootRoute, Outlet, Link, useRouterState } from '@tanstack/react-router'
-import { Building2, CalendarRange, CalendarDays, Clock, SprayCan, ClipboardList, BarChart3 } from 'lucide-react'
+import { Building2, CalendarRange, CalendarDays, Clock, SprayCan, ClipboardList, BarChart3, Sparkles } from 'lucide-react'
 import ToastContainer from '../components/ui/Toast'
 
 export const Route = createRootRoute({
@@ -14,6 +14,7 @@ const navItems = [
   { to: '/cleaning', label: 'Cleaning', icon: SprayCan },
   { to: '/cleaning/checklists', label: 'Checklists', icon: ClipboardList },
   { to: '/analytics', label: 'Analytics', icon: BarChart3 },
+  { to: '/ai-import', label: 'AI Import', icon: Sparkles },
 ] as const
 
 function RootLayout() {

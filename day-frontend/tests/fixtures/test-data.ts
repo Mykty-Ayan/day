@@ -250,4 +250,28 @@ export const DEPOSIT_ACTIONS: Record<string, DepositAction[]> = {
   partially_held: [],
 }
 
+// --- AI Import factories ---
+
+export interface TestImportInput {
+  source_url: string
+  user_prompt?: string
+}
+
+export function createTestImport(overrides: Partial<TestImportInput> = {}): TestImportInput {
+  return {
+    source_url: `https://www.booking.com/hotel/kz/test-property-${Date.now()}.html`,
+    user_prompt: 'This is a 2-bedroom apartment in Almaty city center',
+    ...overrides,
+  }
+}
+
+export function createTestBatchImport(count: number = 3): { urls: string[]; user_prompt?: string } {
+  return {
+    urls: Array.from({ length: count }, (_, i) =>
+      `https://www.booking.com/hotel/kz/test-property-${Date.now()}-${i}.html`,
+    ),
+    user_prompt: 'These are apartments in Almaty',
+  }
+}
+
 export const API_BASE = 'http://localhost:8000/api/v1'
