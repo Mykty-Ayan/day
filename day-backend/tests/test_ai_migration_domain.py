@@ -6,7 +6,6 @@ from datetime import datetime
 from app.domain.ai_migration.entities import ImportJob
 from app.domain.ai_migration.value_objects import ImportJobStatus, ImportSource
 
-
 # ---------- ImportJobStatus ----------
 
 

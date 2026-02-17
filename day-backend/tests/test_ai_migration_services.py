@@ -8,14 +8,13 @@ from app.application.ai_migration.confirm_import import ConfirmImportInput, Conf
 from app.application.ai_migration.get_import import GetImportInput, GetImportService
 from app.application.ai_migration.list_imports import ListImportsInput, ListImportsService
 from app.application.ai_migration.start_import import StartImportInput, StartImportService
-from app.application.property.create_property import CreatePropertyInput, CreatePropertyService
+from app.application.property.create_property import CreatePropertyService
 from app.domain.ai_migration.entities import ImportJob
 from app.domain.ai_migration.repositories import ImportJobRepository
 from app.domain.ai_migration.value_objects import ImportJobStatus, ImportSource
 from app.domain.property.entities import Property, PropertyAuditLog
 from app.domain.property.repositories import PropertyAuditLogRepository, PropertyRepository
 from app.domain.property.value_objects import PropertyStatus, PropertyType
-
 
 # ---------- Fake repositories ----------
 
