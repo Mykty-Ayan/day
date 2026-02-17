@@ -38,10 +38,14 @@ class ParseListingService:
             content = await parser.fetch_content(inp.url)
         except Exception as e:
             raise ValueError(f"Failed to fetch listing: {e}") from e
+        if not content.strip():
+            raise ValueError("Listing page returned empty content")
 
         # Extract data using LLM
         try:
             raw_data = await self._extractor.extract(content, source_type, inp.user_prompt)
+        except ValueError as e:
+            raise ValueError(f"Failed to extract listing data: {e}") from e
         except Exception as e:
             warnings.append(f"LLM extraction failed: {e}")
             raw_data = {}

@@ -58,11 +58,14 @@ class LLMExtractor(DataExtractor):
     async def extract(self, content: str, source_type: SourceType, user_prompt: str | None = None) -> dict:
         # Check for API key availability
         if settings.LLM_PROVIDER == "openai" and not settings.OPENAI_API_KEY:
-            logger.warning("No OpenAI API key configured; returning empty extraction result")
-            return {}
+            logger.warning("No OpenAI API key configured; extraction is unavailable")
+            raise ValueError("OpenAI API key is not configured in ai-service")
         if settings.LLM_PROVIDER == "anthropic" and not settings.ANTHROPIC_API_KEY:
-            logger.warning("No Anthropic API key configured; returning empty extraction result")
-            return {}
+            logger.warning("No Anthropic API key configured; extraction is unavailable")
+            raise ValueError("Anthropic API key is not configured in ai-service")
+        if settings.LLM_PROVIDER == "openrouter" and not settings.OPENROUTER_API_KEY:
+            logger.warning("No OpenRouter API key configured; extraction is unavailable")
+            raise ValueError("OpenRouter API key is not configured in ai-service")
 
         # Truncate content to fit within LLM context window
         truncated_content = content[: settings.MAX_CONTENT_LENGTH]
@@ -73,6 +76,8 @@ class LLMExtractor(DataExtractor):
         if user_prompt:
             user_message += f"\n\nAdditional instructions: {user_prompt}"
 
+        if settings.LLM_PROVIDER == "openrouter":
+            return await self._call_openrouter(user_message)
         if settings.LLM_PROVIDER == "anthropic":
             return await self._call_anthropic(user_message)
         return await self._call_openai(user_message)
@@ -100,7 +105,7 @@ class LLMExtractor(DataExtractor):
             response.raise_for_status()
             data = response.json()
 
-        content = data["choices"][0]["message"]["content"]
+        content = self._extract_message_content(data)
         return self._parse_json_response(content)
 
     async def _call_anthropic(self, user_message: str) -> dict:
@@ -129,6 +134,63 @@ class LLMExtractor(DataExtractor):
 
         content = data["content"][0]["text"]
         return self._parse_json_response(content)
+
+    async def _call_openrouter(self, user_message: str) -> dict:
+        """Call OpenRouter Chat Completions API."""
+        url = f"{settings.OPENROUTER_BASE_URL.rstrip('/')}/chat/completions"
+        headers = {
+            "Authorization": f"Bearer {settings.OPENROUTER_API_KEY}",
+            "Content-Type": "application/json",
+            "X-Title": settings.OPENROUTER_APP_NAME,
+        }
+        if settings.OPENROUTER_HTTP_REFERER:
+            headers["HTTP-Referer"] = settings.OPENROUTER_HTTP_REFERER
+
+        payload = {
+            "model": settings.LLM_MODEL,
+            "messages": [
+                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "user", "content": user_message},
+            ],
+            "temperature": 0.1,
+            "response_format": {"type": "json_object"},
+        }
+
+        timeout = httpx.Timeout(settings.REQUEST_TIMEOUT)
+        async with httpx.AsyncClient(timeout=timeout) as client:
+            response = await client.post(url, json=payload, headers=headers)
+            response.raise_for_status()
+            data = response.json()
+
+        content = self._extract_message_content(data)
+        return self._parse_json_response(content)
+
+    @staticmethod
+    def _extract_message_content(response_data: dict) -> str:
+        choices = response_data.get("choices")
+        if not isinstance(choices, list) or not choices:
+            raise ValueError("LLM response has no choices")
+
+        message = choices[0].get("message")
+        if not isinstance(message, dict):
+            raise ValueError("LLM response missing message object")
+
+        content = message.get("content")
+        if isinstance(content, str):
+            return content
+
+        # Some providers return message.content as list parts
+        if isinstance(content, list):
+            text_parts: list[str] = []
+            for part in content:
+                if isinstance(part, dict) and part.get("type") in {"text", "output_text"}:
+                    text = part.get("text")
+                    if isinstance(text, str):
+                        text_parts.append(text)
+            if text_parts:
+                return "\n".join(text_parts)
+
+        raise ValueError("LLM response content is empty or unsupported")
 
     @staticmethod
     def _parse_json_response(content: str) -> dict:

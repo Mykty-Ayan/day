@@ -11,5 +11,20 @@ class AIServiceClient:
                 f"{self._base_url}/api/v1/parse",
                 json={"url": url, "user_prompt": user_prompt},
             )
-            response.raise_for_status()
+            try:
+                response.raise_for_status()
+            except httpx.HTTPStatusError as exc:
+                detail = None
+                try:
+                    payload = response.json()
+                    if isinstance(payload, dict):
+                        detail_val = payload.get("detail")
+                        if isinstance(detail_val, str) and detail_val.strip():
+                            detail = detail_val
+                except Exception:
+                    detail = None
+
+                if detail:
+                    raise RuntimeError(detail) from exc
+                raise
             return response.json()

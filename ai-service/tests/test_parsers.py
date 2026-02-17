@@ -190,6 +190,27 @@ class TestBookingParserHTTP:
         assert "https://example.com/photo.jpg" in result
 
     @pytest.mark.asyncio
+    async def test_handles_booking_challenge_page(self):
+        html = """
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <script src="https://www.booking.com/__challenge_x/challenge.js"></script>
+          </head>
+          <body>
+            <div id="challenge-container"></div>
+          </body>
+        </html>
+        """
+        mock_response = _mock_httpx_response(html)
+        patcher, _ = _patch_httpx_client(mock_response)
+
+        with patcher:
+            parser = BookingParser()
+            with pytest.raises(ValueError, match="anti-bot challenge"):
+                await parser.fetch_content("https://www.booking.com/hotel/test")
+
+    @pytest.mark.asyncio
     async def test_handles_timeout(self):
         mock_client = AsyncMock()
         mock_client.get = AsyncMock(side_effect=httpx.TimeoutException("Connection timed out"))

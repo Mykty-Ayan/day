@@ -7,17 +7,20 @@ import type {
 } from '../types/ai-import'
 
 export async function startImport(data: ImportStartInput): Promise<ImportJob> {
-  const res = await apiClient.post('/ai-import', data)
+  const res = await apiClient.post('/ai/import', data)
   return res.data
 }
 
 export async function listImportJobs(): Promise<ImportJob[]> {
-  const res = await apiClient.get('/ai-import')
-  return res.data
+  const res = await apiClient.get('/ai/import')
+  if (Array.isArray(res.data)) {
+    return res.data
+  }
+  return res.data.items ?? []
 }
 
 export async function getImportJob(id: string): Promise<ImportJob> {
-  const res = await apiClient.get(`/ai-import/${id}`)
+  const res = await apiClient.get(`/ai/import/${id}`)
   return res.data
 }
 
@@ -25,15 +28,18 @@ export async function confirmImport(
   id: string,
   data: ImportConfirmInput,
 ): Promise<ImportJob> {
-  const res = await apiClient.post(`/ai-import/${id}/confirm`, data)
+  const res = await apiClient.post(`/ai/import/${id}/confirm`, data)
   return res.data
 }
 
 export async function deleteImportJob(id: string): Promise<void> {
-  await apiClient.delete(`/ai-import/${id}`)
+  await apiClient.delete(`/ai/import/${id}`)
 }
 
 export async function startBatchImport(data: BatchImportInput): Promise<ImportJob[]> {
-  const res = await apiClient.post('/ai-import/batch', data)
-  return res.data
+  const res = await apiClient.post('/ai/import/batch', data)
+  if (Array.isArray(res.data)) {
+    return res.data
+  }
+  return res.data.jobs ?? []
 }

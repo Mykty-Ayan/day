@@ -95,6 +95,21 @@ class TestParseListingService:
         assert result.raw_data == {}
 
     @pytest.mark.asyncio
+    async def test_extractor_value_error_is_propagated(self):
+        class MissingCredentialsExtractor:
+            async def extract(self, content: str, source_type: SourceType, user_prompt: str | None = None) -> dict:
+                raise ValueError("OpenAI API key is not configured in ai-service")
+
+        service = ParseListingService(
+            parser_factory=lambda st: FakeParser(),
+            extractor=MissingCredentialsExtractor(),  # type: ignore[arg-type]
+            mapper=FakeMapper(),
+        )
+
+        with pytest.raises(ValueError, match="Failed to extract listing data"):
+            await service.execute(ParseListingInput(url="https://example.com/property/123"))
+
+    @pytest.mark.asyncio
     async def test_user_prompt_passed_through(self):
         """Verify that user_prompt is accepted and doesn't break flow."""
         service = ParseListingService(
