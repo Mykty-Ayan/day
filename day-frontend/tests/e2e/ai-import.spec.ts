@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-import { API_BASE, createTestImport, createTestBatchImport } from '../fixtures/test-data'
+import { API_BASE, createTestImport } from '../fixtures/test-data'
 
 test.describe('AI Import - E2E', () => {
   let importJobIdsToCleanup: string[] = []
@@ -113,7 +113,7 @@ test.describe('AI Import - E2E', () => {
     }
   })
 
-  test('submit import form with URL', async ({ page, request }) => {
+  test('submit import form with URL', async ({ page }) => {
     await page.goto('/ai-import')
     await page.waitForLoadState('networkidle')
 
@@ -413,13 +413,10 @@ test.describe('AI Import - E2E', () => {
     await page.goto('/ai-import')
 
     // Check for skeleton/loading indicators during initial load
-    const hasSkeleton = await page.locator('.animate-pulse')
-      .first()
-      .isVisible({ timeout: 2000 })
-      .catch(() => false)
-    const hasLoader = await page.getByText(/loading/i)
-      .isVisible({ timeout: 1000 })
-      .catch(() => false)
+    await Promise.race([
+      page.locator('.animate-pulse').first().isVisible({ timeout: 2000 }),
+      page.getByText(/loading/i).isVisible({ timeout: 1000 }),
+    ]).catch(() => false)
 
     // At least one loading indicator should appear briefly (or page loads instantly)
     // This test verifies the loading state exists, so just ensure page loads
