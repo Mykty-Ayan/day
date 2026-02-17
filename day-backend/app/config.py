@@ -26,6 +26,8 @@ class Settings(BaseSettings):
 
     CORS_ORIGINS: list[str] = ["http://localhost:5173"]
 
+    AI_SERVICE_URL: str = "http://localhost:8001"
+
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
 
 

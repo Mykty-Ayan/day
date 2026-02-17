@@ -14,6 +14,7 @@ import { Route as PropertiesIndexRouteImport } from './routes/properties/index'
 import { Route as CleaningIndexRouteImport } from './routes/cleaning/index'
 import { Route as BookingsIndexRouteImport } from './routes/bookings/index'
 import { Route as AnalyticsIndexRouteImport } from './routes/analytics/index'
+import { Route as AiImportIndexRouteImport } from './routes/ai-import/index'
 import { Route as PropertiesNewRouteImport } from './routes/properties/new'
 import { Route as PropertiesGanttRouteImport } from './routes/properties/gantt'
 import { Route as PropertiesPropertyIdRouteImport } from './routes/properties/$propertyId'
@@ -23,6 +24,7 @@ import { Route as CleaningTaskIdRouteImport } from './routes/cleaning/$taskId'
 import { Route as BookingsTodayRouteImport } from './routes/bookings/today'
 import { Route as BookingsNewRouteImport } from './routes/bookings/new'
 import { Route as BookingsBookingIdRouteImport } from './routes/bookings/$bookingId'
+import { Route as AiImportJobIdRouteImport } from './routes/ai-import/$jobId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -47,6 +49,11 @@ const BookingsIndexRoute = BookingsIndexRouteImport.update({
 const AnalyticsIndexRoute = AnalyticsIndexRouteImport.update({
   id: '/analytics/',
   path: '/analytics/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AiImportIndexRoute = AiImportIndexRouteImport.update({
+  id: '/ai-import/',
+  path: '/ai-import/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PropertiesNewRoute = PropertiesNewRouteImport.update({
@@ -94,9 +101,15 @@ const BookingsBookingIdRoute = BookingsBookingIdRouteImport.update({
   path: '/bookings/$bookingId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AiImportJobIdRoute = AiImportJobIdRouteImport.update({
+  id: '/ai-import/$jobId',
+  path: '/ai-import/$jobId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/ai-import/$jobId': typeof AiImportJobIdRoute
   '/bookings/$bookingId': typeof BookingsBookingIdRoute
   '/bookings/new': typeof BookingsNewRoute
   '/bookings/today': typeof BookingsTodayRoute
@@ -106,6 +119,7 @@ export interface FileRoutesByFullPath {
   '/properties/$propertyId': typeof PropertiesPropertyIdRoute
   '/properties/gantt': typeof PropertiesGanttRoute
   '/properties/new': typeof PropertiesNewRoute
+  '/ai-import/': typeof AiImportIndexRoute
   '/analytics/': typeof AnalyticsIndexRoute
   '/bookings/': typeof BookingsIndexRoute
   '/cleaning/': typeof CleaningIndexRoute
@@ -113,6 +127,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/ai-import/$jobId': typeof AiImportJobIdRoute
   '/bookings/$bookingId': typeof BookingsBookingIdRoute
   '/bookings/new': typeof BookingsNewRoute
   '/bookings/today': typeof BookingsTodayRoute
@@ -122,6 +137,7 @@ export interface FileRoutesByTo {
   '/properties/$propertyId': typeof PropertiesPropertyIdRoute
   '/properties/gantt': typeof PropertiesGanttRoute
   '/properties/new': typeof PropertiesNewRoute
+  '/ai-import': typeof AiImportIndexRoute
   '/analytics': typeof AnalyticsIndexRoute
   '/bookings': typeof BookingsIndexRoute
   '/cleaning': typeof CleaningIndexRoute
@@ -130,6 +146,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/ai-import/$jobId': typeof AiImportJobIdRoute
   '/bookings/$bookingId': typeof BookingsBookingIdRoute
   '/bookings/new': typeof BookingsNewRoute
   '/bookings/today': typeof BookingsTodayRoute
@@ -139,6 +156,7 @@ export interface FileRoutesById {
   '/properties/$propertyId': typeof PropertiesPropertyIdRoute
   '/properties/gantt': typeof PropertiesGanttRoute
   '/properties/new': typeof PropertiesNewRoute
+  '/ai-import/': typeof AiImportIndexRoute
   '/analytics/': typeof AnalyticsIndexRoute
   '/bookings/': typeof BookingsIndexRoute
   '/cleaning/': typeof CleaningIndexRoute
@@ -148,6 +166,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/ai-import/$jobId'
     | '/bookings/$bookingId'
     | '/bookings/new'
     | '/bookings/today'
@@ -157,6 +176,7 @@ export interface FileRouteTypes {
     | '/properties/$propertyId'
     | '/properties/gantt'
     | '/properties/new'
+    | '/ai-import/'
     | '/analytics/'
     | '/bookings/'
     | '/cleaning/'
@@ -164,6 +184,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/ai-import/$jobId'
     | '/bookings/$bookingId'
     | '/bookings/new'
     | '/bookings/today'
@@ -173,6 +194,7 @@ export interface FileRouteTypes {
     | '/properties/$propertyId'
     | '/properties/gantt'
     | '/properties/new'
+    | '/ai-import'
     | '/analytics'
     | '/bookings'
     | '/cleaning'
@@ -180,6 +202,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/ai-import/$jobId'
     | '/bookings/$bookingId'
     | '/bookings/new'
     | '/bookings/today'
@@ -189,6 +212,7 @@ export interface FileRouteTypes {
     | '/properties/$propertyId'
     | '/properties/gantt'
     | '/properties/new'
+    | '/ai-import/'
     | '/analytics/'
     | '/bookings/'
     | '/cleaning/'
@@ -197,6 +221,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AiImportJobIdRoute: typeof AiImportJobIdRoute
   BookingsBookingIdRoute: typeof BookingsBookingIdRoute
   BookingsNewRoute: typeof BookingsNewRoute
   BookingsTodayRoute: typeof BookingsTodayRoute
@@ -206,6 +231,7 @@ export interface RootRouteChildren {
   PropertiesPropertyIdRoute: typeof PropertiesPropertyIdRoute
   PropertiesGanttRoute: typeof PropertiesGanttRoute
   PropertiesNewRoute: typeof PropertiesNewRoute
+  AiImportIndexRoute: typeof AiImportIndexRoute
   AnalyticsIndexRoute: typeof AnalyticsIndexRoute
   BookingsIndexRoute: typeof BookingsIndexRoute
   CleaningIndexRoute: typeof CleaningIndexRoute
@@ -247,6 +273,13 @@ declare module '@tanstack/react-router' {
       path: '/analytics'
       fullPath: '/analytics/'
       preLoaderRoute: typeof AnalyticsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/ai-import/': {
+      id: '/ai-import/'
+      path: '/ai-import'
+      fullPath: '/ai-import/'
+      preLoaderRoute: typeof AiImportIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/properties/new': {
@@ -312,11 +345,19 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof BookingsBookingIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/ai-import/$jobId': {
+      id: '/ai-import/$jobId'
+      path: '/ai-import/$jobId'
+      fullPath: '/ai-import/$jobId'
+      preLoaderRoute: typeof AiImportJobIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AiImportJobIdRoute: AiImportJobIdRoute,
   BookingsBookingIdRoute: BookingsBookingIdRoute,
   BookingsNewRoute: BookingsNewRoute,
   BookingsTodayRoute: BookingsTodayRoute,
@@ -326,6 +367,7 @@ const rootRouteChildren: RootRouteChildren = {
   PropertiesPropertyIdRoute: PropertiesPropertyIdRoute,
   PropertiesGanttRoute: PropertiesGanttRoute,
   PropertiesNewRoute: PropertiesNewRoute,
+  AiImportIndexRoute: AiImportIndexRoute,
   AnalyticsIndexRoute: AnalyticsIndexRoute,
   BookingsIndexRoute: BookingsIndexRoute,
   CleaningIndexRoute: CleaningIndexRoute,

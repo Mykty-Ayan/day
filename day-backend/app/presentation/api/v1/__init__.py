@@ -1,5 +1,6 @@
 from fastapi import APIRouter
 
+from app.presentation.api.v1.ai_migration import ai_migration_router
 from app.presentation.api.v1.analytics import analytics_router
 from app.presentation.api.v1.bookings import booking_router, gantt_router, guest_router
 from app.presentation.api.v1.cleaning import checklist_router, cleaning_router, rating_router
@@ -18,3 +19,4 @@ api_v1_router.include_router(cleaning_router)
 api_v1_router.include_router(checklist_router)
 api_v1_router.include_router(rating_router)
 api_v1_router.include_router(analytics_router)
+api_v1_router.include_router(ai_migration_router)
