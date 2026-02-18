@@ -7,6 +7,71 @@ import { useImportJob, useConfirmImport } from '../../hooks/useAIImport'
 import type { MappedPropertyData } from '../../types/ai-import'
 import PropertyPreviewForm from '../../components/ai-import/PropertyPreviewForm'
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null
+}
+
+function asNullableString(value: unknown): string | null {
+  return typeof value === 'string' && value.trim() !== '' ? value : null
+}
+
+function asNullableNumber(value: unknown): number | null {
+  return typeof value === 'number' && Number.isFinite(value) ? value : null
+}
+
+function asStringArray(value: unknown): string[] {
+  if (!Array.isArray(value)) return []
+  return value.filter((item): item is string => typeof item === 'string' && item.length > 0)
+}
+
+function getValue(obj: Record<string, unknown> | undefined, key: string): unknown {
+  return obj?.[key]
+}
+
+function normalizeMappedProperty(
+  mappedProperty: unknown,
+  extractedData: unknown,
+  fallbackSourceUrl: string,
+): MappedPropertyData | null {
+  const mappedRoot = isRecord(mappedProperty) ? mappedProperty : undefined
+  const extractedRoot = isRecord(extractedData) ? extractedData : undefined
+
+  const mappedNested = isRecord(getValue(mappedRoot, 'property_data'))
+    ? (getValue(mappedRoot, 'property_data') as Record<string, unknown>)
+    : undefined
+  const extractedNested = isRecord(getValue(extractedRoot, 'property_data'))
+    ? (getValue(extractedRoot, 'property_data') as Record<string, unknown>)
+    : undefined
+
+  const source = mappedNested ?? extractedNested ?? mappedRoot
+  if (!source) return null
+
+  return {
+    name: asNullableString(getValue(source, 'name')),
+    internal_name: asNullableString(getValue(source, 'internal_name')),
+    type: asNullableString(getValue(source, 'type')),
+    description: asNullableString(getValue(source, 'description')),
+    source_url:
+      asNullableString(getValue(source, 'source_url'))
+      ?? asNullableString(getValue(mappedRoot, 'source_url'))
+      ?? fallbackSourceUrl,
+    latitude: asNullableNumber(getValue(source, 'latitude')),
+    longitude: asNullableNumber(getValue(source, 'longitude')),
+    address_full: asNullableString(getValue(source, 'address_full')),
+    rooms: asNullableNumber(getValue(source, 'rooms')),
+    beds: asNullableNumber(getValue(source, 'beds')),
+    area_total: asNullableNumber(getValue(source, 'area_total')),
+    area_living: asNullableNumber(getValue(source, 'area_living')),
+    floor: asNullableNumber(getValue(source, 'floor')),
+    check_in_instructions: asNullableString(getValue(source, 'check_in_instructions')),
+    check_out_instructions: asNullableString(getValue(source, 'check_out_instructions')),
+    house_rules: asNullableString(getValue(source, 'house_rules')),
+    amenities: asStringArray(getValue(source, 'amenities')),
+    base_price: asNullableNumber(getValue(source, 'base_price')),
+    photos: asStringArray(getValue(source, 'photos')),
+  }
+}
+
 function ConfidenceBar({ value }: { value: number }) {
   const percent = Math.min(100, Math.max(0, Math.round(value * 100)))
   const color =
@@ -66,7 +131,10 @@ export default function ImportPreviewPage() {
   const [editedData, setEditedData] = useState<MappedPropertyData | null>(null)
   const [submitError, setSubmitError] = useState<string | null>(null)
 
-  const mappedData = editedData || job?.mapped_property
+  const normalizedMappedData = job
+    ? normalizeMappedProperty(job.mapped_property, job.extracted_data, job.source_url)
+    : null
+  const mappedData = editedData || normalizedMappedData
 
   // Waiting for job to complete
   if (isLoading || (job && (job.status === 'pending' || job.status === 'processing'))) {
@@ -148,8 +216,10 @@ export default function ImportPreviewPage() {
     if (!mappedData) return
     setSubmitError(null)
     try {
-      await confirmImport.mutateAsync({ property_data: mappedData as unknown as Record<string, unknown> })
-      navigate({ to: '/properties' })
+      const property = await confirmImport.mutateAsync({
+        property_data: mappedData as unknown as Record<string, unknown>,
+      })
+      navigate({ to: '/properties/$propertyId', params: { propertyId: property.id } })
     } catch {
       setSubmitError('Failed to create property. Please try again.')
     }

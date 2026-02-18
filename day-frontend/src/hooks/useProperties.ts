@@ -6,6 +6,7 @@ import {
 import type { PropertyFilters, PropertyCreateInput, PropertyUpdateInput, PricingInput, PropertyStatus } from '../types/property'
 import {
   listProperties,
+  listAllProperties,
   getProperty,
   createProperty,
   updateProperty,
@@ -35,6 +36,15 @@ export function useProperties(filters: PropertyFilters = {}) {
   return useQuery({
     queryKey: [PROPERTIES_KEY, filters],
     queryFn: () => listProperties(filters),
+  })
+}
+
+export function useAllProperties(
+  filters: Omit<PropertyFilters, 'page' | 'per_page'> = {},
+) {
+  return useQuery({
+    queryKey: [PROPERTIES_KEY, 'all', filters],
+    queryFn: () => listAllProperties(filters),
   })
 }
 

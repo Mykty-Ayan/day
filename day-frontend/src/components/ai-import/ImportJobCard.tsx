@@ -49,6 +49,35 @@ function formatUrl(url: string): string {
   }
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null
+}
+
+function pickTitle(obj: Record<string, unknown>): string | null {
+  const candidates = ['name', 'title', 'listing_title', 'property_name', 'internal_name']
+  for (const key of candidates) {
+    const value = obj[key]
+    if (typeof value === 'string' && value.trim()) {
+      return value.trim()
+    }
+  }
+  return null
+}
+
+function extractListingTitle(payload: unknown): string | null {
+  if (!isRecord(payload)) return null
+
+  const directTitle = pickTitle(payload)
+  if (directTitle) return directTitle
+
+  const nested = payload.property_data
+  if (isRecord(nested)) {
+    return pickTitle(nested)
+  }
+
+  return null
+}
+
 function formatTime(dateStr: string): string {
   const date = new Date(dateStr)
   const now = new Date()
@@ -68,6 +97,8 @@ export default function ImportJobCard({ job, index, onClick }: Props) {
   const StatusIcon = config.icon
   const sourceType = job.source_type || detectSourceFromUrl(job.source_url)
   const isClickable = job.status === 'completed'
+  const listingTitle = extractListingTitle(job.mapped_property) ?? extractListingTitle(job.extracted_data)
+  const titleText = listingTitle || formatUrl(job.source_url)
 
   return (
     <motion.div
@@ -84,7 +115,7 @@ export default function ImportJobCard({ job, index, onClick }: Props) {
           onClick(job)
         }
       }}
-      aria-label={`Import job from ${formatUrl(job.source_url)}, status: ${config.label}`}
+      aria-label={`Import job: ${titleText}, status: ${config.label}`}
       className={`bg-white border border-gray-200 rounded-xl p-4 shadow-sm transition-shadow ${
         isClickable ? 'cursor-pointer hover:shadow-md' : ''
       }`}
@@ -97,8 +128,11 @@ export default function ImportJobCard({ job, index, onClick }: Props) {
         <span className="text-[10px] text-gray-400 shrink-0">{formatTime(job.created_at)}</span>
       </div>
 
-      <p className="text-sm text-gray-800 mt-2 truncate" title={job.source_url}>
-        {formatUrl(job.source_url)}
+      <p
+        className="text-sm text-gray-800 mt-2 line-clamp-2 leading-5 min-h-[40px]"
+        title={listingTitle || job.source_url}
+      >
+        {titleText}
       </p>
 
       <div className="flex items-center gap-2 mt-3">
@@ -109,11 +143,6 @@ export default function ImportJobCard({ job, index, onClick }: Props) {
         >
           {sourceLabels[sourceType] || 'Other'}
         </span>
-        {job.mapped_property?.name && (
-          <span className="text-xs text-gray-500 truncate">
-            {job.mapped_property.name}
-          </span>
-        )}
       </div>
 
       {job.error_message && (

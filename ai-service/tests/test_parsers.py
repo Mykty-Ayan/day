@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
@@ -190,6 +191,27 @@ class TestBookingParserHTTP:
         assert "https://example.com/photo.jpg" in result
 
     @pytest.mark.asyncio
+    async def test_handles_booking_challenge_page(self):
+        html = """
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <script src="https://www.booking.com/__challenge_x/challenge.js"></script>
+          </head>
+          <body>
+            <div id="challenge-container"></div>
+          </body>
+        </html>
+        """
+        mock_response = _mock_httpx_response(html)
+        patcher, _ = _patch_httpx_client(mock_response)
+
+        with patcher:
+            parser = BookingParser()
+            with pytest.raises(ValueError, match="anti-bot challenge"):
+                await parser.fetch_content("https://www.booking.com/hotel/test")
+
+    @pytest.mark.asyncio
     async def test_handles_timeout(self):
         mock_client = AsyncMock()
         mock_client.get = AsyncMock(side_effect=httpx.TimeoutException("Connection timed out"))
@@ -248,12 +270,170 @@ class TestAirbnbParserHTTP:
         assert "City center studio" in result
         assert "Airbnb Navigation" not in result
 
+    @pytest.mark.asyncio
+    async def test_includes_airbnb_enrichment_block(self):
+        deferred_state = {
+            "sections": [
+                {"sectionId": "LOCATION_DEFAULT", "section": {"lat": 43.2, "lng": 76.9, "title": "Almaty"}},
+                {
+                    "sectionId": "AMENITIES_DEFAULT",
+                    "section": {
+                        "seeAllAmenitiesGroups": [
+                            {"title": "Essentials", "amenities": [{"title": "WiFi"}, {"title": "Kitchen"}]}
+                        ]
+                    },
+                },
+                {
+                    "sectionId": "POLICIES_DEFAULT",
+                    "section": {
+                        "houseRulesSections": "Check-in after 2:00 PM, Checkout before 12:00 PM",
+                        "items": [{"title": "No smoking"}],
+                    },
+                },
+            ],
+            "avgRatingA11yLabel": "Rated 4.95 out of 5",
+            "structuredContent": {"primaryLine": "2 bedrooms, 3 beds"},
+        }
+        html = (
+            "<html><body>"
+            '<script id="data-deferred-state-0" type="application/json">'
+            + json.dumps(deferred_state)
+            + "</script>"
+            '<script type="application/ld+json">'
+            '{"@type":"VacationRental","name":"City Loft","image":["https://a0.muscache.com/photo-1.jpg"]}'
+            "</script>"
+            "</body></html>"
+        )
+        mock_response = _mock_httpx_response(html)
+        patcher, _ = _patch_httpx_client(mock_response)
+
+        with patcher:
+            parser = AirbnbParser()
+            result = await parser.fetch_content("https://www.airbnb.com/rooms/12345")
+
+        assert "[AIRBNB_ENRICHMENT]" in result
+        assert '"airbnb_listing_id": "12345"' in result
+        assert '"latitude": 43.2' in result
+        assert '"longitude": 76.9' in result
+        assert '"airbnb_rating_label": "Rated 4.95 out of 5"' in result
+        assert '"amenities": ["WiFi", "Kitchen"]' in result
+        assert '"name": "City Loft"' in result
+        assert '"rooms": 2' in result
+        assert '"beds": 3' in result
+        assert '"check_in_instructions": "Check-in after 2:00 PM"' in result
+        assert '"check_out_instructions": "Checkout before 12:00 PM"' in result
+        assert '"photos": ["https://a0.muscache.com/photo-1.jpg"]' in result
+
     def test_source_type_is_airbnb(self):
         parser = AirbnbParser()
         assert parser.get_source_type() == SourceType.AIRBNB
 
 
 class TestKrishaParserHTTP:
+    def test_extracts_complex_name(self):
+        html = (
+            '<div class="offer__info-item" data-name="map.complex">'
+            '<div class="offer__advert-short-info">'
+            '<a href="/complex/show/almaty/meridian/">Meridian Apartments</a>'
+            "</div>"
+            "</div>"
+        )
+        complex_name = KrishaParser._extract_complex_name(html)
+        assert complex_name == "Meridian Apartments"
+
+    def test_extracts_complex_name_from_description_fallback(self):
+        html = '<script>window.data={"advert":{"description":"жил. комплекс City Plus, 10 этажей"}};</script>'
+        complex_name = KrishaParser._extract_complex_name(html)
+        assert complex_name == "City Plus"
+
+    def test_extracts_floor(self):
+        html = (
+            '<div class="offer__info-item" data-name="flat.floor">'
+            '<div class="offer__advert-short-info">12 из 12</div>'
+            "</div>"
+        )
+        floor = KrishaParser._extract_floor(html)
+        assert floor == 12
+
+    def test_extracts_microdistrict(self):
+        html = '<script>window.data={"advert":{"address":{"microdistrict":"mkr_Akkent"}}};</script>'
+        microdistrict = KrishaParser._extract_microdistrict(html)
+        assert microdistrict == "mkr Akkent"
+
+    def test_extracts_street_and_house_number(self):
+        html = '<script>window.data={"advert":{"address":{"street":"Nauryzbay_batyra","house_num":"28"}}};</script>'
+        street = KrishaParser._extract_street(html)
+        house_number = KrishaParser._extract_house_number(html)
+        assert street == "Nauryzbay batyra"
+        assert house_number == "28"
+
+    def test_extracts_coordinates_from_map_json(self):
+        html = '<script>window.data = {"advert":{"map":{"lat":43.261494803805,"lon":76.899913108869}}};</script>'
+        coords = KrishaParser._extract_coordinates(html)
+        assert coords == (43.261494803805, 76.899913108869)
+
+    def test_extracts_coordinates_from_map_json_reversed_order(self):
+        html = (
+            '<script>window.data = {"advert":{"map":{"lon":76.899913108869,'
+            '"zoom":14,"lat":43.261494803805}}};</script>'
+        )
+        coords = KrishaParser._extract_coordinates(html)
+        assert coords == (43.261494803805, 76.899913108869)
+
+    def test_extracts_coordinates_from_lat_lng_fallback(self):
+        html = '<script>window.digitalData={"product":{"latLng":"43.2611,76.8945"}};</script>'
+        coords = KrishaParser._extract_coordinates(html)
+        assert coords == (43.2611, 76.8945)
+
+    def test_extracts_images_from_window_data_photos_only(self):
+        html = (
+            '<script>window.data = {"advert":{"photos":['
+            '{"src":"https://krisha-photos.kcdn.online/webp/a/1-full.jpg"},'
+            '{"src":"https://krisha-photos.kcdn.online/webp/a/2-full.jpg"}'
+            ']}};</script>'
+            '<img src="https://example.com/banner.jpg" />'
+        )
+        parser = KrishaParser()
+        images = parser._extract_images(html)
+        assert images == [
+            "https://krisha-photos.kcdn.online/webp/a/1-full.jpg",
+            "https://krisha-photos.kcdn.online/webp/a/2-full.jpg",
+        ]
+
+    @pytest.mark.asyncio
+    async def test_includes_coordinates_block_in_content(self):
+        html = (
+            "<html><body>"
+            "<h1>1-комнатная квартира</h1>"
+            '<script>window.data = {"advert":{"map":{"lat":43.261494803805,"lon":76.899913108869},'
+            '"address":{"street":"Nauryzbay_batyra","house_num":"28"},'
+            '"description":"жил. комплекс City Plus, 10 этажей",'
+            '"photos":[{"src":"https://krisha-photos.kcdn.online/webp/a/1-full.jpg"}]'
+            "}};</script>"
+            '<div class="offer__info-item" data-name="flat.floor">'
+            '<div class="offer__advert-short-info">1 из 5</div>'
+            "</div>"
+            '<img src="https://krisha.kz/static/images/article-banner.jpg" />'
+            "</body></html>"
+        )
+        mock_response = _mock_httpx_response(html)
+        patcher, _ = _patch_httpx_client(mock_response)
+
+        with patcher:
+            parser = KrishaParser()
+            result = await parser.fetch_content("https://krisha.kz/a/show/12345")
+
+        assert "[MAP_COORDINATES]" in result
+        assert "latitude: 43.261494803805" in result
+        assert "longitude: 76.899913108869" in result
+        assert "[KRISHA_META]" in result
+        assert "complex_name: City Plus" in result
+        assert "street: Nauryzbay batyra" in result
+        assert "house_number: 28" in result
+        assert "floor: 1" in result
+        assert "https://krisha-photos.kcdn.online/webp/a/1-full.jpg" in result
+        assert "article-banner" not in result
+
     @pytest.mark.asyncio
     async def test_returns_cleaned_content(self):
         html = (

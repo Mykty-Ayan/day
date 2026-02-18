@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { format, isValid, parseISO } from 'date-fns'
 import { motion } from 'framer-motion'
 import { Plus, X, Loader2 } from 'lucide-react'
@@ -13,8 +13,18 @@ import {
   SelectValue,
 } from '../ui/select'
 
+export interface SeasonalSuggestion {
+  key: string
+  name: string
+  start_date: string
+  end_date: string
+  source_count: number
+  source_properties: string[]
+}
+
 interface Props {
   pricing: PricingConfig | null
+  seasonalSuggestions?: SeasonalSuggestion[]
   onSaveBase: (data: {
     base_price: number
     weekend_markup: number
@@ -36,8 +46,22 @@ function formatSeasonalDate(value: string): string {
   return format(parsed, 'dd MMM yyyy')
 }
 
+function formatMoney(value: number): string {
+  if (!Number.isFinite(value)) return '0'
+  return value.toLocaleString(undefined, { maximumFractionDigits: 2 })
+}
+
+const seasonalPercentQuickSet = [5, 10, 20, 30]
+const seasonalFixedQuickSet = [2000, 5000, 10000]
+
+const primaryActionButtonClass =
+  'flex items-center justify-center gap-2 rounded-xl bg-black text-white hover:bg-gray-800 px-6 py-2.5 font-semibold shadow-lg transition-colors disabled:cursor-not-allowed disabled:opacity-50'
+const fixedActionButtonClass =
+  `${primaryActionButtonClass} h-11 w-full sm:w-60`
+
 function PricingFormInner({
   pricing,
+  seasonalSuggestions = [],
   onSaveBase,
   onAddSeasonal,
   onDeleteSeasonal,
@@ -77,6 +101,34 @@ function PricingFormInner({
     seasonalEnd >= seasonalStart &&
     parseNumber(seasonalPrice, -1) >= 0
 
+  const discountReady =
+    Number.parseInt(discountNights, 10) > 0 &&
+    discountValue.trim().length > 0 &&
+    parseNumber(discountValue, -1) >= 0
+
+  const baseForQuickSet = useMemo(() => {
+    const parsed = parseNumber(basePrice, Number.NaN)
+    if (!Number.isFinite(parsed) || parsed < 0) return 0
+    return parsed
+  }, [basePrice])
+
+  function applyPercentQuickSet(percent: number) {
+    if (baseForQuickSet <= 0) return
+    const computed = baseForQuickSet * (1 + percent / 100)
+    setSeasonalPrice(String(Number(computed.toFixed(2))))
+  }
+
+  function applyFixedQuickSet(extra: number) {
+    const computed = baseForQuickSet + extra
+    setSeasonalPrice(String(Number(computed.toFixed(2))))
+  }
+
+  function applySeasonalSuggestion(suggestion: SeasonalSuggestion) {
+    setSeasonalName(suggestion.name)
+    setSeasonalStart(suggestion.start_date)
+    setSeasonalEnd(suggestion.end_date)
+  }
+
   function handleSaveBase() {
     onSaveBase({
       base_price: parseNumber(basePrice, 0),
@@ -105,7 +157,7 @@ function PricingFormInner({
   }
 
   function handleAddDiscount() {
-    if (!discountNights || !discountValue) return
+    if (!discountReady) return
     onAddDiscount({
       min_nights: parseInt(discountNights),
       type: discountType,
@@ -193,7 +245,7 @@ function PricingFormInner({
           whileTap={{ scale: 0.97 }}
           onClick={handleSaveBase}
           disabled={isSaving}
-          className="mt-3 flex items-center gap-2 bg-black text-white hover:bg-gray-800 rounded-xl px-6 py-2.5 font-semibold shadow-lg transition-colors disabled:opacity-50"
+          className={`mt-3 ${fixedActionButtonClass}`}
         >
           {isSaving && <Loader2 className="w-4 h-4 animate-spin" />}
           Save Pricing
@@ -203,11 +255,33 @@ function PricingFormInner({
       {/* Seasonal prices */}
       <div>
         <h3 className="text-sm font-bold text-gray-900 mb-3">Seasonal Prices</h3>
-        {seasonalPrices.length === 0 && (
-          <p className="mb-3 rounded-xl border border-dashed border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-500">
-            No seasonal rules yet. Add a date range and custom nightly price below.
-          </p>
+
+        {seasonalSuggestions.length > 0 && (
+          <div className="mb-3 rounded-xl border border-gray-200 bg-gray-50 p-3">
+            <p className="text-xs font-bold uppercase tracking-wider text-gray-500">
+              Suggested seasons from other properties
+            </p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {seasonalSuggestions.slice(0, 8).map((suggestion) => (
+                <button
+                  key={suggestion.key}
+                  type="button"
+                  onClick={() => applySeasonalSuggestion(suggestion)}
+                  className="rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-100 transition-colors"
+                  title={suggestion.source_properties.join(', ')}
+                >
+                  Add "{suggestion.name}" ({formatSeasonalDate(suggestion.start_date)} - {formatSeasonalDate(suggestion.end_date)})
+                </button>
+              ))}
+            </div>
+            {seasonalSuggestions.length > 8 && (
+              <p className="mt-2 text-xs text-gray-500">
+                {seasonalSuggestions.length - 8} more suggestions available after adding existing ones.
+              </p>
+            )}
+          </div>
         )}
+
         {seasonalPrices.map((sp: SeasonalPrice) => (
           <div
             key={sp.id}
@@ -230,7 +304,8 @@ function PricingFormInner({
             </div>
           </div>
         ))}
-        <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-6">
+
+        <div className="mt-2 grid grid-cols-1 items-start gap-2 sm:grid-cols-2 xl:grid-cols-6">
           <input
             type="text"
             value={seasonalName}
@@ -266,12 +341,44 @@ function PricingFormInner({
             type="button"
             whileTap={{ scale: 0.97 }}
             onClick={handleAddSeasonal}
-            disabled={!seasonalReady}
-            className="h-11 shrink-0 rounded-xl bg-black px-4 text-white transition-colors hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-50 xl:col-span-1"
+            className="flex h-11 w-full items-center justify-center rounded-xl bg-black text-white hover:bg-gray-800 shadow-lg transition-colors disabled:cursor-not-allowed disabled:opacity-50 xl:col-span-1"
             aria-label="Add seasonal price"
           >
-            <Plus className="mx-auto h-4 w-4" />
+            <Plus className="h-5 w-5" />
           </motion.button>
+        </div>
+        <div className="mt-1 space-y-1.5">
+          <div className="flex flex-wrap gap-1.5">
+            {seasonalPercentQuickSet.map((percent) => {
+              const finalPrice = baseForQuickSet * (1 + percent / 100)
+              return (
+                <button
+                  key={`pct-${percent}`}
+                  type="button"
+                  onClick={() => applyPercentQuickSet(percent)}
+                  disabled={baseForQuickSet <= 0}
+                  className="whitespace-nowrap rounded-md border border-gray-200 bg-white px-2 py-0.5 text-[11px] font-semibold leading-4 text-gray-600 transition-colors hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  +{percent}% ({formatMoney(finalPrice)})
+                </button>
+              )
+            })}
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {seasonalFixedQuickSet.map((fixed) => {
+              const finalPrice = baseForQuickSet + fixed
+              return (
+                <button
+                  key={`fix-${fixed}`}
+                  type="button"
+                  onClick={() => applyFixedQuickSet(fixed)}
+                  className="whitespace-nowrap rounded-md border border-gray-200 bg-white px-2 py-0.5 text-[11px] font-semibold leading-4 text-gray-600 transition-colors hover:bg-gray-100"
+                >
+                  +{formatMoney(fixed)} ({formatMoney(finalPrice)})
+                </button>
+              )
+            })}
+          </div>
         </div>
       </div>
 
@@ -326,9 +433,10 @@ function PricingFormInner({
             type="button"
             whileTap={{ scale: 0.97 }}
             onClick={handleAddDiscount}
-            className="shrink-0 w-full sm:w-auto bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-xl p-2.5 text-gray-700"
+            className={fixedActionButtonClass}
+            aria-label="Add discount rule"
           >
-            <Plus className="w-4 h-4" />
+            <Plus className="h-5 w-5" />
           </motion.button>
         </div>
       </div>

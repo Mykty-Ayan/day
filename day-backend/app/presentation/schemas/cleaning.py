@@ -76,6 +76,10 @@ class ChecklistTemplateCreate(BaseModel):
     items: list[ChecklistItemInput] = []
 
 
+class ChecklistTemplateUpdate(BaseModel):
+    name: str = Field(..., min_length=1, max_length=255)
+
+
 class ChecklistItemResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -102,6 +106,10 @@ class ChecklistTemplateDetailResponse(BaseModel):
 class ChecklistItemAdd(BaseModel):
     title: str = Field(..., min_length=1, max_length=500)
     sort_order: int | None = None
+
+
+class ChecklistItemUpdate(BaseModel):
+    title: str = Field(..., min_length=1, max_length=500)
 
 
 class ChecklistItemReorder(BaseModel):

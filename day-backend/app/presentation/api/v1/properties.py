@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -78,7 +79,7 @@ def _repos(session: AsyncSession):
     }
 
 
-def _to_property_response(p) -> PropertyResponse:
+def _to_property_response(p, photos: list | None = None) -> PropertyResponse:
     return PropertyResponse(
         id=p.id,
         company_id=p.company_id,
@@ -102,6 +103,7 @@ def _to_property_response(p) -> PropertyResponse:
         check_in_instructions=p.check_in_instructions,
         check_out_instructions=p.check_out_instructions,
         house_rules=p.house_rules,
+        photos=[PropertyPhotoResponse.model_validate(photo, from_attributes=True) for photo in (photos or [])],
         created_at=p.created_at,
         updated_at=p.updated_at,
     )
@@ -166,9 +168,15 @@ async def list_properties(
     svc = ListPropertiesService(repos["property"])
     offset = (page - 1) * per_page
     result = await svc.execute(company_id, offset=offset, limit=per_page, status=status, search=search)
+    photos_by_property = await asyncio.gather(
+        *[repos["photo"].list_by_property(prop.id) for prop in result.items]
+    ) if result.items else []
     pages = (result.total + per_page - 1) // per_page if result.total > 0 else 1
     return PropertyListResponse(
-        items=[_to_property_response(p) for p in result.items],
+        items=[
+            _to_property_response(prop, photos=photos)
+            for prop, photos in zip(result.items, photos_by_property)
+        ],
         total=result.total,
         page=page,
         per_page=per_page,
@@ -196,10 +204,9 @@ async def get_property(
         detail = await svc.execute(property_id, company_id)
     except ValueError:
         raise HTTPException(status_code=404, detail="Property not found")
-    prop = _to_property_response(detail.property)
+    prop = _to_property_response(detail.property, photos=detail.photos)
     return PropertyDetailResponse(
         **prop.model_dump(),
-        photos=[PropertyPhotoResponse.model_validate(p, from_attributes=True) for p in detail.photos],
         amenities=[AmenityResponse.model_validate(a, from_attributes=True) for a in detail.amenities],
         pricing=PricingConfigResponse.model_validate(detail.pricing, from_attributes=True) if detail.pricing else None,
     )

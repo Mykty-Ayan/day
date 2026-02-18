@@ -15,6 +15,7 @@ from app.domain.booking.value_objects import (
     PaymentStatus,
     PaymentType,
 )
+from app.domain.property.value_objects import PropertyStatus
 
 # ---------- Guest ----------
 
@@ -277,6 +278,7 @@ class TodayBookingItem(BaseModel):
     guest_name: str
     property_name: str
     property_internal_name: str
+    property_status: PropertyStatus | None = None
     check_in: date
     check_out: date
     status: BookingStatus

@@ -25,9 +25,30 @@ CONFIDENCE_FIELDS: dict[str, float] = {
 
 VALID_PROPERTY_TYPES = {"apartment", "house", "room"}
 
+_CYRILLIC_TO_LATIN: dict[str, str] = {
+    "а": "a", "б": "b", "в": "v", "г": "g", "д": "d", "е": "e", "ё": "e",
+    "ж": "zh", "з": "z", "и": "i", "й": "i", "к": "k", "л": "l", "м": "m",
+    "н": "n", "о": "o", "п": "p", "р": "r", "с": "s", "т": "t", "у": "u",
+    "ф": "f", "х": "h", "ц": "ts", "ч": "ch", "ш": "sh", "щ": "shch",
+    "ъ": "", "ы": "y", "ь": "", "э": "e", "ю": "yu", "я": "ya",
+    # Kazakh letters
+    "ә": "a", "ғ": "g", "қ": "k", "ң": "ng", "ө": "o", "ұ": "u",
+    "ү": "u", "һ": "h", "і": "i",
+}
+
+
+def _transliterate_to_latin(text: str) -> str:
+    """Transliterate Cyrillic text to basic Latin before slugification."""
+    chars: list[str] = []
+    for char in text:
+        lower = char.lower()
+        chars.append(_CYRILLIC_TO_LATIN.get(lower, char))
+    return "".join(chars)
+
 
 def _slugify(text: str) -> str:
     """Convert text to a URL-friendly slug."""
+    text = _transliterate_to_latin(text)
     # Normalize unicode to ASCII
     text = unicodedata.normalize("NFKD", text).encode("ascii", "ignore").decode("ascii")
     text = text.lower().strip()
@@ -36,6 +57,67 @@ def _slugify(text: str) -> str:
     # Remove leading/trailing hyphens
     text = text.strip("-")
     return text or "unnamed-property"
+
+
+def _is_good_internal_name(slug: str | None) -> bool:
+    """Return True when slug is usable as an internal name."""
+    if not slug:
+        return False
+    # Avoid weak slugs like "1" that come from Cyrillic-only titles with a digit.
+    if len(slug) < 3:
+        return False
+    # Require at least one latin letter for readability.
+    return re.search(r"[a-z]", slug) is not None
+
+
+def _pick_internal_name(raw_data: dict, source_url: str, name: str | None) -> str | None:
+    """Choose the best internal name using LLM output first, then fallbacks."""
+    llm_internal = _strip_html(raw_data.get("internal_name"))
+    llm_slug = _slugify(llm_internal) if llm_internal else None
+    if _is_good_internal_name(llm_slug):
+        return llm_slug
+
+    # Deterministic Krisha-friendly fallback: residential complex + floor.
+    complex_name = _strip_html(raw_data.get("complex_name"))
+    floor = _safe_int(raw_data.get("floor"))
+    if complex_name:
+        label = complex_name if floor is None else f"{complex_name} {floor} floor"
+        complex_slug = _slugify(label)
+        if _is_good_internal_name(complex_slug):
+            return complex_slug
+
+    microdistrict = _strip_html(raw_data.get("microdistrict"))
+    if microdistrict:
+        label = microdistrict if floor is None else f"{microdistrict} {floor} floor"
+        microdistrict_slug = _slugify(label)
+        if _is_good_internal_name(microdistrict_slug):
+            return microdistrict_slug
+
+    street = _strip_html(raw_data.get("street"))
+    house_number = _strip_html(raw_data.get("house_number") or raw_data.get("house_num"))
+    if street and house_number:
+        label = f"{street} {house_number}"
+        if floor is not None:
+            label = f"{label} {floor} floor"
+        street_house_slug = _slugify(label)
+        if _is_good_internal_name(street_house_slug):
+            return street_house_slug
+
+    name_slug = _slugify(name) if name else None
+    if _is_good_internal_name(name_slug):
+        return name_slug
+
+    address = _strip_html(raw_data.get("address_full"))
+    address_slug = _slugify(address) if address else None
+    if _is_good_internal_name(address_slug):
+        return address_slug
+
+    # Last-resort deterministic fallback from source URL.
+    source_slug = _slugify(source_url)
+    if _is_good_internal_name(source_slug):
+        return source_slug
+
+    return None
 
 
 def _strip_html(text: str | None) -> str | None:
@@ -102,7 +184,7 @@ class DefaultPropertyMapper(PropertyDataMapper):
             return ExtractedProperty(source_url=source_url)
 
         name = _strip_html(raw_data.get("name"))
-        internal_name = _slugify(name) if name else None
+        internal_name = _pick_internal_name(raw_data, source_url, name)
         property_type = _normalize_property_type(raw_data.get("type"))
 
         # Extract amenities as list of strings
@@ -123,8 +205,16 @@ class DefaultPropertyMapper(PropertyDataMapper):
             type=property_type,
             description=_strip_html(raw_data.get("description")),
             source_url=source_url,
-            latitude=_safe_float(raw_data.get("latitude")),
-            longitude=_safe_float(raw_data.get("longitude")),
+            latitude=_safe_float(
+                raw_data.get("latitude")
+                if raw_data.get("latitude") is not None
+                else raw_data.get("lat")
+            ),
+            longitude=_safe_float(
+                raw_data.get("longitude")
+                if raw_data.get("longitude") is not None
+                else (raw_data.get("lon") if raw_data.get("lon") is not None else raw_data.get("lng"))
+            ),
             address_full=_strip_html(raw_data.get("address_full")),
             rooms=_safe_int(raw_data.get("rooms")),
             beds=_safe_int(raw_data.get("beds")),

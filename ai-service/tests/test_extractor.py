@@ -74,24 +74,24 @@ class TestLLMExtractorParseJson:
 
 class TestLLMExtractorNoApiKey:
     @pytest.mark.asyncio
-    async def test_openai_no_key_returns_empty(self):
-        """When no OpenAI API key is set, extractor should return empty dict."""
+    async def test_openai_no_key_raises_value_error(self):
+        """When no OpenAI API key is set, extractor should raise ValueError."""
         extractor = LLMExtractor()
         with patch("app.infrastructure.extractors.llm_extractor.settings") as mock_settings:
             mock_settings.LLM_PROVIDER = "openai"
             mock_settings.OPENAI_API_KEY = ""
-            result = await extractor.extract("some content", SourceType.BOOKING)
-            assert result == {}
+            with pytest.raises(ValueError, match="OpenAI API key is not configured"):
+                await extractor.extract("some content", SourceType.BOOKING)
 
     @pytest.mark.asyncio
-    async def test_anthropic_no_key_returns_empty(self):
-        """When no Anthropic API key is set, extractor should return empty dict."""
+    async def test_anthropic_no_key_raises_value_error(self):
+        """When no Anthropic API key is set, extractor should raise ValueError."""
         extractor = LLMExtractor()
         with patch("app.infrastructure.extractors.llm_extractor.settings") as mock_settings:
             mock_settings.LLM_PROVIDER = "anthropic"
             mock_settings.ANTHROPIC_API_KEY = ""
-            result = await extractor.extract("some content", SourceType.AIRBNB)
-            assert result == {}
+            with pytest.raises(ValueError, match="Anthropic API key is not configured"):
+                await extractor.extract("some content", SourceType.AIRBNB)
 
 
 class TestLLMExtractorHTTP:

@@ -1,12 +1,15 @@
 from __future__ import annotations
 
 import logging
+import shlex
 
 from fastapi import APIRouter, HTTPException
 
 from app.application.parse_listing import ParseListingInput, ParseListingService
+from app.config import settings
 from app.domain.services import ContentParser
 from app.domain.value_objects import SourceType
+from app.infrastructure.enrichers.airbnb_mcp_enricher import AirbnbMCPEnricher
 from app.infrastructure.extractors.llm_extractor import LLMExtractor
 from app.infrastructure.mappers.property_mapper import DefaultPropertyMapper
 from app.infrastructure.parsers.airbnb_parser import AirbnbParser
@@ -34,13 +37,34 @@ def _parser_factory(source_type: SourceType) -> ContentParser:
     return parser_cls()
 
 
+def _build_airbnb_mcp_enricher() -> AirbnbMCPEnricher | None:
+    if not settings.AIRBNB_MCP_ENABLED:
+        return None
+    try:
+        args = shlex.split(settings.AIRBNB_MCP_ARGS)
+        return AirbnbMCPEnricher(
+            command=settings.AIRBNB_MCP_COMMAND,
+            args=args,
+            timeout_seconds=settings.AIRBNB_MCP_TIMEOUT_SECONDS,
+            workdir=settings.AIRBNB_MCP_WORKDIR.strip() or None,
+            ignore_robots_text=settings.AIRBNB_MCP_IGNORE_ROBOTS_TEXT,
+        )
+    except Exception:
+        logger.exception("Failed to initialize Airbnb MCP enricher")
+        return None
+
+
+_AIRBNB_MCP_ENRICHER = _build_airbnb_mcp_enricher()
+
+
 @router.post("/parse", response_model=ParseResponse)
 async def parse_listing(body: ParseRequest) -> ParseResponse:
     """Parse a property listing URL and extract structured property data."""
+    mapper = DefaultPropertyMapper()
     service = ParseListingService(
         parser_factory=_parser_factory,
         extractor=LLMExtractor(),
-        mapper=DefaultPropertyMapper(),
+        mapper=mapper,
     )
 
     try:
@@ -52,6 +76,17 @@ async def parse_listing(body: ParseRequest) -> ParseResponse:
     except Exception:
         logger.exception("Unexpected error parsing listing: %s", body.url)
         raise HTTPException(status_code=500, detail="Internal server error while parsing listing") from None
+
+    if result.source_type == SourceType.AIRBNB and _AIRBNB_MCP_ENRICHER is not None:
+        try:
+            enrichment = await _AIRBNB_MCP_ENRICHER.enrich(result.source_url)
+            if enrichment:
+                ParseListingService._apply_airbnb_enrichment(result.raw_data, enrichment)
+                result.property_data = mapper.map_to_property(result.raw_data, result.source_url, result.source_type)
+                result.confidence = mapper.calculate_confidence(result.property_data)
+        except Exception as exc:
+            logger.warning("Airbnb MCP enrichment failed for %s: %s", body.url, exc)
+            result.warnings.append(f"Airbnb MCP enrichment failed: {exc}")
 
     return ParseResponse(
         source_url=result.source_url,

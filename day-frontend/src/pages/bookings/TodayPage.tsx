@@ -155,7 +155,7 @@ function TodayCard({
               style={{ backgroundColor: booking.gantt_color || '#3B82F6' }}
             />
             <span className="text-sm font-bold text-gray-900 truncate">
-              {booking.property_internal_name || booking.property_name}
+              {booking.property_name || booking.property_internal_name}
             </span>
           </div>
           <p className="text-sm text-gray-700">{booking.guest_name}</p>
@@ -165,8 +165,13 @@ function TodayCard({
               {formatDate(booking.check_in)} <ArrowRight className="w-3 h-3 inline text-gray-400" /> {formatDate(booking.check_out)}
             </span>
           </div>
-          <div className="mt-2">
+          <div className="mt-2 flex flex-wrap items-center gap-2">
             <BookingStatusBadge status={booking.status} />
+            {booking.property_status === 'archived' && (
+              <span className="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase bg-red-100 text-red-700">
+                Property archived
+              </span>
+            )}
           </div>
         </div>
         {canRunAction && (

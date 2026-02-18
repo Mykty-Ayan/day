@@ -1,3 +1,5 @@
+import { useMemo } from 'react'
+import { useQueries } from '@tanstack/react-query'
 import { motion } from 'framer-motion'
 import {
   ArrowLeft,
@@ -15,6 +17,7 @@ import {
 import { useParams, Link } from '@tanstack/react-router'
 import {
   useProperty,
+  useAllProperties,
   useChangePropertyStatus,
   usePropertyPricing,
   useCreateOrUpdatePricing,
@@ -24,9 +27,10 @@ import {
   useDeleteDiscountRule,
   usePropertyAuditLog,
 } from '../../hooks/useProperties'
-import type { PropertyStatus, PricingInput } from '../../types/property'
+import { getPricing } from '../../api/properties'
+import type { PropertyStatus, PricingInput, SeasonalPrice } from '../../types/property'
+import PricingForm, { type SeasonalSuggestion } from '../../components/property/PricingForm'
 import StatusBadge from '../../components/property/StatusBadge'
-import PricingForm from '../../components/property/PricingForm'
 import { showToast } from '../../components/ui/Toast'
 
 function getStatusActions(status: PropertyStatus): { label: string; target: PropertyStatus; icon: typeof Play }[] {
@@ -52,9 +56,14 @@ function formatAuditValue(value: string | null): string {
   return value ?? 'null'
 }
 
+function seasonalKey(seasonal: Pick<SeasonalPrice, 'name' | 'start_date' | 'end_date'>): string {
+  return `${seasonal.name.trim().toLowerCase()}|${seasonal.start_date}|${seasonal.end_date}`
+}
+
 export default function PropertyDetailPage() {
   const { propertyId } = useParams({ strict: false }) as { propertyId: string }
   const { data: property, isLoading } = useProperty(propertyId)
+  const { data: allProperties } = useAllProperties()
   const changeStatus = useChangePropertyStatus(propertyId)
   const { data: pricing } = usePropertyPricing(propertyId)
   const savePricing = useCreateOrUpdatePricing(propertyId)
@@ -63,6 +72,70 @@ export default function PropertyDetailPage() {
   const addDiscount = useAddDiscountRule(propertyId)
   const deleteDiscount = useDeleteDiscountRule(propertyId)
   const { data: auditLog = [] } = usePropertyAuditLog(propertyId)
+
+  const otherProperties = useMemo(
+    () => (allProperties?.items ?? []).filter((p) => p.id !== propertyId),
+    [allProperties?.items, propertyId],
+  )
+
+  const otherPricingQueries = useQueries({
+    queries: otherProperties.map((p) => ({
+      queryKey: ['pricing', p.id],
+      queryFn: () => getPricing(p.id),
+      enabled: !!p.id,
+      staleTime: 60_000,
+    })),
+  })
+
+  const seasonalSuggestions = useMemo<SeasonalSuggestion[]>(() => {
+    const existing = new Set((pricing?.seasonal_prices ?? []).map((season) => seasonalKey(season)))
+    const grouped = new Map<string, {
+      name: string
+      start_date: string
+      end_date: string
+      sources: Set<string>
+    }>()
+
+    otherPricingQueries.forEach((query, index) => {
+      const sourceProperty = otherProperties[index]
+      if (!sourceProperty) return
+      if (!query.data?.seasonal_prices?.length) return
+
+      const sourceLabel = sourceProperty.internal_name.trim() || sourceProperty.name.trim()
+      for (const seasonal of query.data.seasonal_prices) {
+        const key = seasonalKey(seasonal)
+        if (existing.has(key)) continue
+
+        const current = grouped.get(key)
+        if (current) {
+          current.sources.add(sourceLabel)
+          continue
+        }
+
+        grouped.set(key, {
+          name: seasonal.name.trim(),
+          start_date: seasonal.start_date,
+          end_date: seasonal.end_date,
+          sources: new Set([sourceLabel]),
+        })
+      }
+    })
+
+    return Array.from(grouped.entries())
+      .map(([key, value]) => ({
+        key,
+        name: value.name,
+        start_date: value.start_date,
+        end_date: value.end_date,
+        source_count: value.sources.size,
+        source_properties: Array.from(value.sources),
+      }))
+      .sort((a, b) => {
+        if (a.start_date !== b.start_date) return a.start_date.localeCompare(b.start_date)
+        return a.name.localeCompare(b.name)
+      })
+  }, [otherPricingQueries, otherProperties, pricing?.seasonal_prices])
+
   const handleSavePricing = (data: PricingInput) => {
     savePricing.mutate(data, {
       onSuccess: () => showToast('success', 'Pricing saved'),
@@ -283,6 +356,7 @@ export default function PropertyDetailPage() {
               <h2 className="text-sm font-bold text-gray-900 mb-4">Pricing</h2>
               <PricingForm
                 pricing={pricing ?? null}
+                seasonalSuggestions={seasonalSuggestions}
                 onSaveBase={handleSavePricing}
                 onAddSeasonal={(data) =>
                   addSeasonal.mutate(data, {

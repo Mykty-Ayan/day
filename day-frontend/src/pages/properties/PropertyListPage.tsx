@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
-import { Plus, Search, ChevronLeft, ChevronRight, LayoutGrid, Grid2X2, List } from 'lucide-react'
+import { Plus, Search, LayoutGrid, Grid2X2, List } from 'lucide-react'
 import { Link } from '@tanstack/react-router'
-import { useProperties } from '../../hooks/useProperties'
+import { useAllProperties } from '../../hooks/useProperties'
 import type { PropertyStatus } from '../../types/property'
 import PropertyCard from '../../components/property/PropertyCard'
 import { ToggleGroup, ToggleGroupItem } from '../../components/ui/toggle-group'
@@ -17,13 +17,10 @@ const statusTabs: { value: PropertyStatus | 'all'; label: string }[] = [
 
 export default function PropertyListPage() {
   const [search, setSearch] = useState('')
-  const [statusFilter, setStatusFilter] = useState<PropertyStatus | 'all'>('all')
-  const [page, setPage] = useState(1)
+  const [statusFilter, setStatusFilter] = useState<PropertyStatus | 'all'>('active')
   const [viewMode, setViewMode] = useState<'large' | 'medium' | 'list'>('large')
 
-  const { data, isLoading } = useProperties({
-    page,
-    per_page: 12,
+  const { data, isLoading } = useAllProperties({
     status: statusFilter === 'all' ? undefined : statusFilter,
     search: search || undefined,
   })
@@ -58,7 +55,6 @@ export default function PropertyListPage() {
               value={search}
               onChange={(e) => {
                 setSearch(e.target.value)
-                setPage(1)
               }}
               placeholder="Search by name..."
               className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 pl-9 outline-none focus:ring-2 focus:ring-black/10 text-gray-800 text-sm"
@@ -70,7 +66,6 @@ export default function PropertyListPage() {
             onValueChange={(value) => {
               if (!value) return
               setStatusFilter(value as PropertyStatus | 'all')
-              setPage(1)
             }}
           >
             {statusTabs.map((tab) => (
@@ -128,7 +123,6 @@ export default function PropertyListPage() {
           </div>
         ) : (
           <>
-            {/* Grid */}
             <div
               className={`grid ${
                 viewMode === 'large'
@@ -142,31 +136,6 @@ export default function PropertyListPage() {
                 <PropertyCard key={property.id} property={property} index={i} variant={viewMode} />
               ))}
             </div>
-
-            {/* Pagination */}
-            {data.pages > 1 && (
-              <div className="flex items-center justify-center gap-2 mt-8">
-                <motion.button
-                  whileTap={{ scale: 0.97 }}
-                  onClick={() => setPage((p) => Math.max(1, p - 1))}
-                  disabled={page <= 1}
-                  className="p-2 rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed"
-                >
-                  <ChevronLeft className="w-4 h-4" />
-                </motion.button>
-                <span className="text-xs font-bold text-gray-500 px-3">
-                  Page {data.page} of {data.pages}
-                </span>
-                <motion.button
-                  whileTap={{ scale: 0.97 }}
-                  onClick={() => setPage((p) => Math.min(data.pages, p + 1))}
-                  disabled={page >= data.pages}
-                  className="p-2 rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed"
-                >
-                  <ChevronRight className="w-4 h-4" />
-                </motion.button>
-              </div>
-            )}
           </>
         )}
       </motion.div>

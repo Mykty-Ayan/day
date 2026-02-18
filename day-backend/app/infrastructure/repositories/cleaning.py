@@ -309,6 +309,17 @@ class SqlCleaningChecklistTemplateRepository(CleaningChecklistTemplateRepository
         result = await self._session.scalars(stmt)
         return [_model_to_template(m) for m in result.all()]
 
+    async def update(self, template: CleaningChecklistTemplate) -> CleaningChecklistTemplate:
+        stmt = (
+            update(CleaningChecklistTemplateModel)
+            .where(CleaningChecklistTemplateModel.id == template.id)
+            .values(name=template.name)
+        )
+        await self._session.execute(stmt)
+        await self._session.flush()
+        result = await self._session.get(CleaningChecklistTemplateModel, template.id)
+        return _model_to_template(result)  # type: ignore[arg-type]
+
     async def delete(self, template_id: uuid.UUID) -> None:
         stmt = delete(CleaningChecklistTemplateModel).where(
             CleaningChecklistTemplateModel.id == template_id
@@ -333,6 +344,10 @@ class SqlCleaningChecklistItemRepository(CleaningChecklistItemRepository):
         await self._session.refresh(model)
         return _model_to_checklist_item(model)
 
+    async def get_by_id(self, item_id: uuid.UUID) -> CleaningChecklistItem | None:
+        result = await self._session.get(CleaningChecklistItemModel, item_id)
+        return _model_to_checklist_item(result) if result else None
+
     async def list_by_template(
         self, template_id: uuid.UUID
     ) -> list[CleaningChecklistItem]:
@@ -343,6 +358,17 @@ class SqlCleaningChecklistItemRepository(CleaningChecklistItemRepository):
         )
         result = await self._session.scalars(stmt)
         return [_model_to_checklist_item(m) for m in result.all()]
+
+    async def update(self, item: CleaningChecklistItem) -> CleaningChecklistItem:
+        stmt = (
+            update(CleaningChecklistItemModel)
+            .where(CleaningChecklistItemModel.id == item.id)
+            .values(title=item.title)
+        )
+        await self._session.execute(stmt)
+        await self._session.flush()
+        result = await self._session.get(CleaningChecklistItemModel, item.id)
+        return _model_to_checklist_item(result)  # type: ignore[arg-type]
 
     async def reorder(self, template_id: uuid.UUID, item_ids: list[uuid.UUID]) -> None:
         for sort_order, item_id in enumerate(item_ids):

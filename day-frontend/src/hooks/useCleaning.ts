@@ -18,13 +18,17 @@ import {
   rateCleaner,
   reorderChecklistItems,
   submitReport,
+  updateChecklistItem,
+  updateChecklistTemplate,
 } from '../api/cleaning'
 import type {
   ChecklistTemplateDetail,
   ChecklistTemplateCreateInput,
+  ChecklistTemplateUpdateInput,
   CleaningStatus,
   CleaningTaskCreateInput,
   CleaningTaskFilters,
+  ChecklistItemUpdateInput,
   RateCleanerInput,
   SubmitReportInput,
 } from '../types/cleaning'
@@ -146,6 +150,18 @@ export function useDeleteChecklistTemplate() {
   })
 }
 
+export function useUpdateChecklistTemplate() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: ChecklistTemplateUpdateInput }) =>
+      updateChecklistTemplate(id, data),
+    onSuccess: (_result, variables) => {
+      qc.invalidateQueries({ queryKey: [CHECKLISTS_KEY] })
+      qc.invalidateQueries({ queryKey: [CHECKLIST_KEY, variables.id] })
+    },
+  })
+}
+
 export function useAddChecklistItem(templateId: string) {
   const qc = useQueryClient()
   return useMutation({
@@ -163,6 +179,23 @@ export function useDeleteChecklistItem(templateId: string) {
     mutationFn: (itemId: string) => deleteChecklistItem(templateId, itemId),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: [CHECKLIST_KEY, templateId] })
+    },
+  })
+}
+
+export function useUpdateChecklistItem(templateId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({
+      itemId,
+      data,
+    }: {
+      itemId: string
+      data: ChecklistItemUpdateInput
+    }) => updateChecklistItem(templateId, itemId, data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: [CHECKLIST_KEY, templateId] })
+      qc.invalidateQueries({ queryKey: [CHECKLISTS_KEY] })
     },
   })
 }
