@@ -263,6 +263,7 @@ class GanttPropertyResponse(BaseModel):
     name: str
     internal_name: str
     type: str
+    status: PropertyStatus
     bookings: list[GanttBookingResponse]
 
 

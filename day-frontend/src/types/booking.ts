@@ -132,6 +132,7 @@ export interface GanttPropertySummary {
   name: string
   internal_name: string
   type: string
+  status: 'new' | 'active' | 'paused' | 'archived'
 }
 
 export interface GanttData {
