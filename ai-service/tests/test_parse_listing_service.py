@@ -38,6 +38,33 @@ class TestParseListingService:
         assert result.property_data.source_url == "https://krisha.kz/a/show/690725054"
 
     @pytest.mark.asyncio
+    async def test_normalizes_airbnb_hosting_editor_url(self):
+        class RecordingParser(ContentParser):
+            def __init__(self) -> None:
+                self.last_url: str | None = None
+
+            async def fetch_content(self, url: str) -> str:
+                self.last_url = url
+                return "listing content"
+
+            def get_source_type(self) -> SourceType:
+                return SourceType.AIRBNB
+
+        parser = RecordingParser()
+        service = ParseListingService(
+            parser_factory=lambda st: parser,
+            extractor=FakeExtractor(result={"name": "Test"}),
+            mapper=FakeMapper(confidence=0.5),
+        )
+
+        url = "https://www.airbnb.ru/hosting/listings/editor/1502076254219978997/details/photo-tour"
+        result = await service.execute(ParseListingInput(url=url))
+
+        assert parser.last_url == "https://www.airbnb.ru/rooms/1502076254219978997"
+        assert result.source_url == "https://www.airbnb.ru/rooms/1502076254219978997"
+        assert result.property_data.source_url == "https://www.airbnb.ru/rooms/1502076254219978997"
+
+    @pytest.mark.asyncio
     async def test_successful_parse(self):
         raw = {"name": "Test Property", "type": "apartment"}
         parser = FakeParser(content="listing content", source_type=SourceType.BOOKING)
@@ -199,3 +226,31 @@ class TestParseListingService:
         assert result.raw_data["street"] == "Nauryzbay batyra"
         assert result.raw_data["house_number"] == "28"
         assert result.raw_data["floor"] == 12
+
+    @pytest.mark.asyncio
+    async def test_airbnb_enrichment_block_fills_missing_raw_data(self):
+        parser = FakeParser(
+            content=(
+                "listing content\n\n"
+                "[AIRBNB_ENRICHMENT]\n"
+                '{"airbnb_listing_id":"12345","latitude":43.2,"longitude":76.9,'
+                '"address_full":"Almaty, Kazakhstan","amenities":["WiFi","Kitchen"],'
+                '"house_rules":["No smoking","No parties"],"description":"Cozy flat"}\n'
+            ),
+            source_type=SourceType.AIRBNB,
+        )
+        service = ParseListingService(
+            parser_factory=lambda st: parser,
+            extractor=FakeExtractor(result={}),
+            mapper=FakeMapper(confidence=0.5),
+        )
+
+        result = await service.execute(ParseListingInput(url="https://www.airbnb.com/rooms/12345"))
+
+        assert result.raw_data["airbnb_listing_id"] == "12345"
+        assert result.raw_data["latitude"] == 43.2
+        assert result.raw_data["longitude"] == 76.9
+        assert result.raw_data["address_full"] == "Almaty, Kazakhstan"
+        assert result.raw_data["amenities"] == ["WiFi", "Kitchen"]
+        assert result.raw_data["house_rules"] == "No smoking\nNo parties"
+        assert result.raw_data["description"] == "Cozy flat"

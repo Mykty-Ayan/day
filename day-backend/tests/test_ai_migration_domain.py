@@ -47,6 +47,18 @@ class TestImportSource:
         url = "https://www.krisha.kz/show/2303047?srchid=abc"
         assert ImportSource.normalize_url(url) == "https://krisha.kz/a/show/2303047?srchid=abc"
 
+    def test_normalize_airbnb_hosting_editor_url(self):
+        url = "https://www.airbnb.ru/hosting/listings/editor/1502076254219978997/details/photo-tour"
+        assert ImportSource.normalize_url(url) == "https://www.airbnb.ru/rooms/1502076254219978997"
+
+    def test_normalize_airbnb_hosting_editor_url_without_scheme(self):
+        url = "airbnb.ru/hosting/listings/editor/1502076254219978997/details/photo-tour"
+        assert ImportSource.normalize_url(url) == "https://airbnb.ru/rooms/1502076254219978997"
+
+    def test_normalize_airbnb_rooms_strips_extra_path(self):
+        url = "https://airbnb.com/rooms/12345/details"
+        assert ImportSource.normalize_url(url) == "https://airbnb.com/rooms/12345"
+
     def test_detect_booking_url(self):
         assert ImportSource.detect_from_url("https://www.booking.com/hotel/kz/test.html") == ImportSource.BOOKING
 

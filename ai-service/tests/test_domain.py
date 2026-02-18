@@ -19,6 +19,18 @@ class TestSourceType:
         url = "https://www.krisha.kz/show/690725054?srchid=abc"
         assert SourceType.normalize_url(url) == "https://krisha.kz/a/show/690725054?srchid=abc"
 
+    def test_normalize_airbnb_hosting_editor_url(self):
+        url = "https://www.airbnb.ru/hosting/listings/editor/1502076254219978997/details/photo-tour"
+        assert SourceType.normalize_url(url) == "https://www.airbnb.ru/rooms/1502076254219978997"
+
+    def test_normalize_airbnb_hosting_editor_url_without_scheme(self):
+        url = "airbnb.ru/hosting/listings/editor/1502076254219978997/details/photo-tour"
+        assert SourceType.normalize_url(url) == "https://airbnb.ru/rooms/1502076254219978997"
+
+    def test_normalize_airbnb_room_url_strips_extra_path(self):
+        url = "https://www.airbnb.com/rooms/12345/details"
+        assert SourceType.normalize_url(url) == "https://www.airbnb.com/rooms/12345"
+
     def test_detect_booking_url(self):
         url = "https://www.booking.com/hotel/kz/cozy-apartment.html"
         assert SourceType.detect_from_url(url) == SourceType.BOOKING

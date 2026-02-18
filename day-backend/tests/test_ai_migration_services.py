@@ -248,6 +248,19 @@ class TestStartImportService:
         assert result.source_type == ImportSource.KRISHA
 
     @pytest.mark.asyncio
+    async def test_normalizes_airbnb_hosting_editor_url_before_save_and_parse(self):
+        repo = FakeImportJobRepository()
+        ai_client = FakeAIServiceClient()
+        svc = StartImportService(repo, ai_client)
+
+        source_url = "https://www.airbnb.ru/hosting/listings/editor/1502076254219978997/details/photo-tour"
+        result = await svc.execute(StartImportInput(company_id=COMPANY_ID, source_url=source_url))
+
+        assert result.source_url == "https://www.airbnb.ru/rooms/1502076254219978997"
+        assert ai_client.last_url == "https://www.airbnb.ru/rooms/1502076254219978997"
+        assert result.source_type == ImportSource.AIRBNB
+
+    @pytest.mark.asyncio
     async def test_updates_job_on_success_with_extracted_data(self):
         repo = FakeImportJobRepository()
         ai_client = FakeAIServiceClient(

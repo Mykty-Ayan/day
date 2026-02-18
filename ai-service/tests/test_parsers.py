@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
@@ -268,6 +269,47 @@ class TestAirbnbParserHTTP:
         assert "Cozy Loft" in result
         assert "City center studio" in result
         assert "Airbnb Navigation" not in result
+
+    @pytest.mark.asyncio
+    async def test_includes_airbnb_enrichment_block(self):
+        deferred_state = {
+            "sections": [
+                {"sectionId": "LOCATION_DEFAULT", "section": {"lat": 43.2, "lng": 76.9, "title": "Almaty"}},
+                {
+                    "sectionId": "AMENITIES_DEFAULT",
+                    "section": {
+                        "seeAllAmenitiesGroups": [
+                            {"title": "Essentials", "amenities": [{"title": "WiFi"}, {"title": "Kitchen"}]}
+                        ]
+                    },
+                },
+                {
+                    "sectionId": "POLICIES_DEFAULT",
+                    "section": {"houseRulesSections": [{"items": [{"title": "No smoking"}]}]},
+                },
+            ],
+            "avgRatingA11yLabel": "Rated 4.95 out of 5",
+        }
+        html = (
+            "<html><body>"
+            '<script id="data-deferred-state-0" type="application/json">'
+            + json.dumps(deferred_state)
+            + "</script>"
+            "</body></html>"
+        )
+        mock_response = _mock_httpx_response(html)
+        patcher, _ = _patch_httpx_client(mock_response)
+
+        with patcher:
+            parser = AirbnbParser()
+            result = await parser.fetch_content("https://www.airbnb.com/rooms/12345")
+
+        assert "[AIRBNB_ENRICHMENT]" in result
+        assert '"airbnb_listing_id": "12345"' in result
+        assert '"latitude": 43.2' in result
+        assert '"longitude": 76.9' in result
+        assert '"airbnb_rating_label": "Rated 4.95 out of 5"' in result
+        assert '"amenities": ["WiFi", "Kitchen"]' in result
 
     def test_source_type_is_airbnb(self):
         parser = AirbnbParser()

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import re
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -105,6 +106,82 @@ class ParseListingService:
 
         return complex_name, microdistrict, floor, street, house_number
 
+    @staticmethod
+    def _extract_airbnb_enrichment_from_content(content: str) -> dict:
+        """Extract parser-provided Airbnb enrichment JSON block values."""
+        marker = "[AIRBNB_ENRICHMENT]"
+        if marker not in content:
+            return {}
+
+        after_marker = content.split(marker, maxsplit=1)[1]
+        for line in after_marker.splitlines():
+            candidate = line.strip()
+            if not candidate:
+                continue
+            if candidate.startswith("[") and candidate.endswith("]"):
+                break
+            try:
+                parsed = json.loads(candidate)
+            except json.JSONDecodeError:
+                continue
+            if isinstance(parsed, dict):
+                return parsed
+        return {}
+
+    @staticmethod
+    def _apply_airbnb_enrichment(raw_data: dict, enrichment: dict) -> None:
+        if not enrichment:
+            return
+
+        # Keep raw enrichment fields for parser upgrades.
+        passthrough_keys = {
+            "airbnb_listing_id",
+            "airbnb_search_url",
+            "airbnb_badges",
+            "airbnb_rating_label",
+            "airbnb_price_breakdown_items",
+            "airbnb_policies_title",
+            "airbnb_highlights",
+            "airbnb_amenity_groups",
+            "airbnb_pagination_cursor",
+            "airbnb_stay_window",
+            "airbnb_stay_window_available",
+        }
+        for key in passthrough_keys:
+            if raw_data.get(key) is None and enrichment.get(key) is not None:
+                raw_data[key] = enrichment[key]
+
+        if raw_data.get("latitude") is None and raw_data.get("lat") is None and enrichment.get("latitude") is not None:
+            raw_data["latitude"] = enrichment["latitude"]
+        if (
+            raw_data.get("longitude") is None
+            and raw_data.get("lon") is None
+            and raw_data.get("lng") is None
+            and enrichment.get("longitude") is not None
+        ):
+            raw_data["longitude"] = enrichment["longitude"]
+        if not raw_data.get("address_full") and enrichment.get("address_full"):
+            raw_data["address_full"] = enrichment["address_full"]
+        if not raw_data.get("description") and enrichment.get("description"):
+            raw_data["description"] = enrichment["description"]
+
+        if not raw_data.get("amenities"):
+            amenities = enrichment.get("amenities")
+            if isinstance(amenities, list):
+                raw_data["amenities"] = [str(a).strip() for a in amenities if str(a).strip()]
+
+        if not raw_data.get("house_rules"):
+            rules = enrichment.get("house_rules")
+            if isinstance(rules, list):
+                rule_lines = [str(r).strip() for r in rules if str(r).strip()]
+                if rule_lines:
+                    raw_data["house_rules"] = "\n".join(rule_lines)
+            elif isinstance(rules, str) and rules.strip():
+                raw_data["house_rules"] = rules.strip()
+
+        if raw_data.get("base_price") is None and enrichment.get("base_price") is not None:
+            raw_data["base_price"] = enrichment["base_price"]
+
     async def execute(self, inp: ParseListingInput) -> ParseResult:
         normalized_url = SourceType.normalize_url(inp.url)
         source_type = SourceType.detect_from_url(normalized_url)
@@ -128,6 +205,9 @@ class ParseListingService:
         except Exception as e:
             warnings.append(f"LLM extraction failed: {e}")
             raw_data = {}
+
+        # Deterministic fallback: enrich from parser-provided Airbnb metadata.
+        self._apply_airbnb_enrichment(raw_data, self._extract_airbnb_enrichment_from_content(content))
 
         # Deterministic fallback: if parser extracted map coordinates, preserve them
         # even when the LLM omits latitude/longitude.
