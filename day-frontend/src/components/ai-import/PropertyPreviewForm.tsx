@@ -10,6 +10,12 @@ interface Props {
 }
 
 const propertyTypes = ['apartment', 'house', 'room'] as const
+const COORDINATE_PRECISION = 6
+const BASE_PRICE_PRESETS = [20_000, 25_000, 30_000, 35_000] as const
+const SYSTEM_CURRENCY = '$'
+const moneyChipFormatter = new Intl.NumberFormat('en-US', {
+  maximumFractionDigits: 0,
+})
 
 function FieldRow({
   label,
@@ -61,7 +67,10 @@ function FieldRow({
             type={type}
             value={displayValue}
             onChange={(e) => onChange(field, e.target.value)}
+            step={type === 'number' ? 'any' : undefined}
             className={`w-full bg-gray-50 border rounded-xl p-3 outline-none focus:ring-2 focus:ring-black/10 text-gray-800 text-sm ${
+              type === 'number' ? 'tabular-nums' : ''
+            } ${
               isEmpty ? 'border-amber-200 bg-amber-50/30' : 'border-gray-200'
             }`}
           />
@@ -69,6 +78,8 @@ function FieldRow({
       ) : (
         <div
           className={`w-full border rounded-xl p-3 text-sm min-h-[42px] ${
+            type === 'number' ? 'tabular-nums' : ''
+          } ${
             isEmpty
               ? 'border-amber-200 bg-amber-50/30 text-amber-400 italic'
               : 'border-gray-200 bg-gray-50 text-gray-800'
@@ -89,8 +100,19 @@ export default function PropertyPreviewForm({ data, onChange }: Props) {
   function handleFieldChange(field: string, value: string) {
     const numericFields = ['latitude', 'longitude', 'rooms', 'beds', 'area_total', 'area_living', 'floor', 'base_price']
     if (numericFields.includes(field)) {
-      const parsed = value === '' ? null : Number(value)
-      onChange({ ...data, [field]: parsed !== null && isNaN(parsed) ? data[field as keyof MappedPropertyData] : parsed })
+      if (value.trim() === '') {
+        onChange({ ...data, [field]: null })
+        return
+      }
+
+      const normalized = value.replace(',', '.')
+      const parsed = Number(normalized)
+      if (Number.isNaN(parsed)) return
+
+      const numericValue = field === 'latitude' || field === 'longitude'
+        ? Number(parsed.toFixed(COORDINATE_PRECISION))
+        : parsed
+      onChange({ ...data, [field]: numericValue })
     } else {
       onChange({ ...data, [field]: value || null })
     }
@@ -173,6 +195,10 @@ export default function PropertyPreviewForm({ data, onChange }: Props) {
     return `photo-${index + 1}.jpg`
   }
 
+  function formatCurrency(value: number): string {
+    return `${SYSTEM_CURRENCY}${moneyChipFormatter.format(value)}`
+  }
+
   async function handleDownloadPhoto(url: string, index: number) {
     try {
       const response = await apiClient.get('/ai/photo/download', {
@@ -181,7 +207,6 @@ export default function PropertyPreviewForm({ data, onChange }: Props) {
       })
       const blob = response.data as Blob
       const objectUrl = URL.createObjectURL(blob)
-
       const link = document.createElement('a')
       link.href = objectUrl
       link.download = buildDownloadName(url, index)
@@ -190,9 +215,13 @@ export default function PropertyPreviewForm({ data, onChange }: Props) {
       link.remove()
       URL.revokeObjectURL(objectUrl)
     } catch {
-      window.open(url, '_blank', 'noopener,noreferrer')
+      // Intentionally avoid opening the source image full-screen on failure.
     }
   }
+
+  const basePriceMissing = data.base_price === null || data.base_price === undefined
+  const latitudeDisplay = data.latitude === null ? null : Number(data.latitude.toFixed(COORDINATE_PRECISION))
+  const longitudeDisplay = data.longitude === null ? null : Number(data.longitude.toFixed(COORDINATE_PRECISION))
 
   return (
     <div className="space-y-6">
@@ -267,8 +296,8 @@ export default function PropertyPreviewForm({ data, onChange }: Props) {
         <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Address & Location</h4>
         <FieldRow label="Full Address" value={data.address_full} field="address_full" editing={editing} onChange={handleFieldChange} />
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
-          <FieldRow label="Latitude" value={data.latitude} field="latitude" editing={editing} onChange={handleFieldChange} type="number" />
-          <FieldRow label="Longitude" value={data.longitude} field="longitude" editing={editing} onChange={handleFieldChange} type="number" />
+          <FieldRow label="Latitude" value={latitudeDisplay} field="latitude" editing={editing} onChange={handleFieldChange} type="number" />
+          <FieldRow label="Longitude" value={longitudeDisplay} field="longitude" editing={editing} onChange={handleFieldChange} type="number" />
           <FieldRow label="Floor" value={data.floor} field="floor" editing={editing} onChange={handleFieldChange} type="number" />
         </div>
       </div>
@@ -279,8 +308,8 @@ export default function PropertyPreviewForm({ data, onChange }: Props) {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <FieldRow label="Rooms" value={data.rooms} field="rooms" editing={editing} onChange={handleFieldChange} type="number" />
           <FieldRow label="Beds" value={data.beds} field="beds" editing={editing} onChange={handleFieldChange} type="number" />
-          <FieldRow label="Total Area (m2)" value={data.area_total} field="area_total" editing={editing} onChange={handleFieldChange} type="number" />
-          <FieldRow label="Living Area (m2)" value={data.area_living} field="area_living" editing={editing} onChange={handleFieldChange} type="number" />
+          <FieldRow label="Total m²" value={data.area_total} field="area_total" editing={editing} onChange={handleFieldChange} type="number" />
+          <FieldRow label="Living m²" value={data.area_living} field="area_living" editing={editing} onChange={handleFieldChange} type="number" />
         </div>
       </div>
 
@@ -288,7 +317,23 @@ export default function PropertyPreviewForm({ data, onChange }: Props) {
       <div className="border-t border-gray-100 pt-4">
         <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Pricing</h4>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <FieldRow label="Base Price / Night" value={data.base_price} field="base_price" editing={editing} onChange={handleFieldChange} type="number" />
+          <div className="space-y-2">
+            <FieldRow label="Base Price / Night" value={data.base_price} field="base_price" editing={editing} onChange={handleFieldChange} type="number" />
+            {editing && basePriceMissing && (
+              <div className="flex flex-wrap items-center gap-2">
+                {BASE_PRICE_PRESETS.map((preset) => (
+                  <button
+                    key={preset}
+                    type="button"
+                    onClick={() => onChange({ ...data, base_price: preset })}
+                    className="px-3 py-1.5 rounded-full border border-gray-200 bg-white hover:bg-gray-900 hover:text-white text-xs font-semibold text-gray-700 transition-all"
+                  >
+                    {formatCurrency(preset)}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -429,10 +474,14 @@ export default function PropertyPreviewForm({ data, onChange }: Props) {
                   </a>
                   <button
                     type="button"
-                    onClick={() => void handleDownloadPhoto(url, i)}
+                    onClick={(event) => {
+                      event.preventDefault()
+                      event.stopPropagation()
+                      void handleDownloadPhoto(url, i)
+                    }}
                     className="bg-white/90 hover:bg-gray-50 border border-gray-200 rounded-lg p-1"
                     aria-label={`Download photo ${i + 1}`}
-                    title="Download"
+                    title={`Download ${buildDownloadName(url, i)}`}
                   >
                     <Download className="w-3 h-3 text-gray-600" />
                   </button>

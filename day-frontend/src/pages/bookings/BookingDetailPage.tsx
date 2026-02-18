@@ -302,6 +302,9 @@ const moneyFormatter = new Intl.NumberFormat('en-US', {
   minimumFractionDigits: 2,
   maximumFractionDigits: 2,
 })
+const moneyChipFormatter = new Intl.NumberFormat('en-US', {
+  maximumFractionDigits: 0,
+})
 
 function normalizeNumber(value: number | string | null | undefined): number {
   if (typeof value === 'number') return value
@@ -315,6 +318,10 @@ function normalizeNumber(value: number | string | null | undefined): number {
 
 function formatMoney(value: number | string | null | undefined): string {
   return moneyFormatter.format(normalizeNumber(value))
+}
+
+function formatMoneyChip(value: number | string | null | undefined): string {
+  return moneyChipFormatter.format(normalizeNumber(value))
 }
 
 // --- Payments Tab ---
@@ -549,9 +556,9 @@ function DepositsTab({ bookingId, deposits }: { bookingId: string; deposits: Boo
   const [newAmount, setNewAmount] = useState('')
   const [showCreate, setShowCreate] = useState(false)
   const quickDepositOptions = [
-    { label: '5k', value: 5000 },
-    { label: '10k', value: 10000 },
-    { label: '20k', value: 20000 },
+    { value: 5000 },
+    { value: 10000 },
+    { value: 20000 },
   ]
 
   function handleCreate() {
@@ -607,12 +614,12 @@ function DepositsTab({ bookingId, deposits }: { bookingId: string; deposits: Boo
             <div className="flex flex-wrap gap-2">
               {quickDepositOptions.map((option) => (
                 <button
-                  key={option.label}
+                  key={option.value}
                   type="button"
                   onClick={() => setNewAmount(String(option.value))}
                   className="px-3 py-1.5 rounded-full border border-gray-200 bg-white hover:bg-gray-900 hover:text-white text-xs font-semibold text-gray-700 transition-all"
                 >
-                  {option.label} (${formatMoney(option.value)})
+                  ${formatMoneyChip(option.value)}
                 </button>
               ))}
             </div>
