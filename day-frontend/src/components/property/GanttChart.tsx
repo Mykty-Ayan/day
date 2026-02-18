@@ -555,6 +555,7 @@ export default function GanttChart({
                       ? 'bg-blue-50/50'
                       : ''
                   }`}
+                  style={{ height: ROW_H }}
                   onDragOver={(e) => {
                     if (!isPaused) handleDragOver(e, row.property.id)
                   }}
@@ -619,7 +620,7 @@ export default function GanttChart({
                             ? 'bg-amber-100 ring-2 ring-inset ring-amber-500 border-amber-200'
                           : ''
                       }`}
-                      style={{ width: CELL_W, height: ROW_H }}
+                      style={{ width: CELL_W, height: '100%' }}
                       onMouseEnter={(e) => {
                         if (isPaused) {
                           setRangePreviewTooltip(null)
@@ -678,7 +679,7 @@ export default function GanttChart({
                     >
                       {nightlyRate !== null && (
                         <div className="pointer-events-none flex h-full items-end justify-center pb-1">
-                          <span className="text-[9px] font-semibold text-emerald-700">
+                          <span className={`text-[9px] font-semibold ${isPaused ? 'text-gray-500' : 'text-emerald-700'}`}>
                             {formatCellPrice(nightlyRate)}
                           </span>
                         </div>

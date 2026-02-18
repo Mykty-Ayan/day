@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion'
 import { Loader2, CheckCircle2, XCircle, Clock } from 'lucide-react'
 import type { ImportJob, ImportJobStatus, ImportSourceType } from '../../types/ai-import'
+import { parseApiDateTime } from '../../utils/date-time'
 
 interface Props {
   job: ImportJob
@@ -79,9 +80,10 @@ function extractListingTitle(payload: unknown): string | null {
 }
 
 function formatTime(dateStr: string): string {
-  const date = new Date(dateStr)
-  const now = new Date()
-  const diffMs = now.getTime() - date.getTime()
+  const date = parseApiDateTime(dateStr)
+  if (Number.isNaN(date.getTime())) return '-'
+
+  const diffMs = Math.max(0, Date.now() - date.getTime())
   const diffMin = Math.floor(diffMs / 60000)
 
   if (diffMin < 1) return 'Just now'

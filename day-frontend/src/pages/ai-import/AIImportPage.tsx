@@ -7,6 +7,7 @@ import type { ImportJob } from '../../types/ai-import'
 import ImportForm from '../../components/ai-import/ImportForm'
 import BatchImportForm from '../../components/ai-import/BatchImportForm'
 import ImportJobsList from '../../components/ai-import/ImportJobsList'
+import { parseApiDateTime } from '../../utils/date-time'
 
 type Tab = 'single' | 'batch'
 
@@ -45,7 +46,7 @@ export default function AIImportPage() {
   }
 
   const sortedJobs = jobs
-    ? [...jobs].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+    ? [...jobs].sort((a, b) => parseApiDateTime(b.created_at).getTime() - parseApiDateTime(a.created_at).getTime())
     : undefined
 
   return (
