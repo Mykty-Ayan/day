@@ -285,16 +285,23 @@ class TestAirbnbParserHTTP:
                 },
                 {
                     "sectionId": "POLICIES_DEFAULT",
-                    "section": {"houseRulesSections": [{"items": [{"title": "No smoking"}]}]},
+                    "section": {
+                        "houseRulesSections": "Check-in after 2:00 PM, Checkout before 12:00 PM",
+                        "items": [{"title": "No smoking"}],
+                    },
                 },
             ],
             "avgRatingA11yLabel": "Rated 4.95 out of 5",
+            "structuredContent": {"primaryLine": "2 bedrooms, 3 beds"},
         }
         html = (
             "<html><body>"
             '<script id="data-deferred-state-0" type="application/json">'
             + json.dumps(deferred_state)
             + "</script>"
+            '<script type="application/ld+json">'
+            '{"@type":"VacationRental","name":"City Loft","image":["https://a0.muscache.com/photo-1.jpg"]}'
+            "</script>"
             "</body></html>"
         )
         mock_response = _mock_httpx_response(html)
@@ -310,6 +317,12 @@ class TestAirbnbParserHTTP:
         assert '"longitude": 76.9' in result
         assert '"airbnb_rating_label": "Rated 4.95 out of 5"' in result
         assert '"amenities": ["WiFi", "Kitchen"]' in result
+        assert '"name": "City Loft"' in result
+        assert '"rooms": 2' in result
+        assert '"beds": 3' in result
+        assert '"check_in_instructions": "Check-in after 2:00 PM"' in result
+        assert '"check_out_instructions": "Checkout before 12:00 PM"' in result
+        assert '"photos": ["https://a0.muscache.com/photo-1.jpg"]' in result
 
     def test_source_type_is_airbnb(self):
         parser = AirbnbParser()

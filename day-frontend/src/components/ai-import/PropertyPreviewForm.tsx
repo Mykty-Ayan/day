@@ -33,10 +33,13 @@ function FieldRow({
 
   return (
     <div className="flex flex-col gap-1">
-      <label htmlFor={`field-${field}`} className="text-xs font-bold text-gray-700">
-        {label}
+      <label
+        htmlFor={`field-${field}`}
+        className="flex min-h-[1.25rem] items-baseline gap-1.5 text-xs font-bold leading-5 text-gray-700"
+      >
+        <span>{label}</span>
         {isEmpty && (
-          <span className="ml-1.5 text-[10px] font-normal text-amber-500">
+          <span className="shrink-0 whitespace-nowrap text-[10px] font-normal text-amber-500">
             Not extracted
           </span>
         )}
@@ -224,10 +227,15 @@ export default function PropertyPreviewForm({ data, onChange }: Props) {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="flex flex-col gap-1">
-          <label htmlFor="field-type" className="text-xs font-bold text-gray-700">
-            Type
+          <label
+            htmlFor="field-type"
+            className="flex min-h-[1.25rem] items-baseline gap-1.5 text-xs font-bold leading-5 text-gray-700"
+          >
+            <span>Type</span>
             {!data.type && (
-              <span className="ml-1.5 text-[10px] font-normal text-amber-500">Not extracted</span>
+              <span className="shrink-0 whitespace-nowrap text-[10px] font-normal text-amber-500">
+                Not extracted
+              </span>
             )}
           </label>
           {editing ? (

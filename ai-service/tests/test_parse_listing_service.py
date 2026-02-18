@@ -235,7 +235,11 @@ class TestParseListingService:
                 "[AIRBNB_ENRICHMENT]\n"
                 '{"airbnb_listing_id":"12345","latitude":43.2,"longitude":76.9,'
                 '"address_full":"Almaty, Kazakhstan","amenities":["WiFi","Kitchen"],'
-                '"house_rules":["No smoking","No parties"],"description":"Cozy flat"}\n'
+                '"house_rules":["No smoking","No parties"],"description":"Cozy flat",'
+                '"name":"City Loft","type":"apartment","rooms":2,"beds":3,'
+                '"check_in_instructions":"Check-in after 2:00 PM",'
+                '"check_out_instructions":"Checkout before 12:00 PM",'
+                '"photos":["https://a0.muscache.com/p1.jpg","https://a0.muscache.com/p2.jpg"]}\n'
             ),
             source_type=SourceType.AIRBNB,
         )
@@ -254,3 +258,13 @@ class TestParseListingService:
         assert result.raw_data["amenities"] == ["WiFi", "Kitchen"]
         assert result.raw_data["house_rules"] == "No smoking\nNo parties"
         assert result.raw_data["description"] == "Cozy flat"
+        assert result.raw_data["name"] == "City Loft"
+        assert result.raw_data["type"] == "apartment"
+        assert result.raw_data["rooms"] == 2
+        assert result.raw_data["beds"] == 3
+        assert result.raw_data["check_in_instructions"] == "Check-in after 2:00 PM"
+        assert result.raw_data["check_out_instructions"] == "Checkout before 12:00 PM"
+        assert result.raw_data["photos"] == [
+            "https://a0.muscache.com/p1.jpg",
+            "https://a0.muscache.com/p2.jpg",
+        ]

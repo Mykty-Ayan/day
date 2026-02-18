@@ -101,6 +101,27 @@ class AirbnbParser(BaseParser):
         return None
 
     @classmethod
+    def _first_int(cls, data: object, keys: tuple[str, ...]) -> int | None:
+        for node in cls._iter_nodes(data):
+            if not isinstance(node, dict):
+                continue
+            for key in keys:
+                value = node.get(key)
+                if isinstance(value, int):
+                    return value
+                if isinstance(value, float) and value.is_integer():
+                    return int(value)
+                if isinstance(value, str):
+                    match = re.search(r"\d+", value)
+                    if not match:
+                        continue
+                    try:
+                        return int(match.group(0))
+                    except ValueError:
+                        continue
+        return None
+
+    @classmethod
     def _collect_titles(cls, data: object, *, limit: int = _MAX_LIST_ITEMS) -> list[str]:
         titles: list[str] = []
         for node in cls._iter_nodes(data):
@@ -222,6 +243,12 @@ class AirbnbParser(BaseParser):
         for node in self._iter_nodes(data):
             if not isinstance(node, dict):
                 continue
+            house_rules_sections = node.get("houseRulesSections")
+            if isinstance(house_rules_sections, str):
+                for chunk in re.split(r"[,;]\s*", house_rules_sections):
+                    cleaned = self._normalize_text(chunk)
+                    if cleaned:
+                        rules.append(cleaned)
             items = node.get("items")
             if not isinstance(items, list):
                 continue
@@ -234,6 +261,151 @@ class AirbnbParser(BaseParser):
                     if cleaned:
                         rules.append(cleaned)
         return _unique_limited(rules, limit=_MAX_LIST_ITEMS)
+
+    def _extract_room_and_bed_counts(self, data: object) -> tuple[int | None, int | None]:
+        rooms = self._first_int(data, ("bedroomCount", "numberOfBedrooms", "bedrooms", "roomCount", "rooms"))
+        beds = self._first_int(data, ("bedCount", "numberOfBeds", "beds"))
+
+        candidates: list[str] = []
+        for node in self._iter_nodes(data):
+            if not isinstance(node, dict):
+                continue
+            for key in ("primaryLine", "secondaryLine", "subtitle", "summary", "line", "title", "accessibilityLabel"):
+                value = node.get(key)
+                if isinstance(value, str):
+                    cleaned = self._normalize_text(value)
+                    if cleaned:
+                        candidates.append(cleaned)
+                elif isinstance(value, dict):
+                    for nested_key in ("body", "text", "accessibilityLabel"):
+                        nested_val = value.get(nested_key)
+                        if isinstance(nested_val, str):
+                            cleaned = self._normalize_text(nested_val)
+                            if cleaned:
+                                candidates.append(cleaned)
+
+        room_patterns = (
+            r"(\d+)\s*(?:bedrooms?\b|спальн(?:я|и)?\b|комнат[аы]?\b)",
+            r"(?:bedrooms?\b|спальн(?:я|и)?\b|комнат[аы]?\b)\s*[:\-]?\s*(\d+)",
+        )
+        bed_patterns = (
+            r"(\d+)\s*(?:beds?\b|кроват[ьяеи]\b)",
+            r"(?:beds?\b|кроват[ьяеи]\b)\s*[:\-]?\s*(\d+)",
+        )
+
+        for candidate in candidates:
+            lowered = candidate.lower()
+            if rooms is None:
+                for pattern in room_patterns:
+                    match = re.search(pattern, lowered)
+                    if match:
+                        try:
+                            rooms = int(match.group(1))
+                        except ValueError:
+                            rooms = None
+                        break
+            if beds is None:
+                for pattern in bed_patterns:
+                    match = re.search(pattern, lowered)
+                    if match:
+                        try:
+                            beds = int(match.group(1))
+                        except ValueError:
+                            beds = None
+                        break
+            if rooms is not None and beds is not None:
+                break
+
+        return rooms, beds
+
+    def _extract_checkin_checkout_instructions(self, data: object) -> tuple[str | None, str | None]:
+        checkin_tokens = ("check-in", "check in", "checkin", "заезд")
+        checkout_tokens = ("check-out", "check out", "checkout", "выезд")
+        checkin: str | None = None
+        checkout: str | None = None
+
+        lines: list[str] = []
+        for node in self._iter_nodes(data):
+            if not isinstance(node, dict):
+                continue
+            for key in ("houseRulesSections", "title", "subtitle", "text", "description", "htmlText"):
+                value = node.get(key)
+                if isinstance(value, str):
+                    cleaned = self._normalize_text(value)
+                    if cleaned:
+                        lines.append(cleaned)
+
+        for line in lines:
+            segments = [self._normalize_text(s) for s in re.split(r"[,;]\s*", line)]
+            for segment in segments:
+                lowered = segment.lower()
+                if checkin is None and any(token in lowered for token in checkin_tokens):
+                    checkin = segment
+                if checkout is None and any(token in lowered for token in checkout_tokens):
+                    checkout = segment
+                if checkin and checkout:
+                    return checkin, checkout
+
+        return checkin, checkout
+
+    def _build_structured_enrichment(self, structured: dict) -> dict:
+        enrichment: dict[str, object] = {}
+
+        name = structured.get("name")
+        if isinstance(name, str):
+            cleaned_name = self._normalize_text(name)
+            if cleaned_name:
+                enrichment["name"] = cleaned_name
+
+        description = structured.get("description")
+        if isinstance(description, str):
+            cleaned_description = self._normalize_text(description)
+            if cleaned_description:
+                enrichment["description"] = cleaned_description
+
+        geo = structured.get("geo")
+        if isinstance(geo, dict):
+            lat = geo.get("latitude")
+            lng = geo.get("longitude")
+            if isinstance(lat, (int, float)):
+                enrichment["latitude"] = float(lat)
+            if isinstance(lng, (int, float)):
+                enrichment["longitude"] = float(lng)
+
+        address = structured.get("address")
+        if isinstance(address, dict):
+            parts: list[str] = []
+            for key in ("streetAddress", "addressLocality", "addressRegion", "addressCountry"):
+                value = address.get(key)
+                if isinstance(value, str):
+                    cleaned = self._normalize_text(value)
+                    if cleaned:
+                        parts.append(cleaned)
+            if parts:
+                enrichment["address_full"] = ", ".join(parts)
+        elif isinstance(address, str):
+            cleaned_address = self._normalize_text(address)
+            if cleaned_address:
+                enrichment["address_full"] = cleaned_address
+
+        number_of_rooms = structured.get("numberOfRooms")
+        if isinstance(number_of_rooms, (int, float)):
+            enrichment["rooms"] = int(number_of_rooms)
+        elif isinstance(number_of_rooms, str):
+            match = re.search(r"\d+", number_of_rooms)
+            if match:
+                try:
+                    enrichment["rooms"] = int(match.group(0))
+                except ValueError:
+                    pass
+
+        image = structured.get("image")
+        if isinstance(image, list):
+            photos = [img for img in image if isinstance(img, str) and img.startswith("http")]
+            if photos:
+                enrichment["photos"] = _unique_limited(photos, limit=30)
+
+        return enrichment
 
     def _extract_badges(self, data: object) -> list[str]:
         badges: list[str] = []
@@ -334,7 +506,12 @@ class AirbnbParser(BaseParser):
         except ValueError:
             return None
 
-    def _build_airbnb_enrichment(self, url: str, deferred_state: dict | list | None) -> dict:
+    def _build_airbnb_enrichment(
+        self,
+        url: str,
+        deferred_state: dict | list | None,
+        structured: dict | None = None,
+    ) -> dict:
         enrichment: dict[str, object] = {}
         parsed_url = urlsplit(url)
         listing_id = self._extract_listing_id(url)
@@ -356,6 +533,10 @@ class AirbnbParser(BaseParser):
                 stay_window["checkout"] = checkout.strip()
             if stay_window:
                 enrichment["airbnb_stay_window"] = stay_window
+
+        if structured:
+            for key, value in self._build_structured_enrichment(structured).items():
+                enrichment[key] = value
 
         if deferred_state is None:
             return enrichment
@@ -381,6 +562,12 @@ class AirbnbParser(BaseParser):
             if description_text:
                 enrichment["description"] = description_text
 
+        rooms, beds = self._extract_room_and_bed_counts(deferred_state)
+        if rooms is not None:
+            enrichment["rooms"] = rooms
+        if beds is not None:
+            enrichment["beds"] = beds
+
         policies = sections.get("POLICIES_DEFAULT")
         if policies is not None:
             policy_titles = self._collect_titles(policies, limit=10)
@@ -389,6 +576,11 @@ class AirbnbParser(BaseParser):
             rules = self._extract_house_rules(policies)
             if rules:
                 enrichment["house_rules"] = rules
+            check_in, check_out = self._extract_checkin_checkout_instructions(policies)
+            if check_in:
+                enrichment["check_in_instructions"] = check_in
+            if check_out:
+                enrichment["check_out_instructions"] = check_out
 
         highlights = sections.get("HIGHLIGHTS_DEFAULT")
         if highlights is not None:
@@ -433,6 +625,10 @@ class AirbnbParser(BaseParser):
         if pagination_cursor and len(pagination_cursor) <= 200:
             enrichment["airbnb_pagination_cursor"] = pagination_cursor
 
+        place_id = self._first_text(deferred_state, ("placeId", "canonicalPlaceId", "locationId"))
+        if place_id and len(place_id) <= 120:
+            enrichment["airbnb_place_id"] = place_id
+
         if "airbnb_stay_window" in enrichment:
             available = self._first_bool(
                 deferred_state,
@@ -454,7 +650,7 @@ class AirbnbParser(BaseParser):
         images = self._extract_images(html)
         structured = self._extract_ld_json(html)
         deferred_state = self._extract_deferred_state(html)
-        enrichment = self._build_airbnb_enrichment(url, deferred_state)
+        enrichment = self._build_airbnb_enrichment(url, deferred_state, structured)
         text = self._clean_html(html)
 
         # Airbnb keeps most useful fields in JSON-LD script tags.
@@ -471,6 +667,8 @@ class AirbnbParser(BaseParser):
         if images:
             dedup_images = list(dict.fromkeys(images))
             text += "\n\n[IMAGES]\n" + "\n".join(dedup_images[:30])
+            if "photos" not in enrichment:
+                enrichment["photos"] = dedup_images[:30]
 
         if enrichment:
             # Keep parser-level enrichment deterministic and machine-readable.

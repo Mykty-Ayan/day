@@ -30,6 +30,23 @@ class ParseListingService:
         self._mapper = mapper
 
     @staticmethod
+    def _coerce_int(value: object) -> int | None:
+        if isinstance(value, bool):
+            return None
+        if isinstance(value, int):
+            return value
+        if isinstance(value, float) and value.is_integer():
+            return int(value)
+        if isinstance(value, str):
+            match = re.search(r"\d+", value)
+            if match:
+                try:
+                    return int(match.group(0))
+                except ValueError:
+                    return None
+        return None
+
+    @staticmethod
     def _extract_coordinates_from_content(content: str) -> tuple[float, float] | None:
         """Extract coordinates from the parser's explicit [MAP_COORDINATES] block."""
         lat_match = re.search(
@@ -137,20 +154,27 @@ class ParseListingService:
         passthrough_keys = {
             "airbnb_listing_id",
             "airbnb_search_url",
+            "source_room_url",
             "airbnb_badges",
             "airbnb_rating_label",
             "airbnb_price_breakdown_items",
+            "airbnb_primary_price_label",
             "airbnb_policies_title",
             "airbnb_highlights",
             "airbnb_amenity_groups",
             "airbnb_pagination_cursor",
             "airbnb_stay_window",
             "airbnb_stay_window_available",
+            "airbnb_place_id",
         }
         for key in passthrough_keys:
             if raw_data.get(key) is None and enrichment.get(key) is not None:
                 raw_data[key] = enrichment[key]
 
+        if not raw_data.get("name") and enrichment.get("name"):
+            raw_data["name"] = enrichment["name"]
+        if not raw_data.get("type") and enrichment.get("type"):
+            raw_data["type"] = enrichment["type"]
         if raw_data.get("latitude") is None and raw_data.get("lat") is None and enrichment.get("latitude") is not None:
             raw_data["latitude"] = enrichment["latitude"]
         if (
@@ -164,6 +188,20 @@ class ParseListingService:
             raw_data["address_full"] = enrichment["address_full"]
         if not raw_data.get("description") and enrichment.get("description"):
             raw_data["description"] = enrichment["description"]
+
+        if raw_data.get("rooms") is None and enrichment.get("rooms") is not None:
+            rooms = ParseListingService._coerce_int(enrichment.get("rooms"))
+            if rooms is not None:
+                raw_data["rooms"] = rooms
+        if raw_data.get("beds") is None and enrichment.get("beds") is not None:
+            beds = ParseListingService._coerce_int(enrichment.get("beds"))
+            if beds is not None:
+                raw_data["beds"] = beds
+
+        if not raw_data.get("check_in_instructions") and enrichment.get("check_in_instructions"):
+            raw_data["check_in_instructions"] = enrichment["check_in_instructions"]
+        if not raw_data.get("check_out_instructions") and enrichment.get("check_out_instructions"):
+            raw_data["check_out_instructions"] = enrichment["check_out_instructions"]
 
         if not raw_data.get("amenities"):
             amenities = enrichment.get("amenities")
@@ -181,6 +219,13 @@ class ParseListingService:
 
         if raw_data.get("base_price") is None and enrichment.get("base_price") is not None:
             raw_data["base_price"] = enrichment["base_price"]
+
+        if not raw_data.get("photos"):
+            photos = enrichment.get("photos")
+            if isinstance(photos, list):
+                parsed_photos = [str(p).strip() for p in photos if isinstance(p, str) and p.strip().startswith("http")]
+                if parsed_photos:
+                    raw_data["photos"] = parsed_photos
 
     async def execute(self, inp: ParseListingInput) -> ParseResult:
         normalized_url = SourceType.normalize_url(inp.url)
