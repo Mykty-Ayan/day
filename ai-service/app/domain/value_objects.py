@@ -9,6 +9,7 @@ class SourceType(str, enum.Enum):
     BOOKING = "booking"
     AIRBNB = "airbnb"
     KRISHA = "krisha"
+    TEXT = "text"
     OTHER = "other"
 
     @staticmethod

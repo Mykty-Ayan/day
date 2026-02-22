@@ -6,7 +6,9 @@ import shlex
 from fastapi import APIRouter, HTTPException
 
 from app.application.parse_listing import ParseListingInput, ParseListingService
+from app.application.parse_text import ParseTextInput, ParseTextService
 from app.config import settings
+from app.domain.entities import ParseResult
 from app.domain.services import ContentParser
 from app.domain.value_objects import SourceType
 from app.infrastructure.enrichers.airbnb_mcp_enricher import AirbnbMCPEnricher
@@ -16,7 +18,7 @@ from app.infrastructure.parsers.airbnb_parser import AirbnbParser
 from app.infrastructure.parsers.booking_parser import BookingParser
 from app.infrastructure.parsers.generic_parser import GenericParser
 from app.infrastructure.parsers.krisha_parser import KrishaParser
-from app.presentation.schemas.parse import ExtractedPropertyResponse, ParseRequest, ParseResponse
+from app.presentation.schemas.parse import ExtractedPropertyResponse, ParseRequest, ParseResponse, ParseTextRequest
 
 logger = logging.getLogger(__name__)
 
@@ -57,6 +59,38 @@ def _build_airbnb_mcp_enricher() -> AirbnbMCPEnricher | None:
 _AIRBNB_MCP_ENRICHER = _build_airbnb_mcp_enricher()
 
 
+def _build_parse_response(result: ParseResult) -> ParseResponse:
+    """Build a ParseResponse from a ParseResult domain entity."""
+    return ParseResponse(
+        source_url=result.source_url,
+        source_type=result.source_type.value,
+        raw_data=result.raw_data,
+        property_data=ExtractedPropertyResponse(
+            name=result.property_data.name,
+            internal_name=result.property_data.internal_name,
+            type=result.property_data.type,
+            description=result.property_data.description,
+            source_url=result.property_data.source_url,
+            latitude=result.property_data.latitude,
+            longitude=result.property_data.longitude,
+            address_full=result.property_data.address_full,
+            rooms=result.property_data.rooms,
+            beds=result.property_data.beds,
+            area_total=result.property_data.area_total,
+            area_living=result.property_data.area_living,
+            floor=result.property_data.floor,
+            check_in_instructions=result.property_data.check_in_instructions,
+            check_out_instructions=result.property_data.check_out_instructions,
+            house_rules=result.property_data.house_rules,
+            amenities=result.property_data.amenities,
+            base_price=result.property_data.base_price,
+            photos=result.property_data.photos,
+        ),
+        confidence=result.confidence,
+        warnings=result.warnings,
+    )
+
+
 @router.post("/parse", response_model=ParseResponse)
 async def parse_listing(body: ParseRequest) -> ParseResponse:
     """Parse a property listing URL and extract structured property data."""
@@ -88,31 +122,25 @@ async def parse_listing(body: ParseRequest) -> ParseResponse:
             logger.warning("Airbnb MCP enrichment failed for %s: %s", body.url, exc)
             result.warnings.append(f"Airbnb MCP enrichment failed: {exc}")
 
-    return ParseResponse(
-        source_url=result.source_url,
-        source_type=result.source_type.value,
-        raw_data=result.raw_data,
-        property_data=ExtractedPropertyResponse(
-            name=result.property_data.name,
-            internal_name=result.property_data.internal_name,
-            type=result.property_data.type,
-            description=result.property_data.description,
-            source_url=result.property_data.source_url,
-            latitude=result.property_data.latitude,
-            longitude=result.property_data.longitude,
-            address_full=result.property_data.address_full,
-            rooms=result.property_data.rooms,
-            beds=result.property_data.beds,
-            area_total=result.property_data.area_total,
-            area_living=result.property_data.area_living,
-            floor=result.property_data.floor,
-            check_in_instructions=result.property_data.check_in_instructions,
-            check_out_instructions=result.property_data.check_out_instructions,
-            house_rules=result.property_data.house_rules,
-            amenities=result.property_data.amenities,
-            base_price=result.property_data.base_price,
-            photos=result.property_data.photos,
-        ),
-        confidence=result.confidence,
-        warnings=result.warnings,
+    return _build_parse_response(result)
+
+
+@router.post("/parse/text", response_model=ParseResponse)
+async def parse_text(body: ParseTextRequest) -> ParseResponse:
+    """Parse raw text and extract structured property data."""
+    service = ParseTextService(
+        extractor=LLMExtractor(),
+        mapper=DefaultPropertyMapper(),
     )
+
+    try:
+        result = await service.execute(
+            ParseTextInput(text=body.text, user_prompt=body.user_prompt),
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e)) from e
+    except Exception:
+        logger.exception("Unexpected error parsing text input")
+        raise HTTPException(status_code=500, detail="Internal server error while parsing text") from None
+
+    return _build_parse_response(result)

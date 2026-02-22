@@ -15,6 +15,11 @@ class ImportStartRequest(BaseModel):
     user_prompt: str | None = None
 
 
+class ImportTextStartRequest(BaseModel):
+    text: str = Field(..., min_length=1, max_length=100000)
+    user_prompt: str | None = None
+
+
 class ImportConfirmRequest(BaseModel):
     property_data: dict
 

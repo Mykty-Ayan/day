@@ -66,6 +66,7 @@ class TestSourceType:
         assert SourceType.BOOKING.value == "booking"
         assert SourceType.AIRBNB.value == "airbnb"
         assert SourceType.KRISHA.value == "krisha"
+        assert SourceType.TEXT.value == "text"
         assert SourceType.OTHER.value == "other"
 
 
