@@ -78,6 +78,9 @@ class FakePropertyRepository(PropertyRepository):
     async def exists_internal_name(self, company_id, internal_name, *, exclude_id=None):
         return False
 
+    async def find_next_clone_name(self, company_id, base_name):
+        return f"{base_name}-1"
+
 
 class FakeCleaningTaskRepository(CleaningTaskRepository):
     def __init__(self) -> None:

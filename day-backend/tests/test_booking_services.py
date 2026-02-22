@@ -88,6 +88,9 @@ class FakePropertyRepository(PropertyRepository):
             for p in self._properties.values()
         )
 
+    async def find_next_clone_name(self, company_id, base_name):
+        return f"{base_name}-1"
+
 
 class FakeBookingRepository(BookingRepository):
     def __init__(self) -> None:
