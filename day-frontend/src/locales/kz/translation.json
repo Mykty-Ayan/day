@@ -1,0 +1,60 @@
+{
+  "nav": {
+    "properties": "Нысандар",
+    "chessChart": "Шахмат кесте",
+    "bookings": "Броньдар",
+    "today": "Бугін",
+    "cleaning": "Тазалау",
+    "checklists": "Тексеру тізімдері",
+    "analytics": "Аналитика",
+    "aiImport": "AI Импорт",
+    "settings": "Баптаулар"
+  },
+  "common": {
+    "save": "Сақтау",
+    "cancel": "Болдырмау",
+    "edit": "Өзгерту",
+    "delete": "Жою",
+    "create": "Жасау",
+    "back": "Артқа",
+    "next": "Алдаға",
+    "previous": "Артқа",
+    "loading": "Жүктелуде...",
+    "search": "Іздеу",
+    "all": "Барлығы",
+    "active": "Белсенді",
+    "confirm": "Растау",
+    "clone": "Көшірме жасау"
+  },
+  "properties": {
+    "title": "Нысандар",
+    "addProperty": "Нысан қосу",
+    "editProperty": "Нысанды өзгерту",
+    "newProperty": "Жаңа нысан",
+    "notFound": "Нысан табылмады",
+    "searchPlaceholder": "Атауы бойынша іздеу...",
+    "noProperties": "Нысандар табылмады",
+    "createFirst": "Алғашқы нысаныңызды жасаңыз"
+  },
+  "bookings": {
+    "title": "Броньдар",
+    "addBooking": "Бронь жасау",
+    "editBooking": "Бронды өзгерту",
+    "newBooking": "Жаңа бронь",
+    "notFound": "Бронь табылмады",
+    "backToBookings": "Броньдарға оралу",
+    "backToGantt": "Шахмат кестеге оралу"
+  },
+  "cleaning": {
+    "title": "Тазалау",
+    "todaysTasks": "Бүгінгі тапсырмалар",
+    "noTasks": "Бүгінге тапсырмалар жоқ",
+    "enjoyDay": "Бос күніңізден ләззат алыңыз!"
+  },
+  "settings": {
+    "title": "Баптаулар",
+    "language": "Тіл",
+    "languageDescription": "Интерфейс тілін таңдаңыз",
+    "saved": "Баптаулар сақталды"
+  }
+}

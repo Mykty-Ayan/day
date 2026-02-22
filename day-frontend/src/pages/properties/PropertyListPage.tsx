@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
-import { Plus, Search, LayoutGrid, Grid2X2, List } from 'lucide-react'
+import { Plus, Search, LayoutGrid, Grid2X2, List, Tag } from 'lucide-react'
 import { Link } from '@tanstack/react-router'
-import { useAllProperties } from '../../hooks/useProperties'
+import { useAllProperties, useTags } from '../../hooks/useProperties'
 import type { PropertyStatus } from '../../types/property'
 import PropertyCard from '../../components/property/PropertyCard'
 import { ToggleGroup, ToggleGroupItem } from '../../components/ui/toggle-group'
@@ -19,10 +19,14 @@ export default function PropertyListPage() {
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<PropertyStatus | 'all'>('active')
   const [viewMode, setViewMode] = useState<'large' | 'medium' | 'list'>('large')
+  const [tagFilter, setTagFilter] = useState<string>('')
+  const { data: tagsData } = useTags()
+  const allTags = tagsData ?? []
 
   const { data, isLoading } = useAllProperties({
     status: statusFilter === 'all' ? undefined : statusFilter,
     search: search || undefined,
+    tag_id: tagFilter || undefined,
   })
 
   return (
@@ -74,6 +78,42 @@ export default function PropertyListPage() {
               </ToggleGroupItem>
             ))}
           </ToggleGroup>
+          {allTags.length > 0 && (
+            <div className="flex items-center gap-1.5">
+              <Tag className="w-3.5 h-3.5 text-gray-400" />
+              <div className="flex gap-1 flex-wrap">
+                <button
+                  type="button"
+                  onClick={() => setTagFilter('')}
+                  className={`px-2.5 py-1 rounded-full text-[10px] font-bold transition-colors ${
+                    !tagFilter
+                      ? 'bg-gray-900 text-white'
+                      : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border border-gray-200'
+                  }`}
+                >
+                  All
+                </button>
+                {allTags.map((tag) => (
+                  <button
+                    key={tag.id}
+                    type="button"
+                    onClick={() => setTagFilter(tagFilter === tag.id ? '' : tag.id)}
+                    className={`px-2.5 py-1 rounded-full text-[10px] font-bold transition-colors ${
+                      tagFilter === tag.id
+                        ? 'text-white'
+                        : 'border border-gray-200 hover:opacity-80'
+                    }`}
+                    style={{
+                      backgroundColor: tagFilter === tag.id ? tag.color : undefined,
+                      color: tagFilter === tag.id ? 'white' : tag.color,
+                    }}
+                  >
+                    {tag.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
           <ToggleGroup
             type="single"
             value={viewMode}

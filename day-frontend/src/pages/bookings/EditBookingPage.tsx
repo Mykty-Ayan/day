@@ -1,0 +1,307 @@
+import { useState } from 'react'
+import { motion } from 'framer-motion'
+import { ArrowLeft, Check, Loader2 } from 'lucide-react'
+import { useNavigate, useParams } from '@tanstack/react-router'
+import { useBooking, useUpdateBooking } from '../../hooks/useBookings'
+import type { BookingDetail, BookingSource, BookingUpdateInput } from '../../types/booking'
+import DatePicker from '../../components/ui/date-picker'
+import { ToggleGroup, ToggleGroupItem } from '../../components/ui/toggle-group'
+import NumberInput from '../../components/ui/number-input'
+import { showToast } from '../../components/ui/Toast'
+
+const SOURCES: { value: BookingSource; label: string }[] = [
+  { value: 'direct', label: 'Direct' },
+  { value: 'booking', label: 'Booking.com' },
+  { value: 'airbnb', label: 'Airbnb' },
+  { value: 'other', label: 'Other' },
+]
+
+const GANTT_COLORS = [
+  { value: '#3B82F6', label: 'Blue' },
+  { value: '#10B981', label: 'Green' },
+  { value: '#F59E0B', label: 'Amber' },
+  { value: '#EF4444', label: 'Red' },
+  { value: '#8B5CF6', label: 'Purple' },
+  { value: '#EC4899', label: 'Pink' },
+  { value: '#06B6D4', label: 'Cyan' },
+]
+
+interface FormData {
+  check_in: string
+  check_out: string
+  source: BookingSource
+  adults_count: number
+  children_count: number
+  gantt_color: string
+  notes: string
+}
+
+function detailToForm(detail: BookingDetail): FormData {
+  const b = detail.booking
+  return {
+    check_in: b.check_in,
+    check_out: b.check_out,
+    source: b.source,
+    adults_count: b.adults_count,
+    children_count: b.children_count,
+    gantt_color: b.gantt_color || '#3B82F6',
+    notes: '',
+  }
+}
+
+export default function EditBookingPage() {
+  const { bookingId } = useParams({ strict: false }) as { bookingId: string }
+  const { data: detail, isLoading } = useBooking(bookingId)
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <div className="w-6 h-6 border-2 border-gray-200 border-t-gray-900 rounded-full animate-spin" />
+      </div>
+    )
+  }
+
+  if (!detail) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20">
+        <p className="text-sm text-gray-500">Booking not found</p>
+      </div>
+    )
+  }
+
+  return <EditBookingForm key={detail.booking.id} detail={detail} bookingId={bookingId} />
+}
+
+function EditBookingForm({ detail, bookingId }: { detail: BookingDetail; bookingId: string }) {
+  const navigate = useNavigate()
+  const updateBooking = useUpdateBooking(bookingId)
+  const [form, setForm] = useState<FormData>(() => detailToForm(detail))
+  const [errors, setErrors] = useState<Record<string, string>>({})
+
+  function updateField<K extends keyof FormData>(key: K, value: FormData[K]) {
+    setForm((f) => ({ ...f, [key]: value }))
+    setErrors((e) => {
+      const next = { ...e }
+      delete next[key]
+      return next
+    })
+  }
+
+  function validate(): boolean {
+    const errs: Record<string, string> = {}
+    if (!form.check_in) errs.check_in = 'Check-in date is required'
+    if (!form.check_out) errs.check_out = 'Check-out date is required'
+    if (form.check_in && form.check_out && form.check_in >= form.check_out) {
+      errs.check_out = 'Check-out must be after check-in'
+    }
+    if (form.adults_count < 1) errs.adults_count = 'At least 1 adult required'
+    setErrors(errs)
+    return Object.keys(errs).length === 0
+  }
+
+  function handleSubmit() {
+    if (!validate()) return
+
+    const payload: BookingUpdateInput = {
+      check_in: form.check_in,
+      check_out: form.check_out,
+      source: form.source,
+      adults_count: form.adults_count,
+      children_count: form.children_count,
+      gantt_color: form.gantt_color,
+      notes: form.notes || undefined,
+    }
+
+    updateBooking.mutate(payload, {
+      onSuccess: () => {
+        showToast('success', 'Booking updated')
+        navigate({ to: '/bookings/$bookingId', params: { bookingId } })
+      },
+      onError: () => {
+        showToast('error', 'Failed to update booking')
+      },
+    })
+  }
+
+  return (
+    <div className="p-6 max-w-3xl mx-auto w-full">
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4 }}
+      >
+        {/* Header */}
+        <div className="flex items-center gap-3 mb-6">
+          <motion.button
+            whileTap={{ scale: 0.97 }}
+            onClick={() => navigate({ to: '/bookings/$bookingId', params: { bookingId } })}
+            className="p-2 rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-50 transition-colors"
+          >
+            <ArrowLeft className="w-4 h-4" />
+          </motion.button>
+          <h1 className="text-xl font-bold text-gray-900">Edit Booking</h1>
+        </div>
+
+        <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm space-y-5">
+          {/* Guest info (read-only) */}
+          <div className="bg-gray-50 rounded-xl p-4">
+            <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Guest</p>
+            <p className="text-sm font-semibold text-gray-900">{detail.guest.name}</p>
+            <p className="text-xs text-gray-500">{detail.guest.phone}</p>
+          </div>
+
+          {/* Dates */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">
+                Check-in
+              </label>
+              <DatePicker
+                value={form.check_in}
+                onChange={(value) => updateField('check_in', value)}
+                placeholder="Select date"
+                className={errors.check_in ? 'border-red-300' : ''}
+              />
+              {errors.check_in && (
+                <p className="text-xs text-red-500 mt-1">{errors.check_in}</p>
+              )}
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">
+                Check-out
+              </label>
+              <DatePicker
+                value={form.check_out}
+                onChange={(value) => updateField('check_out', value)}
+                minDate={form.check_in || undefined}
+                placeholder="Select date"
+                className={errors.check_out ? 'border-red-300' : ''}
+              />
+              {errors.check_out && (
+                <p className="text-xs text-red-500 mt-1">{errors.check_out}</p>
+              )}
+            </div>
+          </div>
+
+          {/* Source */}
+          <div className="border-t border-gray-100 pt-5">
+            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
+              Source
+            </label>
+            <ToggleGroup
+              type="single"
+              value={form.source}
+              onValueChange={(value) => {
+                if (!value) return
+                updateField('source', value as BookingSource)
+              }}
+              className="flex flex-wrap"
+            >
+              {SOURCES.map((s) => (
+                <ToggleGroupItem key={s.value} value={s.value}>
+                  {s.label}
+                </ToggleGroupItem>
+              ))}
+            </ToggleGroup>
+          </div>
+
+          {/* Guests Count */}
+          <div className="border-t border-gray-100 pt-5">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">
+                  Adults
+                </label>
+                <NumberInput
+                  value={form.adults_count}
+                  onChange={(value) =>
+                    updateField('adults_count', Math.max(1, parseInt(value) || 1))
+                  }
+                  min={1}
+                  step={1}
+                  inputClassName={errors.adults_count ? 'border-red-300' : ''}
+                />
+                {errors.adults_count && (
+                  <p className="text-xs text-red-500 mt-1">{errors.adults_count}</p>
+                )}
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">
+                  Children
+                </label>
+                <NumberInput
+                  value={form.children_count}
+                  onChange={(value) =>
+                    updateField('children_count', Math.max(0, parseInt(value) || 0))
+                  }
+                  min={0}
+                  step={1}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Gantt Color */}
+          <div className="border-t border-gray-100 pt-5">
+            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
+              Calendar Color
+            </label>
+            <div className="flex gap-2">
+              {GANTT_COLORS.map((c) => (
+                <motion.button
+                  key={c.value}
+                  whileTap={{ scale: 0.9 }}
+                  type="button"
+                  onClick={() => updateField('gantt_color', c.value)}
+                  className="relative w-8 h-8 rounded-full transition-transform"
+                  style={{ backgroundColor: c.value }}
+                  title={c.label}
+                >
+                  {form.gantt_color === c.value && (
+                    <motion.div
+                      layoutId="edit-color-ring"
+                      className="absolute inset-[-3px] rounded-full border-2 border-gray-900"
+                    />
+                  )}
+                </motion.button>
+              ))}
+            </div>
+          </div>
+
+          {/* Notes */}
+          <div className="border-t border-gray-100 pt-5">
+            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">
+              Notes
+            </label>
+            <textarea
+              value={form.notes}
+              onChange={(e) => updateField('notes', e.target.value)}
+              placeholder="Optional notes..."
+              rows={3}
+              className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 outline-none focus:ring-2 focus:ring-black/10 text-sm resize-none"
+            />
+          </div>
+        </div>
+
+        {/* Submit */}
+        <div className="flex justify-end mt-6">
+          <motion.button
+            whileTap={{ scale: 0.97 }}
+            onClick={handleSubmit}
+            disabled={updateBooking.isPending}
+            className="flex items-center gap-2 bg-black text-white hover:bg-gray-800 rounded-xl px-6 py-2.5 font-semibold shadow-lg transition-colors disabled:opacity-50"
+          >
+            {updateBooking.isPending ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <>
+                <Check className="w-4 h-4" />
+                Save Changes
+              </>
+            )}
+          </motion.button>
+        </div>
+      </motion.div>
+    </div>
+  )
+}

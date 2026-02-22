@@ -8,12 +8,12 @@ import {
   DollarSign,
   FileText,
   MessageSquare,
-  Clock,
   Plus,
   Download,
   Trash2,
   Loader2,
   Send,
+  Pencil,
 } from 'lucide-react'
 import { useNavigate, useParams } from '@tanstack/react-router'
 import {
@@ -42,6 +42,7 @@ import type {
   PaymentType,
 } from '../../types/booking'
 import BookingStatusBadge from '../../components/booking/BookingStatusBadge'
+import AuditTrail from '../../components/ui/AuditTrail'
 import {
   Select,
   SelectContent,
@@ -167,6 +168,14 @@ export default function BookingDetailPage() {
             </p>
           </div>
           <div className="flex gap-2">
+            <motion.button
+              whileTap={{ scale: 0.97 }}
+              onClick={() => navigate({ to: '/bookings/$bookingId/edit', params: { bookingId } })}
+              className="flex items-center gap-2 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-xl px-4 py-2 text-xs font-bold text-gray-700 transition-colors"
+            >
+              <Pencil className="w-3.5 h-3.5" />
+              Edit
+            </motion.button>
             {statusActions.map((action) => (
               <motion.button
                 key={action.target}
@@ -874,40 +883,7 @@ function FilesCommentsTab({ bookingId, files, comments }: { bookingId: string; f
 // --- History Tab ---
 function HistoryTab({ auditLogs }: { auditLogs: BookingAuditLog[] }) {
   return (
-    <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
-      <h2 className="text-sm font-bold text-gray-900 mb-4">Activity History</h2>
-      {auditLogs.length === 0 ? (
-        <p className="text-sm text-gray-500 text-center py-4">No activity yet</p>
-      ) : (
-        <div className="space-y-3">
-          {auditLogs.map((entry) => (
-            <div
-              key={entry.id}
-              className="flex gap-3 pb-3 border-b border-gray-100 last:border-0 last:pb-0"
-            >
-              <div className="mt-0.5">
-                <Clock className="w-3.5 h-3.5 text-gray-400" />
-              </div>
-              <div className="flex-1">
-                <p className="text-sm text-gray-700">{entry.action}</p>
-                {(entry.action === 'create' || entry.field_name === '*') ? (
-                  <p className="text-xs text-gray-500 mt-0.5">
-                    record: <span className="line-through text-red-400">null</span> <ArrowRight className="w-3 h-3 inline text-gray-400" /> <span className="text-green-600">created</span>
-                  </p>
-                ) : entry.field_name ? (
-                  <p className="text-xs text-gray-500 mt-0.5">
-                    {entry.field_name}: <span className="line-through text-red-400">{entry.old_value || 'null'}</span> <ArrowRight className="w-3 h-3 inline text-gray-400" /> <span className="text-green-600">{entry.new_value || 'null'}</span>
-                  </p>
-                ) : null}
-                <p className="text-xs text-gray-400 mt-0.5">
-                  {entry.changed_by && `by ${entry.changed_by} · `}{new Date(entry.created_at).toLocaleString()}
-                </p>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
+    <AuditTrail entries={auditLogs} title="Activity History" />
   )
 }
 
