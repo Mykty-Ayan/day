@@ -159,4 +159,18 @@ export interface PropertyFilters {
   per_page?: number
   status?: PropertyStatus
   search?: string
+  tag_id?: string
+}
+
+export interface Tag {
+  id: string
+  name: string
+  color: string
+  company_id: string
+  created_at: string
+}
+
+export interface TagCreateInput {
+  name: string
+  color: string
 }

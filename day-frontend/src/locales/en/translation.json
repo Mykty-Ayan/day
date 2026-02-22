@@ -1,0 +1,60 @@
+{
+  "nav": {
+    "properties": "Properties",
+    "chessChart": "Chess Chart",
+    "bookings": "Bookings",
+    "today": "Today",
+    "cleaning": "Cleaning",
+    "checklists": "Checklists",
+    "analytics": "Analytics",
+    "aiImport": "AI Import",
+    "settings": "Settings"
+  },
+  "common": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "edit": "Edit",
+    "delete": "Delete",
+    "create": "Create",
+    "back": "Back",
+    "next": "Next",
+    "previous": "Previous",
+    "loading": "Loading...",
+    "search": "Search",
+    "all": "All",
+    "active": "Active",
+    "confirm": "Confirm",
+    "clone": "Clone"
+  },
+  "properties": {
+    "title": "Properties",
+    "addProperty": "Add Property",
+    "editProperty": "Edit Property",
+    "newProperty": "New Property",
+    "notFound": "Property not found",
+    "searchPlaceholder": "Search by name...",
+    "noProperties": "No properties found",
+    "createFirst": "Create your first property"
+  },
+  "bookings": {
+    "title": "Bookings",
+    "addBooking": "Create Booking",
+    "editBooking": "Edit Booking",
+    "newBooking": "New Booking",
+    "notFound": "Booking not found",
+    "backToBookings": "Back to bookings",
+    "backToGantt": "Back to gantt"
+  },
+  "cleaning": {
+    "title": "Cleaning",
+    "todaysTasks": "Today's Tasks",
+    "noTasks": "No tasks for today",
+    "enjoyDay": "Enjoy your day off!"
+  },
+  "settings": {
+    "title": "Settings",
+    "language": "Language",
+    "languageDescription": "Choose the interface language",
+    "saved": "Settings saved"
+  }
+}

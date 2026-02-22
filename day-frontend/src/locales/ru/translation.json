@@ -1,0 +1,60 @@
+{
+  "nav": {
+    "properties": "Объекты",
+    "chessChart": "Шахматка",
+    "bookings": "Бронирования",
+    "today": "Сегодня",
+    "cleaning": "Уборка",
+    "checklists": "Чеклисты",
+    "analytics": "Аналитика",
+    "aiImport": "AI Импорт",
+    "settings": "Настройки"
+  },
+  "common": {
+    "save": "Сохранить",
+    "cancel": "Отмена",
+    "edit": "Редактировать",
+    "delete": "Удалить",
+    "create": "Создать",
+    "back": "Назад",
+    "next": "Далее",
+    "previous": "Назад",
+    "loading": "Загрузка...",
+    "search": "Поиск",
+    "all": "Все",
+    "active": "Активные",
+    "confirm": "Подтвердить",
+    "clone": "Клонировать"
+  },
+  "properties": {
+    "title": "Объекты",
+    "addProperty": "Добавить объект",
+    "editProperty": "Редактировать объект",
+    "newProperty": "Новый объект",
+    "notFound": "Объект не найден",
+    "searchPlaceholder": "Поиск по названию...",
+    "noProperties": "Объекты не найдены",
+    "createFirst": "Создайте ваш первый объект"
+  },
+  "bookings": {
+    "title": "Бронирования",
+    "addBooking": "Создать бронирование",
+    "editBooking": "Редактировать бронирование",
+    "newBooking": "Новое бронирование",
+    "notFound": "Бронирование не найдено",
+    "backToBookings": "Назад к бронированиям",
+    "backToGantt": "Назад к шахматке"
+  },
+  "cleaning": {
+    "title": "Уборка",
+    "todaysTasks": "Задачи на сегодня",
+    "noTasks": "Нет задач на сегодня",
+    "enjoyDay": "Наслаждайтесь свободным днем!"
+  },
+  "settings": {
+    "title": "Настройки",
+    "language": "Язык",
+    "languageDescription": "Выберите язык интерфейса",
+    "saved": "Настройки сохранены"
+  }
+}

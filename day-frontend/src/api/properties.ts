@@ -14,6 +14,8 @@ import type {
   Amenity,
   PropertyAuditLog,
   PropertyStatus,
+  Tag,
+  TagCreateInput,
 } from '../types/property'
 
 // --- Properties ---
@@ -232,4 +234,39 @@ export async function getPropertyAuditLog(
 ): Promise<PropertyAuditLog[]> {
   const res = await apiClient.get(`/properties/${propertyId}/audit-log`)
   return res.data
+}
+
+// --- Clone ---
+
+export async function cloneProperty(id: string): Promise<Property> {
+  const res = await apiClient.post(`/properties/${id}/clone`)
+  return res.data
+}
+
+// --- Tags ---
+
+export async function listTags(): Promise<Tag[]> {
+  const res = await apiClient.get('/tags')
+  return res.data
+}
+
+export async function createTag(data: TagCreateInput): Promise<Tag> {
+  const res = await apiClient.post('/tags', data)
+  return res.data
+}
+
+export async function deleteTag(id: string): Promise<void> {
+  await apiClient.delete(`/tags/${id}`)
+}
+
+export async function getPropertyTags(propertyId: string): Promise<Tag[]> {
+  const res = await apiClient.get(`/properties/${propertyId}/tags`)
+  return res.data
+}
+
+export async function assignTags(
+  propertyId: string,
+  tagIds: string[],
+): Promise<void> {
+  await apiClient.put(`/properties/${propertyId}/tags`, { tag_ids: tagIds })
 }

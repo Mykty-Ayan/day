@@ -1,20 +1,20 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { useQueries } from '@tanstack/react-query'
 import { motion } from 'framer-motion'
 import {
   ArrowLeft,
-  ArrowRight,
   Building2,
   DoorOpen,
   Bed,
   Ruler,
   MapPin,
-  Clock,
   Play,
   Pause,
   Archive,
+  Pencil,
+  Copy,
 } from 'lucide-react'
-import { useParams, Link } from '@tanstack/react-router'
+import { useParams, Link, useNavigate } from '@tanstack/react-router'
 import {
   useProperty,
   useAllProperties,
@@ -26,12 +26,15 @@ import {
   useAddDiscountRule,
   useDeleteDiscountRule,
   usePropertyAuditLog,
+  useCloneProperty,
 } from '../../hooks/useProperties'
 import { getPricing } from '../../api/properties'
 import type { PropertyStatus, PricingInput, SeasonalPrice } from '../../types/property'
 import PricingForm, { type SeasonalSuggestion } from '../../components/property/PricingForm'
 import StatusBadge from '../../components/property/StatusBadge'
 import { showToast } from '../../components/ui/Toast'
+import ConfirmDialog from '../../components/ui/ConfirmDialog'
+import AuditTrail from '../../components/ui/AuditTrail'
 
 function getStatusActions(status: PropertyStatus): { label: string; target: PropertyStatus; icon: typeof Play }[] {
   switch (status) {
@@ -52,16 +55,13 @@ function getStatusActions(status: PropertyStatus): { label: string; target: Prop
   }
 }
 
-function formatAuditValue(value: string | null): string {
-  return value ?? 'null'
-}
-
 function seasonalKey(seasonal: Pick<SeasonalPrice, 'name' | 'start_date' | 'end_date'>): string {
   return `${seasonal.name.trim().toLowerCase()}|${seasonal.start_date}|${seasonal.end_date}`
 }
 
 export default function PropertyDetailPage() {
   const { propertyId } = useParams({ strict: false }) as { propertyId: string }
+  const navigate = useNavigate()
   const { data: property, isLoading } = useProperty(propertyId)
   const { data: allProperties } = useAllProperties()
   const changeStatus = useChangePropertyStatus(propertyId)
@@ -72,6 +72,8 @@ export default function PropertyDetailPage() {
   const addDiscount = useAddDiscountRule(propertyId)
   const deleteDiscount = useDeleteDiscountRule(propertyId)
   const { data: auditLog = [] } = usePropertyAuditLog(propertyId)
+  const clonePropertyMut = useCloneProperty()
+  const [showCloneConfirm, setShowCloneConfirm] = useState(false)
 
   const otherProperties = useMemo(
     () => (allProperties?.items ?? []).filter((p) => p.id !== propertyId),
@@ -187,6 +189,22 @@ export default function PropertyDetailPage() {
             <p className="text-sm text-gray-500">{property.internal_name}</p>
           </div>
           <div className="flex gap-2">
+            <motion.button
+              whileTap={{ scale: 0.97 }}
+              onClick={() => navigate({ to: '/properties/$propertyId/edit', params: { propertyId } })}
+              className="flex items-center gap-2 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-xl px-4 py-2 text-xs font-bold text-gray-700 transition-colors"
+            >
+              <Pencil className="w-3.5 h-3.5" />
+              Edit
+            </motion.button>
+            <motion.button
+              whileTap={{ scale: 0.97 }}
+              onClick={() => setShowCloneConfirm(true)}
+              className="flex items-center gap-2 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-xl px-4 py-2 text-xs font-bold text-gray-700 transition-colors"
+            >
+              <Copy className="w-3.5 h-3.5" />
+              Clone
+            </motion.button>
             {statusActions.map((action) => (
               <motion.button
                 key={action.target}
@@ -393,53 +411,31 @@ export default function PropertyDetailPage() {
 
           {/* Right column - Audit log */}
           <div>
-            <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
-              <h2 className="text-sm font-bold text-gray-900 mb-4">Activity</h2>
-              {auditLog.length === 0 ? (
-                <p className="text-xs text-gray-500">No activity yet</p>
-              ) : (
-                <div className="space-y-3">
-                  {auditLog.map((entry) => (
-                    <div
-                      key={entry.id}
-                      className="flex gap-3 pb-3 border-b border-gray-100 last:border-0 last:pb-0"
-                    >
-                      <div className="mt-0.5">
-                        <Clock className="w-3.5 h-3.5 text-gray-400" />
-                      </div>
-                      <div className="flex-1">
-                        <p className="text-sm text-gray-700">{entry.action}</p>
-                        {(entry.action === 'create' || entry.field_name === '*') ? (
-                          <p className="text-xs text-gray-500 mt-0.5">
-                            record:{' '}
-                            <span className="line-through text-red-400">null</span>{' '}
-                            <ArrowRight className="w-3 h-3 inline text-gray-400" />{' '}
-                            <span className="text-green-600">created</span>
-                          </p>
-                        ) : entry.field_name ? (
-                          <p className="text-xs text-gray-500 mt-0.5">
-                            {entry.field_name}:{' '}
-                            <span className="line-through text-red-400">
-                              {formatAuditValue(entry.old_value)}
-                            </span>{' '}
-                            <ArrowRight className="w-3 h-3 inline text-gray-400" />{' '}
-                            <span className="text-green-600">
-                              {formatAuditValue(entry.new_value)}
-                            </span>
-                          </p>
-                        ) : null}
-                        <p className="text-xs text-gray-400 mt-0.5">
-                          {new Date(entry.created_at).toLocaleString()}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
+            <AuditTrail entries={auditLog} />
           </div>
         </div>
       </motion.div>
+
+      <ConfirmDialog
+        open={showCloneConfirm}
+        title="Clone Property"
+        message={`Create a copy of "${property.name}" with all its details?`}
+        confirmLabel="Clone"
+        onConfirm={() => {
+          clonePropertyMut.mutate(propertyId, {
+            onSuccess: (cloned) => {
+              setShowCloneConfirm(false)
+              showToast('success', 'Property cloned')
+              navigate({ to: '/properties/$propertyId', params: { propertyId: cloned.id } })
+            },
+            onError: () => {
+              showToast('error', 'Failed to clone property')
+            },
+          })
+        }}
+        onCancel={() => setShowCloneConfirm(false)}
+        loading={clonePropertyMut.isPending}
+      />
     </div>
   )
 }
