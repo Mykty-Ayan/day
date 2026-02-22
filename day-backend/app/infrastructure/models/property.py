@@ -50,14 +50,10 @@ class PropertyModel(Base):
     house_rules: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     created_at: Mapped[datetime] = mapped_column(default=datetime.utcnow)
-    updated_at: Mapped[datetime] = mapped_column(
-        default=datetime.utcnow, onupdate=datetime.utcnow
-    )
+    updated_at: Mapped[datetime] = mapped_column(default=datetime.utcnow, onupdate=datetime.utcnow)
 
     # Relationships
-    photos: Mapped[list["PropertyPhotoModel"]] = relationship(
-        back_populates="property", cascade="all, delete-orphan"
-    )
+    photos: Mapped[list["PropertyPhotoModel"]] = relationship(back_populates="property", cascade="all, delete-orphan")
     pricing_config: Mapped["PricingConfigModel | None"] = relationship(
         back_populates="property", uselist=False, cascade="all, delete-orphan"
     )
@@ -71,18 +67,14 @@ class PropertyModel(Base):
         back_populates="property"
     )
 
-    __table_args__ = (
-        UniqueConstraint("company_id", "internal_name", name="uq_property_company_internal_name"),
-    )
+    __table_args__ = (UniqueConstraint("company_id", "internal_name", name="uq_property_company_internal_name"),)
 
 
 class PropertyPhotoModel(Base):
     __tablename__ = "property_photos"
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
-    property_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("properties.id", ondelete="CASCADE"), index=True
-    )
+    property_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("properties.id", ondelete="CASCADE"), index=True)
     url: Mapped[str] = mapped_column(String(1024))
     sort_order: Mapped[int] = mapped_column(Integer, default=0)
     is_cover: Mapped[bool] = mapped_column(Boolean, default=False)
@@ -99,20 +91,14 @@ class AmenityModel(Base):
     icon: Mapped[str | None] = mapped_column(String(255), nullable=True)
     category: Mapped[str] = mapped_column(String(50))
 
-    property_links: Mapped[list["PropertyAmenityModel"]] = relationship(
-        back_populates="amenity"
-    )
+    property_links: Mapped[list["PropertyAmenityModel"]] = relationship(back_populates="amenity")
 
 
 class PropertyAmenityModel(Base):
     __tablename__ = "property_amenities"
 
-    property_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("properties.id", ondelete="CASCADE"), primary_key=True
-    )
-    amenity_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("amenities.id", ondelete="CASCADE"), primary_key=True
-    )
+    property_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("properties.id", ondelete="CASCADE"), primary_key=True)
+    amenity_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("amenities.id", ondelete="CASCADE"), primary_key=True)
 
     property: Mapped["PropertyModel"] = relationship(back_populates="amenity_links")
     amenity: Mapped["AmenityModel"] = relationship(back_populates="property_links")
@@ -132,9 +118,7 @@ class PricingConfigModel(Base):
     extra_child_price: Mapped[float] = mapped_column(Numeric(12, 2), default=0)
     base_guests: Mapped[int] = mapped_column(Integer, default=1)
     created_at: Mapped[datetime] = mapped_column(default=datetime.utcnow)
-    updated_at: Mapped[datetime] = mapped_column(
-        default=datetime.utcnow, onupdate=datetime.utcnow
-    )
+    updated_at: Mapped[datetime] = mapped_column(default=datetime.utcnow, onupdate=datetime.utcnow)
 
     property: Mapped["PropertyModel"] = relationship(back_populates="pricing_config")
     seasonal_prices: Mapped[list["SeasonalPriceModel"]] = relationship(
@@ -158,9 +142,7 @@ class SeasonalPriceModel(Base):
     price_per_night: Mapped[float] = mapped_column(Numeric(12, 2))
     created_at: Mapped[datetime] = mapped_column(default=datetime.utcnow)
 
-    pricing_config: Mapped["PricingConfigModel"] = relationship(
-        back_populates="seasonal_prices"
-    )
+    pricing_config: Mapped["PricingConfigModel"] = relationship(back_populates="seasonal_prices")
 
 
 class DiscountRuleModel(Base):
@@ -175,18 +157,14 @@ class DiscountRuleModel(Base):
     discount_fixed: Mapped[float] = mapped_column(Numeric(12, 2), default=0)
     created_at: Mapped[datetime] = mapped_column(default=datetime.utcnow)
 
-    pricing_config: Mapped["PricingConfigModel"] = relationship(
-        back_populates="discount_rules"
-    )
+    pricing_config: Mapped["PricingConfigModel"] = relationship(back_populates="discount_rules")
 
 
 class PropertyAuditLogModel(Base):
     __tablename__ = "property_audit_logs"
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
-    property_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("properties.id", ondelete="CASCADE"), index=True
-    )
+    property_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("properties.id", ondelete="CASCADE"), index=True)
     changed_by: Mapped[uuid.UUID | None] = mapped_column(nullable=True)
     field_name: Mapped[str] = mapped_column(String(255))
     old_value: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -195,3 +173,29 @@ class PropertyAuditLogModel(Base):
     created_at: Mapped[datetime] = mapped_column(default=datetime.utcnow)
 
     property: Mapped["PropertyModel"] = relationship(back_populates="audit_logs")
+
+
+class PropertyTagModel(Base):
+    __tablename__ = "property_tags"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    company_id: Mapped[uuid.UUID] = mapped_column(index=True)
+    name: Mapped[str] = mapped_column(String(255))
+    color: Mapped[str] = mapped_column(String(20), default="#3B82F6")
+    created_at: Mapped[datetime] = mapped_column(default=datetime.utcnow)
+
+    property_links: Mapped[list["PropertyTagAssociationModel"]] = relationship(
+        back_populates="tag", cascade="all, delete-orphan"
+    )
+
+    __table_args__ = (UniqueConstraint("company_id", "name", name="uq_property_tag_company_name"),)
+
+
+class PropertyTagAssociationModel(Base):
+    __tablename__ = "property_tag_associations"
+
+    property_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("properties.id", ondelete="CASCADE"), primary_key=True)
+    tag_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("property_tags.id", ondelete="CASCADE"), primary_key=True)
+
+    property: Mapped["PropertyModel"] = relationship()
+    tag: Mapped["PropertyTagModel"] = relationship(back_populates="property_links")

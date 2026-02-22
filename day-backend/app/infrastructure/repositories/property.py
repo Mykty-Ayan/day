@@ -44,6 +44,7 @@ from app.infrastructure.models.property import (
 
 # ---------- helpers ----------
 
+
 def _model_to_property(m: PropertyModel) -> Property:
     return Property(
         id=m.id,
@@ -200,9 +201,7 @@ class SqlPropertyRepository(PropertyRepository):
         return [_model_to_property(m) for m in result.all()]
 
     async def count_by_company(self, company_id: uuid.UUID) -> int:
-        stmt = select(func.count()).select_from(PropertyModel).where(
-            PropertyModel.company_id == company_id
-        )
+        stmt = select(func.count()).select_from(PropertyModel).where(PropertyModel.company_id == company_id)
         result = await self._session.scalar(stmt)
         return result or 0
 
@@ -231,14 +230,43 @@ class SqlPropertyRepository(PropertyRepository):
         *,
         exclude_id: uuid.UUID | None = None,
     ) -> bool:
-        stmt = select(func.count()).select_from(PropertyModel).where(
-            PropertyModel.company_id == company_id,
-            PropertyModel.internal_name == internal_name,
+        stmt = (
+            select(func.count())
+            .select_from(PropertyModel)
+            .where(
+                PropertyModel.company_id == company_id,
+                PropertyModel.internal_name == internal_name,
+            )
         )
         if exclude_id is not None:
             stmt = stmt.where(PropertyModel.id != exclude_id)
         result = await self._session.scalar(stmt)
         return (result or 0) > 0
+
+    async def find_next_clone_name(self, company_id: uuid.UUID, base_name: str) -> str:
+        import re
+
+        # Strip existing "-N" suffix to get the root name
+        root = re.sub(r"-\d+$", "", base_name)
+        # Find all names matching the pattern root or root-N
+        pattern = f"{root}%"
+        stmt = select(PropertyModel.internal_name).where(
+            PropertyModel.company_id == company_id,
+            PropertyModel.internal_name.like(pattern),
+        )
+        result = await self._session.scalars(stmt)
+        existing_names = set(result.all())
+
+        max_suffix = 0
+        for name in existing_names:
+            if name == root:
+                max_suffix = max(max_suffix, 0)
+            else:
+                match = re.match(rf"^{re.escape(root)}-(\d+)$", name)
+                if match:
+                    max_suffix = max(max_suffix, int(match.group(1)))
+
+        return f"{root}-{max_suffix + 1}"
 
 
 class SqlPropertyPhotoRepository(PropertyPhotoRepository):
@@ -311,19 +339,13 @@ class SqlAmenityRepository(AmenityRepository):
         await self._session.refresh(model)
         return _model_to_amenity(model)
 
-    async def set_property_amenities(
-        self, property_id: uuid.UUID, amenity_ids: list[uuid.UUID]
-    ) -> None:
+    async def set_property_amenities(self, property_id: uuid.UUID, amenity_ids: list[uuid.UUID]) -> None:
         # Remove existing links
-        stmt = delete(PropertyAmenityModel).where(
-            PropertyAmenityModel.property_id == property_id
-        )
+        stmt = delete(PropertyAmenityModel).where(PropertyAmenityModel.property_id == property_id)
         await self._session.execute(stmt)
         # Add new links
         for aid in amenity_ids:
-            self._session.add(
-                PropertyAmenityModel(property_id=property_id, amenity_id=aid)
-            )
+            self._session.add(PropertyAmenityModel(property_id=property_id, amenity_id=aid))
         await self._session.flush()
 
     async def get_property_amenities(self, property_id: uuid.UUID) -> list[Amenity]:
@@ -342,9 +364,7 @@ class SqlPricingConfigRepository(PricingConfigRepository):
         self._session = session
 
     async def get_by_property(self, property_id: uuid.UUID) -> PricingConfig | None:
-        stmt = select(PricingConfigModel).where(
-            PricingConfigModel.property_id == property_id
-        )
+        stmt = select(PricingConfigModel).where(PricingConfigModel.property_id == property_id)
         result = await self._session.scalar(stmt)
         return _model_to_pricing(result) if result else None
 
@@ -388,9 +408,7 @@ class SqlSeasonalPriceRepository(SeasonalPriceRepository):
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
 
-    async def list_by_pricing_config(
-        self, pricing_config_id: uuid.UUID
-    ) -> list[SeasonalPrice]:
+    async def list_by_pricing_config(self, pricing_config_id: uuid.UUID) -> list[SeasonalPrice]:
         stmt = (
             select(SeasonalPriceModel)
             .where(SeasonalPriceModel.pricing_config_id == pricing_config_id)
@@ -423,9 +441,7 @@ class SqlDiscountRuleRepository(DiscountRuleRepository):
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
 
-    async def list_by_pricing_config(
-        self, pricing_config_id: uuid.UUID
-    ) -> list[DiscountRule]:
+    async def list_by_pricing_config(self, pricing_config_id: uuid.UUID) -> list[DiscountRule]:
         stmt = (
             select(DiscountRuleModel)
             .where(DiscountRuleModel.pricing_config_id == pricing_config_id)
@@ -488,3 +504,113 @@ class SqlPropertyAuditLogRepository(PropertyAuditLogRepository):
         await self._session.flush()
         await self._session.refresh(model)
         return _model_to_audit(model)
+
+
+def _model_to_tag(m):
+    from app.domain.property.entities import PropertyTag
+
+    return PropertyTag(
+        id=m.id,
+        company_id=m.company_id,
+        name=m.name,
+        color=m.color,
+        created_at=m.created_at,
+    )
+
+
+class SqlPropertyTagRepository:
+    """SQL implementation of PropertyTagRepository."""
+
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+
+    async def get_by_id(self, tag_id: uuid.UUID):
+        from app.infrastructure.models.property import PropertyTagModel
+
+        result = await self._session.get(PropertyTagModel, tag_id)
+        return _model_to_tag(result) if result else None
+
+    async def list_by_company(self, company_id: uuid.UUID):
+        from app.infrastructure.models.property import PropertyTagModel
+
+        stmt = select(PropertyTagModel).where(PropertyTagModel.company_id == company_id).order_by(PropertyTagModel.name)
+        result = await self._session.scalars(stmt)
+        return [_model_to_tag(m) for m in result.all()]
+
+    async def save(self, tag):
+        from app.infrastructure.models.property import PropertyTagModel
+
+        model = PropertyTagModel(
+            id=tag.id,
+            company_id=tag.company_id,
+            name=tag.name,
+            color=tag.color,
+        )
+        self._session.add(model)
+        await self._session.flush()
+        await self._session.refresh(model)
+        return _model_to_tag(model)
+
+    async def update(self, tag):
+        from app.infrastructure.models.property import PropertyTagModel
+
+        stmt = update(PropertyTagModel).where(PropertyTagModel.id == tag.id).values(name=tag.name, color=tag.color)
+        await self._session.execute(stmt)
+        await self._session.flush()
+        result = await self._session.get(PropertyTagModel, tag.id)
+        return _model_to_tag(result)
+
+    async def delete(self, tag_id: uuid.UUID) -> None:
+        from app.infrastructure.models.property import PropertyTagModel
+
+        stmt = delete(PropertyTagModel).where(PropertyTagModel.id == tag_id)
+        await self._session.execute(stmt)
+        await self._session.flush()
+
+    async def exists_name(self, company_id: uuid.UUID, name: str, *, exclude_id: uuid.UUID | None = None) -> bool:
+        from app.infrastructure.models.property import PropertyTagModel
+
+        stmt = (
+            select(func.count())
+            .select_from(PropertyTagModel)
+            .where(PropertyTagModel.company_id == company_id, PropertyTagModel.name == name)
+        )
+        if exclude_id is not None:
+            stmt = stmt.where(PropertyTagModel.id != exclude_id)
+        result = await self._session.scalar(stmt)
+        return (result or 0) > 0
+
+    async def assign_tag(self, property_id: uuid.UUID, tag_id: uuid.UUID) -> None:
+        from app.infrastructure.models.property import PropertyTagAssociationModel
+
+        self._session.add(PropertyTagAssociationModel(property_id=property_id, tag_id=tag_id))
+        await self._session.flush()
+
+    async def remove_tag(self, property_id: uuid.UUID, tag_id: uuid.UUID) -> None:
+        from app.infrastructure.models.property import PropertyTagAssociationModel
+
+        stmt = delete(PropertyTagAssociationModel).where(
+            PropertyTagAssociationModel.property_id == property_id,
+            PropertyTagAssociationModel.tag_id == tag_id,
+        )
+        await self._session.execute(stmt)
+        await self._session.flush()
+
+    async def get_property_tags(self, property_id: uuid.UUID):
+        from app.infrastructure.models.property import PropertyTagAssociationModel, PropertyTagModel
+
+        stmt = (
+            select(PropertyTagModel)
+            .join(PropertyTagAssociationModel, PropertyTagModel.id == PropertyTagAssociationModel.tag_id)
+            .where(PropertyTagAssociationModel.property_id == property_id)
+            .order_by(PropertyTagModel.name)
+        )
+        result = await self._session.scalars(stmt)
+        return [_model_to_tag(m) for m in result.all()]
+
+    async def get_property_ids_by_tag(self, tag_id: uuid.UUID) -> list[uuid.UUID]:
+        from app.infrastructure.models.property import PropertyTagAssociationModel
+
+        stmt = select(PropertyTagAssociationModel.property_id).where(PropertyTagAssociationModel.tag_id == tag_id)
+        result = await self._session.scalars(stmt)
+        return list(result.all())

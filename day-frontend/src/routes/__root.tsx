@@ -1,24 +1,28 @@
 import { createRootRoute, Outlet, Link, useRouterState } from '@tanstack/react-router'
-import { Building2, CalendarRange, CalendarDays, Clock, SprayCan, ClipboardList, BarChart3, Sparkles } from 'lucide-react'
+import { Building2, CalendarRange, CalendarDays, Clock, SprayCan, ClipboardList, BarChart3, Sparkles, Settings } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import ToastContainer from '../components/ui/Toast'
 
 export const Route = createRootRoute({
   component: RootLayout,
 })
 
-const navItems = [
-  { to: '/properties', label: 'Properties', icon: Building2 },
-  { to: '/properties/gantt', label: 'Chess Chart', icon: CalendarRange },
-  { to: '/bookings', label: 'Bookings', icon: CalendarDays },
-  { to: '/bookings/today', label: 'Today', icon: Clock },
-  { to: '/cleaning', label: 'Cleaning', icon: SprayCan },
-  { to: '/cleaning/checklists', label: 'Checklists', icon: ClipboardList },
-  { to: '/analytics', label: 'Analytics', icon: BarChart3 },
-  { to: '/ai-import', label: 'AI Import', icon: Sparkles },
-] as const
-
 function RootLayout() {
+  const { t } = useTranslation()
   const pathname = useRouterState({ select: (s) => s.location.pathname })
+
+  const navItems = [
+    { to: '/properties', label: t('nav.properties'), icon: Building2 },
+    { to: '/properties/gantt', label: t('nav.chessChart'), icon: CalendarRange },
+    { to: '/bookings', label: t('nav.bookings'), icon: CalendarDays },
+    { to: '/bookings/today', label: t('nav.today'), icon: Clock },
+    { to: '/cleaning', label: t('nav.cleaning'), icon: SprayCan },
+    { to: '/cleaning/checklists', label: t('nav.checklists'), icon: ClipboardList },
+    { to: '/analytics', label: t('nav.analytics'), icon: BarChart3 },
+    { to: '/ai-import', label: t('nav.aiImport'), icon: Sparkles },
+    { to: '/settings', label: t('nav.settings'), icon: Settings },
+  ] as const
+
   const activeItem = navItems.reduce<{ to: string } | null>((best, item) => {
     const matches = pathname === item.to || pathname.startsWith(`${item.to}/`)
     if (!matches) return best

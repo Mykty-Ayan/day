@@ -10,6 +10,7 @@ from app.domain.property.entities import (
     Property,
     PropertyAuditLog,
     PropertyPhoto,
+    PropertyTag,
     SeasonalPrice,
 )
 from app.domain.property.value_objects import PropertyStatus
@@ -44,6 +45,9 @@ class PropertyRepository(abc.ABC):
         self, company_id: uuid.UUID, internal_name: str, *, exclude_id: uuid.UUID | None = None
     ) -> bool: ...
 
+    @abc.abstractmethod
+    async def find_next_clone_name(self, company_id: uuid.UUID, base_name: str) -> str: ...
+
 
 class PropertyPhotoRepository(abc.ABC):
     @abc.abstractmethod
@@ -70,9 +74,7 @@ class AmenityRepository(abc.ABC):
     async def save(self, amenity: Amenity) -> Amenity: ...
 
     @abc.abstractmethod
-    async def set_property_amenities(
-        self, property_id: uuid.UUID, amenity_ids: list[uuid.UUID]
-    ) -> None: ...
+    async def set_property_amenities(self, property_id: uuid.UUID, amenity_ids: list[uuid.UUID]) -> None: ...
 
     @abc.abstractmethod
     async def get_property_amenities(self, property_id: uuid.UUID) -> list[Amenity]: ...
@@ -123,3 +125,35 @@ class PropertyAuditLogRepository(abc.ABC):
 
     @abc.abstractmethod
     async def save(self, log: PropertyAuditLog) -> PropertyAuditLog: ...
+
+
+class PropertyTagRepository(abc.ABC):
+    @abc.abstractmethod
+    async def get_by_id(self, tag_id: uuid.UUID) -> PropertyTag | None: ...
+
+    @abc.abstractmethod
+    async def list_by_company(self, company_id: uuid.UUID) -> list[PropertyTag]: ...
+
+    @abc.abstractmethod
+    async def save(self, tag: PropertyTag) -> PropertyTag: ...
+
+    @abc.abstractmethod
+    async def update(self, tag: PropertyTag) -> PropertyTag: ...
+
+    @abc.abstractmethod
+    async def delete(self, tag_id: uuid.UUID) -> None: ...
+
+    @abc.abstractmethod
+    async def exists_name(self, company_id: uuid.UUID, name: str, *, exclude_id: uuid.UUID | None = None) -> bool: ...
+
+    @abc.abstractmethod
+    async def assign_tag(self, property_id: uuid.UUID, tag_id: uuid.UUID) -> None: ...
+
+    @abc.abstractmethod
+    async def remove_tag(self, property_id: uuid.UUID, tag_id: uuid.UUID) -> None: ...
+
+    @abc.abstractmethod
+    async def get_property_tags(self, property_id: uuid.UUID) -> list[PropertyTag]: ...
+
+    @abc.abstractmethod
+    async def get_property_ids_by_tag(self, tag_id: uuid.UUID) -> list[uuid.UUID]: ...

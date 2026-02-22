@@ -3,7 +3,7 @@ import {
   useMutation,
   useQueryClient,
 } from '@tanstack/react-query'
-import type { PropertyFilters, PropertyCreateInput, PropertyUpdateInput, PricingInput, PropertyStatus } from '../types/property'
+import type { PropertyFilters, PropertyCreateInput, PropertyUpdateInput, PricingInput, PropertyStatus, TagCreateInput } from '../types/property'
 import {
   listProperties,
   listAllProperties,
@@ -23,6 +23,12 @@ import {
   deleteSeasonalPrice,
   addDiscountRule,
   deleteDiscountRule,
+  cloneProperty,
+  listTags,
+  createTag,
+  deleteTag as deleteTagApi,
+  getPropertyTags,
+  assignTags,
 } from '../api/properties'
 import type { SeasonalPriceInput, DiscountRuleInput } from '../types/property'
 
@@ -203,5 +209,68 @@ export function usePropertyAuditLog(propertyId: string) {
     queryKey: [AUDIT_LOG_KEY, propertyId],
     queryFn: () => getPropertyAuditLog(propertyId),
     enabled: !!propertyId,
+  })
+}
+
+// --- Clone ---
+
+export function useCloneProperty() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => cloneProperty(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: [PROPERTIES_KEY] })
+    },
+  })
+}
+
+// --- Tags ---
+
+const TAGS_KEY = 'tags'
+const PROPERTY_TAGS_KEY = 'property-tags'
+
+export function useTags() {
+  return useQuery({
+    queryKey: [TAGS_KEY],
+    queryFn: listTags,
+  })
+}
+
+export function useCreateTag() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (data: TagCreateInput) => createTag(data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: [TAGS_KEY] })
+    },
+  })
+}
+
+export function useDeleteTag() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => deleteTagApi(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: [TAGS_KEY] })
+    },
+  })
+}
+
+export function usePropertyTags(propertyId: string) {
+  return useQuery({
+    queryKey: [PROPERTY_TAGS_KEY, propertyId],
+    queryFn: () => getPropertyTags(propertyId),
+    enabled: !!propertyId,
+  })
+}
+
+export function useAssignTags(propertyId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (tagIds: string[]) => assignTags(propertyId, tagIds),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: [PROPERTY_TAGS_KEY, propertyId] })
+      qc.invalidateQueries({ queryKey: [PROPERTY_KEY, propertyId] })
+    },
   })
 }

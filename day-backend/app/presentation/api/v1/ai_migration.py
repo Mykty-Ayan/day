@@ -15,6 +15,7 @@ from app.application.ai_migration.confirm_import import ConfirmImportInput, Conf
 from app.application.ai_migration.get_import import GetImportInput, GetImportService
 from app.application.ai_migration.list_imports import ListImportsInput, ListImportsService
 from app.application.ai_migration.start_import import StartImportInput, StartImportService
+from app.application.ai_migration.start_text_import import StartTextImportInput, StartTextImportService
 from app.application.property.create_property import CreatePropertyService
 from app.application.property.manage_photos import ManagePhotosService
 from app.application.property.manage_pricing import ManagePricingService
@@ -38,6 +39,7 @@ from app.presentation.schemas.ai_migration import (
     ImportJobListResponse,
     ImportJobResponse,
     ImportStartRequest,
+    ImportTextStartRequest,
 )
 from app.presentation.schemas.property import PropertyResponse
 
@@ -74,10 +76,7 @@ def _normalize_external_photo_url(url: str) -> str:
         raise ValueError("Only http/https photo URLs are allowed")
 
     host = parsed.netloc.lower()
-    if (
-        host not in _ALLOWED_PHOTO_HOSTS
-        and not (host.startswith("photos-") and host.endswith(".krisha.kz"))
-    ):
+    if host not in _ALLOWED_PHOTO_HOSTS and not (host.startswith("photos-") and host.endswith(".krisha.kz")):
         raise ValueError("Photo host is not allowed")
 
     return candidate
@@ -152,6 +151,31 @@ async def start_import(
             StartImportInput(
                 company_id=company_id,
                 source_url=body.source_url,
+                user_prompt=body.user_prompt,
+                created_by=user_id,
+            )
+        )
+        await session.commit()
+        return _to_job_response(result)
+    except ValueError as e:
+        await session.rollback()
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@ai_migration_router.post("/import/text", response_model=ImportJobResponse, status_code=201)
+async def start_text_import(
+    body: ImportTextStartRequest,
+    session: AsyncSession = Depends(get_session),
+    company_id: uuid.UUID = Depends(get_company_id),
+    user_id: uuid.UUID | None = Depends(get_user_id),
+):
+    repos = _repos(session)
+    svc = StartTextImportService(repos["import_job"], _ai_client())
+    try:
+        result = await svc.execute(
+            StartTextImportInput(
+                company_id=company_id,
+                text=body.text,
                 user_prompt=body.user_prompt,
                 created_by=user_id,
             )
