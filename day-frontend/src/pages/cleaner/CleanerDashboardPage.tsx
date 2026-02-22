@@ -9,16 +9,9 @@ import {
   SprayCan,
 } from 'lucide-react'
 import { Link } from '@tanstack/react-router'
+import { useTranslation } from 'react-i18next'
 import { useCleaningTasks } from '../../hooks/useCleaning'
 import type { CleaningTask, CleaningStatus } from '../../types/cleaning'
-
-const statusConfig: Record<CleaningStatus, { label: string; color: string; bg: string; icon: typeof Clock }> = {
-  pending: { label: 'Pending', color: 'text-gray-700', bg: 'bg-gray-100', icon: Clock },
-  assigned: { label: 'Assigned', color: 'text-blue-700', bg: 'bg-blue-100', icon: AlertCircle },
-  in_progress: { label: 'In Progress', color: 'text-amber-700', bg: 'bg-amber-100', icon: SprayCan },
-  done: { label: 'Done', color: 'text-green-700', bg: 'bg-green-100', icon: CheckCircle2 },
-  verified: { label: 'Verified', color: 'text-emerald-700', bg: 'bg-emerald-100', icon: CheckCircle2 },
-}
 
 function getTodayDateString(): string {
   const now = new Date()
@@ -29,6 +22,16 @@ function getTodayDateString(): string {
 }
 
 function TaskCard({ task }: { task: CleaningTask }) {
+  const { t } = useTranslation()
+
+  const statusConfig: Record<CleaningStatus, { label: string; color: string; bg: string; icon: typeof Clock }> = {
+    pending: { label: t('cleaning.status.pending'), color: 'text-gray-700', bg: 'bg-gray-100', icon: Clock },
+    assigned: { label: t('cleaning.status.assigned'), color: 'text-blue-700', bg: 'bg-blue-100', icon: AlertCircle },
+    in_progress: { label: t('cleaning.status.inProgress'), color: 'text-amber-700', bg: 'bg-amber-100', icon: SprayCan },
+    done: { label: t('cleaning.status.done'), color: 'text-green-700', bg: 'bg-green-100', icon: CheckCircle2 },
+    verified: { label: t('cleaning.status.verified'), color: 'text-emerald-700', bg: 'bg-emerald-100', icon: CheckCircle2 },
+  }
+
   const config = statusConfig[task.status]
   const Icon = config.icon
 
@@ -68,6 +71,7 @@ function TaskCard({ task }: { task: CleaningTask }) {
 }
 
 export default function CleanerDashboardPage() {
+  const { t, i18n } = useTranslation()
   const today = getTodayDateString()
   const { data, isLoading } = useCleaningTasks({
     date_from: today,
@@ -100,9 +104,9 @@ export default function CleanerDashboardPage() {
             <Home className="w-5 h-5 text-white" />
           </div>
           <div>
-            <h1 className="text-lg font-bold text-gray-900">Today's Tasks</h1>
+            <h1 className="text-lg font-bold text-gray-900">{t('cleaner.todaysTasks')}</h1>
             <p className="text-xs text-gray-500">
-              {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+              {new Date().toLocaleDateString(i18n.language, { weekday: 'long', month: 'long', day: 'numeric' })}
             </p>
           </div>
         </div>
@@ -113,15 +117,15 @@ export default function CleanerDashboardPage() {
         <div className="grid grid-cols-3 gap-2">
           <div className="bg-white rounded-xl p-3 border border-gray-100 text-center">
             <p className="text-lg font-bold text-gray-900">{tasks.length}</p>
-            <p className="text-[10px] font-bold text-gray-400 uppercase">Total</p>
+            <p className="text-[10px] font-bold text-gray-400 uppercase">{t('cleaner.total')}</p>
           </div>
           <div className="bg-white rounded-xl p-3 border border-gray-100 text-center">
             <p className="text-lg font-bold text-amber-600">{grouped.active.length}</p>
-            <p className="text-[10px] font-bold text-gray-400 uppercase">Active</p>
+            <p className="text-[10px] font-bold text-gray-400 uppercase">{t('cleaner.active')}</p>
           </div>
           <div className="bg-white rounded-xl p-3 border border-gray-100 text-center">
             <p className="text-lg font-bold text-green-600">{grouped.completed.length}</p>
-            <p className="text-[10px] font-bold text-gray-400 uppercase">Done</p>
+            <p className="text-[10px] font-bold text-gray-400 uppercase">{t('cleaner.done')}</p>
           </div>
         </div>
       </div>
@@ -135,8 +139,8 @@ export default function CleanerDashboardPage() {
         ) : tasks.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20">
             <CheckCircle2 className="w-12 h-12 text-gray-200 mb-3" />
-            <p className="text-sm font-semibold text-gray-500">No tasks for today</p>
-            <p className="text-xs text-gray-400 mt-1">Enjoy your day off!</p>
+            <p className="text-sm font-semibold text-gray-500">{t('cleaner.noTasksForToday')}</p>
+            <p className="text-xs text-gray-400 mt-1">{t('cleaner.enjoyYourDayOff')}</p>
           </div>
         ) : (
           <>
@@ -144,7 +148,7 @@ export default function CleanerDashboardPage() {
             {grouped.active.length > 0 && (
               <div className="mb-6">
                 <h2 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 px-1">
-                  Active ({grouped.active.length})
+                  {t('cleaner.activeCount', { count: grouped.active.length })}
                 </h2>
                 <div className="space-y-3">
                   {grouped.active.map((task, i) => (
@@ -165,7 +169,7 @@ export default function CleanerDashboardPage() {
             {grouped.completed.length > 0 && (
               <div>
                 <h2 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 px-1">
-                  Completed ({grouped.completed.length})
+                  {t('cleaner.completedCount', { count: grouped.completed.length })}
                 </h2>
                 <div className="space-y-3">
                   {grouped.completed.map((task, i) => (
@@ -193,14 +197,14 @@ export default function CleanerDashboardPage() {
             className="flex flex-col items-center gap-1 px-4 py-2 min-w-[48px] min-h-[48px] justify-center"
           >
             <Home className="w-5 h-5 text-gray-900" />
-            <span className="text-[10px] font-bold text-gray-900">Tasks</span>
+            <span className="text-[10px] font-bold text-gray-900">{t('cleaner.tasks')}</span>
           </Link>
           <Link
             to="/cleaning"
             className="flex flex-col items-center gap-1 px-4 py-2 min-w-[48px] min-h-[48px] justify-center"
           >
             <SprayCan className="w-5 h-5 text-gray-400" />
-            <span className="text-[10px] font-bold text-gray-400">All</span>
+            <span className="text-[10px] font-bold text-gray-400">{t('cleaner.all')}</span>
           </Link>
         </div>
       </div>

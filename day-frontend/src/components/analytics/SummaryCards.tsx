@@ -7,18 +7,14 @@ import {
   Building2,
   Percent,
 } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import type { AnalyticsSummary } from '../../types/analytics'
+import { useCurrency } from '../../hooks/useCurrency'
 
 const formatNumber = (
   value: number | string,
   options?: Intl.NumberFormatOptions,
 ) => Number(value || 0).toLocaleString(undefined, options)
-
-const formatCurrency = (value: number | string, digits = 2) =>
-  `$${formatNumber(value, {
-    minimumFractionDigits: digits,
-    maximumFractionDigits: digits,
-  })}`
 
 const formatPercent = (value: number | string, digits = 1) =>
   `${formatNumber(value, {
@@ -26,58 +22,64 @@ const formatPercent = (value: number | string, digits = 1) =>
     maximumFractionDigits: digits,
   })}%`
 
-const cards = [
-  {
-    key: 'revenue',
-    label: 'Revenue',
-    icon: DollarSign,
-    color: 'text-emerald-600',
-    bg: 'bg-emerald-50',
-    format: (s: AnalyticsSummary) => formatCurrency(s.total_revenue, 2),
-  },
-  {
-    key: 'profit',
-    label: 'Profit',
-    icon: TrendingUp,
-    color: 'text-blue-600',
-    bg: 'bg-blue-50',
-    format: (s: AnalyticsSummary) => formatCurrency(s.total_profit, 2),
-  },
-  {
-    key: 'bookings',
-    label: 'Bookings',
-    icon: CalendarDays,
-    color: 'text-purple-600',
-    bg: 'bg-purple-50',
-    format: (s: AnalyticsSummary) => formatNumber(s.total_bookings),
-  },
-  {
-    key: 'occupancy',
-    label: 'Occupancy',
-    icon: Percent,
-    color: 'text-amber-600',
-    bg: 'bg-amber-50',
-    format: (s: AnalyticsSummary) => formatPercent(s.overall_occupancy_rate, 1),
-  },
-  {
-    key: 'adr',
-    label: 'ADR',
-    icon: BarChart3,
-    color: 'text-indigo-600',
-    bg: 'bg-indigo-50',
-    format: (s: AnalyticsSummary) => formatCurrency(s.overall_adr, 0),
-  },
-  {
-    key: 'properties',
-    label: 'Properties',
-    icon: Building2,
-    color: 'text-gray-600',
-    bg: 'bg-gray-50',
-    format: (s: AnalyticsSummary) => formatNumber(s.properties_count),
-  },
-] as const
+function getCards(t: (key: string) => string, currencyFormat: (v: number | string, d?: number) => string) {
+  return [
+    {
+      key: 'revenue',
+      label: t('analytics.revenue'),
+      icon: DollarSign,
+      color: 'text-emerald-600',
+      bg: 'bg-emerald-50',
+      format: (s: AnalyticsSummary) => currencyFormat(s.total_revenue, 2),
+    },
+    {
+      key: 'profit',
+      label: t('analytics.profit'),
+      icon: TrendingUp,
+      color: 'text-blue-600',
+      bg: 'bg-blue-50',
+      format: (s: AnalyticsSummary) => currencyFormat(s.total_profit, 2),
+    },
+    {
+      key: 'bookings',
+      label: t('analytics.bookings'),
+      icon: CalendarDays,
+      color: 'text-purple-600',
+      bg: 'bg-purple-50',
+      format: (s: AnalyticsSummary) => formatNumber(s.total_bookings),
+    },
+    {
+      key: 'occupancy',
+      label: t('analytics.occupancy'),
+      icon: Percent,
+      color: 'text-amber-600',
+      bg: 'bg-amber-50',
+      format: (s: AnalyticsSummary) => formatPercent(s.overall_occupancy_rate, 1),
+    },
+    {
+      key: 'adr',
+      label: t('analytics.adr'),
+      icon: BarChart3,
+      color: 'text-indigo-600',
+      bg: 'bg-indigo-50',
+      format: (s: AnalyticsSummary) => currencyFormat(s.overall_adr, 0),
+    },
+    {
+      key: 'properties',
+      label: t('analytics.properties'),
+      icon: Building2,
+      color: 'text-gray-600',
+      bg: 'bg-gray-50',
+      format: (s: AnalyticsSummary) => formatNumber(s.properties_count),
+    },
+  ]
+}
 
 export default function SummaryCards({ summary }: { summary: AnalyticsSummary }) {
+  const { t } = useTranslation()
+  const { format: currencyFormat } = useCurrency()
+  const cards = getCards(t, currencyFormat)
+
   return (
     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
       {cards.map((card, i) => (

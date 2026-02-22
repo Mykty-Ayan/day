@@ -1,4 +1,5 @@
 import { motion } from 'framer-motion'
+import { useTranslation } from 'react-i18next'
 import type { ImportJob } from '../../types/ai-import'
 import ImportJobCard from './ImportJobCard'
 
@@ -28,6 +29,8 @@ function SkeletonCard() {
 }
 
 export default function ImportJobsList({ jobs, isLoading, onJobClick }: Props) {
+  const { t } = useTranslation()
+
   if (isLoading) {
     return (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -45,9 +48,9 @@ export default function ImportJobsList({ jobs, isLoading, onJobClick }: Props) {
         animate={{ opacity: 1 }}
         className="flex flex-col items-center justify-center py-16"
       >
-        <p className="text-sm text-gray-500">No import jobs yet</p>
+        <p className="text-sm text-gray-500">{t('aiImport.noJobsYet')}</p>
         <p className="text-xs text-gray-400 mt-1">
-          Enter a property URL above to start importing
+          {t('aiImport.enterUrlToStart')}
         </p>
       </motion.div>
     )

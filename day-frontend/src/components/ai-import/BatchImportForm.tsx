@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react'
 import { motion } from 'framer-motion'
 import { Loader2, Upload } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 
 interface Props {
   onSubmit: (urls: string[], prompt?: string) => void
@@ -8,6 +9,7 @@ interface Props {
 }
 
 export default function BatchImportForm({ onSubmit, isLoading }: Props) {
+  const { t } = useTranslation()
   const [urlsText, setUrlsText] = useState('')
   const [prompt, setPrompt] = useState('')
 
@@ -36,8 +38,8 @@ export default function BatchImportForm({ onSubmit, isLoading }: Props) {
     <form onSubmit={handleSubmit} className="space-y-4">
       <div>
         <label htmlFor="batch-urls" className="block text-xs font-bold text-gray-700 mb-1.5">
-          Property URLs
-          <span className="font-normal text-gray-400 ml-1">(one per line)</span>
+          {t('aiImport.propertyUrls')}
+          <span className="font-normal text-gray-400 ml-1">{t('aiImport.onePerLine')}</span>
         </label>
         <textarea
           id="batch-urls"
@@ -50,12 +52,12 @@ export default function BatchImportForm({ onSubmit, isLoading }: Props) {
         <div className="flex items-center gap-3 mt-1.5">
           {parsedUrls.length > 0 && (
             <span className="text-xs text-gray-500">
-              {validUrls.length} valid URL{validUrls.length !== 1 ? 's' : ''}
+              {t('aiImport.validUrls', { count: validUrls.length })}
             </span>
           )}
           {invalidCount > 0 && (
             <span className="text-xs text-red-500">
-              {invalidCount} invalid line{invalidCount !== 1 ? 's' : ''} (will be skipped)
+              {t('aiImport.invalidLines', { count: invalidCount })}
             </span>
           )}
         </div>
@@ -63,8 +65,8 @@ export default function BatchImportForm({ onSubmit, isLoading }: Props) {
 
       <div>
         <label htmlFor="batch-prompt" className="block text-xs font-bold text-gray-700 mb-1.5">
-          Shared instructions
-          <span className="font-normal text-gray-400 ml-1">(optional, applies to all)</span>
+          {t('aiImport.sharedInstructions')}
+          <span className="font-normal text-gray-400 ml-1">{t('aiImport.optionalAppliesToAll')}</span>
         </label>
         <textarea
           id="batch-prompt"
@@ -85,12 +87,12 @@ export default function BatchImportForm({ onSubmit, isLoading }: Props) {
         {isLoading ? (
           <>
             <Loader2 className="w-4 h-4 animate-spin" />
-            Importing {validUrls.length} URLs...
+            {t('aiImport.importingCount', { count: validUrls.length })}
           </>
         ) : (
           <>
             <Upload className="w-4 h-4" />
-            Import All ({validUrls.length})
+            {t('aiImport.importAllCount', { count: validUrls.length })}
           </>
         )}
       </motion.button>

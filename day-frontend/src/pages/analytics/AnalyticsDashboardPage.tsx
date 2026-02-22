@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
+import { useTranslation } from 'react-i18next'
 import { useAnalyticsMetrics, useAnalyticsTimeSeries } from '../../hooks/useAnalytics'
 import { useProperties } from '../../hooks/useProperties'
 import { exportAnalyticsCsv } from '../../api/analytics'
@@ -12,6 +13,7 @@ import AnalyticsFilterBar from '../../components/analytics/AnalyticsFilters'
 import { showToast } from '../../components/ui/Toast'
 
 export default function AnalyticsDashboardPage() {
+  const { t } = useTranslation()
   const [period, setPeriod] = useState<PeriodPreset>('month')
   const [granularity, setGranularity] = useState<Granularity>('day')
   const [propertyIds, setPropertyIds] = useState<string[]>([])
@@ -38,9 +40,9 @@ export default function AnalyticsDashboardPage() {
       a.download = `analytics-${period}.csv`
       a.click()
       URL.revokeObjectURL(url)
-      showToast('success', 'Report exported successfully')
+      showToast('success', t('analytics.reportExported'))
     } catch {
-      showToast('error', 'Failed to export report')
+      showToast('error', t('analytics.failedExport'))
     }
   }
 
@@ -55,7 +57,7 @@ export default function AnalyticsDashboardPage() {
       >
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
-          <h1 className="text-xl font-bold text-gray-900">Analytics</h1>
+          <h1 className="text-xl font-bold text-gray-900">{t('analytics.title')}</h1>
         </div>
 
         {/* Filters */}
@@ -92,7 +94,7 @@ export default function AnalyticsDashboardPage() {
             {/* Property Table */}
             {metricsData && (
               <div>
-                <h2 className="text-sm font-bold text-gray-900 mb-3">By Property</h2>
+                <h2 className="text-sm font-bold text-gray-900 mb-3">{t('analytics.byProperty')}</h2>
                 <MetricsTable properties={metricsData.properties} />
               </div>
             )}

@@ -1,5 +1,7 @@
 import { motion } from 'framer-motion'
+import { useMemo } from 'react'
 import { Loader2, CheckCircle2, XCircle, Clock } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import type { ImportJob, ImportJobStatus, ImportSourceType } from '../../types/ai-import'
 import { parseApiDateTime } from '../../utils/date-time'
 
@@ -9,11 +11,11 @@ interface Props {
   onClick: (job: ImportJob) => void
 }
 
-const statusConfig: Record<ImportJobStatus, { icon: typeof Clock; className: string; label: string }> = {
-  pending: { icon: Clock, className: 'text-gray-400', label: 'Pending' },
-  processing: { icon: Loader2, className: 'text-blue-500 animate-spin', label: 'Processing' },
-  completed: { icon: CheckCircle2, className: 'text-emerald-500', label: 'Completed' },
-  failed: { icon: XCircle, className: 'text-red-500', label: 'Failed' },
+const statusIcons: Record<ImportJobStatus, { icon: typeof Clock; className: string }> = {
+  pending: { icon: Clock, className: 'text-gray-400' },
+  processing: { icon: Loader2, className: 'text-blue-500 animate-spin' },
+  completed: { icon: CheckCircle2, className: 'text-emerald-500' },
+  failed: { icon: XCircle, className: 'text-red-500' },
 }
 
 const sourceStyles: Record<string, string> = {
@@ -79,24 +81,34 @@ function extractListingTitle(payload: unknown): string | null {
   return null
 }
 
-function formatTime(dateStr: string): string {
-  const date = parseApiDateTime(dateStr)
-  if (Number.isNaN(date.getTime())) return '-'
-
-  const diffMs = Math.max(0, Date.now() - date.getTime())
-  const diffMin = Math.floor(diffMs / 60000)
-
-  if (diffMin < 1) return 'Just now'
-  if (diffMin < 60) return `${diffMin}m ago`
-  const diffHr = Math.floor(diffMin / 60)
-  if (diffHr < 24) return `${diffHr}h ago`
-  const diffDays = Math.floor(diffHr / 24)
-  return `${diffDays}d ago`
-}
-
 export default function ImportJobCard({ job, index, onClick }: Props) {
-  const config = statusConfig[job.status]
-  const StatusIcon = config.icon
+  const { t } = useTranslation()
+
+  const statusLabels: Record<ImportJobStatus, string> = useMemo(() => ({
+    pending: t('common.pending'),
+    processing: t('aiImport.processing'),
+    completed: t('common.completed'),
+    failed: t('aiImport.failed'),
+  }), [t])
+
+  function formatTime(dateStr: string): string {
+    const date = parseApiDateTime(dateStr)
+    if (Number.isNaN(date.getTime())) return '-'
+
+    const diffMs = Math.max(0, Date.now() - date.getTime())
+    const diffMin = Math.floor(diffMs / 60000)
+
+    if (diffMin < 1) return t('aiImport.justNow')
+    if (diffMin < 60) return t('aiImport.minutesAgo', { count: diffMin })
+    const diffHr = Math.floor(diffMin / 60)
+    if (diffHr < 24) return t('aiImport.hoursAgo', { count: diffHr })
+    const diffDays = Math.floor(diffHr / 24)
+    return t('aiImport.daysAgo', { count: diffDays })
+  }
+
+  const iconConfig = statusIcons[job.status]
+  const StatusIcon = iconConfig.icon
+  const statusLabel = statusLabels[job.status]
   const sourceType = job.source_type || detectSourceFromUrl(job.source_url)
   const isClickable = job.status === 'completed'
   const listingTitle = extractListingTitle(job.mapped_property) ?? extractListingTitle(job.extracted_data)
@@ -117,15 +129,15 @@ export default function ImportJobCard({ job, index, onClick }: Props) {
           onClick(job)
         }
       }}
-      aria-label={`Import job: ${titleText}, status: ${config.label}`}
+      aria-label={`Import job: ${titleText}, status: ${statusLabel}`}
       className={`bg-white border border-gray-200 rounded-xl p-4 shadow-sm transition-shadow ${
         isClickable ? 'cursor-pointer hover:shadow-md' : ''
       }`}
     >
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-2 min-w-0">
-          <StatusIcon className={`w-4 h-4 shrink-0 ${config.className}`} />
-          <span className="text-xs font-bold text-gray-500">{config.label}</span>
+          <StatusIcon className={`w-4 h-4 shrink-0 ${iconConfig.className}`} />
+          <span className="text-xs font-bold text-gray-500">{statusLabel}</span>
         </div>
         <span className="text-[10px] text-gray-400 shrink-0">{formatTime(job.created_at)}</span>
       </div>

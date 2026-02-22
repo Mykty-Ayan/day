@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ArrowLeft, ArrowRight, Check, Loader2 } from 'lucide-react'
 import { useNavigate, useParams } from '@tanstack/react-router'
+import { useTranslation } from 'react-i18next'
 import { useProperty, useUpdateProperty } from '../../hooks/useProperties'
 import type { Property, PropertyType, PropertyUpdateInput } from '../../types/property'
 import PropertyFormStepBasic from '../../components/property/PropertyFormStepBasic'
@@ -10,12 +11,7 @@ import PropertyFormStepDetails from '../../components/property/PropertyFormStepD
 import PropertyFormStepRules from '../../components/property/PropertyFormStepRules'
 import { showToast } from '../../components/ui/Toast'
 
-const STEPS = [
-  { label: 'Basic Info', key: 'basic' },
-  { label: 'Address', key: 'address' },
-  { label: 'Details', key: 'details' },
-  { label: 'Rules', key: 'rules' },
-] as const
+const STEPS = ['basicInfo', 'address', 'details', 'rules'] as const
 
 interface FormData {
   basic: {
@@ -80,6 +76,7 @@ function propertyToForm(property: Property): FormData {
 }
 
 export default function EditPropertyPage() {
+  const { t } = useTranslation()
   const { propertyId } = useParams({ strict: false }) as { propertyId: string }
   const { data: property, isLoading } = useProperty(propertyId)
 
@@ -94,7 +91,7 @@ export default function EditPropertyPage() {
   if (!property) {
     return (
       <div className="flex flex-col items-center justify-center py-20">
-        <p className="text-sm text-gray-500">Property not found</p>
+        <p className="text-sm text-gray-500">{t('properties.notFound')}</p>
       </div>
     )
   }
@@ -103,6 +100,7 @@ export default function EditPropertyPage() {
 }
 
 function EditPropertyForm({ property, propertyId }: { property: Property; propertyId: string }) {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const updateProperty = useUpdateProperty(propertyId)
   const [step, setStep] = useState(0)
@@ -113,8 +111,8 @@ function EditPropertyForm({ property, propertyId }: { property: Property; proper
   function validateStep(): boolean {
     const newErrors: Record<string, string> = {}
     if (step === 0) {
-      if (!form.basic.name.trim()) newErrors.name = 'Name is required'
-      if (!form.basic.internal_name.trim()) newErrors.internal_name = 'Internal name is required'
+      if (!form.basic.name.trim()) newErrors.name = t('properties.validation.nameRequired')
+      if (!form.basic.internal_name.trim()) newErrors.internal_name = t('properties.validation.internalNameRequired')
     }
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
@@ -158,11 +156,11 @@ function EditPropertyForm({ property, propertyId }: { property: Property; proper
 
     updateProperty.mutate(payload, {
       onSuccess: () => {
-        showToast('success', 'Property updated')
+        showToast('success', t('properties.propertyUpdated'))
         navigate({ to: '/properties/$propertyId', params: { propertyId } })
       },
       onError: () => {
-        showToast('error', 'Failed to update property')
+        showToast('error', t('properties.failedUpdate'))
       },
     })
   }
@@ -179,9 +177,9 @@ function EditPropertyForm({ property, propertyId }: { property: Property; proper
       >
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
-          <h1 className="text-xl font-bold text-gray-900">Edit Property</h1>
+          <h1 className="text-xl font-bold text-gray-900">{t('properties.editProperty')}</h1>
           <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">
-            Step {step + 1} of {STEPS.length}
+            {t('common.step', { current: step + 1, total: STEPS.length })}
           </span>
         </div>
 
@@ -189,7 +187,7 @@ function EditPropertyForm({ property, propertyId }: { property: Property; proper
         <div className="flex gap-1.5 mb-8">
           {STEPS.map((s, i) => (
             <div
-              key={s.key}
+              key={s}
               className={`h-1 flex-1 rounded-full transition-colors ${
                 i <= step ? 'bg-black' : 'bg-gray-200'
               }`}
@@ -199,7 +197,7 @@ function EditPropertyForm({ property, propertyId }: { property: Property; proper
 
         {/* Step label */}
         <div className="mb-6">
-          <h2 className="text-sm font-bold text-gray-900">{STEPS[step].label}</h2>
+          <h2 className="text-sm font-bold text-gray-900">{t(`properties.steps.${STEPS[step]}`)}</h2>
         </div>
 
         {/* Step content */}
@@ -249,7 +247,7 @@ function EditPropertyForm({ property, propertyId }: { property: Property; proper
             className="flex items-center gap-2 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-xl px-4 py-2.5 text-xs font-bold text-gray-700 transition-colors"
           >
             <ArrowLeft className="w-4 h-4" />
-            {step === 0 ? 'Cancel' : 'Previous'}
+            {step === 0 ? t('common.cancel') : t('common.previous')}
           </motion.button>
 
           <motion.button
@@ -262,12 +260,12 @@ function EditPropertyForm({ property, propertyId }: { property: Property; proper
               <Loader2 className="w-4 h-4 animate-spin" />
             ) : isLast ? (
               <>
-                Save Changes
+                {t('common.saveChanges')}
                 <Check className="w-4 h-4" />
               </>
             ) : (
               <>
-                Next
+                {t('common.next')}
                 <ArrowRight className="w-4 h-4" />
               </>
             )}

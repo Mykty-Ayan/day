@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { useNavigate } from '@tanstack/react-router'
 import { Sparkles } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { useImportJobs, useStartImport, useStartBatchImport } from '../../hooks/useAIImport'
 import type { ImportJob } from '../../types/ai-import'
 import ImportForm from '../../components/ai-import/ImportForm'
@@ -12,6 +13,7 @@ import { parseApiDateTime } from '../../utils/date-time'
 type Tab = 'single' | 'batch'
 
 export default function AIImportPage() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const [activeTab, setActiveTab] = useState<Tab>('single')
   const [error, setError] = useState<string | null>(null)
@@ -26,7 +28,7 @@ export default function AIImportPage() {
       const job = await startImport.mutateAsync({ source_url: url, user_prompt: prompt })
       navigate({ to: '/ai-import/$jobId', params: { jobId: job.id } })
     } catch {
-      setError('Failed to start import. Please check the URL and try again.')
+      setError(t('aiImport.failedStartImport'))
     }
   }
 
@@ -35,7 +37,7 @@ export default function AIImportPage() {
     try {
       await startBatch.mutateAsync({ urls, user_prompt: prompt })
     } catch {
-      setError('Failed to start batch import. Please try again.')
+      setError(t('aiImport.failedStartBatchImport'))
     }
   }
 
@@ -59,7 +61,7 @@ export default function AIImportPage() {
         {/* Header */}
         <div className="flex items-center gap-3 mb-6">
           <Sparkles className="w-5 h-5 text-gray-900" />
-          <h1 className="text-xl font-bold text-gray-900">AI Import</h1>
+          <h1 className="text-xl font-bold text-gray-900">{t('aiImport.title')}</h1>
         </div>
 
         {/* Import form card */}
@@ -75,7 +77,7 @@ export default function AIImportPage() {
                   : 'text-gray-500 hover:text-gray-700'
               }`}
             >
-              Single Import
+              {t('aiImport.singleImport')}
             </button>
             <button
               type="button"
@@ -86,7 +88,7 @@ export default function AIImportPage() {
                   : 'text-gray-500 hover:text-gray-700'
               }`}
             >
-              Batch Import
+              {t('aiImport.batchImport')}
             </button>
           </div>
 
@@ -117,7 +119,7 @@ export default function AIImportPage() {
 
         {/* Recent imports */}
         <div>
-          <h2 className="text-sm font-bold text-gray-900 mb-4">Recent Imports</h2>
+          <h2 className="text-sm font-bold text-gray-900 mb-4">{t('aiImport.recentImports')}</h2>
           <ImportJobsList
             jobs={sortedJobs}
             isLoading={jobsLoading}

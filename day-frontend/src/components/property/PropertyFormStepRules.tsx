@@ -1,3 +1,5 @@
+import { useTranslation } from 'react-i18next'
+
 interface RulesData {
   check_in_instructions: string
   check_out_instructions: string
@@ -10,6 +12,7 @@ interface Props {
 }
 
 export default function PropertyFormStepRules({ data, onChange }: Props) {
+  const { t } = useTranslation()
   function update<K extends keyof RulesData>(key: K, value: string) {
     onChange({ ...data, [key]: value })
   }
@@ -18,7 +21,7 @@ export default function PropertyFormStepRules({ data, onChange }: Props) {
     <div className="space-y-4">
       <div>
         <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">
-          Check-in Instructions
+          {t('properties.form.checkInInstructions')}
         </label>
         <textarea
           value={data.check_in_instructions}
@@ -31,7 +34,7 @@ export default function PropertyFormStepRules({ data, onChange }: Props) {
 
       <div>
         <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">
-          Check-out Instructions
+          {t('properties.form.checkOutInstructions')}
         </label>
         <textarea
           value={data.check_out_instructions}
@@ -44,7 +47,7 @@ export default function PropertyFormStepRules({ data, onChange }: Props) {
 
       <div>
         <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">
-          House Rules
+          {t('properties.form.houseRules')}
         </label>
         <textarea
           value={data.house_rules}

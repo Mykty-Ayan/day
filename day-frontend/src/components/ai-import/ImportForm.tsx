@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react'
 import { motion } from 'framer-motion'
 import { Loader2, Upload, Globe } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import type { ImportSourceType } from '../../types/ai-import'
 
 interface Props {
@@ -25,14 +26,15 @@ const sourceStyles: Record<ImportSourceType, string> = {
   other: 'bg-gray-100 text-gray-600',
 }
 
-const sourceLabels: Record<ImportSourceType, string> = {
-  booking: 'Booking.com',
-  airbnb: 'Airbnb',
-  krisha: 'Krisha.kz',
-  other: 'Other',
+const sourceKeys: Record<ImportSourceType, string> = {
+  booking: 'common.bookingCom',
+  airbnb: 'common.airbnb',
+  krisha: 'aiImport.sourceKrisha',
+  other: 'common.other',
 }
 
 export default function ImportForm({ onSubmit, isLoading }: Props) {
+  const { t } = useTranslation()
   const [url, setUrl] = useState('')
   const [prompt, setPrompt] = useState('')
 
@@ -48,7 +50,7 @@ export default function ImportForm({ onSubmit, isLoading }: Props) {
     <form onSubmit={handleSubmit} className="space-y-4">
       <div>
         <label htmlFor="import-url" className="block text-xs font-bold text-gray-700 mb-1.5">
-          Property URL
+          {t('aiImport.propertyUrl')}
         </label>
         <div className="relative">
           <Globe className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -57,7 +59,7 @@ export default function ImportForm({ onSubmit, isLoading }: Props) {
             type="url"
             value={url}
             onChange={(e) => setUrl(e.target.value)}
-            placeholder="https://booking.com/hotel/..."
+            placeholder={t('aiImport.urlPlaceholder')}
             required
             className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 pl-9 pr-28 outline-none focus:ring-2 focus:ring-black/10 text-gray-800 text-sm"
           />
@@ -65,7 +67,7 @@ export default function ImportForm({ onSubmit, isLoading }: Props) {
             <span
               className={`absolute right-3 top-1/2 -translate-y-1/2 px-2 py-0.5 rounded-md text-[10px] font-bold uppercase ${sourceStyles[sourceType]}`}
             >
-              {sourceLabels[sourceType]}
+              {t(sourceKeys[sourceType])}
             </span>
           )}
         </div>
@@ -73,14 +75,14 @@ export default function ImportForm({ onSubmit, isLoading }: Props) {
 
       <div>
         <label htmlFor="import-prompt" className="block text-xs font-bold text-gray-700 mb-1.5">
-          Additional instructions
-          <span className="font-normal text-gray-400 ml-1">(optional)</span>
+          {t('aiImport.additionalInstructions')}
+          <span className="font-normal text-gray-400 ml-1">{t('aiImport.optional')}</span>
         </label>
         <textarea
           id="import-prompt"
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}
-          placeholder="e.g. Focus on extracting amenities and house rules..."
+          placeholder={t('aiImport.instructionsPlaceholder')}
           rows={3}
           className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 outline-none focus:ring-2 focus:ring-black/10 text-gray-800 text-sm resize-none"
         />
@@ -95,12 +97,12 @@ export default function ImportForm({ onSubmit, isLoading }: Props) {
         {isLoading ? (
           <>
             <Loader2 className="w-4 h-4 animate-spin" />
-            Importing...
+            {t('aiImport.importing')}
           </>
         ) : (
           <>
             <Upload className="w-4 h-4" />
-            Start Import
+            {t('aiImport.startImport')}
           </>
         )}
       </motion.button>

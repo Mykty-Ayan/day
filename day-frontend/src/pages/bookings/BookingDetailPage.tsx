@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   ArrowLeft,
@@ -51,8 +52,9 @@ import {
   SelectValue,
 } from '../../components/ui/select'
 import NumberInput from '../../components/ui/number-input'
+import { useCurrency } from '../../hooks/useCurrency'
 
-const TABS = ['Overview', 'Payments', 'Deposits', 'Files & Comments', 'History'] as const
+const TABS = ['overview', 'payments', 'deposits', 'filesComments', 'history'] as const
 type Tab = (typeof TABS)[number]
 
 const RAW_API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1'
@@ -72,25 +74,25 @@ interface StatusAction {
   color: string
 }
 
-function getStatusActions(status: BookingStatus): StatusAction[] {
+function getStatusActions(status: BookingStatus, t: (key: string) => string): StatusAction[] {
   switch (status) {
     case 'pending':
       return [
-        { label: 'Confirm', target: 'confirmed', color: 'bg-blue-600 hover:bg-blue-700' },
-        { label: 'Cancel', target: 'cancelled', color: 'bg-red-600 hover:bg-red-700' },
+        { label: t('bookings.status.confirm'), target: 'confirmed', color: 'bg-blue-600 hover:bg-blue-700' },
+        { label: t('bookings.status.cancel'), target: 'cancelled', color: 'bg-red-600 hover:bg-red-700' },
       ]
     case 'confirmed':
       return [
-        { label: 'Check In', target: 'checked_in', color: 'bg-emerald-600 hover:bg-emerald-700' },
-        { label: 'Cancel', target: 'cancelled', color: 'bg-red-600 hover:bg-red-700' },
+        { label: t('bookings.status.checkIn'), target: 'checked_in', color: 'bg-emerald-600 hover:bg-emerald-700' },
+        { label: t('bookings.status.cancel'), target: 'cancelled', color: 'bg-red-600 hover:bg-red-700' },
       ]
     case 'checked_in':
       return [
-        { label: 'Check Out', target: 'checked_out', color: 'bg-amber-600 hover:bg-amber-700' },
+        { label: t('bookings.status.checkOut'), target: 'checked_out', color: 'bg-amber-600 hover:bg-amber-700' },
       ]
     case 'checked_out':
       return [
-        { label: 'Complete', target: 'completed', color: 'bg-green-600 hover:bg-green-700' },
+        { label: t('bookings.status.complete'), target: 'completed', color: 'bg-green-600 hover:bg-green-700' },
       ]
     default:
       return []
@@ -98,11 +100,12 @@ function getStatusActions(status: BookingStatus): StatusAction[] {
 }
 
 export default function BookingDetailPage() {
+  const { t } = useTranslation()
   const { bookingId } = useParams({ strict: false }) as { bookingId: string }
   const navigate = useNavigate()
   const { data: detail, isLoading } = useBooking(bookingId)
   const changeStatus = useChangeBookingStatus(bookingId)
-  const [activeTab, setActiveTab] = useState<Tab>('Overview')
+  const [activeTab, setActiveTab] = useState<Tab>('overview')
   const from = useMemo(() => {
     if (typeof window === 'undefined') return ''
     const params = new URLSearchParams(window.location.search)
@@ -129,13 +132,13 @@ export default function BookingDetailPage() {
   if (!detail) {
     return (
       <div className="flex flex-col items-center justify-center py-20">
-        <p className="text-sm text-gray-500">Booking not found</p>
+        <p className="text-sm text-gray-500">{t('bookings.notFound')}</p>
       </div>
     )
   }
 
   const { booking, guest } = detail
-  const statusActions = getStatusActions(booking.status)
+  const statusActions = getStatusActions(booking.status, t)
 
   return (
     <div className="p-6 max-w-5xl mx-auto w-full">
@@ -151,7 +154,7 @@ export default function BookingDetailPage() {
           className="inline-flex items-center gap-1 text-xs font-bold text-gray-500 hover:text-gray-900 mb-4 transition-colors"
         >
           <ArrowLeft className="w-4 h-4" />
-          {isFromGantt ? 'Back to gantt' : 'Back to bookings'}
+          {isFromGantt ? t('bookings.backToGantt') : t('bookings.backToBookings')}
         </button>
 
         {/* Header */}
@@ -174,7 +177,7 @@ export default function BookingDetailPage() {
               className="flex items-center gap-2 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-xl px-4 py-2 text-xs font-bold text-gray-700 transition-colors"
             >
               <Pencil className="w-3.5 h-3.5" />
-              Edit
+              {t('common.edit')}
             </motion.button>
             {statusActions.map((action) => (
               <motion.button
@@ -202,7 +205,7 @@ export default function BookingDetailPage() {
                   : 'text-gray-500 hover:text-gray-700'
               }`}
             >
-              {tab}
+              {t(`bookings.tabs.${tab}`)}
             </button>
           ))}
         </div>
@@ -216,10 +219,10 @@ export default function BookingDetailPage() {
             exit={{ opacity: 0, y: -8 }}
             transition={{ duration: 0.2 }}
           >
-            {activeTab === 'Overview' && (
+            {activeTab === 'overview' && (
               <OverviewTab booking={booking} guest={guest} />
             )}
-            {activeTab === 'Payments' && (
+            {activeTab === 'payments' && (
               <PaymentsTab
                 bookingId={bookingId}
                 payments={detail.payments}
@@ -228,13 +231,13 @@ export default function BookingDetailPage() {
                 checkOut={booking.check_out}
               />
             )}
-            {activeTab === 'Deposits' && (
+            {activeTab === 'deposits' && (
               <DepositsTab bookingId={bookingId} deposits={detail.deposits} />
             )}
-            {activeTab === 'Files & Comments' && (
+            {activeTab === 'filesComments' && (
               <FilesCommentsTab bookingId={bookingId} files={detail.files} comments={detail.comments} />
             )}
-            {activeTab === 'History' && (
+            {activeTab === 'history' && (
               <HistoryTab auditLogs={detail.audit_logs} />
             )}
           </motion.div>
@@ -246,22 +249,33 @@ export default function BookingDetailPage() {
 
 // --- Overview Tab ---
 function OverviewTab({ booking, guest }: { booking: Booking; guest: Guest }) {
+  const { t } = useTranslation()
+  const { symbol } = useCurrency()
+
+  const guestCountStr = (() => {
+    let str = t('bookings.adultsCount', { count: booking.adults_count })
+    if (booking.children_count > 0) {
+      str += `, ${t('bookings.childrenCount', { count: booking.children_count })}`
+    }
+    return str
+  })()
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
       {/* Booking Info */}
       <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
-        <h2 className="text-sm font-bold text-gray-900 mb-4">Booking Details</h2>
+        <h2 className="text-sm font-bold text-gray-900 mb-4">{t('bookings.bookingDetails')}</h2>
         <div className="space-y-3">
-          <InfoRow icon={Calendar} label="Check-in" value={formatDate(booking.check_in)} />
-          <InfoRow icon={Calendar} label="Check-out" value={formatDate(booking.check_out)} />
-          <InfoRow icon={Users} label="Guests" value={`${booking.adults_count} adult${booking.adults_count !== 1 ? 's' : ''}${booking.children_count > 0 ? `, ${booking.children_count} child${booking.children_count !== 1 ? 'ren' : ''}` : ''}`} />
-          <InfoRow icon={DollarSign} label="Total Price" value={`$${formatMoney(booking.total_price)}`} />
+          <InfoRow icon={Calendar} label={t('properties.checkIn')} value={formatDate(booking.check_in)} />
+          <InfoRow icon={Calendar} label={t('properties.checkOut')} value={formatDate(booking.check_out)} />
+          <InfoRow icon={Users} label={t('bookings.guest')} value={guestCountStr} />
+          <InfoRow icon={DollarSign} label={t('bookings.totalPrice')} value={`${symbol}${formatMoney(booking.total_price)}`} />
           <div className="flex items-center gap-3 pt-1">
-            <span className="text-xs text-gray-500 w-24">Source</span>
-            <span className="text-sm text-gray-900 capitalize">{booking.source}</span>
+            <span className="text-xs text-gray-500 w-24">{t('bookings.source')}</span>
+            <span className="text-sm text-gray-900 capitalize">{t('bookings.sources.' + booking.source)}</span>
           </div>
           <div className="flex items-center gap-3 pt-1">
-            <span className="text-xs text-gray-500 w-24">Color</span>
+            <span className="text-xs text-gray-500 w-24">{t('bookings.calendarColor')}</span>
             <div className="w-5 h-5 rounded-full" style={{ backgroundColor: booking.gantt_color || '#3B82F6' }} />
           </div>
         </div>
@@ -269,25 +283,25 @@ function OverviewTab({ booking, guest }: { booking: Booking; guest: Guest }) {
 
       {/* Guest Info */}
       <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
-        <h2 className="text-sm font-bold text-gray-900 mb-4">Guest</h2>
+        <h2 className="text-sm font-bold text-gray-900 mb-4">{t('bookings.guest')}</h2>
         <div className="space-y-3">
           <div>
-            <p className="text-xs text-gray-500">Name</p>
+            <p className="text-xs text-gray-500">{t('bookings.guestName')}</p>
             <p className="text-sm font-semibold text-gray-900">{guest.name}</p>
           </div>
           <div>
-            <p className="text-xs text-gray-500">Phone</p>
+            <p className="text-xs text-gray-500">{t('bookings.phone')}</p>
             <p className="text-sm text-gray-900">{guest.phone}</p>
           </div>
           {guest.email && (
             <div>
-              <p className="text-xs text-gray-500">Email</p>
+              <p className="text-xs text-gray-500">{t('bookings.email')}</p>
               <p className="text-sm text-gray-900">{guest.email}</p>
             </div>
           )}
           {guest.notes && (
             <div>
-              <p className="text-xs text-gray-500">Notes</p>
+              <p className="text-xs text-gray-500">{t('common.notes')}</p>
               <p className="text-sm text-gray-700 whitespace-pre-line">{guest.notes}</p>
             </div>
           )}
@@ -347,6 +361,8 @@ function PaymentsTab({
   checkIn: string
   checkOut: string
 }) {
+  const { t } = useTranslation()
+  const { symbol } = useCurrency()
   const addPayment = useAddPayment(bookingId)
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState({ amount: '', type: 'payment' as PaymentType, method: 'cash' as PaymentMethod, note: '' })
@@ -374,13 +390,13 @@ function PaymentsTab({
       ? [
           { label: '100%', value: total },
           { label: '50%', value: total * 0.5 },
-          { label: 'Daily', value: nightlyRate },
+          { label: t('bookings.payments.daily'), value: nightlyRate },
         ]
       : [
-          ...(isOverpaid ? [{ label: 'Overpaid', value: overpaid }] : []),
-          { label: 'Total', value: refundableAmount },
+          ...(isOverpaid ? [{ label: t('bookings.payments.overpaid'), value: overpaid }] : []),
+          { label: t('common.total'), value: refundableAmount },
           { label: '50%', value: refundableAmount * 0.5 },
-          { label: 'First day', value: nightlyRate },
+          { label: t('bookings.payments.firstDay'), value: nightlyRate },
         ]
 
   const seenQuickValues = new Set<number>()
@@ -411,12 +427,12 @@ function PaymentsTab({
       <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm flex items-center justify-between">
         <div>
           <p className="text-xs text-gray-500">
-            {isOverpaid ? 'Total / Paid / Overpaid' : 'Total / Paid / Remaining'}
+            {isOverpaid ? t('bookings.payments.totalPaidOverpaid') : t('bookings.payments.totalPaidRemaining')}
           </p>
           <p className="text-sm font-bold text-gray-900">
-            ${formatMoney(total)} / ${formatMoney(totalPaid)} /{' '}
+            {symbol}{formatMoney(total)} / {symbol}{formatMoney(totalPaid)} /{' '}
             <span className={isOverpaid ? 'text-red-600' : ''}>
-              ${formatMoney(isOverpaid ? overpaid : payableRemaining)}
+              {symbol}{formatMoney(isOverpaid ? overpaid : payableRemaining)}
             </span>
           </p>
         </div>
@@ -426,14 +442,14 @@ function PaymentsTab({
             onClick={() => { setForm((f) => ({ ...f, type: 'payment' })); setShowForm(true) }}
             className="flex items-center gap-1 bg-black text-white hover:bg-gray-800 rounded-xl px-4 py-2 text-xs font-bold transition-colors"
           >
-            <Plus className="w-3 h-3" /> Payment
+            <Plus className="w-3 h-3" /> {t('bookings.payments.payment')}
           </motion.button>
           <motion.button
             whileTap={{ scale: 0.97 }}
             onClick={() => { setForm((f) => ({ ...f, type: 'refund' })); setShowForm(true) }}
             className="flex items-center gap-1 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-xl px-4 py-2 text-xs font-bold text-gray-700 transition-colors"
           >
-            <Plus className="w-3 h-3" /> Refund
+            <Plus className="w-3 h-3" /> {t('bookings.payments.refund')}
           </motion.button>
         </div>
       </div>
@@ -446,7 +462,7 @@ function PaymentsTab({
           className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm"
         >
           <h3 className="text-sm font-bold text-gray-900 mb-3">
-            Add {form.type === 'payment' ? 'Payment' : 'Refund'}
+            {form.type === 'payment' ? t('bookings.payments.addPayment') : t('bookings.payments.addRefund')}
           </h3>
           <div className="grid grid-cols-3 gap-3">
             <NumberInput
@@ -454,7 +470,7 @@ function PaymentsTab({
               onChange={(value) => setForm((f) => ({ ...f, amount: value }))}
               min={0}
               step={amountStep}
-              placeholder="Amount"
+              placeholder={t('common.amount')}
             />
             <Select
               value={form.method}
@@ -464,16 +480,16 @@ function PaymentsTab({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="cash">Cash</SelectItem>
-                <SelectItem value="card">Card</SelectItem>
-                <SelectItem value="transfer">Transfer</SelectItem>
+                <SelectItem value="cash">{t('common.cash')}</SelectItem>
+                <SelectItem value="card">{t('common.card')}</SelectItem>
+                <SelectItem value="transfer">{t('common.transfer')}</SelectItem>
               </SelectContent>
             </Select>
             <input
               type="text"
               value={form.note}
               onChange={(e) => setForm((f) => ({ ...f, note: e.target.value }))}
-              placeholder="Note (optional)"
+              placeholder={t('common.noteOptional')}
               className="bg-gray-50 border border-gray-200 rounded-xl p-3 outline-none focus:ring-2 focus:ring-black/10 text-sm"
             />
           </div>
@@ -486,7 +502,7 @@ function PaymentsTab({
                   onClick={() => setForm((f) => ({ ...f, amount: String(option.value) }))}
                   className="px-3 py-1.5 rounded-full border border-gray-200 bg-white hover:bg-gray-900 hover:text-white text-xs font-semibold text-gray-700 transition-all"
                 >
-                  {option.label} (${formatMoney(option.value)})
+                  {option.label} ({symbol}{formatMoney(option.value)})
                 </button>
               ))}
             </div>
@@ -498,13 +514,13 @@ function PaymentsTab({
               disabled={addPayment.isPending}
               className="bg-black text-white hover:bg-gray-800 rounded-xl px-4 py-2 text-xs font-bold transition-colors disabled:opacity-50"
             >
-              {addPayment.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Save'}
+              {addPayment.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : t('common.save')}
             </motion.button>
             <button
               onClick={() => setShowForm(false)}
               className="text-xs font-bold text-gray-500 hover:text-gray-700 px-3"
             >
-              Cancel
+              {t('common.cancel')}
             </button>
           </div>
         </motion.div>
@@ -513,26 +529,26 @@ function PaymentsTab({
       {/* Payment list */}
       {payments.length === 0 ? (
         <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
-          <p className="text-sm text-gray-500 text-center py-4">No payments yet</p>
+          <p className="text-sm text-gray-500 text-center py-4">{t('bookings.payments.noPayments')}</p>
         </div>
       ) : (
         <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
           <table className="w-full">
             <thead>
               <tr className="border-b border-gray-100 bg-gray-50">
-                <th className="text-left px-4 py-3 text-xs font-bold text-gray-400 uppercase">Amount</th>
-                <th className="text-left px-4 py-3 text-xs font-bold text-gray-400 uppercase">Type</th>
-                <th className="text-left px-4 py-3 text-xs font-bold text-gray-400 uppercase">Method</th>
-                <th className="text-left px-4 py-3 text-xs font-bold text-gray-400 uppercase">Status</th>
-                <th className="text-left px-4 py-3 text-xs font-bold text-gray-400 uppercase">Date</th>
-                <th className="text-left px-4 py-3 text-xs font-bold text-gray-400 uppercase">Note</th>
+                <th className="text-left px-4 py-3 text-xs font-bold text-gray-400 uppercase">{t('common.amount')}</th>
+                <th className="text-left px-4 py-3 text-xs font-bold text-gray-400 uppercase">{t('common.type')}</th>
+                <th className="text-left px-4 py-3 text-xs font-bold text-gray-400 uppercase">{t('common.method')}</th>
+                <th className="text-left px-4 py-3 text-xs font-bold text-gray-400 uppercase">{t('common.status')}</th>
+                <th className="text-left px-4 py-3 text-xs font-bold text-gray-400 uppercase">{t('common.date')}</th>
+                <th className="text-left px-4 py-3 text-xs font-bold text-gray-400 uppercase">{t('common.note')}</th>
               </tr>
             </thead>
             <tbody>
               {payments.map((p) => (
                 <tr key={p.id} className="border-b border-gray-50">
                   <td className="px-4 py-3 text-sm font-semibold text-gray-900">
-                    {p.type === 'refund' ? '-' : ''}${formatMoney(Math.abs(normalizeNumber(p.amount)))}
+                    {p.type === 'refund' ? '-' : ''}{symbol}{formatMoney(Math.abs(normalizeNumber(p.amount)))}
                   </td>
                   <td className="px-4 py-3 text-xs text-gray-600 capitalize">{p.type}</td>
                   <td className="px-4 py-3 text-xs text-gray-600 capitalize">{p.method}</td>
@@ -561,6 +577,8 @@ function PaymentsTab({
 
 // --- Deposits Tab ---
 function DepositsTab({ bookingId, deposits }: { bookingId: string; deposits: BookingDeposit[] }) {
+  const { t } = useTranslation()
+  const { symbol } = useCurrency()
   const createDep = useCreateDeposit(bookingId)
   const [newAmount, setNewAmount] = useState('')
   const [showCreate, setShowCreate] = useState(false)
@@ -587,7 +605,7 @@ function DepositsTab({ bookingId, deposits }: { bookingId: string; deposits: Boo
           onClick={() => setShowCreate(true)}
           className="flex items-center gap-1 bg-black text-white hover:bg-gray-800 rounded-xl px-4 py-2 text-xs font-bold transition-colors"
         >
-          <Plus className="w-3 h-3" /> Create Deposit
+          <Plus className="w-3 h-3" /> {t('bookings.deposits.createDeposit')}
         </motion.button>
       </div>
 
@@ -597,7 +615,7 @@ function DepositsTab({ bookingId, deposits }: { bookingId: string; deposits: Boo
           animate={{ opacity: 1 }}
           className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm"
         >
-          <h3 className="text-sm font-bold text-gray-900 mb-3">New Deposit</h3>
+          <h3 className="text-sm font-bold text-gray-900 mb-3">{t('bookings.deposits.newDeposit')}</h3>
           <div className="space-y-3">
             <div className="flex gap-3">
               <NumberInput
@@ -605,7 +623,7 @@ function DepositsTab({ bookingId, deposits }: { bookingId: string; deposits: Boo
                 onChange={setNewAmount}
                 min={0}
                 step={1000}
-                placeholder="Amount"
+                placeholder={t('common.amount')}
                 className="flex-1"
               />
               <motion.button
@@ -614,10 +632,10 @@ function DepositsTab({ bookingId, deposits }: { bookingId: string; deposits: Boo
                 disabled={createDep.isPending}
                 className="bg-black text-white hover:bg-gray-800 rounded-xl px-4 py-2 text-xs font-bold disabled:opacity-50"
               >
-                {createDep.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Create'}
+                {createDep.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : t('common.create')}
               </motion.button>
               <button onClick={() => setShowCreate(false)} className="text-xs font-bold text-gray-500 hover:text-gray-700 px-2">
-                Cancel
+                {t('common.cancel')}
               </button>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -628,7 +646,7 @@ function DepositsTab({ bookingId, deposits }: { bookingId: string; deposits: Boo
                   onClick={() => setNewAmount(String(option.value))}
                   className="px-3 py-1.5 rounded-full border border-gray-200 bg-white hover:bg-gray-900 hover:text-white text-xs font-semibold text-gray-700 transition-all"
                 >
-                  ${formatMoneyChip(option.value)}
+                  {symbol}{formatMoneyChip(option.value)}
                 </button>
               ))}
             </div>
@@ -638,7 +656,7 @@ function DepositsTab({ bookingId, deposits }: { bookingId: string; deposits: Boo
 
       {deposits.length === 0 ? (
         <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
-          <p className="text-sm text-gray-500 text-center py-4">No deposits</p>
+          <p className="text-sm text-gray-500 text-center py-4">{t('bookings.deposits.noDeposits')}</p>
         </div>
       ) : (
         deposits.map((dep) => (
@@ -650,6 +668,8 @@ function DepositsTab({ bookingId, deposits }: { bookingId: string; deposits: Boo
 }
 
 function DepositCard({ bookingId, deposit }: { bookingId: string; deposit: BookingDeposit }) {
+  const { t } = useTranslation()
+  const { symbol } = useCurrency()
   const depAction = useDepositAction(bookingId, deposit.id)
   const [actionForm, setActionForm] = useState<{ action: DepositAction; held_amount: string; reason: string } | null>(null)
 
@@ -675,9 +695,9 @@ function DepositCard({ bookingId, deposit }: { bookingId: string; deposit: Booki
     <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
       <div className="flex items-center justify-between mb-3">
         <div>
-          <p className="text-sm font-bold text-gray-900">${formatMoney(deposit.amount)}</p>
+          <p className="text-sm font-bold text-gray-900">{symbol}{formatMoney(deposit.amount)}</p>
           {deposit.held_amount > 0 && (
-            <p className="text-xs text-gray-500">Held: ${formatMoney(deposit.held_amount)}</p>
+            <p className="text-xs text-gray-500">{t('bookings.deposits.held')} {symbol}{formatMoney(deposit.held_amount)}</p>
           )}
         </div>
         <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase ${depositStatusStyle[deposit.status] || 'bg-gray-100 text-gray-700'}`}>
@@ -685,7 +705,7 @@ function DepositCard({ bookingId, deposit }: { bookingId: string; deposit: Booki
         </span>
       </div>
       {deposit.reason && (
-        <p className="text-xs text-gray-500 mb-3">Reason: {deposit.reason}</p>
+        <p className="text-xs text-gray-500 mb-3">{t('common.reason')} {deposit.reason}</p>
       )}
 
       {/* Actions based on status */}
@@ -700,7 +720,7 @@ function DepositCard({ bookingId, deposit }: { bookingId: string; deposit: Booki
             disabled={depAction.isPending}
             className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl px-3 py-1.5 text-xs font-bold disabled:opacity-50"
           >
-            Mark as Paid
+            {t('bookings.deposits.markAsPaid')}
           </motion.button>
         )}
         {deposit.status === 'paid' && (
@@ -714,21 +734,21 @@ function DepositCard({ bookingId, deposit }: { bookingId: string; deposit: Booki
               disabled={depAction.isPending}
               className="bg-green-600 hover:bg-green-700 text-white rounded-xl px-3 py-1.5 text-xs font-bold disabled:opacity-50"
             >
-              Return
+              {t('bookings.deposits.return')}
             </motion.button>
             <motion.button
               whileTap={{ scale: 0.97 }}
               onClick={() => setActionForm({ action: 'hold', held_amount: '', reason: '' })}
               className="bg-red-600 hover:bg-red-700 text-white rounded-xl px-3 py-1.5 text-xs font-bold"
             >
-              Hold
+              {t('bookings.deposits.hold')}
             </motion.button>
             <motion.button
               whileTap={{ scale: 0.97 }}
               onClick={() => setActionForm({ action: 'partial_hold', held_amount: '', reason: '' })}
               className="bg-amber-600 hover:bg-amber-700 text-white rounded-xl px-3 py-1.5 text-xs font-bold"
             >
-              Partially Hold
+              {t('bookings.deposits.partiallyHold')}
             </motion.button>
           </>
         )}
@@ -743,14 +763,14 @@ function DepositCard({ bookingId, deposit }: { bookingId: string; deposit: Booki
               onChange={(value) => setActionForm((f) => f && { ...f, held_amount: value })}
               min={0}
               step={1000}
-              placeholder="Amount to hold"
+              placeholder={t('bookings.deposits.amountToHold')}
             />
           )}
           <input
             type="text"
             value={actionForm.reason}
             onChange={(e) => setActionForm((f) => f && { ...f, reason: e.target.value })}
-            placeholder="Reason"
+            placeholder={t('common.reason')}
             className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 outline-none focus:ring-2 focus:ring-black/10 text-sm"
           />
           <div className="flex gap-2">
@@ -760,10 +780,10 @@ function DepositCard({ bookingId, deposit }: { bookingId: string; deposit: Booki
               disabled={depAction.isPending}
               className="bg-black text-white hover:bg-gray-800 rounded-xl px-4 py-2 text-xs font-bold disabled:opacity-50"
             >
-              {depAction.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Confirm'}
+              {depAction.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : t('common.confirm')}
             </motion.button>
             <button onClick={() => setActionForm(null)} className="text-xs font-bold text-gray-500 hover:text-gray-700 px-2">
-              Cancel
+              {t('common.cancel')}
             </button>
           </div>
         </motion.div>
@@ -774,6 +794,7 @@ function DepositCard({ bookingId, deposit }: { bookingId: string; deposit: Booki
 
 // --- Files & Comments Tab ---
 function FilesCommentsTab({ bookingId, files, comments }: { bookingId: string; files: BookingFile[]; comments: BookingComment[] }) {
+  const { t } = useTranslation()
   const uploadFile = useUploadBookingFile(bookingId)
   const deleteFile = useDeleteBookingFile(bookingId)
   const addComment = useAddComment(bookingId)
@@ -798,20 +819,20 @@ function FilesCommentsTab({ bookingId, files, comments }: { bookingId: string; f
       <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-sm font-bold text-gray-900 flex items-center gap-2">
-            <FileText className="w-4 h-4 text-gray-400" /> Files
+            <FileText className="w-4 h-4 text-gray-400" /> {t('bookings.files.files')}
           </h2>
           <label className="flex items-center gap-1 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-xl px-3 py-1.5 text-xs font-bold text-gray-700 cursor-pointer transition-colors">
-            <Plus className="w-3 h-3" /> Upload
+            <Plus className="w-3 h-3" /> {t('bookings.files.upload')}
             <input type="file" className="hidden" onChange={handleFileUpload} />
           </label>
         </div>
         {uploadFile.isPending && (
           <div className="flex items-center gap-2 mb-3 text-xs text-gray-500">
-            <Loader2 className="w-3 h-3 animate-spin" /> Uploading...
+            <Loader2 className="w-3 h-3 animate-spin" /> {t('bookings.files.uploading')}
           </div>
         )}
         {files.length === 0 ? (
-          <p className="text-sm text-gray-500 text-center py-4">No files</p>
+          <p className="text-sm text-gray-500 text-center py-4">{t('bookings.files.noFiles')}</p>
         ) : (
           <div className="space-y-2">
             {files.map((f) => (
@@ -841,11 +862,11 @@ function FilesCommentsTab({ bookingId, files, comments }: { bookingId: string; f
       {/* Comments */}
       <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
         <h2 className="text-sm font-bold text-gray-900 flex items-center gap-2 mb-4">
-          <MessageSquare className="w-4 h-4 text-gray-400" /> Comments
+          <MessageSquare className="w-4 h-4 text-gray-400" /> {t('bookings.files.comments')}
         </h2>
         <div className="space-y-3 mb-4 max-h-80 overflow-y-auto">
           {comments.length === 0 ? (
-            <p className="text-sm text-gray-500 text-center py-4">No comments</p>
+            <p className="text-sm text-gray-500 text-center py-4">{t('bookings.files.noComments')}</p>
           ) : (
             comments.map((c) => (
               <div key={c.id} className="bg-gray-50 rounded-lg px-3 py-2">
@@ -863,7 +884,7 @@ function FilesCommentsTab({ bookingId, files, comments }: { bookingId: string; f
             value={commentText}
             onChange={(e) => setCommentText(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleComment()}
-            placeholder="Add a comment..."
+            placeholder={t('bookings.files.addComment')}
             className="flex-1 bg-gray-50 border border-gray-200 rounded-xl p-3 outline-none focus:ring-2 focus:ring-black/10 text-sm"
           />
           <motion.button
@@ -882,8 +903,9 @@ function FilesCommentsTab({ bookingId, files, comments }: { bookingId: string; f
 
 // --- History Tab ---
 function HistoryTab({ auditLogs }: { auditLogs: BookingAuditLog[] }) {
+  const { t } = useTranslation()
   return (
-    <AuditTrail entries={auditLogs} title="Activity History" />
+    <AuditTrail entries={auditLogs} title={t('bookings.activityHistory')} />
   )
 }
 

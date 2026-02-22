@@ -1,32 +1,28 @@
-.PHONY: up down build logs migrate fresh
+.PHONY: up down logs migrate seed backend frontend
 
-# Docker commands
+DC = docker compose -f docker/docker-compose.yml
+
+# Infrastructure (PostgreSQL, Redis, MinIO)
 up:
-	docker compose -f docker/docker-compose.yml -f docker/docker-compose.dev.yml up -d
+	$(DC) up -d
 
 down:
-	docker compose -f docker/docker-compose.yml -f docker/docker-compose.dev.yml down
-
-build:
-	docker compose -f docker/docker-compose.yml build
+	$(DC) down
 
 logs:
-	docker compose -f docker/docker-compose.yml -f docker/docker-compose.dev.yml logs -f
+	$(DC) logs -f
 
-# Backend
+# Database migrations (run locally)
 migrate:
-	docker compose -f docker/docker-compose.yml -f docker/docker-compose.dev.yml exec backend alembic upgrade head
+	cd day-backend && uv run alembic -x sqlalchemy.url=postgresql+asyncpg://day:changeme@localhost:5432/day upgrade head
 
-migrate-generate:
-	docker compose -f docker/docker-compose.yml -f docker/docker-compose.dev.yml exec backend alembic revision --autogenerate -m "$(msg)"
+# Seed demo data
+seed:
+	cd day-backend && env $$(cat ../local.env | grep -v '^#' | xargs) uv run python -m app.infrastructure.seed
 
-# Development
-backend-shell:
-	docker compose -f docker/docker-compose.yml -f docker/docker-compose.dev.yml exec backend bash
+# Local development
+backend:
+	cd day-backend && env $$(cat ../local.env | grep -v '^#' | xargs) uv run uvicorn app.main:app --reload
 
-frontend-shell:
-	docker compose -f docker/docker-compose.yml -f docker/docker-compose.dev.yml exec frontend sh
-
-# Fresh start
-fresh: down
-	docker compose -f docker/docker-compose.yml -f docker/docker-compose.dev.yml up -d --build
+frontend:
+	cd day-frontend && npm run dev

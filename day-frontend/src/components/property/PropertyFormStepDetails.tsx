@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next'
 import NumberInput from '../ui/number-input'
 
 interface DetailsData {
@@ -13,6 +14,7 @@ interface Props {
 }
 
 export default function PropertyFormStepDetails({ data, onChange }: Props) {
+  const { t } = useTranslation()
   function update<K extends keyof DetailsData>(key: K, value: string) {
     onChange({ ...data, [key]: value })
   }
@@ -22,7 +24,7 @@ export default function PropertyFormStepDetails({ data, onChange }: Props) {
       <div className="grid grid-cols-2 gap-4">
         <div>
           <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">
-            Rooms
+            {t('properties.form.rooms')}
           </label>
           <NumberInput
             value={data.rooms}
@@ -34,7 +36,7 @@ export default function PropertyFormStepDetails({ data, onChange }: Props) {
         </div>
         <div>
           <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">
-            Beds
+            {t('properties.form.beds')}
           </label>
           <NumberInput
             value={data.beds}
@@ -49,7 +51,7 @@ export default function PropertyFormStepDetails({ data, onChange }: Props) {
       <div className="grid grid-cols-2 gap-4">
         <div>
           <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">
-            Living Area (m²)
+            {t('properties.form.livingArea')}
           </label>
           <NumberInput
             value={data.area_living}
@@ -61,7 +63,7 @@ export default function PropertyFormStepDetails({ data, onChange }: Props) {
         </div>
         <div>
           <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">
-            Total Area (m²)
+            {t('properties.form.totalArea')}
           </label>
           <NumberInput
             value={data.area_total}

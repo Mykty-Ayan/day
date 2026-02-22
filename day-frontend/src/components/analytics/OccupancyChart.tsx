@@ -1,4 +1,5 @@
 import { motion } from 'framer-motion'
+import { useTranslation } from 'react-i18next'
 import type { TimeSeriesPoint } from '../../types/analytics'
 
 function buildTickIndices(length: number, maxTicks = 6): number[] {
@@ -22,10 +23,12 @@ function formatAxisLabel(label: string): string {
 }
 
 export default function OccupancyChart({ data }: { data: TimeSeriesPoint[] }) {
+  const { t } = useTranslation()
+
   if (data.length === 0) {
     return (
       <div className="flex items-center justify-center py-12 text-sm text-gray-400">
-        No data for the selected period
+        {t('analytics.noData')}
       </div>
     )
   }
@@ -46,10 +49,10 @@ export default function OccupancyChart({ data }: { data: TimeSeriesPoint[] }) {
 
   return (
     <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-5">
-      <h3 className="text-sm font-bold text-gray-900 mb-4">Occupancy Rate</h3>
+      <h3 className="text-sm font-bold text-gray-900 mb-4">{t('analytics.occupancyRate')}</h3>
       {!hasOccupancyData ? (
         <div className="flex h-36 items-center justify-center text-sm text-gray-400">
-          No occupancy data for the selected period
+          {t('analytics.noOccupancyData')}
         </div>
       ) : (
         <div className="flex h-36 items-end gap-1">

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { useNavigate } from '@tanstack/react-router'
+import { useTranslation } from 'react-i18next'
 import { Route } from '../../routes/ai-import/$jobId'
 import { ArrowLeft, Check, Loader2, AlertTriangle } from 'lucide-react'
 import { useImportJob, useConfirmImport } from '../../hooks/useAIImport'
@@ -124,6 +125,7 @@ function computeWarnings(data: MappedPropertyData): string[] {
 }
 
 export default function ImportPreviewPage() {
+  const { t } = useTranslation()
   const { jobId } = Route.useParams()
   const navigate = useNavigate()
   const { data: job, isLoading, isError } = useImportJob(jobId)
@@ -142,9 +144,9 @@ export default function ImportPreviewPage() {
       <div className="flex flex-col items-center justify-center min-h-[60vh]">
         <Loader2 className="w-8 h-8 text-gray-400 animate-spin mb-4" />
         <p className="text-sm font-bold text-gray-700">
-          {job?.status === 'processing' ? 'AI is extracting property data...' : 'Waiting for import to start...'}
+          {job?.status === 'processing' ? t('aiImport.aiExtracting') : t('aiImport.waitingForImport')}
         </p>
-        <p className="text-xs text-gray-400 mt-1">This usually takes 10-30 seconds</p>
+        <p className="text-xs text-gray-400 mt-1">{t('aiImport.usuallyTakes')}</p>
       </div>
     )
   }
@@ -152,14 +154,14 @@ export default function ImportPreviewPage() {
   if (isError || !job) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh]">
-        <p className="text-sm text-red-600 mb-4">Failed to load import job</p>
+        <p className="text-sm text-red-600 mb-4">{t('aiImport.failedLoadJob')}</p>
         <motion.button
           whileTap={{ scale: 0.97 }}
           onClick={() => navigate({ to: '/ai-import' })}
           className="flex items-center gap-2 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-xl px-4 py-2.5 text-xs font-bold text-gray-700 transition-colors"
         >
           <ArrowLeft className="w-4 h-4" />
-          Back to Imports
+          {t('aiImport.backToImports')}
         </motion.button>
       </div>
     )
@@ -174,8 +176,8 @@ export default function ImportPreviewPage() {
           transition={{ duration: 0.4 }}
         >
           <div className="bg-red-50 border border-red-200 rounded-xl p-6">
-            <h2 className="text-sm font-bold text-red-700 mb-2">Import Failed</h2>
-            <p className="text-sm text-red-600">{job.error_message || 'An unknown error occurred during import.'}</p>
+            <h2 className="text-sm font-bold text-red-700 mb-2">{t('aiImport.importFailed')}</h2>
+            <p className="text-sm text-red-600">{job.error_message || t('aiImport.unknownError')}</p>
             <p className="text-xs text-gray-500 mt-3">
               URL: {job.source_url}
             </p>
@@ -186,7 +188,7 @@ export default function ImportPreviewPage() {
             className="flex items-center gap-2 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-xl px-4 py-2.5 text-xs font-bold text-gray-700 transition-colors mt-4"
           >
             <ArrowLeft className="w-4 h-4" />
-            Back to Imports
+            {t('aiImport.backToImports')}
           </motion.button>
         </motion.div>
       </div>
@@ -196,14 +198,14 @@ export default function ImportPreviewPage() {
   if (!mappedData) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh]">
-        <p className="text-sm text-gray-500">No property data available for this import.</p>
+        <p className="text-sm text-gray-500">{t('aiImport.noPropertyData')}</p>
         <motion.button
           whileTap={{ scale: 0.97 }}
           onClick={() => navigate({ to: '/ai-import' })}
           className="flex items-center gap-2 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-xl px-4 py-2.5 text-xs font-bold text-gray-700 transition-colors mt-4"
         >
           <ArrowLeft className="w-4 h-4" />
-          Back to Imports
+          {t('aiImport.backToImports')}
         </motion.button>
       </div>
     )
@@ -221,7 +223,7 @@ export default function ImportPreviewPage() {
       })
       navigate({ to: '/properties/$propertyId', params: { propertyId: property.id } })
     } catch {
-      setSubmitError('Failed to create property. Please try again.')
+      setSubmitError(t('properties.failedCreate'))
     }
   }
 
@@ -234,7 +236,7 @@ export default function ImportPreviewPage() {
       >
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
-          <h1 className="text-xl font-bold text-gray-900">Import Preview</h1>
+          <h1 className="text-xl font-bold text-gray-900">{t('aiImport.importPreview')}</h1>
           <span className="text-xs text-gray-400 truncate max-w-xs" title={job.source_url}>
             {job.source_url}
           </span>
@@ -243,9 +245,9 @@ export default function ImportPreviewPage() {
         {/* Confidence bar */}
         <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm mb-4">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-bold text-gray-700">Extraction Confidence</span>
+            <span className="text-xs font-bold text-gray-700">{t('aiImport.extractionConfidence')}</span>
             <span className="text-[10px] text-gray-400">
-              Based on {7} key fields
+              {t('aiImport.basedOnKeyFields', { count: 7 })}
             </span>
           </div>
           <ConfidenceBar value={confidence} />
@@ -257,7 +259,7 @@ export default function ImportPreviewPage() {
             <div className="flex items-center gap-2 mb-2">
               <AlertTriangle className="w-4 h-4 text-amber-600" />
               <span className="text-xs font-bold text-amber-700">
-                {warnings.length} warning{warnings.length !== 1 ? 's' : ''}
+                {warnings.length === 1 ? t('aiImport.warningCount', { count: 1 }) : t('aiImport.warningsCount', { count: warnings.length })}
               </span>
             </div>
             <ul className="space-y-1">
@@ -294,7 +296,7 @@ export default function ImportPreviewPage() {
             className="flex items-center gap-2 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-xl px-4 py-2.5 text-xs font-bold text-gray-700 transition-colors"
           >
             <ArrowLeft className="w-4 h-4" />
-            Back
+            {t('common.back')}
           </motion.button>
 
           <motion.button
@@ -306,12 +308,12 @@ export default function ImportPreviewPage() {
             {confirmImport.isPending ? (
               <>
                 <Loader2 className="w-4 h-4 animate-spin" />
-                Creating...
+                {t('aiImport.creatingProperty')}
               </>
             ) : (
               <>
                 <Check className="w-4 h-4" />
-                Create Property
+                {t('aiImport.createProperty')}
               </>
             )}
           </motion.button>

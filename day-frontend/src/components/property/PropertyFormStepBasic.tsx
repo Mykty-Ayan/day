@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next'
 import type { PropertyType } from '../../types/property'
 
 interface BasicData {
@@ -14,13 +15,10 @@ interface Props {
   errors: Partial<Record<keyof BasicData, string>>
 }
 
-const propertyTypes: { value: PropertyType; label: string }[] = [
-  { value: 'apartment', label: 'Apartment' },
-  { value: 'house', label: 'House' },
-  { value: 'room', label: 'Room' },
-]
+const propertyTypeValues: PropertyType[] = ['apartment', 'house', 'room']
 
 export default function PropertyFormStepBasic({ data, onChange, errors }: Props) {
+  const { t } = useTranslation()
   function update<K extends keyof BasicData>(key: K, value: BasicData[K]) {
     onChange({ ...data, [key]: value })
   }
@@ -29,7 +27,7 @@ export default function PropertyFormStepBasic({ data, onChange, errors }: Props)
     <div className="space-y-4">
       <div>
         <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">
-          Public Name
+          {t('properties.form.publicName')}
         </label>
         <input
           type="text"
@@ -47,7 +45,7 @@ export default function PropertyFormStepBasic({ data, onChange, errors }: Props)
 
       <div>
         <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">
-          Internal Name
+          {t('properties.form.internalName')}
         </label>
         <input
           type="text"
@@ -65,10 +63,10 @@ export default function PropertyFormStepBasic({ data, onChange, errors }: Props)
 
       <div>
         <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">
-          Type
+          {t('properties.form.type')}
         </label>
         <div className="flex gap-2">
-          {propertyTypes.map(({ value, label }) => (
+          {propertyTypeValues.map((value) => (
             <button
               key={value}
               type="button"
@@ -79,7 +77,7 @@ export default function PropertyFormStepBasic({ data, onChange, errors }: Props)
                   : 'bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100'
               }`}
             >
-              {label}
+              {t(`common.${value}`)}
             </button>
           ))}
         </div>
@@ -87,7 +85,7 @@ export default function PropertyFormStepBasic({ data, onChange, errors }: Props)
 
       <div>
         <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">
-          Description
+          {t('properties.form.description')}
         </label>
         <textarea
           value={data.description}
@@ -100,7 +98,7 @@ export default function PropertyFormStepBasic({ data, onChange, errors }: Props)
 
       <div>
         <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">
-          Source URL
+          {t('properties.form.sourceUrl')}
         </label>
         <input
           type="url"

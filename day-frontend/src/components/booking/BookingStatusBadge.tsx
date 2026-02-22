@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next'
 import type { BookingStatus } from '../../types/booking'
 
 const statusStyles: Record<BookingStatus, string> = {
@@ -9,19 +10,20 @@ const statusStyles: Record<BookingStatus, string> = {
   cancelled: 'bg-red-100 text-red-700',
 }
 
-const statusLabels: Record<BookingStatus, string> = {
-  pending: 'Pending',
-  confirmed: 'Confirmed',
-  checked_in: 'Checked In',
-  checked_out: 'Checked Out',
-  completed: 'Completed',
-  cancelled: 'Cancelled',
+const statusKeys: Record<BookingStatus, string> = {
+  pending: 'common.pending',
+  confirmed: 'common.confirmed',
+  checked_in: 'common.checkedIn',
+  checked_out: 'common.checkedOut',
+  completed: 'common.completed',
+  cancelled: 'common.cancelled',
 }
 
 export default function BookingStatusBadge({ status }: { status: BookingStatus }) {
+  const { t } = useTranslation()
   return (
     <span className={`inline-block px-2 py-0.5 rounded-md text-[10px] font-bold uppercase ${statusStyles[status]}`}>
-      {statusLabels[status]}
+      {t(statusKeys[status])}
     </span>
   )
 }

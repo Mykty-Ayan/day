@@ -1,6 +1,7 @@
 import { AnimatePresence, motion } from 'framer-motion'
 import { Check, ClipboardList, GripVertical, Pencil, Plus, Trash2, X } from 'lucide-react'
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 
 import Button from '../../components/ui/Button'
 import { showToast } from '../../components/ui/Toast'
@@ -18,6 +19,7 @@ import {
 import type { ChecklistItem } from '../../types/cleaning'
 
 export default function ChecklistTemplatesPage() {
+  const { t } = useTranslation()
   const { data: templates, isLoading } = useChecklistTemplates()
   const createMutation = useCreateChecklistTemplate()
   const deleteMutation = useDeleteChecklistTemplate()
@@ -34,7 +36,7 @@ export default function ChecklistTemplatesPage() {
       { name: newName.trim() },
       {
         onSuccess: () => {
-          showToast('success', 'Template created')
+          showToast('success', t('checklists.templateCreated'))
           setNewName('')
           setShowCreate(false)
         },
@@ -46,7 +48,7 @@ export default function ChecklistTemplatesPage() {
   function handleDelete(id: string) {
     deleteMutation.mutate(id, {
       onSuccess: () => {
-        showToast('success', 'Template deleted')
+        showToast('success', t('checklists.templateDeleted'))
         if (selectedId === id) setSelectedId(null)
       },
       onError: (err: Error) => showToast('error', err.message),
@@ -66,7 +68,7 @@ export default function ChecklistTemplatesPage() {
   function submitTemplateEdit(id: string, currentName: string) {
     const name = templateNameDraft.trim()
     if (!name) {
-      showToast('error', 'Template name is required')
+      showToast('error', t('checklists.templateNameRequired'))
       return
     }
     if (name === currentName) {
@@ -77,7 +79,7 @@ export default function ChecklistTemplatesPage() {
       { id, data: { name } },
       {
         onSuccess: () => {
-          showToast('success', 'Template updated')
+          showToast('success', t('checklists.templateUpdated'))
           cancelTemplateEdit()
         },
         onError: (err: Error) => {
@@ -98,7 +100,7 @@ export default function ChecklistTemplatesPage() {
         <div className="flex min-w-0 items-center gap-3">
           <ClipboardList className="w-6 h-6 text-gray-400" />
           <h1 className="text-2xl font-bold text-gray-900">
-            Checklist Templates
+            {t('checklists.title')}
           </h1>
         </div>
         <Button
@@ -106,7 +108,7 @@ export default function ChecklistTemplatesPage() {
           className="inline-flex items-center gap-1 self-start whitespace-nowrap sm:self-auto"
         >
           <Plus className="w-4 h-4 mr-1" />
-          New Template
+          {t('checklists.newTemplate')}
         </Button>
       </div>
 
@@ -119,7 +121,7 @@ export default function ChecklistTemplatesPage() {
           <div className="flex flex-col gap-3 sm:flex-row">
             <input
               type="text"
-              placeholder="Template name..."
+              placeholder={t('checklists.templateName')}
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
               className="flex-1 bg-gray-50 border border-gray-200 rounded-xl p-3 outline-none focus:ring-2 focus:ring-black/10 text-sm"
@@ -130,7 +132,7 @@ export default function ChecklistTemplatesPage() {
               disabled={createMutation.isPending || !newName.trim()}
               className="w-full sm:w-auto"
             >
-              Create
+              {t('common.create')}
             </Button>
           </div>
         </motion.div>
@@ -140,26 +142,26 @@ export default function ChecklistTemplatesPage() {
         {/* Template List */}
         <div className="min-w-0 space-y-3 xl:w-[540px]">
           {isLoading ? (
-            <div className="text-center py-8 text-gray-400">Loading...</div>
+            <div className="text-center py-8 text-gray-400">{t('common.loading')}</div>
           ) : !templates?.length ? (
             <div className="text-center py-8 text-gray-400">
-              No templates yet
+              {t('checklists.noTemplates')}
             </div>
           ) : (
-            templates.map((t) => (
+            templates.map((tmpl) => (
               <motion.div
-                key={t.id}
+                key={tmpl.id}
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 className={`bg-white rounded-xl border p-4 cursor-pointer transition-all ${
-                  selectedId === t.id
+                  selectedId === tmpl.id
                     ? 'border-black shadow-sm'
                     : 'border-gray-200 hover:border-gray-300'
                 }`}
-                onClick={() => setSelectedId(t.id)}
+                onClick={() => setSelectedId(tmpl.id)}
               >
                 <div className="flex min-w-0 items-center justify-between gap-2">
-                  {editingTemplateId === t.id ? (
+                  {editingTemplateId === tmpl.id ? (
                     <input
                       autoFocus
                       value={templateNameDraft}
@@ -168,7 +170,7 @@ export default function ChecklistTemplatesPage() {
                       onKeyDown={(e) => {
                         if (e.key === 'Enter') {
                           e.preventDefault()
-                          submitTemplateEdit(t.id, t.name)
+                          submitTemplateEdit(tmpl.id, tmpl.name)
                         }
                         if (e.key === 'Escape') {
                           e.preventDefault()
@@ -180,22 +182,22 @@ export default function ChecklistTemplatesPage() {
                   ) : (
                     <span
                       className="min-w-0 flex-1 truncate font-medium text-sm"
-                      title={t.name}
+                      title={tmpl.name}
                       onDoubleClick={(e) => {
                         e.stopPropagation()
-                        startTemplateEdit(t.id, t.name)
+                        startTemplateEdit(tmpl.id, tmpl.name)
                       }}
                     >
-                      {t.name}
+                      {tmpl.name}
                     </span>
                   )}
                   <div className="flex items-center gap-1">
-                    {editingTemplateId === t.id ? (
+                    {editingTemplateId === tmpl.id ? (
                       <>
                         <button
                           onClick={(e) => {
                             e.stopPropagation()
-                            submitTemplateEdit(t.id, t.name)
+                            submitTemplateEdit(tmpl.id, tmpl.name)
                           }}
                           disabled={updateTemplateMutation.isPending}
                           className="shrink-0 text-gray-400 hover:text-emerald-600 transition-colors disabled:opacity-50"
@@ -218,7 +220,7 @@ export default function ChecklistTemplatesPage() {
                       <button
                         onClick={(e) => {
                           e.stopPropagation()
-                          startTemplateEdit(t.id, t.name)
+                          startTemplateEdit(tmpl.id, tmpl.name)
                         }}
                         className="shrink-0 text-gray-300 hover:text-gray-700 transition-colors"
                         aria-label="Edit template name"
@@ -229,7 +231,7 @@ export default function ChecklistTemplatesPage() {
                     <button
                       onClick={(e) => {
                         e.stopPropagation()
-                        handleDelete(t.id)
+                        handleDelete(tmpl.id)
                       }}
                       className="shrink-0 text-gray-300 hover:text-red-500 transition-colors"
                       aria-label="Delete template"
@@ -239,7 +241,7 @@ export default function ChecklistTemplatesPage() {
                   </div>
                 </div>
                 <p className="text-xs text-gray-400 mt-1">
-                  Created {new Date(t.created_at).toLocaleDateString()}
+                  {t('checklists.created', { date: new Date(tmpl.created_at).toLocaleDateString() })}
                 </p>
               </motion.div>
             ))
@@ -266,6 +268,7 @@ export default function ChecklistTemplatesPage() {
 }
 
 function TemplateDetail({ templateId }: { templateId: string }) {
+  const { t } = useTranslation()
   const { data, isLoading } = useChecklistTemplate(templateId)
   const addItemMutation = useAddChecklistItem(templateId)
   const deleteItemMutation = useDeleteChecklistItem(templateId)
@@ -283,14 +286,14 @@ function TemplateDetail({ templateId }: { templateId: string }) {
       {
         onSuccess: () => {
           setNewItemTitle('')
-          showToast('success', 'Item added')
+          showToast('success', t('checklists.itemAdded'))
         },
       },
     )
   }
 
   if (isLoading) {
-    return <div className="text-center py-8 text-gray-400">Loading...</div>
+    return <div className="text-center py-8 text-gray-400">{t('common.loading')}</div>
   }
 
   if (!data) return null
@@ -346,7 +349,7 @@ function TemplateDetail({ templateId }: { templateId: string }) {
   function submitItemEdit(item: ChecklistItem) {
     const title = itemTitleDraft.trim()
     if (!title) {
-      showToast('error', 'Item title is required')
+      showToast('error', t('checklists.itemTitleRequired'))
       return
     }
     if (title === item.title) {
@@ -360,7 +363,7 @@ function TemplateDetail({ templateId }: { templateId: string }) {
       },
       {
         onSuccess: () => {
-          showToast('success', 'Item updated')
+          showToast('success', t('checklists.itemUpdated'))
           cancelItemEdit()
         },
         onError: (err: Error) => {
@@ -485,7 +488,7 @@ function TemplateDetail({ templateId }: { templateId: string }) {
       <div className="flex flex-col gap-2 sm:flex-row">
         <input
           type="text"
-          placeholder="New item..."
+          placeholder={t('checklists.newItem')}
           value={newItemTitle}
           onChange={(e) => setNewItemTitle(e.target.value)}
           className="flex-1 bg-gray-50 border border-gray-200 rounded-xl p-2.5 outline-none focus:ring-2 focus:ring-black/10 text-sm"
@@ -496,7 +499,7 @@ function TemplateDetail({ templateId }: { templateId: string }) {
           disabled={addItemMutation.isPending || !newItemTitle.trim()}
           className="w-full sm:w-auto sm:min-w-[96px]"
         >
-          Add
+          {t('common.add')}
         </Button>
       </div>
     </div>

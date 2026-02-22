@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { motion } from 'framer-motion'
 import { Plus, Search, ChevronLeft, ChevronRight, ArrowRight } from 'lucide-react'
 import { Link, useNavigate } from '@tanstack/react-router'
@@ -6,6 +7,7 @@ import { useBookings } from '../../hooks/useBookings'
 import { useProperties } from '../../hooks/useProperties'
 import type { BookingStatus, BookingSource } from '../../types/booking'
 import BookingStatusBadge from '../../components/booking/BookingStatusBadge'
+import { useCurrency } from '../../hooks/useCurrency'
 import {
   Select,
   SelectContent,
@@ -15,30 +17,32 @@ import {
 } from '../../components/ui/select'
 import { ToggleGroup, ToggleGroupItem } from '../../components/ui/toggle-group'
 
-const STATUS_TABS: { value: BookingStatus | 'all'; label: string }[] = [
-  { value: 'all', label: 'All' },
-  { value: 'pending', label: 'Pending' },
-  { value: 'confirmed', label: 'Confirmed' },
-  { value: 'checked_in', label: 'Checked In' },
-  { value: 'completed', label: 'Completed' },
-  { value: 'cancelled', label: 'Cancelled' },
-]
-
-const SOURCE_OPTIONS: { value: BookingSource | 'all'; label: string }[] = [
-  { value: 'all', label: 'All Sources' },
-  { value: 'direct', label: 'Direct' },
-  { value: 'booking', label: 'Booking.com' },
-  { value: 'airbnb', label: 'Airbnb' },
-  { value: 'other', label: 'Other' },
-]
-
 export default function BookingListPage() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
+  const { symbol } = useCurrency()
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<BookingStatus | 'all'>('all')
   const [sourceFilter, setSourceFilter] = useState<BookingSource | 'all'>('all')
   const [propertyFilter, setPropertyFilter] = useState('all')
   const [page, setPage] = useState(1)
+
+  const STATUS_TABS: { value: BookingStatus | 'all'; label: string }[] = [
+    { value: 'all', label: t('common.all') },
+    { value: 'pending', label: t('common.pending') },
+    { value: 'confirmed', label: t('common.confirmed') },
+    { value: 'checked_in', label: t('common.checkedIn') },
+    { value: 'completed', label: t('common.completed') },
+    { value: 'cancelled', label: t('common.cancelled') },
+  ]
+
+  const SOURCE_OPTIONS: { value: BookingSource | 'all'; label: string }[] = [
+    { value: 'all', label: t('common.allSources') },
+    { value: 'direct', label: t('bookings.sources.direct') },
+    { value: 'booking', label: t('bookings.sources.booking') },
+    { value: 'airbnb', label: t('bookings.sources.airbnb') },
+    { value: 'other', label: t('bookings.sources.other') },
+  ]
 
   const { data: propertiesData } = useProperties({ per_page: 100, status: 'active' })
   const properties = propertiesData?.items ?? []
@@ -61,14 +65,14 @@ export default function BookingListPage() {
       >
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
-          <h1 className="text-xl font-bold text-gray-900">Bookings</h1>
+          <h1 className="text-xl font-bold text-gray-900">{t('bookings.title')}</h1>
           <Link to="/bookings/new">
             <motion.button
               whileTap={{ scale: 0.97 }}
               className="flex items-center gap-2 bg-black text-white hover:bg-gray-800 rounded-xl px-6 py-2.5 font-semibold shadow-lg transition-colors"
             >
               <Plus className="w-4 h-4" />
-              New Booking
+              {t('bookings.newBooking')}
             </motion.button>
           </Link>
         </div>
@@ -82,7 +86,7 @@ export default function BookingListPage() {
                 type="text"
                 value={search}
                 onChange={(e) => { setSearch(e.target.value); setPage(1) }}
-                placeholder="Search by guest name or phone..."
+                placeholder={t('bookings.searchPlaceholder')}
                 className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 pl-9 outline-none focus:ring-2 focus:ring-black/10 text-gray-800 text-sm"
               />
             </div>
@@ -91,10 +95,10 @@ export default function BookingListPage() {
               onValueChange={(value) => { setPropertyFilter(value); setPage(1) }}
             >
               <SelectTrigger className="w-full sm:w-56">
-                <SelectValue placeholder="All Properties" />
+                <SelectValue placeholder={t('common.allProperties')} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Properties</SelectItem>
+                <SelectItem value="all">{t('common.allProperties')}</SelectItem>
                 {properties.map((p) => (
                   <SelectItem key={p.id} value={p.id}>
                     {p.internal_name}
@@ -107,7 +111,7 @@ export default function BookingListPage() {
               onValueChange={(value) => { setSourceFilter(value as BookingSource | 'all'); setPage(1) }}
             >
               <SelectTrigger className="w-full sm:w-44">
-                <SelectValue placeholder="All Sources" />
+                <SelectValue placeholder={t('common.allSources')} />
               </SelectTrigger>
               <SelectContent>
                 {SOURCE_OPTIONS.map((s) => (
@@ -143,14 +147,14 @@ export default function BookingListPage() {
           </div>
         ) : !data || data.items.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20">
-            <p className="text-sm text-gray-500 mb-4">No bookings found</p>
+            <p className="text-sm text-gray-500 mb-4">{t('bookings.noBookings')}</p>
             <Link to="/bookings/new">
               <motion.button
                 whileTap={{ scale: 0.97 }}
                 className="flex items-center gap-2 bg-black text-white hover:bg-gray-800 rounded-xl px-6 py-2.5 font-semibold shadow-lg transition-colors"
               >
                 <Plus className="w-4 h-4" />
-                Create your first booking
+                {t('bookings.createFirst')}
               </motion.button>
             </Link>
           </div>
@@ -161,12 +165,12 @@ export default function BookingListPage() {
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-gray-100 bg-gray-50">
-                    <th className="text-left px-4 py-3 text-xs font-bold text-gray-400 uppercase tracking-wider">Property</th>
-                    <th className="text-left px-4 py-3 text-xs font-bold text-gray-400 uppercase tracking-wider">Guest</th>
-                    <th className="text-left px-4 py-3 text-xs font-bold text-gray-400 uppercase tracking-wider">Dates</th>
-                    <th className="text-left px-4 py-3 text-xs font-bold text-gray-400 uppercase tracking-wider">Status</th>
-                    <th className="text-left px-4 py-3 text-xs font-bold text-gray-400 uppercase tracking-wider">Source</th>
-                    <th className="text-right px-4 py-3 text-xs font-bold text-gray-400 uppercase tracking-wider">Total</th>
+                    <th className="text-left px-4 py-3 text-xs font-bold text-gray-400 uppercase tracking-wider">{t('bookings.property')}</th>
+                    <th className="text-left px-4 py-3 text-xs font-bold text-gray-400 uppercase tracking-wider">{t('bookings.guest')}</th>
+                    <th className="text-left px-4 py-3 text-xs font-bold text-gray-400 uppercase tracking-wider">{t('bookings.dates')}</th>
+                    <th className="text-left px-4 py-3 text-xs font-bold text-gray-400 uppercase tracking-wider">{t('common.status')}</th>
+                    <th className="text-left px-4 py-3 text-xs font-bold text-gray-400 uppercase tracking-wider">{t('bookings.source')}</th>
+                    <th className="text-right px-4 py-3 text-xs font-bold text-gray-400 uppercase tracking-wider">{t('bookings.total')}</th>
                     <th className="w-10" />
                   </tr>
                 </thead>
@@ -194,7 +198,7 @@ export default function BookingListPage() {
                       <td className="px-4 py-3">
                         <div className="flex flex-col">
                           <span className="text-sm text-gray-700">{booking.guest_name}</span>
-                          <span className="text-xs text-gray-400">{booking.guest_phone || 'No phone'}</span>
+                          <span className="text-xs text-gray-400">{booking.guest_phone || t('common.noPhone')}</span>
                         </div>
                       </td>
                       <td className="px-4 py-3">
@@ -206,11 +210,11 @@ export default function BookingListPage() {
                         <BookingStatusBadge status={booking.status} />
                       </td>
                       <td className="px-4 py-3">
-                        <span className="text-xs text-gray-500 capitalize">{booking.source}</span>
+                        <span className="text-xs text-gray-500 capitalize">{t('bookings.sources.' + booking.source)}</span>
                       </td>
                       <td className="px-4 py-3 text-right">
                         <span className="text-sm font-semibold text-gray-900">
-                          ${booking.total_price.toLocaleString()}
+                          {symbol}{booking.total_price.toLocaleString()}
                         </span>
                       </td>
                       <td className="px-4 py-3">
@@ -234,7 +238,7 @@ export default function BookingListPage() {
                   <ChevronLeft className="w-4 h-4" />
                 </motion.button>
                 <span className="text-xs font-bold text-gray-500 px-3">
-                  Page {data.page} of {data.pages}
+                  {t('common.page', { current: data.page, total: data.pages })}
                 </span>
                 <motion.button
                   whileTap={{ scale: 0.97 }}

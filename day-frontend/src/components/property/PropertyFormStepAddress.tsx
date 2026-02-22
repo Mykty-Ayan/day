@@ -1,3 +1,5 @@
+import { useTranslation } from 'react-i18next'
+
 interface AddressData {
   address_full: string
   apartment_number: string
@@ -14,6 +16,7 @@ interface Props {
 }
 
 export default function PropertyFormStepAddress({ data, onChange }: Props) {
+  const { t } = useTranslation()
   function update<K extends keyof AddressData>(key: K, value: string) {
     onChange({ ...data, [key]: value })
   }
@@ -22,7 +25,7 @@ export default function PropertyFormStepAddress({ data, onChange }: Props) {
     <div className="space-y-4">
       <div>
         <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">
-          Full Address
+          {t('properties.form.fullAddress')}
         </label>
         <input
           type="text"
@@ -36,7 +39,7 @@ export default function PropertyFormStepAddress({ data, onChange }: Props) {
       <div className="grid grid-cols-2 gap-4">
         <div>
           <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">
-            Apartment Number
+            {t('properties.form.apartmentNumber')}
           </label>
           <input
             type="text"
@@ -48,7 +51,7 @@ export default function PropertyFormStepAddress({ data, onChange }: Props) {
         </div>
         <div>
           <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">
-            Entrance
+            {t('properties.form.entrance')}
           </label>
           <input
             type="text"
@@ -63,7 +66,7 @@ export default function PropertyFormStepAddress({ data, onChange }: Props) {
       <div className="grid grid-cols-2 gap-4">
         <div>
           <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">
-            Block
+            {t('properties.form.block')}
           </label>
           <input
             type="text"
@@ -75,7 +78,7 @@ export default function PropertyFormStepAddress({ data, onChange }: Props) {
         </div>
         <div>
           <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">
-            Floor
+            {t('properties.form.floor')}
           </label>
           <input
             type="text"
@@ -90,7 +93,7 @@ export default function PropertyFormStepAddress({ data, onChange }: Props) {
       <div className="grid grid-cols-2 gap-4">
         <div>
           <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">
-            Latitude
+            {t('properties.form.latitude')}
           </label>
           <input
             type="text"
@@ -102,7 +105,7 @@ export default function PropertyFormStepAddress({ data, onChange }: Props) {
         </div>
         <div>
           <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">
-            Longitude
+            {t('properties.form.longitude')}
           </label>
           <input
             type="text"

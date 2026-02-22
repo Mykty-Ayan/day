@@ -1,17 +1,9 @@
 import { useState, useMemo } from 'react'
 import { Search } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { useAmenities } from '../../hooks/useProperties'
 import type { AmenityCategory } from '../../types/property'
 import { Checkbox } from '../ui/checkbox'
-
-const categoryLabels: Record<AmenityCategory, string> = {
-  bathroom: 'Bathroom',
-  kitchen: 'Kitchen',
-  entertainment: 'Entertainment',
-  safety: 'Safety',
-  comfort: 'Comfort',
-  outdoor: 'Outdoor',
-}
 
 interface Props {
   selectedIds: string[]
@@ -19,6 +11,7 @@ interface Props {
 }
 
 export default function PropertyFormStepAmenities({ selectedIds, onChange }: Props) {
+  const { t } = useTranslation()
   const { data: amenities = [], isLoading } = useAmenities()
   const [search, setSearch] = useState('')
 
@@ -62,14 +55,14 @@ export default function PropertyFormStepAmenities({ selectedIds, onChange }: Pro
           type="text"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search amenities..."
+          placeholder={t('properties.form.searchAmenities')}
           className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 pl-9 outline-none focus:ring-2 focus:ring-black/10 text-gray-800 text-sm"
         />
       </div>
 
       {amenities.length === 0 && !isLoading && (
         <p className="text-sm text-gray-500 text-center py-4">
-          No amenities available yet.
+          {t('properties.form.noAmenities')}
         </p>
       )}
 
@@ -77,7 +70,7 @@ export default function PropertyFormStepAmenities({ selectedIds, onChange }: Pro
         {Array.from(grouped.entries()).map(([category, items]) => (
           <div key={category}>
             <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">
-              {categoryLabels[category]}
+              {t(`properties.amenityCategories.${category}`)}
             </h3>
             <div className="grid grid-cols-2 gap-2">
               {items.map((amenity) => {
@@ -111,7 +104,7 @@ export default function PropertyFormStepAmenities({ selectedIds, onChange }: Pro
 
       {selectedIds.length > 0 && (
         <p className="text-xs text-gray-500">
-          {selectedIds.length} amenities selected
+          {t('properties.form.amenitiesSelected', { count: selectedIds.length })}
         </p>
       )}
     </div>
