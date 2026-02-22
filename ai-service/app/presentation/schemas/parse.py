@@ -8,6 +8,11 @@ class ParseRequest(BaseModel):
     user_prompt: str | None = None
 
 
+class ParseTextRequest(BaseModel):
+    text: str = Field(..., min_length=1, max_length=100000)
+    user_prompt: str | None = None
+
+
 class ExtractedPropertyResponse(BaseModel):
     name: str | None = None
     internal_name: str | None = None

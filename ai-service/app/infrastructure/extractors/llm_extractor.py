@@ -56,6 +56,7 @@ SOURCE_HINTS: dict[SourceType, str] = {
     SourceType.BOOKING: "This is a Booking.com listing. Look for property details in structured data sections.",
     SourceType.AIRBNB: "This is an Airbnb listing. Look for property details in the listing description.",
     SourceType.KRISHA: "This is a Krisha.kz listing (Kazakhstan real estate). Prices may be in KZT or USD.",
+    SourceType.TEXT: "This is raw text provided by the user describing a property. Extract all available details.",
     SourceType.OTHER: "This is a generic property listing.",
 }
 

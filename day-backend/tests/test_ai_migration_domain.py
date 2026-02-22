@@ -113,9 +113,12 @@ class TestImportSource:
     def test_empty_url_returns_other(self):
         assert ImportSource.detect_from_url("") == ImportSource.OTHER
 
-    def test_all_four_sources(self):
+    def test_text_source_value(self):
+        assert ImportSource.TEXT == "text"
+
+    def test_all_five_sources(self):
         members = list(ImportSource)
-        assert len(members) == 4
+        assert len(members) == 5
 
 
 # ---------- ImportJob ----------
