@@ -10,6 +10,7 @@ import app.infrastructure.models.cleaning  # noqa: F401
 
 # Import all ORM models so Base.metadata is populated for autogenerate
 import app.infrastructure.models.property  # noqa: F401
+import app.infrastructure.models.settings  # noqa: F401
 from alembic import context
 from app.infrastructure.database import Base
 

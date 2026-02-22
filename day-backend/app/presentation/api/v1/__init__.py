@@ -7,11 +7,14 @@ from app.presentation.api.v1.cleaning import checklist_router, cleaning_router, 
 from app.presentation.api.v1.health import router as health_router
 from app.presentation.api.v1.properties import amenity_router
 from app.presentation.api.v1.properties import router as properties_router
+from app.presentation.api.v1.settings import settings_router
+from app.presentation.api.v1.tags import tag_router
 
 api_v1_router = APIRouter(prefix="/api/v1")
 api_v1_router.include_router(health_router)
 api_v1_router.include_router(properties_router)
 api_v1_router.include_router(amenity_router)
+api_v1_router.include_router(tag_router)
 api_v1_router.include_router(booking_router)
 api_v1_router.include_router(guest_router)
 api_v1_router.include_router(gantt_router)
@@ -20,3 +23,4 @@ api_v1_router.include_router(checklist_router)
 api_v1_router.include_router(rating_router)
 api_v1_router.include_router(analytics_router)
 api_v1_router.include_router(ai_migration_router)
+api_v1_router.include_router(settings_router)

@@ -85,6 +85,21 @@ class FakePropertyRepository(PropertyRepository):
             for p in self._properties.values()
         )
 
+    async def find_next_clone_name(self, company_id: uuid.UUID, base_name: str) -> str:
+        import re
+
+        root = re.sub(r"-\d+$", "", base_name)
+        existing = [p.internal_name for p in self._properties.values() if p.company_id == company_id]
+        max_suffix = 0
+        for name in existing:
+            if name == root:
+                max_suffix = max(max_suffix, 0)
+            else:
+                match = re.match(rf"^{re.escape(root)}-(\d+)$", name)
+                if match:
+                    max_suffix = max(max_suffix, int(match.group(1)))
+        return f"{root}-{max_suffix + 1}"
+
 
 class FakePropertyAuditLogRepository(PropertyAuditLogRepository):
     """In-memory audit log repository for testing."""

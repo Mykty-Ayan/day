@@ -51,9 +51,7 @@ class Property:
 
     def change_status(self, new_status: PropertyStatus) -> None:
         if not self.status.can_transition_to(new_status):
-            raise ValueError(
-                f"Cannot transition from {self.status.value} to {new_status.value}"
-            )
+            raise ValueError(f"Cannot transition from {self.status.value} to {new_status.value}")
         self.status = new_status
 
 
@@ -107,6 +105,15 @@ class DiscountRule:
     min_nights: int = 1
     discount_percent: Decimal = Decimal("0")
     discount_fixed: Decimal = Decimal("0")
+    created_at: datetime | None = None
+
+
+@dataclass
+class PropertyTag:
+    id: uuid.UUID = field(default_factory=uuid.uuid4)
+    company_id: uuid.UUID = field(default_factory=uuid.uuid4)
+    name: str = ""
+    color: str = "#3B82F6"
     created_at: datetime | None = None
 
 

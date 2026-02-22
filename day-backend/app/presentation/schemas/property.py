@@ -92,9 +92,7 @@ class PropertyResponse(BaseModel):
 
 class PropertyStatusChange(BaseModel):
     # Accept both `target_status` (current) and `status` (legacy tests/clients)
-    target_status: PropertyStatus = Field(
-        validation_alias=AliasChoices("target_status", "status")
-    )
+    target_status: PropertyStatus = Field(validation_alias=AliasChoices("target_status", "status"))
 
 
 class PropertyListResponse(BaseModel):
@@ -287,3 +285,34 @@ class PropertyDetailResponse(PropertyResponse):
     photos: list[PropertyPhotoResponse] = []
     amenities: list[AmenityResponse] = []
     pricing: PricingConfigResponse | None = None
+
+
+# ---------- Tags ----------
+
+
+class TagCreate(BaseModel):
+    name: str = Field(..., min_length=1, max_length=255)
+    color: str = Field(default="#3B82F6", max_length=20)
+
+
+class TagUpdate(BaseModel):
+    name: str | None = None
+    color: str | None = None
+
+
+class TagResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    company_id: uuid.UUID
+    name: str
+    color: str
+    created_at: datetime | None = None
+
+
+class TagAssign(BaseModel):
+    tag_id: uuid.UUID
+
+
+class BatchPricingUpdate(BaseModel):
+    base_price: Decimal = Field(..., ge=0)

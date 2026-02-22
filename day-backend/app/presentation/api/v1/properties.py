@@ -58,6 +58,8 @@ from app.presentation.schemas.property import (
     PropertyUpdate,
     SeasonalPriceCreate,
     SeasonalPriceResponse,
+    TagAssign,
+    TagResponse,
 )
 
 router = APIRouter(prefix="/properties", tags=["properties"])
@@ -168,15 +170,14 @@ async def list_properties(
     svc = ListPropertiesService(repos["property"])
     offset = (page - 1) * per_page
     result = await svc.execute(company_id, offset=offset, limit=per_page, status=status, search=search)
-    photos_by_property = await asyncio.gather(
-        *[repos["photo"].list_by_property(prop.id) for prop in result.items]
-    ) if result.items else []
+    photos_by_property = (
+        await asyncio.gather(*[repos["photo"].list_by_property(prop.id) for prop in result.items])
+        if result.items
+        else []
+    )
     pages = (result.total + per_page - 1) // per_page if result.total > 0 else 1
     return PropertyListResponse(
-        items=[
-            _to_property_response(prop, photos=photos)
-            for prop, photos in zip(result.items, photos_by_property)
-        ],
+        items=[_to_property_response(prop, photos=photos) for prop, photos in zip(result.items, photos_by_property)],
         total=result.total,
         page=page,
         per_page=per_page,
@@ -255,6 +256,37 @@ async def change_property_status(
     except ValueError as e:
         await session.rollback()
         raise HTTPException(status_code=400, detail=str(e))
+
+
+# ---------- Clone ----------
+
+
+@router.post("/{property_id}/clone", response_model=PropertyResponse, status_code=201)
+async def clone_property(
+    property_id: uuid.UUID,
+    session: AsyncSession = Depends(get_session),
+    company_id: uuid.UUID = Depends(get_company_id),
+    user_id: uuid.UUID | None = Depends(get_user_id),
+):
+    from app.application.property.clone_property import ClonePropertyService
+
+    repos = _repos(session)
+    svc = ClonePropertyService(
+        repos["property"],
+        repos["photo"],
+        repos["amenity"],
+        repos["pricing"],
+        repos["seasonal"],
+        repos["discount"],
+        repos["audit"],
+    )
+    try:
+        result = await svc.execute(property_id, company_id, changed_by=user_id)
+        await session.commit()
+        return _to_property_response(result)
+    except ValueError as e:
+        await session.rollback()
+        raise HTTPException(status_code=404, detail=str(e))
 
 
 # ---------- Photos ----------
@@ -565,3 +597,68 @@ async def get_audit_log(
         raise HTTPException(status_code=404, detail="Property not found")
     logs = await repos["audit"].list_by_property(property_id, offset=offset, limit=limit)
     return [PropertyAuditLogResponse.model_validate(entry, from_attributes=True) for entry in logs]
+
+
+# ---------- Property Tags ----------
+
+
+@router.post("/{property_id}/tags", response_model=list[TagResponse])
+async def assign_property_tag(
+    property_id: uuid.UUID,
+    body: TagAssign,
+    session: AsyncSession = Depends(get_session),
+    company_id: uuid.UUID = Depends(get_company_id),
+):
+    from app.application.property.manage_tags import ManageTagsService as _MTS
+    from app.infrastructure.repositories.property import SqlPropertyTagRepository as _SPTR
+
+    tag_repo = _SPTR(session)
+    repos = _repos(session)
+    svc = _MTS(tag_repo, repos["property"])
+    try:
+        result = await svc.assign_tag(property_id, company_id, body.tag_id)
+        await session.commit()
+        return [TagResponse.model_validate(t, from_attributes=True) for t in result]
+    except ValueError as e:
+        await session.rollback()
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.delete("/{property_id}/tags/{tag_id}", status_code=204)
+async def remove_property_tag(
+    property_id: uuid.UUID,
+    tag_id: uuid.UUID,
+    session: AsyncSession = Depends(get_session),
+    company_id: uuid.UUID = Depends(get_company_id),
+):
+    from app.application.property.manage_tags import ManageTagsService as _MTS
+    from app.infrastructure.repositories.property import SqlPropertyTagRepository as _SPTR
+
+    tag_repo = _SPTR(session)
+    repos = _repos(session)
+    svc = _MTS(tag_repo, repos["property"])
+    try:
+        await svc.remove_tag(property_id, company_id, tag_id)
+        await session.commit()
+    except ValueError as e:
+        await session.rollback()
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.get("/{property_id}/tags", response_model=list[TagResponse])
+async def get_property_tags(
+    property_id: uuid.UUID,
+    session: AsyncSession = Depends(get_session),
+    company_id: uuid.UUID = Depends(get_company_id),
+):
+    from app.application.property.manage_tags import ManageTagsService as _MTS
+    from app.infrastructure.repositories.property import SqlPropertyTagRepository as _SPTR
+
+    tag_repo = _SPTR(session)
+    repos = _repos(session)
+    svc = _MTS(tag_repo, repos["property"])
+    try:
+        result = await svc.get_property_tags(property_id, company_id)
+        return [TagResponse.model_validate(t, from_attributes=True) for t in result]
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))

@@ -40,3 +40,4 @@ class AuditAction(str, enum.Enum):
     CREATE = "create"
     UPDATE = "update"
     STATUS_CHANGE = "status_change"
+    CLONE = "clone"
