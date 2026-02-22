@@ -3,7 +3,7 @@ import { motion } from 'framer-motion'
 import { ArrowLeft, Check, Loader2, Calculator, User, Phone, Mail } from 'lucide-react'
 import { useNavigate } from '@tanstack/react-router'
 import { useCreateBooking, useCalculatePrice, useGuests } from '../../hooks/useBookings'
-import { useProperties } from '../../hooks/useProperties'
+import { useAllProperties } from '../../hooks/useProperties'
 import type { BookingSource, BookingCreateInput, PriceCalculateInput } from '../../types/booking'
 import type { AxiosError } from 'axios'
 import DatePicker from '../../components/ui/date-picker'
@@ -111,8 +111,15 @@ export default function CreateBookingPage() {
   const canSearchGuests = guestSearch.length >= 2
   const [showGuestSuggestions, setShowGuestSuggestions] = useState(false)
 
-  const { data: propertiesData } = useProperties({ per_page: 100, status: 'active' })
-  const properties = propertiesData?.items ?? []
+  const { data: propertiesData } = useAllProperties()
+  const properties = useMemo(
+    () => (propertiesData?.items ?? []).filter((property) => property.status === 'active' || property.status === 'paused'),
+    [propertiesData?.items],
+  )
+  const selectedProperty = useMemo(
+    () => properties.find((property) => property.id === form.property_id),
+    [properties, form.property_id],
+  )
 
   const { data: guestsData } = useGuests(
     { search: guestSearch, limit: 5 },
@@ -166,6 +173,8 @@ export default function CreateBookingPage() {
   function validate(): boolean {
     const errs: Record<string, string> = {}
     if (!form.property_id) errs.property_id = 'Property is required'
+    else if (!selectedProperty) errs.property_id = 'Selected property is unavailable'
+    else if (selectedProperty.status === 'paused') errs.property_id = 'Paused property is unavailable for booking'
     if (!form.check_in) errs.check_in = 'Check-in date is required'
     if (!form.check_out) errs.check_out = 'Check-out date is required'
     if (form.check_in && form.check_out && form.check_in >= form.check_out) {
@@ -256,7 +265,7 @@ export default function CreateBookingPage() {
                   <SelectContent>
                     {properties.map((p) => (
                       <SelectItem key={p.id} value={p.id}>
-                        {p.internal_name} ({p.name})
+                        {p.internal_name} ({p.name}){p.status === 'paused' ? ' [paused]' : ''}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -508,7 +517,7 @@ export default function CreateBookingPage() {
               <motion.button
                 whileTap={{ scale: 0.97 }}
                 onClick={handleSubmit}
-                disabled={createBooking.isPending}
+                disabled={createBooking.isPending || selectedProperty?.status === 'paused'}
                 className="flex items-center gap-2 bg-black text-white hover:bg-gray-800 rounded-xl px-6 py-2.5 font-semibold shadow-lg transition-colors disabled:opacity-50"
               >
                 {createBooking.isPending ? (

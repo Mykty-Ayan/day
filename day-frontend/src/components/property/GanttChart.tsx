@@ -224,6 +224,14 @@ export default function GanttChart({
     () => [...rows].sort((a, b) => a.property.internal_name.localeCompare(b.property.internal_name)),
     [rows],
   )
+  const propertyStatusById = useMemo(
+    () =>
+      sortedRows.reduce<Record<string, GanttPropertySummary['status']>>((acc, row) => {
+        acc[row.property.id] = row.property.status
+        return acc
+      }, {}),
+    [sortedRows],
+  )
   const monthSegments = useMemo(() => {
     if (days.length === 0) return []
 
@@ -332,6 +340,13 @@ export default function GanttChart({
     setDragOverPropertyId(null)
     setIsDragging(false)
 
+    const targetStatus = propertyStatusById[targetPropertyId]
+    if (targetStatus === 'paused') {
+      showToast('error', 'Cannot move booking to a paused property')
+      setDragBooking(null)
+      return
+    }
+
     if (!dragBooking || dragBooking.sourcePropertyId === targetPropertyId) {
       setDragBooking(null)
       return
@@ -347,7 +362,7 @@ export default function GanttChart({
     }
 
     setDragBooking(null)
-  }, [dragBooking, queryClient])
+  }, [dragBooking, propertyStatusById, queryClient])
 
   // Active preview end date while hovering after selecting check-in.
   const pendingPreviewEnd = useMemo(() => {
@@ -385,15 +400,19 @@ export default function GanttChart({
     return { left, width }
   }
 
-  function handleCellClick(propertyId: string, day: Date) {
+  function handleCellClick(property: GanttPropertySummary, day: Date) {
+    if (property.status === 'paused') {
+      showToast('error', 'Paused properties are unavailable for booking')
+      return
+    }
     const dateStr = toDateStr(day)
     if (onCellClick) {
-      onCellClick(propertyId, dateStr)
+      onCellClick(property.id, dateStr)
     } else {
       navigate({
         to: '/bookings/new',
         search: {
-          property_id: propertyId,
+          property_id: property.id,
           check_in: dateStr,
           from: 'gantt',
         } as Record<string, string>,
@@ -425,26 +444,40 @@ export default function GanttChart({
             </span>
           </div>
           {/* Property name rows */}
-          {sortedRows.map((row) => (
-            <div
-              key={row.property.id}
-              className={`flex items-center px-3 border-b border-gray-100 transition-colors ${
-                isDragging && dragOverPropertyId === row.property.id
-                  ? 'bg-blue-50'
-                  : isDragging
-                    ? 'bg-gray-50/50'
-                    : ''
-              }`}
-              style={{ height: ROW_H }}
-              onDragOver={(e) => handleDragOver(e, row.property.id)}
-              onDragLeave={handleDragLeave}
-              onDrop={(e) => handleDrop(e, row.property.id)}
-            >
-              <span className="text-sm font-bold text-gray-900 truncate">
-                {row.property.internal_name}
-              </span>
-            </div>
-          ))}
+          {sortedRows.map((row) => {
+            const isPaused = row.property.status === 'paused'
+            return (
+              <div
+                key={row.property.id}
+                className={`flex items-center gap-2 px-3 border-b border-gray-100 transition-colors ${
+                  isPaused ? 'bg-amber-50/60' : ''
+                } ${
+                  !isPaused && isDragging && dragOverPropertyId === row.property.id
+                    ? 'bg-blue-50'
+                    : isDragging
+                      ? 'bg-gray-50/50'
+                      : ''
+                }`}
+                style={{ height: ROW_H }}
+                onDragOver={(e) => {
+                  if (!isPaused) handleDragOver(e, row.property.id)
+                }}
+                onDragLeave={handleDragLeave}
+                onDrop={(e) => {
+                  if (!isPaused) handleDrop(e, row.property.id)
+                }}
+              >
+                <span className={`text-sm font-bold truncate ${isPaused ? 'text-amber-900' : 'text-gray-900'}`}>
+                  {row.property.internal_name}
+                </span>
+                {isPaused && (
+                  <span className="shrink-0 rounded-md border border-amber-300 bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-800">
+                    paused
+                  </span>
+                )}
+              </div>
+            )
+          })}
         </div>
 
         {/* Scrollable dates area */}
@@ -510,24 +543,33 @@ export default function GanttChart({
             </div>
 
             {/* Grid rows with booking bars */}
-            {sortedRows.map((row) => (
-              <div
-                key={row.property.id}
-                className={`flex border-b border-gray-100 relative transition-colors ${
-                  isDragging && dragOverPropertyId === row.property.id
-                    ? 'bg-blue-50/50'
-                    : ''
-                }`}
-                onDragOver={(e) => handleDragOver(e, row.property.id)}
-                onDragLeave={handleDragLeave}
-                onDrop={(e) => handleDrop(e, row.property.id)}
-                onMouseLeave={() => {
-                  if (hoverPreview?.propertyId === row.property.id) {
-                    setHoverPreview(null)
-                    setRangePreviewTooltip(null)
-                  }
-                }}
-              >
+            {sortedRows.map((row) => {
+              const isPaused = row.property.status === 'paused'
+              return (
+                <div
+                  key={row.property.id}
+                  className={`flex border-b border-gray-100 relative transition-colors ${
+                    isPaused ? 'bg-amber-50/25' : ''
+                  } ${
+                    !isPaused && isDragging && dragOverPropertyId === row.property.id
+                      ? 'bg-blue-50/50'
+                      : ''
+                  }`}
+                  style={{ height: ROW_H }}
+                  onDragOver={(e) => {
+                    if (!isPaused) handleDragOver(e, row.property.id)
+                  }}
+                  onDragLeave={handleDragLeave}
+                  onDrop={(e) => {
+                    if (!isPaused) handleDrop(e, row.property.id)
+                  }}
+                  onMouseLeave={() => {
+                    if (hoverPreview?.propertyId === row.property.id) {
+                      setHoverPreview(null)
+                      setRangePreviewTooltip(null)
+                    }
+                  }}
+                >
                 {/* Day cells */}
                 {days.map((day) => {
                   const dayKey = toDateStr(day)
@@ -556,8 +598,10 @@ export default function GanttChart({
                   return (
                     <div
                       key={dayKey}
-                      className={`relative shrink-0 border-r border-gray-100 cursor-pointer transition-colors ${
-                        isPendingRow ? 'hover:bg-violet-100/90' : 'hover:bg-gray-100/50'
+                      className={`relative shrink-0 border-r border-gray-100 transition-colors ${
+                        isPaused
+                          ? 'cursor-not-allowed bg-amber-50/40'
+                          : `cursor-pointer ${isPendingRow ? 'hover:bg-violet-100/90' : 'hover:bg-gray-100/50'}`
                       } ${
                         isMonthStart ? 'border-l border-l-gray-300' : ''
                       } ${
@@ -576,8 +620,12 @@ export default function GanttChart({
                             ? 'bg-amber-100 ring-2 ring-inset ring-amber-500 border-amber-200'
                           : ''
                       }`}
-                      style={{ width: CELL_W, height: ROW_H }}
+                      style={{ width: CELL_W, height: '100%' }}
                       onMouseEnter={(e) => {
+                        if (isPaused) {
+                          setRangePreviewTooltip(null)
+                          return
+                        }
                         if (!pendingSelection || pendingSelection.propertyId !== row.property.id) {
                           setRangePreviewTooltip(null)
                           return
@@ -627,11 +675,11 @@ export default function GanttChart({
                           setRangePreviewTooltip(null)
                         }
                       }}
-                      onClick={() => handleCellClick(row.property.id, day)}
+                      onClick={() => handleCellClick(row.property, day)}
                     >
                       {nightlyRate !== null && (
                         <div className="pointer-events-none flex h-full items-end justify-center pb-1">
-                          <span className="text-[9px] font-semibold text-emerald-700">
+                          <span className={`text-[9px] font-semibold ${isPaused ? 'text-gray-500' : 'text-emerald-700'}`}>
                             {formatCellPrice(nightlyRate)}
                           </span>
                         </div>
@@ -692,8 +740,9 @@ export default function GanttChart({
                     </div>
                   )
                 })}
-              </div>
-            ))}
+                </div>
+              )
+            })}
           </div>
         </div>
       </div>

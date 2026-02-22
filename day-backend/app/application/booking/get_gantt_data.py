@@ -30,6 +30,7 @@ class GanttProperty:
     name: str
     internal_name: str
     type: str
+    status: str
     bookings: list[GanttBooking]
 
 
@@ -74,7 +75,7 @@ class GetGanttDataService:
 
         result: list[GanttProperty] = []
         for prop in properties:
-            if prop.status in (PropertyStatus.ARCHIVED,):
+            if prop.status not in (PropertyStatus.ACTIVE, PropertyStatus.PAUSED):
                 continue
 
             bookings = await self._booking_repo.list_by_property_date_range(
@@ -109,6 +110,7 @@ class GetGanttDataService:
                     name=prop.name,
                     internal_name=prop.internal_name,
                     type=prop.type.value,
+                    status=prop.status.value,
                     bookings=gantt_bookings,
                 )
             )

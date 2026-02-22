@@ -752,6 +752,7 @@ def _build_gantt_response(result) -> GanttDataResponse:
                 name=p.name,
                 internal_name=p.internal_name,
                 type=p.type,
+                status=p.status,
                 bookings=[
                     GanttBookingResponse(
                         id=b.id,
