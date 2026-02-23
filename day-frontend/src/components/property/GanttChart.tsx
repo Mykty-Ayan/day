@@ -366,7 +366,7 @@ export default function GanttChart({
     }
 
     setDragBooking(null)
-  }, [dragBooking, propertyStatusById, queryClient])
+  }, [dragBooking, propertyStatusById, queryClient, t])
 
   // Active preview end date while hovering after selecting check-in.
   const pendingPreviewEnd = useMemo(() => {

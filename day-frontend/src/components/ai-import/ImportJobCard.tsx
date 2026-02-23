@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion'
-import { useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Loader2, CheckCircle2, XCircle, Clock } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import type { ImportJob, ImportJobStatus, ImportSourceType } from '../../types/ai-import'
@@ -83,6 +83,14 @@ function extractListingTitle(payload: unknown): string | null {
 
 export default function ImportJobCard({ job, index, onClick }: Props) {
   const { t } = useTranslation()
+  const [nowMs, setNowMs] = useState(0)
+
+  useEffect(() => {
+    const updateNow = () => setNowMs(Date.now())
+    updateNow()
+    const intervalId = window.setInterval(updateNow, 60_000)
+    return () => window.clearInterval(intervalId)
+  }, [])
 
   const statusLabels: Record<ImportJobStatus, string> = useMemo(() => ({
     pending: t('common.pending'),
@@ -95,7 +103,7 @@ export default function ImportJobCard({ job, index, onClick }: Props) {
     const date = parseApiDateTime(dateStr)
     if (Number.isNaN(date.getTime())) return '-'
 
-    const diffMs = Math.max(0, Date.now() - date.getTime())
+    const diffMs = Math.max(0, nowMs - date.getTime())
     const diffMin = Math.floor(diffMs / 60000)
 
     if (diffMin < 1) return t('aiImport.justNow')
