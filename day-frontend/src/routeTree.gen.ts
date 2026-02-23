@@ -28,6 +28,8 @@ import { Route as BookingsTodayRouteImport } from './routes/bookings/today'
 import { Route as BookingsNewRouteImport } from './routes/bookings/new'
 import { Route as BookingsBookingIdRouteImport } from './routes/bookings/$bookingId'
 import { Route as AiImportJobIdRouteImport } from './routes/ai-import/$jobId'
+import { Route as PropertiesPropertyIdIndexRouteImport } from './routes/properties/$propertyId/index'
+import { Route as BookingsBookingIdIndexRouteImport } from './routes/bookings/$bookingId/index'
 import { Route as PropertiesPropertyIdEditRouteImport } from './routes/properties/$propertyId/edit'
 import { Route as BookingsBookingIdEditRouteImport } from './routes/bookings/$bookingId/edit'
 
@@ -126,6 +128,17 @@ const AiImportJobIdRoute = AiImportJobIdRouteImport.update({
   path: '/ai-import/$jobId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PropertiesPropertyIdIndexRoute =
+  PropertiesPropertyIdIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => PropertiesPropertyIdRoute,
+  } as any)
+const BookingsBookingIdIndexRoute = BookingsBookingIdIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => BookingsBookingIdRoute,
+} as any)
 const PropertiesPropertyIdEditRoute =
   PropertiesPropertyIdEditRouteImport.update({
     id: '/edit',
@@ -160,18 +173,18 @@ export interface FileRoutesByFullPath {
   '/settings/': typeof SettingsIndexRoute
   '/bookings/$bookingId/edit': typeof BookingsBookingIdEditRoute
   '/properties/$propertyId/edit': typeof PropertiesPropertyIdEditRoute
+  '/bookings/$bookingId/': typeof BookingsBookingIdIndexRoute
+  '/properties/$propertyId/': typeof PropertiesPropertyIdIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/ai-import/$jobId': typeof AiImportJobIdRoute
-  '/bookings/$bookingId': typeof BookingsBookingIdRouteWithChildren
   '/bookings/new': typeof BookingsNewRoute
   '/bookings/today': typeof BookingsTodayRoute
   '/cleaner/$taskId': typeof CleanerTaskIdRoute
   '/cleaning/$taskId': typeof CleaningTaskIdRoute
   '/cleaning/checklists': typeof CleaningChecklistsRoute
   '/cleaning/new': typeof CleaningNewRoute
-  '/properties/$propertyId': typeof PropertiesPropertyIdRouteWithChildren
   '/properties/gantt': typeof PropertiesGanttRoute
   '/properties/new': typeof PropertiesNewRoute
   '/ai-import': typeof AiImportIndexRoute
@@ -183,6 +196,8 @@ export interface FileRoutesByTo {
   '/settings': typeof SettingsIndexRoute
   '/bookings/$bookingId/edit': typeof BookingsBookingIdEditRoute
   '/properties/$propertyId/edit': typeof PropertiesPropertyIdEditRoute
+  '/bookings/$bookingId': typeof BookingsBookingIdIndexRoute
+  '/properties/$propertyId': typeof PropertiesPropertyIdIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -207,6 +222,8 @@ export interface FileRoutesById {
   '/settings/': typeof SettingsIndexRoute
   '/bookings/$bookingId/edit': typeof BookingsBookingIdEditRoute
   '/properties/$propertyId/edit': typeof PropertiesPropertyIdEditRoute
+  '/bookings/$bookingId/': typeof BookingsBookingIdIndexRoute
+  '/properties/$propertyId/': typeof PropertiesPropertyIdIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -232,18 +249,18 @@ export interface FileRouteTypes {
     | '/settings/'
     | '/bookings/$bookingId/edit'
     | '/properties/$propertyId/edit'
+    | '/bookings/$bookingId/'
+    | '/properties/$propertyId/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/ai-import/$jobId'
-    | '/bookings/$bookingId'
     | '/bookings/new'
     | '/bookings/today'
     | '/cleaner/$taskId'
     | '/cleaning/$taskId'
     | '/cleaning/checklists'
     | '/cleaning/new'
-    | '/properties/$propertyId'
     | '/properties/gantt'
     | '/properties/new'
     | '/ai-import'
@@ -255,6 +272,8 @@ export interface FileRouteTypes {
     | '/settings'
     | '/bookings/$bookingId/edit'
     | '/properties/$propertyId/edit'
+    | '/bookings/$bookingId'
+    | '/properties/$propertyId'
   id:
     | '__root__'
     | '/'
@@ -278,6 +297,8 @@ export interface FileRouteTypes {
     | '/settings/'
     | '/bookings/$bookingId/edit'
     | '/properties/$propertyId/edit'
+    | '/bookings/$bookingId/'
+    | '/properties/$propertyId/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -437,6 +458,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AiImportJobIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/properties/$propertyId/': {
+      id: '/properties/$propertyId/'
+      path: '/'
+      fullPath: '/properties/$propertyId/'
+      preLoaderRoute: typeof PropertiesPropertyIdIndexRouteImport
+      parentRoute: typeof PropertiesPropertyIdRoute
+    }
+    '/bookings/$bookingId/': {
+      id: '/bookings/$bookingId/'
+      path: '/'
+      fullPath: '/bookings/$bookingId/'
+      preLoaderRoute: typeof BookingsBookingIdIndexRouteImport
+      parentRoute: typeof BookingsBookingIdRoute
+    }
     '/properties/$propertyId/edit': {
       id: '/properties/$propertyId/edit'
       path: '/edit'
@@ -456,10 +491,12 @@ declare module '@tanstack/react-router' {
 
 interface BookingsBookingIdRouteChildren {
   BookingsBookingIdEditRoute: typeof BookingsBookingIdEditRoute
+  BookingsBookingIdIndexRoute: typeof BookingsBookingIdIndexRoute
 }
 
 const BookingsBookingIdRouteChildren: BookingsBookingIdRouteChildren = {
   BookingsBookingIdEditRoute: BookingsBookingIdEditRoute,
+  BookingsBookingIdIndexRoute: BookingsBookingIdIndexRoute,
 }
 
 const BookingsBookingIdRouteWithChildren =
@@ -467,10 +504,12 @@ const BookingsBookingIdRouteWithChildren =
 
 interface PropertiesPropertyIdRouteChildren {
   PropertiesPropertyIdEditRoute: typeof PropertiesPropertyIdEditRoute
+  PropertiesPropertyIdIndexRoute: typeof PropertiesPropertyIdIndexRoute
 }
 
 const PropertiesPropertyIdRouteChildren: PropertiesPropertyIdRouteChildren = {
   PropertiesPropertyIdEditRoute: PropertiesPropertyIdEditRoute,
+  PropertiesPropertyIdIndexRoute: PropertiesPropertyIdIndexRoute,
 }
 
 const PropertiesPropertyIdRouteWithChildren =

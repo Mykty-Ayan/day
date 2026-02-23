@@ -9,6 +9,7 @@ import DateRangePicker from '../../components/ui/date-range-picker'
 import { ToggleGroup, ToggleGroupItem } from '../../components/ui/toggle-group'
 import NumberInput from '../../components/ui/number-input'
 import { showToast } from '../../components/ui/Toast'
+import { getBookingApiErrorMessage, getBookingFieldError } from '../../lib/booking-errors'
 
 interface FormData {
   check_in: string
@@ -120,8 +121,12 @@ function EditBookingForm({ detail, bookingId }: { detail: BookingDetail; booking
         showToast('success', t('bookings.bookingUpdated'))
         navigate({ to: '/bookings/$bookingId', params: { bookingId } })
       },
-      onError: () => {
-        showToast('error', t('bookings.failedUpdate'))
+      onError: (err) => {
+        const fieldError = getBookingFieldError(err, t)
+        if (fieldError) {
+          setErrors((prev) => ({ ...prev, [fieldError.field]: fieldError.message }))
+        }
+        showToast('error', getBookingApiErrorMessage(err, t) || t('bookings.failedUpdate'))
       },
     })
   }

@@ -20,6 +20,7 @@ interface Props {
   month: number
   rangeStart: string
   rangeEnd: string
+  todayScrollNonce: number
   pricingByProperty?: Record<string, PricingConfig | null | undefined>
   onCellClick?: (propertyId: string, date: string) => void
   pendingSelection?: {
@@ -200,6 +201,7 @@ export default function GanttChart({
   month,
   rangeStart,
   rangeEnd,
+  todayScrollNonce,
   pricingByProperty,
   onCellClick,
   pendingSelection,
@@ -297,7 +299,7 @@ export default function GanttChart({
     const container = scrollRef.current
     if (!container) return
 
-    const scrollKey = `${year}-${month}-${rangeStart}-${rangeEnd}`
+    const scrollKey = `${year}-${month}-${rangeStart}-${rangeEnd}-${todayScrollNonce}`
     if (autoScrollKeyRef.current === scrollKey) return
 
     const targetDate = year === todayYear && month === todayMonth
@@ -310,7 +312,7 @@ export default function GanttChart({
     const target = Math.min(targetIndex * CELL_W, maxScrollLeft)
     container.scrollLeft = target
     autoScrollKeyRef.current = scrollKey
-  }, [days, month, rangeEnd, rangeStart, todayMonth, todayStr, todayYear, year])
+  }, [days, month, rangeEnd, rangeStart, todayMonth, todayScrollNonce, todayStr, todayYear, year])
 
   const handleDragStart = useCallback((
     e: React.DragEvent,
