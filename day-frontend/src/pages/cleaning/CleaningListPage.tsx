@@ -2,6 +2,7 @@ import { motion } from 'framer-motion'
 import { ChevronLeft, ChevronRight, Plus } from 'lucide-react'
 import { useState } from 'react'
 import { Link, useNavigate } from '@tanstack/react-router'
+import { useTranslation } from 'react-i18next'
 
 import CleaningStatusBadge from '../../components/cleaning/CleaningStatusBadge'
 import CleaningTypeBadge from '../../components/cleaning/CleaningTypeBadge'
@@ -9,19 +10,20 @@ import { ToggleGroup, ToggleGroupItem } from '../../components/ui/toggle-group'
 import { useCleaningTasks } from '../../hooks/useCleaning'
 import type { CleaningStatus } from '../../types/cleaning'
 
-const STATUS_TABS: { label: string; value: CleaningStatus | 'all' }[] = [
-  { label: 'All', value: 'all' },
-  { label: 'Pending', value: 'pending' },
-  { label: 'Assigned', value: 'assigned' },
-  { label: 'In Progress', value: 'in_progress' },
-  { label: 'Done', value: 'done' },
-  { label: 'Verified', value: 'verified' },
-]
-
 export default function CleaningListPage() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const [statusFilter, setStatusFilter] = useState<CleaningStatus | 'all'>('all')
   const [page, setPage] = useState(1)
+
+  const STATUS_TABS: { label: string; value: CleaningStatus | 'all' }[] = [
+    { label: t('common.all'), value: 'all' },
+    { label: t('cleaning.status.pending'), value: 'pending' },
+    { label: t('cleaning.status.assigned'), value: 'assigned' },
+    { label: t('cleaning.status.inProgress'), value: 'in_progress' },
+    { label: t('cleaning.status.done'), value: 'done' },
+    { label: t('cleaning.status.verified'), value: 'verified' },
+  ]
 
   const { data, isLoading } = useCleaningTasks({
     page,
@@ -37,14 +39,14 @@ export default function CleaningListPage() {
         transition={{ duration: 0.4 }}
       >
         <div className="flex items-center justify-between mb-6">
-          <h1 className="text-xl font-bold text-gray-900">Cleaning Tasks</h1>
+          <h1 className="text-xl font-bold text-gray-900">{t('cleaning.cleaningTasks')}</h1>
           <Link to="/cleaning/new">
             <motion.button
               whileTap={{ scale: 0.97 }}
               className="flex items-center gap-2 bg-black text-white hover:bg-gray-800 rounded-xl px-6 py-2.5 font-semibold shadow-lg transition-colors"
             >
               <Plus className="w-4 h-4" />
-              New Task
+              {t('cleaning.newTask')}
             </motion.button>
           </Link>
         </div>
@@ -74,14 +76,14 @@ export default function CleaningListPage() {
           </div>
         ) : !data || data.items.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20">
-            <p className="text-sm text-gray-500 mb-4">No cleaning tasks found</p>
+            <p className="text-sm text-gray-500 mb-4">{t('cleaning.noCleaningTasks')}</p>
             <Link to="/cleaning/new">
               <motion.button
                 whileTap={{ scale: 0.97 }}
                 className="flex items-center gap-2 bg-black text-white hover:bg-gray-800 rounded-xl px-6 py-2.5 font-semibold shadow-lg transition-colors"
               >
                 <Plus className="w-4 h-4" />
-                Create your first task
+                {t('cleaning.createFirst')}
               </motion.button>
             </Link>
           </div>
@@ -91,11 +93,11 @@ export default function CleaningListPage() {
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-gray-100 bg-gray-50">
-                    <th className="text-left px-4 py-3 text-xs font-bold text-gray-400 uppercase tracking-wider">Property</th>
-                    <th className="text-left px-4 py-3 text-xs font-bold text-gray-400 uppercase tracking-wider">Type</th>
-                    <th className="text-left px-4 py-3 text-xs font-bold text-gray-400 uppercase tracking-wider">Status</th>
-                    <th className="text-left px-4 py-3 text-xs font-bold text-gray-400 uppercase tracking-wider">Scheduled</th>
-                    <th className="text-left px-4 py-3 text-xs font-bold text-gray-400 uppercase tracking-wider">Cleaner</th>
+                    <th className="text-left px-4 py-3 text-xs font-bold text-gray-400 uppercase tracking-wider">{t('cleaning.property')}</th>
+                    <th className="text-left px-4 py-3 text-xs font-bold text-gray-400 uppercase tracking-wider">{t('cleaning.type')}</th>
+                    <th className="text-left px-4 py-3 text-xs font-bold text-gray-400 uppercase tracking-wider">{t('common.status')}</th>
+                    <th className="text-left px-4 py-3 text-xs font-bold text-gray-400 uppercase tracking-wider">{t('cleaning.scheduled')}</th>
+                    <th className="text-left px-4 py-3 text-xs font-bold text-gray-400 uppercase tracking-wider">{t('cleaning.cleaner')}</th>
                     <th className="w-10" />
                   </tr>
                 </thead>
@@ -140,7 +142,7 @@ export default function CleaningListPage() {
                       </td>
                       <td className="px-4 py-3">
                         <span className="text-sm text-gray-600">
-                          {task.cleaner_id ? `${task.cleaner_id.slice(0, 8)}...` : 'Unassigned'}
+                          {task.cleaner_id ? `${task.cleaner_id.slice(0, 8)}...` : t('cleaning.unassigned')}
                         </span>
                       </td>
                       <td className="px-4 py-3">
@@ -163,7 +165,7 @@ export default function CleaningListPage() {
                   <ChevronLeft className="w-4 h-4" />
                 </motion.button>
                 <span className="text-xs font-bold text-gray-500 px-3">
-                  Page {data.page} of {data.pages}
+                  {t('common.page', { current: data.page, total: data.pages })}
                 </span>
                 <motion.button
                   whileTap={{ scale: 0.97 }}

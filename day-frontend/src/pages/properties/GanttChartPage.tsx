@@ -3,6 +3,7 @@ import { motion } from 'framer-motion'
 import { ChevronLeft, ChevronRight, CalendarRange } from 'lucide-react'
 import { useQueries } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
+import { useTranslation } from 'react-i18next'
 import { useGanttData } from '../../hooks/useBookings'
 import { getPricing } from '../../api/properties'
 import GanttChart from '../../components/property/GanttChart'
@@ -16,10 +17,7 @@ import {
   SelectValue,
 } from '../../components/ui/select'
 
-const monthNames = [
-  'January', 'February', 'March', 'April', 'May', 'June',
-  'July', 'August', 'September', 'October', 'November', 'December',
-]
+// Month keys match gantt.months translation keys (0-11)
 
 type RowsPerPage = '10' | '25' | '50' | 'all'
 interface PendingSelection {
@@ -43,6 +41,7 @@ function addDays(dateStr: string, days: number): string {
 }
 
 export default function GanttChartPage() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const [year, setYear] = useState(() => new Date().getFullYear())
   const [month, setMonth] = useState(() => new Date().getMonth())
@@ -189,7 +188,7 @@ export default function GanttChartPage() {
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
             <CalendarRange className="w-5 h-5 text-gray-900" />
-            <h1 className="text-xl font-bold text-gray-900">Chess Chart</h1>
+            <h1 className="text-xl font-bold text-gray-900">{t('gantt.title')}</h1>
           </div>
 
           {/* Month navigation */}
@@ -199,7 +198,7 @@ export default function GanttChartPage() {
               onClick={goToday}
               className="bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-xl px-3 py-2 text-xs font-bold text-gray-700 transition-colors"
             >
-              Today
+              {t('gantt.today')}
             </motion.button>
             <motion.button
               whileTap={{ scale: 0.97 }}
@@ -209,7 +208,7 @@ export default function GanttChartPage() {
               <ChevronLeft className="w-4 h-4" />
             </motion.button>
             <span className="text-sm font-bold text-gray-900 min-w-[140px] text-center">
-              {monthNames[month]} {year}
+              {t(`gantt.months.${month}`)} {year}
             </span>
             <motion.button
               whileTap={{ scale: 0.97 }}
@@ -223,11 +222,11 @@ export default function GanttChartPage() {
 
         <div className="flex flex-col gap-3 mb-4 md:flex-row md:items-center md:justify-between">
           <p className="text-xs font-semibold text-gray-500">
-            Showing {rangeStart}-{rangeEnd} of {sortedRows.length} properties
+            {t('common.showing', { start: rangeStart, end: rangeEnd, total: sortedRows.length })}
           </p>
           <div className="flex flex-wrap items-center gap-2">
             <div className="flex items-center gap-2">
-              <span className="text-xs font-semibold text-gray-500">Rows</span>
+              <span className="text-xs font-semibold text-gray-500">{t('common.rows')}</span>
               <Select
                 value={rowsPerPage}
                 onValueChange={(value) => {
@@ -243,7 +242,7 @@ export default function GanttChartPage() {
                   <SelectItem value="10">10</SelectItem>
                   <SelectItem value="25">25</SelectItem>
                   <SelectItem value="50">50</SelectItem>
-                  <SelectItem value="all">All</SelectItem>
+                  <SelectItem value="all">{t('common.all')}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -262,7 +261,7 @@ export default function GanttChartPage() {
                   <ChevronLeft className="w-4 h-4" />
                 </motion.button>
                 <span className="text-xs font-bold text-gray-500 px-2">
-                  Page {currentPage} of {totalPages}
+                  {t('common.page', { current: currentPage, total: totalPages })}
                 </span>
                 <motion.button
                   whileTap={{ scale: 0.97 }}

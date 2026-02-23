@@ -2,20 +2,16 @@ import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { Plus, Search, LayoutGrid, Grid2X2, List, Tag } from 'lucide-react'
 import { Link } from '@tanstack/react-router'
+import { useTranslation } from 'react-i18next'
 import { useAllProperties, useTags } from '../../hooks/useProperties'
 import type { PropertyStatus } from '../../types/property'
 import PropertyCard from '../../components/property/PropertyCard'
 import { ToggleGroup, ToggleGroupItem } from '../../components/ui/toggle-group'
 
-const statusTabs: { value: PropertyStatus | 'all'; label: string }[] = [
-  { value: 'all', label: 'All' },
-  { value: 'active', label: 'Active' },
-  { value: 'paused', label: 'Paused' },
-  { value: 'archived', label: 'Archived' },
-  { value: 'new', label: 'New' },
-]
+const statusTabValues: (PropertyStatus | 'all')[] = ['all', 'active', 'paused', 'archived', 'new']
 
 export default function PropertyListPage() {
+  const { t } = useTranslation()
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<PropertyStatus | 'all'>('active')
   const [viewMode, setViewMode] = useState<'large' | 'medium' | 'list'>('large')
@@ -38,14 +34,14 @@ export default function PropertyListPage() {
       >
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
-          <h1 className="text-xl font-bold text-gray-900">Properties</h1>
+          <h1 className="text-xl font-bold text-gray-900">{t('properties.title')}</h1>
           <Link to="/properties/new">
             <motion.button
               whileTap={{ scale: 0.97 }}
               className="flex items-center gap-2 bg-black text-white hover:bg-gray-800 rounded-xl px-6 py-2.5 font-semibold shadow-lg transition-colors"
             >
               <Plus className="w-4 h-4" />
-              Add Property
+              {t('properties.addProperty')}
             </motion.button>
           </Link>
         </div>
@@ -60,7 +56,7 @@ export default function PropertyListPage() {
               onChange={(e) => {
                 setSearch(e.target.value)
               }}
-              placeholder="Search by name..."
+              placeholder={t('properties.searchPlaceholder')}
               className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 pl-9 outline-none focus:ring-2 focus:ring-black/10 text-gray-800 text-sm"
             />
           </div>
@@ -72,9 +68,9 @@ export default function PropertyListPage() {
               setStatusFilter(value as PropertyStatus | 'all')
             }}
           >
-            {statusTabs.map((tab) => (
-              <ToggleGroupItem key={tab.value} value={tab.value}>
-                {tab.label}
+            {statusTabValues.map((value) => (
+              <ToggleGroupItem key={value} value={value}>
+                {t(`common.${value}`)}
               </ToggleGroupItem>
             ))}
           </ToggleGroup>
@@ -91,7 +87,7 @@ export default function PropertyListPage() {
                       : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border border-gray-200'
                   }`}
                 >
-                  All
+                  {t('common.all')}
                 </button>
                 {allTags.map((tag) => (
                   <button
@@ -125,19 +121,19 @@ export default function PropertyListPage() {
             <ToggleGroupItem value="large" aria-label="Large tiles">
               <span className="inline-flex items-center gap-1">
                 <LayoutGrid className="w-3.5 h-3.5" />
-                Large
+                {t('common.large')}
               </span>
             </ToggleGroupItem>
             <ToggleGroupItem value="medium" aria-label="Medium tiles">
               <span className="inline-flex items-center gap-1">
                 <Grid2X2 className="w-3.5 h-3.5" />
-                Medium
+                {t('common.medium')}
               </span>
             </ToggleGroupItem>
             <ToggleGroupItem value="list" aria-label="List view">
               <span className="inline-flex items-center gap-1">
                 <List className="w-3.5 h-3.5" />
-                List
+                {t('common.list')}
               </span>
             </ToggleGroupItem>
           </ToggleGroup>
@@ -150,14 +146,14 @@ export default function PropertyListPage() {
           </div>
         ) : !data || data.items.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20">
-            <p className="text-sm text-gray-500 mb-4">No properties found</p>
+            <p className="text-sm text-gray-500 mb-4">{t('properties.noProperties')}</p>
             <Link to="/properties/new">
               <motion.button
                 whileTap={{ scale: 0.97 }}
                 className="flex items-center gap-2 bg-black text-white hover:bg-gray-800 rounded-xl px-6 py-2.5 font-semibold shadow-lg transition-colors"
               >
                 <Plus className="w-4 h-4" />
-                Create your first property
+                {t('properties.createFirst')}
               </motion.button>
             </Link>
           </div>

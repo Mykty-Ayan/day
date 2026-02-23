@@ -5,6 +5,7 @@ import { Plus, X, Loader2 } from 'lucide-react'
 import type { PricingConfig, SeasonalPrice, DiscountRule } from '../../types/property'
 import DatePicker from '../ui/date-picker'
 import NumberInput from '../ui/number-input'
+import { useCurrency } from '../../hooks/useCurrency'
 import {
   Select,
   SelectContent,
@@ -69,6 +70,7 @@ function PricingFormInner({
   onDeleteDiscount,
   isSaving,
 }: Props) {
+  const { symbol: currencySymbol } = useCurrency()
   const [basePrice, setBasePrice] = useState(String(pricing?.base_price ?? ''))
   const [weekendMarkup, setWeekendMarkup] = useState(String(pricing?.weekend_markup ?? ''))
   const [deposit, setDeposit] = useState(String(pricing?.default_deposit ?? ''))
@@ -294,7 +296,7 @@ function PricingFormInner({
               </span>
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-sm font-bold text-gray-900">${sp.price}</span>
+              <span className="text-sm font-bold text-gray-900">{currencySymbol}{sp.price}</span>
               <button
                 onClick={() => onDeleteSeasonal(sp.id)}
                 className="p-1 text-gray-400 hover:text-red-600 transition-colors"
@@ -391,7 +393,7 @@ function PricingFormInner({
             className="flex items-center justify-between bg-gray-50 border border-gray-200 rounded-xl p-3 mb-2"
           >
             <span className="text-sm text-gray-700">
-              {dr.min_nights}+ nights: {dr.type === 'percent' ? `${dr.value}%` : `$${dr.value}`} off
+              {dr.min_nights}+ nights: {dr.type === 'percent' ? `${dr.value}%` : `${currencySymbol}${dr.value}`} off
             </span>
             <button
               onClick={() => onDeleteDiscount(dr.id)}

@@ -1,11 +1,13 @@
 import { useMemo, useRef, useState, useCallback, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useNavigate } from '@tanstack/react-router'
+import { useTranslation } from 'react-i18next'
 import type { Booking, BookingStatus, GanttPropertySummary } from '../../types/booking'
 import type { PricingConfig } from '../../types/property'
 import { showToast } from '../ui/Toast'
 import { moveBooking } from '../../api/bookings'
 import { useQueryClient } from '@tanstack/react-query'
+import { useCurrency } from '../../hooks/useCurrency'
 
 export interface GanttRow {
   property: GanttPropertySummary
@@ -36,8 +38,7 @@ function getDaysInRange(start: Date, end: Date): Date[] {
   return days
 }
 
-const weekdayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
-const shortMonthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+// Weekday and month names are loaded via i18n inside the component
 
 const CELL_W = 40
 const NAME_W = 180
@@ -88,13 +89,13 @@ function getNightlyRateForDate(
   return nightlyRate
 }
 
-function formatCellPrice(value: number): string {
-  if (value >= 10000) return `$${Math.round(value / 1000)}k`
+function formatCellPrice(value: number, sym: string): string {
+  if (value >= 10000) return `${sym}${Math.round(value / 1000)}k`
   if (value >= 1000) {
     const short = value / 1000
-    return `$${Number.isInteger(short) ? short : short.toFixed(1)}k`
+    return `${sym}${Number.isInteger(short) ? short : short.toFixed(1)}k`
   }
-  return `$${Math.round(value)}`
+  return `${sym}${Math.round(value)}`
 }
 
 function getStatusBarStyle(status: BookingStatus): string {
@@ -109,18 +110,16 @@ function getStatusBarStyle(status: BookingStatus): string {
   }
 }
 
-function getMonthLabel(date: Date): string {
-  return `${shortMonthNames[date.getMonth()]} ${date.getFullYear()}`
+function getMonthLabel(date: Date, monthNames: string[]): string {
+  return `${monthNames[date.getMonth()]} ${date.getFullYear()}`
 }
 
-function formatPreviewDate(dateStr: string): string {
+function formatPreviewDate(dateStr: string, monthNames: string[]): string {
   const d = parseDateOnly(dateStr)
-  return `${shortMonthNames[d.getMonth()]} ${d.getDate()}`
+  return `${monthNames[d.getMonth()]} ${d.getDate()}`
 }
 
-function formatNights(nights: number): string {
-  return `${nights} night${nights === 1 ? '' : 's'}`
-}
+// formatNights is handled via i18n inside the component
 
 function getBookingNights(checkIn: string, checkOut: string): number {
   const start = parseDateOnly(checkIn).getTime()
@@ -129,40 +128,40 @@ function getBookingNights(checkIn: string, checkOut: string): number {
   return Math.max(0, nights)
 }
 
-function formatBookingDateRangeShort(checkIn: string, checkOut: string): string {
+function formatBookingDateRangeShort(checkIn: string, checkOut: string, monthNames: string[]): string {
   const start = parseDateOnly(checkIn)
   const end = parseDateOnly(checkOut)
 
   if (end < start) {
-    return `${start.getDate()} ${shortMonthNames[start.getMonth()]}`
+    return `${start.getDate()} ${monthNames[start.getMonth()]}`
   }
 
   const sameYear = start.getFullYear() === end.getFullYear()
   const sameMonth = sameYear && start.getMonth() === end.getMonth()
 
   if (sameMonth) {
-    return `${start.getDate()}-${end.getDate()} ${shortMonthNames[start.getMonth()]}`
+    return `${start.getDate()}-${end.getDate()} ${monthNames[start.getMonth()]}`
   }
 
-  const startPart = `${start.getDate()} ${shortMonthNames[start.getMonth()]}`
+  const startPart = `${start.getDate()} ${monthNames[start.getMonth()]}`
   const endPart = sameYear
-    ? `${end.getDate()} ${shortMonthNames[end.getMonth()]}`
-    : `${end.getDate()} ${shortMonthNames[end.getMonth()]} ${end.getFullYear()}`
+    ? `${end.getDate()} ${monthNames[end.getMonth()]}`
+    : `${end.getDate()} ${monthNames[end.getMonth()]} ${end.getFullYear()}`
 
   return `${startPart} - ${endPart}`
 }
 
-function formatTooltipPrice(value: number): string {
+function formatTooltipPrice(value: number, sym: string): string {
   const abs = Math.abs(value)
   if (abs >= 1_000_000) {
     const inMillions = value / 1_000_000
-    return `$${Number.isInteger(inMillions) ? inMillions : inMillions.toFixed(1)}m`
+    return `${sym}${Number.isInteger(inMillions) ? inMillions : inMillions.toFixed(1)}m`
   }
   if (abs >= 1_000) {
     const inThousands = value / 1_000
-    return `$${Number.isInteger(inThousands) ? inThousands : inThousands.toFixed(1)}k`
+    return `${sym}${Number.isInteger(inThousands) ? inThousands : inThousands.toFixed(1)}k`
   }
-  return `$${Math.round(value)}`
+  return `${sym}${Math.round(value)}`
 }
 
 function formatGuestsCompact(adults: number, children: number): string {
@@ -170,13 +169,13 @@ function formatGuestsCompact(adults: number, children: number): string {
   return `${adults}A`
 }
 
-const tooltipStatusLabel: Record<BookingStatus, string> = {
-  pending: 'Pending',
-  confirmed: 'Confirmed',
-  checked_in: 'In house',
-  checked_out: 'Checked out',
-  completed: 'Completed',
-  cancelled: 'Cancelled',
+const tooltipStatusKeys: Record<BookingStatus, string> = {
+  pending: 'common.pending',
+  confirmed: 'common.confirmed',
+  checked_in: 'gantt.inHouse',
+  checked_out: 'common.checkedOut',
+  completed: 'common.completed',
+  cancelled: 'common.cancelled',
 }
 
 const tooltipStatusTone: Record<BookingStatus, string> = {
@@ -188,11 +187,11 @@ const tooltipStatusTone: Record<BookingStatus, string> = {
   cancelled: 'bg-rose-300/20 text-rose-100',
 }
 
-const sourceLabelShort: Record<Booking['source'], string> = {
-  direct: 'Direct',
-  booking: 'Bcom',
-  airbnb: 'Airbnb',
-  other: 'Other',
+const sourceKeys: Record<Booking['source'], string> = {
+  direct: 'common.direct',
+  booking: 'gantt.sourceBcom',
+  airbnb: 'common.airbnb',
+  other: 'common.other',
 }
 
 export default function GanttChart({
@@ -205,9 +204,14 @@ export default function GanttChart({
   onCellClick,
   pendingSelection,
 }: Props) {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
+  const { symbol: currencySymbol } = useCurrency()
   const scrollRef = useRef<HTMLDivElement>(null)
+
+  const weekdayNames = useMemo(() => Array.from({ length: 7 }, (_, i) => t(`gantt.weekdays.${i}`)), [t])
+  const shortMonthNames = useMemo(() => Array.from({ length: 12 }, (_, i) => t(`gantt.monthsShort.${i}`)), [t])
   const autoScrollKeyRef = useRef<string | null>(null)
   const rangeStartDate = useMemo(() => parseDateOnly(rangeStart), [rangeStart])
   const rangeEndDate = useMemo(() => parseDateOnly(rangeEnd), [rangeEnd])
@@ -256,7 +260,7 @@ export default function GanttChart({
         const daysCount = i - start
         segments.push({
           key: `${currentYear}-${currentMonth}`,
-          label: getMonthLabel(firstDate),
+          label: getMonthLabel(firstDate, shortMonthNames),
           daysCount,
         })
         if (i < days.length) {
@@ -268,7 +272,7 @@ export default function GanttChart({
     }
 
     return segments
-  }, [days])
+  }, [days, shortMonthNames])
 
   // Tooltip state
   const [tooltip, setTooltip] = useState<{ booking: Booking; x: number; y: number } | null>(null)
@@ -342,7 +346,7 @@ export default function GanttChart({
 
     const targetStatus = propertyStatusById[targetPropertyId]
     if (targetStatus === 'paused') {
-      showToast('error', 'Cannot move booking to a paused property')
+      showToast('error', t('gantt.cannotMoveToPaused'))
       setDragBooking(null)
       return
     }
@@ -356,13 +360,13 @@ export default function GanttChart({
       await moveBooking(dragBooking.booking.id, { target_property_id: targetPropertyId })
       queryClient.invalidateQueries({ queryKey: ['gantt-data'] })
       queryClient.invalidateQueries({ queryKey: ['bookings'] })
-      showToast('success', 'Booking moved successfully')
+      showToast('success', t('gantt.bookingMoved'))
     } catch {
-      showToast('error', 'Failed to move booking')
+      showToast('error', t('gantt.failedMoveBooking'))
     }
 
     setDragBooking(null)
-  }, [dragBooking, propertyStatusById, queryClient])
+  }, [dragBooking, propertyStatusById, queryClient, t])
 
   // Active preview end date while hovering after selecting check-in.
   const pendingPreviewEnd = useMemo(() => {
@@ -402,7 +406,7 @@ export default function GanttChart({
 
   function handleCellClick(property: GanttPropertySummary, day: Date) {
     if (property.status === 'paused') {
-      showToast('error', 'Paused properties are unavailable for booking')
+      showToast('error', t('gantt.pausedUnavailable'))
       return
     }
     const dateStr = toDateStr(day)
@@ -440,7 +444,7 @@ export default function GanttChart({
             style={{ height: ROW_H }}
           >
             <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">
-              Property
+              {t('gantt.property')}
             </span>
           </div>
           {/* Property name rows */}
@@ -472,7 +476,7 @@ export default function GanttChart({
                 </span>
                 {isPaused && (
                   <span className="shrink-0 rounded-md border border-amber-300 bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-800">
-                    paused
+                    {t('common.paused')}
                   </span>
                 )}
               </div>
@@ -680,7 +684,7 @@ export default function GanttChart({
                       {nightlyRate !== null && (
                         <div className="pointer-events-none flex h-full items-end justify-center pb-1">
                           <span className={`text-[9px] font-semibold ${isPaused ? 'text-gray-500' : 'text-emerald-700'}`}>
-                            {formatCellPrice(nightlyRate)}
+                            {formatCellPrice(nightlyRate, currencySymbol)}
                           </span>
                         </div>
                       )}
@@ -749,7 +753,7 @@ export default function GanttChart({
 
       {sortedRows.length === 0 && (
         <div className="flex items-center justify-center py-12">
-          <p className="text-sm text-gray-500">No properties to display</p>
+          <p className="text-sm text-gray-500">{t('gantt.noProperties')}</p>
         </div>
       )}
 
@@ -768,15 +772,15 @@ export default function GanttChart({
             }}
           >
             <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-emerald-200/80">
-              Stay preview
+              {t('gantt.stayPreview')}
             </p>
             <p className="mt-0.5 text-xs font-semibold">
-              {formatPreviewDate(rangePreviewTooltip.checkIn)}
+              {formatPreviewDate(rangePreviewTooltip.checkIn, shortMonthNames)}
               {' -> '}
-              {formatPreviewDate(rangePreviewTooltip.checkOut)}
+              {formatPreviewDate(rangePreviewTooltip.checkOut, shortMonthNames)}
             </p>
             <p className="mt-1 inline-flex rounded-md bg-white/15 px-2 py-0.5 text-[11px] font-semibold text-emerald-100">
-              {formatNights(rangePreviewTooltip.nights)}
+              {t('gantt.nightCount', { count: rangePreviewTooltip.nights })}
             </p>
           </motion.div>
         )}
@@ -800,21 +804,21 @@ export default function GanttChart({
               <span
                 className={`rounded-md px-1.5 py-0.5 text-[10px] font-semibold ${tooltipStatusTone[tooltip.booking.status]}`}
               >
-                {tooltipStatusLabel[tooltip.booking.status]}
+                {t(tooltipStatusKeys[tooltip.booking.status])}
               </span>
             </div>
             <p className="mt-1 text-[11px] text-gray-300">
-              {formatBookingDateRangeShort(tooltip.booking.check_in, tooltip.booking.check_out)}
+              {formatBookingDateRangeShort(tooltip.booking.check_in, tooltip.booking.check_out, shortMonthNames)}
               {' · '}
               {getBookingNights(tooltip.booking.check_in, tooltip.booking.check_out)}N
             </p>
             <div className="mt-1 flex items-center gap-1.5 text-[11px] text-gray-300">
               <span>{formatGuestsCompact(tooltip.booking.adults_count, tooltip.booking.children_count)}</span>
               <span className="text-gray-500">•</span>
-              <span>{sourceLabelShort[tooltip.booking.source]}</span>
+              <span>{t(sourceKeys[tooltip.booking.source])}</span>
               <span className="text-gray-500">•</span>
               <span className="font-semibold text-white">
-                {formatTooltipPrice(tooltip.booking.total_price)}
+                {formatTooltipPrice(tooltip.booking.total_price, currencySymbol)}
               </span>
             </div>
           </motion.div>

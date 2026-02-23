@@ -1,5 +1,6 @@
 import { motion, AnimatePresence } from 'framer-motion'
 import { AlertTriangle, X } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 
 interface Props {
   open: boolean
@@ -17,13 +18,17 @@ export default function ConfirmDialog({
   open,
   title,
   message,
-  confirmLabel = 'Confirm',
-  cancelLabel = 'Cancel',
+  confirmLabel,
+  cancelLabel,
   variant = 'default',
   onConfirm,
   onCancel,
   loading = false,
 }: Props) {
+  const { t } = useTranslation()
+  const resolvedConfirmLabel = confirmLabel ?? t('common.confirm')
+  const resolvedCancelLabel = cancelLabel ?? t('common.cancel')
+
   return (
     <AnimatePresence>
       {open && (
@@ -75,7 +80,7 @@ export default function ConfirmDialog({
                 disabled={loading}
                 className="px-4 py-2 rounded-xl border border-gray-200 text-xs font-bold text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50"
               >
-                {cancelLabel}
+                {resolvedCancelLabel}
               </button>
               <motion.button
                 whileTap={{ scale: 0.97 }}
@@ -87,7 +92,7 @@ export default function ConfirmDialog({
                     : 'bg-black hover:bg-gray-800'
                 }`}
               >
-                {loading ? 'Processing...' : confirmLabel}
+                {loading ? t('common.processing') : resolvedConfirmLabel}
               </motion.button>
             </div>
           </motion.div>

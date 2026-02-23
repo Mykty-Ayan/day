@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next'
 import NumberInput from '../ui/number-input'
 
 interface PricingData {
@@ -15,6 +16,7 @@ interface Props {
 }
 
 export default function PropertyFormStepPricing({ data, onChange }: Props) {
+  const { t } = useTranslation()
   function update<K extends keyof PricingData>(key: K, value: string) {
     onChange({ ...data, [key]: value })
   }
@@ -24,7 +26,7 @@ export default function PropertyFormStepPricing({ data, onChange }: Props) {
       <div className="grid grid-cols-2 gap-4">
         <div>
           <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">
-            Base Price (per night)
+            {t('properties.form.basePrice')}
           </label>
           <NumberInput
             value={data.base_price}
@@ -36,7 +38,7 @@ export default function PropertyFormStepPricing({ data, onChange }: Props) {
         </div>
         <div>
           <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">
-            Weekend Markup (%)
+            {t('properties.form.weekendMarkup')}
           </label>
           <NumberInput
             value={data.weekend_markup}
@@ -50,7 +52,7 @@ export default function PropertyFormStepPricing({ data, onChange }: Props) {
 
       <div>
         <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">
-          Default Deposit
+          {t('properties.form.defaultDeposit')}
         </label>
         <NumberInput
           value={data.default_deposit}
@@ -64,7 +66,7 @@ export default function PropertyFormStepPricing({ data, onChange }: Props) {
       <div className="grid grid-cols-2 gap-4">
         <div>
           <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">
-            Extra Adult Price
+            {t('properties.form.extraAdultPrice')}
           </label>
           <NumberInput
             value={data.extra_adult_price}
@@ -76,7 +78,7 @@ export default function PropertyFormStepPricing({ data, onChange }: Props) {
         </div>
         <div>
           <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">
-            Extra Child Price
+            {t('properties.form.extraChildPrice')}
           </label>
           <NumberInput
             value={data.extra_child_price}
@@ -90,7 +92,7 @@ export default function PropertyFormStepPricing({ data, onChange }: Props) {
 
       <div>
         <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">
-          Base Guests
+          {t('properties.form.baseGuests')}
         </label>
         <NumberInput
           value={data.base_guests}

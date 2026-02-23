@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next'
 import { motion } from 'framer-motion'
 import { LogIn, LogOut, Users, Phone, ArrowRight } from 'lucide-react'
 import { useNavigate } from '@tanstack/react-router'
@@ -6,6 +7,7 @@ import type { Booking, BookingStatus } from '../../types/booking'
 import BookingStatusBadge from '../../components/booking/BookingStatusBadge'
 
 export default function TodayPage() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const { data, isLoading } = useTodayChecks()
 
@@ -20,7 +22,7 @@ export default function TodayPage() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4 }}
       >
-        <h1 className="text-xl font-bold text-gray-900 mb-6">Today</h1>
+        <h1 className="text-xl font-bold text-gray-900 mb-6">{t('today.title')}</h1>
 
         {isLoading ? (
           <div className="flex items-center justify-center py-20">
@@ -33,13 +35,13 @@ export default function TodayPage() {
               <div className="flex items-center gap-2 mb-4">
                 <LogIn className="w-4 h-4 text-emerald-600" />
                 <h2 className="text-sm font-bold text-gray-900">
-                  Check-ins Today
+                  {t('today.checkInsToday')}
                   <span className="ml-2 text-gray-400">({checkIns.length})</span>
                 </h2>
               </div>
               {checkIns.length === 0 ? (
                 <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
-                  <p className="text-sm text-gray-500 text-center py-4">No check-ins today</p>
+                  <p className="text-sm text-gray-500 text-center py-4">{t('today.noCheckIns')}</p>
                 </div>
               ) : (
                 <div className="space-y-3">
@@ -48,7 +50,7 @@ export default function TodayPage() {
                       key={booking.id}
                       booking={booking}
                       index={i}
-                      actionLabel={booking.status === 'confirmed' ? 'Check In' : undefined}
+                      actionLabel={booking.status === 'confirmed' ? t('bookings.status.checkIn') : undefined}
                       actionTarget={booking.status === 'confirmed' ? 'checked_in' : undefined}
                       actionColor="bg-emerald-600 hover:bg-emerald-700"
                       onClick={() => navigate({ to: '/bookings/$bookingId', params: { bookingId: booking.id } })}
@@ -63,13 +65,13 @@ export default function TodayPage() {
               <div className="flex items-center gap-2 mb-4">
                 <LogOut className="w-4 h-4 text-amber-600" />
                 <h2 className="text-sm font-bold text-gray-900">
-                  Check-outs Today
+                  {t('today.checkOutsToday')}
                   <span className="ml-2 text-gray-400">({checkOuts.length})</span>
                 </h2>
               </div>
               {checkOuts.length === 0 ? (
                 <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
-                  <p className="text-sm text-gray-500 text-center py-4">No check-outs today</p>
+                  <p className="text-sm text-gray-500 text-center py-4">{t('today.noCheckOuts')}</p>
                 </div>
               ) : (
                 <div className="space-y-3">
@@ -78,7 +80,7 @@ export default function TodayPage() {
                       key={booking.id}
                       booking={booking}
                       index={i}
-                      actionLabel={booking.status === 'checked_in' ? 'Check Out' : undefined}
+                      actionLabel={booking.status === 'checked_in' ? t('bookings.status.checkOut') : undefined}
                       actionTarget={booking.status === 'checked_in' ? 'checked_out' : undefined}
                       actionColor="bg-amber-600 hover:bg-amber-700"
                       onClick={() => navigate({ to: '/bookings/$bookingId', params: { bookingId: booking.id } })}
@@ -93,13 +95,13 @@ export default function TodayPage() {
               <div className="flex items-center gap-2 mb-4">
                 <Users className="w-4 h-4 text-blue-600" />
                 <h2 className="text-sm font-bold text-gray-900">
-                  In-House
+                  {t('today.inHouse')}
                   <span className="ml-2 text-gray-400">({inHouse.length})</span>
                 </h2>
               </div>
               {inHouse.length === 0 ? (
                 <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
-                  <p className="text-sm text-gray-500 text-center py-4">No guests staying now</p>
+                  <p className="text-sm text-gray-500 text-center py-4">{t('today.noGuests')}</p>
                 </div>
               ) : (
                 <div className="space-y-3">
@@ -136,6 +138,7 @@ function TodayCard({
   actionColor?: string
   onClick: () => void
 }) {
+  const { t } = useTranslation()
   const changeStatus = useChangeBookingStatus(booking.id)
   const canRunAction = Boolean(actionLabel && actionTarget && actionColor)
 
@@ -169,7 +172,7 @@ function TodayCard({
             <BookingStatusBadge status={booking.status} />
             {booking.property_status === 'archived' && (
               <span className="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase bg-red-100 text-red-700">
-                Property archived
+                {t('today.propertyArchived')}
               </span>
             )}
           </div>

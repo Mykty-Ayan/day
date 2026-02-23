@@ -1,8 +1,10 @@
 import { useState, type DragEvent } from 'react'
 import { motion } from 'framer-motion'
+import { useTranslation } from 'react-i18next'
 import { Pencil, Eye, X, ImageOff, ExternalLink, Download, GripVertical, Star } from 'lucide-react'
 import type { MappedPropertyData } from '../../types/ai-import'
 import apiClient from '../../api/client'
+import { useCurrency } from '../../hooks/useCurrency'
 
 interface Props {
   data: MappedPropertyData
@@ -12,10 +14,6 @@ interface Props {
 const propertyTypes = ['apartment', 'house', 'room'] as const
 const COORDINATE_PRECISION = 6
 const BASE_PRICE_PRESETS = [20_000, 25_000, 30_000, 35_000] as const
-const SYSTEM_CURRENCY = '$'
-const moneyChipFormatter = new Intl.NumberFormat('en-US', {
-  maximumFractionDigits: 0,
-})
 
 function FieldRow({
   label,
@@ -34,6 +32,7 @@ function FieldRow({
   type?: 'text' | 'number'
   multiline?: boolean
 }) {
+  const { t } = useTranslation()
   const isEmpty = value === null || value === '' || value === undefined
   const displayValue = isEmpty ? '' : String(value)
 
@@ -46,7 +45,7 @@ function FieldRow({
         <span>{label}</span>
         {isEmpty && (
           <span className="shrink-0 whitespace-nowrap text-[10px] font-normal text-amber-500">
-            Not extracted
+            {t('aiImport.notExtracted')}
           </span>
         )}
       </label>
@@ -85,7 +84,7 @@ function FieldRow({
               : 'border-gray-200 bg-gray-50 text-gray-800'
           }`}
         >
-          {isEmpty ? 'Empty' : displayValue}
+          {isEmpty ? t('aiImport.empty') : displayValue}
         </div>
       )}
     </div>
@@ -93,6 +92,8 @@ function FieldRow({
 }
 
 export default function PropertyPreviewForm({ data, onChange }: Props) {
+  const { t } = useTranslation()
+  const { formatChip: formatCurrencyChip } = useCurrency()
   const [editing, setEditing] = useState(true)
   const [draggingPhotoIndex, setDraggingPhotoIndex] = useState<number | null>(null)
   const [dragOverPhotoIndex, setDragOverPhotoIndex] = useState<number | null>(null)
@@ -195,10 +196,6 @@ export default function PropertyPreviewForm({ data, onChange }: Props) {
     return `photo-${index + 1}.jpg`
   }
 
-  function formatCurrency(value: number): string {
-    return `${SYSTEM_CURRENCY}${moneyChipFormatter.format(value)}`
-  }
-
   async function handleDownloadPhoto(url: string, index: number) {
     try {
       const response = await apiClient.get('/ai/photo/download', {
@@ -227,7 +224,7 @@ export default function PropertyPreviewForm({ data, onChange }: Props) {
     <div className="space-y-6">
       {/* Toggle edit/preview */}
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-bold text-gray-900">Property Details</h3>
+        <h3 className="text-sm font-bold text-gray-900">{t('aiImport.propertyDetails')}</h3>
         <motion.button
           whileTap={{ scale: 0.97 }}
           onClick={() => setEditing(!editing)}
@@ -237,12 +234,12 @@ export default function PropertyPreviewForm({ data, onChange }: Props) {
           {editing ? (
             <>
               <Eye className="w-3.5 h-3.5" />
-              Preview
+              {t('aiImport.preview')}
             </>
           ) : (
             <>
               <Pencil className="w-3.5 h-3.5" />
-              Edit
+              {t('common.edit')}
             </>
           )}
         </motion.button>
@@ -250,8 +247,8 @@ export default function PropertyPreviewForm({ data, onChange }: Props) {
 
       {/* Basic info */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <FieldRow label="Name" value={data.name} field="name" editing={editing} onChange={handleFieldChange} />
-        <FieldRow label="Internal Name" value={data.internal_name} field="internal_name" editing={editing} onChange={handleFieldChange} />
+        <FieldRow label={t('properties.form.publicName')} value={data.name} field="name" editing={editing} onChange={handleFieldChange} />
+        <FieldRow label={t('properties.form.internalName')} value={data.internal_name} field="internal_name" editing={editing} onChange={handleFieldChange} />
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -260,10 +257,10 @@ export default function PropertyPreviewForm({ data, onChange }: Props) {
             htmlFor="field-type"
             className="flex min-h-[1.25rem] items-baseline gap-1.5 text-xs font-bold leading-5 text-gray-700"
           >
-            <span>Type</span>
+            <span>{t('properties.form.type')}</span>
             {!data.type && (
               <span className="shrink-0 whitespace-nowrap text-[10px] font-normal text-amber-500">
-                Not extracted
+                {t('aiImport.notExtracted')}
               </span>
             )}
           </label>
@@ -274,51 +271,51 @@ export default function PropertyPreviewForm({ data, onChange }: Props) {
               onChange={(e) => handleTypeChange(e.target.value)}
               className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 outline-none focus:ring-2 focus:ring-black/10 text-gray-800 text-sm"
             >
-              {propertyTypes.map((t) => (
-                <option key={t} value={t}>
-                  {t.charAt(0).toUpperCase() + t.slice(1)}
+              {propertyTypes.map((pt) => (
+                <option key={pt} value={pt}>
+                  {pt === 'apartment' ? t('common.apartment') : pt === 'house' ? t('common.house') : t('common.room')}
                 </option>
               ))}
             </select>
           ) : (
             <div className={`w-full border rounded-xl p-3 text-sm ${data.type ? 'border-gray-200 bg-gray-50 text-gray-800' : 'border-amber-200 bg-amber-50/30 text-amber-400 italic'}`}>
-              {data.type ? data.type.charAt(0).toUpperCase() + data.type.slice(1) : 'Empty'}
+              {data.type ? (data.type === 'apartment' ? t('common.apartment') : data.type === 'house' ? t('common.house') : t('common.room')) : t('aiImport.empty')}
             </div>
           )}
         </div>
-        <FieldRow label="Source URL" value={data.source_url} field="source_url" editing={editing} onChange={handleFieldChange} />
+        <FieldRow label={t('properties.form.sourceUrl')} value={data.source_url} field="source_url" editing={editing} onChange={handleFieldChange} />
       </div>
 
-      <FieldRow label="Description" value={data.description} field="description" editing={editing} onChange={handleFieldChange} multiline />
+      <FieldRow label={t('properties.form.description')} value={data.description} field="description" editing={editing} onChange={handleFieldChange} multiline />
 
       {/* Address & Location */}
       <div className="border-t border-gray-100 pt-4">
-        <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Address & Location</h4>
-        <FieldRow label="Full Address" value={data.address_full} field="address_full" editing={editing} onChange={handleFieldChange} />
+        <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">{t('aiImport.addressAndLocation')}</h4>
+        <FieldRow label={t('properties.form.fullAddress')} value={data.address_full} field="address_full" editing={editing} onChange={handleFieldChange} />
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
-          <FieldRow label="Latitude" value={latitudeDisplay} field="latitude" editing={editing} onChange={handleFieldChange} type="number" />
-          <FieldRow label="Longitude" value={longitudeDisplay} field="longitude" editing={editing} onChange={handleFieldChange} type="number" />
-          <FieldRow label="Floor" value={data.floor} field="floor" editing={editing} onChange={handleFieldChange} type="number" />
+          <FieldRow label={t('properties.form.latitude')} value={latitudeDisplay} field="latitude" editing={editing} onChange={handleFieldChange} type="number" />
+          <FieldRow label={t('properties.form.longitude')} value={longitudeDisplay} field="longitude" editing={editing} onChange={handleFieldChange} type="number" />
+          <FieldRow label={t('properties.form.floor')} value={data.floor} field="floor" editing={editing} onChange={handleFieldChange} type="number" />
         </div>
       </div>
 
       {/* Details */}
       <div className="border-t border-gray-100 pt-4">
-        <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Details</h4>
+        <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">{t('properties.details')}</h4>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <FieldRow label="Rooms" value={data.rooms} field="rooms" editing={editing} onChange={handleFieldChange} type="number" />
-          <FieldRow label="Beds" value={data.beds} field="beds" editing={editing} onChange={handleFieldChange} type="number" />
-          <FieldRow label="Total m²" value={data.area_total} field="area_total" editing={editing} onChange={handleFieldChange} type="number" />
-          <FieldRow label="Living m²" value={data.area_living} field="area_living" editing={editing} onChange={handleFieldChange} type="number" />
+          <FieldRow label={t('properties.form.rooms')} value={data.rooms} field="rooms" editing={editing} onChange={handleFieldChange} type="number" />
+          <FieldRow label={t('properties.form.beds')} value={data.beds} field="beds" editing={editing} onChange={handleFieldChange} type="number" />
+          <FieldRow label={t('aiImport.totalArea')} value={data.area_total} field="area_total" editing={editing} onChange={handleFieldChange} type="number" />
+          <FieldRow label={t('aiImport.livingArea')} value={data.area_living} field="area_living" editing={editing} onChange={handleFieldChange} type="number" />
         </div>
       </div>
 
       {/* Pricing */}
       <div className="border-t border-gray-100 pt-4">
-        <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Pricing</h4>
+        <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">{t('properties.pricing')}</h4>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">
-            <FieldRow label="Base Price / Night" value={data.base_price} field="base_price" editing={editing} onChange={handleFieldChange} type="number" />
+            <FieldRow label={t('aiImport.basePricePerNight')} value={data.base_price} field="base_price" editing={editing} onChange={handleFieldChange} type="number" />
             {editing && basePriceMissing && (
               <div className="flex flex-wrap items-center gap-2">
                 {BASE_PRICE_PRESETS.map((preset) => (
@@ -328,7 +325,7 @@ export default function PropertyPreviewForm({ data, onChange }: Props) {
                     onClick={() => onChange({ ...data, base_price: preset })}
                     className="px-3 py-1.5 rounded-full border border-gray-200 bg-white hover:bg-gray-900 hover:text-white text-xs font-semibold text-gray-700 transition-all"
                   >
-                    {formatCurrency(preset)}
+                    {formatCurrencyChip(preset)}
                   </button>
                 ))}
               </div>
@@ -339,18 +336,18 @@ export default function PropertyPreviewForm({ data, onChange }: Props) {
 
       {/* Rules */}
       <div className="border-t border-gray-100 pt-4">
-        <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Rules & Instructions</h4>
+        <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">{t('aiImport.rulesAndInstructions')}</h4>
         <div className="space-y-4">
-          <FieldRow label="Check-in Instructions" value={data.check_in_instructions} field="check_in_instructions" editing={editing} onChange={handleFieldChange} multiline />
-          <FieldRow label="Check-out Instructions" value={data.check_out_instructions} field="check_out_instructions" editing={editing} onChange={handleFieldChange} multiline />
-          <FieldRow label="House Rules" value={data.house_rules} field="house_rules" editing={editing} onChange={handleFieldChange} multiline />
+          <FieldRow label={t('properties.form.checkInInstructions')} value={data.check_in_instructions} field="check_in_instructions" editing={editing} onChange={handleFieldChange} multiline />
+          <FieldRow label={t('properties.form.checkOutInstructions')} value={data.check_out_instructions} field="check_out_instructions" editing={editing} onChange={handleFieldChange} multiline />
+          <FieldRow label={t('properties.form.houseRules')} value={data.house_rules} field="house_rules" editing={editing} onChange={handleFieldChange} multiline />
         </div>
       </div>
 
       {/* Amenities */}
       <div className="border-t border-gray-100 pt-4">
         <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">
-          Amenities
+          {t('properties.amenities')}
           <span className="ml-2 text-gray-400 normal-case tracking-normal font-normal">
             ({data.amenities.length})
           </span>
@@ -375,14 +372,14 @@ export default function PropertyPreviewForm({ data, onChange }: Props) {
             </span>
           ))}
           {data.amenities.length === 0 && (
-            <span className="text-xs text-gray-400 italic">No amenities extracted</span>
+            <span className="text-xs text-gray-400 italic">{t('aiImport.noAmenitiesExtracted')}</span>
           )}
         </div>
         {editing && (
           <div className="mt-2">
             <input
               type="text"
-              placeholder="Type amenity and press Enter..."
+              placeholder={t('aiImport.typeAmenityHint')}
               className="w-full max-w-xs bg-gray-50 border border-gray-200 rounded-xl p-2.5 outline-none focus:ring-2 focus:ring-black/10 text-gray-800 text-xs"
               onKeyDown={(e) => {
                 if (e.key === 'Enter') {
@@ -400,14 +397,14 @@ export default function PropertyPreviewForm({ data, onChange }: Props) {
       {/* Photos */}
       <div className="border-t border-gray-100 pt-4">
         <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">
-          Photos
+          {t('cleaning.photos')}
           <span className="ml-2 text-gray-400 normal-case tracking-normal font-normal">
             ({data.photos.length})
           </span>
         </h4>
         {editing && data.photos.length > 0 && (
           <p className="text-[11px] text-gray-400 mb-3">
-            Drag photos to reorder. The first photo is used as the main photo.
+            {t('aiImport.dragPhotosHint')}
           </p>
         )}
         {data.photos.length > 0 ? (
@@ -488,7 +485,7 @@ export default function PropertyPreviewForm({ data, onChange }: Props) {
                 </div>
                 {i === 0 && (
                   <span className="absolute bottom-1.5 right-1.5 bg-amber-400 text-white text-[10px] font-bold uppercase px-2 py-0.5 rounded-md">
-                    Main
+                    {t('aiImport.mainPhoto')}
                   </span>
                 )}
                 {editing && (
@@ -522,7 +519,7 @@ export default function PropertyPreviewForm({ data, onChange }: Props) {
         ) : (
           <div className="flex flex-col items-center justify-center py-8 bg-gray-50 rounded-xl border border-gray-200">
             <ImageOff className="w-6 h-6 text-gray-300 mb-2" />
-            <span className="text-xs text-gray-400">No photos extracted</span>
+            <span className="text-xs text-gray-400">{t('aiImport.noPhotosExtracted')}</span>
           </div>
         )}
       </div>

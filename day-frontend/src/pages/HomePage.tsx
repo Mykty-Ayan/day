@@ -1,8 +1,10 @@
 import { motion } from 'framer-motion'
 import { Calendar } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import Button from '../components/ui/Button'
 
 export default function HomePage() {
+  const { t } = useTranslation()
   return (
     <div className="flex flex-1 items-center justify-center p-6">
       <motion.div
@@ -18,9 +20,9 @@ export default function HomePage() {
         </div>
         <h1 className="text-xl font-bold text-gray-900 mb-2">Day</h1>
         <p className="text-sm text-gray-500 mb-6">
-          Booking & calendar management
+          {t('home.subtitle')}
         </p>
-        <Button>Get Started</Button>
+        <Button>{t('home.getStarted')}</Button>
       </motion.div>
     </div>
   )

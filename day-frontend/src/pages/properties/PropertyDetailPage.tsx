@@ -15,6 +15,7 @@ import {
   Copy,
 } from 'lucide-react'
 import { useParams, Link, useNavigate } from '@tanstack/react-router'
+import { useTranslation } from 'react-i18next'
 import {
   useProperty,
   useAllProperties,
@@ -36,22 +37,22 @@ import { showToast } from '../../components/ui/Toast'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import AuditTrail from '../../components/ui/AuditTrail'
 
-function getStatusActions(status: PropertyStatus): { label: string; target: PropertyStatus; icon: typeof Play }[] {
+function getStatusActions(status: PropertyStatus): { labelKey: string; target: PropertyStatus; icon: typeof Play }[] {
   switch (status) {
     case 'new':
-      return [{ label: 'Activate', target: 'active', icon: Play }]
+      return [{ labelKey: 'properties.activate', target: 'active', icon: Play }]
     case 'active':
       return [
-        { label: 'Pause', target: 'paused', icon: Pause },
-        { label: 'Archive', target: 'archived', icon: Archive },
+        { labelKey: 'properties.pause', target: 'paused', icon: Pause },
+        { labelKey: 'properties.archive', target: 'archived', icon: Archive },
       ]
     case 'paused':
       return [
-        { label: 'Activate', target: 'active', icon: Play },
-        { label: 'Archive', target: 'archived', icon: Archive },
+        { labelKey: 'properties.activate', target: 'active', icon: Play },
+        { labelKey: 'properties.archive', target: 'archived', icon: Archive },
       ]
     case 'archived':
-      return [{ label: 'Activate', target: 'active', icon: Play }]
+      return [{ labelKey: 'properties.activate', target: 'active', icon: Play }]
   }
 }
 
@@ -60,6 +61,7 @@ function seasonalKey(seasonal: Pick<SeasonalPrice, 'name' | 'start_date' | 'end_
 }
 
 export default function PropertyDetailPage() {
+  const { t } = useTranslation()
   const { propertyId } = useParams({ strict: false }) as { propertyId: string }
   const navigate = useNavigate()
   const { data: property, isLoading } = useProperty(propertyId)
@@ -140,8 +142,8 @@ export default function PropertyDetailPage() {
 
   const handleSavePricing = (data: PricingInput) => {
     savePricing.mutate(data, {
-      onSuccess: () => showToast('success', 'Pricing saved'),
-      onError: (err: Error) => showToast('error', err.message || 'Failed to save pricing'),
+      onSuccess: () => showToast('success', t('properties.pricingSaved')),
+      onError: (err: Error) => showToast('error', err.message || t('properties.failedSavePricing')),
     })
   }
 
@@ -156,7 +158,7 @@ export default function PropertyDetailPage() {
   if (!property) {
     return (
       <div className="flex flex-col items-center justify-center py-20">
-        <p className="text-sm text-gray-500">Property not found</p>
+        <p className="text-sm text-gray-500">{t('properties.notFound')}</p>
       </div>
     )
   }
@@ -176,7 +178,7 @@ export default function PropertyDetailPage() {
           className="inline-flex items-center gap-1 text-xs font-bold text-gray-500 hover:text-gray-900 mb-4 transition-colors"
         >
           <ArrowLeft className="w-4 h-4" />
-          Back to properties
+          {t('properties.backToProperties')}
         </Link>
 
         {/* Header */}
@@ -195,7 +197,7 @@ export default function PropertyDetailPage() {
               className="flex items-center gap-2 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-xl px-4 py-2 text-xs font-bold text-gray-700 transition-colors"
             >
               <Pencil className="w-3.5 h-3.5" />
-              Edit
+              {t('common.edit')}
             </motion.button>
             <motion.button
               whileTap={{ scale: 0.97 }}
@@ -203,7 +205,7 @@ export default function PropertyDetailPage() {
               className="flex items-center gap-2 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-xl px-4 py-2 text-xs font-bold text-gray-700 transition-colors"
             >
               <Copy className="w-3.5 h-3.5" />
-              Clone
+              {t('common.clone')}
             </motion.button>
             {statusActions.map((action) => (
               <motion.button
@@ -213,7 +215,7 @@ export default function PropertyDetailPage() {
                 className="flex items-center gap-2 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-xl px-4 py-2 text-xs font-bold text-gray-700 transition-colors"
               >
                 <action.icon className="w-3.5 h-3.5" />
-                {action.label}
+                {t(action.labelKey)}
               </motion.button>
             ))}
           </div>
@@ -246,12 +248,12 @@ export default function PropertyDetailPage() {
           <div className="lg:col-span-2 space-y-6">
             {/* Property details grid */}
             <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
-              <h2 className="text-sm font-bold text-gray-900 mb-4">Details</h2>
+              <h2 className="text-sm font-bold text-gray-900 mb-4">{t('properties.details')}</h2>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                 <div className="flex items-center gap-2">
                   <Building2 className="w-4 h-4 text-gray-400" />
                   <div>
-                    <p className="text-xs text-gray-500">Type</p>
+                    <p className="text-xs text-gray-500">{t('common.type')}</p>
                     <p className="text-sm font-semibold text-gray-900 capitalize">
                       {property.type}
                     </p>
@@ -260,7 +262,7 @@ export default function PropertyDetailPage() {
                 <div className="flex items-center gap-2">
                   <DoorOpen className="w-4 h-4 text-gray-400" />
                   <div>
-                    <p className="text-xs text-gray-500">Rooms</p>
+                    <p className="text-xs text-gray-500">{t('properties.rooms')}</p>
                     <p className="text-sm font-semibold text-gray-900">
                       {property.rooms}
                     </p>
@@ -269,7 +271,7 @@ export default function PropertyDetailPage() {
                 <div className="flex items-center gap-2">
                   <Bed className="w-4 h-4 text-gray-400" />
                   <div>
-                    <p className="text-xs text-gray-500">Beds</p>
+                    <p className="text-xs text-gray-500">{t('properties.beds')}</p>
                     <p className="text-sm font-semibold text-gray-900">
                       {property.beds}
                     </p>
@@ -278,7 +280,7 @@ export default function PropertyDetailPage() {
                 <div className="flex items-center gap-2">
                   <Ruler className="w-4 h-4 text-gray-400" />
                   <div>
-                    <p className="text-xs text-gray-500">Area</p>
+                    <p className="text-xs text-gray-500">{t('properties.area')}</p>
                     <p className="text-sm font-semibold text-gray-900">
                       {property.area_total ?? '-'} m²
                     </p>
@@ -289,13 +291,13 @@ export default function PropertyDetailPage() {
                 <div className="flex items-start gap-2 mt-4 pt-4 border-t border-gray-100">
                   <MapPin className="w-4 h-4 text-gray-400 mt-0.5" />
                   <div>
-                    <p className="text-xs text-gray-500">Address</p>
+                    <p className="text-xs text-gray-500">{t('properties.address')}</p>
                     <p className="text-sm text-gray-900">{property.address_full}</p>
                     {(property.apartment_number || property.floor) && (
                       <p className="text-xs text-gray-500 mt-0.5">
-                        {property.apartment_number && `Apt ${property.apartment_number}`}
+                        {property.apartment_number && t('properties.apt', { number: property.apartment_number })}
                         {property.apartment_number && property.floor && ', '}
-                        {property.floor && `Floor ${property.floor}`}
+                        {property.floor && t('properties.floor', { number: property.floor })}
                       </p>
                     )}
                   </div>
@@ -307,7 +309,7 @@ export default function PropertyDetailPage() {
             {property.description && (
               <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
                 <h2 className="text-sm font-bold text-gray-900 mb-2">
-                  Description
+                  {t('properties.description')}
                 </h2>
                 <p className="text-sm text-gray-700 whitespace-pre-line">
                   {property.description}
@@ -318,11 +320,11 @@ export default function PropertyDetailPage() {
             {/* Rules */}
             {(property.check_in_instructions || property.check_out_instructions || property.house_rules) && (
               <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm space-y-4">
-                <h2 className="text-sm font-bold text-gray-900">Rules</h2>
+                <h2 className="text-sm font-bold text-gray-900">{t('properties.rules')}</h2>
                 {property.check_in_instructions && (
                   <div>
                     <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">
-                      Check-in
+                      {t('properties.checkIn')}
                     </p>
                     <p className="text-sm text-gray-700 whitespace-pre-line">
                       {property.check_in_instructions}
@@ -332,7 +334,7 @@ export default function PropertyDetailPage() {
                 {property.check_out_instructions && (
                   <div>
                     <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">
-                      Check-out
+                      {t('properties.checkOut')}
                     </p>
                     <p className="text-sm text-gray-700 whitespace-pre-line">
                       {property.check_out_instructions}
@@ -342,7 +344,7 @@ export default function PropertyDetailPage() {
                 {property.house_rules && (
                   <div>
                     <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">
-                      House Rules
+                      {t('properties.houseRules')}
                     </p>
                     <p className="text-sm text-gray-700 whitespace-pre-line">
                       {property.house_rules}
@@ -355,7 +357,7 @@ export default function PropertyDetailPage() {
             {/* Amenities */}
             {property.amenities.length > 0 && (
               <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
-                <h2 className="text-sm font-bold text-gray-900 mb-3">Amenities</h2>
+                <h2 className="text-sm font-bold text-gray-900 mb-3">{t('properties.amenities')}</h2>
                 <div className="flex flex-wrap gap-2">
                   {property.amenities.map((amenity) => (
                     <span
@@ -371,37 +373,37 @@ export default function PropertyDetailPage() {
 
             {/* Pricing */}
             <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
-              <h2 className="text-sm font-bold text-gray-900 mb-4">Pricing</h2>
+              <h2 className="text-sm font-bold text-gray-900 mb-4">{t('properties.pricing')}</h2>
               <PricingForm
                 pricing={pricing ?? null}
                 seasonalSuggestions={seasonalSuggestions}
                 onSaveBase={handleSavePricing}
                 onAddSeasonal={(data) =>
                   addSeasonal.mutate(data, {
-                    onSuccess: () => showToast('success', 'Seasonal price added'),
+                    onSuccess: () => showToast('success', t('properties.seasonalPriceAdded')),
                     onError: (err: Error) =>
-                      showToast('error', err.message || 'Failed to add seasonal price'),
+                      showToast('error', err.message || t('properties.failedAddSeasonal')),
                   })
                 }
                 onDeleteSeasonal={(id) =>
                   deleteSeasonal.mutate(id, {
-                    onSuccess: () => showToast('success', 'Seasonal price removed'),
+                    onSuccess: () => showToast('success', t('properties.seasonalPriceRemoved')),
                     onError: (err: Error) =>
-                      showToast('error', err.message || 'Failed to remove seasonal price'),
+                      showToast('error', err.message || t('properties.failedRemoveSeasonal')),
                   })
                 }
                 onAddDiscount={(data) =>
                   addDiscount.mutate(data, {
-                    onSuccess: () => showToast('success', 'Discount rule added'),
+                    onSuccess: () => showToast('success', t('properties.discountRuleAdded')),
                     onError: (err: Error) =>
-                      showToast('error', err.message || 'Failed to add discount rule'),
+                      showToast('error', err.message || t('properties.failedAddDiscount')),
                   })
                 }
                 onDeleteDiscount={(id) =>
                   deleteDiscount.mutate(id, {
-                    onSuccess: () => showToast('success', 'Discount rule removed'),
+                    onSuccess: () => showToast('success', t('properties.discountRuleRemoved')),
                     onError: (err: Error) =>
-                      showToast('error', err.message || 'Failed to remove discount rule'),
+                      showToast('error', err.message || t('properties.failedRemoveDiscount')),
                   })
                 }
                 isSaving={savePricing.isPending}
@@ -418,18 +420,18 @@ export default function PropertyDetailPage() {
 
       <ConfirmDialog
         open={showCloneConfirm}
-        title="Clone Property"
-        message={`Create a copy of "${property.name}" with all its details?`}
-        confirmLabel="Clone"
+        title={t('properties.cloneProperty')}
+        message={t('properties.clonePropertyMessage', { name: property.name })}
+        confirmLabel={t('common.clone')}
         onConfirm={() => {
           clonePropertyMut.mutate(propertyId, {
             onSuccess: (cloned) => {
               setShowCloneConfirm(false)
-              showToast('success', 'Property cloned')
+              showToast('success', t('properties.propertyCloned'))
               navigate({ to: '/properties/$propertyId', params: { propertyId: cloned.id } })
             },
             onError: () => {
-              showToast('error', 'Failed to clone property')
+              showToast('error', t('properties.failedClone'))
             },
           })
         }}

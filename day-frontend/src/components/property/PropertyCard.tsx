@@ -1,8 +1,10 @@
 import { motion } from 'framer-motion'
 import { Bed, DoorOpen, Building2 } from 'lucide-react'
 import { Link } from '@tanstack/react-router'
+import { useTranslation } from 'react-i18next'
 import type { Property } from '../../types/property'
 import StatusBadge from './StatusBadge'
+import { useCurrency } from '../../hooks/useCurrency'
 
 interface Props {
   property: Property
@@ -11,6 +13,8 @@ interface Props {
 }
 
 export default function PropertyCard({ property, index, variant = 'large' }: Props) {
+  const { t } = useTranslation()
+  const { symbol } = useCurrency()
   const photos = property.photos ?? []
   const coverPhoto = photos.find((p) => p.is_cover) || photos[0]
   const isList = variant === 'list'
@@ -62,18 +66,18 @@ export default function PropertyCard({ property, index, variant = 'large' }: Pro
           <div className={`flex items-center gap-3 ${isList ? 'mt-2' : 'mt-3'}`}>
             <div className={`flex items-center gap-1 ${isMedium ? 'text-[10px]' : 'text-xs'} text-gray-500`}>
               <DoorOpen className="w-3.5 h-3.5" />
-              <span>{property.rooms} rooms</span>
+              <span>{t('properties.roomsCount', { count: property.rooms })}</span>
             </div>
             <div className={`flex items-center gap-1 ${isMedium ? 'text-[10px]' : 'text-xs'} text-gray-500`}>
               <Bed className="w-3.5 h-3.5" />
-              <span>{property.beds} beds</span>
+              <span>{t('properties.bedsCount', { count: property.beds })}</span>
             </div>
           </div>
 
           {property.pricing && (
             <p className={`${isMedium ? 'text-[12px]' : 'text-sm'} font-bold text-gray-900 ${isList ? 'mt-2' : 'mt-3'}`}>
-              ${property.pricing.base_price}
-              <span className={`${isMedium ? 'text-[10px]' : 'text-xs'} font-normal text-gray-500`}> / night</span>
+              {symbol}{property.pricing.base_price}
+              <span className={`${isMedium ? 'text-[10px]' : 'text-xs'} font-normal text-gray-500`}> {t('properties.perNight')}</span>
             </p>
           )}
         </div>

@@ -2,6 +2,7 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { ArrowLeft, Camera, CheckCircle2, ClipboardList, Info } from 'lucide-react'
 import { useState } from 'react'
 import { Link, useParams } from '@tanstack/react-router'
+import { useTranslation } from 'react-i18next'
 
 import CleaningStatusBadge from '../../components/cleaning/CleaningStatusBadge'
 import CleaningTypeBadge from '../../components/cleaning/CleaningTypeBadge'
@@ -11,25 +12,31 @@ import { useChangeCleaningTaskStatus, useCleaningTask } from '../../hooks/useCle
 import type { CleaningStatus, CleaningTaskDetail } from '../../types/cleaning'
 import { CLEANING_VALID_TRANSITIONS } from '../../types/cleaning'
 
-type Tab = 'Overview' | 'Report'
+type Tab = 'overview' | 'report'
 
-const TABS: Tab[] = ['Overview', 'Report']
+const TABS: Tab[] = ['overview', 'report']
 
 export default function CleaningDetailPage() {
+  const { t } = useTranslation()
   const { taskId } = useParams({ strict: false }) as { taskId: string }
   const { data, isLoading } = useCleaningTask(taskId)
-  const [activeTab, setActiveTab] = useState<Tab>('Overview')
+  const [activeTab, setActiveTab] = useState<Tab>('overview')
 
   if (isLoading) {
     return (
-      <div className="p-6 text-center text-gray-400">Loading task...</div>
+      <div className="p-6 text-center text-gray-400">{t('cleaning.loadingTask')}</div>
     )
   }
 
   if (!data) {
     return (
-      <div className="p-6 text-center text-gray-400">Task not found</div>
+      <div className="p-6 text-center text-gray-400">{t('cleaning.taskNotFound')}</div>
     )
+  }
+
+  const tabLabels: Record<Tab, string> = {
+    overview: t('bookings.tabs.overview'),
+    report: t('cleaning.report'),
   }
 
   return (
@@ -44,7 +51,7 @@ export default function CleaningDetailPage() {
         className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 mb-4"
       >
         <ArrowLeft className="w-4 h-4" />
-        Back to Cleaning Tasks
+        {t('cleaning.backToCleaningTasks')}
       </Link>
 
       <div className="flex items-center justify-between mb-6">
@@ -74,7 +81,7 @@ export default function CleaningDetailPage() {
                 : 'text-gray-500 hover:text-gray-700'
             }`}
           >
-            {tab}
+            {tabLabels[tab]}
           </button>
         ))}
       </div>
@@ -87,8 +94,8 @@ export default function CleaningDetailPage() {
           exit={{ opacity: 0, y: -8 }}
           transition={{ duration: 0.2 }}
         >
-          {activeTab === 'Overview' && <OverviewTab data={data} />}
-          {activeTab === 'Report' && <ReportTab data={data} />}
+          {activeTab === 'overview' && <OverviewTab data={data} />}
+          {activeTab === 'report' && <ReportTab data={data} />}
         </motion.div>
       </AnimatePresence>
     </motion.div>
@@ -96,6 +103,7 @@ export default function CleaningDetailPage() {
 }
 
 function OverviewTab({ data }: { data: CleaningTaskDetail }) {
+  const { t } = useTranslation()
   const { task } = data
   const statusMutation = useChangeCleaningTaskStatus(task.id)
 
@@ -103,9 +111,9 @@ function OverviewTab({ data }: { data: CleaningTaskDetail }) {
 
   function handleStatusChange(status: CleaningStatus) {
     statusMutation.mutate(status, {
-      onSuccess: () => showToast('success', `Status changed to ${status}`),
+      onSuccess: () => showToast('success', t('cleaning.statusChangedTo', { status })),
       onError: (err: Error) =>
-        showToast('error', err.message || 'Failed to change status'),
+        showToast('error', err.message || t('cleaning.failedChangeStatus')),
     })
   }
 
@@ -114,38 +122,38 @@ function OverviewTab({ data }: { data: CleaningTaskDetail }) {
       <div className="bg-white rounded-2xl border border-gray-200 p-6">
         <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
           <Info className="w-5 h-5 text-gray-400" />
-          Task Details
+          {t('cleaning.taskDetails')}
         </h2>
         <div className="grid grid-cols-2 gap-4 text-sm">
           <div>
-            <span className="text-gray-400">Type</span>
+            <span className="text-gray-400">{t('cleaning.type')}</span>
             <p className="font-medium mt-1">{task.type}</p>
           </div>
           <div>
-            <span className="text-gray-400">Status</span>
+            <span className="text-gray-400">{t('common.status')}</span>
             <p className="mt-1">
               <CleaningStatusBadge status={task.status} />
             </p>
           </div>
           <div>
-            <span className="text-gray-400">Scheduled Date</span>
+            <span className="text-gray-400">{t('cleaning.scheduledDate')}</span>
             <p className="font-medium mt-1">{task.scheduled_date || '—'}</p>
           </div>
           <div>
-            <span className="text-gray-400">Scheduled Time</span>
+            <span className="text-gray-400">{t('cleaning.scheduledTime')}</span>
             <p className="font-medium mt-1">{task.scheduled_time || '—'}</p>
           </div>
           <div>
-            <span className="text-gray-400">Cleaner ID</span>
+            <span className="text-gray-400">{t('cleaning.cleanerId')}</span>
             <p className="font-medium mt-1">{task.cleaner_id || 'Unassigned'}</p>
           </div>
           <div>
-            <span className="text-gray-400">Booking ID</span>
+            <span className="text-gray-400">{t('cleaning.bookingId')}</span>
             <p className="font-medium mt-1">{task.booking_id || '—'}</p>
           </div>
           {task.started_at && (
             <div>
-              <span className="text-gray-400">Started</span>
+              <span className="text-gray-400">{t('cleaning.started')}</span>
               <p className="font-medium mt-1">
                 {new Date(task.started_at).toLocaleString()}
               </p>
@@ -153,7 +161,7 @@ function OverviewTab({ data }: { data: CleaningTaskDetail }) {
           )}
           {task.completed_at && (
             <div>
-              <span className="text-gray-400">Completed</span>
+              <span className="text-gray-400">{t('cleaning.completed')}</span>
               <p className="font-medium mt-1">
                 {new Date(task.completed_at).toLocaleString()}
               </p>
@@ -161,7 +169,7 @@ function OverviewTab({ data }: { data: CleaningTaskDetail }) {
           )}
           {task.verified_at && (
             <div>
-              <span className="text-gray-400">Verified</span>
+              <span className="text-gray-400">{t('cleaning.verified')}</span>
               <p className="font-medium mt-1">
                 {new Date(task.verified_at).toLocaleString()}
               </p>
@@ -170,7 +178,7 @@ function OverviewTab({ data }: { data: CleaningTaskDetail }) {
         </div>
         {task.notes && (
           <div className="mt-4 pt-4 border-t border-gray-100">
-            <span className="text-gray-400 text-sm">Notes</span>
+            <span className="text-gray-400 text-sm">{t('common.notes')}</span>
             <p className="text-sm mt-1">{task.notes}</p>
           </div>
         )}
@@ -184,7 +192,7 @@ function OverviewTab({ data }: { data: CleaningTaskDetail }) {
               disabled={statusMutation.isPending}
               onClick={() => handleStatusChange(status)}
             >
-              Transition to {status}
+              {t('cleaning.transitionTo', { status })}
             </Button>
           ))}
         </div>
@@ -194,12 +202,13 @@ function OverviewTab({ data }: { data: CleaningTaskDetail }) {
 }
 
 function ReportTab({ data }: { data: CleaningTaskDetail }) {
+  const { t } = useTranslation()
   const { report } = data
 
   if (!report) {
     return (
       <div className="bg-white rounded-2xl border border-gray-200 p-6 text-center text-gray-400">
-        No report submitted yet
+        {t('cleaning.noReportYet')}
       </div>
     )
   }
@@ -209,17 +218,17 @@ function ReportTab({ data }: { data: CleaningTaskDetail }) {
       <div className="bg-white rounded-2xl border border-gray-200 p-6">
         <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
           <ClipboardList className="w-5 h-5 text-gray-400" />
-          Report
+          {t('cleaning.report')}
         </h2>
         <div className="grid grid-cols-2 gap-4 text-sm mb-4">
           <div>
-            <span className="text-gray-400">Status</span>
+            <span className="text-gray-400">{t('common.status')}</span>
             <p className="font-medium mt-1 capitalize">
               {report.report.status}
             </p>
           </div>
           <div>
-            <span className="text-gray-400">Submitted</span>
+            <span className="text-gray-400">{t('cleaning.submitted')}</span>
             <p className="font-medium mt-1">
               {report.report.submitted_at
                 ? new Date(report.report.submitted_at).toLocaleString()
@@ -229,7 +238,7 @@ function ReportTab({ data }: { data: CleaningTaskDetail }) {
         </div>
         {report.report.notes && (
           <div className="pt-4 border-t border-gray-100">
-            <span className="text-gray-400 text-sm">Notes</span>
+            <span className="text-gray-400 text-sm">{t('common.notes')}</span>
             <p className="text-sm mt-1">{report.report.notes}</p>
           </div>
         )}
@@ -239,7 +248,7 @@ function ReportTab({ data }: { data: CleaningTaskDetail }) {
         <div className="bg-white rounded-2xl border border-gray-200 p-6">
           <h3 className="text-md font-semibold text-gray-900 mb-4 flex items-center gap-2">
             <Camera className="w-5 h-5 text-gray-400" />
-            Photos ({report.photos.length})
+            {t('cleaning.photos')} ({report.photos.length})
           </h3>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
             {report.photos.map((photo) => (
@@ -255,7 +264,7 @@ function ReportTab({ data }: { data: CleaningTaskDetail }) {
                     {photo.room_type}
                   </span>
                   {photo.metadata_verified && (
-                    <span className="ml-2 text-green-600">Verified</span>
+                    <span className="ml-2 text-green-600">{t('cleaning.verified')}</span>
                   )}
                 </div>
               </div>
@@ -268,7 +277,7 @@ function ReportTab({ data }: { data: CleaningTaskDetail }) {
         <div className="bg-white rounded-2xl border border-gray-200 p-6">
           <h3 className="text-md font-semibold text-gray-900 mb-4 flex items-center gap-2">
             <CheckCircle2 className="w-5 h-5 text-gray-400" />
-            Checklist ({report.checklist.length})
+            {t('cleaning.checklist')} ({report.checklist.length})
           </h3>
           <div className="space-y-2">
             {report.checklist.map((item) => (

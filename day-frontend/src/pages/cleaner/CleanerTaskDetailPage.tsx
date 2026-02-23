@@ -12,6 +12,7 @@ import {
   AlertCircle,
 } from 'lucide-react'
 import { useNavigate, useParams } from '@tanstack/react-router'
+import { useTranslation } from 'react-i18next'
 import {
   useCleaningTask,
   useChangeCleaningTaskStatus,
@@ -31,14 +32,6 @@ const CLEANING_VALID_TRANSITIONS: Record<CleaningStatus, CleaningStatus[]> = {
   verified: [],
 }
 
-const statusLabels: Record<CleaningStatus, string> = {
-  pending: 'Pending',
-  assigned: 'Assigned',
-  in_progress: 'In Progress',
-  done: 'Done',
-  verified: 'Verified',
-}
-
 const statusColors: Record<CleaningStatus, string> = {
   pending: 'bg-gray-100 text-gray-700',
   assigned: 'bg-blue-100 text-blue-700',
@@ -46,21 +39,6 @@ const statusColors: Record<CleaningStatus, string> = {
   done: 'bg-green-100 text-green-700',
   verified: 'bg-emerald-100 text-emerald-700',
 }
-
-const nextActionLabels: Record<CleaningStatus, string> = {
-  pending: 'Accept Task',
-  assigned: 'Start Cleaning',
-  in_progress: 'Mark as Done',
-  done: 'Verify',
-  verified: '',
-}
-
-const ROOM_TYPES: { value: RoomType; label: string }[] = [
-  { value: 'bathroom', label: 'Bathroom' },
-  { value: 'kitchen', label: 'Kitchen' },
-  { value: 'bedroom', label: 'Bedroom' },
-  { value: 'other', label: 'Other' },
-]
 
 interface ChecklistState {
   [itemId: string]: boolean
@@ -73,6 +51,7 @@ interface PhotoEntry {
 }
 
 export default function CleanerTaskDetailPage() {
+  const { t } = useTranslation()
   const { taskId } = useParams({ strict: false }) as { taskId: string }
   const navigate = useNavigate()
   const { data: taskDetail, isLoading } = useCleaningTask(taskId)
@@ -87,6 +66,29 @@ export default function CleanerTaskDetailPage() {
 
   const task = taskDetail?.task
   const report = taskDetail?.report
+
+  const statusLabels: Record<CleaningStatus, string> = {
+    pending: t('cleaning.status.pending'),
+    assigned: t('cleaning.status.assigned'),
+    in_progress: t('cleaning.status.inProgress'),
+    done: t('cleaning.status.done'),
+    verified: t('cleaning.status.verified'),
+  }
+
+  const nextActionLabels: Record<CleaningStatus, string> = {
+    pending: t('cleaning.actions.acceptTask'),
+    assigned: t('cleaning.actions.startCleaning'),
+    in_progress: t('cleaning.actions.markAsDone'),
+    done: t('cleaning.actions.verify'),
+    verified: '',
+  }
+
+  const ROOM_TYPES: { value: RoomType; label: string }[] = [
+    { value: 'bathroom', label: t('cleaning.roomTypes.bathroom') },
+    { value: 'kitchen', label: t('cleaning.roomTypes.kitchen') },
+    { value: 'bedroom', label: t('cleaning.roomTypes.bedroom') },
+    { value: 'other', label: t('cleaning.roomTypes.other') },
+  ]
 
   function toggleChecklistItem(itemId: string) {
     setChecklist((prev) => ({ ...prev, [itemId]: !prev[itemId] }))
@@ -125,10 +127,10 @@ export default function CleanerTaskDetailPage() {
 
     changeStatus.mutate(nextStatus, {
       onSuccess: () => {
-        showToast('success', `Status changed to ${statusLabels[nextStatus]}`)
+        showToast('success', t('cleaner.statusChangedTo', { status: t('cleaning.status.' + nextStatus) }))
       },
       onError: () => {
-        showToast('error', 'Failed to change status')
+        showToast('error', t('cleaner.failedChangeStatus'))
       },
     })
   }
@@ -154,11 +156,11 @@ export default function CleanerTaskDetailPage() {
       },
       {
         onSuccess: () => {
-          showToast('success', 'Report submitted')
+          showToast('success', t('cleaner.reportSubmitted'))
           setShowReportForm(false)
         },
         onError: () => {
-          showToast('error', 'Failed to submit report')
+          showToast('error', t('cleaner.failedSubmitReport'))
         },
       },
     )
@@ -175,7 +177,7 @@ export default function CleanerTaskDetailPage() {
   if (!task) {
     return (
       <div className="flex flex-col items-center justify-center py-20">
-        <p className="text-sm text-gray-500">Task not found</p>
+        <p className="text-sm text-gray-500">{t('cleaner.taskNotFound')}</p>
       </div>
     )
   }
@@ -200,7 +202,7 @@ export default function CleanerTaskDetailPage() {
           </motion.button>
           <div className="flex-1 min-w-0">
             <h1 className="text-lg font-bold text-gray-900 truncate">
-              {task.property_internal_name || task.property_name || 'Cleaning Task'}
+              {task.property_internal_name || task.property_name || t('cleaner.cleaningTask')}
             </h1>
             <div className="flex items-center gap-2 mt-0.5">
               <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase ${statusColors[task.status]}`}>
@@ -215,7 +217,7 @@ export default function CleanerTaskDetailPage() {
       <div className="px-4 py-4 space-y-4">
         {/* Task info */}
         <div className="bg-white rounded-2xl border border-gray-200 p-4 shadow-sm">
-          <h2 className="text-sm font-bold text-gray-900 mb-3">Task Details</h2>
+          <h2 className="text-sm font-bold text-gray-900 mb-3">{t('cleaner.taskDetails')}</h2>
           <div className="space-y-2">
             {task.scheduled_date && (
               <div className="flex items-center gap-2">
@@ -244,7 +246,7 @@ export default function CleanerTaskDetailPage() {
         {/* Existing report */}
         {report && (
           <div className="bg-white rounded-2xl border border-gray-200 p-4 shadow-sm">
-            <h2 className="text-sm font-bold text-gray-900 mb-3">Report</h2>
+            <h2 className="text-sm font-bold text-gray-900 mb-3">{t('cleaner.report')}</h2>
             <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase ${
               report.report.status === 'approved' ? 'bg-green-100 text-green-700' :
               report.report.status === 'rejected' ? 'bg-red-100 text-red-700' :
@@ -279,7 +281,7 @@ export default function CleanerTaskDetailPage() {
             animate={{ opacity: 1, y: 0 }}
             className="bg-white rounded-2xl border border-gray-200 p-4 shadow-sm space-y-4"
           >
-            <h2 className="text-sm font-bold text-gray-900">Submit Report</h2>
+            <h2 className="text-sm font-bold text-gray-900">{t('cleaner.submitReport')}</h2>
 
             {/* Checklist */}
             {firstTemplate && (
@@ -295,7 +297,7 @@ export default function CleanerTaskDetailPage() {
             {/* Photo upload */}
             <div>
               <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
-                Photos
+                {t('cleaner.photos')}
               </p>
               <div className="flex flex-wrap gap-2">
                 {photos.map((photo, i) => (
@@ -321,7 +323,7 @@ export default function CleanerTaskDetailPage() {
                 ))}
                 <label className="w-20 h-20 rounded-xl border-2 border-dashed border-gray-200 flex flex-col items-center justify-center cursor-pointer hover:bg-gray-50 transition-colors min-w-[48px] min-h-[48px]">
                   <Camera className="w-5 h-5 text-gray-400" />
-                  <span className="text-[10px] text-gray-400 mt-1">Add</span>
+                  <span className="text-[10px] text-gray-400 mt-1">{t('common.add')}</span>
                   <input
                     type="file"
                     accept="image/*"
@@ -336,12 +338,12 @@ export default function CleanerTaskDetailPage() {
             {/* Notes */}
             <div>
               <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
-                Notes
+                {t('cleaner.notes')}
               </p>
               <textarea
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
-                placeholder="Any issues or comments..."
+                placeholder={t('cleaner.anyIssuesOrComments')}
                 rows={3}
                 className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 outline-none focus:ring-2 focus:ring-black/10 text-sm resize-none"
               />
@@ -360,7 +362,7 @@ export default function CleanerTaskDetailPage() {
                 ) : (
                   <>
                     <Send className="w-4 h-4" />
-                    Submit Report
+                    {t('cleaner.submitReport')}
                   </>
                 )}
               </motion.button>
@@ -369,7 +371,7 @@ export default function CleanerTaskDetailPage() {
                 onClick={() => setShowReportForm(false)}
                 className="px-4 py-3 rounded-xl border border-gray-200 text-sm font-bold text-gray-700 hover:bg-gray-50 transition-colors min-h-[48px]"
               >
-                Cancel
+                {t('common.cancel')}
               </motion.button>
             </div>
           </motion.div>
@@ -409,6 +411,7 @@ function ChecklistSection({
   checklist: ChecklistState
   onToggle: (itemId: string) => void
 }) {
+  const { t } = useTranslation()
   const { data: templateDetail } = useChecklistTemplate(templateId)
   const items = templateDetail?.items ?? []
 
@@ -417,7 +420,7 @@ function ChecklistSection({
   return (
     <div>
       <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
-        Checklist
+        {t('cleaner.checklist')}
       </p>
       <div className="space-y-1">
         {items.map((item) => (

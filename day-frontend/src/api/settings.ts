@@ -4,6 +4,7 @@ export interface UserSettings {
   language: string
   timezone: string
   notifications_enabled: boolean
+  default_currency: string
 }
 
 export async function getUserSettings(): Promise<UserSettings> {

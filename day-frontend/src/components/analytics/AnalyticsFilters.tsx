@@ -13,27 +13,7 @@ import { Checkbox } from '../ui/checkbox'
 import { cn } from '../../lib/utils'
 import { ChevronDown, Download } from 'lucide-react'
 import { motion } from 'framer-motion'
-
-const PERIOD_OPTIONS: { value: PeriodPreset; label: string }[] = [
-  { value: 'week', label: 'Week' },
-  { value: 'month', label: 'Month' },
-  { value: 'quarter', label: 'Quarter' },
-  { value: 'year', label: 'Year' },
-]
-
-const GRANULARITY_OPTIONS: { value: Granularity; label: string }[] = [
-  { value: 'day', label: 'Daily' },
-  { value: 'week', label: 'Weekly' },
-  { value: 'month', label: 'Monthly' },
-]
-
-const SOURCE_OPTIONS = [
-  { value: 'all', label: 'All Sources' },
-  { value: 'direct', label: 'Direct' },
-  { value: 'booking', label: 'Booking.com' },
-  { value: 'airbnb', label: 'Airbnb' },
-  { value: 'other', label: 'Other' },
-]
+import { useTranslation } from 'react-i18next'
 
 interface Props {
   period: PeriodPreset
@@ -60,13 +40,36 @@ export default function AnalyticsFilterBar({
   properties,
   onExport,
 }: Props) {
+  const { t } = useTranslation()
+
+  const PERIOD_OPTIONS: { value: PeriodPreset; label: string }[] = [
+    { value: 'week', label: t('analytics.week') },
+    { value: 'month', label: t('analytics.month') },
+    { value: 'quarter', label: t('analytics.quarter') },
+    { value: 'year', label: t('analytics.year') },
+  ]
+
+  const GRANULARITY_OPTIONS: { value: Granularity; label: string }[] = [
+    { value: 'day', label: t('analytics.daily') },
+    { value: 'week', label: t('analytics.weekly') },
+    { value: 'month', label: t('analytics.monthly') },
+  ]
+
+  const SOURCE_OPTIONS = [
+    { value: 'all', label: t('common.allSources') },
+    { value: 'direct', label: t('common.direct') },
+    { value: 'booking', label: t('common.bookingCom') },
+    { value: 'airbnb', label: t('common.airbnb') },
+    { value: 'other', label: t('common.other') },
+  ]
+
   const selectedProperties = properties.filter((p) => propertyIds.includes(p.id))
   const propertyLabel =
     selectedProperties.length === 0
-      ? 'All Properties'
+      ? t('common.allProperties')
       : selectedProperties.length === 1
         ? selectedProperties[0].internal_name
-        : `${selectedProperties.length} properties`
+        : t('analytics.propertiesCount', { count: selectedProperties.length })
   const propertyTitle =
     selectedProperties.length <= 1
       ? propertyLabel
@@ -150,14 +153,14 @@ export default function AnalyticsFilterBar({
                     if (checked) clearProperties()
                   }}
                 />
-                <span className="truncate">All Properties</span>
+                <span className="truncate">{t('common.allProperties')}</span>
               </label>
 
               <div className="my-1 h-px bg-gray-100" />
 
               {properties.length === 0 ? (
                 <div className="px-2 py-2 text-sm text-gray-400">
-                  No properties available
+                  {t('analytics.noPropertiesAvailable')}
                 </div>
               ) : (
                 properties.map((p) => {
@@ -187,7 +190,7 @@ export default function AnalyticsFilterBar({
 
         <Select value={source} onValueChange={onSourceChange}>
           <SelectTrigger className="w-full sm:w-44">
-            <SelectValue placeholder="All Sources" />
+            <SelectValue placeholder={t('common.allSources')} />
           </SelectTrigger>
           <SelectContent>
             {SOURCE_OPTIONS.map((s) => (
@@ -204,7 +207,7 @@ export default function AnalyticsFilterBar({
           className="flex items-center gap-2 bg-white border border-gray-200 hover:bg-gray-50 rounded-xl px-4 py-2 text-sm font-semibold text-gray-700 transition-colors"
         >
           <Download className="w-4 h-4" />
-          Export CSV
+          {t('analytics.exportCsv')}
         </motion.button>
       </div>
     </div>

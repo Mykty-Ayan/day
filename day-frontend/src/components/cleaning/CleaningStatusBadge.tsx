@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next'
 import type { CleaningStatus } from '../../types/cleaning'
 
 const statusStyles: Record<CleaningStatus, string> = {
@@ -8,19 +9,21 @@ const statusStyles: Record<CleaningStatus, string> = {
   verified: 'bg-green-100 text-green-700',
 }
 
-const statusLabels: Record<CleaningStatus, string> = {
-  pending: 'Pending',
-  assigned: 'Assigned',
-  in_progress: 'In Progress',
-  done: 'Done',
-  verified: 'Verified',
-}
-
 export default function CleaningStatusBadge({
   status,
 }: {
   status: CleaningStatus
 }) {
+  const { t } = useTranslation()
+
+  const statusLabels: Record<CleaningStatus, string> = {
+    pending: t('cleaning.status.pending'),
+    assigned: t('cleaning.status.assigned'),
+    in_progress: t('cleaning.status.inProgress'),
+    done: t('cleaning.status.done'),
+    verified: t('cleaning.status.verified'),
+  }
+
   return (
     <span
       className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wide ${statusStyles[status]}`}

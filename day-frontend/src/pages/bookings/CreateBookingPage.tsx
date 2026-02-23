@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
+import { useTranslation } from 'react-i18next'
 import { motion } from 'framer-motion'
 import { ArrowLeft, Check, Loader2, Calculator, User, Phone, Mail } from 'lucide-react'
 import { useNavigate } from '@tanstack/react-router'
@@ -6,7 +7,7 @@ import { useCreateBooking, useCalculatePrice, useGuests } from '../../hooks/useB
 import { useAllProperties } from '../../hooks/useProperties'
 import type { BookingSource, BookingCreateInput, PriceCalculateInput } from '../../types/booking'
 import type { AxiosError } from 'axios'
-import DatePicker from '../../components/ui/date-picker'
+import DateRangePicker from '../../components/ui/date-range-picker'
 import {
   Select,
   SelectContent,
@@ -16,23 +17,7 @@ import {
 } from '../../components/ui/select'
 import { ToggleGroup, ToggleGroupItem } from '../../components/ui/toggle-group'
 import NumberInput from '../../components/ui/number-input'
-
-const SOURCES: { value: BookingSource; label: string }[] = [
-  { value: 'direct', label: 'Direct' },
-  { value: 'booking', label: 'Booking.com' },
-  { value: 'airbnb', label: 'Airbnb' },
-  { value: 'other', label: 'Other' },
-]
-
-const GANTT_COLORS = [
-  { value: '#3B82F6', label: 'Blue' },
-  { value: '#10B981', label: 'Green' },
-  { value: '#F59E0B', label: 'Amber' },
-  { value: '#EF4444', label: 'Red' },
-  { value: '#8B5CF6', label: 'Purple' },
-  { value: '#EC4899', label: 'Pink' },
-  { value: '#06B6D4', label: 'Cyan' },
-]
+import { useCurrency } from '../../hooks/useCurrency'
 
 interface FormData {
   property_id: string
@@ -97,6 +82,8 @@ function getBookingPrefill(): BookingPrefill {
 }
 
 export default function CreateBookingPage() {
+  const { t } = useTranslation()
+  const { symbol } = useCurrency()
   const prefill = useMemo(() => getBookingPrefill(), [])
   const navigate = useNavigate()
   const createBooking = useCreateBooking()
@@ -110,6 +97,23 @@ export default function CreateBookingPage() {
   const guestSearch = form.guest_phone.trim()
   const canSearchGuests = guestSearch.length >= 2
   const [showGuestSuggestions, setShowGuestSuggestions] = useState(false)
+
+  const SOURCES: { value: BookingSource; label: string }[] = [
+    { value: 'direct', label: t('bookings.sources.direct') },
+    { value: 'booking', label: t('bookings.sources.booking') },
+    { value: 'airbnb', label: t('bookings.sources.airbnb') },
+    { value: 'other', label: t('bookings.sources.other') },
+  ]
+
+  const GANTT_COLORS = [
+    { value: '#3B82F6', label: t('bookings.colors.blue') },
+    { value: '#10B981', label: t('bookings.colors.green') },
+    { value: '#F59E0B', label: t('bookings.colors.amber') },
+    { value: '#EF4444', label: t('bookings.colors.red') },
+    { value: '#8B5CF6', label: t('bookings.colors.purple') },
+    { value: '#EC4899', label: t('bookings.colors.pink') },
+    { value: '#06B6D4', label: t('bookings.colors.cyan') },
+  ]
 
   const { data: propertiesData } = useAllProperties()
   const properties = useMemo(
@@ -172,17 +176,17 @@ export default function CreateBookingPage() {
 
   function validate(): boolean {
     const errs: Record<string, string> = {}
-    if (!form.property_id) errs.property_id = 'Property is required'
-    else if (!selectedProperty) errs.property_id = 'Selected property is unavailable'
-    else if (selectedProperty.status === 'paused') errs.property_id = 'Paused property is unavailable for booking'
-    if (!form.check_in) errs.check_in = 'Check-in date is required'
-    if (!form.check_out) errs.check_out = 'Check-out date is required'
+    if (!form.property_id) errs.property_id = t('bookings.validation.propertyRequired')
+    else if (!selectedProperty) errs.property_id = t('bookings.validation.propertyUnavailable')
+    else if (selectedProperty.status === 'paused') errs.property_id = t('bookings.validation.propertyPaused')
+    if (!form.check_in) errs.check_in = t('bookings.validation.checkInRequired')
+    if (!form.check_out) errs.check_out = t('bookings.validation.checkOutRequired')
     if (form.check_in && form.check_out && form.check_in >= form.check_out) {
-      errs.check_out = 'Check-out must be after check-in'
+      errs.check_out = t('bookings.validation.checkOutAfterCheckIn')
     }
-    if (!form.guest_name.trim()) errs.guest_name = 'Guest name is required'
-    if (!form.guest_phone.trim()) errs.guest_phone = 'Guest phone is required'
-    if (form.adults_count < 1) errs.adults_count = 'At least 1 adult required'
+    if (!form.guest_name.trim()) errs.guest_name = t('bookings.validation.guestNameRequired')
+    if (!form.guest_phone.trim()) errs.guest_phone = t('bookings.validation.guestPhoneRequired')
+    if (form.adults_count < 1) errs.adults_count = t('bookings.validation.adultsRequired')
     setErrors(errs)
     return Object.keys(errs).length === 0
   }
@@ -236,7 +240,7 @@ export default function CreateBookingPage() {
           >
             <ArrowLeft className="w-4 h-4" />
           </motion.button>
-          <h1 className="text-xl font-bold text-gray-900">New Booking</h1>
+          <h1 className="text-xl font-bold text-gray-900">{t('bookings.newBooking')}</h1>
         </div>
 
         <div className="flex flex-col lg:flex-row gap-6">
@@ -251,7 +255,7 @@ export default function CreateBookingPage() {
               {/* Property */}
               <div>
                 <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">
-                  Property
+                  {t('bookings.property')}
                 </label>
                 <Select
                   value={form.property_id || undefined}
@@ -260,7 +264,7 @@ export default function CreateBookingPage() {
                   <SelectTrigger
                     className={errors.property_id ? 'border-red-300' : ''}
                   >
-                    <SelectValue placeholder="Select property..." />
+                    <SelectValue placeholder={t('bookings.selectProperty')} />
                   </SelectTrigger>
                   <SelectContent>
                     {properties.map((p) => (
@@ -276,66 +280,38 @@ export default function CreateBookingPage() {
               </div>
 
               {/* Dates */}
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">
-                    Check-in
-                  </label>
-                  <DatePicker
-                    value={form.check_in}
-                    onChange={(value) => updateField('check_in', value)}
-                    minDate={new Date()}
-                    placeholder="Select date"
-                    className={errors.check_in ? 'border-red-300' : ''}
-                  />
-                  {errors.check_in && (
-                    <p className="text-xs text-red-500 mt-1">{errors.check_in}</p>
-                  )}
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">
-                    Check-out
-                  </label>
-                  <DatePicker
-                    value={form.check_out}
-                    onChange={(value) => updateField('check_out', value)}
-                    minDate={form.check_in || new Date()}
-                    placeholder="Select date"
-                    className={errors.check_out ? 'border-red-300' : ''}
-                  />
-                  {errors.check_out && (
-                    <p className="text-xs text-red-500 mt-1">{errors.check_out}</p>
-                  )}
-                </div>
+              <div>
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">
+                  {t('bookings.dateRange')}
+                </label>
+                <DateRangePicker
+                  startDate={form.check_in}
+                  endDate={form.check_out}
+                  onRangeChange={(start, end) => {
+                    updateField('check_in', start)
+                    updateField('check_out', end)
+                  }}
+                  minDate={new Date()}
+                  placeholder={t('bookings.selectDates')}
+                  error={!!errors.check_in || !!errors.check_out}
+                />
+                {errors.check_in && (
+                  <p className="text-xs text-red-500 mt-1">{errors.check_in}</p>
+                )}
+                {errors.check_out && (
+                  <p className="text-xs text-red-500 mt-1">{errors.check_out}</p>
+                )}
               </div>
 
               {/* Guest */}
               <div className="border-t border-gray-100 pt-5">
                 <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">
-                  Guest Information
+                  {t('bookings.guestInfo')}
                 </h3>
                 <div className="space-y-3">
-                  <div>
-                    <label className="block text-xs font-bold text-gray-500 mb-1.5">
-                      <span className="flex items-center gap-1"><User className="w-3 h-3" /> Name</span>
-                    </label>
-                    <input
-                      type="text"
-                      value={form.guest_name}
-                      onChange={(e) => updateField('guest_name', e.target.value)}
-                      placeholder="Guest name"
-                      className={`w-full bg-gray-50 border rounded-xl p-3 outline-none focus:ring-2 focus:ring-black/10 text-sm ${
-                        errors.guest_name ? 'border-red-300' : 'border-gray-200'
-                      }`}
-                    />
-                    {errors.guest_name && (
-                      <p className="text-xs text-red-500 mt-1">{errors.guest_name}</p>
-                    )}
-                  </div>
-
                   <div className="relative">
                     <label className="block text-xs font-bold text-gray-500 mb-1.5">
-                      <span className="flex items-center gap-1"><Phone className="w-3 h-3" /> Phone</span>
+                      <span className="flex items-center gap-1"><Phone className="w-3 h-3" /> {t('bookings.phone')}</span>
                     </label>
                     <input
                       type="tel"
@@ -345,7 +321,7 @@ export default function CreateBookingPage() {
                         setShowGuestSuggestions(true)
                       }}
                       onBlur={() => setTimeout(() => setShowGuestSuggestions(false), 200)}
-                      placeholder="Phone number"
+                      placeholder={t('bookings.phonePlaceholder')}
                       className={`w-full bg-gray-50 border rounded-xl p-3 outline-none focus:ring-2 focus:ring-black/10 text-sm ${
                         errors.guest_phone ? 'border-red-300' : 'border-gray-200'
                       }`}
@@ -389,13 +365,31 @@ export default function CreateBookingPage() {
 
                   <div>
                     <label className="block text-xs font-bold text-gray-500 mb-1.5">
-                      <span className="flex items-center gap-1"><Mail className="w-3 h-3" /> Email</span>
+                      <span className="flex items-center gap-1"><User className="w-3 h-3" /> {t('bookings.guestName')}</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={form.guest_name}
+                      onChange={(e) => updateField('guest_name', e.target.value)}
+                      placeholder={t('bookings.guestNamePlaceholder')}
+                      className={`w-full bg-gray-50 border rounded-xl p-3 outline-none focus:ring-2 focus:ring-black/10 text-sm ${
+                        errors.guest_name ? 'border-red-300' : 'border-gray-200'
+                      }`}
+                    />
+                    {errors.guest_name && (
+                      <p className="text-xs text-red-500 mt-1">{errors.guest_name}</p>
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-gray-500 mb-1.5">
+                      <span className="flex items-center gap-1"><Mail className="w-3 h-3" /> {t('bookings.email')}</span>
                     </label>
                     <input
                       type="email"
                       value={form.guest_email}
                       onChange={(e) => updateField('guest_email', e.target.value)}
-                      placeholder="Email (optional)"
+                      placeholder={t('bookings.emailOptional')}
                       className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 outline-none focus:ring-2 focus:ring-black/10 text-sm"
                     />
                   </div>
@@ -405,7 +399,7 @@ export default function CreateBookingPage() {
               {/* Source */}
               <div className="border-t border-gray-100 pt-5">
                 <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
-                  Source
+                  {t('bookings.source')}
                 </label>
                 <ToggleGroup
                   type="single"
@@ -429,7 +423,7 @@ export default function CreateBookingPage() {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">
-                      Adults
+                      {t('bookings.adults')}
                     </label>
                     <NumberInput
                       value={form.adults_count}
@@ -446,7 +440,7 @@ export default function CreateBookingPage() {
                   </div>
                   <div>
                     <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">
-                      Children
+                      {t('bookings.children')}
                     </label>
                     <NumberInput
                       value={form.children_count}
@@ -463,7 +457,7 @@ export default function CreateBookingPage() {
               {/* Gantt Color */}
               <div className="border-t border-gray-100 pt-5">
                 <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
-                  Calendar Color
+                  {t('bookings.calendarColor')}
                 </label>
                 <div className="flex gap-2">
                   {GANTT_COLORS.map((c) => (
@@ -490,12 +484,12 @@ export default function CreateBookingPage() {
               {/* Notes */}
               <div className="border-t border-gray-100 pt-5">
                 <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">
-                  Notes
+                  {t('common.notes')}
                 </label>
                 <textarea
                   value={form.notes}
                   onChange={(e) => updateField('notes', e.target.value)}
-                  placeholder="Optional notes..."
+                  placeholder={t('common.optionalNotes')}
                   rows={3}
                   className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 outline-none focus:ring-2 focus:ring-black/10 text-sm resize-none"
                 />
@@ -507,7 +501,7 @@ export default function CreateBookingPage() {
               <div className="mt-4 bg-red-50 border border-red-200 rounded-xl p-3">
                 <p className="text-sm text-red-600">
                   {getErrorMessage(createBooking.error) ||
-                    'Failed to create booking. Please try again.'}
+                    t('bookings.failedCreate')}
                 </p>
               </div>
             )}
@@ -525,7 +519,7 @@ export default function CreateBookingPage() {
                 ) : (
                   <>
                     <Check className="w-4 h-4" />
-                    Create Booking
+                    {t('bookings.addBooking')}
                   </>
                 )}
               </motion.button>
@@ -542,12 +536,12 @@ export default function CreateBookingPage() {
             <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
               <div className="flex items-center gap-2 mb-4">
                 <Calculator className="w-4 h-4 text-gray-500" />
-                <h3 className="text-sm font-bold text-gray-900">Price Breakdown</h3>
+                <h3 className="text-sm font-bold text-gray-900">{t('bookings.priceBreakdown')}</h3>
               </div>
 
               {!form.property_id || !form.check_in || !form.check_out ? (
                 <p className="text-xs text-gray-400">
-                  Select a property and dates to see the price breakdown.
+                  {t('bookings.selectPropertyAndDates')}
                 </p>
               ) : priceLoading ? (
                 <div className="flex items-center justify-center py-8">
@@ -555,35 +549,36 @@ export default function CreateBookingPage() {
                 </div>
               ) : priceData ? (
                 <div className="space-y-2">
-                  <PriceLine label={`${priceData.nights} night${priceData.nights !== 1 ? 's' : ''}`} amount={priceData.base_total} />
+                  <PriceLine label={t('bookings.nights', { count: priceData.nights })} amount={priceData.base_total} currencySymbol={symbol} />
                   {priceData.weekend_surcharge > 0 && (
-                    <PriceLine label="Weekend surcharge" amount={priceData.weekend_surcharge} />
+                    <PriceLine label={t('bookings.weekendSurcharge')} amount={priceData.weekend_surcharge} currencySymbol={symbol} />
                   )}
                   {priceData.seasonal_adjustment !== 0 && (
                     <PriceLine
-                      label="Seasonal adjustment"
+                      label={t('bookings.seasonalAdjustment')}
                       amount={priceData.seasonal_adjustment}
+                      currencySymbol={symbol}
                       signed
                     />
                   )}
                   {priceData.extra_guest_surcharge > 0 && (
-                    <PriceLine label="Extra guest surcharge" amount={priceData.extra_guest_surcharge} />
+                    <PriceLine label={t('bookings.extraGuestSurcharge')} amount={priceData.extra_guest_surcharge} currencySymbol={symbol} />
                   )}
                   {priceData.discount_amount > 0 && (
-                    <PriceLine label="Discount" amount={-priceData.discount_amount} isDiscount />
+                    <PriceLine label={t('bookings.discount')} amount={-priceData.discount_amount} currencySymbol={symbol} isDiscount />
                   )}
                   <div className="border-t border-gray-200 pt-2 mt-3">
                     <div className="flex justify-between items-center">
-                      <span className="text-lg font-bold text-gray-900">Total</span>
+                      <span className="text-lg font-bold text-gray-900">{t('common.total')}</span>
                       <span className="text-lg font-bold text-gray-900">
-                        ${priceData.total.toLocaleString()}
+                        {symbol}{priceData.total.toLocaleString()}
                       </span>
                     </div>
                   </div>
                 </div>
               ) : (
                 <p className="text-xs text-gray-400">
-                  Unable to calculate price.
+                  {t('bookings.unableToCalculate')}
                 </p>
               )}
             </div>
@@ -597,11 +592,13 @@ export default function CreateBookingPage() {
 function PriceLine({
   label,
   amount,
+  currencySymbol,
   isDiscount,
   signed,
 }: {
   label: string
   amount: number
+  currencySymbol: string
   isDiscount?: boolean
   signed?: boolean
 }) {
@@ -611,7 +608,7 @@ function PriceLine({
     <div className="flex justify-between items-center">
       <span className="text-sm text-gray-600">{label}</span>
       <span className={`text-sm font-medium ${isDiscount ? 'text-green-600' : 'text-gray-900'}`}>
-        {signPrefix}${Math.abs(amount).toLocaleString()}
+        {signPrefix}{currencySymbol}{Math.abs(amount).toLocaleString()}
       </span>
     </div>
   )

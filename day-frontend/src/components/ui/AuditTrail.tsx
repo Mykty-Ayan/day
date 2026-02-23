@@ -1,4 +1,5 @@
 import { ArrowRight, Clock, Plus, Pencil, Trash2, RefreshCw } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 
 interface AuditEntry {
   id: string
@@ -33,12 +34,15 @@ function formatAuditValue(value: string | null): string {
   return value ?? 'null'
 }
 
-export default function AuditTrail({ entries, title = 'Activity' }: Props) {
+export default function AuditTrail({ entries, title }: Props) {
+  const { t } = useTranslation()
+  const displayTitle = title ?? t('audit.activity')
+
   return (
     <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
-      <h2 className="text-sm font-bold text-gray-900 mb-4">{title}</h2>
+      <h2 className="text-sm font-bold text-gray-900 mb-4">{displayTitle}</h2>
       {entries.length === 0 ? (
-        <p className="text-xs text-gray-500">No activity yet</p>
+        <p className="text-xs text-gray-500">{t('audit.noActivity')}</p>
       ) : (
         <div className="space-y-3">
           {entries.map((entry) => {
@@ -55,10 +59,10 @@ export default function AuditTrail({ entries, title = 'Activity' }: Props) {
                   <p className="text-sm text-gray-700">{entry.action}</p>
                   {(entry.action === 'create' || entry.field_name === '*') ? (
                     <p className="text-xs text-gray-500 mt-0.5">
-                      record:{' '}
-                      <span className="line-through text-red-400">null</span>{' '}
+                      {t('audit.record')}:{' '}
+                      <span className="line-through text-red-400">{t('audit.null')}</span>{' '}
                       <ArrowRight className="w-3 h-3 inline text-gray-400" />{' '}
-                      <span className="text-green-600">created</span>
+                      <span className="text-green-600">{t('audit.created')}</span>
                     </p>
                   ) : entry.field_name ? (
                     <p className="text-xs text-gray-500 mt-0.5">
@@ -73,7 +77,7 @@ export default function AuditTrail({ entries, title = 'Activity' }: Props) {
                     </p>
                   ) : null}
                   <p className="text-xs text-gray-400 mt-0.5">
-                    {entry.changed_by && `by ${entry.changed_by} · `}
+                    {entry.changed_by && `${t('audit.by', { name: entry.changed_by })} · `}
                     {new Date(entry.created_at).toLocaleString()}
                   </p>
                 </div>

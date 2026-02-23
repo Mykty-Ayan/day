@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ArrowLeft, ArrowRight, Check, Loader2 } from 'lucide-react'
 import { useNavigate } from '@tanstack/react-router'
+import { useTranslation } from 'react-i18next'
 import { useCreateProperty } from '../../hooks/useProperties'
 import { createOrUpdatePricing, linkAmenities } from '../../api/properties'
 import type { PropertyType, PropertyCreateInput, PricingInput } from '../../types/property'
@@ -14,15 +15,7 @@ import type { PhotoEntry } from '../../components/property/PropertyFormStepPhoto
 import PropertyFormStepRules from '../../components/property/PropertyFormStepRules'
 import PropertyFormStepAmenities from '../../components/property/PropertyFormStepAmenities'
 
-const STEPS = [
-  { label: 'Basic Info', key: 'basic' },
-  { label: 'Address', key: 'address' },
-  { label: 'Details', key: 'details' },
-  { label: 'Pricing', key: 'pricing' },
-  { label: 'Photos', key: 'photos' },
-  { label: 'Rules', key: 'rules' },
-  { label: 'Amenities', key: 'amenities' },
-] as const
+const STEPS = ['basicInfo', 'address', 'details', 'pricing', 'photos', 'rules', 'amenities'] as const
 
 interface FormData {
   basic: {
@@ -100,6 +93,7 @@ function toPricingInput(pricing: FormData['pricing']): PricingInput {
 }
 
 export default function CreatePropertyPage() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const createProperty = useCreateProperty()
   const [step, setStep] = useState(0)
@@ -111,8 +105,8 @@ export default function CreatePropertyPage() {
   function validateStep(): boolean {
     const newErrors: Record<string, string> = {}
     if (step === 0) {
-      if (!form.basic.name.trim()) newErrors.name = 'Name is required'
-      if (!form.basic.internal_name.trim()) newErrors.internal_name = 'Internal name is required'
+      if (!form.basic.name.trim()) newErrors.name = t('properties.validation.nameRequired')
+      if (!form.basic.internal_name.trim()) newErrors.internal_name = t('properties.validation.internalNameRequired')
     }
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
@@ -168,7 +162,7 @@ export default function CreatePropertyPage() {
 
       navigate({ to: '/properties/$propertyId', params: { propertyId: property.id } })
     } catch {
-      setSubmitError('Failed to create property. Please try again.')
+      setSubmitError(t('properties.failedCreate'))
     }
   }
 
@@ -184,9 +178,9 @@ export default function CreatePropertyPage() {
       >
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
-          <h1 className="text-xl font-bold text-gray-900">New Property</h1>
+          <h1 className="text-xl font-bold text-gray-900">{t('properties.newProperty')}</h1>
           <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">
-            Step {step + 1} of {STEPS.length}
+            {t('common.step', { current: step + 1, total: STEPS.length })}
           </span>
         </div>
 
@@ -194,7 +188,7 @@ export default function CreatePropertyPage() {
         <div className="flex gap-1.5 mb-8">
           {STEPS.map((s, i) => (
             <div
-              key={s.key}
+              key={s}
               className={`h-1 flex-1 rounded-full transition-colors ${
                 i <= step ? 'bg-black' : 'bg-gray-200'
               }`}
@@ -204,7 +198,7 @@ export default function CreatePropertyPage() {
 
         {/* Step label */}
         <div className="mb-6">
-          <h2 className="text-sm font-bold text-gray-900">{STEPS[step].label}</h2>
+          <h2 className="text-sm font-bold text-gray-900">{t(`properties.steps.${STEPS[step]}`)}</h2>
         </div>
 
         {/* Step content */}
@@ -279,7 +273,7 @@ export default function CreatePropertyPage() {
             className="flex items-center gap-2 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-xl px-4 py-2.5 text-xs font-bold text-gray-700 transition-colors"
           >
             <ArrowLeft className="w-4 h-4" />
-            {step === 0 ? 'Cancel' : 'Previous'}
+            {step === 0 ? t('common.cancel') : t('common.previous')}
           </motion.button>
 
           <motion.button
@@ -292,12 +286,12 @@ export default function CreatePropertyPage() {
               <Loader2 className="w-4 h-4 animate-spin" />
             ) : isLast ? (
               <>
-                Create Property
+                {t('properties.createProperty')}
                 <Check className="w-4 h-4" />
               </>
             ) : (
               <>
-                Next
+                {t('common.next')}
                 <ArrowRight className="w-4 h-4" />
               </>
             )}

@@ -2,6 +2,7 @@ import { motion } from 'framer-motion'
 import { ArrowLeft } from 'lucide-react'
 import { useState } from 'react'
 import { Link, useNavigate } from '@tanstack/react-router'
+import { useTranslation } from 'react-i18next'
 
 import Button from '../../components/ui/Button'
 import { showToast } from '../../components/ui/Toast'
@@ -37,6 +38,7 @@ const initialForm: FormData = {
 }
 
 export default function CreateCleaningTaskPage() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const [form, setForm] = useState<FormData>(initialForm)
   const [errors, setErrors] = useState<Record<string, string>>({})
@@ -45,7 +47,7 @@ export default function CreateCleaningTaskPage() {
 
   function validate(): boolean {
     const errs: Record<string, string> = {}
-    if (!form.property_id) errs.property_id = 'Property is required'
+    if (!form.property_id) errs.property_id = t('cleaning.propertyRequired')
     setErrors(errs)
     return Object.keys(errs).length === 0
   }
@@ -65,14 +67,14 @@ export default function CreateCleaningTaskPage() {
       },
       {
         onSuccess: (task) => {
-          showToast('success', 'Cleaning task created')
+          showToast('success', t('cleaning.cleaningTaskCreated'))
           navigate({
             to: '/cleaning/$taskId',
             params: { taskId: task.id },
           })
         },
         onError: (err: Error) =>
-          showToast('error', err.message || 'Failed to create task'),
+          showToast('error', err.message || t('cleaning.failedCreateTask')),
       },
     )
   }
@@ -89,11 +91,11 @@ export default function CreateCleaningTaskPage() {
         className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 mb-4"
       >
         <ArrowLeft className="w-4 h-4" />
-        Back
+        {t('common.back')}
       </Link>
 
       <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-6">
-        Create Cleaning Task
+        {t('cleaning.createCleaningTask')}
       </h1>
 
       <form onSubmit={handleSubmit} className="space-y-6">
@@ -101,7 +103,7 @@ export default function CreateCleaningTaskPage() {
           {/* Property */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Property *
+              {t('cleaning.property') + ' *'}
             </label>
             <Select
               value={form.property_id || undefined}
@@ -111,7 +113,7 @@ export default function CreateCleaningTaskPage() {
               }}
             >
               <SelectTrigger className={errors.property_id ? 'border-red-300' : ''}>
-                <SelectValue placeholder="Select property..." />
+                <SelectValue placeholder={t('bookings.selectProperty')} />
               </SelectTrigger>
               <SelectContent>
                 {propertiesData?.items.map((p) => (
@@ -129,7 +131,7 @@ export default function CreateCleaningTaskPage() {
           {/* Type */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Type
+              {t('cleaning.type')}
             </label>
             <Select
               value={form.type}
@@ -141,9 +143,9 @@ export default function CreateCleaningTaskPage() {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="post_checkout">Post Checkout</SelectItem>
-                <SelectItem value="mid_stay">Mid Stay</SelectItem>
-                <SelectItem value="on_demand">On Demand</SelectItem>
+                <SelectItem value="post_checkout">{t('cleaning.types.postCheckout')}</SelectItem>
+                <SelectItem value="mid_stay">{t('cleaning.types.midStay')}</SelectItem>
+                <SelectItem value="on_demand">{t('cleaning.types.onDemand')}</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -152,26 +154,26 @@ export default function CreateCleaningTaskPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Scheduled Date
+                {t('cleaning.scheduledDate')}
               </label>
               <DatePicker
                 value={form.scheduled_date}
                 onChange={(value) =>
                   setForm({ ...form, scheduled_date: value })
                 }
-                placeholder="Select date"
+                placeholder={t('common.selectDate')}
               />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Scheduled Time
+                {t('cleaning.scheduledTime')}
               </label>
               <TimePicker
                 value={form.scheduled_time}
                 onChange={(value) =>
                   setForm({ ...form, scheduled_time: value })
                 }
-                placeholder="Select time"
+                placeholder={t('common.selectTime')}
               />
             </div>
           </div>
@@ -179,14 +181,14 @@ export default function CreateCleaningTaskPage() {
           {/* Notes */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Notes
+              {t('common.notes')}
             </label>
             <textarea
               value={form.notes}
               onChange={(e) => setForm({ ...form, notes: e.target.value })}
               rows={3}
               className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 outline-none focus:ring-2 focus:ring-black/10 text-sm resize-none"
-              placeholder="Add notes for the cleaner..."
+              placeholder={t('cleaning.addNotesForCleaner')}
             />
           </div>
         </div>
@@ -194,7 +196,7 @@ export default function CreateCleaningTaskPage() {
         <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-3">
           <Link to="/cleaning" className="w-full sm:w-auto">
             <Button variant="secondary" className="w-full sm:w-auto">
-              Cancel
+              {t('common.cancel')}
             </Button>
           </Link>
           <Button
@@ -202,7 +204,7 @@ export default function CreateCleaningTaskPage() {
             disabled={createMutation.isPending}
             className="w-full sm:w-auto sm:min-w-[170px]"
           >
-            {createMutation.isPending ? 'Creating...' : 'Create Task'}
+            {createMutation.isPending ? t('cleaning.creating') : t('cleaning.createTask')}
           </Button>
         </div>
       </form>

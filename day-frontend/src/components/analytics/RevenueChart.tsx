@@ -1,5 +1,7 @@
 import { motion } from 'framer-motion'
+import { useTranslation } from 'react-i18next'
 import type { TimeSeriesPoint } from '../../types/analytics'
+import { useCurrency } from '../../hooks/useCurrency'
 
 function buildTickIndices(length: number, maxTicks = 6): number[] {
   if (length <= maxTicks) {
@@ -22,10 +24,13 @@ function formatAxisLabel(label: string): string {
 }
 
 export default function RevenueChart({ data }: { data: TimeSeriesPoint[] }) {
+  const { t } = useTranslation()
+  const { symbol } = useCurrency()
+
   if (data.length === 0) {
     return (
       <div className="flex items-center justify-center py-12 text-sm text-gray-400">
-        No data for the selected period
+        {t('analytics.noData')}
       </div>
     )
   }
@@ -41,10 +46,10 @@ export default function RevenueChart({ data }: { data: TimeSeriesPoint[] }) {
 
   return (
     <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-5">
-      <h3 className="text-sm font-bold text-gray-900 mb-4">Revenue</h3>
+      <h3 className="text-sm font-bold text-gray-900 mb-4">{t('analytics.revenue')}</h3>
       {!hasRevenueData ? (
         <div className="flex h-36 items-center justify-center text-sm text-gray-400">
-          No revenue data for the selected period
+          {t('analytics.noRevenueData')}
         </div>
       ) : (
         <div className="flex h-36 items-end gap-1">
@@ -58,7 +63,7 @@ export default function RevenueChart({ data }: { data: TimeSeriesPoint[] }) {
               >
                 <div className="absolute bottom-full mb-2 hidden group-hover:block z-10">
                   <div className="bg-gray-900 text-white text-xs rounded-lg px-3 py-2 whitespace-nowrap shadow-lg">
-                    <div className="font-bold">${value.toLocaleString()}</div>
+                    <div className="font-bold">{symbol}{value.toLocaleString()}</div>
                     <div className="text-gray-300">{point.bookings_count} bookings</div>
                     <div className="text-gray-300">{point.period_label}</div>
                   </div>
