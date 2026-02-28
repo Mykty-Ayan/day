@@ -1,6 +1,9 @@
-import { createFileRoute } from '@tanstack/react-router'
-import PropertyDetailPage from '../../pages/properties/PropertyDetailPage'
+import { Outlet, createFileRoute } from '@tanstack/react-router'
 
 export const Route = createFileRoute('/properties/$propertyId')({
-  component: PropertyDetailPage,
+  component: PropertyLayoutRoute,
 })
+
+function PropertyLayoutRoute() {
+  return <Outlet />
+}

@@ -73,7 +73,8 @@
     "cash": "Cash",
     "card": "Card",
     "transfer": "Transfer",
-    "processing": "Processing..."
+    "processing": "Processing...",
+    "retry": "Retry"
   },
   "home": {
     "subtitle": "Booking & calendar management",
@@ -274,6 +275,7 @@
       "checkInRequired": "Check-in date is required",
       "checkOutRequired": "Check-out date is required",
       "checkOutAfterCheckIn": "Check-out must be after check-in",
+      "dateRangeOverlap": "Date range overlaps with an existing booking",
       "guestNameRequired": "Guest name is required",
       "guestPhoneRequired": "Guest phone is required",
       "atLeastOneAdult": "At least 1 adult required"
@@ -315,6 +317,7 @@
     "today": "Today",
     "property": "Property",
     "noProperties": "No properties to display",
+    "failedLoad": "Failed to load chess chart data",
     "stayPreview": "Stay preview",
     "nightCount": "{{count}} night",
     "nightCount_other": "{{count}} nights",

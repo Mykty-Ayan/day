@@ -45,6 +45,7 @@ export default function GanttChartPage() {
   const navigate = useNavigate()
   const [year, setYear] = useState(() => new Date().getFullYear())
   const [month, setMonth] = useState(() => new Date().getMonth())
+  const [todayScrollNonce, setTodayScrollNonce] = useState(0)
   const [rowsPerPage, setRowsPerPage] = useState<RowsPerPage>('25')
   const [page, setPage] = useState(1)
   // Keeps the first click state for the 2-step check-in/check-out flow.
@@ -55,7 +56,14 @@ export default function GanttChartPage() {
   const startDate = toDateStr(rangeStartDate)
   const endDate = toDateStr(rangeEndDate)
 
-  const { data: ganttData, isLoading } = useGanttData(startDate, endDate)
+  const {
+    data: ganttData,
+    isLoading,
+    isError,
+    error,
+    isFetching,
+    refetch,
+  } = useGanttData(startDate, endDate)
 
   const rows: GanttRow[] = useMemo(() => {
     if (!ganttData) return []
@@ -175,6 +183,7 @@ export default function GanttChartPage() {
     const now = new Date()
     setYear(now.getFullYear())
     setMonth(now.getMonth())
+    setTodayScrollNonce((n) => n + 1)
   }
 
   return (
@@ -284,6 +293,23 @@ export default function GanttChartPage() {
           <div className="flex items-center justify-center py-20">
             <div className="w-6 h-6 border-2 border-gray-200 border-t-gray-900 rounded-full animate-spin" />
           </div>
+        ) : isError ? (
+          <div className="flex flex-col items-center justify-center gap-3 rounded-xl border border-red-100 bg-red-50/50 py-10">
+            <p className="text-sm font-semibold text-red-700">{t('gantt.failedLoad')}</p>
+            {error instanceof Error && (
+              <p className="max-w-xl px-4 text-center text-xs text-red-500">{error.message}</p>
+            )}
+            <motion.button
+              whileTap={{ scale: 0.97 }}
+              onClick={() => {
+                void refetch()
+              }}
+              disabled={isFetching}
+              className="rounded-xl border border-gray-200 bg-white px-4 py-2 text-xs font-bold text-gray-700 transition-colors hover:bg-gray-50 disabled:opacity-60"
+            >
+              {t('common.retry')}
+            </motion.button>
+          </div>
         ) : (
           <GanttChart
             rows={visibleRows}
@@ -291,6 +317,7 @@ export default function GanttChartPage() {
             month={month}
             rangeStart={startDate}
             rangeEnd={endDate}
+            todayScrollNonce={todayScrollNonce}
             pricingByProperty={pricingByProperty}
             onCellClick={handleCellClick}
             pendingSelection={pendingSelection}

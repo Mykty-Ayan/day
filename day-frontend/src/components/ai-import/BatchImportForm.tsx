@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react'
 import { motion } from 'framer-motion'
 import { Loader2, Upload } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
+import { isHttpUrl, normalizeInputUrl } from '../../utils/url'
 
 interface Props {
   onSubmit: (urls: string[], prompt?: string) => void
@@ -21,9 +22,9 @@ export default function BatchImportForm({ onSubmit, isLoading }: Props) {
   }, [urlsText])
 
   const validUrls = useMemo(() => {
-    return parsedUrls.filter(
-      (url) => url.startsWith('http://') || url.startsWith('https://'),
-    )
+    return parsedUrls
+      .map((url) => normalizeInputUrl(url))
+      .filter((url) => isHttpUrl(url))
   }, [parsedUrls])
 
   const invalidCount = parsedUrls.length - validUrls.length

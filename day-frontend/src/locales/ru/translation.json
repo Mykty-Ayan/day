@@ -73,7 +73,8 @@
     "cash": "Наличные",
     "card": "Карта",
     "transfer": "Перевод",
-    "processing": "Обработка..."
+    "processing": "Обработка...",
+    "retry": "Повторить"
   },
   "home": {
     "subtitle": "Управление бронированиями и календарём",
@@ -274,6 +275,7 @@
       "checkInRequired": "Укажите дату заезда",
       "checkOutRequired": "Укажите дату выезда",
       "checkOutAfterCheckIn": "Выезд должен быть после заезда",
+      "dateRangeOverlap": "Диапазон дат пересекается с существующим бронированием",
       "guestNameRequired": "Укажите имя гостя",
       "guestPhoneRequired": "Укажите телефон гостя",
       "atLeastOneAdult": "Минимум 1 взрослый"
@@ -315,6 +317,7 @@
     "today": "Сегодня",
     "property": "Объект",
     "noProperties": "Нет объектов для отображения",
+    "failedLoad": "Не удалось загрузить шахматку",
     "stayPreview": "Предпросмотр",
     "nightCount": "{{count}} ночь",
     "nightCount_other": "{{count}} ночей",

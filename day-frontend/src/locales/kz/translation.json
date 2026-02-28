@@ -73,7 +73,8 @@
     "cash": "Қолма-қол",
     "card": "Карта",
     "transfer": "Аударым",
-    "processing": "Өңделуде..."
+    "processing": "Өңделуде...",
+    "retry": "Қайталау"
   },
   "home": {
     "subtitle": "Броньдау және күнтізбе басқармасы",
@@ -274,6 +275,7 @@
       "checkInRequired": "Кіру күнін көрсетіңіз",
       "checkOutRequired": "Шығу күнін көрсетіңіз",
       "checkOutAfterCheckIn": "Шығу кіруден кейін болуы керек",
+      "dateRangeOverlap": "Күндер аралығы бар броньмен қабаттасады",
       "guestNameRequired": "Қонақ атын көрсетіңіз",
       "guestPhoneRequired": "Қонақ телефонын көрсетіңіз",
       "atLeastOneAdult": "Кемінде 1 ересек қажет"
@@ -315,6 +317,7 @@
     "today": "Бүгін",
     "property": "Нысан",
     "noProperties": "Көрсетілетін нысандар жоқ",
+    "failedLoad": "Шахмат кесте деректерін жүктеу сәтсіз аяқталды",
     "stayPreview": "Алдын ала қарау",
     "nightCount": "{{count}} түн",
     "nightCount_other": "{{count}} түн",

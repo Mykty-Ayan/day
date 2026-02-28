@@ -13,11 +13,13 @@ const statusTabValues: (PropertyStatus | 'all')[] = ['all', 'active', 'paused', 
 export default function PropertyListPage() {
   const { t } = useTranslation()
   const [search, setSearch] = useState('')
-  const [statusFilter, setStatusFilter] = useState<PropertyStatus | 'all'>('active')
+  const [statusFilter, setStatusFilter] = useState<PropertyStatus | 'all'>('all')
   const [viewMode, setViewMode] = useState<'large' | 'medium' | 'list'>('large')
   const [tagFilter, setTagFilter] = useState<string>('')
   const { data: tagsData } = useTags()
   const allTags = tagsData ?? []
+  const primaryActionClass =
+    'inline-flex items-center gap-2 bg-black text-white hover:bg-gray-800 rounded-xl px-6 py-2.5 font-semibold shadow-lg transition-colors'
 
   const { data, isLoading } = useAllProperties({
     status: statusFilter === 'all' ? undefined : statusFilter,
@@ -35,14 +37,9 @@ export default function PropertyListPage() {
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-xl font-bold text-gray-900">{t('properties.title')}</h1>
-          <Link to="/properties/new">
-            <motion.button
-              whileTap={{ scale: 0.97 }}
-              className="flex items-center gap-2 bg-black text-white hover:bg-gray-800 rounded-xl px-6 py-2.5 font-semibold shadow-lg transition-colors"
-            >
-              <Plus className="w-4 h-4" />
-              {t('properties.addProperty')}
-            </motion.button>
+          <Link to="/properties/new" className={primaryActionClass}>
+            <Plus className="w-4 h-4" />
+            {t('properties.addProperty')}
           </Link>
         </div>
 
@@ -147,14 +144,9 @@ export default function PropertyListPage() {
         ) : !data || data.items.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20">
             <p className="text-sm text-gray-500 mb-4">{t('properties.noProperties')}</p>
-            <Link to="/properties/new">
-              <motion.button
-                whileTap={{ scale: 0.97 }}
-                className="flex items-center gap-2 bg-black text-white hover:bg-gray-800 rounded-xl px-6 py-2.5 font-semibold shadow-lg transition-colors"
-              >
-                <Plus className="w-4 h-4" />
-                {t('properties.createFirst')}
-              </motion.button>
+            <Link to="/properties/new" className={primaryActionClass}>
+              <Plus className="w-4 h-4" />
+              {t('properties.createFirst')}
             </Link>
           </div>
         ) : (

@@ -3,6 +3,7 @@ import { motion } from 'framer-motion'
 import { Loader2, Upload, Globe } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import type { ImportSourceType } from '../../types/ai-import'
+import { isHttpUrl, normalizeInputUrl } from '../../utils/url'
 
 interface Props {
   onSubmit: (url: string, prompt?: string) => void
@@ -10,12 +11,13 @@ interface Props {
 }
 
 function detectSourceType(url: string): ImportSourceType | null {
-  if (!url.trim()) return null
-  const lower = url.toLowerCase()
+  const normalized = normalizeInputUrl(url)
+  if (!normalized) return null
+  const lower = normalized.toLowerCase()
   if (lower.includes('booking.com')) return 'booking'
   if (lower.includes('airbnb')) return 'airbnb'
   if (lower.includes('krisha.kz')) return 'krisha'
-  if (url.startsWith('http://') || url.startsWith('https://')) return 'other'
+  if (isHttpUrl(normalized)) return 'other'
   return null
 }
 
@@ -42,8 +44,9 @@ export default function ImportForm({ onSubmit, isLoading }: Props) {
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (!url.trim()) return
-    onSubmit(url.trim(), prompt.trim() || undefined)
+    const normalizedUrl = normalizeInputUrl(url)
+    if (!isHttpUrl(normalizedUrl)) return
+    onSubmit(normalizedUrl, prompt.trim() || undefined)
   }
 
   return (
@@ -56,7 +59,8 @@ export default function ImportForm({ onSubmit, isLoading }: Props) {
           <Globe className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
           <input
             id="import-url"
-            type="url"
+            type="text"
+            inputMode="url"
             value={url}
             onChange={(e) => setUrl(e.target.value)}
             placeholder={t('aiImport.urlPlaceholder')}

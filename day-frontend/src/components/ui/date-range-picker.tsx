@@ -94,10 +94,13 @@ export default function DateRangePicker({
           mode="range"
           selected={selected}
           defaultMonth={start ?? min ?? new Date()}
-          fixedWeeks
+          showOutsideDays={false}
+          pagedNavigation
+          min={1}
           onSelect={handleSelect}
           disabled={min ? { before: min } : undefined}
           numberOfMonths={2}
+          initialFocus
         />
       </PopoverContent>
     </Popover>

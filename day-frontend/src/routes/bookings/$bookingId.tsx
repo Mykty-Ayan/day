@@ -1,6 +1,9 @@
-import { createFileRoute } from '@tanstack/react-router'
-import BookingDetailPage from '../../pages/bookings/BookingDetailPage'
+import { Outlet, createFileRoute } from '@tanstack/react-router'
 
 export const Route = createFileRoute('/bookings/$bookingId')({
-  component: BookingDetailPage,
+  component: BookingLayoutRoute,
 })
+
+function BookingLayoutRoute() {
+  return <Outlet />
+}

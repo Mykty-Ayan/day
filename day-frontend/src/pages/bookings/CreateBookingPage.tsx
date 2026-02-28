@@ -6,7 +6,6 @@ import { useNavigate } from '@tanstack/react-router'
 import { useCreateBooking, useCalculatePrice, useGuests } from '../../hooks/useBookings'
 import { useAllProperties } from '../../hooks/useProperties'
 import type { BookingSource, BookingCreateInput, PriceCalculateInput } from '../../types/booking'
-import type { AxiosError } from 'axios'
 import DateRangePicker from '../../components/ui/date-range-picker'
 import {
   Select,
@@ -18,6 +17,7 @@ import {
 import { ToggleGroup, ToggleGroupItem } from '../../components/ui/toggle-group'
 import NumberInput from '../../components/ui/number-input'
 import { useCurrency } from '../../hooks/useCurrency'
+import { getBookingApiErrorMessage, getBookingFieldError } from '../../lib/booking-errors'
 
 interface FormData {
   property_id: string
@@ -154,17 +154,6 @@ export default function CreateBookingPage() {
 
   const { data: priceData, isFetching: priceLoading } = useCalculatePrice(debouncedPriceParams)
 
-  function getErrorMessage(err: unknown): string | null {
-    if (!err) return null
-    const axiosErr = err as AxiosError<{ detail?: string; message?: string }>
-    return (
-      axiosErr?.response?.data?.detail ||
-      axiosErr?.response?.data?.message ||
-      (axiosErr as Error).message ||
-      null
-    )
-  }
-
   function updateField<K extends keyof FormData>(key: K, value: FormData[K]) {
     setForm((f) => ({ ...f, [key]: value }))
     setErrors((e) => {
@@ -211,6 +200,12 @@ export default function CreateBookingPage() {
     createBooking.mutate(payload, {
       onSuccess: (booking) => {
         navigate({ to: '/bookings/$bookingId', params: { bookingId: booking.id } })
+      },
+      onError: (err) => {
+        const fieldError = getBookingFieldError(err, t)
+        if (fieldError) {
+          setErrors((prev) => ({ ...prev, [fieldError.field]: fieldError.message }))
+        }
       },
     })
   }
@@ -500,7 +495,7 @@ export default function CreateBookingPage() {
             {createBooking.isError && (
               <div className="mt-4 bg-red-50 border border-red-200 rounded-xl p-3">
                 <p className="text-sm text-red-600">
-                  {getErrorMessage(createBooking.error) ||
+                  {getBookingApiErrorMessage(createBooking.error, t) ||
                     t('bookings.failedCreate')}
                 </p>
               </div>
