@@ -26,13 +26,9 @@ class Settings(BaseSettings):
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
 
-    CORS_ORIGINS: list[str] = ["http://localhost:5173"]
+    CORS_ORIGINS: list[str] = ["http://localhost:5173", "https://frontend-dev-62e8.up.railway.app"]
 
-    AI_SERVICE_URL: str = (
-        "http://ai-service:8001"
-        if Path("/.dockerenv").exists()
-        else "http://localhost:8001"
-    )
+    AI_SERVICE_URL: str = "http://ai-service:8001" if Path("/.dockerenv").exists() else "http://localhost:8001"
 
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
 
