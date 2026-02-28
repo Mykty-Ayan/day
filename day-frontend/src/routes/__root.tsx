@@ -1,15 +1,41 @@
-import { createRootRoute, Outlet, Link, useRouterState } from '@tanstack/react-router'
-import { Building2, CalendarRange, CalendarDays, Clock, SprayCan, ClipboardList, BarChart3, Sparkles, Settings } from 'lucide-react'
+import { createRootRoute, Outlet, Link, useRouterState, redirect } from '@tanstack/react-router'
+import { Building2, CalendarRange, CalendarDays, Clock, SprayCan, ClipboardList, BarChart3, Sparkles, Settings, LogOut } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import ToastContainer from '../components/ui/Toast'
+import { useCurrentUser, useLogout } from '../hooks/useAuth'
+
+const PUBLIC_ROUTES = ['/login', '/register']
 
 export const Route = createRootRoute({
+  beforeLoad: ({ location }) => {
+    const token = localStorage.getItem('access_token')
+    if (!token && !PUBLIC_ROUTES.includes(location.pathname)) {
+      throw redirect({ to: '/login' })
+    }
+  },
   component: RootLayout,
 })
 
 function RootLayout() {
+  const pathname = useRouterState({ select: (s) => s.location.pathname })
+
+  if (PUBLIC_ROUTES.includes(pathname)) {
+    return (
+      <>
+        <Outlet />
+        <ToastContainer />
+      </>
+    )
+  }
+
+  return <AuthenticatedLayout />
+}
+
+function AuthenticatedLayout() {
   const { t } = useTranslation()
   const pathname = useRouterState({ select: (s) => s.location.pathname })
+  const { data: user } = useCurrentUser()
+  const logout = useLogout()
 
   const navItems = [
     { to: '/properties', label: t('nav.properties'), icon: Building2 },
@@ -38,7 +64,7 @@ function RootLayout() {
         <Link to="/" className="text-sm font-bold text-gray-900 mr-4">
           Day
         </Link>
-        <nav className="flex items-center gap-1">
+        <nav className="flex items-center gap-1 flex-1">
           {navItems.map(({ to, label, icon: Icon }) => {
             const isActive = activeItem?.to === to
             return (
@@ -57,6 +83,17 @@ function RootLayout() {
             )
           })}
         </nav>
+        <div className="flex items-center gap-3 ml-auto">
+          {user && (
+            <span className="text-xs text-gray-500">{user.email}</span>
+          )}
+          <button
+            onClick={logout}
+            className="flex items-center gap-1 text-xs text-gray-400 hover:text-gray-900 transition-colors"
+          >
+            <LogOut className="w-3.5 h-3.5" />
+          </button>
+        </div>
       </header>
       <main className="flex flex-1 flex-col">
         <Outlet />
