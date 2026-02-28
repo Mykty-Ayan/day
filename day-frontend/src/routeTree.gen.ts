@@ -9,6 +9,8 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as RegisterRouteImport } from './routes/register'
+import { Route as LoginRouteImport } from './routes/login'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as SettingsIndexRouteImport } from './routes/settings/index'
 import { Route as PropertiesIndexRouteImport } from './routes/properties/index'
@@ -33,6 +35,16 @@ import { Route as BookingsBookingIdIndexRouteImport } from './routes/bookings/$b
 import { Route as PropertiesPropertyIdEditRouteImport } from './routes/properties/$propertyId/edit'
 import { Route as BookingsBookingIdEditRouteImport } from './routes/bookings/$bookingId/edit'
 
+const RegisterRoute = RegisterRouteImport.update({
+  id: '/register',
+  path: '/register',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
@@ -153,6 +165,8 @@ const BookingsBookingIdEditRoute = BookingsBookingIdEditRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/login': typeof LoginRoute
+  '/register': typeof RegisterRoute
   '/ai-import/$jobId': typeof AiImportJobIdRoute
   '/bookings/$bookingId': typeof BookingsBookingIdRouteWithChildren
   '/bookings/new': typeof BookingsNewRoute
@@ -178,6 +192,8 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/login': typeof LoginRoute
+  '/register': typeof RegisterRoute
   '/ai-import/$jobId': typeof AiImportJobIdRoute
   '/bookings/new': typeof BookingsNewRoute
   '/bookings/today': typeof BookingsTodayRoute
@@ -202,6 +218,8 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/login': typeof LoginRoute
+  '/register': typeof RegisterRoute
   '/ai-import/$jobId': typeof AiImportJobIdRoute
   '/bookings/$bookingId': typeof BookingsBookingIdRouteWithChildren
   '/bookings/new': typeof BookingsNewRoute
@@ -229,6 +247,8 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/login'
+    | '/register'
     | '/ai-import/$jobId'
     | '/bookings/$bookingId'
     | '/bookings/new'
@@ -254,6 +274,8 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/login'
+    | '/register'
     | '/ai-import/$jobId'
     | '/bookings/new'
     | '/bookings/today'
@@ -277,6 +299,8 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/login'
+    | '/register'
     | '/ai-import/$jobId'
     | '/bookings/$bookingId'
     | '/bookings/new'
@@ -303,6 +327,8 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  LoginRoute: typeof LoginRoute
+  RegisterRoute: typeof RegisterRoute
   AiImportJobIdRoute: typeof AiImportJobIdRoute
   BookingsBookingIdRoute: typeof BookingsBookingIdRouteWithChildren
   BookingsNewRoute: typeof BookingsNewRoute
@@ -325,6 +351,20 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/register': {
+      id: '/register'
+      path: '/register'
+      fullPath: '/register'
+      preLoaderRoute: typeof RegisterRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -517,6 +557,8 @@ const PropertiesPropertyIdRouteWithChildren =
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  LoginRoute: LoginRoute,
+  RegisterRoute: RegisterRoute,
   AiImportJobIdRoute: AiImportJobIdRoute,
   BookingsBookingIdRoute: BookingsBookingIdRouteWithChildren,
   BookingsNewRoute: BookingsNewRoute,

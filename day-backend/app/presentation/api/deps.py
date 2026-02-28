@@ -1,30 +1,48 @@
-"""Shared API dependencies."""
+"""Shared API dependencies — JWT-based authentication."""
 
 from __future__ import annotations
 
 import uuid
 
-from fastapi import Header
+from fastapi import Depends, HTTPException, status
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
-# TODO: Replace with proper JWT auth dependency when Phase 1 auth is implemented.
-# For now, company_id comes from a request header for development.
+from app.domain.auth.value_objects import UserRole
+from app.infrastructure.security import decode_token
 
-_DEFAULT_COMPANY_ID = uuid.UUID("00000000-0000-0000-0000-000000000001")
+_bearer = HTTPBearer()
+
+
+async def get_current_user(
+    credentials: HTTPAuthorizationCredentials = Depends(_bearer),
+) -> dict:
+    """Decode JWT and return the token payload as a dict with sub, company_id, role."""
+    payload = decode_token(credentials.credentials)
+    if not payload or payload.get("type") != "access":
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired token")
+    return payload
 
 
 async def get_company_id(
-    x_company_id: str | None = Header(default=None),
+    user: dict = Depends(get_current_user),
 ) -> uuid.UUID:
-    """Extract company_id from X-Company-ID header or use a default."""
-    if x_company_id:
-        return uuid.UUID(x_company_id)
-    return _DEFAULT_COMPANY_ID
+    """Extract company_id from the authenticated user's token."""
+    return uuid.UUID(user["company_id"])
 
 
 async def get_user_id(
-    x_user_id: str | None = Header(default=None),
-) -> uuid.UUID | None:
-    """Extract user_id from X-User-ID header (optional, for audit)."""
-    if x_user_id:
-        return uuid.UUID(x_user_id)
-    return None
+    user: dict = Depends(get_current_user),
+) -> uuid.UUID:
+    """Extract user_id (sub) from the authenticated user's token."""
+    return uuid.UUID(user["sub"])
+
+
+def require_role(*roles: UserRole):
+    """Dependency factory — raises 403 if the user's role is not in the allowed set."""
+
+    async def _check(user: dict = Depends(get_current_user)) -> dict:
+        if user.get("role") not in {r.value for r in roles}:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions")
+        return user
+
+    return _check
