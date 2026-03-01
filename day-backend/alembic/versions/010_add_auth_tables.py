@@ -43,9 +43,9 @@ def upgrade() -> None:
 
     # Seed default company so existing data (properties, bookings, etc.) keeps working
     op.execute(
-        sa.text("INSERT INTO companies (id, name) VALUES (:id, :name) ON CONFLICT DO NOTHING").bindparams(
-            id=SEED_COMPANY_ID, name="Default Company"
-        )
+        sa.text(
+            "INSERT INTO companies (id, name) VALUES (CAST(:id AS uuid), :name) ON CONFLICT DO NOTHING"
+        ).bindparams(id=SEED_COMPANY_ID, name="Default Company")
     )
 
 

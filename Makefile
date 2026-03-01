@@ -18,11 +18,11 @@ migrate:
 
 # Seed demo data
 seed:
-	cd day-backend && env $$(cat ../local.env | grep -v '^#' | xargs) uv run python -m app.infrastructure.seed
+	cd day-backend && env $$(cat local.env | grep -v '^#' | xargs) uv run python -m app.infrastructure.seed
 
 # Local development
 backend:
-	cd day-backend && env $$(cat ../local.env | grep -v '^#' | xargs) uv run uvicorn app.main:app --reload
+	cd day-backend && env $$(cat local.env | grep -v '^#' | xargs) uv run uvicorn app.main:app --reload
 
 frontend:
 	cd day-frontend && npm run dev
