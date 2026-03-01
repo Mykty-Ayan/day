@@ -12,6 +12,7 @@
 - Мобильные e2e в проекте отсутствуют (Playwright только Desktop Chrome).
 
 ## Progress Log
+- 2026-03-02: завершены milestones `F-*` и `G-*` (Cleaning/Cleaner/Analytics): hybrid cards/table в cleaning list и analytics metrics, mobile-first правки detail/checklists, safe-area усиления в cleaner, touch tooltip по tap/focus в revenue/occupancy, export CTA full-width на mobile; проверки targeted `eslint` и `npm run build` зелёные. Targeted e2e (`cleaning-crud`, `cleaner-dashboard`, `cleaning-report`, `analytics-dashboard`) заблокированы текущим занятым `localhost:8000` при `reuseExistingServer: false` в Playwright webServer.
 - 2026-03-02: завершён milestone `B-*` (shared components), статусы отмечены в `IMPLEMENTATION PLAN.md`.
 - 2026-03-02: прогнан быстрый mobile smoke-check shell/nav (`tests/e2e/mobile-shell-smoke.spec.ts`) — `3 passed` (tabs, More sheet, cleaner без global shell, overflow sanity, mobile toast container).
 - 2026-03-02: завершён milestone `C-*` (Home/Auth/Settings/AI Import), включая mobile stack для import preview и touch-доступные photo actions; проверки `npm run lint` и `npm run build` зелёные.

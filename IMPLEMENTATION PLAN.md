@@ -63,17 +63,17 @@
 36. `[x] E-08` Добавить persistence view-mode в `localStorage` для bookings экранов в [BookingListPage.tsx](/Users/dos/Desktop/ant/day2.0/day-frontend/src/pages/bookings/BookingListPage.tsx) и [BookingDetailPage.tsx](/Users/dos/Desktop/ant/day2.0/day-frontend/src/pages/bookings/BookingDetailPage.tsx). DoD: режим сохраняется после reload.
 
 ### Milestone F: Cleaning + Cleaner Domain
-37. `F-01` В [CleaningListPage.tsx](/Users/dos/Desktop/ant/day2.0/day-frontend/src/pages/cleaning/CleaningListPage.tsx) реализовать hybrid view + filter wrap + table overflow fallback. DoD: desktop table сохраняется, mobile cards по умолчанию.
-38. `F-02` В [CreateCleaningTaskPage.tsx](/Users/dos/Desktop/ant/day2.0/day-frontend/src/pages/cleaning/CreateCleaningTaskPage.tsx) привести spacing к общей mobile policy. DoD: визуальная консистентность.
-39. `F-03` В [CleaningDetailPage.tsx](/Users/dos/Desktop/ant/day2.0/day-frontend/src/pages/cleaning/CleaningDetailPage.tsx) заменить `grid-cols-2` на mobile-first и сделать scrollable tab switch. DoD: контент не обрезается.
-40. `F-04` В [ChecklistTemplatesPage.tsx](/Users/dos/Desktop/ant/day2.0/day-frontend/src/pages/cleaning/ChecklistTemplatesPage.tsx) увеличить hit-area + обработать длинные строки названий. DoD: без layout-jump и недоступных tap zones.
-41. `F-05` Обновить [CleanerDashboardPage.tsx](/Users/dos/Desktop/ant/day2.0/day-frontend/src/pages/cleaner/CleanerDashboardPage.tsx): корректный safe-area top/bottom, без global header. DoD: single-shell.
-42. `F-06` Обновить [CleanerTaskDetailPage.tsx](/Users/dos/Desktop/ant/day2.0/day-frontend/src/pages/cleaner/CleanerTaskDetailPage.tsx): fixed bottom action bar + safe-area bottom, touch-safe CTA. DoD: CTA не перекрывается iOS home-indicator.
+37. `[x] F-01` В [CleaningListPage.tsx](/Users/dos/Desktop/ant/day2.0/day-frontend/src/pages/cleaning/CleaningListPage.tsx) реализовать hybrid view + filter wrap + table overflow fallback. DoD: desktop table сохраняется, mobile cards по умолчанию.
+38. `[x] F-02` В [CreateCleaningTaskPage.tsx](/Users/dos/Desktop/ant/day2.0/day-frontend/src/pages/cleaning/CreateCleaningTaskPage.tsx) привести spacing к общей mobile policy. DoD: визуальная консистентность.
+39. `[x] F-03` В [CleaningDetailPage.tsx](/Users/dos/Desktop/ant/day2.0/day-frontend/src/pages/cleaning/CleaningDetailPage.tsx) заменить `grid-cols-2` на mobile-first и сделать scrollable tab switch. DoD: контент не обрезается.
+40. `[x] F-04` В [ChecklistTemplatesPage.tsx](/Users/dos/Desktop/ant/day2.0/day-frontend/src/pages/cleaning/ChecklistTemplatesPage.tsx) увеличить hit-area + обработать длинные строки названий. DoD: без layout-jump и недоступных tap zones.
+41. `[x] F-05` Обновить [CleanerDashboardPage.tsx](/Users/dos/Desktop/ant/day2.0/day-frontend/src/pages/cleaner/CleanerDashboardPage.tsx): корректный safe-area top/bottom, без global header. DoD: single-shell.
+42. `[x] F-06` Обновить [CleanerTaskDetailPage.tsx](/Users/dos/Desktop/ant/day2.0/day-frontend/src/pages/cleaner/CleanerTaskDetailPage.tsx): fixed bottom action bar + safe-area bottom, touch-safe CTA. DoD: CTA не перекрывается iOS home-indicator.
 
 ### Milestone G: Analytics Domain
-43. `G-01` Обновить [AnalyticsDashboardPage.tsx](/Users/dos/Desktop/ant/day2.0/day-frontend/src/pages/analytics/AnalyticsDashboardPage.tsx): filters stack в 2 строки, export CTA full-width на mobile. DoD: toolbar не переполняется.
-44. `G-02` Обновить [RevenueChart.tsx](/Users/dos/Desktop/ant/day2.0/day-frontend/src/components/analytics/RevenueChart.tsx) и [OccupancyChart.tsx](/Users/dos/Desktop/ant/day2.0/day-frontend/src/components/analytics/OccupancyChart.tsx): touch tooltip/labels режим. DoD: данные доступны tap-жестом.
-45. `G-03` В [MetricsTable.tsx](/Users/dos/Desktop/ant/day2.0/day-frontend/src/components/analytics/MetricsTable.tsx) добавить cards default на mobile + table toggle. DoD: мобильное чтение метрик без zoom.
+43. `[x] G-01` Обновить [AnalyticsDashboardPage.tsx](/Users/dos/Desktop/ant/day2.0/day-frontend/src/pages/analytics/AnalyticsDashboardPage.tsx): filters stack в 2 строки, export CTA full-width на mobile. DoD: toolbar не переполняется.
+44. `[x] G-02` Обновить [RevenueChart.tsx](/Users/dos/Desktop/ant/day2.0/day-frontend/src/components/analytics/RevenueChart.tsx) и [OccupancyChart.tsx](/Users/dos/Desktop/ant/day2.0/day-frontend/src/components/analytics/OccupancyChart.tsx): touch tooltip/labels режим. DoD: данные доступны tap-жестом.
+45. `[x] G-03` В [MetricsTable.tsx](/Users/dos/Desktop/ant/day2.0/day-frontend/src/components/analytics/MetricsTable.tsx) добавить cards default на mobile + table toggle. DoD: мобильное чтение метрик без zoom.
 
 ### Milestone H: QA Automation + Regression Gates
 46. `H-01` Обновить [playwright.config.ts](/Users/dos/Desktop/ant/day2.0/day-frontend/playwright.config.ts): проекты `iPhone 13`, `Pixel 7` + сохранить desktop chromium. DoD: все 3 проекта запускаются.

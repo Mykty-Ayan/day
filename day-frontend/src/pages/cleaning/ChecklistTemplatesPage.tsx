@@ -105,7 +105,7 @@ export default function ChecklistTemplatesPage() {
         </div>
         <Button
           onClick={() => setShowCreate(!showCreate)}
-          className="inline-flex items-center gap-1 self-start whitespace-nowrap sm:self-auto"
+          className="inline-flex min-h-[44px] items-center gap-1 self-start whitespace-nowrap sm:self-auto"
         >
           <Plus className="w-4 h-4 mr-1" />
           {t('checklists.newTemplate')}
@@ -160,7 +160,7 @@ export default function ChecklistTemplatesPage() {
                 }`}
                 onClick={() => setSelectedId(tmpl.id)}
               >
-                <div className="flex min-w-0 items-center justify-between gap-2">
+                <div className="flex min-w-0 items-start justify-between gap-2">
                   {editingTemplateId === tmpl.id ? (
                     <input
                       autoFocus
@@ -181,7 +181,7 @@ export default function ChecklistTemplatesPage() {
                     />
                   ) : (
                     <span
-                      className="min-w-0 flex-1 truncate font-medium text-sm"
+                      className="min-h-[2.5rem] min-w-0 flex-1 break-words text-sm font-medium leading-5 line-clamp-2"
                       title={tmpl.name}
                       onDoubleClick={(e) => {
                         e.stopPropagation()
@@ -200,7 +200,7 @@ export default function ChecklistTemplatesPage() {
                             submitTemplateEdit(tmpl.id, tmpl.name)
                           }}
                           disabled={updateTemplateMutation.isPending}
-                          className="shrink-0 text-gray-400 hover:text-emerald-600 transition-colors disabled:opacity-50"
+                          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-gray-400 transition-colors hover:bg-emerald-50 hover:text-emerald-600 disabled:opacity-50"
                           aria-label="Save template name"
                         >
                           <Check className="w-4 h-4" />
@@ -210,7 +210,7 @@ export default function ChecklistTemplatesPage() {
                             e.stopPropagation()
                             cancelTemplateEdit()
                           }}
-                          className="shrink-0 text-gray-400 hover:text-gray-700 transition-colors"
+                          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700"
                           aria-label="Cancel editing template name"
                         >
                           <X className="w-4 h-4" />
@@ -222,7 +222,7 @@ export default function ChecklistTemplatesPage() {
                           e.stopPropagation()
                           startTemplateEdit(tmpl.id, tmpl.name)
                         }}
-                        className="shrink-0 text-gray-300 hover:text-gray-700 transition-colors"
+                        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-gray-300 transition-colors hover:bg-gray-100 hover:text-gray-700"
                         aria-label="Edit template name"
                       >
                         <Pencil className="w-4 h-4" />
@@ -233,7 +233,7 @@ export default function ChecklistTemplatesPage() {
                         e.stopPropagation()
                         handleDelete(tmpl.id)
                       }}
-                      className="shrink-0 text-gray-300 hover:text-red-500 transition-colors"
+                      className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-gray-300 transition-colors hover:bg-red-50 hover:text-red-500"
                       aria-label="Delete template"
                     >
                       <Trash2 className="w-4 h-4" />
@@ -394,7 +394,7 @@ function TemplateDetail({ templateId }: { templateId: string }) {
             }}
             onDragEnd={() => setDraggingId(null)}
             onDrop={() => handleDrop(item.id)}
-            className={`flex max-w-full items-center gap-3 overflow-hidden p-3 rounded-lg border transition-colors ${
+            className={`flex max-w-full items-start gap-3 overflow-hidden rounded-lg border p-3 transition-colors sm:items-center ${
               draggingId === item.id
                 ? 'bg-gray-100 border-gray-300'
                 : 'bg-gray-50 border-transparent'
@@ -425,7 +425,7 @@ function TemplateDetail({ templateId }: { templateId: string }) {
                 />
               ) : (
                 <span
-                  className="min-w-0 flex-1 truncate text-sm"
+                  className="min-h-[2.5rem] min-w-0 flex-1 break-words text-sm leading-5 line-clamp-2"
                   title={item.title}
                   onDoubleClick={(e) => {
                     e.stopPropagation()
@@ -445,20 +445,20 @@ function TemplateDetail({ templateId }: { templateId: string }) {
                       submitItemEdit(item)
                     }}
                     disabled={updateItemMutation.isPending}
-                    className="shrink-0 text-gray-400 hover:text-emerald-600 transition-colors disabled:opacity-50"
+                    className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-gray-400 transition-colors hover:bg-emerald-50 hover:text-emerald-600 disabled:opacity-50"
                     aria-label="Save checklist item"
                   >
-                    <Check className="w-3.5 h-3.5" />
+                    <Check className="h-4 w-4" />
                   </button>
                   <button
                     onClick={(e) => {
                       e.stopPropagation()
                       cancelItemEdit()
                     }}
-                    className="shrink-0 text-gray-400 hover:text-gray-700 transition-colors"
+                    className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700"
                     aria-label="Cancel checklist item editing"
                   >
-                    <X className="w-3.5 h-3.5" />
+                    <X className="h-4 w-4" />
                   </button>
                 </>
               ) : (
@@ -467,18 +467,18 @@ function TemplateDetail({ templateId }: { templateId: string }) {
                     e.stopPropagation()
                     startItemEdit(item)
                   }}
-                  className="shrink-0 text-gray-300 hover:text-gray-700 transition-colors"
+                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-gray-300 transition-colors hover:bg-gray-100 hover:text-gray-700"
                   aria-label="Edit checklist item"
                 >
-                  <Pencil className="w-3.5 h-3.5" />
+                  <Pencil className="h-4 w-4" />
                 </button>
               )}
               <button
                 onClick={() => deleteItemMutation.mutate(item.id)}
-                className="shrink-0 text-gray-300 hover:text-red-500 transition-colors"
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-gray-300 transition-colors hover:bg-red-50 hover:text-red-500"
                 aria-label="Delete checklist item"
               >
-                <Trash2 className="w-3.5 h-3.5" />
+                <Trash2 className="h-4 w-4" />
               </button>
             </div>
           </div>

@@ -208,7 +208,7 @@ export default function AnalyticsFilterBar({
         <motion.button
           whileTap={{ scale: 0.97 }}
           onClick={onExport}
-          className="flex min-h-[44px] items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50"
+          className="flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 sm:w-auto"
         >
           <Download className="w-4 h-4" />
           {t('analytics.exportCsv')}
