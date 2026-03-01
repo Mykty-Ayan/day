@@ -90,35 +90,39 @@ export default function AnalyticsFilterBar({
   return (
     <div className="flex flex-col gap-3">
       <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
-        <ToggleGroup
-          type="single"
-          value={period}
-          onValueChange={(value) => {
-            if (value) onPeriodChange(value as PeriodPreset)
-          }}
-          className="self-start"
-        >
-          {PERIOD_OPTIONS.map((opt) => (
-            <ToggleGroupItem key={opt.value} value={opt.value}>
-              {opt.label}
-            </ToggleGroupItem>
-          ))}
-        </ToggleGroup>
+        <div className="w-full overflow-x-auto sm:w-auto">
+          <ToggleGroup
+            type="single"
+            value={period}
+            onValueChange={(value) => {
+              if (value) onPeriodChange(value as PeriodPreset)
+            }}
+            className="min-w-max self-start"
+          >
+            {PERIOD_OPTIONS.map((opt) => (
+              <ToggleGroupItem key={opt.value} value={opt.value}>
+                {opt.label}
+              </ToggleGroupItem>
+            ))}
+          </ToggleGroup>
+        </div>
 
-        <ToggleGroup
-          type="single"
-          value={granularity}
-          onValueChange={(value) => {
-            if (value) onGranularityChange(value as Granularity)
-          }}
-          className="self-start"
-        >
-          {GRANULARITY_OPTIONS.map((opt) => (
-            <ToggleGroupItem key={opt.value} value={opt.value}>
-              {opt.label}
-            </ToggleGroupItem>
-          ))}
-        </ToggleGroup>
+        <div className="w-full overflow-x-auto sm:w-auto">
+          <ToggleGroup
+            type="single"
+            value={granularity}
+            onValueChange={(value) => {
+              if (value) onGranularityChange(value as Granularity)
+            }}
+            className="min-w-max self-start"
+          >
+            {GRANULARITY_OPTIONS.map((opt) => (
+              <ToggleGroupItem key={opt.value} value={opt.value}>
+                {opt.label}
+              </ToggleGroupItem>
+            ))}
+          </ToggleGroup>
+        </div>
       </div>
 
       <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
@@ -204,7 +208,7 @@ export default function AnalyticsFilterBar({
         <motion.button
           whileTap={{ scale: 0.97 }}
           onClick={onExport}
-          className="flex items-center gap-2 bg-white border border-gray-200 hover:bg-gray-50 rounded-xl px-4 py-2 text-sm font-semibold text-gray-700 transition-colors"
+          className="flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 sm:w-auto"
         >
           <Download className="w-4 h-4" />
           {t('analytics.exportCsv')}

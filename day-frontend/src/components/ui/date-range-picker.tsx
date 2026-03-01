@@ -3,6 +3,7 @@ import { format, isValid, parseISO } from 'date-fns'
 import { Calendar as CalendarIcon } from 'lucide-react'
 import type { DateRange } from 'react-day-picker'
 import { cn } from '../../lib/utils'
+import { useMediaQuery } from '../../hooks/useMediaQuery'
 import { Calendar } from './calendar'
 import { Popover, PopoverContent, PopoverTrigger } from './popover'
 
@@ -13,6 +14,8 @@ interface DateRangePickerProps {
   endDate?: string
   onRangeChange: (start: string, end: string) => void
   minDate?: DateLike
+  responsiveMonths?: boolean
+  months?: 1 | 2
   placeholder?: string
   disabled?: boolean
   className?: string
@@ -34,15 +37,20 @@ export default function DateRangePicker({
   endDate,
   onRangeChange,
   minDate,
+  responsiveMonths = true,
+  months,
   placeholder = 'Select dates',
   disabled,
   className,
   error,
 }: DateRangePickerProps) {
   const [open, setOpen] = useState(false)
+  const isMdUp = useMediaQuery('(min-width: 768px)')
   const start = normalizeDate(startDate)
   const end = normalizeDate(endDate)
   const min = normalizeDate(minDate)
+  const numberOfMonths =
+    months ?? (responsiveMonths ? (isMdUp ? 2 : 1) : 2)
 
   const selected: DateRange | undefined =
     start ? { from: start, to: end } : undefined
@@ -86,7 +94,7 @@ export default function DateRangePicker({
         </button>
       </PopoverTrigger>
       <PopoverContent
-        className="z-[120] w-auto rounded-2xl border border-gray-200 bg-white p-2 shadow-2xl"
+        className="z-[120] w-auto max-w-[calc(100vw-1rem)] overflow-hidden rounded-2xl border border-gray-200 bg-white p-2 shadow-2xl"
         align="start"
         sideOffset={8}
       >
@@ -99,7 +107,7 @@ export default function DateRangePicker({
           min={1}
           onSelect={handleSelect}
           disabled={min ? { before: min } : undefined}
-          numberOfMonths={2}
+          numberOfMonths={numberOfMonths}
           initialFocus
         />
       </PopoverContent>

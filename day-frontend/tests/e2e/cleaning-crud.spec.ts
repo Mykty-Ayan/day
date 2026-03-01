@@ -1,10 +1,13 @@
-import { test, expect } from '@playwright/test'
+import { test, expect } from '../fixtures/e2e-auth'
 import {
   createTestProperty,
   createTestPricing,
   futureDate,
   API_BASE,
 } from '../fixtures/test-data'
+import type { Page } from '../fixtures/e2e-auth'
+
+const CLEANING_LIST_VIEW_MODE_STORAGE_KEY = 'day:cleaning:list-view-mode'
 
 test.describe('Cleaning Task CRUD - E2E', () => {
   let propertyIdsToCleanup: string[] = []
@@ -54,8 +57,19 @@ test.describe('Cleaning Task CRUD - E2E', () => {
     status: string,
   ) {
     await request.post(`${API_BASE}/cleaning/${taskId}/status`, {
-      data: { status },
+      data: { status, target_status: status },
     })
+  }
+
+  function transitionButton(page: Page, status: 'assigned' | 'in_progress' | 'done' | 'verified') {
+    const statusPattern =
+      status === 'in_progress'
+        ? /in[\s_-]?progress/i
+        : new RegExp(status, 'i')
+
+    return page
+      .getByTestId(`cleaning-transition-${status}`)
+      .or(page.getByRole('button', { name: new RegExp(`transition to ${statusPattern.source}`, 'i') }))
   }
 
   test.afterEach(async ({ request }) => {
@@ -103,13 +117,15 @@ test.describe('Cleaning Task CRUD - E2E', () => {
     await page.goto('/cleaning/new')
     await page.waitForLoadState('networkidle')
 
-    // Select property
-    const propertySelect = page.locator('select').first()
-    await propertySelect.selectOption({ label: new RegExp(prop.name as string, 'i') })
+    // Select property (Radix Select)
+    const propertySelect = page.getByRole('combobox').first()
+    await propertySelect.click()
+    await page.getByRole('option', { name: new RegExp(prop.name as string, 'i') }).first().click()
 
-    // Select type
-    const typeSelect = page.locator('select').nth(1)
-    await typeSelect.selectOption('mid_stay')
+    // Select type (Radix Select)
+    const typeSelect = page.getByRole('combobox').nth(1)
+    await typeSelect.click()
+    await page.getByRole('option', { name: /mid[\s_-]?stay/i }).first().click()
 
     // Fill scheduled date
     const dateInput = page.getByLabel(/scheduled date/i)
@@ -127,10 +143,10 @@ test.describe('Cleaning Task CRUD - E2E', () => {
     await page.getByRole('button', { name: /create task/i }).click()
 
     // Should redirect to task detail page
-    await page.waitForURL(/\/cleaning\//, { timeout: 10000 })
+    await page.waitForURL(/\/cleaning\/[0-9a-f-]+$/i, { timeout: 10000 })
 
     // Task detail should be visible with property name
-    await expect(page.getByText(prop.name as string)).toBeVisible({ timeout: 5000 })
+    await expect(page.getByRole('heading', { name: new RegExp(prop.name as string, 'i') })).toBeVisible({ timeout: 5000 })
 
     // Cleanup: find the created task via API
     const listRes = await request.get(`${API_BASE}/cleaning?per_page=50`)
@@ -168,6 +184,36 @@ test.describe('Cleaning Task CRUD - E2E', () => {
     await expect(page.getByText(prop.name as string).first()).toBeVisible({ timeout: 5000 })
   })
 
+  test('mobile list view toggle switches to table and persists after reload', async ({ page, request }) => {
+    const prop = await setupActiveProperty(request)
+    await createTaskViaApi(request, prop.id)
+
+    await page.setViewportSize({ width: 390, height: 844 })
+    await page.goto('/cleaning')
+    await page.waitForLoadState('networkidle')
+
+    await page.evaluate((storageKey) => {
+      localStorage.removeItem(storageKey)
+    }, CLEANING_LIST_VIEW_MODE_STORAGE_KEY)
+    await page.reload({ waitUntil: 'networkidle' })
+
+    const cardsToggle = page.getByRole('radio', { name: /cards/i }).first()
+    const tableToggle = page.getByRole('radio', { name: /table/i }).first()
+    await expect(cardsToggle).toHaveAttribute('data-state', 'on')
+
+    await tableToggle.click()
+    await expect(tableToggle).toHaveAttribute('data-state', 'on')
+    await expect(page.locator('tbody tr').first()).toBeVisible({ timeout: 5000 })
+    await expect
+      .poll(async () => page.evaluate((storageKey) => localStorage.getItem(storageKey), CLEANING_LIST_VIEW_MODE_STORAGE_KEY))
+      .toBe('table')
+
+    await page.reload({ waitUntil: 'networkidle' })
+    await expect(page.getByRole('radio', { name: /table/i }).first()).toHaveAttribute('data-state', 'on')
+    await expect(page.locator('tbody tr').first()).toBeVisible({ timeout: 5000 })
+    await expect(page.getByText(prop.name as string).first()).toBeVisible({ timeout: 5000 })
+  })
+
   test('filter tasks by status tabs', async ({ page, request }) => {
     const prop = await setupActiveProperty(request)
 
@@ -175,15 +221,16 @@ test.describe('Cleaning Task CRUD - E2E', () => {
     await createTaskViaApi(request, prop.id)
 
     // Create a task and assign it (make it assigned)
-    await createTaskViaApi(request, prop.id, {
+    const assignableTask = await createTaskViaApi(request, prop.id, {
       cleaner_id: '00000000-0000-0000-0000-000000000099',
     })
+    await transitionTaskViaApi(request, assignableTask.id, 'assigned')
 
     await page.goto('/cleaning')
     await page.waitForLoadState('networkidle')
 
     // Click Pending tab
-    await page.getByRole('button', { name: /^Pending$/i }).click()
+    await page.getByRole('radio', { name: /^pending$/i }).click()
     await page.waitForTimeout(500)
 
     // Should see "pending" badges
@@ -191,7 +238,7 @@ test.describe('Cleaning Task CRUD - E2E', () => {
     await expect(pendingBadges.first()).toBeVisible({ timeout: 5000 })
 
     // Click Assigned tab
-    await page.getByRole('button', { name: /^Assigned$/i }).click()
+    await page.getByRole('radio', { name: /^assigned$/i }).click()
     await page.waitForTimeout(500)
 
     // Should see assigned badge or property name of assigned task
@@ -199,7 +246,7 @@ test.describe('Cleaning Task CRUD - E2E', () => {
     await expect(assignedBadges.first()).toBeVisible({ timeout: 5000 })
 
     // Click All tab to show everything again
-    await page.getByRole('button', { name: /^All$/i }).click()
+    await page.getByRole('radio', { name: /^all$/i }).click()
     await page.waitForTimeout(500)
   })
 
@@ -207,16 +254,15 @@ test.describe('Cleaning Task CRUD - E2E', () => {
     await page.goto('/cleaning')
     await page.waitForLoadState('networkidle')
 
-    // If no tasks exist, should show empty state
     // Click a filter that likely has no results (e.g. Verified)
-    await page.getByRole('button', { name: /^Verified$/i }).click()
+    await page.getByRole('radio', { name: /^verified$/i }).click()
     await page.waitForTimeout(500)
 
-    // May or may not show empty state depending on data
+    // May or may not show empty state depending on data/view mode
     const emptyMsg = page.getByText(/no cleaning tasks found/i)
-    const table = page.locator('table')
-    // Either empty message or table should be visible
-    await expect(emptyMsg.or(table).first()).toBeVisible({ timeout: 5000 })
+    const tableRows = page.locator('tbody tr').first()
+    const cards = page.locator('div.space-y-3 > button').first()
+    await expect(emptyMsg.or(tableRows).or(cards).first()).toBeVisible({ timeout: 5000 })
   })
 
   // ── Task Detail ──────────────────────────────────────────────────
@@ -294,7 +340,7 @@ test.describe('Cleaning Task CRUD - E2E', () => {
     await page.waitForLoadState('networkidle')
 
     // Pending task should have "Transition to assigned" button
-    const assignBtn = page.getByRole('button', { name: /transition to assigned/i })
+    const assignBtn = transitionButton(page, 'assigned')
     await expect(assignBtn).toBeVisible({ timeout: 5000 })
     await assignBtn.click()
 
@@ -310,19 +356,19 @@ test.describe('Cleaning Task CRUD - E2E', () => {
     await page.waitForLoadState('networkidle')
 
     // pending -> assigned
-    await page.getByRole('button', { name: /transition to assigned/i }).click()
+    await transitionButton(page, 'assigned').click()
     await page.waitForTimeout(1000)
 
     // assigned -> in_progress
-    await page.getByRole('button', { name: /transition to in_progress/i }).click()
+    await transitionButton(page, 'in_progress').click()
     await page.waitForTimeout(1000)
 
     // in_progress -> done
-    await page.getByRole('button', { name: /transition to done/i }).click()
+    await transitionButton(page, 'done').click()
     await page.waitForTimeout(1000)
 
     // done -> verified
-    await page.getByRole('button', { name: /transition to verified/i }).click()
+    await transitionButton(page, 'verified').click()
     await page.waitForTimeout(1000)
 
     // Final state: verified - no more transition buttons
@@ -337,17 +383,16 @@ test.describe('Cleaning Task CRUD - E2E', () => {
     await page.goto(`/cleaning/${task.id}`)
     await page.waitForLoadState('networkidle')
 
-    await expect(page.getByRole('button', { name: /transition to assigned/i })).toBeVisible({ timeout: 5000 })
-    await expect(page.getByRole('button', { name: /transition to in_progress/i })).not.toBeVisible({ timeout: 1000 })
+    await expect(transitionButton(page, 'assigned')).toBeVisible({ timeout: 5000 })
+    await expect(transitionButton(page, 'in_progress')).not.toBeVisible({ timeout: 1000 })
 
-    // Transition to assigned via API
-    await transitionTaskViaApi(request, task.id, 'assigned')
-    await page.reload()
-    await page.waitForLoadState('networkidle')
+    // Transition via UI to avoid backend-specific payload differences.
+    await transitionButton(page, 'assigned').click()
+    await page.waitForTimeout(700)
 
     // Assigned: should show "in_progress" transition
-    await expect(page.getByRole('button', { name: /transition to in_progress/i })).toBeVisible({ timeout: 5000 })
-    await expect(page.getByRole('button', { name: /transition to assigned/i })).not.toBeVisible({ timeout: 1000 })
+    await expect(transitionButton(page, 'in_progress')).toBeVisible({ timeout: 5000 })
+    await expect(transitionButton(page, 'assigned')).not.toBeVisible({ timeout: 1000 })
   })
 
   // ── Click-through navigation ──────────────────────────────────────

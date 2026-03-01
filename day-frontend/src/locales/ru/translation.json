@@ -8,7 +8,8 @@
     "checklists": "Чеклисты",
     "analytics": "Аналитика",
     "aiImport": "AI Импорт",
-    "settings": "Настройки"
+    "settings": "Настройки",
+    "more": "Ещё"
   },
   "common": {
     "save": "Сохранить",
@@ -39,6 +40,7 @@
     "done": "Готово",
     "verified": "Проверено",
     "status": "Статус",
+    "actions": "Действия",
     "type": "Тип",
     "notes": "Заметки",
     "total": "Итого",
@@ -70,11 +72,14 @@
     "large": "Крупно",
     "medium": "Средне",
     "list": "Список",
+    "cards": "Карточки",
+    "table": "Таблица",
     "cash": "Наличные",
     "card": "Карта",
     "transfer": "Перевод",
     "processing": "Обработка...",
-    "retry": "Повторить"
+    "retry": "Повторить",
+    "logout": "Выйти"
   },
   "home": {
     "subtitle": "Управление бронированиями и календарём",
@@ -314,11 +319,14 @@
   },
   "gantt": {
     "title": "Шахматка",
+    "agenda": "Повестка",
     "today": "Сегодня",
     "property": "Объект",
     "noProperties": "Нет объектов для отображения",
+    "noBookingsInRange": "В выбранном периоде бронирований нет",
     "failedLoad": "Не удалось загрузить шахматку",
     "stayPreview": "Предпросмотр",
+    "tapCheckoutHint": "Заезд {{checkIn}} выбран. Нажмите более позднюю дату для выезда.",
     "nightCount": "{{count}} ночь",
     "nightCount_other": "{{count}} ночей",
     "cannotMoveToPaused": "Нельзя переместить бронь на объект на паузе",

@@ -1,10 +1,13 @@
 import { createRootRoute, Outlet, Link, useRouterState, redirect } from '@tanstack/react-router'
 import { Building2, CalendarRange, CalendarDays, Clock, SprayCan, ClipboardList, BarChart3, Sparkles, Settings, LogOut } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
+import MobileShell from '../components/layout/MobileShell'
 import ToastContainer from '../components/ui/Toast'
 import { useCurrentUser, useLogout } from '../hooks/useAuth'
+import { useMediaQuery } from '../hooks/useMediaQuery'
 
 const PUBLIC_ROUTES = ['/login', '/register']
+const CLEANER_ROUTE_PREFIX = '/cleaner'
 
 export const Route = createRootRoute({
   beforeLoad: ({ location }) => {
@@ -28,6 +31,15 @@ function RootLayout() {
     )
   }
 
+  if (pathname === CLEANER_ROUTE_PREFIX || pathname.startsWith(`${CLEANER_ROUTE_PREFIX}/`)) {
+    return (
+      <>
+        <Outlet />
+        <ToastContainer />
+      </>
+    )
+  }
+
   return <AuthenticatedLayout />
 }
 
@@ -36,6 +48,7 @@ function AuthenticatedLayout() {
   const pathname = useRouterState({ select: (s) => s.location.pathname })
   const { data: user } = useCurrentUser()
   const logout = useLogout()
+  const isMobileShell = useIsMobileShell()
 
   const navItems = [
     { to: '/properties', label: t('nav.properties'), icon: Building2 },
@@ -57,6 +70,17 @@ function AuthenticatedLayout() {
     }
     return best
   }, null)
+
+  if (isMobileShell) {
+    return (
+      <>
+        <MobileShell key={pathname} pathname={pathname} userEmail={user?.email} onLogout={logout}>
+          <Outlet />
+        </MobileShell>
+        <ToastContainer />
+      </>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-white flex flex-col">
@@ -101,4 +125,8 @@ function AuthenticatedLayout() {
       <ToastContainer />
     </div>
   )
+}
+
+function useIsMobileShell(): boolean {
+  return useMediaQuery('(max-width: 1023px)')
 }

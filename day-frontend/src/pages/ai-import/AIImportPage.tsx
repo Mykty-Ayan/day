@@ -52,14 +52,14 @@ export default function AIImportPage() {
     : undefined
 
   return (
-    <div className="p-6 max-w-5xl mx-auto w-full">
+    <div className="px-4 py-4 sm:px-6 sm:py-6 max-w-5xl mx-auto w-full">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4 }}
       >
         {/* Header */}
-        <div className="flex items-center gap-3 mb-6">
+        <div className="mb-6 flex flex-wrap items-center gap-2 sm:gap-3">
           <Sparkles className="w-5 h-5 text-gray-900" />
           <h1 className="text-xl font-bold text-gray-900">{t('aiImport.title')}</h1>
         </div>
@@ -67,11 +67,11 @@ export default function AIImportPage() {
         {/* Import form card */}
         <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden mb-8">
           {/* Tab switcher */}
-          <div className="flex border-b border-gray-100">
+          <div className="flex flex-col border-b border-gray-100 sm:flex-row">
             <button
               type="button"
               onClick={() => setActiveTab('single')}
-              className={`flex-1 px-4 py-3 text-xs font-bold transition-colors ${
+              className={`w-full px-4 py-3 text-xs font-bold transition-colors sm:flex-1 ${
                 activeTab === 'single'
                   ? 'text-gray-900 border-b-2 border-black'
                   : 'text-gray-500 hover:text-gray-700'
@@ -82,7 +82,7 @@ export default function AIImportPage() {
             <button
               type="button"
               onClick={() => setActiveTab('batch')}
-              className={`flex-1 px-4 py-3 text-xs font-bold transition-colors ${
+              className={`w-full px-4 py-3 text-xs font-bold transition-colors sm:flex-1 ${
                 activeTab === 'batch'
                   ? 'text-gray-900 border-b-2 border-black'
                   : 'text-gray-500 hover:text-gray-700'
@@ -93,7 +93,7 @@ export default function AIImportPage() {
           </div>
 
           {/* Tab content */}
-          <div className="p-5">
+          <div className="p-4 sm:p-5">
             {activeTab === 'single' ? (
               <ImportForm
                 onSubmit={handleSingleImport}
@@ -109,7 +109,7 @@ export default function AIImportPage() {
 
           {/* Error */}
           {error && (
-            <div className="px-5 pb-5">
+            <div className="px-4 pb-4 sm:px-5 sm:pb-5">
               <div className="bg-red-50 border border-red-200 rounded-xl p-3">
                 <p className="text-sm text-red-600">{error}</p>
               </div>

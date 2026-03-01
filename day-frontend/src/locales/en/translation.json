@@ -8,7 +8,8 @@
     "checklists": "Checklists",
     "analytics": "Analytics",
     "aiImport": "AI Import",
-    "settings": "Settings"
+    "settings": "Settings",
+    "more": "More"
   },
   "common": {
     "save": "Save",
@@ -39,6 +40,7 @@
     "done": "Done",
     "verified": "Verified",
     "status": "Status",
+    "actions": "Actions",
     "type": "Type",
     "notes": "Notes",
     "total": "Total",
@@ -70,11 +72,14 @@
     "large": "Large",
     "medium": "Medium",
     "list": "List",
+    "cards": "Cards",
+    "table": "Table",
     "cash": "Cash",
     "card": "Card",
     "transfer": "Transfer",
     "processing": "Processing...",
-    "retry": "Retry"
+    "retry": "Retry",
+    "logout": "Log out"
   },
   "home": {
     "subtitle": "Booking & calendar management",
@@ -314,11 +319,14 @@
   },
   "gantt": {
     "title": "Gantt Chart",
+    "agenda": "Agenda",
     "today": "Today",
     "property": "Property",
     "noProperties": "No properties to display",
+    "noBookingsInRange": "No bookings in the selected period",
     "failedLoad": "Failed to load gantt chart data",
     "stayPreview": "Stay preview",
+    "tapCheckoutHint": "Check-in {{checkIn}} selected. Tap a later date to set check-out.",
     "nightCount": "{{count}} night",
     "nightCount_other": "{{count}} nights",
     "cannotMoveToPaused": "Cannot move booking to a paused property",

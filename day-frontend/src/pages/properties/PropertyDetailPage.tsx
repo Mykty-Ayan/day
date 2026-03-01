@@ -162,10 +162,10 @@ export default function PropertyDetailPage() {
 
   const statusActions = getStatusActions(property.status)
   const actionButtonClass =
-    'inline-flex shrink-0 items-center gap-2 whitespace-nowrap bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-xl px-4 py-2 text-xs font-bold text-gray-700 transition-colors'
+    'inline-flex min-h-[44px] min-w-[44px] items-center justify-center gap-2 rounded-xl border border-gray-200 bg-gray-50 px-4 py-2 text-xs font-bold text-gray-700 transition-colors hover:bg-gray-100'
 
   return (
-    <div className="p-6 max-w-5xl mx-auto w-full">
+    <div className="px-4 py-4 sm:px-6 sm:py-6 max-w-5xl mx-auto w-full">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -181,7 +181,7 @@ export default function PropertyDetailPage() {
         </Link>
 
         {/* Header */}
-        <div className="mb-6 flex items-start justify-between gap-4">
+        <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div className="min-w-0">
             <div className="flex items-center gap-3 mb-1">
               <h1 className="text-xl font-bold text-gray-900">{property.name}</h1>
@@ -189,11 +189,11 @@ export default function PropertyDetailPage() {
             </div>
             <p className="text-sm text-gray-500">{property.internal_name}</p>
           </div>
-          <div className="flex shrink-0 flex-wrap gap-2">
+          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap">
             <Link
               to="/properties/$propertyId/edit"
               params={{ propertyId }}
-              className={actionButtonClass}
+              className={`${actionButtonClass} w-full sm:w-auto`}
             >
               <Pencil className="w-3.5 h-3.5" />
               {t('common.edit')}
@@ -202,7 +202,7 @@ export default function PropertyDetailPage() {
               type="button"
               whileTap={{ scale: 0.97 }}
               onClick={() => setShowCloneConfirm(true)}
-              className={actionButtonClass}
+              className={`${actionButtonClass} w-full sm:w-auto`}
             >
               <Copy className="w-3.5 h-3.5" />
               {t('common.clone')}
@@ -213,7 +213,7 @@ export default function PropertyDetailPage() {
                 type="button"
                 whileTap={{ scale: 0.97 }}
                 onClick={() => changeStatus.mutate(action.target)}
-                className={actionButtonClass}
+                className={`${actionButtonClass} w-full sm:w-auto`}
               >
                 <action.icon className="w-3.5 h-3.5" />
                 {t(action.labelKey)}
@@ -250,7 +250,7 @@ export default function PropertyDetailPage() {
             {/* Property details grid */}
             <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
               <h2 className="text-sm font-bold text-gray-900 mb-4">{t('properties.details')}</h2>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
                 <div className="flex items-center gap-2">
                   <Building2 className="w-4 h-4 text-gray-400" />
                   <div>

@@ -17,12 +17,12 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="flex flex-1 items-center justify-center p-6 min-h-screen bg-white">
+    <div className="flex flex-1 items-center justify-center px-4 py-4 sm:px-6 sm:py-6 min-h-screen bg-white">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4 }}
-        className="bg-white border border-gray-200 rounded-xl p-8 shadow-sm w-full max-w-sm"
+        className="bg-white border border-gray-200 rounded-xl p-5 sm:p-8 shadow-sm w-full max-w-sm"
       >
         <div className="flex justify-center mb-4">
           <div className="bg-gray-50 p-3 rounded-full">

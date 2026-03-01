@@ -129,7 +129,7 @@ function EditBookingForm({ detail, bookingId }: { detail: BookingDetail; booking
   }
 
   return (
-    <div className="p-6 max-w-3xl mx-auto w-full">
+    <div className="px-4 py-4 sm:px-6 sm:py-6 max-w-3xl mx-auto w-full">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -140,7 +140,7 @@ function EditBookingForm({ detail, bookingId }: { detail: BookingDetail; booking
           <motion.button
             whileTap={{ scale: 0.97 }}
             onClick={() => navigate({ to: '/bookings/$bookingId', params: { bookingId } })}
-            className="p-2 rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-50 transition-colors"
+            className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg border border-gray-200 text-gray-700 transition-colors hover:bg-gray-50"
           >
             <ArrowLeft className="w-4 h-4" />
           </motion.button>
@@ -183,26 +183,28 @@ function EditBookingForm({ detail, bookingId }: { detail: BookingDetail; booking
             <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
               {t('bookings.source')}
             </label>
-            <ToggleGroup
-              type="single"
-              value={form.source}
-              onValueChange={(value) => {
-                if (!value) return
-                updateField('source', value as BookingSource)
-              }}
-              className="flex flex-wrap"
-            >
-              {SOURCES.map((s) => (
-                <ToggleGroupItem key={s.value} value={s.value}>
-                  {s.label}
-                </ToggleGroupItem>
-              ))}
-            </ToggleGroup>
+            <div className="w-full overflow-x-auto">
+              <ToggleGroup
+                type="single"
+                value={form.source}
+                onValueChange={(value) => {
+                  if (!value) return
+                  updateField('source', value as BookingSource)
+                }}
+                className="min-w-max"
+              >
+                {SOURCES.map((s) => (
+                  <ToggleGroupItem key={s.value} value={s.value}>
+                    {s.label}
+                  </ToggleGroupItem>
+                ))}
+              </ToggleGroup>
+            </div>
           </div>
 
           {/* Guests Count */}
           <div className="border-t border-gray-100 pt-5">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
                 <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">
                   {t('bookings.adults')}
@@ -279,12 +281,13 @@ function EditBookingForm({ detail, bookingId }: { detail: BookingDetail; booking
         </div>
 
         {/* Submit */}
-        <div className="flex justify-end mt-6">
+        <div className="mt-6 flex justify-end">
           <motion.button
             whileTap={{ scale: 0.97 }}
+            type="button"
             onClick={handleSubmit}
             disabled={updateBooking.isPending}
-            className="flex items-center gap-2 bg-black text-white hover:bg-gray-800 rounded-xl px-6 py-2.5 font-semibold shadow-lg transition-colors disabled:opacity-50"
+            className="flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl bg-black px-6 py-2.5 font-semibold text-white shadow-lg transition-colors hover:bg-gray-800 disabled:opacity-50 sm:w-auto"
           >
             {updateBooking.isPending ? (
               <Loader2 className="w-4 h-4 animate-spin" />

@@ -174,7 +174,7 @@ function PricingFormInner({
       {/* Base pricing */}
       <div>
         <h3 className="text-sm font-bold text-gray-900 mb-3">Base Pricing</h3>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div>
             <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">
               Base Price
@@ -287,7 +287,7 @@ function PricingFormInner({
         {seasonalPrices.map((sp: SeasonalPrice) => (
           <div
             key={sp.id}
-            className="mb-2 flex items-center justify-between rounded-xl border border-gray-200 bg-gray-50 p-3"
+            className="mb-2 flex flex-col gap-2 rounded-xl border border-gray-200 bg-gray-50 p-3 sm:flex-row sm:items-center sm:justify-between"
           >
             <div>
               <span className="text-sm font-semibold text-gray-900">{sp.name.trim()}</span>
@@ -295,11 +295,11 @@ function PricingFormInner({
                 {formatSeasonalDate(sp.start_date)} - {formatSeasonalDate(sp.end_date)}
               </span>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 self-start sm:self-auto">
               <span className="text-sm font-bold text-gray-900">{currencySymbol}{sp.price}</span>
               <button
                 onClick={() => onDeleteSeasonal(sp.id)}
-                className="p-1 text-gray-400 hover:text-red-600 transition-colors"
+                className="inline-flex h-11 w-11 items-center justify-center rounded-lg text-gray-400 transition-colors hover:bg-red-50 hover:text-red-600 sm:h-8 sm:w-8"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -390,14 +390,14 @@ function PricingFormInner({
         {discountRules.map((dr: DiscountRule) => (
           <div
             key={dr.id}
-            className="flex items-center justify-between bg-gray-50 border border-gray-200 rounded-xl p-3 mb-2"
+            className="mb-2 flex flex-col gap-2 rounded-xl border border-gray-200 bg-gray-50 p-3 sm:flex-row sm:items-center sm:justify-between"
           >
             <span className="text-sm text-gray-700">
               {dr.min_nights}+ nights: {dr.type === 'percent' ? `${dr.value}%` : `${currencySymbol}${dr.value}`} off
             </span>
             <button
               onClick={() => onDeleteDiscount(dr.id)}
-              className="p-1 text-gray-400 hover:text-red-600 transition-colors"
+              className="inline-flex h-11 w-11 items-center justify-center self-start rounded-lg text-gray-400 transition-colors hover:bg-red-50 hover:text-red-600 sm:h-8 sm:w-8 sm:self-auto"
             >
               <X className="w-4 h-4" />
             </button>

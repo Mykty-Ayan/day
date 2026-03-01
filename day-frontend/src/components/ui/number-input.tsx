@@ -11,6 +11,7 @@ interface NumberInputProps {
   className?: string
   inputClassName?: string
   disabled?: boolean
+  ariaLabel?: string
 }
 
 function parseNumber(value: string | number): number | null {
@@ -42,6 +43,7 @@ export default function NumberInput({
   className,
   inputClassName,
   disabled,
+  ariaLabel,
 }: NumberInputProps) {
   function clampValue(num: number): number {
     let next = num
@@ -91,8 +93,9 @@ export default function NumberInput({
         step={step}
         placeholder={placeholder}
         disabled={disabled}
+        aria-label={ariaLabel}
         className={cn(
-          'number-input w-full bg-gray-50 border border-gray-200 rounded-xl p-3 pr-9 outline-none focus:ring-2 focus:ring-black/10 text-gray-800 text-sm',
+          'number-input w-full bg-gray-50 border border-gray-200 rounded-xl p-3 pr-11 outline-none focus:ring-2 focus:ring-black/10 text-gray-800 text-sm',
           disabled && 'opacity-50 cursor-not-allowed',
           inputClassName,
         )}
@@ -102,19 +105,19 @@ export default function NumberInput({
           type="button"
           onClick={() => handleStep(1)}
           disabled={disabled}
-          className="h-4 w-4 rounded-md bg-white border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-40"
+          className="flex h-6 w-6 items-center justify-center rounded-md border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 disabled:opacity-40"
           aria-label="Increment"
         >
-          <ChevronUp className="h-3 w-3" />
+          <ChevronUp className="h-3.5 w-3.5" />
         </button>
         <button
           type="button"
           onClick={() => handleStep(-1)}
           disabled={disabled}
-          className="h-4 w-4 rounded-md bg-white border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-40"
+          className="flex h-6 w-6 items-center justify-center rounded-md border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 disabled:opacity-40"
           aria-label="Decrement"
         >
-          <ChevronDown className="h-3 w-3" />
+          <ChevronDown className="h-3.5 w-3.5" />
         </button>
       </div>
     </div>

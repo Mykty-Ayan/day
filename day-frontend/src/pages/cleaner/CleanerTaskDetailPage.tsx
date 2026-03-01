@@ -181,12 +181,19 @@ export default function CleanerTaskDetailPage() {
 
   const nextStatuses = CLEANING_VALID_TRANSITIONS[task.status]
   const hasNextAction = nextStatuses.length > 0
+  const hasFixedActionBar = hasNextAction && !showReportForm
 
   // Get first template's items for checklist display
   const firstTemplate = templates?.[0]
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-28">
+    <div
+      className={`min-h-screen bg-gray-50 ${
+        hasFixedActionBar
+          ? 'pb-[calc(7.5rem+env(safe-area-inset-bottom))]'
+          : 'pb-6 safe-area-bottom'
+      }`}
+    >
       {/* Header */}
       <div className="bg-white border-b border-gray-100 px-4 pt-4 pb-4 safe-area-top">
         <div className="flex items-center gap-3">
@@ -347,7 +354,7 @@ export default function CleanerTaskDetailPage() {
             </div>
 
             {/* Submit */}
-            <div className="flex gap-2">
+            <div className="flex flex-col-reverse gap-2 sm:flex-row">
               <motion.button
                 whileTap={{ scale: 0.97 }}
                 onClick={handleSubmitReport}
@@ -366,7 +373,7 @@ export default function CleanerTaskDetailPage() {
               <motion.button
                 whileTap={{ scale: 0.97 }}
                 onClick={() => setShowReportForm(false)}
-                className="px-4 py-3 rounded-xl border border-gray-200 text-sm font-bold text-gray-700 hover:bg-gray-50 transition-colors min-h-[48px]"
+                className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm font-bold text-gray-700 transition-colors hover:bg-gray-50 min-h-[48px] sm:w-auto"
               >
                 {t('common.cancel')}
               </motion.button>

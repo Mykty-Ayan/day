@@ -132,7 +132,7 @@ export default function CleanerDashboardPage() {
       </div>
 
       {/* Task list */}
-      <div className="px-4 pb-24">
+      <div className="px-4 pb-[calc(7rem+env(safe-area-inset-bottom))]">
         {isLoading ? (
           <Spinner />
         ) : tasks.length === 0 ? (

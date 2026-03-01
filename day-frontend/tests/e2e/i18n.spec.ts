@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test'
+import { test, expect } from '../fixtures/e2e-auth'
 
 test.describe('Internationalization (i18n) - E2E', () => {
   test('default language is Russian', async ({ page }) => {

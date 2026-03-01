@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { useTranslation } from 'react-i18next'
 import type { TimeSeriesPoint } from '../../types/analytics'
@@ -24,6 +25,9 @@ function formatAxisLabel(label: string): string {
 
 export default function OccupancyChart({ data }: { data: TimeSeriesPoint[] }) {
   const { t } = useTranslation()
+  const [activeIndex, setActiveIndex] = useState<number | null>(null)
+  const clampedActiveIndex =
+    activeIndex !== null && activeIndex < data.length ? activeIndex : null
 
   if (data.length === 0) {
     return (
@@ -59,12 +63,21 @@ export default function OccupancyChart({ data }: { data: TimeSeriesPoint[] }) {
           {data.map((point, i) => {
             const rate = occupancyRates[i] ?? 0
             const height = Math.max(rate, 2)
+            const isActive = clampedActiveIndex === i
             return (
-              <div
+              <button
                 key={`${point.period_start ?? point.period_label}-${i}`}
-                className="group relative flex h-full min-w-0 flex-1 flex-col items-center justify-end"
+                type="button"
+                onClick={() => setActiveIndex((current) => (current === i ? null : i))}
+                onFocus={() => setActiveIndex(i)}
+                className="group relative flex h-full min-w-0 flex-1 flex-col items-center justify-end focus:outline-none"
+                aria-label={`${point.period_label}: ${rate.toFixed(1)}%`}
               >
-                <div className="absolute bottom-full mb-2 hidden group-hover:block z-10">
+                <div
+                  className={`absolute bottom-full mb-2 z-10 ${
+                    isActive ? 'block' : 'hidden group-hover:block group-focus-visible:block'
+                  }`}
+                >
                   <div className="bg-gray-900 text-white text-xs rounded-lg px-3 py-2 whitespace-nowrap shadow-lg">
                     <div className="font-bold">{rate.toFixed(1)}%</div>
                     <div className="text-gray-300">{point.booked_nights} nights</div>
@@ -83,7 +96,7 @@ export default function OccupancyChart({ data }: { data: TimeSeriesPoint[] }) {
                         : 'bg-red-400'
                   }`}
                 />
-              </div>
+              </button>
             )
           })}
         </div>

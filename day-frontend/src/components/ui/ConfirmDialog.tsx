@@ -56,8 +56,9 @@ export default function ConfirmDialog({
             className="relative bg-white rounded-2xl shadow-xl max-w-sm w-full p-6"
           >
             <button
+              type="button"
               onClick={onCancel}
-              className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors"
+              className="absolute right-3 top-3 flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg text-gray-400 transition-colors hover:bg-gray-50 hover:text-gray-600"
             >
               <X className="w-4 h-4" />
             </button>
@@ -74,19 +75,21 @@ export default function ConfirmDialog({
               </div>
             </div>
 
-            <div className="flex gap-2 justify-end">
+            <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
               <button
+                type="button"
                 onClick={onCancel}
                 disabled={loading}
-                className="px-4 py-2 rounded-xl border border-gray-200 text-xs font-bold text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50"
+                className="min-h-[44px] w-full rounded-xl border border-gray-200 px-4 py-2 text-xs font-bold text-gray-700 transition-colors hover:bg-gray-50 disabled:opacity-50 sm:w-auto"
               >
                 {resolvedCancelLabel}
               </button>
               <motion.button
                 whileTap={{ scale: 0.97 }}
+                type="button"
                 onClick={onConfirm}
                 disabled={loading}
-                className={`px-4 py-2 rounded-xl text-xs font-bold text-white transition-colors disabled:opacity-50 ${
+                className={`min-h-[44px] w-full rounded-xl px-4 py-2 text-xs font-bold text-white transition-colors disabled:opacity-50 sm:w-auto ${
                   variant === 'danger'
                     ? 'bg-red-600 hover:bg-red-700'
                     : 'bg-black hover:bg-gray-800'

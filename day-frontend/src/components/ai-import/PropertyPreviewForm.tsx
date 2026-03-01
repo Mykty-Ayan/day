@@ -246,12 +246,12 @@ export default function PropertyPreviewForm({ data, onChange }: Props) {
       </div>
 
       {/* Basic info */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <FieldRow label={t('properties.form.publicName')} value={data.name} field="name" editing={editing} onChange={handleFieldChange} />
         <FieldRow label={t('properties.form.internalName')} value={data.internal_name} field="internal_name" editing={editing} onChange={handleFieldChange} />
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div className="flex flex-col gap-1">
           <label
             htmlFor="field-type"
@@ -292,7 +292,7 @@ export default function PropertyPreviewForm({ data, onChange }: Props) {
       <div className="border-t border-gray-100 pt-4">
         <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">{t('aiImport.addressAndLocation')}</h4>
         <FieldRow label={t('properties.form.fullAddress')} value={data.address_full} field="address_full" editing={editing} onChange={handleFieldChange} />
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+        <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <FieldRow label={t('properties.form.latitude')} value={latitudeDisplay} field="latitude" editing={editing} onChange={handleFieldChange} type="number" />
           <FieldRow label={t('properties.form.longitude')} value={longitudeDisplay} field="longitude" editing={editing} onChange={handleFieldChange} type="number" />
           <FieldRow label={t('properties.form.floor')} value={data.floor} field="floor" editing={editing} onChange={handleFieldChange} type="number" />
@@ -302,7 +302,7 @@ export default function PropertyPreviewForm({ data, onChange }: Props) {
       {/* Details */}
       <div className="border-t border-gray-100 pt-4">
         <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">{t('properties.details')}</h4>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <FieldRow label={t('properties.form.rooms')} value={data.rooms} field="rooms" editing={editing} onChange={handleFieldChange} type="number" />
           <FieldRow label={t('properties.form.beds')} value={data.beds} field="beds" editing={editing} onChange={handleFieldChange} type="number" />
           <FieldRow label={t('aiImport.totalArea')} value={data.area_total} field="area_total" editing={editing} onChange={handleFieldChange} type="number" />
@@ -313,7 +313,7 @@ export default function PropertyPreviewForm({ data, onChange }: Props) {
       {/* Pricing */}
       <div className="border-t border-gray-100 pt-4">
         <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">{t('properties.pricing')}</h4>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div className="space-y-2">
             <FieldRow label={t('aiImport.basePricePerNight')} value={data.base_price} field="base_price" editing={editing} onChange={handleFieldChange} type="number" />
             {editing && basePriceMissing && (
@@ -454,11 +454,11 @@ export default function PropertyPreviewForm({ data, onChange }: Props) {
                   />
                 </a>
                 {editing && (
-                  <div className="absolute top-1.5 left-1.5 bg-white/90 border border-gray-200 rounded-lg p-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <div className="absolute top-1.5 left-1.5 rounded-lg border border-gray-200 bg-white/90 p-1 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100">
                     <GripVertical className="w-3 h-3 text-gray-500" />
                   </div>
                 )}
-                <div className="absolute bottom-1.5 left-1.5 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                <div className="absolute bottom-1.5 left-1.5 flex items-center gap-1 opacity-100 transition-opacity sm:opacity-0 sm:pointer-events-none sm:group-hover:opacity-100 sm:group-hover:pointer-events-auto sm:group-focus-within:opacity-100 sm:group-focus-within:pointer-events-auto">
                   <a
                     href={url}
                     target="_blank"
@@ -489,7 +489,7 @@ export default function PropertyPreviewForm({ data, onChange }: Props) {
                   </span>
                 )}
                 {editing && (
-                  <div className="absolute top-1.5 right-1.5 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <div className="absolute top-1.5 right-1.5 flex items-center gap-1 opacity-100 transition-opacity sm:opacity-0 sm:pointer-events-none sm:group-hover:opacity-100 sm:group-hover:pointer-events-auto sm:group-focus-within:opacity-100 sm:group-focus-within:pointer-events-auto">
                     <button
                       type="button"
                       onClick={() => handleSetMainPhoto(i)}

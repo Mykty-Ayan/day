@@ -6,12 +6,12 @@ import Button from '../components/ui/Button'
 export default function HomePage() {
   const { t } = useTranslation()
   return (
-    <div className="flex flex-1 items-center justify-center p-6">
+    <div className="flex flex-1 items-center justify-center px-4 py-4 sm:px-6 sm:py-6">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4 }}
-        className="bg-white border border-gray-200 rounded-xl p-8 shadow-sm text-center max-w-md w-full"
+        className="bg-white border border-gray-200 rounded-xl p-5 sm:p-8 shadow-sm text-center max-w-md w-full"
       >
         <div className="flex justify-center mb-4">
           <div className="bg-gray-50 p-3 rounded-full">

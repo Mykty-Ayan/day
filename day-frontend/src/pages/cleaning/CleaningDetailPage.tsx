@@ -29,7 +29,7 @@ export default function CleaningDetailPage() {
 
   if (!data) {
     return (
-      <div className="p-6 text-center text-gray-400">{t('cleaning.taskNotFound')}</div>
+      <div className="px-4 py-4 sm:px-6 sm:py-6 text-center text-gray-400">{t('cleaning.taskNotFound')}</div>
     )
   }
 
@@ -43,7 +43,7 @@ export default function CleaningDetailPage() {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4 }}
-      className="p-6 max-w-4xl mx-auto"
+      className="px-4 py-4 sm:px-6 sm:py-6 max-w-4xl mx-auto"
     >
       <Link
         to="/cleaning"
@@ -53,36 +53,38 @@ export default function CleaningDetailPage() {
         {t('cleaning.backToCleaningTasks')}
       </Link>
 
-      <div className="flex items-center justify-between mb-6">
-        <div>
+      <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
           <h1 className="text-2xl font-bold text-gray-900">
             {data.task.property_name || 'Cleaning Task'}
           </h1>
-          <p className="text-sm text-gray-400 mt-1">
+          <p className="mt-1 truncate text-sm text-gray-400">
             {data.task.property_internal_name}
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <CleaningTypeBadge type={data.task.type} />
           <CleaningStatusBadge status={data.task.status} />
         </div>
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 p-1 bg-gray-100 rounded-xl mb-6">
-        {TABS.map((tab) => (
-          <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-              activeTab === tab
-                ? 'bg-white text-gray-900 shadow-sm'
-                : 'text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            {tabLabels[tab]}
-          </button>
-        ))}
+      <div className="mb-6 overflow-x-auto">
+        <div className="flex min-w-max gap-1 rounded-xl bg-gray-100 p-1">
+          {TABS.map((tab) => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className={`min-h-[44px] whitespace-nowrap rounded-lg px-4 py-2 text-sm font-medium transition-all ${
+                activeTab === tab
+                  ? 'bg-white text-gray-900 shadow-sm'
+                  : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              {tabLabels[tab]}
+            </button>
+          ))}
+        </div>
       </div>
 
       <AnimatePresence mode="wait">
@@ -118,12 +120,12 @@ function OverviewTab({ data }: { data: CleaningTaskDetail }) {
 
   return (
     <div className="space-y-6">
-      <div className="bg-white rounded-2xl border border-gray-200 p-6">
+      <div className="bg-white rounded-2xl border border-gray-200 p-4 sm:p-6">
         <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
           <Info className="w-5 h-5 text-gray-400" />
           {t('cleaning.taskDetails')}
         </h2>
-        <div className="grid grid-cols-2 gap-4 text-sm">
+        <div className="grid grid-cols-1 gap-4 text-sm sm:grid-cols-2">
           <div>
             <span className="text-gray-400">{t('cleaning.type')}</span>
             <p className="font-medium mt-1">{task.type}</p>
@@ -184,12 +186,14 @@ function OverviewTab({ data }: { data: CleaningTaskDetail }) {
       </div>
 
       {nextStatuses.length > 0 && (
-        <div className="flex gap-2">
+        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
           {nextStatuses.map((status) => (
             <Button
               key={status}
               disabled={statusMutation.isPending}
               onClick={() => handleStatusChange(status)}
+              className="w-full sm:w-auto"
+              data-testid={`cleaning-transition-${status}`}
             >
               {t('cleaning.transitionTo', { status })}
             </Button>
@@ -214,12 +218,12 @@ function ReportTab({ data }: { data: CleaningTaskDetail }) {
 
   return (
     <div className="space-y-6">
-      <div className="bg-white rounded-2xl border border-gray-200 p-6">
+      <div className="bg-white rounded-2xl border border-gray-200 p-4 sm:p-6">
         <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
           <ClipboardList className="w-5 h-5 text-gray-400" />
           {t('cleaning.report')}
         </h2>
-        <div className="grid grid-cols-2 gap-4 text-sm mb-4">
+        <div className="mb-4 grid grid-cols-1 gap-4 text-sm sm:grid-cols-2">
           <div>
             <span className="text-gray-400">{t('common.status')}</span>
             <p className="font-medium mt-1 capitalize">
@@ -244,12 +248,12 @@ function ReportTab({ data }: { data: CleaningTaskDetail }) {
       </div>
 
       {report.photos.length > 0 && (
-        <div className="bg-white rounded-2xl border border-gray-200 p-6">
+        <div className="bg-white rounded-2xl border border-gray-200 p-4 sm:p-6">
           <h3 className="text-md font-semibold text-gray-900 mb-4 flex items-center gap-2">
             <Camera className="w-5 h-5 text-gray-400" />
             {t('cleaning.photos')} ({report.photos.length})
           </h3>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3">
             {report.photos.map((photo) => (
               <div
                 key={photo.id}
@@ -273,7 +277,7 @@ function ReportTab({ data }: { data: CleaningTaskDetail }) {
       )}
 
       {report.checklist.length > 0 && (
-        <div className="bg-white rounded-2xl border border-gray-200 p-6">
+        <div className="bg-white rounded-2xl border border-gray-200 p-4 sm:p-6">
           <h3 className="text-md font-semibold text-gray-900 mb-4 flex items-center gap-2">
             <CheckCircle2 className="w-5 h-5 text-gray-400" />
             {t('cleaning.checklist')} ({report.checklist.length})

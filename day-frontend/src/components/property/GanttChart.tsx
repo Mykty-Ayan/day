@@ -8,6 +8,7 @@ import { showToast } from '../ui/Toast'
 import { moveBooking } from '../../api/bookings'
 import { useQueryClient } from '@tanstack/react-query'
 import { useCurrency } from '../../hooks/useCurrency'
+import { useMediaQuery } from '../../hooks/useMediaQuery'
 
 export interface GanttRow {
   property: GanttPropertySummary
@@ -16,6 +17,7 @@ export interface GanttRow {
 
 interface Props {
   rows: GanttRow[]
+  mode?: 'gantt' | 'agenda'
   year: number
   month: number
   rangeStart: string
@@ -197,6 +199,7 @@ const sourceKeys: Record<Booking['source'], string> = {
 
 export default function GanttChart({
   rows,
+  mode = 'gantt',
   year,
   month,
   rangeStart,
@@ -210,6 +213,7 @@ export default function GanttChart({
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const { symbol: currencySymbol } = useCurrency()
+  const isCoarsePointer = useMediaQuery('(hover: none), (pointer: coarse)')
   const scrollRef = useRef<HTMLDivElement>(null)
 
   const weekdayNames = useMemo(() => Array.from({ length: 7 }, (_, i) => t(`gantt.weekdays.${i}`)), [t])
@@ -278,6 +282,7 @@ export default function GanttChart({
 
   // Tooltip state
   const [tooltip, setTooltip] = useState<{ booking: Booking; x: number; y: number } | null>(null)
+  const [touchTooltipBooking, setTouchTooltipBooking] = useState<Booking | null>(null)
   const [hoverPreview, setHoverPreview] = useState<{ propertyId: string; date: string } | null>(null)
   const [rangePreviewTooltip, setRangePreviewTooltip] = useState<{
     left: number
@@ -407,6 +412,7 @@ export default function GanttChart({
   }
 
   function handleCellClick(property: GanttPropertySummary, day: Date) {
+    setTouchTooltipBooking(null)
     if (property.status === 'paused') {
       showToast('error', t('gantt.pausedUnavailable'))
       return
@@ -426,6 +432,10 @@ export default function GanttChart({
     }
   }
 
+  if (mode !== 'gantt') {
+    return null
+  }
+
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -433,6 +443,15 @@ export default function GanttChart({
       transition={{ duration: 0.3 }}
       className="border border-gray-200 rounded-xl overflow-hidden bg-white shadow-sm relative"
     >
+      {pendingSelection && (
+        <div className="border-b border-blue-100 bg-blue-50 px-3 py-2">
+          <p className="text-xs font-semibold text-blue-700">
+            {t('gantt.tapCheckoutHint', {
+              checkIn: formatPreviewDate(pendingSelection.checkIn, shortMonthNames),
+            })}
+          </p>
+        </div>
+      )}
       <div className="flex">
         {/* Fixed property names column */}
         <div className="shrink-0 border-r border-gray-200 bg-white z-10" style={{ width: NAME_W }}>
@@ -707,6 +726,10 @@ export default function GanttChart({
                       onDragEnd={handleDragEnd}
                       onClick={(e) => {
                         e.stopPropagation()
+                        if (isCoarsePointer) {
+                          setTouchTooltipBooking((prev) => (prev?.id === booking.id ? null : booking))
+                          return
+                        }
                         navigate({
                           to: '/bookings/$bookingId',
                           params: { bookingId: booking.id },
@@ -714,10 +737,14 @@ export default function GanttChart({
                         })
                       }}
                       onMouseEnter={(e) => {
+                        if (isCoarsePointer) return
                         const rect = e.currentTarget.getBoundingClientRect()
                         setTooltip({ booking, x: rect.left + rect.width / 2, y: rect.top })
                       }}
-                      onMouseLeave={() => setTooltip(null)}
+                      onMouseLeave={() => {
+                        if (isCoarsePointer) return
+                        setTooltip(null)
+                      }}
                       className={`absolute rounded-lg cursor-grab active:cursor-grabbing shadow-sm hover:shadow-md transition-shadow ${getStatusBarStyle(booking.status)}`}
                       style={{
                         left: pos.left,
@@ -822,6 +849,64 @@ export default function GanttChart({
               <span className="font-semibold text-white">
                 {formatTooltipPrice(tooltip.booking.total_price, currencySymbol)}
               </span>
+            </div>
+          </motion.div>
+        )}
+        {isCoarsePointer && touchTooltipBooking && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 10 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-x-3 bottom-3 z-50 rounded-xl border border-white/10 bg-gray-950/95 p-3 text-white shadow-lg backdrop-blur-sm"
+          >
+            <div className="flex items-center justify-between gap-2">
+              <p className="truncate text-sm font-semibold">{touchTooltipBooking.guest_name}</p>
+              <span
+                className={`shrink-0 rounded-md px-1.5 py-0.5 text-[10px] font-semibold ${tooltipStatusTone[touchTooltipBooking.status]}`}
+              >
+                {t(tooltipStatusKeys[touchTooltipBooking.status])}
+              </span>
+            </div>
+            <p className="mt-1 text-[11px] text-gray-300">
+              {formatBookingDateRangeShort(
+                touchTooltipBooking.check_in,
+                touchTooltipBooking.check_out,
+                shortMonthNames,
+              )}
+              {' · '}
+              {getBookingNights(touchTooltipBooking.check_in, touchTooltipBooking.check_out)}N
+            </p>
+            <div className="mt-1 flex items-center gap-1.5 text-[11px] text-gray-300">
+              <span>{formatGuestsCompact(touchTooltipBooking.adults_count, touchTooltipBooking.children_count)}</span>
+              <span className="text-gray-500">•</span>
+              <span>{t(sourceKeys[touchTooltipBooking.source])}</span>
+              <span className="text-gray-500">•</span>
+              <span className="font-semibold text-white">
+                {formatTooltipPrice(touchTooltipBooking.total_price, currencySymbol)}
+              </span>
+            </div>
+            <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+              <button
+                type="button"
+                onClick={() => {
+                  navigate({
+                    to: '/bookings/$bookingId',
+                    params: { bookingId: touchTooltipBooking.id },
+                    search: { from: 'gantt' } as Record<string, string>,
+                  })
+                }}
+                className="inline-flex min-h-[44px] items-center justify-center rounded-lg bg-white px-3 py-2 text-xs font-bold text-gray-900 transition-colors hover:bg-gray-100"
+              >
+                {t('bookings.bookingDetails')}
+              </button>
+              <button
+                type="button"
+                onClick={() => setTouchTooltipBooking(null)}
+                className="inline-flex min-h-[44px] items-center justify-center rounded-lg border border-white/20 px-3 py-2 text-xs font-bold text-white/80 transition-colors hover:bg-white/10 hover:text-white"
+              >
+                {t('common.cancel')}
+              </button>
             </div>
           </motion.div>
         )}

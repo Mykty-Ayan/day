@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test'
+import { test, expect } from '../fixtures/e2e-auth'
 
 test.describe('Settings - E2E', () => {
   test('navigate to settings page', async ({ page }) => {

@@ -19,7 +19,7 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="p-6 max-w-2xl mx-auto w-full">
+    <div className="px-4 py-4 sm:px-6 sm:py-6 max-w-2xl mx-auto w-full">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -45,19 +45,21 @@ export default function SettingsPage() {
                   key={lang.code}
                   whileTap={{ scale: 0.98 }}
                   onClick={() => changeLanguage(lang.code)}
-                  className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border transition-colors ${
+                  className={`w-full flex items-center justify-between gap-3 px-4 py-3 rounded-xl border transition-colors text-left ${
                     isActive
                       ? 'border-black bg-gray-50'
                       : 'border-gray-200 hover:bg-gray-50'
                   }`}
                 >
-                  <div className="flex items-center gap-3">
-                    <span className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center text-xs font-bold text-gray-600">
+                  <div className="flex min-w-0 flex-1 items-center gap-3">
+                    <span className="w-8 h-8 rounded-lg bg-gray-100 flex shrink-0 items-center justify-center text-xs font-bold text-gray-600">
                       {lang.flag}
                     </span>
-                    <span className="text-sm font-semibold text-gray-900">{lang.label}</span>
+                    <span className="min-w-0 break-words text-sm font-semibold leading-5 text-gray-900">
+                      {lang.label}
+                    </span>
                   </div>
-                  {isActive && <Check className="w-4 h-4 text-gray-900" />}
+                  {isActive && <Check className="w-4 h-4 shrink-0 text-gray-900" />}
                 </motion.button>
               )
             })}

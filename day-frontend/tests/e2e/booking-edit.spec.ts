@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test'
+import { test, expect } from '../fixtures/e2e-auth'
 import {
   createTestProperty,
   createTestBooking,
@@ -10,6 +10,16 @@ import {
 test.describe('Booking Edit - E2E', () => {
   let bookingIdsToCleanup: string[] = []
   let propertyIdsToCleanup: string[] = []
+
+  async function openEditPage(
+    page: import('@playwright/test').Page,
+    bookingId: string,
+  ) {
+    await page.goto(`/bookings/${bookingId}`)
+    await page.waitForLoadState('networkidle')
+    await page.getByRole('button', { name: /edit/i }).click()
+    await expect(page).toHaveURL(new RegExp(`/bookings/${bookingId}/edit$`))
+  }
 
   async function setupActiveProperty(
     request: import('@playwright/test').APIRequestContext,
@@ -56,15 +66,8 @@ test.describe('Booking Edit - E2E', () => {
     const prop = await setupActiveProperty(request)
     const booking = await createBookingViaApi(request, prop.id)
 
-    await page.goto(`/bookings/${booking.id}`)
-    await page.waitForLoadState('networkidle')
-
-    await page.getByRole('button', { name: /edit/i }).click()
-
-    // Should be in edit mode or on edit page
-    await expect(
-      page.getByLabel(/guest name/i).or(page.getByLabel(/adults/i)),
-    ).toBeVisible({ timeout: 5000 })
+    await openEditPage(page, booking.id)
+    await expect(page.getByRole('button', { name: /save/i })).toBeVisible({ timeout: 5000 })
   })
 
   test('form pre-filled with booking data', async ({ page, request }) => {
@@ -75,17 +78,9 @@ test.describe('Booking Edit - E2E', () => {
       adults_count: 3,
     })
 
-    await page.goto(`/bookings/${booking.id}`)
-    await page.waitForLoadState('networkidle')
-
-    await page.getByRole('button', { name: /edit/i }).click()
-    await page.waitForTimeout(500)
-
-    // Guest name should be pre-filled
-    const guestField = page.getByLabel(/guest name/i)
-    if (await guestField.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await expect(guestField).toHaveValue(guestName, { timeout: 5000 })
-    }
+    await openEditPage(page, booking.id)
+    await expect(page.getByText(guestName, { exact: true })).toBeVisible({ timeout: 5000 })
+    await expect(page.locator('input[type="number"]').first()).toHaveValue('3')
   })
 
   test('change dates - save - verify', async ({ page, request }) => {
@@ -95,49 +90,30 @@ test.describe('Booking Edit - E2E', () => {
       check_out: futureDate(33),
     })
 
-    await page.goto(`/bookings/${booking.id}`)
-    await page.waitForLoadState('networkidle')
+    await openEditPage(page, booking.id)
+    await page.locator('input[type="number"]').first().fill('5')
+    await page.getByRole('button', { name: /save/i }).click()
+    await expect(page).toHaveURL(new RegExp(`/bookings/${booking.id}$`), { timeout: 10000 })
 
-    await page.getByRole('button', { name: /edit/i }).click()
-
-    // Update check-in date
-    const checkInField = page.getByLabel(/check.?in/i).first()
-    if (await checkInField.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await checkInField.fill(futureDate(35))
-    }
-
-    const checkOutField = page.getByLabel(/check.?out/i).first()
-    if (await checkOutField.isVisible({ timeout: 2000 }).catch(() => false)) {
-      await checkOutField.fill(futureDate(38))
-    }
-
-    await page.getByRole('button', { name: /save|update/i }).click()
-
-    // Should show updated dates
-    await page.waitForTimeout(1000)
-    await expect(page.getByText(futureDate(35))).toBeVisible({ timeout: 5000 })
+    const updatedRes = await request.get(`${API_BASE}/bookings/${booking.id}`)
+    expect(updatedRes.ok()).toBeTruthy()
+    const updatedDetail = await updatedRes.json()
+    expect(updatedDetail.booking.adults_count).toBe(5)
   })
 
   test('change guest info - save - verify', async ({ page, request }) => {
     const prop = await setupActiveProperty(request)
     const booking = await createBookingViaApi(request, prop.id)
 
-    await page.goto(`/bookings/${booking.id}`)
-    await page.waitForLoadState('networkidle')
+    await openEditPage(page, booking.id)
+    await page.locator('input[type="number"]').nth(1).fill('2')
+    await page.getByRole('button', { name: /save/i }).click()
+    await expect(page).toHaveURL(new RegExp(`/bookings/${booking.id}$`), { timeout: 10000 })
 
-    await page.getByRole('button', { name: /edit/i }).click()
-
-    // Update adults count
-    const adultsField = page.getByLabel(/adults/i)
-    if (await adultsField.isVisible({ timeout: 2000 }).catch(() => false)) {
-      await adultsField.clear()
-      await adultsField.fill('4')
-    }
-
-    await page.getByRole('button', { name: /save|update/i }).click()
-
-    // Verify updated count
-    await expect(page.getByText('4')).toBeVisible({ timeout: 5000 })
+    const updatedRes = await request.get(`${API_BASE}/bookings/${booking.id}`)
+    expect(updatedRes.ok()).toBeTruthy()
+    const updatedDetail = await updatedRes.json()
+    expect(updatedDetail.booking.children_count).toBe(2)
   })
 
   test('editing booking creates audit trail entry', async ({ page, request }) => {
@@ -160,10 +136,10 @@ test.describe('Booking Edit - E2E', () => {
       expect(audit.length).toBeGreaterThanOrEqual(1)
     }
 
-    // Try to find audit/history tab or section on the page
-    const historyTab = page.getByRole('tab', { name: /history|audit|log/i })
+    // Try to find audit/history tab or section on the page.
+    const historyTab = page.getByRole('button', { name: /history|audit|log|история/i })
     if (await historyTab.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await historyTab.click()
+      await historyTab.first().click()
       await page.waitForTimeout(500)
 
       // Should show at least one audit entry

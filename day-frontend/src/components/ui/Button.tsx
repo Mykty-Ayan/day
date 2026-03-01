@@ -7,6 +7,7 @@ interface ButtonProps {
   variant?: ButtonVariant
   children: ReactNode
   disabled?: boolean
+  nowrap?: boolean
   className?: string
   onClick?: () => void
   type?: 'button' | 'submit' | 'reset'
@@ -25,6 +26,7 @@ export default function Button({
   variant = 'primary',
   children,
   disabled,
+  nowrap = false,
   className = '',
   onClick,
   type = 'button',
@@ -34,7 +36,7 @@ export default function Button({
   return (
     <motion.button
       whileTap={resolvedVariant !== 'disabled' ? { scale: 0.97 } : undefined}
-      className={`inline-flex items-center justify-center gap-2 rounded-xl px-6 py-2.5 font-semibold transition-all whitespace-nowrap ${variantClasses[resolvedVariant]} ${className}`}
+      className={`inline-flex min-h-[44px] min-w-[44px] items-center justify-center gap-2 rounded-xl px-6 py-2.5 text-center font-semibold leading-5 transition-all ${nowrap ? 'whitespace-nowrap' : 'whitespace-normal'} ${variantClasses[resolvedVariant]} ${className}`}
       disabled={disabled}
       onClick={onClick}
       type={type}

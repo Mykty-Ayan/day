@@ -76,7 +76,7 @@ export default function TagSelector({
               whileTap={{ scale: 0.95 }}
               type="button"
               onClick={() => toggleTag(tag.id)}
-              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors"
+              className="inline-flex min-h-[44px] min-w-[44px] items-center gap-1 rounded-full border border-gray-200 px-2.5 py-1 text-xs font-semibold text-gray-600 transition-colors hover:bg-gray-50"
             >
               <span
                 className="w-2.5 h-2.5 rounded-full"
@@ -97,7 +97,7 @@ export default function TagSelector({
               whileTap={{ scale: 0.97 }}
               type="button"
               onClick={() => setShowCreate(true)}
-              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-bold text-gray-500 hover:text-gray-700 hover:bg-gray-50 transition-colors"
+              className="inline-flex min-h-[44px] min-w-[44px] items-center gap-1 rounded-xl px-3 py-1.5 text-xs font-bold text-gray-500 transition-colors hover:bg-gray-50 hover:text-gray-700"
             >
               <Plus className="w-3 h-3" />
               Create Tag
@@ -116,13 +116,13 @@ export default function TagSelector({
                 className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-black/10"
                 onKeyDown={(e) => e.key === 'Enter' && handleCreate()}
               />
-              <div className="flex gap-1.5">
+              <div className="flex flex-wrap gap-1.5">
                 {TAG_COLORS.map((color) => (
                   <button
                     key={color}
                     type="button"
                     onClick={() => setNewColor(color)}
-                    className="relative w-6 h-6 rounded-full"
+                    className="relative h-9 w-9 rounded-full"
                     style={{ backgroundColor: color }}
                   >
                     {newColor === color && (
@@ -131,20 +131,20 @@ export default function TagSelector({
                   </button>
                 ))}
               </div>
-              <div className="flex gap-2">
+              <div className="flex flex-col gap-2 sm:flex-row">
                 <motion.button
                   whileTap={{ scale: 0.97 }}
                   type="button"
                   onClick={handleCreate}
                   disabled={loading || !newName.trim()}
-                  className="bg-black text-white hover:bg-gray-800 rounded-lg px-3 py-1.5 text-xs font-bold transition-colors disabled:opacity-50"
+                  className="min-h-[44px] rounded-lg bg-black px-3 py-1.5 text-xs font-bold text-white transition-colors hover:bg-gray-800 disabled:opacity-50"
                 >
                   Create
                 </motion.button>
                 <button
                   type="button"
                   onClick={() => setShowCreate(false)}
-                  className="text-xs font-bold text-gray-500 hover:text-gray-700 px-2"
+                  className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg px-2 text-xs font-bold text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700"
                 >
                   <X className="w-3 h-3" />
                 </button>

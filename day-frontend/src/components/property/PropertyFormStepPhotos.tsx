@@ -76,7 +76,7 @@ export default function PropertyFormStepPhotos({ photos, onChange }: Props) {
       </div>
 
       {photos.length > 0 && (
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           {photos.map((photo) => (
             <div
               key={photo.id}
@@ -87,15 +87,15 @@ export default function PropertyFormStepPhotos({ photos, onChange }: Props) {
                 alt=""
                 className="w-full h-full object-cover"
               />
-              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors" />
-              <div className="absolute top-2 left-2 opacity-0 group-hover:opacity-100 transition-opacity">
+              <div className="absolute inset-0 bg-black/15 transition-colors sm:bg-black/0 sm:group-hover:bg-black/30" />
+              <div className="absolute top-2 left-2 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100">
                 <GripVertical className="w-4 h-4 text-white cursor-grab" />
               </div>
-              <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+              <div className="absolute top-2 right-2 flex gap-1 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100">
                 <button
                   type="button"
                   onClick={() => setCover(photo.id)}
-                  className={`p-1 rounded-md ${
+                  className={`inline-flex h-11 w-11 items-center justify-center rounded-md sm:h-8 sm:w-8 ${
                     photo.isCover
                       ? 'bg-amber-400 text-white'
                       : 'bg-white/80 text-gray-700 hover:bg-white'
@@ -107,7 +107,7 @@ export default function PropertyFormStepPhotos({ photos, onChange }: Props) {
                 <button
                   type="button"
                   onClick={() => removePhoto(photo.id)}
-                  className="p-1 rounded-md bg-white/80 text-gray-700 hover:bg-red-50 hover:text-red-600"
+                  className="inline-flex h-11 w-11 items-center justify-center rounded-md bg-white/80 text-gray-700 hover:bg-red-50 hover:text-red-600 sm:h-8 sm:w-8"
                 >
                   <X className="w-3.5 h-3.5" />
                 </button>

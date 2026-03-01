@@ -59,7 +59,7 @@ export default function ImportForm({ onSubmit, isLoading }: Props) {
           <Globe className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
           <input
             id="import-url"
-            type="text"
+            type="url"
             inputMode="url"
             value={url}
             onChange={(e) => setUrl(e.target.value)}

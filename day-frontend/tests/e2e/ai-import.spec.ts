@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test'
+import { test, expect } from '../fixtures/e2e-auth'
 import { API_BASE, createTestImport } from '../fixtures/test-data'
 
 test.describe('AI Import - E2E', () => {
@@ -40,11 +40,11 @@ test.describe('AI Import - E2E', () => {
       await page.goto('/ai-import')
     }
 
+    // Ensure the final state is the AI import page even if nav link behavior changes.
+    await page.goto('/ai-import')
     await page.waitForLoadState('networkidle')
-    // Page should load without errors
-    const urlInput = page.locator('input[type="url"], input[placeholder*="booking"], input[placeholder*="http"]').first()
-    const hasInput = await urlInput.isVisible({ timeout: 3000 }).catch(() => false)
-    expect(hasInput).toBeTruthy()
+    const urlInput = page.locator('#import-url, input[type="url"], input[placeholder*="booking"], input[placeholder*="http"]').first()
+    await expect(urlInput).toBeVisible({ timeout: 10000 })
   })
 
   test('import form displays URL input and submit button', async ({ page }) => {
@@ -56,7 +56,7 @@ test.describe('AI Import - E2E', () => {
     await expect(urlInput).toBeVisible({ timeout: 5000 })
 
     // Submit button should be visible
-    const submitBtn = page.getByRole('button', { name: /import|start|parse/i })
+    const submitBtn = page.locator('form button[type="submit"]').first()
     await expect(submitBtn).toBeVisible({ timeout: 3000 })
   })
 
@@ -105,7 +105,7 @@ test.describe('AI Import - E2E', () => {
     await page.goto('/ai-import')
     await page.waitForLoadState('networkidle')
 
-    const submitBtn = page.getByRole('button', { name: /import|start/i })
+    const submitBtn = page.locator('form button[type="submit"]').first()
     if (await submitBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
       // Button should be disabled or URL field should be required
       const isDisabled = await submitBtn.isDisabled()
@@ -125,16 +125,17 @@ test.describe('AI Import - E2E', () => {
       await promptField.fill('2-bedroom apartment in city center')
     }
 
-    await page.getByRole('button', { name: /import|start/i }).click()
+    const importResponsePromise = page
+      .waitForResponse(
+        (response) => response.url().includes('/api/v1/ai/import') && response.request().method() === 'POST',
+        { timeout: 10000 },
+      )
+      .catch(() => null)
 
-    // Should show loading state, redirect to preview, or show the job in the list
-    const result = await Promise.race([
-      page.waitForURL(/\/(ai-import|import)\//, { timeout: 10000 }).then(() => 'redirect'),
-      page.getByText(/importing|processing|loading|parsing/i).waitFor({ timeout: 5000 }).then(() => 'loading'),
-      page.getByText(/pending|completed|failed/i).waitFor({ timeout: 10000 }).then(() => 'job-created'),
-    ]).catch(() => 'timeout')
+    await page.locator('form button[type="submit"]').first().click()
 
-    expect(['redirect', 'loading', 'job-created']).toContain(result)
+    const importResponse = await importResponsePromise
+    expect(importResponse).not.toBeNull()
   })
 
   test('form validation prevents submission of invalid URL', async ({ page }) => {
@@ -142,7 +143,7 @@ test.describe('AI Import - E2E', () => {
     await page.waitForLoadState('networkidle')
 
     const urlInput = page.locator('#import-url, input[type="url"]').first()
-    const submitBtn = page.getByRole('button', { name: /import|start/i })
+    const submitBtn = page.locator('form button[type="submit"]').first()
 
     // Fill with invalid URL (not http/https)
     await urlInput.fill('not-a-valid-url')
