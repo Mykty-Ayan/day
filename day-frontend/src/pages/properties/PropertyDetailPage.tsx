@@ -36,6 +36,7 @@ import StatusBadge from '../../components/property/StatusBadge'
 import { showToast } from '../../components/ui/Toast'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import AuditTrail from '../../components/ui/AuditTrail'
+import Spinner from '../../components/ui/Spinner'
 
 function getStatusActions(status: PropertyStatus): { labelKey: string; target: PropertyStatus; icon: typeof Play }[] {
   switch (status) {
@@ -148,11 +149,7 @@ export default function PropertyDetailPage() {
   }
 
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center py-20">
-        <div className="w-6 h-6 border-2 border-gray-200 border-t-gray-900 rounded-full animate-spin" />
-      </div>
-    )
+    return <Spinner />
   }
 
   if (!property) {

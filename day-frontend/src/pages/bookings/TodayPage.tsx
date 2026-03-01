@@ -5,6 +5,7 @@ import { useNavigate } from '@tanstack/react-router'
 import { useTodayChecks, useChangeBookingStatus } from '../../hooks/useBookings'
 import type { Booking, BookingStatus } from '../../types/booking'
 import BookingStatusBadge from '../../components/booking/BookingStatusBadge'
+import Spinner from '../../components/ui/Spinner'
 
 export default function TodayPage() {
   const { t } = useTranslation()
@@ -25,9 +26,7 @@ export default function TodayPage() {
         <h1 className="text-xl font-bold text-gray-900 mb-6">{t('today.title')}</h1>
 
         {isLoading ? (
-          <div className="flex items-center justify-center py-20">
-            <div className="w-6 h-6 border-2 border-gray-200 border-t-gray-900 rounded-full animate-spin" />
-          </div>
+          <Spinner />
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
             {/* Check-ins */}

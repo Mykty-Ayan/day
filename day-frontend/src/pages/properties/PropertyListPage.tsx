@@ -3,6 +3,7 @@ import { motion } from 'framer-motion'
 import { Plus, Search, LayoutGrid, Grid2X2, List, Tag } from 'lucide-react'
 import { Link } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
+import Spinner from '../../components/ui/Spinner'
 import { useAllProperties, useTags } from '../../hooks/useProperties'
 import type { PropertyStatus } from '../../types/property'
 import PropertyCard from '../../components/property/PropertyCard'
@@ -138,9 +139,7 @@ export default function PropertyListPage() {
 
         {/* Content */}
         {isLoading ? (
-          <div className="flex items-center justify-center py-20">
-            <div className="w-6 h-6 border-2 border-gray-200 border-t-gray-900 rounded-full animate-spin" />
-          </div>
+          <Spinner />
         ) : !data || data.items.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20">
             <p className="text-sm text-gray-500 mb-4">{t('properties.noProperties')}</p>

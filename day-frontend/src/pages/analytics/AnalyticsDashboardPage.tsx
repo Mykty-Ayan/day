@@ -11,6 +11,7 @@ import RevenueChart from '../../components/analytics/RevenueChart'
 import OccupancyChart from '../../components/analytics/OccupancyChart'
 import AnalyticsFilterBar from '../../components/analytics/AnalyticsFilters'
 import { showToast } from '../../components/ui/Toast'
+import Spinner from '../../components/ui/Spinner'
 
 export default function AnalyticsDashboardPage() {
   const { t } = useTranslation()
@@ -77,9 +78,7 @@ export default function AnalyticsDashboardPage() {
         </div>
 
         {isLoading ? (
-          <div className="flex items-center justify-center py-20">
-            <div className="w-6 h-6 border-2 border-gray-200 border-t-gray-900 rounded-full animate-spin" />
-          </div>
+          <Spinner />
         ) : (
           <div className="flex flex-col gap-6">
             {/* Summary Cards */}

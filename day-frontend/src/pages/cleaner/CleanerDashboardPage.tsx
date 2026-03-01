@@ -10,6 +10,7 @@ import {
 } from 'lucide-react'
 import { Link } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
+import Spinner from '../../components/ui/Spinner'
 import { useCleaningTasks } from '../../hooks/useCleaning'
 import type { CleaningTask, CleaningStatus } from '../../types/cleaning'
 
@@ -133,9 +134,7 @@ export default function CleanerDashboardPage() {
       {/* Task list */}
       <div className="px-4 pb-24">
         {isLoading ? (
-          <div className="flex items-center justify-center py-20">
-            <div className="w-6 h-6 border-2 border-gray-200 border-t-gray-900 rounded-full animate-spin" />
-          </div>
+          <Spinner />
         ) : tasks.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20">
             <CheckCircle2 className="w-12 h-12 text-gray-200 mb-3" />

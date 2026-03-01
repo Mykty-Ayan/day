@@ -71,7 +71,7 @@ function AuthenticatedLayout() {
               <Link
                 key={to}
                 to={to}
-                className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-bold transition-colors ${
+                className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-bold whitespace-nowrap transition-colors ${
                   isActive
                     ? 'bg-gray-100 text-gray-900'
                     : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'
@@ -85,7 +85,7 @@ function AuthenticatedLayout() {
         </nav>
         <div className="flex items-center gap-3 ml-auto">
           {user && (
-            <span className="text-xs text-gray-500">{user.email}</span>
+            <span className="text-xs text-gray-500 max-w-[160px] truncate" title={user.email}>{user.email}</span>
           )}
           <button
             onClick={logout}

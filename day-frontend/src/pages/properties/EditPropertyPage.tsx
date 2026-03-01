@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { ArrowLeft, ArrowRight, Check, Loader2 } from 'lucide-react'
 import { useNavigate, useParams } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
+import Spinner from '../../components/ui/Spinner'
 import { useProperty, useUpdateProperty } from '../../hooks/useProperties'
 import type { Property, PropertyType, PropertyUpdateInput } from '../../types/property'
 import PropertyFormStepBasic from '../../components/property/PropertyFormStepBasic'
@@ -81,11 +82,7 @@ export default function EditPropertyPage() {
   const { data: property, isLoading } = useProperty(propertyId)
 
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center py-20">
-        <div className="w-6 h-6 border-2 border-gray-200 border-t-gray-900 rounded-full animate-spin" />
-      </div>
-    )
+    return <Spinner />
   }
 
   if (!property) {
