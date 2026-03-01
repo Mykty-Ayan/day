@@ -89,14 +89,20 @@ test.describe('Mobile shell/nav smoke', () => {
 
       await page.getByRole('link', { name: /^Bookings$/i }).first().click()
       await page.waitForURL(/\/bookings/)
+      await page.waitForLoadState('networkidle')
+      await expect(page.getByRole('heading', { name: /^Bookings$/i })).toBeVisible()
       await expectNoHorizontalOverflow(page)
 
       await page.getByRole('link', { name: /^Cleaning$/i }).first().click()
       await page.waitForURL(/\/cleaning/)
+      await page.waitForLoadState('networkidle')
+      await expect(page.getByRole('heading', { name: /cleaning/i }).first()).toBeVisible()
       await expectNoHorizontalOverflow(page)
 
       await page.getByRole('link', { name: /^Analytics$/i }).first().click()
       await page.waitForURL(/\/analytics/)
+      await page.waitForLoadState('networkidle')
+      await expect(page.getByRole('heading', { name: /analytics/i }).first()).toBeVisible()
       await expectNoHorizontalOverflow(page)
 
       await page.locator('nav').getByRole('button', { name: /^More$/i }).click()

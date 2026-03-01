@@ -53,22 +53,24 @@ export default function CleaningListPage() {
         </div>
 
         <div className="flex flex-col gap-3 mb-6">
-          <ToggleGroup
-            type="single"
-            value={statusFilter}
-            onValueChange={(value) => {
-              if (!value) return
-              setStatusFilter(value as CleaningStatus | 'all')
-              setPage(1)
-            }}
-            className="self-start"
-          >
-            {STATUS_TABS.map((tab) => (
-              <ToggleGroupItem key={tab.value} value={tab.value}>
-                {tab.label}
-              </ToggleGroupItem>
-            ))}
-          </ToggleGroup>
+          <div className="w-full overflow-x-auto">
+            <ToggleGroup
+              type="single"
+              value={statusFilter}
+              onValueChange={(value) => {
+                if (!value) return
+                setStatusFilter(value as CleaningStatus | 'all')
+                setPage(1)
+              }}
+              className="min-w-max"
+            >
+              {STATUS_TABS.map((tab) => (
+                <ToggleGroupItem key={tab.value} value={tab.value}>
+                  {tab.label}
+                </ToggleGroupItem>
+              ))}
+            </ToggleGroup>
+          </div>
         </div>
 
         {isLoading ? (
@@ -89,68 +91,70 @@ export default function CleaningListPage() {
         ) : (
           <>
             <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-gray-100 bg-gray-50">
-                    <th className="text-left px-4 py-3 text-xs font-bold text-gray-400 uppercase tracking-wider">{t('cleaning.property')}</th>
-                    <th className="text-left px-4 py-3 text-xs font-bold text-gray-400 uppercase tracking-wider">{t('cleaning.type')}</th>
-                    <th className="text-left px-4 py-3 text-xs font-bold text-gray-400 uppercase tracking-wider">{t('common.status')}</th>
-                    <th className="text-left px-4 py-3 text-xs font-bold text-gray-400 uppercase tracking-wider">{t('cleaning.scheduled')}</th>
-                    <th className="text-left px-4 py-3 text-xs font-bold text-gray-400 uppercase tracking-wider">{t('cleaning.cleaner')}</th>
-                    <th className="w-10" />
-                  </tr>
-                </thead>
-                <tbody>
-                  {data.items.map((task, i) => (
-                    <motion.tr
-                      key={task.id}
-                      initial={{ opacity: 0, y: 5 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.2, delay: i * 0.02 }}
-                      onClick={() =>
-                        navigate({
-                          to: '/cleaning/$taskId',
-                          params: { taskId: task.id },
-                        })
-                      }
-                      className="border-b border-gray-50 hover:bg-gray-50 cursor-pointer transition-colors"
-                    >
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-2">
-                          <div className="w-2 h-2 rounded-full shrink-0 bg-blue-500" />
-                          <div className="flex flex-col min-w-0">
-                            <span className="text-sm font-medium text-gray-900 truncate max-w-[220px]">
-                              {task.property_name || task.property_internal_name || 'Unknown'}
-                            </span>
-                            <span className="text-xs text-gray-400 truncate max-w-[220px]">
-                              {task.property_internal_name || '—'}
-                            </span>
+              <div className="w-full overflow-x-auto">
+                <table className="w-full min-w-[680px]">
+                  <thead>
+                    <tr className="border-b border-gray-100 bg-gray-50">
+                      <th className="text-left px-4 py-3 text-xs font-bold text-gray-400 uppercase tracking-wider">{t('cleaning.property')}</th>
+                      <th className="text-left px-4 py-3 text-xs font-bold text-gray-400 uppercase tracking-wider">{t('cleaning.type')}</th>
+                      <th className="text-left px-4 py-3 text-xs font-bold text-gray-400 uppercase tracking-wider">{t('common.status')}</th>
+                      <th className="text-left px-4 py-3 text-xs font-bold text-gray-400 uppercase tracking-wider">{t('cleaning.scheduled')}</th>
+                      <th className="text-left px-4 py-3 text-xs font-bold text-gray-400 uppercase tracking-wider">{t('cleaning.cleaner')}</th>
+                      <th className="w-10" />
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {data.items.map((task, i) => (
+                      <motion.tr
+                        key={task.id}
+                        initial={{ opacity: 0, y: 5 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.2, delay: i * 0.02 }}
+                        onClick={() =>
+                          navigate({
+                            to: '/cleaning/$taskId',
+                            params: { taskId: task.id },
+                          })
+                        }
+                        className="border-b border-gray-50 hover:bg-gray-50 cursor-pointer transition-colors"
+                      >
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-2">
+                            <div className="w-2 h-2 rounded-full shrink-0 bg-blue-500" />
+                            <div className="flex flex-col min-w-0">
+                              <span className="text-sm font-medium text-gray-900 truncate max-w-[220px]">
+                                {task.property_name || task.property_internal_name || 'Unknown'}
+                              </span>
+                              <span className="text-xs text-gray-400 truncate max-w-[220px]">
+                                {task.property_internal_name || '—'}
+                              </span>
+                            </div>
                           </div>
-                        </div>
-                      </td>
-                      <td className="px-4 py-3">
-                        <CleaningTypeBadge type={task.type} />
-                      </td>
-                      <td className="px-4 py-3">
-                        <CleaningStatusBadge status={task.status} />
-                      </td>
-                      <td className="px-4 py-3">
-                        <span className="text-sm text-gray-600">
-                          {formatScheduled(task.scheduled_date, task.scheduled_time)}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3">
-                        <span className="text-sm text-gray-600">
-                          {task.cleaner_id ? `${task.cleaner_id.slice(0, 8)}...` : t('cleaning.unassigned')}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3">
-                        <ChevronRight className="w-4 h-4 text-gray-300" />
-                      </td>
-                    </motion.tr>
-                  ))}
-                </tbody>
-              </table>
+                        </td>
+                        <td className="px-4 py-3">
+                          <CleaningTypeBadge type={task.type} />
+                        </td>
+                        <td className="px-4 py-3">
+                          <CleaningStatusBadge status={task.status} />
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className="text-sm text-gray-600">
+                            {formatScheduled(task.scheduled_date, task.scheduled_time)}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className="text-sm text-gray-600">
+                            {task.cleaner_id ? `${task.cleaner_id.slice(0, 8)}...` : t('cleaning.unassigned')}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3">
+                          <ChevronRight className="w-4 h-4 text-gray-300" />
+                        </td>
+                      </motion.tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
 
             {data.pages > 1 && (

@@ -58,20 +58,23 @@ export default function PropertyListPage() {
               className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 pl-9 outline-none focus:ring-2 focus:ring-black/10 text-gray-800 text-sm"
             />
           </div>
-          <ToggleGroup
-            type="single"
-            value={statusFilter}
-            onValueChange={(value) => {
-              if (!value) return
-              setStatusFilter(value as PropertyStatus | 'all')
-            }}
-          >
-            {statusTabValues.map((value) => (
-              <ToggleGroupItem key={value} value={value}>
-                {t(`common.${value}`)}
-              </ToggleGroupItem>
-            ))}
-          </ToggleGroup>
+          <div className="w-full overflow-x-auto sm:w-auto">
+            <ToggleGroup
+              type="single"
+              value={statusFilter}
+              onValueChange={(value) => {
+                if (!value) return
+                setStatusFilter(value as PropertyStatus | 'all')
+              }}
+              className="min-w-max"
+            >
+              {statusTabValues.map((value) => (
+                <ToggleGroupItem key={value} value={value}>
+                  {t(`common.${value}`)}
+                </ToggleGroupItem>
+              ))}
+            </ToggleGroup>
+          </div>
           {allTags.length > 0 && (
             <div className="flex items-center gap-1.5">
               <Tag className="w-3.5 h-3.5 text-gray-400" />
@@ -108,33 +111,36 @@ export default function PropertyListPage() {
               </div>
             </div>
           )}
-          <ToggleGroup
-            type="single"
-            value={viewMode}
-            onValueChange={(value) => {
-              if (!value) return
-              setViewMode(value as 'large' | 'medium' | 'list')
-            }}
-          >
-            <ToggleGroupItem value="large" aria-label="Large tiles">
-              <span className="inline-flex items-center gap-1">
-                <LayoutGrid className="w-3.5 h-3.5" />
-                {t('common.large')}
-              </span>
-            </ToggleGroupItem>
-            <ToggleGroupItem value="medium" aria-label="Medium tiles">
-              <span className="inline-flex items-center gap-1">
-                <Grid2X2 className="w-3.5 h-3.5" />
-                {t('common.medium')}
-              </span>
-            </ToggleGroupItem>
-            <ToggleGroupItem value="list" aria-label="List view">
-              <span className="inline-flex items-center gap-1">
-                <List className="w-3.5 h-3.5" />
-                {t('common.list')}
-              </span>
-            </ToggleGroupItem>
-          </ToggleGroup>
+          <div className="w-full overflow-x-auto sm:w-auto">
+            <ToggleGroup
+              type="single"
+              value={viewMode}
+              onValueChange={(value) => {
+                if (!value) return
+                setViewMode(value as 'large' | 'medium' | 'list')
+              }}
+              className="min-w-max"
+            >
+              <ToggleGroupItem value="large" aria-label="Large tiles">
+                <span className="inline-flex items-center gap-1">
+                  <LayoutGrid className="w-3.5 h-3.5" />
+                  {t('common.large')}
+                </span>
+              </ToggleGroupItem>
+              <ToggleGroupItem value="medium" aria-label="Medium tiles">
+                <span className="inline-flex items-center gap-1">
+                  <Grid2X2 className="w-3.5 h-3.5" />
+                  {t('common.medium')}
+                </span>
+              </ToggleGroupItem>
+              <ToggleGroupItem value="list" aria-label="List view">
+                <span className="inline-flex items-center gap-1">
+                  <List className="w-3.5 h-3.5" />
+                  {t('common.list')}
+                </span>
+              </ToggleGroupItem>
+            </ToggleGroup>
+          </div>
         </div>
 
         {/* Content */}
