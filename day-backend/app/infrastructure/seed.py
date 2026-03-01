@@ -1,11 +1,18 @@
 """Seed script for development database.
 
 Run with: uv run python -m app.infrastructure.seed
+
+Optional env vars:
+  - SEED_USER_EMAIL: seed owner email (default: admin@day.kz)
+  - SEED_USER_PASSWORD: seed owner password (default: password123)
+  - SEED_COMPANY_NAME: company name when creating a new seed user
+  - SEED_FORCE_PASSWORD_RESET: reset password for existing seed user
 """
 
 from __future__ import annotations
 
 import asyncio
+import os
 import uuid
 from datetime import date, datetime, time, timedelta
 
@@ -13,6 +20,7 @@ from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.infrastructure.database import async_session
+from app.infrastructure.models.auth import CompanyModel, UserModel
 from app.infrastructure.models.booking import (
     BookingAuditLogModel,
     BookingCommentModel,
@@ -44,10 +52,26 @@ from app.infrastructure.models.property import (
     PropertyPhotoModel,
     SeasonalPriceModel,
 )
+from app.infrastructure.security import hash_password
 
 # ---------- Constants ----------
 
-COMPANY_ID = uuid.UUID("00000000-0000-0000-0000-000000000001")
+DEFAULT_COMPANY_ID = uuid.UUID("00000000-0000-0000-0000-000000000001")
+DEFAULT_TEST_USER_ID = uuid.UUID("00000000-0000-0000-0000-00000000a001")
+
+SEED_USER_EMAIL = os.getenv("SEED_USER_EMAIL", "admin@day.kz").strip().lower()
+SEED_USER_PASSWORD = os.getenv("SEED_USER_PASSWORD", "password123")
+SEED_COMPANY_NAME = os.getenv("SEED_COMPANY_NAME", "Day Kazakhstan Demo")
+SEED_FORCE_PASSWORD_RESET = os.getenv("SEED_FORCE_PASSWORD_RESET", "false").strip().lower() in {
+    "1",
+    "true",
+    "yes",
+    "y",
+}
+
+# Active IDs are resolved in `ensure_seed_identity`.
+COMPANY_ID = DEFAULT_COMPANY_ID
+TEST_USER_ID = DEFAULT_TEST_USER_ID
 
 TODAY = date.today()
 CURRENT_MONTH_START = TODAY.replace(day=1)
@@ -63,7 +87,6 @@ GANTT_COLORS = [
     "#06B6D4",  # cyan
 ]
 
-TEST_USER_ID = uuid.UUID("00000000-0000-0000-0000-00000000a001")
 CLEANER_IDS = [
     uuid.UUID("00000000-0000-0000-0000-00000000c101"),
     uuid.UUID("00000000-0000-0000-0000-00000000c102"),
@@ -221,6 +244,52 @@ async def _exists(session: AsyncSession, model, **filters) -> bool:
         stmt = stmt.where(getattr(model, k) == v)
     result = await session.scalar(stmt)
     return result is not None
+
+
+# ---------- Auth identity ----------
+
+async def ensure_seed_identity(session: AsyncSession) -> tuple[str, str]:
+    """Ensure a seed user exists and bind seeding scope to that user's company."""
+    global COMPANY_ID, TEST_USER_ID
+
+    existing_user = await session.scalar(select(UserModel).where(UserModel.email == SEED_USER_EMAIL))
+    if existing_user:
+        if SEED_FORCE_PASSWORD_RESET:
+            existing_user.hashed_password = hash_password(SEED_USER_PASSWORD)
+            await session.flush()
+            print(f"  [ok] Password reset for: {SEED_USER_EMAIL}")
+            print(f"  [i] New password: {SEED_USER_PASSWORD}")
+        COMPANY_ID = existing_user.company_id
+        TEST_USER_ID = existing_user.id
+        print(f"  [ok] Using existing seed user: {SEED_USER_EMAIL}")
+        print(f"  [ok] Company scope: {COMPANY_ID}")
+        return SEED_USER_EMAIL, SEED_USER_PASSWORD
+
+    company = await session.get(CompanyModel, DEFAULT_COMPANY_ID)
+    if not company:
+        company = CompanyModel(id=DEFAULT_COMPANY_ID, name=SEED_COMPANY_NAME)
+        session.add(company)
+        await session.flush()
+        print(f"  [+] Created company: {company.name} ({company.id})")
+    else:
+        print(f"  [ok] Using company: {company.name} ({company.id})")
+
+    user = UserModel(
+        id=DEFAULT_TEST_USER_ID,
+        email=SEED_USER_EMAIL,
+        hashed_password=hash_password(SEED_USER_PASSWORD),
+        company_id=company.id,
+        role="owner",
+        is_active=True,
+    )
+    session.add(user)
+    await session.flush()
+
+    COMPANY_ID = company.id
+    TEST_USER_ID = user.id
+    print(f"  [+] Created seed user: {SEED_USER_EMAIL}")
+    print(f"  [i] Seed password: {SEED_USER_PASSWORD}")
+    return SEED_USER_EMAIL, SEED_USER_PASSWORD
 
 
 # ---------- Seed functions ----------
@@ -1089,6 +1158,9 @@ async def main() -> None:
 
     async with async_session() as session:
         try:
+            print("\n--- Auth Seed Identity ---")
+            seed_email, _ = await ensure_seed_identity(session)
+
             print("\n--- Amenities ---")
             amenity_map = await seed_amenities(session)
 
@@ -1113,6 +1185,8 @@ async def main() -> None:
             await session.commit()
             print("\n" + "=" * 50)
             print("  Seed data created successfully!")
+            print(f"  Login email: {seed_email}")
+            print(f"  Company scope: {COMPANY_ID}")
             print("=" * 50)
         except Exception as e:
             await session.rollback()
