@@ -14,9 +14,10 @@ export default function Spinner({ size = 'md', label }: SpinnerProps) {
   }
 
   return (
-    <div className="flex flex-col items-center justify-center py-20 gap-3">
+    <div role="status" className="flex flex-col items-center justify-center py-20 gap-3">
       <div
         className={`${sizeClasses[size]} border-gray-200 border-t-gray-900 rounded-full animate-spin`}
+        aria-hidden="true"
       />
       {label !== undefined ? (
         <p className="text-sm text-gray-400">{label}</p>

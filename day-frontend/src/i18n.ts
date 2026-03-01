@@ -5,11 +5,15 @@ import kz from './locales/kz/translation.json'
 import en from './locales/en/translation.json'
 
 function detectLanguage(): string {
-  const saved = localStorage.getItem('language')
-  if (saved) return saved
-  const browserLang = navigator.language?.slice(0, 2).toLowerCase()
-  if (browserLang === 'kk') return 'kz'
-  if (browserLang === 'en') return 'en'
+  try {
+    const saved = localStorage.getItem('language')
+    if (saved) return saved
+    const browserLang = navigator.language?.slice(0, 2).toLowerCase()
+    if (browserLang === 'kk') return 'kz'
+    if (browserLang === 'en') return 'en'
+  } catch {
+    // localStorage or navigator unavailable (SSR/tests)
+  }
   return 'ru'
 }
 
