@@ -7,6 +7,8 @@ import {
 } from '../fixtures/test-data'
 import type { Page } from '../fixtures/e2e-auth'
 
+const CLEANING_LIST_VIEW_MODE_STORAGE_KEY = 'day:cleaning:list-view-mode'
+
 test.describe('Cleaning Task CRUD - E2E', () => {
   let propertyIdsToCleanup: string[] = []
   let taskIdsToCleanup: string[] = []
@@ -179,6 +181,36 @@ test.describe('Cleaning Task CRUD - E2E', () => {
     await page.waitForLoadState('networkidle')
 
     // Should see the property name in the list
+    await expect(page.getByText(prop.name as string).first()).toBeVisible({ timeout: 5000 })
+  })
+
+  test('mobile list view toggle switches to table and persists after reload', async ({ page, request }) => {
+    const prop = await setupActiveProperty(request)
+    await createTaskViaApi(request, prop.id)
+
+    await page.setViewportSize({ width: 390, height: 844 })
+    await page.goto('/cleaning')
+    await page.waitForLoadState('networkidle')
+
+    await page.evaluate((storageKey) => {
+      localStorage.removeItem(storageKey)
+    }, CLEANING_LIST_VIEW_MODE_STORAGE_KEY)
+    await page.reload({ waitUntil: 'networkidle' })
+
+    const cardsToggle = page.getByRole('radio', { name: /cards/i }).first()
+    const tableToggle = page.getByRole('radio', { name: /table/i }).first()
+    await expect(cardsToggle).toHaveAttribute('data-state', 'on')
+
+    await tableToggle.click()
+    await expect(tableToggle).toHaveAttribute('data-state', 'on')
+    await expect(page.locator('tbody tr').first()).toBeVisible({ timeout: 5000 })
+    await expect
+      .poll(async () => page.evaluate((storageKey) => localStorage.getItem(storageKey), CLEANING_LIST_VIEW_MODE_STORAGE_KEY))
+      .toBe('table')
+
+    await page.reload({ waitUntil: 'networkidle' })
+    await expect(page.getByRole('radio', { name: /table/i }).first()).toHaveAttribute('data-state', 'on')
+    await expect(page.locator('tbody tr').first()).toBeVisible({ timeout: 5000 })
     await expect(page.getByText(prop.name as string).first()).toBeVisible({ timeout: 5000 })
   })
 

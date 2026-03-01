@@ -74,6 +74,29 @@ test.describe('Cleaner Dashboard - E2E', () => {
     propertyIdsToCleanup = []
   })
 
+  test('mobile cleaner routes use cleaner shell only with safe-area insets', async ({ page, request }) => {
+    const prop = await setupActiveProperty(request)
+    const task = await createAssignedTask(request, prop.id)
+
+    await page.setViewportSize({ width: 390, height: 844 })
+
+    await page.goto('/cleaner')
+    await page.waitForLoadState('networkidle')
+
+    await expect(page.locator('header nav')).toHaveCount(0)
+    await expect(page.getByRole('button', { name: /^More$/i })).toHaveCount(0)
+    await expect(page.locator('div.safe-area-top').first()).toBeVisible({ timeout: 5000 })
+    await expect(page.locator('div.safe-area-bottom').first()).toBeVisible({ timeout: 5000 })
+
+    await page.goto(`/cleaner/${task.id}`)
+    await page.waitForLoadState('networkidle')
+
+    await expect(page.locator('header nav')).toHaveCount(0)
+    await expect(page.getByRole('button', { name: /^More$/i })).toHaveCount(0)
+    await expect(page.locator('div.safe-area-top').first()).toBeVisible({ timeout: 5000 })
+    await expect(page.locator('div.safe-area-bottom').first()).toBeVisible({ timeout: 5000 })
+  })
+
   test('cleaning page shows task list', async ({ page, request }) => {
     const prop = await setupActiveProperty(request)
     await createAssignedTask(request, prop.id)

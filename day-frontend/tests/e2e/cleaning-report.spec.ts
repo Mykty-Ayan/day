@@ -89,6 +89,22 @@ test.describe('Cleaning Reports - E2E', () => {
     propertyIdsToCleanup = []
   })
 
+  test('mobile cleaner task detail has safe-area action bar and no global shell', async ({ page, request }) => {
+    const prop = await setupActiveProperty(request)
+    const task = await createTaskViaApi(request, prop.id)
+    await assignTaskViaApi(request, task.id)
+    await transitionTaskViaApi(request, task.id, 'in_progress')
+
+    await page.setViewportSize({ width: 390, height: 844 })
+    await page.goto(`/cleaner/${task.id}`)
+    await page.waitForLoadState('networkidle')
+
+    await expect(page.locator('header nav')).toHaveCount(0)
+    await expect(page.getByRole('button', { name: /^More$/i })).toHaveCount(0)
+    await expect(page.locator('div.safe-area-top').first()).toBeVisible({ timeout: 5000 })
+    await expect(page.locator('div.fixed.bottom-0.safe-area-bottom').first()).toBeVisible({ timeout: 5000 })
+  })
+
   test('create cleaning task for property', async ({ page, request }) => {
     const prop = await setupActiveProperty(request)
 

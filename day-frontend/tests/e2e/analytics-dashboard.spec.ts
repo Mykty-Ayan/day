@@ -10,6 +10,7 @@ import {
 
 let propertyIdsToCleanup: string[] = []
 let bookingIdsToCleanup: string[] = []
+const METRICS_TABLE_VIEW_MODE_STORAGE_KEY = 'day:analytics:metrics-view-mode'
 
 test.afterEach(async ({ request }) => {
   for (const id of bookingIdsToCleanup) {
@@ -345,6 +346,51 @@ test.describe('Analytics Dashboard - Table', () => {
       // Page should not error
       await page.waitForLoadState('networkidle')
     }
+  })
+
+  test('mobile metrics view toggle switches to table and persists after reload', async ({
+    page,
+    request,
+  }) => {
+    const typedRequest = request as Parameters<
+      Parameters<typeof test>[2]
+    >[0]['request']
+    const prop = await setupActiveProperty(typedRequest)
+    await setupBookingWithPayment(typedRequest, prop.id)
+
+    await page.setViewportSize({ width: 390, height: 844 })
+    await page.goto('/analytics?period=year')
+    await page.waitForLoadState('networkidle')
+
+    await page.evaluate((storageKey) => {
+      localStorage.removeItem(storageKey)
+    }, METRICS_TABLE_VIEW_MODE_STORAGE_KEY)
+    await page.reload({ waitUntil: 'networkidle' })
+
+    await page
+      .locator('.animate-spin')
+      .waitFor({ state: 'hidden', timeout: 10000 })
+      .catch(() => {})
+
+    const cardsToggle = page.getByRole('radio', { name: /cards/i }).first()
+    const tableToggle = page.getByRole('radio', { name: /table/i }).first()
+    await expect(cardsToggle).toHaveAttribute('data-state', 'on')
+
+    await tableToggle.click()
+    await expect(tableToggle).toHaveAttribute('data-state', 'on')
+    await expect(page.getByRole('columnheader', { name: /property/i }).first()).toBeVisible({ timeout: 5000 })
+    await expect
+      .poll(async () => page.evaluate((storageKey) => localStorage.getItem(storageKey), METRICS_TABLE_VIEW_MODE_STORAGE_KEY))
+      .toBe('table')
+
+    await page.reload({ waitUntil: 'networkidle' })
+    await page
+      .locator('.animate-spin')
+      .waitFor({ state: 'hidden', timeout: 10000 })
+      .catch(() => {})
+
+    await expect(page.getByRole('radio', { name: /table/i }).first()).toHaveAttribute('data-state', 'on')
+    await expect(page.getByRole('columnheader', { name: /property/i }).first()).toBeVisible({ timeout: 5000 })
   })
 })
 

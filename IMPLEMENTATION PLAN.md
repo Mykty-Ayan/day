@@ -76,13 +76,13 @@
 45. `[x] G-03` В [MetricsTable.tsx](/Users/dos/Desktop/ant/day2.0/day-frontend/src/components/analytics/MetricsTable.tsx) добавить cards default на mobile + table toggle. DoD: мобильное чтение метрик без zoom.
 
 ### Milestone H: QA Automation + Regression Gates
-46. `H-01` Обновить [playwright.config.ts](/Users/dos/Desktop/ant/day2.0/day-frontend/playwright.config.ts): проекты `iPhone 13`, `Pixel 7` + сохранить desktop chromium. DoD: все 3 проекта запускаются.
-47. `H-02` Создать `mobile smoke` файл `/Users/dos/Desktop/ant/day2.0/day-frontend/tests/e2e/mobile-layout.spec.ts`. DoD: проверяет ключевые route entries и отсутствие horizontal overflow.
-48. `H-03` Добавить e2e-сценарии для mobile nav + More sheet в `/Users/dos/Desktop/ant/day2.0/day-frontend/tests/e2e/navigation.spec.ts` или отдельный `mobile-nav.spec.ts`. DoD: переходы по tabs и действия из More стабильны.
-49. `H-04` Добавить e2e на cards/table toggle для bookings/cleaning/analytics в соответствующие spec-файлы `/Users/dos/Desktop/ant/day2.0/day-frontend/tests/e2e/*.spec.ts`. DoD: режимы переключаются и сохраняются.
-50. `H-05` Добавить e2e для DateRangePicker mobile-month behavior в `/Users/dos/Desktop/ant/day2.0/day-frontend/tests/e2e/booking-crud.spec.ts` или отдельный `mobile-date-picker.spec.ts`. DoD: на mobile один месяц.
-51. `H-06` Добавить e2e на cleaner safe-area и отсутствие двойного хедера в `/Users/dos/Desktop/ant/day2.0/day-frontend/tests/e2e/cleaner-dashboard.spec.ts` и `/Users/dos/Desktop/ant/day2.0/day-frontend/tests/e2e/cleaning-report.spec.ts`. DoD: fixed actions не перекрыты.
-52. `H-07` Прогнать regression gates: `npm run lint`, `npm run build`, `npm run test:ui`. DoD: green на desktop+mobile проектах.
+46. `[x] H-01` Обновить [playwright.config.ts](/Users/dos/Desktop/ant/day2.0/day-frontend/playwright.config.ts): проекты `iPhone 13`, `Pixel 7` + сохранить desktop chromium. DoD: все 3 проекта запускаются.
+47. `[x] H-02` Создать `mobile smoke` файл `/Users/dos/Desktop/ant/day2.0/day-frontend/tests/e2e/mobile-layout.spec.ts`. DoD: проверяет ключевые route entries и отсутствие horizontal overflow.
+48. `[x] H-03` Добавить e2e-сценарии для mobile nav + More sheet в `/Users/dos/Desktop/ant/day2.0/day-frontend/tests/e2e/navigation.spec.ts` или отдельный `mobile-nav.spec.ts`. DoD: переходы по tabs и действия из More стабильны.
+49. `[x] H-04` Добавить e2e на cards/table toggle для bookings/cleaning/analytics в соответствующие spec-файлы `/Users/dos/Desktop/ant/day2.0/day-frontend/tests/e2e/*.spec.ts`. DoD: режимы переключаются и сохраняются.
+50. `[x] H-05` Добавить e2e для DateRangePicker mobile-month behavior в `/Users/dos/Desktop/ant/day2.0/day-frontend/tests/e2e/booking-crud.spec.ts` или отдельный `mobile-date-picker.spec.ts`. DoD: на mobile один месяц.
+51. `[x] H-06` Добавить e2e на cleaner safe-area и отсутствие двойного хедера в `/Users/dos/Desktop/ant/day2.0/day-frontend/tests/e2e/cleaner-dashboard.spec.ts` и `/Users/dos/Desktop/ant/day2.0/day-frontend/tests/e2e/cleaning-report.spec.ts`. DoD: fixed actions не перекрыты.
+52. `[x] H-07` Прогнать regression gates: `npm run lint`, `npm run build`, `npm run test:ui`. DoD: green на desktop+mobile проектах.
 
 ## Test Cases And Scenarios (обязательный минимум)
 1. Width matrix: 320/360/390/430 px, portrait, без horizontal overflow (`scrollWidth <= innerWidth + 1`).

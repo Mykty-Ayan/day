@@ -9,6 +9,7 @@ import {
 
 const guestNamePlaceholder = /guest name|имя гостя|қонақ/i
 const addBookingButtonName = /create booking|add booking|создать|бронь/i
+const BOOKING_LIST_VIEW_MODE_STORAGE_KEY = 'day:bookings:list-view-mode'
 
 test.describe('Booking CRUD - E2E', () => {
   let bookingIdsToCleanup: string[] = []
@@ -149,6 +150,51 @@ test.describe('Booking CRUD - E2E', () => {
     await page.getByPlaceholder(/search by guest name|search/i).fill(booking.guest_name)
     await page.waitForTimeout(500)
     await expect(page.getByText(booking.guest_name, { exact: true })).toBeVisible({ timeout: 5000 })
+  })
+
+  test('mobile list view toggle switches to table and persists after reload', async ({ page, request }) => {
+    const prop = await setupActiveProperty(request)
+    const booking = await createBookingViaApi(request, prop.id)
+
+    await page.setViewportSize({ width: 390, height: 844 })
+    await page.goto('/bookings')
+    await page.waitForLoadState('networkidle')
+
+    await page.evaluate((storageKey) => {
+      localStorage.removeItem(storageKey)
+    }, BOOKING_LIST_VIEW_MODE_STORAGE_KEY)
+    await page.reload({ waitUntil: 'networkidle' })
+
+    await page.getByPlaceholder(/search by guest name|search/i).fill(booking.guest_name)
+    await page.waitForTimeout(500)
+
+    const cardsToggle = page.getByRole('radio', { name: /cards/i }).first()
+    const tableToggle = page.getByRole('radio', { name: /table/i }).first()
+    await expect(cardsToggle).toHaveAttribute('data-state', 'on')
+
+    await tableToggle.click()
+    await expect(tableToggle).toHaveAttribute('data-state', 'on')
+    await expect(page.locator('tbody tr').first()).toBeVisible({ timeout: 5000 })
+    await expect
+      .poll(async () => page.evaluate((storageKey) => localStorage.getItem(storageKey), BOOKING_LIST_VIEW_MODE_STORAGE_KEY))
+      .toBe('table')
+
+    await page.reload({ waitUntil: 'networkidle' })
+    await page.getByPlaceholder(/search by guest name|search/i).fill(booking.guest_name)
+    await page.waitForTimeout(500)
+    await expect(page.getByRole('radio', { name: /table/i }).first()).toHaveAttribute('data-state', 'on')
+    await expect(page.locator('tbody tr').first()).toBeVisible({ timeout: 5000 })
+  })
+
+  test('date range picker shows one month on mobile viewport', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 })
+    await page.goto('/bookings/new')
+    await page.waitForLoadState('networkidle')
+
+    await page.getByRole('button', { name: /select dates/i }).first().click()
+    const calendarGrids = page.locator('[role="dialog"] [role="grid"]')
+    await expect(calendarGrids.first()).toBeVisible({ timeout: 5000 })
+    await expect(calendarGrids).toHaveCount(1)
   })
 
   test('edit booking', async ({ page, request }) => {
