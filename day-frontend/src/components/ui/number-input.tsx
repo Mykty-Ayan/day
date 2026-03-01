@@ -11,6 +11,7 @@ interface NumberInputProps {
   className?: string
   inputClassName?: string
   disabled?: boolean
+  ariaLabel?: string
 }
 
 function parseNumber(value: string | number): number | null {
@@ -42,6 +43,7 @@ export default function NumberInput({
   className,
   inputClassName,
   disabled,
+  ariaLabel,
 }: NumberInputProps) {
   function clampValue(num: number): number {
     let next = num
@@ -91,6 +93,7 @@ export default function NumberInput({
         step={step}
         placeholder={placeholder}
         disabled={disabled}
+        aria-label={ariaLabel}
         className={cn(
           'number-input w-full bg-gray-50 border border-gray-200 rounded-xl p-3 pr-11 outline-none focus:ring-2 focus:ring-black/10 text-gray-800 text-sm',
           disabled && 'opacity-50 cursor-not-allowed',

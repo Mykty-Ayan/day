@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
@@ -43,6 +43,8 @@ import type {
   PaymentMethod,
   PaymentType,
 } from '../../types/booking'
+import type { ViewMode } from '../../types/view-mode'
+import { isViewMode } from '../../types/view-mode'
 import BookingStatusBadge from '../../components/booking/BookingStatusBadge'
 import AuditTrail from '../../components/ui/AuditTrail'
 import {
@@ -52,6 +54,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '../../components/ui/select'
+import { ToggleGroup, ToggleGroupItem } from '../../components/ui/toggle-group'
 import NumberInput from '../../components/ui/number-input'
 import { useCurrency } from '../../hooks/useCurrency'
 
@@ -59,6 +62,8 @@ const TABS = ['overview', 'payments', 'deposits', 'filesComments', 'history'] as
 type Tab = (typeof TABS)[number]
 
 const RAW_API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1'
+const BOOKING_DETAIL_PAYMENTS_VIEW_MODE_STORAGE_KEY = 'day:bookings:detail:payments-view-mode'
+const BOOKING_DETAIL_DEPOSITS_VIEW_MODE_STORAGE_KEY = 'day:bookings:detail:deposits-view-mode'
 
 function apiUrl(path: string): string {
   const trimmedBase = RAW_API_BASE_URL.replace(/\/+$/, '')
@@ -67,6 +72,21 @@ function apiUrl(path: string): string {
     : `/${trimmedBase.replace(/^\/+/, '')}`
   const normalizedPath = path.startsWith('/') ? path : `/${path}`
   return `${normalizedBase}${normalizedPath}`
+}
+
+function readInitialViewMode(storageKey: string): ViewMode {
+  if (typeof window === 'undefined') return 'table'
+
+  try {
+    const stored = window.localStorage.getItem(storageKey)
+    if (isViewMode(stored)) {
+      return stored
+    }
+  } catch {
+    // Ignore storage errors and fallback to viewport-aware default.
+  }
+
+  return window.matchMedia('(max-width: 1023px)').matches ? 'cards' : 'table'
 }
 
 interface StatusAction {
@@ -107,12 +127,36 @@ export default function BookingDetailPage() {
   const { data: detail, isLoading } = useBooking(bookingId)
   const changeStatus = useChangeBookingStatus(bookingId)
   const [activeTab, setActiveTab] = useState<Tab>('overview')
+  const [paymentsViewMode, setPaymentsViewMode] = useState<ViewMode>(() =>
+    readInitialViewMode(BOOKING_DETAIL_PAYMENTS_VIEW_MODE_STORAGE_KEY),
+  )
+  const [depositsViewMode, setDepositsViewMode] = useState<ViewMode>(() =>
+    readInitialViewMode(BOOKING_DETAIL_DEPOSITS_VIEW_MODE_STORAGE_KEY),
+  )
   const from = useMemo(() => {
     if (typeof window === 'undefined') return ''
     const params = new URLSearchParams(window.location.search)
     return params.get('from') || ''
   }, [])
   const isFromGantt = from === 'gantt'
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    try {
+      window.localStorage.setItem(BOOKING_DETAIL_PAYMENTS_VIEW_MODE_STORAGE_KEY, paymentsViewMode)
+    } catch {
+      // Ignore storage write errors.
+    }
+  }, [paymentsViewMode])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    try {
+      window.localStorage.setItem(BOOKING_DETAIL_DEPOSITS_VIEW_MODE_STORAGE_KEY, depositsViewMode)
+    } catch {
+      // Ignore storage write errors.
+    }
+  }, [depositsViewMode])
 
   function handleBack() {
     if (isFromGantt) {
@@ -155,9 +199,9 @@ export default function BookingDetailPage() {
         </button>
 
         {/* Header */}
-        <div className="flex items-start justify-between mb-6">
-          <div>
-            <div className="flex items-center gap-3 mb-1">
+        <div className="mb-6 flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+          <div className="min-w-0">
+            <div className="mb-1 flex flex-wrap items-center gap-2 sm:gap-3">
               <h1 className="text-xl font-bold text-gray-900">
                 {booking.property_internal_name || booking.property_name}
               </h1>
@@ -167,11 +211,11 @@ export default function BookingDetailPage() {
               {booking.guest_name} &middot; {formatDate(booking.check_in)} <ArrowRight className="w-3 h-3 inline text-gray-400" /> {formatDate(booking.check_out)}
             </p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
             <motion.button
               whileTap={{ scale: 0.97 }}
               onClick={() => navigate({ to: '/bookings/$bookingId/edit', params: { bookingId } })}
-              className="flex items-center gap-2 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-xl px-4 py-2 text-xs font-bold text-gray-700 transition-colors"
+              className="flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl border border-gray-200 bg-gray-50 px-4 py-2 text-xs font-bold text-gray-700 transition-colors hover:bg-gray-100 sm:w-auto"
             >
               <Pencil className="w-3.5 h-3.5" />
               {t('common.edit')}
@@ -182,7 +226,7 @@ export default function BookingDetailPage() {
                 whileTap={{ scale: 0.97 }}
                 onClick={() => changeStatus.mutate(action.target)}
                 disabled={changeStatus.isPending}
-                className={`${action.color} text-white rounded-xl px-4 py-2 text-xs font-bold transition-colors disabled:opacity-50`}
+                className={`${action.color} min-h-[44px] w-full rounded-xl px-4 py-2 text-xs font-bold text-white transition-colors disabled:opacity-50 sm:w-auto`}
               >
                 {action.label}
               </motion.button>
@@ -191,20 +235,24 @@ export default function BookingDetailPage() {
         </div>
 
         {/* Tab bar */}
-        <div className="bg-gray-50 rounded-xl p-1 flex gap-1 mb-6">
-          {TABS.map((tab) => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={`flex-1 px-3 py-2 rounded-lg text-xs font-bold transition-colors ${
-                activeTab === tab
-                  ? 'bg-white text-gray-900 shadow-sm'
-                  : 'text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              {t(`bookings.tabs.${tab}`)}
-            </button>
-          ))}
+        <div className="mb-6 -mx-1 overflow-x-auto px-1">
+          <div className="inline-flex min-w-full gap-1 rounded-xl bg-gray-50 p-1 sm:min-w-0" role="tablist">
+            {TABS.map((tab) => (
+              <button
+                key={tab}
+                role="tab"
+                aria-selected={activeTab === tab}
+                onClick={() => setActiveTab(tab)}
+                className={`min-h-[44px] whitespace-nowrap rounded-lg px-3 py-2 text-xs font-bold transition-colors ${
+                  activeTab === tab
+                    ? 'bg-white text-gray-900 shadow-sm'
+                    : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                {t(`bookings.tabs.${tab}`)}
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* Tab content */}
@@ -226,10 +274,17 @@ export default function BookingDetailPage() {
                 totalPrice={booking.total_price}
                 checkIn={booking.check_in}
                 checkOut={booking.check_out}
+                viewMode={paymentsViewMode}
+                onViewModeChange={setPaymentsViewMode}
               />
             )}
             {activeTab === 'deposits' && (
-              <DepositsTab bookingId={bookingId} deposits={detail.deposits} />
+              <DepositsTab
+                bookingId={bookingId}
+                deposits={detail.deposits}
+                viewMode={depositsViewMode}
+                onViewModeChange={setDepositsViewMode}
+              />
             )}
             {activeTab === 'filesComments' && (
               <FilesCommentsTab bookingId={bookingId} files={detail.files} comments={detail.comments} />
@@ -351,12 +406,16 @@ function PaymentsTab({
   totalPrice,
   checkIn,
   checkOut,
+  viewMode,
+  onViewModeChange,
 }: {
   bookingId: string
   payments: BookingPayment[]
   totalPrice: number
   checkIn: string
   checkOut: string
+  viewMode: ViewMode
+  onViewModeChange: (mode: ViewMode) => void
 }) {
   const { t } = useTranslation()
   const { symbol } = useCurrency()
@@ -364,6 +423,10 @@ function PaymentsTab({
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState({ amount: '', type: 'payment' as PaymentType, method: 'cash' as PaymentMethod, note: '' })
   const amountStep = 1000
+  const VIEW_OPTIONS: { value: ViewMode; label: string }[] = [
+    { value: 'cards', label: t('common.cards') },
+    { value: 'table', label: t('common.table') },
+  ]
 
   const totalPaid = payments
     .filter((p) => p.status === 'completed')
@@ -418,10 +481,34 @@ function PaymentsTab({
     )
   }
 
+  function paymentStatusStyle(status: BookingPayment['status']): string {
+    if (status === 'completed') return 'bg-green-100 text-green-700'
+    if (status === 'failed') return 'bg-red-100 text-red-700'
+    return 'bg-gray-100 text-gray-700'
+  }
+
   return (
     <div className="space-y-4">
+      <div className="w-full overflow-x-auto">
+        <ToggleGroup
+          type="single"
+          value={viewMode}
+          onValueChange={(value) => {
+            if (!value) return
+            onViewModeChange(value as ViewMode)
+          }}
+          className="min-w-max"
+        >
+          {VIEW_OPTIONS.map((option) => (
+            <ToggleGroupItem key={option.value} value={option.value}>
+              {option.label}
+            </ToggleGroupItem>
+          ))}
+        </ToggleGroup>
+      </div>
+
       {/* Summary */}
-      <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm flex items-center justify-between">
+      <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <p className="text-xs text-gray-500">
             {isOverpaid ? t('bookings.payments.totalPaidOverpaid') : t('bookings.payments.totalPaidRemaining')}
@@ -433,20 +520,20 @@ function PaymentsTab({
             </span>
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-col gap-2 sm:flex-row">
           <motion.button
             whileTap={{ scale: 0.97 }}
             onClick={() => { setForm((f) => ({ ...f, type: 'payment' })); setShowForm(true) }}
-            className="flex items-center gap-1 bg-black text-white hover:bg-gray-800 rounded-xl px-4 py-2 text-xs font-bold transition-colors"
+            className="flex min-h-[44px] w-full items-center justify-center gap-1 rounded-xl bg-black px-4 py-2 text-xs font-bold text-white transition-colors hover:bg-gray-800 sm:w-auto"
           >
-            <Plus className="w-3 h-3" /> {t('bookings.payments.payment')}
+            <Plus className="w-3 h-3" /> {t('bookings.payments.addPayment')}
           </motion.button>
           <motion.button
             whileTap={{ scale: 0.97 }}
             onClick={() => { setForm((f) => ({ ...f, type: 'refund' })); setShowForm(true) }}
-            className="flex items-center gap-1 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-xl px-4 py-2 text-xs font-bold text-gray-700 transition-colors"
+            className="flex min-h-[44px] w-full items-center justify-center gap-1 rounded-xl border border-gray-200 bg-gray-50 px-4 py-2 text-xs font-bold text-gray-700 transition-colors hover:bg-gray-100 sm:w-auto"
           >
-            <Plus className="w-3 h-3" /> {t('bookings.payments.refund')}
+            <Plus className="w-3 h-3" /> {t('bookings.payments.addRefund')}
           </motion.button>
         </div>
       </div>
@@ -461,13 +548,14 @@ function PaymentsTab({
           <h3 className="text-sm font-bold text-gray-900 mb-3">
             {form.type === 'payment' ? t('bookings.payments.addPayment') : t('bookings.payments.addRefund')}
           </h3>
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
             <NumberInput
               value={form.amount}
               onChange={(value) => setForm((f) => ({ ...f, amount: value }))}
               min={0}
               step={amountStep}
               placeholder={t('common.amount')}
+              ariaLabel={t('common.amount')}
             />
             <Select
               value={form.method}
@@ -487,6 +575,7 @@ function PaymentsTab({
               value={form.note}
               onChange={(e) => setForm((f) => ({ ...f, note: e.target.value }))}
               placeholder={t('common.noteOptional')}
+              aria-label={t('common.noteOptional')}
               className="bg-gray-50 border border-gray-200 rounded-xl p-3 outline-none focus:ring-2 focus:ring-black/10 text-sm"
             />
           </div>
@@ -504,18 +593,21 @@ function PaymentsTab({
               ))}
             </div>
           )}
-          <div className="flex gap-2 mt-3">
+          <div className="mt-3 flex flex-col-reverse gap-2 sm:flex-row">
             <motion.button
               whileTap={{ scale: 0.97 }}
+              type="button"
               onClick={handleSubmit}
               disabled={addPayment.isPending}
-              className="bg-black text-white hover:bg-gray-800 rounded-xl px-4 py-2 text-xs font-bold transition-colors disabled:opacity-50"
+              aria-label="Save"
+              className="min-h-[44px] w-full rounded-xl bg-black px-4 py-2 text-xs font-bold text-white transition-colors hover:bg-gray-800 disabled:opacity-50 sm:w-auto"
             >
               {addPayment.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : t('common.save')}
             </motion.button>
             <button
+              type="button"
               onClick={() => setShowForm(false)}
-              className="text-xs font-bold text-gray-500 hover:text-gray-700 px-3"
+              className="min-h-[44px] w-full rounded-xl border border-gray-200 px-3 text-xs font-bold text-gray-500 transition-colors hover:bg-gray-50 hover:text-gray-700 sm:w-auto sm:border-0"
             >
               {t('common.cancel')}
             </button>
@@ -528,44 +620,66 @@ function PaymentsTab({
         <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
           <p className="text-sm text-gray-500 text-center py-4">{t('bookings.payments.noPayments')}</p>
         </div>
+      ) : viewMode === 'cards' ? (
+        <div className="space-y-3">
+          {payments.map((payment) => (
+            <div key={payment.id} className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-sm font-semibold text-gray-900">
+                    {payment.type === 'refund' ? '-' : ''}{symbol}{formatMoney(Math.abs(normalizeNumber(payment.amount)))}
+                  </p>
+                  <p className="mt-0.5 text-xs text-gray-500 capitalize">
+                    {payment.type} · {payment.method}
+                  </p>
+                </div>
+                <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase ${paymentStatusStyle(payment.status)}`}>
+                  {payment.status}
+                </span>
+              </div>
+              <div className="mt-3 grid grid-cols-1 gap-1 text-xs text-gray-600 sm:grid-cols-2">
+                <span>{new Date(payment.paid_at || payment.created_at).toLocaleDateString()}</span>
+                <span className="sm:text-right">{payment.note || '-'}</span>
+              </div>
+            </div>
+          ))}
+        </div>
       ) : (
         <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-gray-100 bg-gray-50">
-                <th className="text-left px-4 py-3 text-xs font-bold text-gray-400 uppercase">{t('common.amount')}</th>
-                <th className="text-left px-4 py-3 text-xs font-bold text-gray-400 uppercase">{t('common.type')}</th>
-                <th className="text-left px-4 py-3 text-xs font-bold text-gray-400 uppercase">{t('common.method')}</th>
-                <th className="text-left px-4 py-3 text-xs font-bold text-gray-400 uppercase">{t('common.status')}</th>
-                <th className="text-left px-4 py-3 text-xs font-bold text-gray-400 uppercase">{t('common.date')}</th>
-                <th className="text-left px-4 py-3 text-xs font-bold text-gray-400 uppercase">{t('common.note')}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {payments.map((p) => (
-                <tr key={p.id} className="border-b border-gray-50">
-                  <td className="px-4 py-3 text-sm font-semibold text-gray-900">
-                    {p.type === 'refund' ? '-' : ''}{symbol}{formatMoney(Math.abs(normalizeNumber(p.amount)))}
-                  </td>
-                  <td className="px-4 py-3 text-xs text-gray-600 capitalize">{p.type}</td>
-                  <td className="px-4 py-3 text-xs text-gray-600 capitalize">{p.method}</td>
-                  <td className="px-4 py-3">
-                    <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase ${
-                      p.status === 'completed' ? 'bg-green-100 text-green-700' :
-                      p.status === 'failed' ? 'bg-red-100 text-red-700' :
-                      'bg-gray-100 text-gray-700'
-                    }`}>
-                      {p.status}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-xs text-gray-500">
-                    {new Date(p.paid_at || p.created_at).toLocaleDateString()}
-                  </td>
-                  <td className="px-4 py-3 text-xs text-gray-500">{p.note || '-'}</td>
+          <div className="w-full overflow-x-auto">
+            <table className="w-full min-w-[680px]">
+              <thead>
+                <tr className="border-b border-gray-100 bg-gray-50">
+                  <th className="text-left px-4 py-3 text-xs font-bold text-gray-400 uppercase">{t('common.amount')}</th>
+                  <th className="text-left px-4 py-3 text-xs font-bold text-gray-400 uppercase">{t('common.type')}</th>
+                  <th className="text-left px-4 py-3 text-xs font-bold text-gray-400 uppercase">{t('common.method')}</th>
+                  <th className="text-left px-4 py-3 text-xs font-bold text-gray-400 uppercase">{t('common.status')}</th>
+                  <th className="text-left px-4 py-3 text-xs font-bold text-gray-400 uppercase">{t('common.date')}</th>
+                  <th className="text-left px-4 py-3 text-xs font-bold text-gray-400 uppercase">{t('common.note')}</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {payments.map((p) => (
+                  <tr key={p.id} className="border-b border-gray-50">
+                    <td className="px-4 py-3 text-sm font-semibold text-gray-900">
+                      {p.type === 'refund' ? '-' : ''}{symbol}{formatMoney(Math.abs(normalizeNumber(p.amount)))}
+                    </td>
+                    <td className="px-4 py-3 text-xs text-gray-600 capitalize">{p.type}</td>
+                    <td className="px-4 py-3 text-xs text-gray-600 capitalize">{p.method}</td>
+                    <td className="px-4 py-3">
+                      <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase ${paymentStatusStyle(p.status)}`}>
+                        {p.status}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-xs text-gray-500">
+                      {new Date(p.paid_at || p.created_at).toLocaleDateString()}
+                    </td>
+                    <td className="px-4 py-3 text-xs text-gray-500">{p.note || '-'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
     </div>
@@ -573,12 +687,26 @@ function PaymentsTab({
 }
 
 // --- Deposits Tab ---
-function DepositsTab({ bookingId, deposits }: { bookingId: string; deposits: BookingDeposit[] }) {
+function DepositsTab({
+  bookingId,
+  deposits,
+  viewMode,
+  onViewModeChange,
+}: {
+  bookingId: string
+  deposits: BookingDeposit[]
+  viewMode: ViewMode
+  onViewModeChange: (mode: ViewMode) => void
+}) {
   const { t } = useTranslation()
   const { symbol } = useCurrency()
   const createDep = useCreateDeposit(bookingId)
   const [newAmount, setNewAmount] = useState('')
   const [showCreate, setShowCreate] = useState(false)
+  const VIEW_OPTIONS: { value: ViewMode; label: string }[] = [
+    { value: 'cards', label: t('common.cards') },
+    { value: 'table', label: t('common.table') },
+  ]
   const quickDepositOptions = [
     { value: 5000 },
     { value: 10000 },
@@ -596,11 +724,28 @@ function DepositsTab({ bookingId, deposits }: { bookingId: string; deposits: Boo
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-end">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="w-full overflow-x-auto">
+          <ToggleGroup
+            type="single"
+            value={viewMode}
+            onValueChange={(value) => {
+              if (!value) return
+              onViewModeChange(value as ViewMode)
+            }}
+            className="min-w-max"
+          >
+            {VIEW_OPTIONS.map((option) => (
+              <ToggleGroupItem key={option.value} value={option.value}>
+                {option.label}
+              </ToggleGroupItem>
+            ))}
+          </ToggleGroup>
+        </div>
         <motion.button
           whileTap={{ scale: 0.97 }}
           onClick={() => setShowCreate(true)}
-          className="flex items-center gap-1 bg-black text-white hover:bg-gray-800 rounded-xl px-4 py-2 text-xs font-bold transition-colors"
+          className="flex min-h-[44px] w-full items-center justify-center gap-1 rounded-xl bg-black px-4 py-2 text-xs font-bold text-white transition-colors hover:bg-gray-800 sm:w-auto"
         >
           <Plus className="w-3 h-3" /> {t('bookings.deposits.createDeposit')}
         </motion.button>
@@ -614,24 +759,30 @@ function DepositsTab({ bookingId, deposits }: { bookingId: string; deposits: Boo
         >
           <h3 className="text-sm font-bold text-gray-900 mb-3">{t('bookings.deposits.newDeposit')}</h3>
           <div className="space-y-3">
-            <div className="flex gap-3">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-start">
               <NumberInput
                 value={newAmount}
                 onChange={setNewAmount}
                 min={0}
                 step={1000}
                 placeholder={t('common.amount')}
-                className="flex-1"
+                ariaLabel={t('common.amount')}
+                className="w-full sm:flex-1"
               />
               <motion.button
                 whileTap={{ scale: 0.97 }}
+                type="button"
                 onClick={handleCreate}
                 disabled={createDep.isPending}
-                className="bg-black text-white hover:bg-gray-800 rounded-xl px-4 py-2 text-xs font-bold disabled:opacity-50"
+                className="min-h-[44px] w-full rounded-xl bg-black px-4 py-2 text-xs font-bold text-white transition-colors hover:bg-gray-800 disabled:opacity-50 sm:w-auto"
               >
                 {createDep.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : t('common.create')}
               </motion.button>
-              <button onClick={() => setShowCreate(false)} className="text-xs font-bold text-gray-500 hover:text-gray-700 px-2">
+              <button
+                type="button"
+                onClick={() => setShowCreate(false)}
+                className="min-h-[44px] w-full rounded-xl border border-gray-200 px-2 text-xs font-bold text-gray-500 transition-colors hover:bg-gray-50 hover:text-gray-700 sm:w-auto sm:border-0"
+              >
                 {t('common.cancel')}
               </button>
             </div>
@@ -655,10 +806,32 @@ function DepositsTab({ bookingId, deposits }: { bookingId: string; deposits: Boo
         <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
           <p className="text-sm text-gray-500 text-center py-4">{t('bookings.deposits.noDeposits')}</p>
         </div>
-      ) : (
+      ) : viewMode === 'cards' ? (
         deposits.map((dep) => (
           <DepositCard key={`${dep.id}-${dep.status}`} bookingId={bookingId} deposit={dep} />
         ))
+      ) : (
+        <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+          <div className="w-full overflow-x-auto">
+            <table className="w-full min-w-[860px]">
+              <thead>
+                <tr className="border-b border-gray-100 bg-gray-50">
+                  <th className="px-4 py-3 text-left text-xs font-bold uppercase text-gray-400">{t('common.amount')}</th>
+                  <th className="px-4 py-3 text-left text-xs font-bold uppercase text-gray-400">{t('common.status')}</th>
+                  <th className="px-4 py-3 text-left text-xs font-bold uppercase text-gray-400">{t('bookings.deposits.held')}</th>
+                  <th className="px-4 py-3 text-left text-xs font-bold uppercase text-gray-400">{t('common.reason')}</th>
+                  <th className="px-4 py-3 text-left text-xs font-bold uppercase text-gray-400">{t('common.created')}</th>
+                  <th className="px-4 py-3 text-left text-xs font-bold uppercase text-gray-400">{t('common.actions')}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {deposits.map((dep) => (
+                  <DepositTableRow key={`${dep.id}-${dep.status}`} bookingId={bookingId} deposit={dep} />
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
       )}
     </div>
   )
@@ -706,16 +879,17 @@ function DepositCard({ bookingId, deposit }: { bookingId: string; deposit: Booki
       )}
 
       {/* Actions based on status */}
-      <div className="flex gap-2 flex-wrap">
+      <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
         {deposit.status === 'pending' && (
           <motion.button
             whileTap={{ scale: 0.97 }}
+            type="button"
             onClick={() => {
               setActionForm(null)
               depAction.mutate({ action: 'pay' })
             }}
             disabled={depAction.isPending}
-            className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl px-3 py-1.5 text-xs font-bold disabled:opacity-50"
+            className="min-h-[44px] w-full rounded-xl bg-blue-600 px-3 py-1.5 text-xs font-bold text-white transition-colors hover:bg-blue-700 disabled:opacity-50 sm:w-auto"
           >
             {t('bookings.deposits.markAsPaid')}
           </motion.button>
@@ -724,26 +898,31 @@ function DepositCard({ bookingId, deposit }: { bookingId: string; deposit: Booki
           <>
             <motion.button
               whileTap={{ scale: 0.97 }}
+              type="button"
               onClick={() => {
                 setActionForm(null)
                 depAction.mutate({ action: 'return' })
               }}
               disabled={depAction.isPending}
-              className="bg-green-600 hover:bg-green-700 text-white rounded-xl px-3 py-1.5 text-xs font-bold disabled:opacity-50"
+              className="min-h-[44px] w-full rounded-xl bg-green-600 px-3 py-1.5 text-xs font-bold text-white transition-colors hover:bg-green-700 disabled:opacity-50 sm:w-auto"
             >
               {t('bookings.deposits.return')}
             </motion.button>
             <motion.button
               whileTap={{ scale: 0.97 }}
+              type="button"
               onClick={() => setActionForm({ action: 'hold', held_amount: '', reason: '' })}
-              className="bg-red-600 hover:bg-red-700 text-white rounded-xl px-3 py-1.5 text-xs font-bold"
+              aria-label={t('bookings.deposits.hold')}
+              className="min-h-[44px] w-full rounded-xl bg-red-600 px-3 py-1.5 text-xs font-bold text-white transition-colors hover:bg-red-700 sm:w-auto"
             >
               {t('bookings.deposits.hold')}
             </motion.button>
             <motion.button
               whileTap={{ scale: 0.97 }}
+              type="button"
               onClick={() => setActionForm({ action: 'partial_hold', held_amount: '', reason: '' })}
-              className="bg-amber-600 hover:bg-amber-700 text-white rounded-xl px-3 py-1.5 text-xs font-bold"
+              aria-label="Partial"
+              className="min-h-[44px] w-full rounded-xl bg-amber-600 px-3 py-1.5 text-xs font-bold text-white transition-colors hover:bg-amber-700 sm:w-auto"
             >
               {t('bookings.deposits.partiallyHold')}
             </motion.button>
@@ -761,6 +940,7 @@ function DepositCard({ bookingId, deposit }: { bookingId: string; deposit: Booki
               min={0}
               step={1000}
               placeholder={t('bookings.deposits.amountToHold')}
+              ariaLabel={t('bookings.deposits.amountToHold')}
             />
           )}
           <input
@@ -768,24 +948,167 @@ function DepositCard({ bookingId, deposit }: { bookingId: string; deposit: Booki
             value={actionForm.reason}
             onChange={(e) => setActionForm((f) => f && { ...f, reason: e.target.value })}
             placeholder={t('common.reason')}
+            aria-label={t('common.reason')}
             className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 outline-none focus:ring-2 focus:ring-black/10 text-sm"
           />
-          <div className="flex gap-2">
+          <div className="flex flex-col-reverse gap-2 sm:flex-row">
             <motion.button
               whileTap={{ scale: 0.97 }}
+              type="button"
               onClick={handleAction}
               disabled={depAction.isPending}
-              className="bg-black text-white hover:bg-gray-800 rounded-xl px-4 py-2 text-xs font-bold disabled:opacity-50"
+              className="min-h-[44px] w-full rounded-xl bg-black px-4 py-2 text-xs font-bold text-white transition-colors hover:bg-gray-800 disabled:opacity-50 sm:w-auto"
             >
               {depAction.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : t('common.confirm')}
             </motion.button>
-            <button onClick={() => setActionForm(null)} className="text-xs font-bold text-gray-500 hover:text-gray-700 px-2">
+            <button
+              type="button"
+              onClick={() => setActionForm(null)}
+              className="min-h-[44px] w-full rounded-xl border border-gray-200 px-2 text-xs font-bold text-gray-500 transition-colors hover:bg-gray-50 hover:text-gray-700 sm:w-auto sm:border-0"
+            >
               {t('common.cancel')}
             </button>
           </div>
         </motion.div>
       )}
     </div>
+  )
+}
+
+function DepositTableRow({ bookingId, deposit }: { bookingId: string; deposit: BookingDeposit }) {
+  const { t } = useTranslation()
+  const { symbol } = useCurrency()
+  const depAction = useDepositAction(bookingId, deposit.id)
+  const [actionForm, setActionForm] = useState<{ action: DepositAction; held_amount: string; reason: string } | null>(null)
+
+  function handleAction() {
+    if (!actionForm) return
+    const input: DepositActionInput = {
+      action: actionForm.action,
+      ...(actionForm.action === 'partial_hold' && { held_amount: normalizeNumber(actionForm.held_amount) }),
+      ...((actionForm.action === 'hold' || actionForm.action === 'partial_hold') && actionForm.reason && { reason: actionForm.reason }),
+    }
+    depAction.mutate(input, { onSuccess: () => setActionForm(null) })
+  }
+
+  const depositStatusStyle: Record<string, string> = {
+    pending: 'bg-gray-100 text-gray-700',
+    paid: 'bg-blue-100 text-blue-700',
+    returned: 'bg-green-100 text-green-700',
+    held: 'bg-red-100 text-red-700',
+    partially_held: 'bg-amber-100 text-amber-700',
+  }
+
+  return (
+    <tr className="align-top border-b border-gray-50">
+      <td className="px-4 py-3 text-sm font-semibold text-gray-900">
+        {symbol}{formatMoney(deposit.amount)}
+      </td>
+      <td className="px-4 py-3">
+        <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase ${depositStatusStyle[deposit.status] || 'bg-gray-100 text-gray-700'}`}>
+          {deposit.status.replace('_', ' ')}
+        </span>
+      </td>
+      <td className="px-4 py-3 text-xs text-gray-600">
+        {deposit.held_amount > 0 ? `${symbol}${formatMoney(deposit.held_amount)}` : '-'}
+      </td>
+      <td className="px-4 py-3 text-xs text-gray-600">{deposit.reason || '-'}</td>
+      <td className="px-4 py-3 text-xs text-gray-500">{new Date(deposit.created_at).toLocaleDateString()}</td>
+      <td className="px-4 py-3">
+        <div className="space-y-2">
+          <div className="flex flex-wrap gap-2">
+            {deposit.status === 'pending' && (
+              <motion.button
+                whileTap={{ scale: 0.97 }}
+                type="button"
+                onClick={() => {
+                  setActionForm(null)
+                  depAction.mutate({ action: 'pay' })
+                }}
+                disabled={depAction.isPending}
+                className="rounded-lg bg-blue-600 px-2.5 py-1 text-[11px] font-semibold text-white transition-colors hover:bg-blue-700 disabled:opacity-50"
+              >
+                {t('bookings.deposits.markAsPaid')}
+              </motion.button>
+            )}
+            {deposit.status === 'paid' && (
+              <>
+                <motion.button
+                  whileTap={{ scale: 0.97 }}
+                  type="button"
+                  onClick={() => {
+                    setActionForm(null)
+                    depAction.mutate({ action: 'return' })
+                  }}
+                  disabled={depAction.isPending}
+                  className="rounded-lg bg-green-600 px-2.5 py-1 text-[11px] font-semibold text-white transition-colors hover:bg-green-700 disabled:opacity-50"
+                >
+                  {t('bookings.deposits.return')}
+                </motion.button>
+                <motion.button
+                  whileTap={{ scale: 0.97 }}
+                  type="button"
+                  onClick={() => setActionForm({ action: 'hold', held_amount: '', reason: '' })}
+                  aria-label={t('bookings.deposits.hold')}
+                  className="rounded-lg bg-red-600 px-2.5 py-1 text-[11px] font-semibold text-white transition-colors hover:bg-red-700"
+                >
+                  {t('bookings.deposits.hold')}
+                </motion.button>
+                <motion.button
+                  whileTap={{ scale: 0.97 }}
+                  type="button"
+                  onClick={() => setActionForm({ action: 'partial_hold', held_amount: '', reason: '' })}
+                  aria-label="Partial"
+                  className="rounded-lg bg-amber-600 px-2.5 py-1 text-[11px] font-semibold text-white transition-colors hover:bg-amber-700"
+                >
+                  {t('bookings.deposits.partiallyHold')}
+                </motion.button>
+              </>
+            )}
+          </div>
+          {deposit.status === 'paid' && actionForm && (actionForm.action === 'hold' || actionForm.action === 'partial_hold') && (
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-2">
+              {actionForm.action === 'partial_hold' && (
+                <NumberInput
+                  value={actionForm.held_amount}
+                  onChange={(value) => setActionForm((f) => f && { ...f, held_amount: value })}
+                  min={0}
+                  step={1000}
+                  placeholder={t('bookings.deposits.amountToHold')}
+                  ariaLabel={t('bookings.deposits.amountToHold')}
+                />
+              )}
+              <input
+                type="text"
+                value={actionForm.reason}
+                onChange={(e) => setActionForm((f) => f && { ...f, reason: e.target.value })}
+                placeholder={t('common.reason')}
+                aria-label={t('common.reason')}
+                className="w-full rounded-lg border border-gray-200 bg-gray-50 p-2 text-xs outline-none focus:ring-2 focus:ring-black/10"
+              />
+              <div className="flex flex-wrap gap-2">
+                <motion.button
+                  whileTap={{ scale: 0.97 }}
+                  type="button"
+                  onClick={handleAction}
+                  disabled={depAction.isPending}
+                  className="rounded-lg bg-black px-2.5 py-1 text-[11px] font-semibold text-white transition-colors hover:bg-gray-800 disabled:opacity-50"
+                >
+                  {depAction.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : t('common.confirm')}
+                </motion.button>
+                <button
+                  type="button"
+                  onClick={() => setActionForm(null)}
+                  className="rounded-lg border border-gray-200 px-2.5 py-1 text-[11px] font-semibold text-gray-600 transition-colors hover:bg-gray-50"
+                >
+                  {t('common.cancel')}
+                </button>
+              </div>
+            </motion.div>
+          )}
+        </div>
+      </td>
+    </tr>
   )
 }
 

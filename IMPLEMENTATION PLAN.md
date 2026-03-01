@@ -53,14 +53,14 @@
 28. `[x] D-10` Создать компонент agenda-представления `/Users/dos/Desktop/ant/day2.0/day-frontend/src/components/property/GanttAgendaView.tsx`. DoD: функциональный паритет ключевых данных с gantt.
 
 ### Milestone E: Bookings Domain
-29. `E-01` В [BookingListPage.tsx](/Users/dos/Desktop/ant/day2.0/day-frontend/src/pages/bookings/BookingListPage.tsx) реализовать hybrid view (mobile cards default, optional table toggle) + `overflow-x-auto` для table-mode. DoD: список usable на 320px.
-30. `E-02` Обновить [CreateBookingPage.tsx](/Users/dos/Desktop/ant/day2.0/day-frontend/src/pages/bookings/CreateBookingPage.tsx): mobile-first grids, action buttons stack, sticky summary только `lg+`. DoD: поля не сжаты.
-31. `E-03` Обновить [EditBookingPage.tsx](/Users/dos/Desktop/ant/day2.0/day-frontend/src/pages/bookings/EditBookingPage.tsx): `grid-cols-1 sm:grid-cols-2`, submit full-width mobile. DoD: touch-friendly редактирование.
-32. `E-04` Обновить [TodayPage.tsx](/Users/dos/Desktop/ant/day2.0/day-frontend/src/pages/bookings/TodayPage.tsx): action buttons full-width при узкой ширине. DoD: нет поломки CTA.
-33. `E-05` Обновить [BookingDetailPage.tsx](/Users/dos/Desktop/ant/day2.0/day-frontend/src/pages/bookings/BookingDetailPage.tsx): header actions wrap, tabs = horizontal-scroll chips на mobile. DoD: tabs не обрезаются.
-34. `E-06` В [BookingDetailPage.tsx](/Users/dos/Desktop/ant/day2.0/day-frontend/src/pages/bookings/BookingDetailPage.tsx) перевести payments/deposits forms на column layout на mobile. DoD: ввод без горизонтальной прокрутки.
-35. `E-07` В [BookingDetailPage.tsx](/Users/dos/Desktop/ant/day2.0/day-frontend/src/pages/bookings/BookingDetailPage.tsx) добавить cards default для payments/deposits list (table optional). DoD: mobile-first представление данных.
-36. `E-08` Добавить persistence view-mode в `localStorage` для bookings экранов в [BookingListPage.tsx](/Users/dos/Desktop/ant/day2.0/day-frontend/src/pages/bookings/BookingListPage.tsx) и [BookingDetailPage.tsx](/Users/dos/Desktop/ant/day2.0/day-frontend/src/pages/bookings/BookingDetailPage.tsx). DoD: режим сохраняется после reload.
+29. `[x] E-01` В [BookingListPage.tsx](/Users/dos/Desktop/ant/day2.0/day-frontend/src/pages/bookings/BookingListPage.tsx) реализовать hybrid view (mobile cards default, optional table toggle) + `overflow-x-auto` для table-mode. DoD: список usable на 320px.
+30. `[x] E-02` Обновить [CreateBookingPage.tsx](/Users/dos/Desktop/ant/day2.0/day-frontend/src/pages/bookings/CreateBookingPage.tsx): mobile-first grids, action buttons stack, sticky summary только `lg+`. DoD: поля не сжаты.
+31. `[x] E-03` Обновить [EditBookingPage.tsx](/Users/dos/Desktop/ant/day2.0/day-frontend/src/pages/bookings/EditBookingPage.tsx): `grid-cols-1 sm:grid-cols-2`, submit full-width mobile. DoD: touch-friendly редактирование.
+32. `[x] E-04` Обновить [TodayPage.tsx](/Users/dos/Desktop/ant/day2.0/day-frontend/src/pages/bookings/TodayPage.tsx): action buttons full-width при узкой ширине. DoD: нет поломки CTA.
+33. `[x] E-05` Обновить [BookingDetailPage.tsx](/Users/dos/Desktop/ant/day2.0/day-frontend/src/pages/bookings/BookingDetailPage.tsx): header actions wrap, tabs = horizontal-scroll chips на mobile. DoD: tabs не обрезаются.
+34. `[x] E-06` В [BookingDetailPage.tsx](/Users/dos/Desktop/ant/day2.0/day-frontend/src/pages/bookings/BookingDetailPage.tsx) перевести payments/deposits forms на column layout на mobile. DoD: ввод без горизонтальной прокрутки.
+35. `[x] E-07` В [BookingDetailPage.tsx](/Users/dos/Desktop/ant/day2.0/day-frontend/src/pages/bookings/BookingDetailPage.tsx) добавить cards default для payments/deposits list (table optional). DoD: mobile-first представление данных.
+36. `[x] E-08` Добавить persistence view-mode в `localStorage` для bookings экранов в [BookingListPage.tsx](/Users/dos/Desktop/ant/day2.0/day-frontend/src/pages/bookings/BookingListPage.tsx) и [BookingDetailPage.tsx](/Users/dos/Desktop/ant/day2.0/day-frontend/src/pages/bookings/BookingDetailPage.tsx). DoD: режим сохраняется после reload.
 
 ### Milestone F: Cleaning + Cleaner Domain
 37. `F-01` В [CleaningListPage.tsx](/Users/dos/Desktop/ant/day2.0/day-frontend/src/pages/cleaning/CleaningListPage.tsx) реализовать hybrid view + filter wrap + table overflow fallback. DoD: desktop table сохраняется, mobile cards по умолчанию.

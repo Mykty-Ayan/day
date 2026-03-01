@@ -204,7 +204,7 @@ function EditBookingForm({ detail, bookingId }: { detail: BookingDetail; booking
 
           {/* Guests Count */}
           <div className="border-t border-gray-100 pt-5">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
                 <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">
                   {t('bookings.adults')}
@@ -281,12 +281,13 @@ function EditBookingForm({ detail, bookingId }: { detail: BookingDetail; booking
         </div>
 
         {/* Submit */}
-        <div className="flex justify-end mt-6">
+        <div className="mt-6 flex justify-end">
           <motion.button
             whileTap={{ scale: 0.97 }}
+            type="button"
             onClick={handleSubmit}
             disabled={updateBooking.isPending}
-            className="flex items-center gap-2 bg-black text-white hover:bg-gray-800 rounded-xl px-6 py-2.5 font-semibold shadow-lg transition-colors disabled:opacity-50"
+            className="flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl bg-black px-6 py-2.5 font-semibold text-white shadow-lg transition-colors hover:bg-gray-800 disabled:opacity-50 sm:w-auto"
           >
             {updateBooking.isPending ? (
               <Loader2 className="w-4 h-4 animate-spin" />

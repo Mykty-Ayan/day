@@ -231,7 +231,7 @@ export default function CreateBookingPage() {
           <motion.button
             whileTap={{ scale: 0.97 }}
             onClick={handleBack}
-            className="p-2 rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-50 transition-colors"
+            className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg border border-gray-200 text-gray-700 transition-colors hover:bg-gray-50"
           >
             <ArrowLeft className="w-4 h-4" />
           </motion.button>
@@ -417,7 +417,7 @@ export default function CreateBookingPage() {
 
               {/* Guests Count */}
               <div className="border-t border-gray-100 pt-5">
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <div>
                     <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">
                       {t('bookings.adults')}
@@ -504,12 +504,22 @@ export default function CreateBookingPage() {
             )}
 
             {/* Submit */}
-            <div className="flex justify-end mt-6">
+            <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
               <motion.button
                 whileTap={{ scale: 0.97 }}
+                type="button"
+                onClick={handleBack}
+                disabled={createBooking.isPending}
+                className="flex min-h-[44px] w-full items-center justify-center rounded-xl border border-gray-200 bg-white px-6 py-2.5 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 disabled:opacity-50 sm:w-auto"
+              >
+                {t('common.cancel')}
+              </motion.button>
+              <motion.button
+                whileTap={{ scale: 0.97 }}
+                type="button"
                 onClick={handleSubmit}
                 disabled={createBooking.isPending || selectedProperty?.status === 'paused'}
-                className="flex min-h-[44px] items-center gap-2 rounded-xl bg-black px-6 py-2.5 font-semibold text-white shadow-lg transition-colors hover:bg-gray-800 disabled:opacity-50"
+                className="flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl bg-black px-6 py-2.5 font-semibold text-white shadow-lg transition-colors hover:bg-gray-800 disabled:opacity-50 sm:w-auto"
               >
                 {createBooking.isPending ? (
                   <Loader2 className="w-4 h-4 animate-spin" />

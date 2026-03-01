@@ -149,7 +149,7 @@ function TodayCard({
       className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm cursor-pointer hover:border-gray-300 transition-colors"
       onClick={onClick}
     >
-      <div className="flex items-start justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1">
             <div
@@ -185,7 +185,7 @@ function TodayCard({
               changeStatus.mutate(actionTarget)
             }}
             disabled={changeStatus.isPending}
-            className={`${actionColor ?? ''} text-white rounded-xl px-3 py-1.5 text-xs font-bold shrink-0 ml-3 disabled:opacity-50`}
+            className={`${actionColor ?? ''} ml-0 w-full min-h-[44px] rounded-xl px-3 py-1.5 text-xs font-bold text-white transition-colors disabled:opacity-50 sm:ml-3 sm:w-auto`}
           >
             {changeStatus.isPending ? '...' : actionLabel}
           </motion.button>
