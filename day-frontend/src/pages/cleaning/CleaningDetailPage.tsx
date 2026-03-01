@@ -193,6 +193,7 @@ function OverviewTab({ data }: { data: CleaningTaskDetail }) {
               disabled={statusMutation.isPending}
               onClick={() => handleStatusChange(status)}
               className="w-full sm:w-auto"
+              data-testid={`cleaning-transition-${status}`}
             >
               {t('cleaning.transitionTo', { status })}
             </Button>

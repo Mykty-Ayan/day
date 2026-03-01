@@ -5,6 +5,7 @@ import {
   futureDate,
   API_BASE,
 } from '../fixtures/test-data'
+import type { Page } from '../fixtures/e2e-auth'
 
 test.describe('Cleaning Reports - E2E', () => {
   let propertyIdsToCleanup: string[] = []
@@ -66,6 +67,17 @@ test.describe('Cleaning Reports - E2E', () => {
     })
   }
 
+  function transitionButton(page: Page, status: 'assigned' | 'in_progress' | 'done') {
+    const statusPattern =
+      status === 'in_progress'
+        ? /in[\s_-]?progress/i
+        : new RegExp(status, 'i')
+
+    return page
+      .getByTestId(`cleaning-transition-${status}`)
+      .or(page.getByRole('button', { name: new RegExp(`transition to ${statusPattern.source}`, 'i') }))
+  }
+
   test.afterEach(async ({ request }) => {
     for (const id of taskIdsToCleanup) {
       try { await request.delete(`${API_BASE}/cleaning/${id}`) } catch { /* cleanup */ }
@@ -83,13 +95,15 @@ test.describe('Cleaning Reports - E2E', () => {
     await page.goto('/cleaning/new')
     await page.waitForLoadState('networkidle')
 
-    // Select property
-    const propertySelect = page.locator('select').first()
-    await propertySelect.selectOption({ label: new RegExp(prop.name as string, 'i') })
+    // Select property (Radix Select)
+    const propertySelect = page.getByRole('combobox').first()
+    await propertySelect.click()
+    await page.getByRole('option', { name: new RegExp(prop.name as string, 'i') }).first().click()
 
-    // Select type
-    const typeSelect = page.locator('select').nth(1)
-    await typeSelect.selectOption('post_checkout')
+    // Select type (Radix Select)
+    const typeSelect = page.getByRole('combobox').nth(1)
+    await typeSelect.click()
+    await page.getByRole('option', { name: /post[\s_-]?checkout/i }).first().click()
 
     // Fill scheduled date
     const dateInput = page.getByLabel(/scheduled date/i)
@@ -100,8 +114,8 @@ test.describe('Cleaning Reports - E2E', () => {
     // Submit
     await page.getByRole('button', { name: /create task/i }).click()
 
-    await page.waitForURL(/\/cleaning\//, { timeout: 10000 })
-    await expect(page.getByText(prop.name as string)).toBeVisible({ timeout: 5000 })
+    await page.waitForURL(/\/cleaning\/[0-9a-f-]+$/i, { timeout: 10000 })
+    await expect(page.getByRole('heading', { name: new RegExp(prop.name as string, 'i') })).toBeVisible({ timeout: 5000 })
 
     // Cleanup
     const listRes = await request.get(`${API_BASE}/cleaning?per_page=50`)
@@ -123,7 +137,7 @@ test.describe('Cleaning Reports - E2E', () => {
     await page.waitForLoadState('networkidle')
 
     // Pending task should have assign button
-    const assignBtn = page.getByRole('button', { name: /transition to assigned/i })
+    const assignBtn = transitionButton(page, 'assigned')
     await expect(assignBtn).toBeVisible({ timeout: 5000 })
     await assignBtn.click()
 
@@ -143,7 +157,7 @@ test.describe('Cleaning Reports - E2E', () => {
 
     // Task details should be visible
     await expect(page.getByText(/task details/i)).toBeVisible({ timeout: 3000 })
-    await expect(page.getByText(/post_checkout/i).first()).toBeVisible({ timeout: 3000 })
+    await expect(page.getByText(/post[\s_-]?checkout/i).first()).toBeVisible({ timeout: 3000 })
   })
 
   test('submit report - task status changes to done', async ({ page, request }) => {
@@ -173,7 +187,7 @@ test.describe('Cleaning Reports - E2E', () => {
       // Transition to done
       await page.getByRole('button', { name: /overview/i }).click()
       await page.waitForTimeout(300)
-      await page.getByRole('button', { name: /transition to done/i }).click()
+      await transitionButton(page, 'done').click()
     }
 
     await page.waitForTimeout(1000)

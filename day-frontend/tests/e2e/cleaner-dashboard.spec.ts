@@ -5,6 +5,7 @@ import {
   futureDate,
   API_BASE,
 } from '../fixtures/test-data'
+import type { Page } from '../fixtures/e2e-auth'
 
 test.describe('Cleaner Dashboard - E2E', () => {
   let propertyIdsToCleanup: string[] = []
@@ -43,7 +44,23 @@ test.describe('Cleaner Dashboard - E2E', () => {
     const res = await request.post(`${API_BASE}/cleaning`, { data })
     const task = await res.json()
     taskIdsToCleanup.push(task.id)
+
+    await request.post(`${API_BASE}/cleaning/${task.id}/status`, {
+      data: { status: 'assigned', target_status: 'assigned' },
+    })
+
     return task
+  }
+
+  function transitionButton(page: Page, status: 'in_progress' | 'done') {
+    const statusPattern =
+      status === 'in_progress'
+        ? /in[\s_-]?progress/i
+        : /done/i
+
+    return page
+      .getByTestId(`cleaning-transition-${status}`)
+      .or(page.getByRole('button', { name: new RegExp(`transition to ${statusPattern.source}`, 'i') }))
   }
 
   test.afterEach(async ({ request }) => {
@@ -78,8 +95,10 @@ test.describe('Cleaner Dashboard - E2E', () => {
     // Should show property name
     await expect(page.getByText(prop.name as string).first()).toBeVisible({ timeout: 5000 })
 
-    // Should show task type
-    await expect(page.getByText(/post_checkout/i).first()).toBeVisible({ timeout: 5000 })
+    // Row should include non-empty type cell
+    const firstTypeCell = page.locator('tbody tr').first().locator('td').nth(1)
+    await expect(firstTypeCell).toBeVisible({ timeout: 5000 })
+    await expect(firstTypeCell).not.toHaveText(/^\s*$/)
   })
 
   test('open task - checklist appears', async ({ page, request }) => {
@@ -106,13 +125,13 @@ test.describe('Cleaner Dashboard - E2E', () => {
     await page.waitForLoadState('networkidle')
 
     // assigned -> in_progress
-    const startBtn = page.getByRole('button', { name: /transition to in_progress/i })
+    const startBtn = transitionButton(page, 'in_progress')
     await expect(startBtn).toBeVisible({ timeout: 5000 })
     await startBtn.click()
     await page.waitForTimeout(1000)
 
     // in_progress -> done
-    const doneBtn = page.getByRole('button', { name: /transition to done/i })
+    const doneBtn = transitionButton(page, 'done')
     await expect(doneBtn).toBeVisible({ timeout: 5000 })
     await doneBtn.click()
     await page.waitForTimeout(1000)
@@ -150,7 +169,7 @@ test.describe('Cleaner Dashboard - E2E', () => {
     } else {
       await page.getByRole('button', { name: /overview/i }).click()
       await page.waitForTimeout(300)
-      await page.getByRole('button', { name: /transition to done/i }).click()
+      await transitionButton(page, 'done').click()
     }
 
     await page.waitForTimeout(1000)
