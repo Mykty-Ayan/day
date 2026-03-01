@@ -29,7 +29,7 @@ export default function CleaningDetailPage() {
 
   if (!data) {
     return (
-      <div className="p-6 text-center text-gray-400">{t('cleaning.taskNotFound')}</div>
+      <div className="px-4 py-4 sm:px-6 sm:py-6 text-center text-gray-400">{t('cleaning.taskNotFound')}</div>
     )
   }
 
@@ -43,7 +43,7 @@ export default function CleaningDetailPage() {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4 }}
-      className="p-6 max-w-4xl mx-auto"
+      className="px-4 py-4 sm:px-6 sm:py-6 max-w-4xl mx-auto"
     >
       <Link
         to="/cleaning"

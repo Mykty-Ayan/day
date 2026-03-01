@@ -8,7 +8,8 @@
     "checklists": "Checklists",
     "analytics": "Analytics",
     "aiImport": "AI Import",
-    "settings": "Settings"
+    "settings": "Settings",
+    "more": "More"
   },
   "common": {
     "save": "Save",
@@ -74,7 +75,8 @@
     "card": "Card",
     "transfer": "Transfer",
     "processing": "Processing...",
-    "retry": "Retry"
+    "retry": "Retry",
+    "logout": "Log out"
   },
   "home": {
     "subtitle": "Booking & calendar management",

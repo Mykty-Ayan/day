@@ -165,7 +165,7 @@ function EditPropertyForm({ property, propertyId }: { property: Property; proper
   const isLast = step === STEPS.length - 1
 
   return (
-    <div className="flex flex-1 flex-col items-center p-6">
+    <div className="flex flex-1 flex-col items-center px-4 py-4 sm:px-6 sm:py-6">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}

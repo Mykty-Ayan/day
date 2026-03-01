@@ -94,7 +94,7 @@ export default function ChecklistTemplatesPage() {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4 }}
-      className="w-full max-w-[1180px] mx-auto px-4 py-6 sm:px-6"
+      className="w-full max-w-[1180px] mx-auto px-4 py-4 sm:px-6 sm:py-6"
     >
       <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex min-w-0 items-center gap-3">

@@ -129,7 +129,7 @@ function EditBookingForm({ detail, bookingId }: { detail: BookingDetail; booking
   }
 
   return (
-    <div className="p-6 max-w-3xl mx-auto w-full">
+    <div className="px-4 py-4 sm:px-6 sm:py-6 max-w-3xl mx-auto w-full">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
