@@ -34,11 +34,11 @@
 13. `[x] B-07` Ввести правило touch target `>=44px` для ключевых интерактивов во всех shared/UI компонентах (`Button`, табы, filter chips, icon-buttons). DoD: выборочные DOM-проверки показывают min height/width >= 44.
 
 ### Milestone C: Base Pages (Home/Auth/Settings/AI Import)
-14. `C-01` Уплотнить spacing на [HomePage.tsx](/Users/dos/Desktop/ant/day2.0/day-frontend/src/pages/HomePage.tsx), [LoginPage.tsx](/Users/dos/Desktop/ant/day2.0/day-frontend/src/pages/LoginPage.tsx), [RegisterPage.tsx](/Users/dos/Desktop/ant/day2.0/day-frontend/src/pages/RegisterPage.tsx). DoD: mobile-friendly paddings.
-15. `C-02` Обновить [SettingsPage.tsx](/Users/dos/Desktop/ant/day2.0/day-frontend/src/pages/settings/SettingsPage.tsx): spacing + проверка длинных language labels. DoD: labels не ломают строки.
-16. `C-03` Обновить [AIImportPage.tsx](/Users/dos/Desktop/ant/day2.0/day-frontend/src/pages/ai-import/AIImportPage.tsx): header/tabs `flex-wrap`, primary actions full-width на mobile. DoD: toolbar не переполняется.
-17. `C-04` Обновить [ImportPreviewPage.tsx](/Users/dos/Desktop/ant/day2.0/day-frontend/src/pages/ai-import/ImportPreviewPage.tsx): header stack на mobile, action row column-first. DoD: нет `justify-between` коллизий.
-18. `C-05` Обновить [PropertyPreviewForm.tsx](/Users/dos/Desktop/ant/day2.0/day-frontend/src/components/ai-import/PropertyPreviewForm.tsx): `grid-cols-1 sm:grid-cols-2`, убрать hover-only действия на фото (tap/focus/always-visible). DoD: все фото-действия доступны touch.
+14. `[x] C-01` Уплотнить spacing на [HomePage.tsx](/Users/dos/Desktop/ant/day2.0/day-frontend/src/pages/HomePage.tsx), [LoginPage.tsx](/Users/dos/Desktop/ant/day2.0/day-frontend/src/pages/LoginPage.tsx), [RegisterPage.tsx](/Users/dos/Desktop/ant/day2.0/day-frontend/src/pages/RegisterPage.tsx). DoD: mobile-friendly paddings.
+15. `[x] C-02` Обновить [SettingsPage.tsx](/Users/dos/Desktop/ant/day2.0/day-frontend/src/pages/settings/SettingsPage.tsx): spacing + проверка длинных language labels. DoD: labels не ломают строки.
+16. `[x] C-03` Обновить [AIImportPage.tsx](/Users/dos/Desktop/ant/day2.0/day-frontend/src/pages/ai-import/AIImportPage.tsx): header/tabs `flex-wrap`, primary actions full-width на mobile. DoD: toolbar не переполняется.
+17. `[x] C-04` Обновить [ImportPreviewPage.tsx](/Users/dos/Desktop/ant/day2.0/day-frontend/src/pages/ai-import/ImportPreviewPage.tsx): header stack на mobile, action row column-first. DoD: нет `justify-between` коллизий.
+18. `[x] C-05` Обновить [PropertyPreviewForm.tsx](/Users/dos/Desktop/ant/day2.0/day-frontend/src/components/ai-import/PropertyPreviewForm.tsx): `grid-cols-1 sm:grid-cols-2`, убрать hover-only действия на фото (tap/focus/always-visible). DoD: все фото-действия доступны touch.
 
 ### Milestone D: Properties Domain
 19. `D-01` Обновить [PropertyListPage.tsx](/Users/dos/Desktop/ant/day2.0/day-frontend/src/pages/properties/PropertyListPage.tsx): header stack, filters/tags/view-switch в vertical mobile flow. DoD: нет горизонтального скролла.

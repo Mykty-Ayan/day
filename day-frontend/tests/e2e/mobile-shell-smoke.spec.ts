@@ -1,4 +1,4 @@
-import { test, expect, type APIRequestContext, type Page } from '@playwright/test'
+import { test, expect, type APIRequestContext, type Page } from '../fixtures/e2e-auth'
 import { API_BASE, createTestPricing, createTestProperty, futureDate } from '../fixtures/test-data'
 
 const MOBILE_VIEWPORTS = [320, 390, 430]

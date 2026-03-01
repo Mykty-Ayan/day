@@ -235,9 +235,12 @@ export default function ImportPreviewPage() {
         transition={{ duration: 0.4 }}
       >
         {/* Header */}
-        <div className="flex items-center justify-between mb-6">
+        <div className="mb-6 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
           <h1 className="text-xl font-bold text-gray-900">{t('aiImport.importPreview')}</h1>
-          <span className="text-xs text-gray-400 truncate max-w-xs" title={job.source_url}>
+          <span
+            className="max-w-full break-all text-xs text-gray-400 sm:max-w-xs sm:truncate sm:break-normal"
+            title={job.source_url}
+          >
             {job.source_url}
           </span>
         </div>
@@ -274,7 +277,7 @@ export default function ImportPreviewPage() {
         )}
 
         {/* Property form */}
-        <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm mb-6">
+        <div className="bg-white border border-gray-200 rounded-xl p-4 sm:p-5 shadow-sm mb-6">
           <PropertyPreviewForm
             data={mappedData}
             onChange={(updated) => setEditedData(updated)}
@@ -289,11 +292,11 @@ export default function ImportPreviewPage() {
         )}
 
         {/* Actions */}
-        <div className="flex justify-between">
+        <div className="flex flex-col gap-2 sm:flex-row sm:justify-between">
           <motion.button
             whileTap={{ scale: 0.97 }}
             onClick={() => navigate({ to: '/ai-import' })}
-            className="flex items-center gap-2 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-xl px-4 py-2.5 text-xs font-bold text-gray-700 transition-colors"
+            className="flex w-full items-center justify-center gap-2 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-xl px-4 py-2.5 text-xs font-bold text-gray-700 transition-colors sm:w-auto"
           >
             <ArrowLeft className="w-4 h-4" />
             {t('common.back')}
@@ -303,7 +306,7 @@ export default function ImportPreviewPage() {
             whileTap={{ scale: 0.97 }}
             onClick={handleConfirm}
             disabled={confirmImport.isPending || !mappedData.name}
-            className="flex items-center gap-2 bg-black text-white hover:bg-gray-800 rounded-xl px-6 py-2.5 font-semibold shadow-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex w-full items-center justify-center gap-2 bg-black text-white hover:bg-gray-800 rounded-xl px-6 py-2.5 font-semibold shadow-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed sm:w-auto"
           >
             {confirmImport.isPending ? (
               <>

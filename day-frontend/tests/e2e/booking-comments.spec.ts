@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test'
+import { test, expect } from '../fixtures/e2e-auth'
 import {
   createTestProperty,
   createTestBooking,
@@ -9,6 +9,8 @@ import {
 test.describe('Booking Comments - E2E', () => {
   let bookingIdsToCleanup: string[] = []
   let propertyIdsToCleanup: string[] = []
+  const filesCommentsTabName = /files\s*&\s*comments|файлы\s*и\s*комментарии|файлдар\s*мен\s*пікірлер/i
+  const addCommentPlaceholder = /add a comment|добавить комментарий|пікір қосу/i
 
   async function setupActiveProperty(
     request: import('@playwright/test').APIRequestContext,
@@ -39,6 +41,19 @@ test.describe('Booking Comments - E2E', () => {
     return booking
   }
 
+  async function openFilesCommentsTab(page: import('@playwright/test').Page) {
+    const localizedTab = page.getByRole('button', { name: filesCommentsTabName })
+    if (await localizedTab.count()) {
+      await localizedTab.first().click()
+    } else {
+      // Fallback to the 4th tab button in booking details if text lookup fails.
+      const fallbackTabs = page.locator('div.bg-gray-50.rounded-xl.p-1.flex.gap-1 button')
+      await expect(fallbackTabs.nth(3)).toBeVisible()
+      await fallbackTabs.nth(3).click()
+    }
+    await expect(page.getByPlaceholder(addCommentPlaceholder)).toBeVisible()
+  }
+
   test.afterEach(async ({ request }) => {
     for (const id of bookingIdsToCleanup) {
       try { await request.delete(`${API_BASE}/bookings/${id}`) } catch { /* cleanup */ }
@@ -56,26 +71,11 @@ test.describe('Booking Comments - E2E', () => {
 
     await page.goto(`/bookings/${booking.id}`)
     await page.waitForLoadState('networkidle')
+    await openFilesCommentsTab(page)
 
-    // Navigate to comments tab if present
-    const commentsTab = page.getByRole('tab', { name: /comment/i })
-    if (await commentsTab.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await commentsTab.click()
-    }
-
-    // Find the comment input
-    const commentInput = page.getByPlaceholder(/comment|note|message/i)
-    if (await commentInput.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await commentInput.fill('This is a test comment from E2E')
-    } else {
-      // Try textarea
-      const textarea = page.locator('textarea').first()
-      await textarea.fill('This is a test comment from E2E')
-    }
-
-    // Submit comment
-    const submitBtn = page.getByRole('button', { name: /add|send|post|submit/i }).last()
-    await submitBtn.click()
+    const commentInput = page.getByPlaceholder(addCommentPlaceholder)
+    await commentInput.fill('This is a test comment from E2E')
+    await commentInput.press('Enter')
 
     // Verify comment appears
     await expect(page.getByText('This is a test comment from E2E')).toBeVisible({ timeout: 5000 })
@@ -95,11 +95,7 @@ test.describe('Booking Comments - E2E', () => {
 
     await page.goto(`/bookings/${booking.id}`)
     await page.waitForLoadState('networkidle')
-
-    const commentsTab = page.getByRole('tab', { name: /comment/i })
-    if (await commentsTab.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await commentsTab.click()
-    }
+    await openFilesCommentsTab(page)
 
     await expect(page.getByText('First API comment')).toBeVisible({ timeout: 5000 })
     await expect(page.getByText('Second API comment')).toBeVisible({ timeout: 5000 })
@@ -122,11 +118,7 @@ test.describe('Booking Comments - E2E', () => {
 
     await page.goto(`/bookings/${booking.id}`)
     await page.waitForLoadState('networkidle')
-
-    const commentsTab = page.getByRole('tab', { name: /comment/i })
-    if (await commentsTab.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await commentsTab.click()
-    }
+    await openFilesCommentsTab(page)
 
     // All three comments should be visible
     await expect(page.getByText('Comment Alpha')).toBeVisible({ timeout: 5000 })

@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test'
+import { test, expect } from '../fixtures/e2e-auth'
 import {
   createTestProperty,
   createTestBooking,
@@ -6,6 +6,9 @@ import {
   futureDate,
   API_BASE,
 } from '../fixtures/test-data'
+
+const guestNamePlaceholder = /guest name|имя гостя|қонақ/i
+const addBookingButtonName = /create booking|add booking|создать|бронь/i
 
 test.describe('Booking CRUD - E2E', () => {
   let bookingIdsToCleanup: string[] = []
@@ -53,53 +56,44 @@ test.describe('Booking CRUD - E2E', () => {
     propertyIdsToCleanup = []
   })
 
+  async function openCreateBooking(
+    page: import('@playwright/test').Page,
+    propertyId: string,
+    checkIn = futureDate(14),
+    checkOut = futureDate(17),
+  ) {
+    const query = new URLSearchParams({
+      property_id: propertyId,
+      check_in: checkIn,
+      check_out: checkOut,
+    })
+    await page.goto(`/bookings/new?${query.toString()}`)
+    await page.waitForLoadState('networkidle')
+    await expect(page.getByRole('button', { name: addBookingButtonName })).toBeVisible({ timeout: 5000 })
+  }
+
   test('create booking through form', async ({ page, request }) => {
     const prop = await setupActiveProperty(request)
+    const guestName = `E2E Test Guest ${Date.now()}`
+    const guestPhone = `+1555${Math.floor(Math.random() * 9000000 + 1000000)}`
 
-    await page.goto('/bookings/create')
-    await page.waitForLoadState('networkidle')
+    await openCreateBooking(page, prop.id)
 
-    // Select property
-    const propertySelect = page.getByRole('combobox', { name: /property/i })
-    if (await propertySelect.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await propertySelect.selectOption({ label: new RegExp(prop.name as string, 'i') })
-    } else {
-      // Might be a searchable dropdown
-      const propertyField = page.getByLabel(/property/i).first()
-      await propertyField.click()
-      await page.getByText(prop.name as string).first().click()
-    }
-
-    // Fill guest info
-    await page.getByLabel(/guest name/i).fill('E2E Test Guest')
-    await page.getByLabel(/phone/i).fill('+15551234567')
-
-    // Fill dates
-    const checkInField = page.getByLabel(/check.?in/i).first()
-    await checkInField.fill(futureDate(14))
-
-    const checkOutField = page.getByLabel(/check.?out/i).first()
-    await checkOutField.fill(futureDate(17))
-
-    // Set guest counts
-    const adultsField = page.getByLabel(/adults/i)
-    if (await adultsField.isVisible({ timeout: 2000 }).catch(() => false)) {
-      await adultsField.clear()
-      await adultsField.fill('2')
-    }
+    await page.locator('input[type="tel"]').first().fill(guestPhone)
+    await page.getByPlaceholder(guestNamePlaceholder).first().fill(guestName)
 
     // Submit
-    await page.getByRole('button', { name: /create|save|submit/i }).click()
+    await page.getByRole('button', { name: addBookingButtonName }).click()
 
     // Should redirect to booking detail or list
-    await page.waitForURL(/\/bookings/, { timeout: 10000 })
+    await page.waitForURL(/\/bookings\/[^/]+$/, { timeout: 10000 })
 
     // Booking should be visible
-    await expect(page.getByText('E2E Test Guest')).toBeVisible({ timeout: 5000 })
+    await expect(page.getByText(guestName, { exact: true })).toBeVisible({ timeout: 5000 })
 
     // Cleanup
     const searchRes = await request.get(
-      `${API_BASE}/bookings?search=${encodeURIComponent('E2E Test Guest')}`,
+      `${API_BASE}/bookings?search=${encodeURIComponent(guestName)}`,
     )
     if (searchRes.ok()) {
       const body = await searchRes.json()
@@ -112,64 +106,49 @@ test.describe('Booking CRUD - E2E', () => {
   test('price calculator shows correct breakdown', async ({ page, request }) => {
     const prop = await setupActiveProperty(request)
 
-    await page.goto('/bookings/create')
-    await page.waitForLoadState('networkidle')
-
-    // Select property
-    const propertySelect = page.getByRole('combobox', { name: /property/i })
-    if (await propertySelect.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await propertySelect.selectOption({ label: new RegExp(prop.name as string, 'i') })
-    } else {
-      const propertyField = page.getByLabel(/property/i).first()
-      await propertyField.click()
-      await page.getByText(prop.name as string).first().click()
-    }
-
-    // Fill dates to trigger price calculation
-    await page.getByLabel(/check.?in/i).first().fill(futureDate(14))
-    await page.getByLabel(/check.?out/i).first().fill(futureDate(17))
-
-    // Wait for price breakdown to appear
-    const priceSection = page.locator(
-      '[data-testid="price-breakdown"], .price-breakdown, [class*="price"]',
-    ).first()
-
-    await expect(priceSection).toBeVisible({ timeout: 5000 })
-
-    // Should show total price > 0
-    const totalText = page.getByText(/total/i).first()
-    await expect(totalText).toBeVisible({ timeout: 3000 })
+    await openCreateBooking(page, prop.id)
+    await expect(page.getByText(/price breakdown|расчёт стоимости|баға/i)).toBeVisible({ timeout: 5000 })
+    await expect(page.getByText(/total|итого|жалпы/i).first()).toBeVisible({ timeout: 5000 })
   })
 
   test('guest auto-suggest works', async ({ page, request }) => {
     const prop = await setupActiveProperty(request)
+    const guestPhone = '+15557778899'
     // Create a booking so guest exists
     await createBookingViaApi(request, prop.id, {
       guest_name: 'AutoSuggest TestGuest',
+      guest_phone: guestPhone,
       check_in: futureDate(60),
       check_out: futureDate(63),
     })
 
-    await page.goto('/bookings/create')
-    await page.waitForLoadState('networkidle')
+    await openCreateBooking(page, prop.id)
 
-    // Type partial guest name
-    const guestField = page.getByLabel(/guest name/i)
-    await guestField.fill('AutoSuggest')
+    // Suggestions are bound to phone search.
+    await page.locator('input[type="tel"]').first().fill('777889')
 
-    // Wait for suggestions dropdown
-    const suggestion = page.getByText(/AutoSuggest TestGuest/i).first()
+    const suggestion = page.getByRole('button', { name: /AutoSuggest TestGuest/i }).first()
     await expect(suggestion).toBeVisible({ timeout: 5000 })
+    await suggestion.click()
+    await expect(page.getByPlaceholder(guestNamePlaceholder).first()).toHaveValue('AutoSuggest TestGuest')
   })
 
   test('booking appears in list after creation via API', async ({ page, request }) => {
     const prop = await setupActiveProperty(request)
     const booking = await createBookingViaApi(request, prop.id)
 
+    await expect.poll(async () => {
+      const res = await request.get(`${API_BASE}/bookings?search=${encodeURIComponent(booking.guest_name)}`)
+      if (!res.ok()) return 0
+      const body = await res.json()
+      return body.total ?? body.items?.length ?? 0
+    }).toBeGreaterThan(0)
+
     await page.goto('/bookings')
     await page.waitForLoadState('networkidle')
-
-    await expect(page.getByText(booking.guest_name)).toBeVisible({ timeout: 5000 })
+    await page.getByPlaceholder(/search by guest name|search/i).fill(booking.guest_name)
+    await page.waitForTimeout(500)
+    await expect(page.getByText(booking.guest_name, { exact: true })).toBeVisible({ timeout: 5000 })
   })
 
   test('edit booking', async ({ page, request }) => {
@@ -179,21 +158,18 @@ test.describe('Booking CRUD - E2E', () => {
     await page.goto(`/bookings/${booking.id}`)
     await page.waitForLoadState('networkidle')
 
-    // Click edit
     await page.getByRole('button', { name: /edit/i }).click()
+    await expect(page).toHaveURL(new RegExp(`/bookings/${booking.id}/edit$`))
 
-    // Update adults count
-    const adultsField = page.getByLabel(/adults/i)
-    if (await adultsField.isVisible({ timeout: 2000 }).catch(() => false)) {
-      await adultsField.clear()
-      await adultsField.fill('5')
-    }
+    await page.locator('input[type="number"]').first().fill('5')
 
-    // Save
-    await page.getByRole('button', { name: /save|update/i }).click()
+    await page.getByRole('button', { name: /save/i }).click()
+    await expect(page).toHaveURL(new RegExp(`/bookings/${booking.id}$`), { timeout: 10000 })
 
-    // Verify
-    await expect(page.getByText('5')).toBeVisible({ timeout: 5000 })
+    const detailRes = await request.get(`${API_BASE}/bookings/${booking.id}`)
+    expect(detailRes.ok()).toBeTruthy()
+    const detail = await detailRes.json()
+    expect(detail.booking.adults_count).toBe(5)
   })
 
   test('search bookings', async ({ page, request }) => {
@@ -213,51 +189,36 @@ test.describe('Booking CRUD - E2E', () => {
 
   test('filter bookings by status', async ({ page, request }) => {
     const prop = await setupActiveProperty(request)
-    await createBookingViaApi(request, prop.id)
+    await createBookingViaApi(request, prop.id, { guest_name: `PendingFilter-${Date.now()}` })
 
     await page.goto('/bookings')
     await page.waitForLoadState('networkidle')
 
-    // Click pending filter/tab
-    const pendingTab = page.getByRole('tab', { name: /pending/i })
-    if (await pendingTab.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await pendingTab.click()
-    } else {
-      // Might be a dropdown filter
-      const statusFilter = page.getByRole('combobox', { name: /status/i })
-      if (await statusFilter.isVisible({ timeout: 2000 }).catch(() => false)) {
-        await statusFilter.selectOption('pending')
-      }
+    const pendingFilter = page.getByRole('button', { name: /pending|в ожидании|күту/i }).first()
+    if (await pendingFilter.isVisible({ timeout: 3000 }).catch(() => false)) {
+      await Promise.all([
+        page.waitForResponse((resp) => resp.url().includes('/api/v1/bookings') && resp.url().includes('status=pending')),
+        pendingFilter.click(),
+      ])
     }
 
-    await page.waitForTimeout(500)
-
-    // All visible bookings should be pending
-    const statusBadges = page.locator('[data-testid="booking-status"], .booking-status')
-    const count = await statusBadges.count()
-    if (count > 0) {
-      for (let i = 0; i < count; i++) {
-        await expect(statusBadges.nth(i)).toContainText(/pending/i)
-      }
-    }
+    await expect(page.locator('tbody tr').first()).toBeVisible({ timeout: 5000 })
   })
 
   test('filter bookings by property', async ({ page, request }) => {
     const prop = await setupActiveProperty(request)
-    await createBookingViaApi(request, prop.id)
+    const booking = await createBookingViaApi(request, prop.id)
 
     await page.goto('/bookings')
     await page.waitForLoadState('networkidle')
 
-    // Filter by property
-    const propertyFilter = page.getByRole('combobox', { name: /property/i })
+    const propertyFilter = page.locator('button[role="combobox"]').first()
     if (await propertyFilter.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await propertyFilter.selectOption({ label: new RegExp(prop.name as string, 'i') })
+      await propertyFilter.click()
+      await page.getByRole('option', { name: new RegExp(prop.internal_name, 'i') }).click()
       await page.waitForTimeout(500)
     }
 
-    // Should still see the booking
-    await expect(page.locator('[data-testid="booking-card"], .booking-card, [class*="booking"]').first())
-      .toBeVisible({ timeout: 5000 })
+    await expect(page.getByText(booking.guest_name)).toBeVisible({ timeout: 5000 })
   })
 })
