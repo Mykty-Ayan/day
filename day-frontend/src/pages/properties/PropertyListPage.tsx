@@ -20,7 +20,7 @@ export default function PropertyListPage() {
   const { data: tagsData } = useTags()
   const allTags = tagsData ?? []
   const primaryActionClass =
-    'inline-flex min-h-[44px] items-center gap-2 rounded-xl bg-black px-6 py-2.5 font-semibold text-white shadow-lg transition-colors hover:bg-gray-800'
+    'inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl bg-black px-6 py-2.5 font-semibold text-white shadow-lg transition-colors hover:bg-gray-800 sm:w-auto'
 
   const { data, isLoading } = useAllProperties({
     status: statusFilter === 'all' ? undefined : statusFilter,
@@ -36,7 +36,7 @@ export default function PropertyListPage() {
         transition={{ duration: 0.4 }}
       >
         {/* Header */}
-        <div className="flex items-center justify-between mb-6">
+        <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <h1 className="text-xl font-bold text-gray-900">{t('properties.title')}</h1>
           <Link to="/properties/new" className={primaryActionClass}>
             <Plus className="w-4 h-4" />
@@ -45,8 +45,8 @@ export default function PropertyListPage() {
         </div>
 
         {/* Search and filters */}
-        <div className="flex flex-col sm:flex-row gap-3 mb-6">
-          <div className="relative flex-1">
+        <div className="mb-6 space-y-3">
+          <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
             <input
               type="text"
@@ -58,31 +58,65 @@ export default function PropertyListPage() {
               className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 pl-9 outline-none focus:ring-2 focus:ring-black/10 text-gray-800 text-sm"
             />
           </div>
-          <div className="w-full overflow-x-auto sm:w-auto">
-            <ToggleGroup
-              type="single"
-              value={statusFilter}
-              onValueChange={(value) => {
-                if (!value) return
-                setStatusFilter(value as PropertyStatus | 'all')
-              }}
-              className="min-w-max"
-            >
-              {statusTabValues.map((value) => (
-                <ToggleGroupItem key={value} value={value}>
-                  {t(`common.${value}`)}
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div className="w-full overflow-x-auto sm:w-auto">
+              <ToggleGroup
+                type="single"
+                value={statusFilter}
+                onValueChange={(value) => {
+                  if (!value) return
+                  setStatusFilter(value as PropertyStatus | 'all')
+                }}
+                className="min-w-max"
+              >
+                {statusTabValues.map((value) => (
+                  <ToggleGroupItem key={value} value={value}>
+                    {t(`common.${value}`)}
+                  </ToggleGroupItem>
+                ))}
+              </ToggleGroup>
+            </div>
+            <div className="w-full overflow-x-auto sm:w-auto">
+              <ToggleGroup
+                type="single"
+                value={viewMode}
+                onValueChange={(value) => {
+                  if (!value) return
+                  setViewMode(value as 'large' | 'medium' | 'list')
+                }}
+                className="min-w-max"
+              >
+                <ToggleGroupItem value="large" aria-label="Large tiles">
+                  <span className="inline-flex items-center gap-1">
+                    <LayoutGrid className="w-3.5 h-3.5" />
+                    {t('common.large')}
+                  </span>
                 </ToggleGroupItem>
-              ))}
-            </ToggleGroup>
+                <ToggleGroupItem value="medium" aria-label="Medium tiles">
+                  <span className="inline-flex items-center gap-1">
+                    <Grid2X2 className="w-3.5 h-3.5" />
+                    {t('common.medium')}
+                  </span>
+                </ToggleGroupItem>
+                <ToggleGroupItem value="list" aria-label="List view">
+                  <span className="inline-flex items-center gap-1">
+                    <List className="w-3.5 h-3.5" />
+                    {t('common.list')}
+                  </span>
+                </ToggleGroupItem>
+              </ToggleGroup>
+            </div>
           </div>
           {allTags.length > 0 && (
-            <div className="flex items-center gap-1.5">
-              <Tag className="w-3.5 h-3.5 text-gray-400" />
-              <div className="flex gap-1 flex-wrap">
+            <div className="space-y-1.5">
+              <div className="flex items-center gap-1.5">
+                <Tag className="w-3.5 h-3.5 text-gray-400" />
+              </div>
+              <div className="flex flex-wrap gap-1.5">
                 <button
                   type="button"
                   onClick={() => setTagFilter('')}
-                  className={`inline-flex min-h-[44px] items-center rounded-full px-3 py-2 text-xs font-bold transition-colors ${
+                  className={`inline-flex min-h-[44px] min-w-[44px] items-center rounded-full px-3 py-2 text-xs font-bold transition-colors ${
                     !tagFilter
                       ? 'bg-gray-900 text-white'
                       : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border border-gray-200'
@@ -95,7 +129,7 @@ export default function PropertyListPage() {
                     key={tag.id}
                     type="button"
                     onClick={() => setTagFilter(tagFilter === tag.id ? '' : tag.id)}
-                    className={`inline-flex min-h-[44px] items-center rounded-full px-3 py-2 text-xs font-bold transition-colors ${
+                    className={`inline-flex min-h-[44px] min-w-[44px] items-center rounded-full px-3 py-2 text-xs font-bold transition-colors ${
                       tagFilter === tag.id
                         ? 'text-white'
                         : 'border border-gray-200 hover:opacity-80'
@@ -111,36 +145,6 @@ export default function PropertyListPage() {
               </div>
             </div>
           )}
-          <div className="w-full overflow-x-auto sm:w-auto">
-            <ToggleGroup
-              type="single"
-              value={viewMode}
-              onValueChange={(value) => {
-                if (!value) return
-                setViewMode(value as 'large' | 'medium' | 'list')
-              }}
-              className="min-w-max"
-            >
-              <ToggleGroupItem value="large" aria-label="Large tiles">
-                <span className="inline-flex items-center gap-1">
-                  <LayoutGrid className="w-3.5 h-3.5" />
-                  {t('common.large')}
-                </span>
-              </ToggleGroupItem>
-              <ToggleGroupItem value="medium" aria-label="Medium tiles">
-                <span className="inline-flex items-center gap-1">
-                  <Grid2X2 className="w-3.5 h-3.5" />
-                  {t('common.medium')}
-                </span>
-              </ToggleGroupItem>
-              <ToggleGroupItem value="list" aria-label="List view">
-                <span className="inline-flex items-center gap-1">
-                  <List className="w-3.5 h-3.5" />
-                  {t('common.list')}
-                </span>
-              </ToggleGroupItem>
-            </ToggleGroup>
-          </div>
         </div>
 
         {/* Content */}

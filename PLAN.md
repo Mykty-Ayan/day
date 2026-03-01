@@ -15,6 +15,7 @@
 - 2026-03-02: завершён milestone `B-*` (shared components), статусы отмечены в `IMPLEMENTATION PLAN.md`.
 - 2026-03-02: прогнан быстрый mobile smoke-check shell/nav (`tests/e2e/mobile-shell-smoke.spec.ts`) — `3 passed` (tabs, More sheet, cleaner без global shell, overflow sanity, mobile toast container).
 - 2026-03-02: завершён milestone `C-*` (Home/Auth/Settings/AI Import), включая mobile stack для import preview и touch-доступные photo actions; проверки `npm run lint` и `npm run build` зелёные.
+- 2026-03-02: завершён milestone `D-*` (Properties Domain): mobile stack/filter flow, touch-safe wizard/forms/photos, `Agenda | Gantt` toggle с mobile default `Agenda`, новый `GanttAgendaView`, touch tooltip/pending-range hint в gantt; проверки targeted `eslint` и `npm run build` зелёные.
 
 ## Locked Decisions
 1. Навигация на телефоне: `Bottom tabs` + верхний app bar + экран/лист `More`.

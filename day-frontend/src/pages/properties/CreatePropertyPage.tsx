@@ -266,11 +266,11 @@ export default function CreatePropertyPage() {
         )}
 
         {/* Navigation */}
-        <div className="flex justify-between mt-6">
+        <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:justify-between">
           <motion.button
             whileTap={{ scale: 0.97 }}
             onClick={step === 0 ? () => navigate({ to: '/properties' }) : goPrev}
-            className="flex items-center gap-2 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-xl px-4 py-2.5 text-xs font-bold text-gray-700 transition-colors"
+            className="flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-xs font-bold text-gray-700 transition-colors hover:bg-gray-100 sm:w-auto"
           >
             <ArrowLeft className="w-4 h-4" />
             {step === 0 ? t('common.cancel') : t('common.previous')}
@@ -280,7 +280,7 @@ export default function CreatePropertyPage() {
             whileTap={{ scale: 0.97 }}
             onClick={isLast ? handleSubmit : goNext}
             disabled={createProperty.isPending}
-            className="flex items-center gap-2 bg-black text-white hover:bg-gray-800 rounded-xl px-6 py-2.5 font-semibold shadow-lg transition-colors disabled:opacity-50"
+            className="flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl bg-black px-6 py-2.5 font-semibold text-white shadow-lg transition-colors hover:bg-gray-800 disabled:opacity-50 sm:w-auto"
           >
             {createProperty.isPending ? (
               <Loader2 className="w-4 h-4 animate-spin" />

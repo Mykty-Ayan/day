@@ -23,7 +23,7 @@ export default function PropertyFormStepPricing({ data, onChange }: Props) {
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
           <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">
             {t('properties.form.basePrice')}
@@ -63,7 +63,7 @@ export default function PropertyFormStepPricing({ data, onChange }: Props) {
         />
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
           <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">
             {t('properties.form.extraAdultPrice')}
