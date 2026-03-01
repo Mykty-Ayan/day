@@ -25,13 +25,13 @@
 6. `[x] A-06` Обновить mobile поведение toast в [Toast.tsx](/Users/dos/Desktop/ant/day2.0/day-frontend/src/components/ui/Toast.tsx). DoD: mobile top-center/full-width + safe-area, desktop top-right как сейчас.
 
 ### Milestone B: Shared Components
-7. `B-01` Обновить [Button.tsx](/Users/dos/Desktop/ant/day2.0/day-frontend/src/components/ui/Button.tsx): убрать обязательный `whitespace-nowrap`, добавить `nowrap` prop. DoD: длинные label не ломают layout по умолчанию.
-8. `B-02` Обновить [toggle-group.tsx](/Users/dos/Desktop/ant/day2.0/day-frontend/src/components/ui/toggle-group.tsx): mobile `flex-wrap` + поддержка `overflow-x-auto` у контейнера использования. DoD: длинные фильтры не выходят за viewport.
-9. `B-03` Обновить [date-range-picker.tsx](/Users/dos/Desktop/ant/day2.0/day-frontend/src/components/ui/date-range-picker.tsx): 1 месяц на mobile, 2 на `md+`, плюс новые props. DoD: popover помещается на 320–430px.
-10. `B-04` Обновить [calendar.tsx](/Users/dos/Desktop/ant/day2.0/day-frontend/src/components/ui/calendar.tsx): `h-9 w-9` на mobile, `h-10 w-10` на `sm+`. DoD: календарь без горизонтального переполнения.
-11. `B-05` Обновить [number-input.tsx](/Users/dos/Desktop/ant/day2.0/day-frontend/src/components/ui/number-input.tsx): увеличить hit-area stepper-кнопок до минимум 20x20 (лучше 24x24). DoD: уверенный tap на телефонах.
-12. `B-06` Обновить [ConfirmDialog.tsx](/Users/dos/Desktop/ant/day2.0/day-frontend/src/components/ui/ConfirmDialog.tsx): кнопки вертикально и `w-full` на узких экранах. DoD: нет сжатия action row.
-13. `B-07` Ввести правило touch target `>=44px` для ключевых интерактивов во всех shared/UI компонентах (`Button`, табы, filter chips, icon-buttons). DoD: выборочные DOM-проверки показывают min height/width >= 44.
+7. `[x] B-01` Обновить [Button.tsx](/Users/dos/Desktop/ant/day2.0/day-frontend/src/components/ui/Button.tsx): убрать обязательный `whitespace-nowrap`, добавить `nowrap` prop. DoD: длинные label не ломают layout по умолчанию.
+8. `[x] B-02` Обновить [toggle-group.tsx](/Users/dos/Desktop/ant/day2.0/day-frontend/src/components/ui/toggle-group.tsx): mobile `flex-wrap` + поддержка `overflow-x-auto` у контейнера использования. DoD: длинные фильтры не выходят за viewport.
+9. `[x] B-03` Обновить [date-range-picker.tsx](/Users/dos/Desktop/ant/day2.0/day-frontend/src/components/ui/date-range-picker.tsx): 1 месяц на mobile, 2 на `md+`, плюс новые props. DoD: popover помещается на 320–430px.
+10. `[x] B-04` Обновить [calendar.tsx](/Users/dos/Desktop/ant/day2.0/day-frontend/src/components/ui/calendar.tsx): `h-9 w-9` на mobile, `h-10 w-10` на `sm+`. DoD: календарь без горизонтального переполнения.
+11. `[x] B-05` Обновить [number-input.tsx](/Users/dos/Desktop/ant/day2.0/day-frontend/src/components/ui/number-input.tsx): увеличить hit-area stepper-кнопок до минимум 20x20 (лучше 24x24). DoD: уверенный tap на телефонах.
+12. `[x] B-06` Обновить [ConfirmDialog.tsx](/Users/dos/Desktop/ant/day2.0/day-frontend/src/components/ui/ConfirmDialog.tsx): кнопки вертикально и `w-full` на узких экранах. DoD: нет сжатия action row.
+13. `[x] B-07` Ввести правило touch target `>=44px` для ключевых интерактивов во всех shared/UI компонентах (`Button`, табы, filter chips, icon-buttons). DoD: выборочные DOM-проверки показывают min height/width >= 44.
 
 ### Milestone C: Base Pages (Home/Auth/Settings/AI Import)
 14. `C-01` Уплотнить spacing на [HomePage.tsx](/Users/dos/Desktop/ant/day2.0/day-frontend/src/pages/HomePage.tsx), [LoginPage.tsx](/Users/dos/Desktop/ant/day2.0/day-frontend/src/pages/LoginPage.tsx), [RegisterPage.tsx](/Users/dos/Desktop/ant/day2.0/day-frontend/src/pages/RegisterPage.tsx). DoD: mobile-friendly paddings.

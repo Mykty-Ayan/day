@@ -20,7 +20,7 @@ export default function PropertyListPage() {
   const { data: tagsData } = useTags()
   const allTags = tagsData ?? []
   const primaryActionClass =
-    'inline-flex items-center gap-2 bg-black text-white hover:bg-gray-800 rounded-xl px-6 py-2.5 font-semibold shadow-lg transition-colors'
+    'inline-flex min-h-[44px] items-center gap-2 rounded-xl bg-black px-6 py-2.5 font-semibold text-white shadow-lg transition-colors hover:bg-gray-800'
 
   const { data, isLoading } = useAllProperties({
     status: statusFilter === 'all' ? undefined : statusFilter,
@@ -82,7 +82,7 @@ export default function PropertyListPage() {
                 <button
                   type="button"
                   onClick={() => setTagFilter('')}
-                  className={`px-2.5 py-1 rounded-full text-[10px] font-bold transition-colors ${
+                  className={`inline-flex min-h-[44px] items-center rounded-full px-3 py-2 text-xs font-bold transition-colors ${
                     !tagFilter
                       ? 'bg-gray-900 text-white'
                       : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border border-gray-200'
@@ -95,7 +95,7 @@ export default function PropertyListPage() {
                     key={tag.id}
                     type="button"
                     onClick={() => setTagFilter(tagFilter === tag.id ? '' : tag.id)}
-                    className={`px-2.5 py-1 rounded-full text-[10px] font-bold transition-colors ${
+                    className={`inline-flex min-h-[44px] items-center rounded-full px-3 py-2 text-xs font-bold transition-colors ${
                       tagFilter === tag.id
                         ? 'text-white'
                         : 'border border-gray-200 hover:opacity-80'

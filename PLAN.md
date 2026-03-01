@@ -11,6 +11,10 @@
 - Сборка проходит (`npm run build`).
 - Мобильные e2e в проекте отсутствуют (Playwright только Desktop Chrome).
 
+## Progress Log
+- 2026-03-02: завершён milestone `B-*` (shared components), статусы отмечены в `IMPLEMENTATION PLAN.md`.
+- 2026-03-02: прогнан быстрый mobile smoke-check shell/nav (`tests/e2e/mobile-shell-smoke.spec.ts`) — `3 passed` (tabs, More sheet, cleaner без global shell, overflow sanity, mobile toast container).
+
 ## Locked Decisions
 1. Навигация на телефоне: `Bottom tabs` + верхний app bar + экран/лист `More`.
 2. Сложные data-экраны: `Hybrid mode` (по умолчанию карточки на mobile + переключение в table/gantt при необходимости).
@@ -187,4 +191,3 @@ Backend contracts:
 3. Визуальная система сохраняется существующая (монохром + текущие accent colors).
 4. Производительность: без тяжелых анимаций на мобильных списках > 100 элементов.
 5. Изменения ограничены `day-frontend`; backend untouched.
-

@@ -29,13 +29,13 @@ function Calendar({
       classNames={{
         months: 'flex flex-col gap-4 sm:flex-row',
         month: 'space-y-4',
-        month_caption: 'relative flex h-10 items-center justify-center px-9',
+        month_caption: 'relative flex h-11 items-center justify-center px-11',
         caption_label: 'text-base font-semibold tracking-tight text-gray-900',
-        nav: 'absolute inset-x-0 top-0 flex h-10 items-center justify-between px-1',
+        nav: 'absolute inset-x-0 top-0 flex h-11 items-center justify-between px-0.5',
         button_previous:
-          'h-8 w-8 rounded-xl border border-gray-200 bg-white text-gray-600 transition-colors hover:bg-gray-50 disabled:opacity-50',
+          'h-11 w-11 rounded-xl border border-gray-200 bg-white text-gray-600 transition-colors hover:bg-gray-50 disabled:opacity-50',
         button_next:
-          'h-8 w-8 rounded-xl border border-gray-200 bg-white text-gray-600 transition-colors hover:bg-gray-50 disabled:opacity-50',
+          'h-11 w-11 rounded-xl border border-gray-200 bg-white text-gray-600 transition-colors hover:bg-gray-50 disabled:opacity-50',
         month_grid: 'w-full border-collapse',
         weekdays: 'grid grid-cols-7 gap-1',
         weekday: 'h-8 text-center text-xs font-semibold uppercase tracking-wide text-gray-400',
@@ -43,7 +43,7 @@ function Calendar({
         week: 'grid grid-cols-7 gap-1',
         day: 'p-0 text-center text-sm',
         day_button:
-          'h-10 w-10 rounded-xl font-medium text-gray-700 transition-colors hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/15',
+          'h-9 w-9 rounded-xl font-medium text-gray-700 transition-colors hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/15 sm:h-10 sm:w-10',
         selected:
           'bg-black text-white hover:bg-black [&>button]:bg-black [&>button]:text-white [&>button]:shadow-sm [&>button]:hover:bg-black',
         today:

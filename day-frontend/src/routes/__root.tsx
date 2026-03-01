@@ -1,10 +1,10 @@
-import { useEffect, useState } from 'react'
 import { createRootRoute, Outlet, Link, useRouterState, redirect } from '@tanstack/react-router'
 import { Building2, CalendarRange, CalendarDays, Clock, SprayCan, ClipboardList, BarChart3, Sparkles, Settings, LogOut } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import MobileShell from '../components/layout/MobileShell'
 import ToastContainer from '../components/ui/Toast'
 import { useCurrentUser, useLogout } from '../hooks/useAuth'
+import { useMediaQuery } from '../hooks/useMediaQuery'
 
 const PUBLIC_ROUTES = ['/login', '/register']
 const CLEANER_ROUTE_PREFIX = '/cleaner'
@@ -74,7 +74,7 @@ function AuthenticatedLayout() {
   if (isMobileShell) {
     return (
       <>
-        <MobileShell pathname={pathname} userEmail={user?.email} onLogout={logout}>
+        <MobileShell key={pathname} pathname={pathname} userEmail={user?.email} onLogout={logout}>
           <Outlet />
         </MobileShell>
         <ToastContainer />
@@ -128,26 +128,5 @@ function AuthenticatedLayout() {
 }
 
 function useIsMobileShell(): boolean {
-  const [isMobile, setIsMobile] = useState(() => {
-    if (typeof window === 'undefined') return false
-    return window.matchMedia('(max-width: 1023px)').matches
-  })
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return
-
-    const mediaQuery = window.matchMedia('(max-width: 1023px)')
-    const handleChange = (event: MediaQueryListEvent) => {
-      setIsMobile(event.matches)
-    }
-
-    setIsMobile(mediaQuery.matches)
-    mediaQuery.addEventListener('change', handleChange)
-
-    return () => {
-      mediaQuery.removeEventListener('change', handleChange)
-    }
-  }, [])
-
-  return isMobile
+  return useMediaQuery('(max-width: 1023px)')
 }

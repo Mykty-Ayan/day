@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useMemo, useState, type ReactNode } from 'react'
 import { Link } from '@tanstack/react-router'
 import {
   BarChart3,
@@ -71,10 +71,6 @@ export default function MobileShell({
     }, null)
     return match?.label ?? 'Day'
   }, [pathname, primaryTabs, moreLinks])
-
-  useEffect(() => {
-    setIsMoreOpen(false)
-  }, [pathname])
 
   return (
     <div className="min-h-screen bg-white flex flex-col">

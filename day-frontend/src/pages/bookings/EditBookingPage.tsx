@@ -140,7 +140,7 @@ function EditBookingForm({ detail, bookingId }: { detail: BookingDetail; booking
           <motion.button
             whileTap={{ scale: 0.97 }}
             onClick={() => navigate({ to: '/bookings/$bookingId', params: { bookingId } })}
-            className="p-2 rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-50 transition-colors"
+            className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg border border-gray-200 text-gray-700 transition-colors hover:bg-gray-50"
           >
             <ArrowLeft className="w-4 h-4" />
           </motion.button>
@@ -183,21 +183,23 @@ function EditBookingForm({ detail, bookingId }: { detail: BookingDetail; booking
             <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
               {t('bookings.source')}
             </label>
-            <ToggleGroup
-              type="single"
-              value={form.source}
-              onValueChange={(value) => {
-                if (!value) return
-                updateField('source', value as BookingSource)
-              }}
-              className="flex flex-wrap"
-            >
-              {SOURCES.map((s) => (
-                <ToggleGroupItem key={s.value} value={s.value}>
-                  {s.label}
-                </ToggleGroupItem>
-              ))}
-            </ToggleGroup>
+            <div className="w-full overflow-x-auto">
+              <ToggleGroup
+                type="single"
+                value={form.source}
+                onValueChange={(value) => {
+                  if (!value) return
+                  updateField('source', value as BookingSource)
+                }}
+                className="min-w-max"
+              >
+                {SOURCES.map((s) => (
+                  <ToggleGroupItem key={s.value} value={s.value}>
+                    {s.label}
+                  </ToggleGroupItem>
+                ))}
+              </ToggleGroup>
+            </div>
           </div>
 
           {/* Guests Count */}
