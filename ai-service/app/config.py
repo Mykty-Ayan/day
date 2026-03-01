@@ -8,8 +8,8 @@ class Settings(BaseSettings):
     OPENROUTER_BASE_URL: str = "https://openrouter.ai/api/v1"
     OPENROUTER_APP_NAME: str = "day-ai-service"
     OPENROUTER_HTTP_REFERER: str = ""
-    LLM_MODEL: str = "openai/gpt-4.1-mini"
-    LLM_PROVIDER: str = "openrouter"  # openai | anthropic | openrouter
+    LLM_MODEL: str = "gpt-5-mini"
+    LLM_PROVIDER: str = "openai"  # openai | anthropic | openrouter
     REQUEST_TIMEOUT: int = 30
     MAX_CONTENT_LENGTH: int = 100000
     AIRBNB_MCP_ENABLED: bool = False

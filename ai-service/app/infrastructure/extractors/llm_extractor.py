@@ -104,9 +104,11 @@ class LLMExtractor(DataExtractor):
                 {"role": "system", "content": SYSTEM_PROMPT},
                 {"role": "user", "content": user_message},
             ],
-            "temperature": 0.1,
             "response_format": {"type": "json_object"},
         }
+        # GPT-5 models currently accept only the default temperature value.
+        if not settings.LLM_MODEL.startswith("gpt-5"):
+            payload["temperature"] = 0.1
 
         timeout = httpx.Timeout(settings.REQUEST_TIMEOUT)
         async with httpx.AsyncClient(timeout=timeout) as client:
