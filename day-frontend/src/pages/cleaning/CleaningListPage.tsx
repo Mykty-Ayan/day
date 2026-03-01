@@ -8,6 +8,7 @@ import CleaningStatusBadge from '../../components/cleaning/CleaningStatusBadge'
 import CleaningTypeBadge from '../../components/cleaning/CleaningTypeBadge'
 import { ToggleGroup, ToggleGroupItem } from '../../components/ui/toggle-group'
 import { useCleaningTasks } from '../../hooks/useCleaning'
+import Spinner from '../../components/ui/Spinner'
 import type { CleaningStatus } from '../../types/cleaning'
 
 export default function CleaningListPage() {
@@ -71,9 +72,7 @@ export default function CleaningListPage() {
         </div>
 
         {isLoading ? (
-          <div className="flex items-center justify-center py-20">
-            <div className="w-6 h-6 border-2 border-gray-200 border-t-gray-900 rounded-full animate-spin" />
-          </div>
+          <Spinner />
         ) : !data || data.items.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20">
             <p className="text-sm text-gray-500 mb-4">{t('cleaning.noCleaningTasks')}</p>

@@ -8,6 +8,7 @@ import type { BookingDetail, BookingSource, BookingUpdateInput } from '../../typ
 import DateRangePicker from '../../components/ui/date-range-picker'
 import { ToggleGroup, ToggleGroupItem } from '../../components/ui/toggle-group'
 import NumberInput from '../../components/ui/number-input'
+import Spinner from '../../components/ui/Spinner'
 import { showToast } from '../../components/ui/Toast'
 import { getBookingApiErrorMessage, getBookingFieldError } from '../../lib/booking-errors'
 
@@ -40,11 +41,7 @@ export default function EditBookingPage() {
   const { data: detail, isLoading } = useBooking(bookingId)
 
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center py-20">
-        <div className="w-6 h-6 border-2 border-gray-200 border-t-gray-900 rounded-full animate-spin" />
-      </div>
-    )
+    return <Spinner />
   }
 
   if (!detail) {

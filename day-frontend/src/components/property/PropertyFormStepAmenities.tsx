@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react'
 import { Search } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
+import Spinner from '../ui/Spinner'
 import { useAmenities } from '../../hooks/useProperties'
 import type { AmenityCategory } from '../../types/property'
 import { Checkbox } from '../ui/checkbox'
@@ -40,11 +41,7 @@ export default function PropertyFormStepAmenities({ selectedIds, onChange }: Pro
   }
 
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <div className="w-6 h-6 border-2 border-gray-200 border-t-gray-900 rounded-full animate-spin" />
-      </div>
-    )
+    return <Spinner size="sm" />
   }
 
   return (

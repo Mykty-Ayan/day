@@ -8,6 +8,7 @@ import CleaningStatusBadge from '../../components/cleaning/CleaningStatusBadge'
 import CleaningTypeBadge from '../../components/cleaning/CleaningTypeBadge'
 import Button from '../../components/ui/Button'
 import { showToast } from '../../components/ui/Toast'
+import Spinner from '../../components/ui/Spinner'
 import { useChangeCleaningTaskStatus, useCleaningTask } from '../../hooks/useCleaning'
 import type { CleaningStatus, CleaningTaskDetail } from '../../types/cleaning'
 import { CLEANING_VALID_TRANSITIONS } from '../../types/cleaning'
@@ -23,9 +24,7 @@ export default function CleaningDetailPage() {
   const [activeTab, setActiveTab] = useState<Tab>('overview')
 
   if (isLoading) {
-    return (
-      <div className="p-6 text-center text-gray-400">{t('cleaning.loadingTask')}</div>
-    )
+    return <Spinner />
   }
 
   if (!data) {

@@ -9,6 +9,7 @@ import { getPricing } from '../../api/properties'
 import GanttChart from '../../components/property/GanttChart'
 import type { GanttRow } from '../../components/property/GanttChart'
 import type { PricingConfig } from '../../types/property'
+import Spinner from '../../components/ui/Spinner'
 import {
   Select,
   SelectContent,
@@ -290,9 +291,7 @@ export default function GanttChartPage() {
 
         {/* Chart */}
         {isLoading ? (
-          <div className="flex items-center justify-center py-20">
-            <div className="w-6 h-6 border-2 border-gray-200 border-t-gray-900 rounded-full animate-spin" />
-          </div>
+          <Spinner />
         ) : isError ? (
           <div className="flex flex-col items-center justify-center gap-3 rounded-xl border border-red-100 bg-red-50/50 py-10">
             <p className="text-sm font-semibold text-red-700">{t('gantt.failedLoad')}</p>

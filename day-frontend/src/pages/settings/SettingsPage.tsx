@@ -12,8 +12,8 @@ const LANGUAGES = [
 export default function SettingsPage() {
   const { t, i18n } = useTranslation()
 
-  function changeLanguage(lang: string) {
-    i18n.changeLanguage(lang)
+  async function changeLanguage(lang: string) {
+    await i18n.changeLanguage(lang)
     localStorage.setItem('language', lang)
     showToast('success', t('settings.saved'))
   }

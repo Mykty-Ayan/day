@@ -1,7 +1,7 @@
 {
   "nav": {
     "properties": "Properties",
-    "chessChart": "Chess Chart",
+    "chessChart": "Gantt Chart",
     "bookings": "Bookings",
     "today": "Today",
     "cleaning": "Cleaning",
@@ -313,11 +313,11 @@
     "propertyArchived": "Property archived"
   },
   "gantt": {
-    "title": "Chess Chart",
+    "title": "Gantt Chart",
     "today": "Today",
     "property": "Property",
     "noProperties": "No properties to display",
-    "failedLoad": "Failed to load chess chart data",
+    "failedLoad": "Failed to load gantt chart data",
     "stayPreview": "Stay preview",
     "nightCount": "{{count}} night",
     "nightCount_other": "{{count}} nights",
