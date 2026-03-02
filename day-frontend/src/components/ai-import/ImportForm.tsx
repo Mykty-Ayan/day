@@ -40,12 +40,13 @@ export default function ImportForm({ onSubmit, isLoading }: Props) {
   const [url, setUrl] = useState('')
   const [prompt, setPrompt] = useState('')
 
+  const normalizedUrl = useMemo(() => normalizeInputUrl(url), [url])
+  const isValidUrl = useMemo(() => isHttpUrl(normalizedUrl), [normalizedUrl])
   const sourceType = useMemo(() => detectSourceType(url), [url])
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    const normalizedUrl = normalizeInputUrl(url)
-    if (!isHttpUrl(normalizedUrl)) return
+    if (!isValidUrl) return
     onSubmit(normalizedUrl, prompt.trim() || undefined)
   }
 
@@ -62,7 +63,7 @@ export default function ImportForm({ onSubmit, isLoading }: Props) {
             type="url"
             inputMode="url"
             value={url}
-            onChange={(e) => setUrl(e.target.value)}
+            onChange={(e) => setUrl(normalizeInputUrl(e.target.value))}
             placeholder={t('aiImport.urlPlaceholder')}
             required
             className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 pl-9 pr-28 outline-none focus:ring-2 focus:ring-black/10 text-gray-800 text-sm"
@@ -95,7 +96,7 @@ export default function ImportForm({ onSubmit, isLoading }: Props) {
       <motion.button
         whileTap={{ scale: 0.97 }}
         type="submit"
-        disabled={isLoading || !url.trim()}
+        disabled={isLoading || !isValidUrl}
         className="flex items-center justify-center gap-2 w-full bg-black text-white hover:bg-gray-800 rounded-xl px-6 py-2.5 font-semibold shadow-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
       >
         {isLoading ? (

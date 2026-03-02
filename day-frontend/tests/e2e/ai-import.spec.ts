@@ -138,6 +138,29 @@ test.describe('AI Import - E2E', () => {
     expect(importResponse).not.toBeNull()
   })
 
+  test('submit import form normalizes mobile krisha URL without scheme', async ({ page }) => {
+    await page.goto('/ai-import')
+    await page.waitForLoadState('networkidle')
+
+    const rawUrl = 'm.krisha.kz/show/760869785?srchid=abc&srchtype=filter&srchpos=2'
+    const normalizedUrl = 'https://krisha.kz/a/show/760869785'
+
+    const urlInput = page.locator('#import-url, input[type="url"]').first()
+    await urlInput.fill(rawUrl)
+    await expect(urlInput).toHaveValue(normalizedUrl, { timeout: 3000 })
+
+    const requestPromise = page.waitForRequest(
+      (request) => request.url().includes('/api/v1/ai/import') && request.method() === 'POST',
+      { timeout: 10000 },
+    )
+
+    await page.locator('form button[type="submit"]').first().click()
+
+    const request = await requestPromise
+    const payload = request.postDataJSON() as { source_url?: string }
+    expect(payload.source_url).toBe(normalizedUrl)
+  })
+
   test('form validation prevents submission of invalid URL', async ({ page }) => {
     await page.goto('/ai-import')
     await page.waitForLoadState('networkidle')
@@ -149,7 +172,23 @@ test.describe('AI Import - E2E', () => {
     await urlInput.fill('not-a-valid-url')
 
     if (await submitBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
+      const isDisabled = await submitBtn.isDisabled()
+      if (isDisabled) {
+        expect(isDisabled).toBeTruthy()
+        return
+      }
+
+      const requestPromise = page
+        .waitForRequest(
+          (request) => request.url().includes('/api/v1/ai/import') && request.method() === 'POST',
+          { timeout: 2000 },
+        )
+        .then(() => true)
+        .catch(() => false)
+
       await submitBtn.click()
+      const requestSent = await requestPromise
+      expect(requestSent).toBeFalsy()
 
       // Either browser validation prevents submission (type="url") or an error appears
       const hasError = await page.getByText(/invalid|valid url|enter.*url/i)

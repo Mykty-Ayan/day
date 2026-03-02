@@ -24,24 +24,22 @@ class ImportSource(str, enum.Enum):
         if not candidate:
             return candidate
 
-        if candidate.lower().startswith(("krisha.kz/", "www.krisha.kz/", "airbnb.", "www.airbnb.")):
+        if candidate.lower().startswith(("krisha.kz/", "www.krisha.kz/", "m.krisha.kz/", "airbnb.", "www.airbnb.")):
             candidate = f"https://{candidate}"
 
         parsed = urlsplit(candidate)
-        host = parsed.netloc.lower()
-        if host.startswith("www."):
-            host_wo_www = host[4:]
-        else:
-            host_wo_www = host
+        host = (parsed.hostname or "").lower()
+        netloc = parsed.netloc
 
-        if host_wo_www == "krisha.kz":
+        if host in {"krisha.kz", "www.krisha.kz", "m.krisha.kz"}:
             match = re.match(r"^/(?:a/)?show/(\d+)/?$", parsed.path)
-            if not match:
-                return candidate
+            canonical_path = parsed.path
+            if match:
+                listing_id = match.group(1)
+                canonical_path = f"/a/show/{listing_id}"
+            return urlunsplit(("https", "krisha.kz", canonical_path, "", ""))
 
-            listing_id = match.group(1)
-            return urlunsplit(("https", "krisha.kz", f"/a/show/{listing_id}", parsed.query, parsed.fragment))
-
+        host_wo_www = host[4:] if host.startswith("www.") else host
         if host_wo_www.startswith("airbnb."):
             room_match = re.match(r"^/rooms/(\d+)(?:/.*)?$", parsed.path)
             editor_match = re.match(r"^/hosting/listings/editor/(\d+)(?:/.*)?$", parsed.path)
@@ -50,7 +48,7 @@ class ImportSource(str, enum.Enum):
                 return candidate
 
             listing_id = match.group(1)
-            canonical_host = host or host_wo_www
+            canonical_host = netloc or host_wo_www
             return urlunsplit(("https", canonical_host, f"/rooms/{listing_id}", parsed.query, parsed.fragment))
 
         return candidate
