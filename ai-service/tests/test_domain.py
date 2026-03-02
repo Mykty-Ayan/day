@@ -15,9 +15,17 @@ class TestSourceType:
         url = "krisha.kz/show/690725054"
         assert SourceType.normalize_url(url) == "https://krisha.kz/a/show/690725054"
 
-    def test_normalize_krisha_show_url_preserves_query(self):
+    def test_normalize_krisha_show_url_strips_query(self):
         url = "https://www.krisha.kz/show/690725054?srchid=abc"
-        assert SourceType.normalize_url(url) == "https://krisha.kz/a/show/690725054?srchid=abc"
+        assert SourceType.normalize_url(url) == "https://krisha.kz/a/show/690725054"
+
+    def test_normalize_mobile_krisha_show_url(self):
+        url = "https://m.krisha.kz/show/760869785?srchid=abc&srchtype=filter&srchpos=2"
+        assert SourceType.normalize_url(url) == "https://krisha.kz/a/show/760869785"
+
+    def test_normalize_mobile_krisha_show_url_without_scheme(self):
+        url = "m.krisha.kz/a/show/760869785?srchid=abc"
+        assert SourceType.normalize_url(url) == "https://krisha.kz/a/show/760869785"
 
     def test_normalize_airbnb_hosting_editor_url(self):
         url = "https://www.airbnb.ru/hosting/listings/editor/1502076254219978997/details/photo-tour"
@@ -49,6 +57,10 @@ class TestSourceType:
 
     def test_detect_krisha_url(self):
         url = "https://krisha.kz/a/show/12345"
+        assert SourceType.detect_from_url(url) == SourceType.KRISHA
+
+    def test_detect_mobile_krisha_url(self):
+        url = "https://m.krisha.kz/a/show/12345"
         assert SourceType.detect_from_url(url) == SourceType.KRISHA
 
     def test_detect_krisha_legacy_show_url(self):

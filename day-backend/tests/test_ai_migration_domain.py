@@ -43,9 +43,17 @@ class TestImportSource:
     def test_normalize_krisha_legacy_show_url_without_scheme(self):
         assert ImportSource.normalize_url("krisha.kz/show/2303047") == "https://krisha.kz/a/show/2303047"
 
-    def test_normalize_krisha_preserves_query(self):
+    def test_normalize_krisha_strips_query(self):
         url = "https://www.krisha.kz/show/2303047?srchid=abc"
-        assert ImportSource.normalize_url(url) == "https://krisha.kz/a/show/2303047?srchid=abc"
+        assert ImportSource.normalize_url(url) == "https://krisha.kz/a/show/2303047"
+
+    def test_normalize_mobile_krisha_url(self):
+        url = "https://m.krisha.kz/show/760869785?srchid=abc&srchtype=filter&srchpos=2"
+        assert ImportSource.normalize_url(url) == "https://krisha.kz/a/show/760869785"
+
+    def test_normalize_mobile_krisha_url_without_scheme(self):
+        url = "m.krisha.kz/a/show/760869785?srchid=abc"
+        assert ImportSource.normalize_url(url) == "https://krisha.kz/a/show/760869785"
 
     def test_normalize_airbnb_hosting_editor_url(self):
         url = "https://www.airbnb.ru/hosting/listings/editor/1502076254219978997/details/photo-tour"
@@ -99,6 +107,7 @@ class TestImportSource:
         urls = [
             "https://krisha.kz/a/show/12345",
             "https://www.krisha.kz/a/show/67890",
+            "https://m.krisha.kz/a/show/22222",
             "http://krisha.kz/a/show/11111",
         ]
         for url in urls:
