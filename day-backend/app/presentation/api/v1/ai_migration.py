@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 import uuid
 from pathlib import Path
 from urllib.parse import urlsplit
@@ -85,7 +86,9 @@ def _normalize_external_photo_url(url: str) -> str:
 def _filename_from_url(url: str) -> str:
     parsed = urlsplit(url)
     name = Path(parsed.path).name
-    return name if name else "photo.jpg"
+    # Strip chars that could inject into Content-Disposition header
+    name = re.sub(r'[^\w.\-]', '_', name) if name else "photo.jpg"
+    return name or "photo.jpg"
 
 
 def _to_job_response(job) -> ImportJobResponse:

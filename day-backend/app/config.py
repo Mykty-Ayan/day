@@ -22,7 +22,7 @@ class Settings(BaseSettings):
         validation_alias=AliasChoices("S3_BUCKET", "S3_BUCKET_NAME"),
     )
 
-    JWT_SECRET: str = "change-me-in-production"
+    JWT_SECRET: str = Field(default=..., min_length=16)
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
 
