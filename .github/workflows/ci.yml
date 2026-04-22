@@ -30,6 +30,8 @@ jobs:
       - name: Install dependencies
         run: pip install -r day-backend/requirements.txt
       - name: Run unit tests
+        env:
+          JWT_SECRET: ci-test-secret-key-not-for-production
         run: cd day-backend && pytest tests/ -v
 
   frontend-lint:
