@@ -225,6 +225,7 @@
     "adults": "Adults",
     "children": "Children",
     "selectProperty": "Select property...",
+    "paused": "paused",
     "tabs": {
       "overview": "Overview",
       "payments": "Payments",

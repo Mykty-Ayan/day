@@ -314,7 +314,7 @@ export default function CreateBookingPage() {
             <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm space-y-5">
               {/* Property */}
               <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">
+                <label htmlFor="create-property" className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">
                   {t('bookings.property')}
                 </label>
                 <Select
@@ -322,6 +322,7 @@ export default function CreateBookingPage() {
                   onValueChange={(value) => updateField('property_id', value)}
                 >
                   <SelectTrigger
+                    id="create-property"
                     className={errors.property_id ? 'border-red-300' : ''}
                   >
                     <SelectValue placeholder={t('bookings.selectProperty')} />
@@ -329,7 +330,7 @@ export default function CreateBookingPage() {
                   <SelectContent>
                     {properties.map((p) => (
                       <SelectItem key={p.id} value={p.id}>
-                        {p.internal_name} ({p.name}){p.status === 'paused' ? ' [paused]' : ''}
+                        {p.internal_name} ({p.name}){p.status === 'paused' ? ` [${t('bookings.paused')}]` : ''}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -380,10 +381,11 @@ export default function CreateBookingPage() {
                     </div>
                     <div className="grid grid-cols-2 gap-3">
                       <div>
-                        <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">
+                        <label htmlFor="create-start-time" className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">
                           {t('bookings.startTime')}
                         </label>
                         <TimePicker
+                          id="create-start-time"
                           value={form.start_time}
                           onChange={(value) => updateField('start_time', value)}
                           placeholder={t('bookings.selectTime')}
@@ -394,10 +396,11 @@ export default function CreateBookingPage() {
                         )}
                       </div>
                       <div>
-                        <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">
+                        <label htmlFor="create-end-time" className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">
                           {t('bookings.endTime')}
                         </label>
                         <TimePicker
+                          id="create-end-time"
                           value={form.end_time}
                           onChange={(value) => updateField('end_time', value)}
                           placeholder={t('bookings.selectTime')}
@@ -442,10 +445,11 @@ export default function CreateBookingPage() {
                 </h3>
                 <div className="space-y-3">
                   <div className="relative">
-                    <label className="block text-xs font-bold text-gray-500 mb-1.5">
+                    <label htmlFor="create-guest-phone" className="block text-xs font-bold text-gray-500 mb-1.5">
                       <span className="flex items-center gap-1"><Phone className="w-3 h-3" /> {t('bookings.phone')}</span>
                     </label>
                     <input
+                      id="create-guest-phone"
                       type="tel"
                       value={form.guest_phone}
                       onChange={(e) => {
@@ -496,10 +500,11 @@ export default function CreateBookingPage() {
                   </div>
 
                   <div>
-                    <label className="block text-xs font-bold text-gray-500 mb-1.5">
+                    <label htmlFor="create-guest-name" className="block text-xs font-bold text-gray-500 mb-1.5">
                       <span className="flex items-center gap-1"><User className="w-3 h-3" /> {t('bookings.guestName')}</span>
                     </label>
                     <input
+                      id="create-guest-name"
                       type="text"
                       value={form.guest_name}
                       onChange={(e) => updateField('guest_name', e.target.value)}
@@ -514,10 +519,11 @@ export default function CreateBookingPage() {
                   </div>
 
                   <div>
-                    <label className="block text-xs font-bold text-gray-500 mb-1.5">
+                    <label htmlFor="create-guest-email" className="block text-xs font-bold text-gray-500 mb-1.5">
                       <span className="flex items-center gap-1"><Mail className="w-3 h-3" /> {t('bookings.email')}</span>
                     </label>
                     <input
+                      id="create-guest-email"
                       type="email"
                       value={form.guest_email}
                       onChange={(e) => updateField('guest_email', e.target.value)}
@@ -590,23 +596,29 @@ export default function CreateBookingPage() {
                 <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
                   {t('bookings.calendarColor')}
                 </label>
-                <div className="flex gap-2">
+                <div className="flex gap-1">
                   {GANTT_COLORS.map((c) => (
                     <motion.button
                       key={c.value}
                       whileTap={{ scale: 0.9 }}
                       type="button"
                       onClick={() => updateField('gantt_color', c.value)}
-                      className="relative w-8 h-8 rounded-full transition-transform"
-                      style={{ backgroundColor: c.value }}
+                      aria-label={c.label}
+                      aria-pressed={form.gantt_color === c.value}
                       title={c.label}
+                      className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-full p-1 transition-transform"
                     >
-                      {form.gantt_color === c.value && (
-                        <motion.div
-                          layoutId="color-ring"
-                          className="absolute inset-[-3px] rounded-full border-2 border-gray-900"
-                        />
-                      )}
+                      <span
+                        className="relative block h-8 w-8 rounded-full"
+                        style={{ backgroundColor: c.value }}
+                      >
+                        {form.gantt_color === c.value && (
+                          <motion.div
+                            layoutId="color-ring"
+                            className="absolute inset-[-3px] rounded-full border-2 border-gray-900"
+                          />
+                        )}
+                      </span>
                     </motion.button>
                   ))}
                 </div>
@@ -614,10 +626,11 @@ export default function CreateBookingPage() {
 
               {/* Notes */}
               <div className="border-t border-gray-100 pt-5">
-                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">
+                <label htmlFor="create-notes" className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">
                   {t('common.notes')}
                 </label>
                 <textarea
+                  id="create-notes"
                   value={form.notes}
                   onChange={(e) => updateField('notes', e.target.value)}
                   placeholder={t('common.optionalNotes')}
@@ -672,7 +685,7 @@ export default function CreateBookingPage() {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.3, delay: 0.2 }}
-            className="lg:w-80 lg:sticky lg:top-6 lg:self-start"
+            className="order-first lg:order-none lg:w-80 lg:sticky lg:top-6 lg:self-start"
           >
             <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
               <div className="flex items-center gap-2 mb-4">

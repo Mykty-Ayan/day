@@ -37,6 +37,7 @@ export interface Booking {
   calculated_price: number
   adults_count: number
   children_count: number
+  notes?: string | null
   guest_name: string
   guest_phone?: string | null
   property_name: string

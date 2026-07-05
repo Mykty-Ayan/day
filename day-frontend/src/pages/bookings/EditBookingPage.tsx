@@ -54,7 +54,7 @@ function detailToForm(detail: BookingDetail): FormData {
     adults_count: b.adults_count,
     children_count: b.children_count,
     gantt_color: b.gantt_color || '#3B82F6',
-    notes: '',
+    notes: b.notes ?? '',
   }
 }
 
@@ -241,10 +241,11 @@ function EditBookingForm({ detail, bookingId }: { detail: BookingDetail; booking
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">
+                    <label htmlFor="edit-start-time" className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">
                       {t('bookings.startTime')}
                     </label>
                     <TimePicker
+                      id="edit-start-time"
                       value={form.start_time}
                       onChange={(value) => updateField('start_time', value)}
                       placeholder={t('bookings.selectTime')}
@@ -255,10 +256,11 @@ function EditBookingForm({ detail, bookingId }: { detail: BookingDetail; booking
                     )}
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">
+                    <label htmlFor="edit-end-time" className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">
                       {t('bookings.endTime')}
                     </label>
                     <TimePicker
+                      id="edit-end-time"
                       value={form.end_time}
                       onChange={(value) => updateField('end_time', value)}
                       placeholder={t('bookings.selectTime')}
@@ -357,23 +359,29 @@ function EditBookingForm({ detail, bookingId }: { detail: BookingDetail; booking
             <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
               {t('bookings.calendarColor')}
             </label>
-            <div className="flex gap-2">
+            <div className="flex gap-1">
               {GANTT_COLORS.map((c) => (
                 <motion.button
                   key={c.value}
                   whileTap={{ scale: 0.9 }}
                   type="button"
                   onClick={() => updateField('gantt_color', c.value)}
-                  className="relative w-8 h-8 rounded-full transition-transform"
-                  style={{ backgroundColor: c.value }}
+                  aria-label={c.label}
+                  aria-pressed={form.gantt_color === c.value}
                   title={c.label}
+                  className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-full p-1 transition-transform"
                 >
-                  {form.gantt_color === c.value && (
-                    <motion.div
-                      layoutId="edit-color-ring"
-                      className="absolute inset-[-3px] rounded-full border-2 border-gray-900"
-                    />
-                  )}
+                  <span
+                    className="relative block h-8 w-8 rounded-full"
+                    style={{ backgroundColor: c.value }}
+                  >
+                    {form.gantt_color === c.value && (
+                      <motion.div
+                        layoutId="edit-color-ring"
+                        className="absolute inset-[-3px] rounded-full border-2 border-gray-900"
+                      />
+                    )}
+                  </span>
                 </motion.button>
               ))}
             </div>
@@ -381,10 +389,11 @@ function EditBookingForm({ detail, bookingId }: { detail: BookingDetail; booking
 
           {/* Notes */}
           <div className="border-t border-gray-100 pt-5">
-            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">
+            <label htmlFor="edit-notes" className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">
               {t('common.notes')}
             </label>
             <textarea
+              id="edit-notes"
               value={form.notes}
               onChange={(e) => updateField('notes', e.target.value)}
               placeholder={t('common.optionalNotes')}
