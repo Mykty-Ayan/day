@@ -46,8 +46,10 @@ class CalculateMetricsService:
         summary = AnalyticsSummary()
         summary.properties_count = len(properties)
 
-        total_booked_nights = 0
-        total_available_nights = 0
+        # booked_nights / vacancy_days are now (possibly fractional) Decimals,
+        # so these accumulators are Decimal too.
+        total_booked_nights = Decimal("0")
+        total_available_nights = Decimal("0")
         weighted_stay_sum = Decimal("0")
 
         for pm in properties:
@@ -62,7 +64,7 @@ class CalculateMetricsService:
             total_available_nights += pm.booked_nights + pm.vacancy_days
             weighted_stay_sum += pm.avg_stay_duration * pm.total_bookings
 
-        # Overall ADR
+        # Overall ADR (guarded against fractional/zero denominators)
         if total_booked_nights > 0:
             summary.overall_adr = summary.total_revenue / total_booked_nights
 
@@ -70,7 +72,7 @@ class CalculateMetricsService:
         if total_available_nights > 0:
             summary.overall_revpar = summary.total_revenue / total_available_nights
             summary.overall_occupancy_rate = (
-                Decimal(total_booked_nights) / Decimal(total_available_nights) * 100
+                total_booked_nights / total_available_nights * 100
             )
 
         # Overall avg stay duration

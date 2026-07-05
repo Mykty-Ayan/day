@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, time, timedelta
 from decimal import Decimal
 
 from sqlalchemy import Integer, Numeric, and_, case, cast, func, select
@@ -61,15 +61,23 @@ class SqlAnalyticsRepository(AnalyticsRepository):
             .subquery("payments")
         )
 
-        # Clamp booking nights to the analysis period
+        # Clamp booking nights to the analysis period.
         eff_check_in = func.greatest(BookingModel.check_in, date_from)
         eff_check_out = func.least(BookingModel.check_out, date_to)
-        # TODO(phase6): check_in/check_out are now `timestamp`; subtracting them
-        # yields an interval that cannot cast to Integer. Collapse to whole-day
-        # date math for now so daily analytics keep working. Phase 6 replaces this
-        # with proper sub-day (fractional) occupancy handling.
+        # Occupancy unit = booked *days*. `check_in`/`check_out` are timestamps,
+        # so subtracting them yields an interval (which cannot cast to Integer).
+        # We take GREATEST of:
+        #   1. whole calendar nights  = date(out) - date(in)  -> matches the
+        #      pre-timestamp date-diff baseline exactly for daily/multi-day
+        #      stays and is insensitive to the backfilled 14:00/12:00 times, and
+        #   2. fractional days        = epoch(out - in) / 86400 -> gives a sane
+        #      non-zero value for sub-day hourly stays living inside one day.
+        # For daily bookings (1) dominates; for hourly ones (1) is 0 so (2)
+        # supplies the fractional-day occupancy.
         clamped_nights = func.greatest(
-            cast(func.date(eff_check_out) - func.date(eff_check_in), Integer), 0
+            cast(func.date(eff_check_out) - func.date(eff_check_in), Integer),
+            func.extract("epoch", eff_check_out - eff_check_in) / 86400.0,
+            0.0,
         )
 
         # Main query: aggregate per property
@@ -128,7 +136,7 @@ class SqlAnalyticsRepository(AnalyticsRepository):
             pm = props_map[pid]
 
             revenue = Decimal(str(row.revenue or 0))
-            booked_nights = int(row.booked_nights or 0)
+            booked_nights = Decimal(str(row.booked_nights or 0))
             total_bookings = int(row.total_bookings or 0)
             booking_source = row.booking_source
 
@@ -144,17 +152,22 @@ class SqlAnalyticsRepository(AnalyticsRepository):
         for pm in props_map.values():
             pm.expenses = pm.commission  # In this phase, expenses = commission
             pm.profit = pm.revenue - pm.expenses
-            pm.vacancy_days = max(0, total_period_days - pm.booked_nights)
+            pm.vacancy_days = max(
+                Decimal("0"), Decimal(total_period_days) - pm.booked_nights
+            )
 
+            # All denominators below are guarded; booked_nights is now a
+            # (possibly fractional) Decimal, so `> 0` still holds for sub-day
+            # occupancy and division stays safe.
             if pm.booked_nights > 0:
                 pm.adr = pm.revenue / pm.booked_nights
             if total_period_days > 0:
                 pm.revpar = pm.revenue / total_period_days
                 pm.occupancy_rate = (
-                    Decimal(pm.booked_nights) / Decimal(total_period_days) * 100
+                    pm.booked_nights / Decimal(total_period_days) * 100
                 )
             if pm.total_bookings > 0:
-                pm.avg_stay_duration = Decimal(pm.booked_nights) / pm.total_bookings
+                pm.avg_stay_duration = pm.booked_nights / pm.total_bookings
 
         return sorted(props_map.values(), key=lambda p: p.revenue, reverse=True)
 
@@ -214,41 +227,63 @@ class SqlAnalyticsRepository(AnalyticsRepository):
         for bucket_start, bucket_end, label in buckets:
             bucket_days = (bucket_end - bucket_start).days
             total_available = bucket_days * prop_count
+            # datetime bounds of the bucket (buckets are calendar dates)
+            bucket_start_dt = datetime.combine(bucket_start, time.min)
+            bucket_end_dt = datetime.combine(bucket_end, time.min)
             revenue = Decimal("0")
             bookings_count = 0
-            booked_nights = 0
+            booked_nights = Decimal("0")
 
             for row in rows:
-                ci = row.check_in
-                co = row.check_out
-                # TODO(phase6): check_in/check_out are now `timestamp`; collapse to
-                # the calendar date so day-level bucket math (and date/datetime
-                # comparisons below) keep working. Phase 6 handles sub-day spans.
-                if isinstance(ci, datetime):
-                    ci = ci.date()
-                if isinstance(co, datetime):
-                    co = co.date()
-                # Does this booking overlap the bucket?
-                eff_start = max(ci, bucket_start)
-                eff_end = min(co, bucket_end)
-                nights_in_bucket = (eff_end - eff_start).days
-                if nights_in_bucket <= 0:
-                    continue
+                # check_in/check_out are timestamps. A daily/multi-day booking
+                # (calendar span >= 1 day) is prorated on whole calendar nights
+                # -> identical to the pre-timestamp date-diff baseline and
+                # insensitive to the backfilled 14:00/12:00 times. A sub-day
+                # hourly booking (calendar span 0) is prorated on seconds so it
+                # still attributes revenue and a fractional-day occupancy.
+                ci_dt = row.check_in
+                co_dt = row.check_out
+                ci_d = ci_dt.date() if isinstance(ci_dt, datetime) else ci_dt
+                co_d = co_dt.date() if isinstance(co_dt, datetime) else co_dt
 
-                total_booking_nights = (co - ci).days
-                if total_booking_nights > 0:
+                total_days = (co_d - ci_d).days
+                if total_days > 0:
+                    # Daily / multi-day: whole-calendar-night proration.
+                    eff_start = max(ci_d, bucket_start)
+                    eff_end = min(co_d, bucket_end)
+                    nights_in_bucket = (eff_end - eff_start).days
+                    if nights_in_bucket <= 0:
+                        continue
                     price = Decimal(str(row.total_price or 0))
-                    revenue += price * nights_in_bucket / total_booking_nights
-
-                # Count booking if it starts in this bucket
-                if bucket_start <= ci < bucket_end:
-                    bookings_count += 1
-
-                booked_nights += nights_in_bucket
+                    revenue += price * nights_in_bucket / total_days
+                    if bucket_start <= ci_d < bucket_end:
+                        bookings_count += 1
+                    booked_nights += Decimal(nights_in_bucket)
+                else:
+                    # Sub-day hourly: seconds-based proration.
+                    if not isinstance(ci_dt, datetime):
+                        ci_dt = datetime.combine(ci_dt, time.min)
+                    if not isinstance(co_dt, datetime):
+                        co_dt = datetime.combine(co_dt, time.min)
+                    total_seconds = (co_dt - ci_dt).total_seconds()
+                    if total_seconds <= 0:
+                        continue
+                    eff_start_dt = max(ci_dt, bucket_start_dt)
+                    eff_end_dt = min(co_dt, bucket_end_dt)
+                    bucket_seconds = (eff_end_dt - eff_start_dt).total_seconds()
+                    if bucket_seconds <= 0:
+                        continue
+                    price = Decimal(str(row.total_price or 0))
+                    revenue += (
+                        price * Decimal(bucket_seconds) / Decimal(total_seconds)
+                    )
+                    if bucket_start_dt <= ci_dt < bucket_end_dt:
+                        bookings_count += 1
+                    booked_nights += Decimal(bucket_seconds) / Decimal(86400)
 
             occupancy = Decimal("0")
             if total_available > 0:
-                occupancy = Decimal(booked_nights) / Decimal(total_available) * 100
+                occupancy = booked_nights / Decimal(total_available) * 100
 
             result.append(
                 TimeSeriesPoint(
@@ -256,7 +291,7 @@ class SqlAnalyticsRepository(AnalyticsRepository):
                     period_label=label,
                     revenue=revenue.quantize(Decimal("0.01")),
                     bookings_count=bookings_count,
-                    booked_nights=booked_nights,
+                    booked_nights=booked_nights.quantize(Decimal("0.0001")),
                     occupancy_rate=occupancy.quantize(Decimal("0.01")),
                 )
             )
