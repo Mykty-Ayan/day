@@ -85,6 +85,9 @@
     "transfer": "Перевод",
     "processing": "Обработка...",
     "retry": "Повторить",
+    "unknown": "Неизвестно",
+    "errorTitle": "Что-то пошло не так",
+    "errorLoading": "Не удалось загрузить данные. Попробуйте ещё раз.",
     "logout": "Выйти"
   },
   "home": {
@@ -100,6 +103,7 @@
     "searchPlaceholder": "Поиск по названию...",
     "noProperties": "Объекты не найдены",
     "createFirst": "Создайте ваш первый объект",
+    "tagsLabel": "Фильтр по тегу",
     "createProperty": "Создать объект",
     "backToProperties": "К объектам",
     "cloneProperty": "Клонировать объект",
@@ -298,7 +302,12 @@
       "totalPaidOverpaid": "Итого / Оплачено / Переплата",
       "daily": "Посуточно",
       "firstDay": "Первый день",
-      "overpaid": "Переплата"
+      "overpaid": "Переплата",
+      "paymentStatus": {
+        "pending": "Ожидание",
+        "completed": "Завершено",
+        "failed": "Ошибка"
+      }
     },
     "deposits": {
       "createDeposit": "Создать залог",
@@ -309,7 +318,14 @@
       "hold": "Удержать",
       "partiallyHold": "Частично удержать",
       "held": "Удержано",
-      "amountToHold": "Сумма удержания"
+      "amountToHold": "Сумма удержания",
+      "status": {
+        "pending": "Ожидание",
+        "paid": "Оплачен",
+        "returned": "Возвращён",
+        "held": "Удержан",
+        "partiallyHeld": "Частично удержан"
+      }
     },
     "files": {
       "files": "Файлы",
@@ -490,6 +506,14 @@
     "submitted": "Отправлен",
     "photos": "Фото",
     "checklist": "Чеклист",
+    "reportStatus": {
+      "submitted": "Отправлен",
+      "approved": "Одобрен",
+      "rejected": "Отклонён"
+    },
+    "checklistItem": "Пункт {{number}}",
+    "assignedCleaner": "Назначенный клинер",
+    "atTime": "в {{time}}",
     "types": {
       "postCheckout": "После выезда",
       "midStay": "Промежуточная",
@@ -589,7 +613,8 @@
     "taskNotFound": "Задача не найдена",
     "cleaningTask": "Задача по уборке",
     "activeCount": "Активные ({{count}})",
-    "completedCount": "Завершённые ({{count}})"
+    "completedCount": "Завершённые ({{count}})",
+    "backToTasks": "Назад к задачам"
   },
   "aiImport": {
     "title": "AI Импорт",

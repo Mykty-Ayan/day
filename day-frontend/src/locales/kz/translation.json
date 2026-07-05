@@ -85,6 +85,9 @@
     "transfer": "Аударым",
     "processing": "Өңделуде...",
     "retry": "Қайталау",
+    "unknown": "Белгісіз",
+    "errorTitle": "Бірдеңе дұрыс болмады",
+    "errorLoading": "Деректерді жүктеу мүмкін болмады. Қайтадан көріңіз.",
     "logout": "Шығу"
   },
   "home": {
@@ -100,6 +103,7 @@
     "searchPlaceholder": "Атауы бойынша іздеу...",
     "noProperties": "Нысандар табылмады",
     "createFirst": "Алғашқы нысаныңызды жасаңыз",
+    "tagsLabel": "Тег бойынша сүзу",
     "createProperty": "Нысан жасау",
     "backToProperties": "Нысандарға оралу",
     "cloneProperty": "Нысанды көшіру",
@@ -298,7 +302,12 @@
       "totalPaidOverpaid": "Жиынтық / Төленген / Артық төлем",
       "daily": "Күнделікті",
       "firstDay": "Бірінші күн",
-      "overpaid": "Артық төлем"
+      "overpaid": "Артық төлем",
+      "paymentStatus": {
+        "pending": "Күтуде",
+        "completed": "Аяқталған",
+        "failed": "Қате"
+      }
     },
     "deposits": {
       "createDeposit": "Кепіл жасау",
@@ -309,7 +318,14 @@
       "hold": "Ұстап қалу",
       "partiallyHold": "Ішінара ұстау",
       "held": "Ұсталған",
-      "amountToHold": "Ұстау сомасы"
+      "amountToHold": "Ұстау сомасы",
+      "status": {
+        "pending": "Күтуде",
+        "paid": "Төленген",
+        "returned": "Қайтарылған",
+        "held": "Ұсталған",
+        "partiallyHeld": "Ішінара ұсталған"
+      }
     },
     "files": {
       "files": "Файлдар",
@@ -490,6 +506,14 @@
     "submitted": "Жіберілген",
     "photos": "Фото",
     "checklist": "Тексеру тізімі",
+    "reportStatus": {
+      "submitted": "Жіберілген",
+      "approved": "Мақұлданған",
+      "rejected": "Қабылданбаған"
+    },
+    "checklistItem": "Тармақ {{number}}",
+    "assignedCleaner": "Тағайындалған тазалаушы",
+    "atTime": "{{time}}-де",
     "types": {
       "postCheckout": "Шығудан кейін",
       "midStay": "Аралық",
@@ -589,7 +613,8 @@
     "taskNotFound": "Тапсырма табылмады",
     "cleaningTask": "Тазалау тапсырмасы",
     "activeCount": "Белсенді ({{count}})",
-    "completedCount": "Аяқталған ({{count}})"
+    "completedCount": "Аяқталған ({{count}})",
+    "backToTasks": "Тапсырмаларға оралу"
   },
   "aiImport": {
     "title": "AI Импорт",

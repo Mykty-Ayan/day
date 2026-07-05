@@ -31,7 +31,7 @@ function readInitialViewMode(): ViewMode {
 }
 
 export default function CleaningListPage() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const navigate = useNavigate()
   const [statusFilter, setStatusFilter] = useState<CleaningStatus | 'all'>('all')
   const [page, setPage] = useState(1)
@@ -50,7 +50,7 @@ export default function CleaningListPage() {
     { value: 'table', label: t('common.table') },
   ]
 
-  const { data, isLoading } = useCleaningTasks({
+  const { data, isLoading, isError, refetch } = useCleaningTasks({
     page,
     per_page: 20,
     status: statusFilter === 'all' ? undefined : statusFilter,
@@ -95,7 +95,6 @@ export default function CleaningListPage() {
                 setStatusFilter(value as CleaningStatus | 'all')
                 setPage(1)
               }}
-              className="min-w-max"
             >
               {STATUS_TABS.map((tab) => (
                 <ToggleGroupItem key={tab.value} value={tab.value}>
@@ -112,7 +111,6 @@ export default function CleaningListPage() {
                 if (!value) return
                 setViewMode(value as ViewMode)
               }}
-              className="min-w-max"
             >
               {VIEW_OPTIONS.map((option) => (
                 <ToggleGroupItem key={option.value} value={option.value}>
@@ -125,6 +123,18 @@ export default function CleaningListPage() {
 
         {isLoading ? (
           <Spinner />
+        ) : isError ? (
+          <div className="flex flex-col items-center justify-center py-20 text-center">
+            <p className="mb-1 text-sm font-semibold text-gray-900">{t('common.errorTitle')}</p>
+            <p className="mb-4 text-sm text-gray-500">{t('common.errorLoading')}</p>
+            <motion.button
+              whileTap={{ scale: 0.97 }}
+              onClick={() => refetch()}
+              className="flex min-h-[44px] items-center gap-2 rounded-xl border border-gray-200 bg-white px-6 py-2.5 font-semibold text-gray-700 shadow-sm transition-colors hover:bg-gray-50"
+            >
+              {t('common.retry')}
+            </motion.button>
+          </div>
         ) : !data || data.items.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20">
             <p className="text-sm text-gray-500 mb-4">{t('cleaning.noCleaningTasks')}</p>
@@ -160,7 +170,7 @@ export default function CleaningListPage() {
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-sm font-semibold text-gray-900">
-                          {task.property_name || task.property_internal_name || 'Unknown'}
+                          {task.property_name || task.property_internal_name || t('common.unknown')}
                         </p>
                         <p className="mt-0.5 truncate text-xs text-gray-500">
                           {task.property_internal_name || '—'}
@@ -169,9 +179,9 @@ export default function CleaningListPage() {
                       <CleaningStatusBadge status={task.status} />
                     </div>
                     <div className="mt-3 grid grid-cols-1 gap-2 text-xs text-gray-600 sm:grid-cols-2">
-                      <span>{formatScheduled(task.scheduled_date, task.scheduled_time)}</span>
+                      <span>{formatScheduled(task.scheduled_date, task.scheduled_time, i18n.language)}</span>
                       <span className="sm:text-right">
-                        {task.cleaner_id ? `${task.cleaner_id.slice(0, 8)}...` : t('cleaning.unassigned')}
+                        {task.cleaner_id ? t('cleaning.assignedCleaner') : t('cleaning.unassigned')}
                       </span>
                       <span className="sm:col-span-2">
                         <CleaningTypeBadge type={task.type} />
@@ -207,14 +217,23 @@ export default function CleaningListPage() {
                               params: { taskId: task.id },
                             })
                           }
-                          className="border-b border-gray-50 hover:bg-gray-50 cursor-pointer transition-colors"
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.preventDefault()
+                              navigate({ to: '/cleaning/$taskId', params: { taskId: task.id } })
+                            }
+                          }}
+                          tabIndex={0}
+                          role="button"
+                          aria-label={task.property_name || task.property_internal_name || t('common.unknown')}
+                          className="border-b border-gray-50 hover:bg-gray-50 cursor-pointer transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-black/20"
                         >
                           <td className="px-4 py-3">
                             <div className="flex items-center gap-2">
                               <div className="w-2 h-2 rounded-full shrink-0 bg-blue-500" />
                               <div className="flex flex-col min-w-0">
                                 <span className="text-sm font-medium text-gray-900 truncate max-w-[220px]">
-                                  {task.property_name || task.property_internal_name || 'Unknown'}
+                                  {task.property_name || task.property_internal_name || t('common.unknown')}
                                 </span>
                                 <span className="text-xs text-gray-400 truncate max-w-[220px]">
                                   {task.property_internal_name || '—'}
@@ -230,12 +249,12 @@ export default function CleaningListPage() {
                           </td>
                           <td className="px-4 py-3">
                             <span className="text-sm text-gray-600">
-                              {formatScheduled(task.scheduled_date, task.scheduled_time)}
+                              {formatScheduled(task.scheduled_date, task.scheduled_time, i18n.language)}
                             </span>
                           </td>
                           <td className="px-4 py-3">
                             <span className="text-sm text-gray-600">
-                              {task.cleaner_id ? `${task.cleaner_id.slice(0, 8)}...` : t('cleaning.unassigned')}
+                              {task.cleaner_id ? t('cleaning.assignedCleaner') : t('cleaning.unassigned')}
                             </span>
                           </td>
                           <td className="px-4 py-3">
@@ -279,13 +298,13 @@ export default function CleaningListPage() {
   )
 }
 
-function formatScheduled(date: string | null, time: string | null): string {
+function formatScheduled(date: string | null, time: string | null, locale: string): string {
   if (!date) return '—'
 
   const parsedDate = new Date(date)
   const displayDate = Number.isNaN(parsedDate.getTime())
     ? date
-    : parsedDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+    : parsedDate.toLocaleDateString(locale, { month: 'short', day: 'numeric' })
 
   if (!time) return displayDate
 

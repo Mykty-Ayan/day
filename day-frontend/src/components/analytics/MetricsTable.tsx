@@ -94,7 +94,6 @@ export default function MetricsTable({ properties }: { properties: PropertyMetri
             if (!value) return
             setViewMode(value as ViewMode)
           }}
-          className="min-w-max"
         >
           {VIEW_OPTIONS.map((option) => (
             <ToggleGroupItem key={option.value} value={option.value}>

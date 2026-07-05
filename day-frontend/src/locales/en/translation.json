@@ -85,6 +85,9 @@
     "transfer": "Transfer",
     "processing": "Processing...",
     "retry": "Retry",
+    "unknown": "Unknown",
+    "errorTitle": "Something went wrong",
+    "errorLoading": "We couldn't load this data. Please try again.",
     "logout": "Log out"
   },
   "home": {
@@ -100,6 +103,7 @@
     "searchPlaceholder": "Search by name...",
     "noProperties": "No properties found",
     "createFirst": "Create your first property",
+    "tagsLabel": "Filter by tag",
     "createProperty": "Create Property",
     "backToProperties": "Back to properties",
     "cloneProperty": "Clone Property",
@@ -298,7 +302,12 @@
       "totalPaidOverpaid": "Total / Paid / Overpaid",
       "daily": "Daily",
       "firstDay": "First day",
-      "overpaid": "Overpaid"
+      "overpaid": "Overpaid",
+      "paymentStatus": {
+        "pending": "Pending",
+        "completed": "Completed",
+        "failed": "Failed"
+      }
     },
     "deposits": {
       "createDeposit": "Create Deposit",
@@ -309,7 +318,14 @@
       "hold": "Hold",
       "partiallyHold": "Partially Hold",
       "held": "Held",
-      "amountToHold": "Amount to hold"
+      "amountToHold": "Amount to hold",
+      "status": {
+        "pending": "Pending",
+        "paid": "Paid",
+        "returned": "Returned",
+        "held": "Held",
+        "partiallyHeld": "Partially Held"
+      }
     },
     "files": {
       "files": "Files",
@@ -490,6 +506,14 @@
     "submitted": "Submitted",
     "photos": "Photos",
     "checklist": "Checklist",
+    "reportStatus": {
+      "submitted": "Submitted",
+      "approved": "Approved",
+      "rejected": "Rejected"
+    },
+    "checklistItem": "Item {{number}}",
+    "assignedCleaner": "Assigned cleaner",
+    "atTime": "at {{time}}",
     "types": {
       "postCheckout": "Post Checkout",
       "midStay": "Mid Stay",
@@ -589,7 +613,8 @@
     "taskNotFound": "Task not found",
     "cleaningTask": "Cleaning Task",
     "activeCount": "Active ({{count}})",
-    "completedCount": "Completed ({{count}})"
+    "completedCount": "Completed ({{count}})",
+    "backToTasks": "Back to tasks"
   },
   "aiImport": {
     "title": "AI Import",

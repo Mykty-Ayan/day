@@ -12,7 +12,7 @@ import { Link } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 import Spinner from '../../components/ui/Spinner'
 import { useCleaningTasks } from '../../hooks/useCleaning'
-import type { CleaningTask, CleaningStatus } from '../../types/cleaning'
+import type { CleaningTask, CleaningStatus, CleaningType } from '../../types/cleaning'
 
 function getTodayDateString(): string {
   const now = new Date()
@@ -31,6 +31,12 @@ function TaskCard({ task }: { task: CleaningTask }) {
     in_progress: { label: t('cleaning.status.inProgress'), color: 'text-amber-700', bg: 'bg-amber-100', icon: SprayCan },
     done: { label: t('cleaning.status.done'), color: 'text-green-700', bg: 'bg-green-100', icon: CheckCircle2 },
     verified: { label: t('cleaning.status.verified'), color: 'text-emerald-700', bg: 'bg-emerald-100', icon: CheckCircle2 },
+  }
+
+  const typeLabels: Record<CleaningType, string> = {
+    post_checkout: t('cleaning.types.postCheckout'),
+    mid_stay: t('cleaning.types.midStay'),
+    on_demand: t('cleaning.types.onDemand'),
   }
 
   const config = statusConfig[task.status]
@@ -53,11 +59,11 @@ function TaskCard({ task }: { task: CleaningTask }) {
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-bold text-gray-900 truncate">
-                {task.property_internal_name || task.property_name || 'Unknown Property'}
+                {task.property_internal_name || task.property_name || t('common.unknown')}
               </p>
               <p className="text-xs text-gray-500 mt-0.5">
-                {task.type.replace('_', ' ')}
-                {task.scheduled_time && ` at ${task.scheduled_time}`}
+                {typeLabels[task.type]}
+                {task.scheduled_time && ` ${t('cleaning.atTime', { time: task.scheduled_time })}`}
               </p>
               <span className={`inline-block mt-1 px-2 py-0.5 rounded-md text-[10px] font-bold uppercase ${config.bg} ${config.color}`}>
                 {config.label}

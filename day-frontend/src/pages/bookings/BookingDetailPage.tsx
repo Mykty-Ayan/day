@@ -38,9 +38,11 @@ import type {
   BookingStatus,
   DepositAction,
   DepositActionInput,
+  DepositStatus,
   Guest,
   PaymentInput,
   PaymentMethod,
+  PaymentStatus,
   PaymentType,
 } from '../../types/booking'
 import type { ViewMode } from '../../types/view-mode'
@@ -121,7 +123,7 @@ function getStatusActions(status: BookingStatus, t: (key: string) => string): St
 }
 
 export default function BookingDetailPage() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const { bookingId } = useParams({ strict: false }) as { bookingId: string }
   const navigate = useNavigate()
   const { data: detail, isLoading } = useBooking(bookingId)
@@ -208,7 +210,7 @@ export default function BookingDetailPage() {
               <BookingStatusBadge status={booking.status} />
             </div>
             <p className="text-sm text-gray-500">
-              {booking.guest_name} &middot; {formatDate(booking.check_in)} <ArrowRight className="w-3 h-3 inline text-gray-400" /> {formatDate(booking.check_out)}
+              {booking.guest_name} &middot; {formatDate(booking.check_in, i18n.language)} <ArrowRight className="w-3 h-3 inline text-gray-400" /> {formatDate(booking.check_out, i18n.language)}
             </p>
           </div>
           <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
@@ -301,7 +303,7 @@ export default function BookingDetailPage() {
 
 // --- Overview Tab ---
 function OverviewTab({ booking, guest }: { booking: Booking; guest: Guest }) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const { symbol } = useCurrency()
 
   const guestCountStr = (() => {
@@ -318,8 +320,8 @@ function OverviewTab({ booking, guest }: { booking: Booking; guest: Guest }) {
       <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
         <h2 className="text-sm font-bold text-gray-900 mb-4">{t('bookings.bookingDetails')}</h2>
         <div className="space-y-3">
-          <InfoRow icon={Calendar} label={t('properties.checkIn')} value={formatDate(booking.check_in)} />
-          <InfoRow icon={Calendar} label={t('properties.checkOut')} value={formatDate(booking.check_out)} />
+          <InfoRow icon={Calendar} label={t('properties.checkIn')} value={formatDate(booking.check_in, i18n.language)} />
+          <InfoRow icon={Calendar} label={t('properties.checkOut')} value={formatDate(booking.check_out, i18n.language)} />
           <InfoRow icon={Users} label={t('bookings.guest')} value={guestCountStr} />
           <InfoRow icon={DollarSign} label={t('bookings.totalPrice')} value={`${symbol}${formatMoney(booking.total_price)}`} />
           <div className="flex items-center gap-3 pt-1">
@@ -427,6 +429,21 @@ function PaymentsTab({
     { value: 'cards', label: t('common.cards') },
     { value: 'table', label: t('common.table') },
   ]
+
+  const paymentTypeLabels: Record<PaymentType, string> = {
+    payment: t('bookings.payments.payment'),
+    refund: t('bookings.payments.refund'),
+  }
+  const paymentMethodLabels: Record<PaymentMethod, string> = {
+    cash: t('common.cash'),
+    card: t('common.card'),
+    transfer: t('common.transfer'),
+  }
+  const paymentStatusLabels: Record<PaymentStatus, string> = {
+    pending: t('bookings.payments.paymentStatus.pending'),
+    completed: t('bookings.payments.paymentStatus.completed'),
+    failed: t('bookings.payments.paymentStatus.failed'),
+  }
 
   const totalPaid = payments
     .filter((p) => p.status === 'completed')
@@ -626,12 +643,12 @@ function PaymentsTab({
                   <p className="text-sm font-semibold text-gray-900">
                     {payment.type === 'refund' ? '-' : ''}{symbol}{formatMoney(Math.abs(normalizeNumber(payment.amount)))}
                   </p>
-                  <p className="mt-0.5 text-xs text-gray-500 capitalize">
-                    {payment.type} · {payment.method}
+                  <p className="mt-0.5 text-xs text-gray-500">
+                    {paymentTypeLabels[payment.type]} · {paymentMethodLabels[payment.method]}
                   </p>
                 </div>
                 <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase ${paymentStatusStyle(payment.status)}`}>
-                  {payment.status}
+                  {paymentStatusLabels[payment.status]}
                 </span>
               </div>
               <div className="mt-3 grid grid-cols-1 gap-1 text-xs text-gray-600 sm:grid-cols-2">
@@ -661,11 +678,11 @@ function PaymentsTab({
                     <td className="px-4 py-3 text-sm font-semibold text-gray-900">
                       {p.type === 'refund' ? '-' : ''}{symbol}{formatMoney(Math.abs(normalizeNumber(p.amount)))}
                     </td>
-                    <td className="px-4 py-3 text-xs text-gray-600 capitalize">{p.type}</td>
-                    <td className="px-4 py-3 text-xs text-gray-600 capitalize">{p.method}</td>
+                    <td className="px-4 py-3 text-xs text-gray-600">{paymentTypeLabels[p.type]}</td>
+                    <td className="px-4 py-3 text-xs text-gray-600">{paymentMethodLabels[p.method]}</td>
                     <td className="px-4 py-3">
                       <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase ${paymentStatusStyle(p.status)}`}>
-                        {p.status}
+                        {paymentStatusLabels[p.status]}
                       </span>
                     </td>
                     <td className="px-4 py-3 text-xs text-gray-500">
@@ -865,7 +882,7 @@ function DepositCard({ bookingId, deposit }: { bookingId: string; deposit: Booki
           )}
         </div>
         <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase ${depositStatusStyle[deposit.status] || 'bg-gray-100 text-gray-700'}`}>
-          {deposit.status.replace('_', ' ')}
+          {depositStatusLabel(t, deposit.status)}
         </span>
       </div>
       {deposit.reason && (
@@ -1000,7 +1017,7 @@ function DepositTableRow({ bookingId, deposit }: { bookingId: string; deposit: B
       </td>
       <td className="px-4 py-3">
         <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase ${depositStatusStyle[deposit.status] || 'bg-gray-100 text-gray-700'}`}>
-          {deposit.status.replace('_', ' ')}
+          {depositStatusLabel(t, deposit.status)}
         </span>
       </td>
       <td className="px-4 py-3 text-xs text-gray-600">
@@ -1223,7 +1240,18 @@ function HistoryTab({ auditLogs }: { auditLogs: BookingAuditLog[] }) {
   )
 }
 
-function formatDate(dateStr: string): string {
+function depositStatusLabel(t: (key: string) => string, status: DepositStatus): string {
+  const map: Record<DepositStatus, string> = {
+    pending: t('bookings.deposits.status.pending'),
+    paid: t('bookings.deposits.status.paid'),
+    returned: t('bookings.deposits.status.returned'),
+    held: t('bookings.deposits.status.held'),
+    partially_held: t('bookings.deposits.status.partiallyHeld'),
+  }
+  return map[status] ?? status
+}
+
+function formatDate(dateStr: string, locale: string): string {
   const d = new Date(dateStr)
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+  return d.toLocaleDateString(locale, { month: 'short', day: 'numeric', year: 'numeric' })
 }

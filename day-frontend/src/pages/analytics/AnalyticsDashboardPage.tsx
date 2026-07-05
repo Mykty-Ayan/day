@@ -27,8 +27,18 @@ export default function AnalyticsDashboardPage() {
     source: source === 'all' ? undefined : source,
   }
 
-  const { data: metricsData, isLoading: metricsLoading } = useAnalyticsMetrics(filters)
-  const { data: timeSeriesData, isLoading: timeSeriesLoading } = useAnalyticsTimeSeries(filters)
+  const {
+    data: metricsData,
+    isLoading: metricsLoading,
+    isError: metricsError,
+    refetch: refetchMetrics,
+  } = useAnalyticsMetrics(filters)
+  const {
+    data: timeSeriesData,
+    isLoading: timeSeriesLoading,
+    isError: timeSeriesError,
+    refetch: refetchTimeSeries,
+  } = useAnalyticsTimeSeries(filters)
   const { data: propertiesData } = useProperties({ per_page: 100, status: 'active' })
   const properties = propertiesData?.items ?? []
 
@@ -48,6 +58,15 @@ export default function AnalyticsDashboardPage() {
   }
 
   const isLoading = metricsLoading || timeSeriesLoading
+  const isError = metricsError || timeSeriesError
+  const hasSeriesData = (timeSeriesData?.data?.length ?? 0) > 0
+  const hasPropertyData = (metricsData?.properties?.length ?? 0) > 0
+  const isEmpty = !hasSeriesData && !hasPropertyData
+
+  function handleRetry() {
+    refetchMetrics()
+    refetchTimeSeries()
+  }
 
   return (
     <div className="px-4 py-4 sm:px-6 sm:py-6 max-w-7xl mx-auto w-full">
@@ -79,6 +98,22 @@ export default function AnalyticsDashboardPage() {
 
         {isLoading ? (
           <Spinner />
+        ) : isError ? (
+          <div className="flex flex-col items-center justify-center py-20 text-center">
+            <p className="mb-1 text-sm font-semibold text-gray-900">{t('common.errorTitle')}</p>
+            <p className="mb-4 text-sm text-gray-500">{t('common.errorLoading')}</p>
+            <motion.button
+              whileTap={{ scale: 0.97 }}
+              onClick={handleRetry}
+              className="flex min-h-[44px] items-center gap-2 rounded-xl border border-gray-200 bg-white px-6 py-2.5 font-semibold text-gray-700 shadow-sm transition-colors hover:bg-gray-50"
+            >
+              {t('common.retry')}
+            </motion.button>
+          </div>
+        ) : isEmpty ? (
+          <div className="flex flex-col items-center justify-center py-20 text-center">
+            <p className="text-sm text-gray-500">{t('analytics.noData')}</p>
+          </div>
         ) : (
           <div className="flex flex-col gap-6">
             {/* Summary Cards */}

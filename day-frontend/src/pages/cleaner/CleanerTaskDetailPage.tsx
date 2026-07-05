@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { motion } from 'framer-motion'
 import {
   ArrowLeft,
@@ -10,6 +10,7 @@ import {
   MapPin,
   Clock,
   AlertCircle,
+  X,
 } from 'lucide-react'
 import { useNavigate, useParams } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
@@ -21,7 +22,7 @@ import {
   useChecklistTemplates,
   useChecklistTemplate as useChecklistTemplateHook,
 } from '../../hooks/useCleaning'
-import type { CleaningStatus, RoomType } from '../../types/cleaning'
+import type { CleaningStatus, CleaningType, RoomType } from '../../types/cleaning'
 import { getChecklistTemplate as fetchChecklistTemplate } from '../../api/cleaning'
 import { showToast } from '../../components/ui/Toast'
 
@@ -59,6 +60,15 @@ export default function CleanerTaskDetailPage() {
   const changeStatus = useChangeCleaningTaskStatus(taskId)
   const submitReport = useSubmitReport(taskId)
   const { data: templates } = useChecklistTemplates()
+  const firstTemplateId = templates?.[0]?.id ?? ''
+  const { data: firstTemplateDetail } = useChecklistTemplateHook(firstTemplateId)
+  const checklistItemTitleById = useMemo(() => {
+    const map: Record<string, string> = {}
+    for (const it of firstTemplateDetail?.items ?? []) {
+      map[it.id] = it.title
+    }
+    return map
+  }, [firstTemplateDetail])
 
   const [checklist, setChecklist] = useState<ChecklistState>({})
   const [photos, setPhotos] = useState<PhotoEntry[]>([])
@@ -82,6 +92,12 @@ export default function CleanerTaskDetailPage() {
     in_progress: t('cleaning.actions.markAsDone'),
     done: t('cleaning.actions.verify'),
     verified: '',
+  }
+
+  const typeLabels: Record<CleaningType, string> = {
+    post_checkout: t('cleaning.types.postCheckout'),
+    mid_stay: t('cleaning.types.midStay'),
+    on_demand: t('cleaning.types.onDemand'),
   }
 
   const ROOM_TYPES: { value: RoomType; label: string }[] = [
@@ -173,8 +189,16 @@ export default function CleanerTaskDetailPage() {
 
   if (!task) {
     return (
-      <div className="flex flex-col items-center justify-center py-20">
+      <div className="flex flex-col items-center justify-center gap-4 py-20">
         <p className="text-sm text-gray-500">{t('cleaner.taskNotFound')}</p>
+        <button
+          type="button"
+          onClick={() => navigate({ to: '/cleaner' })}
+          className="inline-flex min-h-[44px] items-center gap-2 rounded-xl border border-gray-200 bg-white px-6 py-2.5 font-semibold text-gray-700 shadow-sm transition-colors hover:bg-gray-50"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          {t('cleaner.backToTasks')}
+        </button>
       </div>
     )
   }
@@ -212,7 +236,7 @@ export default function CleanerTaskDetailPage() {
               <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase ${statusColors[task.status]}`}>
                 {statusLabels[task.status]}
               </span>
-              <span className="text-xs text-gray-400 capitalize">{task.type.replace('_', ' ')}</span>
+              <span className="text-xs text-gray-400">{typeLabels[task.type]}</span>
             </div>
           </div>
         </div>
@@ -228,14 +252,14 @@ export default function CleanerTaskDetailPage() {
                 <Clock className="w-4 h-4 text-gray-400" />
                 <span className="text-sm text-gray-600">
                   {task.scheduled_date}
-                  {task.scheduled_time && ` at ${task.scheduled_time}`}
+                  {task.scheduled_time && ` ${t('cleaning.atTime', { time: task.scheduled_time })}`}
                 </span>
               </div>
             )}
             <div className="flex items-center gap-2">
               <MapPin className="w-4 h-4 text-gray-400" />
               <span className="text-sm text-gray-600">
-                {task.property_internal_name || task.property_name || 'Unknown'}
+                {task.property_internal_name || task.property_name || t('common.unknown')}
               </span>
             </div>
             {task.notes && (
@@ -256,21 +280,23 @@ export default function CleanerTaskDetailPage() {
               report.report.status === 'rejected' ? 'bg-red-100 text-red-700' :
               'bg-gray-100 text-gray-700'
             }`}>
-              {report.report.status}
+              {t('cleaning.reportStatus.' + report.report.status)}
             </span>
             {report.report.notes && (
               <p className="text-sm text-gray-600 mt-2">{report.report.notes}</p>
             )}
             {report.checklist.length > 0 && (
               <div className="mt-3 space-y-1">
-                {report.checklist.map((item) => (
+                {report.checklist.map((item, idx) => (
                   <div key={item.id} className="flex items-center gap-2">
                     {item.is_done ? (
                       <CheckCircle2 className="w-4 h-4 text-green-500" />
                     ) : (
                       <Circle className="w-4 h-4 text-gray-300" />
                     )}
-                    <span className="text-xs text-gray-600">{item.checklist_item_id}</span>
+                    <span className="text-xs text-gray-600">
+                      {checklistItemTitleById[item.checklist_item_id] ?? t('cleaning.checklistItem', { number: idx + 1 })}
+                    </span>
                   </div>
                 ))}
               </div>
@@ -303,21 +329,25 @@ export default function CleanerTaskDetailPage() {
               <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
                 {t('cleaner.photos')}
               </p>
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap gap-3">
                 {photos.map((photo, i) => (
-                  <div key={i} className="relative w-20 h-20 rounded-xl overflow-hidden border border-gray-200">
-                    <img src={photo.preview} alt="" className="w-full h-full object-cover" />
-                    <button
-                      type="button"
-                      onClick={() => removePhoto(i)}
-                      className="absolute top-0.5 right-0.5 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center text-xs"
-                    >
-                      x
-                    </button>
+                  <div key={i} className="flex w-24 flex-col gap-1">
+                    <div className="relative h-24 w-24 overflow-hidden rounded-xl border border-gray-200">
+                      <img src={photo.preview} alt="" className="w-full h-full object-cover" />
+                      <button
+                        type="button"
+                        onClick={() => removePhoto(i)}
+                        aria-label={t('common.delete')}
+                        className="absolute right-1 top-1 flex h-11 w-11 items-center justify-center rounded-full bg-black/60 text-white transition-colors hover:bg-black/80"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
                     <select
                       value={photo.room_type}
                       onChange={(e) => updatePhotoRoomType(i, e.target.value as RoomType)}
-                      className="absolute bottom-0 left-0 right-0 text-[8px] bg-black/60 text-white px-1 py-0.5"
+                      aria-label={t('cleaner.photos')}
+                      className="w-24 rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-xs text-gray-700 outline-none focus:ring-2 focus:ring-black/10"
                     >
                       {ROOM_TYPES.map((rt) => (
                         <option key={rt.value} value={rt.value}>{rt.label}</option>
@@ -325,7 +355,7 @@ export default function CleanerTaskDetailPage() {
                     </select>
                   </div>
                 ))}
-                <label className="w-20 h-20 rounded-xl border-2 border-dashed border-gray-200 flex flex-col items-center justify-center cursor-pointer hover:bg-gray-50 transition-colors min-w-[48px] min-h-[48px]">
+                <label className="h-24 w-24 rounded-xl border-2 border-dashed border-gray-200 flex flex-col items-center justify-center cursor-pointer hover:bg-gray-50 transition-colors min-w-[48px] min-h-[48px]">
                   <Camera className="w-5 h-5 text-gray-400" />
                   <span className="text-[10px] text-gray-400 mt-1">{t('common.add')}</span>
                   <input
