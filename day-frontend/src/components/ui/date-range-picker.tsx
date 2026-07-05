@@ -72,7 +72,9 @@ export default function DateRangePicker({
 
   let label = placeholder ?? t('common.selectDates')
   if (start && end) {
-    label = `${format(start, 'dd.MM')} → ${format(end, 'dd.MM')}`
+    // Include the year on both ends when they span different years to avoid ambiguity.
+    const fmt = start.getFullYear() === end.getFullYear() ? 'dd.MM' : 'dd.MM.yy'
+    label = `${format(start, fmt)} → ${format(end, fmt)}`
   } else if (start) {
     label = `${format(start, 'dd.MM')} → ...`
   }

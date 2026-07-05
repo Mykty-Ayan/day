@@ -362,6 +362,8 @@
     "pausedUnavailable": "Paused properties are unavailable for booking",
     "inHouse": "In house",
     "sourceBcom": "Bcom",
+    "moveTo": "Move to…",
+    "noMoveTargets": "No other properties available",
     "weekdays": {
       "0": "Sun",
       "1": "Mon",

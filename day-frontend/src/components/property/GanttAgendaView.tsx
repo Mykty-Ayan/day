@@ -59,15 +59,21 @@ function bookingOverlapsRange(checkIn: string, checkOut: string, rangeStart: str
   return bookingStart < viewEnd && bookingEnd > viewStart
 }
 
-function formatAgendaDate(dateStr: string): string {
+// Uses the app i18n month names (gantt.monthsShort) instead of the browser locale.
+function formatAgendaDate(dateStr: string, monthNames: string[]): string {
   const date = parseDateOnly(dateStr)
-  return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+  return `${monthNames[date.getMonth()]} ${date.getDate()}`
 }
 
 export default function GanttAgendaView({ rows, rangeStart, rangeEnd }: Props) {
   const { t } = useTranslation()
   const navigate = useNavigate()
-  const { symbol: currencySymbol } = useCurrency()
+  const { formatChip } = useCurrency()
+
+  const shortMonthNames = useMemo(
+    () => Array.from({ length: 12 }, (_, i) => t(`gantt.monthsShort.${i}`)),
+    [t],
+  )
 
   const sortedRows = useMemo(
     () => [...rows].sort((a, b) => a.property.internal_name.localeCompare(b.property.internal_name)),
@@ -159,7 +165,7 @@ export default function GanttAgendaView({ rows, rangeStart, rangeEnd }: Props) {
                     <p className="mt-1 text-xs text-gray-600">
                       {booking.rental_mode === 'hourly' ? (
                         <>
-                          {formatAgendaDate(booking.check_in)}
+                          {formatAgendaDate(booking.check_in, shortMonthNames)}
                           {' · '}
                           {formatTimeOfDay(booking.check_in)}–{formatTimeOfDay(booking.check_out)}
                           <span className="ml-1.5 inline-flex rounded border border-indigo-200 bg-indigo-50 px-1 py-0.5 text-[10px] font-semibold text-indigo-700">
@@ -168,7 +174,7 @@ export default function GanttAgendaView({ rows, rangeStart, rangeEnd }: Props) {
                         </>
                       ) : (
                         <>
-                          {formatAgendaDate(booking.check_in)} - {formatAgendaDate(booking.check_out)}
+                          {formatAgendaDate(booking.check_in, shortMonthNames)} - {formatAgendaDate(booking.check_out, shortMonthNames)}
                         </>
                       )}
                     </p>
@@ -176,8 +182,7 @@ export default function GanttAgendaView({ rows, rangeStart, rangeEnd }: Props) {
                       <span>{t(`bookings.sources.${booking.source}`)}</span>
                       <span className="text-gray-300">•</span>
                       <span>
-                        {t('common.total')}: {currencySymbol}
-                        {booking.total_price}
+                        {t('common.total')}: {formatChip(booking.total_price)}
                       </span>
                     </div>
                   </button>

@@ -362,6 +362,8 @@
     "pausedUnavailable": "Тоқтатылған нысандар бронь жасау үшін қол жетімді емес",
     "inHouse": "Үйде",
     "sourceBcom": "Bcom",
+    "moveTo": "Көшіру…",
+    "noMoveTargets": "Басқа нысандар жоқ",
     "weekdays": {
       "0": "Жс",
       "1": "Дс",

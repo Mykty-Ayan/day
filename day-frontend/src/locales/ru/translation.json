@@ -362,6 +362,8 @@
     "pausedUnavailable": "Объекты на паузе недоступны для бронирования",
     "inHouse": "В доме",
     "sourceBcom": "Bcom",
+    "moveTo": "Переместить в…",
+    "noMoveTargets": "Нет других объектов",
     "weekdays": {
       "0": "Вс",
       "1": "Пн",
