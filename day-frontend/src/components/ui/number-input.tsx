@@ -103,12 +103,14 @@ export default function NumberInput({
           inputClassName,
         )}
       />
-      <div className="absolute right-2 top-1/2 -translate-y-1/2 flex flex-col gap-1">
+      {/* Flush spinner: two half-height segments sized to the input so the
+          controls sit inside the field instead of overflowing it. */}
+      <div className="absolute right-1.5 top-1.5 bottom-1.5 flex w-7 flex-col overflow-hidden rounded-lg border border-gray-200">
         <button
           type="button"
           onClick={() => handleStep(1)}
           disabled={disabled}
-          className="flex h-7 w-7 items-center justify-center rounded-md border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 disabled:opacity-40"
+          className="flex flex-1 items-center justify-center bg-white text-gray-500 hover:bg-gray-100 disabled:opacity-40"
           aria-label={t('common.increment')}
         >
           <ChevronUp className="h-3.5 w-3.5" />
@@ -117,7 +119,7 @@ export default function NumberInput({
           type="button"
           onClick={() => handleStep(-1)}
           disabled={disabled}
-          className="flex h-7 w-7 items-center justify-center rounded-md border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 disabled:opacity-40"
+          className="flex flex-1 items-center justify-center border-t border-gray-200 bg-white text-gray-500 hover:bg-gray-100 disabled:opacity-40"
           aria-label={t('common.decrement')}
         >
           <ChevronDown className="h-3.5 w-3.5" />

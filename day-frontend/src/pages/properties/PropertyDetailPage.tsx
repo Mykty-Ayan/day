@@ -383,7 +383,7 @@ export default function PropertyDetailPage() {
 
             {/* Pricing */}
             <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
-              <h2 className="text-sm font-bold text-gray-900 mb-4">{t('properties.pricing')}</h2>
+              <h2 className="text-sm font-bold text-gray-900 mb-4">{t('properties.pricing.title')}</h2>
               <PricingForm
                 pricing={pricing ?? null}
                 rentalMode={property.rental_mode}
