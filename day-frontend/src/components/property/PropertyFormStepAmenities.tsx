@@ -13,7 +13,7 @@ interface Props {
 
 export default function PropertyFormStepAmenities({ selectedIds, onChange }: Props) {
   const { t } = useTranslation()
-  const { data: amenities = [], isLoading } = useAmenities()
+  const { data: amenities = [], isLoading, isError } = useAmenities()
   const [search, setSearch] = useState('')
 
   const filtered = useMemo(() => {
@@ -42,6 +42,14 @@ export default function PropertyFormStepAmenities({ selectedIds, onChange }: Pro
 
   if (isLoading) {
     return <Spinner size="sm" />
+  }
+
+  if (isError) {
+    return (
+      <p className="text-sm text-red-600 text-center py-4">
+        {t('properties.form.amenitiesError')}
+      </p>
+    )
   }
 
   return (
@@ -75,7 +83,7 @@ export default function PropertyFormStepAmenities({ selectedIds, onChange }: Pro
                 return (
                   <label
                     key={amenity.id}
-                    className={`flex items-center gap-2 px-3 py-2 rounded-xl text-sm border transition-all text-left cursor-pointer ${
+                    className={`flex items-center gap-2 px-3 py-2 rounded-xl text-sm border transition-all text-left cursor-pointer min-w-0 ${
                       isSelected
                         ? 'bg-black text-white border-black'
                         : 'bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100'
@@ -86,11 +94,11 @@ export default function PropertyFormStepAmenities({ selectedIds, onChange }: Pro
                       onCheckedChange={() => toggle(amenity.id)}
                       className={
                         isSelected
-                          ? 'border-white data-[state=checked]:bg-white data-[state=checked]:text-black'
-                          : ''
+                          ? 'shrink-0 border-white data-[state=checked]:bg-white data-[state=checked]:text-black'
+                          : 'shrink-0'
                       }
                     />
-                    {amenity.name}
+                    <span className="truncate" title={amenity.name}>{amenity.name}</span>
                   </label>
                 )
               })}

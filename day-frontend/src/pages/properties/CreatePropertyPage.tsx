@@ -15,6 +15,7 @@ import PropertyFormStepPhotos from '../../components/property/PropertyFormStepPh
 import type { PhotoEntry } from '../../components/property/PropertyFormStepPhotos'
 import PropertyFormStepRules from '../../components/property/PropertyFormStepRules'
 import PropertyFormStepAmenities from '../../components/property/PropertyFormStepAmenities'
+import { showToast } from '../../components/ui/Toast'
 
 const STEPS = ['basicInfo', 'address', 'details', 'pricing', 'photos', 'rules', 'amenities'] as const
 
@@ -104,7 +105,6 @@ export default function CreatePropertyPage() {
   const [step, setStep] = useState(0)
   const [form, setForm] = useState<FormData>(initialForm)
   const [errors, setErrors] = useState<Record<string, string>>({})
-  const [submitError, setSubmitError] = useState<string | null>(null)
   const [direction, setDirection] = useState(1)
 
   function validateStep(): boolean {
@@ -130,8 +130,6 @@ export default function CreatePropertyPage() {
 
   async function handleSubmit() {
     if (!validateStep()) return
-
-    setSubmitError(null)
 
     const payload: PropertyCreateInput = {
       name: form.basic.name,
@@ -166,9 +164,10 @@ export default function CreatePropertyPage() {
         await linkAmenities(property.id, form.amenityIds)
       }
 
+      showToast('success', t('properties.propertyCreated'))
       navigate({ to: '/properties/$propertyId', params: { propertyId: property.id } })
     } catch {
-      setSubmitError(t('properties.failedCreate'))
+      showToast('error', t('properties.failedCreate'))
     }
   }
 
@@ -265,13 +264,6 @@ export default function CreatePropertyPage() {
             </motion.div>
           </AnimatePresence>
         </div>
-
-        {/* Error message */}
-        {submitError && (
-          <div className="mt-4 bg-red-50 border border-red-200 rounded-xl p-3">
-            <p className="text-sm text-red-600">{submitError}</p>
-          </div>
-        )}
 
         {/* Navigation */}
         <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:justify-between">

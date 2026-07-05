@@ -264,8 +264,8 @@ export default function PropertyDetailPage() {
                   <Building2 className="w-4 h-4 text-gray-400" />
                   <div>
                     <p className="text-xs text-gray-500">{t('common.type')}</p>
-                    <p className="text-sm font-semibold text-gray-900 capitalize">
-                      {property.type}
+                    <p className="text-sm font-semibold text-gray-900">
+                      {t(`common.${property.type}`)}
                     </p>
                   </div>
                 </div>
@@ -274,7 +274,7 @@ export default function PropertyDetailPage() {
                   <div>
                     <p className="text-xs text-gray-500">{t('properties.rooms')}</p>
                     <p className="text-sm font-semibold text-gray-900">
-                      {property.rooms}
+                      {property.rooms ?? '-'}
                     </p>
                   </div>
                 </div>
@@ -283,7 +283,7 @@ export default function PropertyDetailPage() {
                   <div>
                     <p className="text-xs text-gray-500">{t('properties.beds')}</p>
                     <p className="text-sm font-semibold text-gray-900">
-                      {property.beds}
+                      {property.beds ?? '-'}
                     </p>
                   </div>
                 </div>
@@ -292,7 +292,7 @@ export default function PropertyDetailPage() {
                   <div>
                     <p className="text-xs text-gray-500">{t('properties.area')}</p>
                     <p className="text-sm font-semibold text-gray-900">
-                      {property.area_total ?? '-'} m²
+                      {property.area_total != null ? `${property.area_total} m²` : '-'}
                     </p>
                   </div>
                 </div>
