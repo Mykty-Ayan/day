@@ -464,9 +464,12 @@ async def calculate_price(
             body.check_out,
             body.adults_count,
             body.children_count,
+            body.rental_mode,
         )
         return PriceCalculateResponse(
             nights=result.nights,
+            hours=result.units if result.unit_label == "hours" else 0,
+            unit_label=result.unit_label,
             base_total=result.base_total,
             weekend_surcharge=result.weekend_surcharge,
             seasonal_adjustment=result.seasonal_adjustment,

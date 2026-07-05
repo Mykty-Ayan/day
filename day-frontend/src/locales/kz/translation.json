@@ -266,6 +266,8 @@
     "unableToCalculate": "Бағаны есептеу мүмкін болмады.",
     "nights": "{{count}} түн",
     "nights_other": "{{count}} түн",
+    "hours": "{{count}} сағат",
+    "hours_other": "{{count}} сағат",
     "weekendSurcharge": "Демалыс күні үстемесі",
     "seasonalAdjustment": "Маусымдық түзету",
     "extraGuestSurcharge": "Қосымша қонақ үстемесі",

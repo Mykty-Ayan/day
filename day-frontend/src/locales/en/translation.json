@@ -266,6 +266,8 @@
     "unableToCalculate": "Unable to calculate price.",
     "nights": "{{count}} night",
     "nights_other": "{{count}} nights",
+    "hours": "{{count}} hour",
+    "hours_other": "{{count}} hours",
     "weekendSurcharge": "Weekend surcharge",
     "seasonalAdjustment": "Seasonal adjustment",
     "extraGuestSurcharge": "Extra guest surcharge",

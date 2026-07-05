@@ -556,7 +556,11 @@ export default function CreateBookingPage() {
                 </div>
               ) : priceData ? (
                 <div className="space-y-2">
-                  <PriceLine label={t('bookings.nights', { count: priceData.nights })} amount={priceData.base_total} currencySymbol={symbol} />
+                  {priceData.unit_label === 'hours' ? (
+                    <PriceLine label={t('bookings.hours', { count: priceData.hours })} amount={priceData.base_total} currencySymbol={symbol} />
+                  ) : (
+                    <PriceLine label={t('bookings.nights', { count: priceData.nights })} amount={priceData.base_total} currencySymbol={symbol} />
+                  )}
                   {priceData.weekend_surcharge > 0 && (
                     <PriceLine label={t('bookings.weekendSurcharge')} amount={priceData.weekend_surcharge} currencySymbol={symbol} />
                   )}

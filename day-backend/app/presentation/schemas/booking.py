@@ -238,6 +238,8 @@ class PriceCalculateResponse(BaseModel):
     model_config = ConfigDict(json_encoders={Decimal: float})
 
     nights: int
+    hours: int
+    unit_label: str
     base_total: Decimal
     weekend_surcharge: Decimal
     seasonal_adjustment: Decimal

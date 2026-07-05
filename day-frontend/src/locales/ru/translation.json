@@ -266,6 +266,8 @@
     "unableToCalculate": "Не удалось рассчитать стоимость.",
     "nights": "{{count}} ночь",
     "nights_other": "{{count}} ночей",
+    "hours": "{{count}} час",
+    "hours_other": "{{count}} часов",
     "weekendSurcharge": "Наценка за выходные",
     "seasonalAdjustment": "Сезонная корректировка",
     "extraGuestSurcharge": "Доплата за доп. гостей",
