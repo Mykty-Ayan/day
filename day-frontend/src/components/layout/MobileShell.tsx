@@ -96,7 +96,7 @@ export default function MobileShell({
         </div>
       </header>
 
-      <main className="flex flex-1 flex-col pb-24">{children}</main>
+      <main className="flex min-w-0 flex-1 flex-col overflow-x-hidden pb-[calc(6rem+env(safe-area-inset-bottom))]">{children}</main>
 
       <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-gray-100 bg-white safe-area-bottom">
         <div className="grid grid-cols-5 gap-1 px-2 py-2">

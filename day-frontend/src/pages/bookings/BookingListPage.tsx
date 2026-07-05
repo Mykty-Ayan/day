@@ -156,41 +156,35 @@ export default function BookingListPage() {
               </SelectContent>
             </Select>
           </div>
-          <div className="w-full overflow-x-auto">
-            <ToggleGroup
-              type="single"
-              value={statusFilter}
-              onValueChange={(value) => {
-                if (!value) return
-                setStatusFilter(value as BookingStatus | 'all')
-                setPage(1)
-              }}
-              className="min-w-max"
-            >
-              {STATUS_TABS.map((tab) => (
-                <ToggleGroupItem key={tab.value} value={tab.value}>
-                  {tab.label}
-                </ToggleGroupItem>
-              ))}
-            </ToggleGroup>
-          </div>
-          <div className="w-full overflow-x-auto">
-            <ToggleGroup
-              type="single"
-              value={viewMode}
-              onValueChange={(value) => {
-                if (!value) return
-                setViewMode(value as ViewMode)
-              }}
-              className="min-w-max"
-            >
-              {VIEW_OPTIONS.map((option) => (
-                <ToggleGroupItem key={option.value} value={option.value}>
-                  {option.label}
-                </ToggleGroupItem>
-              ))}
-            </ToggleGroup>
-          </div>
+          <ToggleGroup
+            type="single"
+            value={statusFilter}
+            onValueChange={(value) => {
+              if (!value) return
+              setStatusFilter(value as BookingStatus | 'all')
+              setPage(1)
+            }}
+          >
+            {STATUS_TABS.map((tab) => (
+              <ToggleGroupItem key={tab.value} value={tab.value}>
+                {tab.label}
+              </ToggleGroupItem>
+            ))}
+          </ToggleGroup>
+          <ToggleGroup
+            type="single"
+            value={viewMode}
+            onValueChange={(value) => {
+              if (!value) return
+              setViewMode(value as ViewMode)
+            }}
+          >
+            {VIEW_OPTIONS.map((option) => (
+              <ToggleGroupItem key={option.value} value={option.value}>
+                {option.label}
+              </ToggleGroupItem>
+            ))}
+          </ToggleGroup>
         </div>
 
         {/* Content */}

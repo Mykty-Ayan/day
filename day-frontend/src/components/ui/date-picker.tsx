@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { format, isValid, parseISO } from 'date-fns'
 import { Calendar as CalendarIcon } from 'lucide-react'
 import type { Matcher } from 'react-day-picker'
+import { useTranslation } from 'react-i18next'
 import { cn } from '../../lib/utils'
 import { Calendar } from './calendar'
 import { Popover, PopoverContent, PopoverTrigger } from './popover'
@@ -31,11 +32,13 @@ export default function DatePicker({
   value,
   onChange,
   minDate,
-  placeholder = 'Pick a date',
+  placeholder,
   disabled,
   className,
 }: DatePickerProps) {
+  const { t } = useTranslation()
   const [open, setOpen] = useState(false)
+  const resolvedPlaceholder = placeholder ?? t('common.pickDate')
   const selected = normalizeDate(value)
   const min = normalizeDate(minDate)
   const disabledDays: Matcher | undefined = min ? { before: min } : undefined
@@ -53,7 +56,7 @@ export default function DatePicker({
             className,
           )}
         >
-          <span className="truncate">{selected ? format(selected, 'dd.MM.yyyy') : placeholder}</span>
+          <span className="truncate">{selected ? format(selected, 'dd.MM.yyyy') : resolvedPlaceholder}</span>
           <CalendarIcon className="h-4 w-4 text-gray-400" />
         </button>
       </PopoverTrigger>

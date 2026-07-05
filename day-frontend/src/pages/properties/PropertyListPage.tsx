@@ -59,7 +59,7 @@ export default function PropertyListPage() {
             />
           </div>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-            <div className="w-full overflow-x-auto sm:w-auto">
+            <div className="w-full sm:w-auto">
               <ToggleGroup
                 type="single"
                 value={statusFilter}
@@ -67,7 +67,6 @@ export default function PropertyListPage() {
                   if (!value) return
                   setStatusFilter(value as PropertyStatus | 'all')
                 }}
-                className="min-w-max"
               >
                 {statusTabValues.map((value) => (
                   <ToggleGroupItem key={value} value={value}>
@@ -76,7 +75,7 @@ export default function PropertyListPage() {
                 ))}
               </ToggleGroup>
             </div>
-            <div className="w-full overflow-x-auto sm:w-auto">
+            <div className="w-full sm:w-auto">
               <ToggleGroup
                 type="single"
                 value={viewMode}
@@ -84,7 +83,6 @@ export default function PropertyListPage() {
                   if (!value) return
                   setViewMode(value as 'large' | 'medium' | 'list')
                 }}
-                className="min-w-max"
               >
                 <ToggleGroupItem value="large" aria-label="Large tiles">
                   <span className="inline-flex items-center gap-1">

@@ -88,7 +88,7 @@ function AuthenticatedLayout() {
         <Link to="/" className="text-sm font-bold text-gray-900 mr-4">
           Day
         </Link>
-        <nav className="flex items-center gap-1 flex-1">
+        <nav className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto">
           {navItems.map(({ to, label, icon: Icon }) => {
             const isActive = activeItem?.to === to
             return (

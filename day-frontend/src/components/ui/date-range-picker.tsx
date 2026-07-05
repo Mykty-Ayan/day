@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { format, isValid, parseISO } from 'date-fns'
 import { Calendar as CalendarIcon } from 'lucide-react'
 import type { DateRange } from 'react-day-picker'
+import { useTranslation } from 'react-i18next'
 import { cn } from '../../lib/utils'
 import { useMediaQuery } from '../../hooks/useMediaQuery'
 import { Calendar } from './calendar'
@@ -39,11 +40,12 @@ export default function DateRangePicker({
   minDate,
   responsiveMonths = true,
   months,
-  placeholder = 'Select dates',
+  placeholder,
   disabled,
   className,
   error,
 }: DateRangePickerProps) {
+  const { t } = useTranslation()
   const [open, setOpen] = useState(false)
   const isMdUp = useMediaQuery('(min-width: 768px)')
   const start = normalizeDate(startDate)
@@ -68,7 +70,7 @@ export default function DateRangePicker({
     }
   }
 
-  let label = placeholder
+  let label = placeholder ?? t('common.selectDates')
   if (start && end) {
     label = `${format(start, 'dd.MM')} → ${format(end, 'dd.MM')}`
   } else if (start) {

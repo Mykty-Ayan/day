@@ -533,23 +533,20 @@ export default function CreateBookingPage() {
                 <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
                   {t('bookings.source')}
                 </label>
-                <div className="w-full overflow-x-auto">
-                  <ToggleGroup
-                    type="single"
-                    value={form.source}
-                    onValueChange={(value) => {
-                      if (!value) return
-                      updateField('source', value as BookingSource)
-                    }}
-                    className="min-w-max"
-                  >
-                    {SOURCES.map((s) => (
-                      <ToggleGroupItem key={s.value} value={s.value}>
-                        {s.label}
-                      </ToggleGroupItem>
-                    ))}
-                  </ToggleGroup>
-                </div>
+                <ToggleGroup
+                  type="single"
+                  value={form.source}
+                  onValueChange={(value) => {
+                    if (!value) return
+                    updateField('source', value as BookingSource)
+                  }}
+                >
+                  {SOURCES.map((s) => (
+                    <ToggleGroupItem key={s.value} value={s.value}>
+                      {s.label}
+                    </ToggleGroupItem>
+                  ))}
+                </ToggleGroup>
               </div>
 
               {/* Guests Count */}

@@ -489,23 +489,20 @@ function PaymentsTab({
 
   return (
     <div className="space-y-4">
-      <div className="w-full overflow-x-auto">
-        <ToggleGroup
-          type="single"
-          value={viewMode}
-          onValueChange={(value) => {
-            if (!value) return
-            onViewModeChange(value as ViewMode)
-          }}
-          className="min-w-max"
-        >
-          {VIEW_OPTIONS.map((option) => (
-            <ToggleGroupItem key={option.value} value={option.value}>
-              {option.label}
-            </ToggleGroupItem>
-          ))}
-        </ToggleGroup>
-      </div>
+      <ToggleGroup
+        type="single"
+        value={viewMode}
+        onValueChange={(value) => {
+          if (!value) return
+          onViewModeChange(value as ViewMode)
+        }}
+      >
+        {VIEW_OPTIONS.map((option) => (
+          <ToggleGroupItem key={option.value} value={option.value}>
+            {option.label}
+          </ToggleGroupItem>
+        ))}
+      </ToggleGroup>
 
       {/* Summary */}
       <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -725,23 +722,20 @@ function DepositsTab({
   return (
     <div className="space-y-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="w-full overflow-x-auto">
-          <ToggleGroup
-            type="single"
-            value={viewMode}
-            onValueChange={(value) => {
-              if (!value) return
-              onViewModeChange(value as ViewMode)
-            }}
-            className="min-w-max"
-          >
-            {VIEW_OPTIONS.map((option) => (
-              <ToggleGroupItem key={option.value} value={option.value}>
-                {option.label}
-              </ToggleGroupItem>
-            ))}
-          </ToggleGroup>
-        </div>
+        <ToggleGroup
+          type="single"
+          value={viewMode}
+          onValueChange={(value) => {
+            if (!value) return
+            onViewModeChange(value as ViewMode)
+          }}
+        >
+          {VIEW_OPTIONS.map((option) => (
+            <ToggleGroupItem key={option.value} value={option.value}>
+              {option.label}
+            </ToggleGroupItem>
+          ))}
+        </ToggleGroup>
         <motion.button
           whileTap={{ scale: 0.97 }}
           onClick={() => setShowCreate(true)}

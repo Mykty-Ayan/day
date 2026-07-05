@@ -49,3 +49,6 @@ docker/minio-data/
 # Obsidian Vault
 obsidian-vault/
 
+
+# Playwright MCP session artifacts
+.playwright-mcp/

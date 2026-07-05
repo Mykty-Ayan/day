@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Clock } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { cn } from '../../lib/utils'
 import { Popover, PopoverContent, PopoverTrigger } from './popover'
 
@@ -25,12 +26,14 @@ const TIME_OPTIONS = Array.from(
 export default function TimePicker({
   value,
   onChange,
-  placeholder = 'Select time',
+  placeholder,
   disabled,
   className,
 }: TimePickerProps) {
+  const { t } = useTranslation()
   const [open, setOpen] = useState(false)
-  const displayValue = value && value.length > 0 ? value : placeholder
+  const resolvedPlaceholder = placeholder ?? t('common.selectTime')
+  const displayValue = value && value.length > 0 ? value : resolvedPlaceholder
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -51,7 +54,7 @@ export default function TimePicker({
       </PopoverTrigger>
       <PopoverContent className="w-56 p-2" align="start">
         <div className="px-2 py-1 text-[11px] font-semibold uppercase tracking-wide text-gray-400">
-          Time
+          {t('common.time')}
         </div>
         <div className="max-h-56 overflow-y-auto space-y-1 p-1">
           {TIME_OPTIONS.map((time) => {
@@ -65,14 +68,14 @@ export default function TimePicker({
                   setOpen(false)
                 }}
                 className={cn(
-                  'flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 text-sm font-medium transition-colors',
+                  'flex min-h-[40px] w-full items-center justify-between rounded-lg px-2.5 py-2.5 text-sm font-medium transition-colors',
                   isSelected
                     ? 'bg-black text-white'
                     : 'text-gray-700 hover:bg-gray-100',
                 )}
               >
                 <span>{time}</span>
-                {isSelected && <span className="text-[10px] uppercase">Selected</span>}
+                {isSelected && <span className="text-[10px] uppercase">{t('common.selected')}</span>}
               </button>
             )
           })}
