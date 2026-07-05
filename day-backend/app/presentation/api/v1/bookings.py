@@ -392,7 +392,9 @@ async def update_booking(
     user_id: uuid.UUID | None = Depends(get_user_id),
 ):
     repos = _repos(session)
-    svc = UpdateBookingService(repos["booking"], repos["audit"], _price_calculator(repos))
+    svc = UpdateBookingService(
+        repos["booking"], repos["property"], repos["audit"], _price_calculator(repos)
+    )
 
     provided = body.model_dump(exclude_unset=True)
     inp = UpdateBookingInput(booking_id=booking_id, company_id=company_id, changed_by=user_id)

@@ -56,6 +56,31 @@ def apply_default_times(
     )
 
 
+# A property's rental_mode describes what it allows; a booking's rental_mode
+# must be a subset. ``both`` allows either concrete mode, ``daily``/``hourly``
+# allow only themselves.
+_ALLOWED_BOOKING_MODES: dict[RentalMode, set[RentalMode]] = {
+    RentalMode.DAILY: {RentalMode.DAILY},
+    RentalMode.HOURLY: {RentalMode.HOURLY},
+    RentalMode.BOTH: {RentalMode.DAILY, RentalMode.HOURLY},
+}
+
+
+def validate_rental_mode_allowed(
+    booking_mode: RentalMode, property_mode: RentalMode
+) -> None:
+    """Ensure a booking's rental mode is permitted by the property.
+
+    Raises ValueError when the property does not allow the requested mode
+    (e.g. an hourly booking on a daily-only property).
+    """
+    if booking_mode not in _ALLOWED_BOOKING_MODES.get(property_mode, set()):
+        raise ValueError(
+            f"Rental mode '{booking_mode.value}' is not allowed for a "
+            f"'{property_mode.value}' property"
+        )
+
+
 @dataclass
 class CreateBookingInput:
     company_id: uuid.UUID
@@ -99,11 +124,16 @@ class CreateBookingService:
         if prop.company_id != inp.company_id:
             raise ValueError("Property does not belong to company")
 
+        # The booking's rental mode must be one the property allows.
+        validate_rental_mode_allowed(inp.rental_mode, prop.rental_mode)
+
         if inp.check_in is None or inp.check_out is None:
             raise ValueError("Check-in and check-out dates are required")
 
         # Daily bookings default their clock times (14:00 / 12:00) so the stored
-        # datetime is a superset of the incoming date.
+        # datetime is a superset of the incoming date. Hourly bookings keep their
+        # explicit times, so a sub-day range is legal as long as check-out is
+        # still strictly after check-in.
         check_in, check_out = apply_default_times(
             inp.check_in, inp.check_out, inp.rental_mode
         )
@@ -139,6 +169,7 @@ class CreateBookingService:
             check_out,
             inp.adults_count,
             inp.children_count,
+            inp.rental_mode,
         )
 
         booking = await self._booking_repo.create(
