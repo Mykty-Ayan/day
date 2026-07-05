@@ -49,6 +49,12 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         if request.url.path in _EXCLUDED_PATHS:
             return await call_next(request)
 
+        # Never rate-limit CORS preflight: browsers auto-send OPTIONS and a 429
+        # here would short-circuit before the CORS middleware, so the browser
+        # would report an opaque CORS failure instead of a rate-limit response.
+        if request.method.upper() == "OPTIONS":
+            return await call_next(request)
+
         r = self._ensure_redis()
         if r is None:
             # Graceful fallback: no rate limiting if Redis unavailable

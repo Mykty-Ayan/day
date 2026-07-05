@@ -66,6 +66,15 @@ def create_app() -> FastAPI:
 
     app = FastAPI(title="Day PMS API", version="0.1.0", lifespan=lifespan)
 
+    from app.infrastructure.rate_limiter import RateLimitMiddleware
+
+    app.add_middleware(RateLimitMiddleware)
+    app.add_middleware(RequestLoggingMiddleware)
+
+    # CORS must be the OUTERMOST middleware (added last) so that short-circuit
+    # responses — e.g. a 429 from the rate limiter — still carry the
+    # Access-Control-* headers; otherwise the browser reports them as opaque
+    # CORS failures rather than the real status.
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.CORS_ORIGINS,
@@ -73,11 +82,6 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
-
-    from app.infrastructure.rate_limiter import RateLimitMiddleware
-
-    app.add_middleware(RateLimitMiddleware)
-    app.add_middleware(RequestLoggingMiddleware)
 
     app.include_router(api_v1_router)
     return app
