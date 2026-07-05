@@ -311,6 +311,34 @@ async def test_metrics_mixed_hourly_and_daily_does_not_raise_and_prorates():
 
 @pytestmark_integration
 @pytest.mark.asyncio
+async def test_metrics_empty_property_has_zero_occupancy():
+    """Regression: a property with NO bookings in the period must report 0 booked
+    days / 0% occupancy. The LEFT JOIN yields a NULL-booking row and Postgres
+    greatest()/least() ignore NULLs, which previously collapsed the clamp to the
+    whole period and reported 100% occupancy for empty properties."""
+    company_id = uuid.uuid4()
+    async with _fresh_session() as session:
+        prop = _property(company_id, f"empty-{uuid.uuid4().hex[:8]}", "daily")
+        session.add(prop)
+        await session.flush()
+
+        repo = SqlAnalyticsRepository(session)
+        metrics = await repo.get_property_metrics(
+            company_id, DATE_FROM, DATE_TO, property_ids=[prop.id]
+        )
+
+        assert len(metrics) == 1
+        pm = metrics[0]
+        assert pm.total_bookings == 0
+        assert pm.booked_nights == Decimal("0")
+        assert pm.occupancy_rate == Decimal("0")
+        assert pm.revenue == Decimal("0")
+
+        await session.rollback()
+
+
+@pytestmark_integration
+@pytest.mark.asyncio
 async def test_metrics_pure_daily_regression_matches_date_diff_baseline():
     """Pure-daily dataset must regression-match the pre-timestamp numbers:
     booked_nights is the whole-night date diff, ADR = revenue / nights."""

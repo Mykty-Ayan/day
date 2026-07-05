@@ -74,10 +74,18 @@ class SqlAnalyticsRepository(AnalyticsRepository):
         #      non-zero value for sub-day hourly stays living inside one day.
         # For daily bookings (1) dominates; for hourly ones (1) is 0 so (2)
         # supplies the fractional-day occupancy.
-        clamped_nights = func.greatest(
-            cast(func.date(eff_check_out) - func.date(eff_check_in), Integer),
-            func.extract("epoch", eff_check_out - eff_check_in) / 86400.0,
-            0.0,
+        # Guard the LEFT JOIN: a property with no matching booking produces a row
+        # with NULL check_in/check_out. Postgres greatest()/least() IGNORE NULLs,
+        # so eff_check_in/out would collapse to date_from/date_to and count the
+        # whole period as "booked" (occupancy 100% for empty properties). Force
+        # 0 when there is no booking.
+        clamped_nights = case(
+            (BookingModel.id.is_(None), 0.0),
+            else_=func.greatest(
+                cast(func.date(eff_check_out) - func.date(eff_check_in), Integer),
+                func.extract("epoch", eff_check_out - eff_check_in) / 86400.0,
+                0.0,
+            ),
         )
 
         # Main query: aggregate per property
