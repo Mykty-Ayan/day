@@ -3,8 +3,10 @@ import { format, isValid, parseISO } from 'date-fns'
 import { motion } from 'framer-motion'
 import { Plus, X, Loader2 } from 'lucide-react'
 import type { PricingConfig, SeasonalPrice, DiscountRule } from '../../types/property'
+import type { RentalMode } from '../../types/booking'
 import DatePicker from '../ui/date-picker'
 import NumberInput from '../ui/number-input'
+import { ToggleGroup, ToggleGroupItem } from '../ui/toggle-group'
 import { useCurrency } from '../../hooks/useCurrency'
 import {
   Select,
@@ -25,9 +27,12 @@ export interface SeasonalSuggestion {
 
 interface Props {
   pricing: PricingConfig | null
+  rentalMode: RentalMode
   seasonalSuggestions?: SeasonalSuggestion[]
   onSaveBase: (data: {
     base_price: number
+    hourly_price: number
+    rental_mode: RentalMode
     weekend_markup: number
     default_deposit: number
     extra_adult_price: number
@@ -62,6 +67,7 @@ const fixedActionButtonClass =
 
 function PricingFormInner({
   pricing,
+  rentalMode: initialRentalMode,
   seasonalSuggestions = [],
   onSaveBase,
   onAddSeasonal,
@@ -71,7 +77,9 @@ function PricingFormInner({
   isSaving,
 }: Props) {
   const { symbol: currencySymbol } = useCurrency()
+  const [rentalMode, setRentalMode] = useState<RentalMode>(initialRentalMode)
   const [basePrice, setBasePrice] = useState(String(pricing?.base_price ?? ''))
+  const [hourlyPrice, setHourlyPrice] = useState(String(pricing?.hourly_price ?? ''))
   const [weekendMarkup, setWeekendMarkup] = useState(String(pricing?.weekend_markup ?? ''))
   const [deposit, setDeposit] = useState(String(pricing?.default_deposit ?? ''))
   const [extraAdult, setExtraAdult] = useState(String(pricing?.extra_adult_price ?? ''))
@@ -134,6 +142,8 @@ function PricingFormInner({
   function handleSaveBase() {
     onSaveBase({
       base_price: parseNumber(basePrice, 0),
+      hourly_price: parseNumber(hourlyPrice, 0),
+      rental_mode: rentalMode,
       weekend_markup: parseNumber(weekendMarkup, 0),
       default_deposit: parseNumber(deposit, 0),
       extra_adult_price: parseNumber(extraAdult, 0),
@@ -174,6 +184,23 @@ function PricingFormInner({
       {/* Base pricing */}
       <div>
         <h3 className="text-sm font-bold text-gray-900 mb-3">Base Pricing</h3>
+        <div className="mb-3">
+          <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">
+            Rental Mode
+          </label>
+          <ToggleGroup
+            type="single"
+            value={rentalMode}
+            onValueChange={(value) => {
+              if (!value) return
+              setRentalMode(value as RentalMode)
+            }}
+          >
+            <ToggleGroupItem value="daily">Daily</ToggleGroupItem>
+            <ToggleGroupItem value="hourly">Hourly</ToggleGroupItem>
+            <ToggleGroupItem value="both">Both</ToggleGroupItem>
+          </ToggleGroup>
+        </div>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div>
             <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">
@@ -186,6 +213,19 @@ function PricingFormInner({
               step={1000}
             />
           </div>
+          {rentalMode !== 'daily' && (
+            <div>
+              <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">
+                Hourly Price
+              </label>
+              <NumberInput
+                value={hourlyPrice}
+                onChange={setHourlyPrice}
+                min={0}
+                step={500}
+              />
+            </div>
+          )}
           <div>
             <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">
               Weekend Markup (%)
@@ -448,7 +488,7 @@ function PricingFormInner({
 
 export default function PricingForm(props: Props) {
   const pricingKey = props.pricing
-    ? `${props.pricing.id}:${props.pricing.updated_at ?? '0'}`
-    : 'new'
+    ? `${props.pricing.id}:${props.pricing.updated_at ?? '0'}:${props.rentalMode}`
+    : `new:${props.rentalMode}`
   return <PricingFormInner key={pricingKey} {...props} />
 }

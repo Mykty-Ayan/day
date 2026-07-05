@@ -20,6 +20,7 @@ import {
   useProperty,
   useAllProperties,
   useChangePropertyStatus,
+  useUpdateProperty,
   usePropertyPricing,
   useCreateOrUpdatePricing,
   useAddSeasonalPrice,
@@ -31,6 +32,7 @@ import {
 } from '../../hooks/useProperties'
 import { getPricing } from '../../api/properties'
 import type { PropertyStatus, PricingInput, SeasonalPrice } from '../../types/property'
+import type { RentalMode } from '../../types/booking'
 import PricingForm, { type SeasonalSuggestion } from '../../components/property/PricingForm'
 import StatusBadge from '../../components/property/StatusBadge'
 import { showToast } from '../../components/ui/Toast'
@@ -68,6 +70,7 @@ export default function PropertyDetailPage() {
   const { data: property, isLoading } = useProperty(propertyId)
   const { data: allProperties } = useAllProperties()
   const changeStatus = useChangePropertyStatus(propertyId)
+  const updatePropertyMut = useUpdateProperty(propertyId)
   const { data: pricing } = usePropertyPricing(propertyId)
   const savePricing = useCreateOrUpdatePricing(propertyId)
   const addSeasonal = useAddSeasonalPrice(propertyId)
@@ -141,8 +144,14 @@ export default function PropertyDetailPage() {
       })
   }, [otherPricingQueries, otherProperties, pricing?.seasonal_prices])
 
-  const handleSavePricing = (data: PricingInput) => {
-    savePricing.mutate(data, {
+  const handleSavePricing = (data: PricingInput & { rental_mode: RentalMode }) => {
+    const { rental_mode, ...pricingInput } = data
+    // rental_mode lives on the property, not the pricing config — persist it
+    // separately when the operator changed it.
+    if (property && rental_mode !== property.rental_mode) {
+      updatePropertyMut.mutate({ rental_mode })
+    }
+    savePricing.mutate(pricingInput, {
       onSuccess: () => showToast('success', t('properties.pricingSaved')),
       onError: (err: Error) => showToast('error', err.message || t('properties.failedSavePricing')),
     })
@@ -377,6 +386,7 @@ export default function PropertyDetailPage() {
               <h2 className="text-sm font-bold text-gray-900 mb-4">{t('properties.pricing')}</h2>
               <PricingForm
                 pricing={pricing ?? null}
+                rentalMode={property.rental_mode}
                 seasonalSuggestions={seasonalSuggestions}
                 onSaveBase={handleSavePricing}
                 onAddSeasonal={(data) =>

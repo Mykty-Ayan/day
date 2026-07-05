@@ -1,11 +1,15 @@
 import { useState } from 'react'
+import { format, isValid, parseISO } from 'date-fns'
 import { useTranslation } from 'react-i18next'
 import { motion } from 'framer-motion'
 import { ArrowLeft, Check, Loader2 } from 'lucide-react'
 import { useNavigate, useParams } from '@tanstack/react-router'
 import { useBooking, useUpdateBooking } from '../../hooks/useBookings'
-import type { BookingDetail, BookingSource, BookingUpdateInput } from '../../types/booking'
+import { useProperty } from '../../hooks/useProperties'
+import type { BookingDetail, BookingSource, BookingUpdateInput, RentalMode } from '../../types/booking'
 import DateRangePicker from '../../components/ui/date-range-picker'
+import DatePicker from '../../components/ui/date-picker'
+import TimePicker from '../../components/ui/time-picker'
 import { ToggleGroup, ToggleGroupItem } from '../../components/ui/toggle-group'
 import NumberInput from '../../components/ui/number-input'
 import Spinner from '../../components/ui/Spinner'
@@ -15,6 +19,10 @@ import { getBookingApiErrorMessage, getBookingFieldError } from '../../lib/booki
 interface FormData {
   check_in: string
   check_out: string
+  rental_mode: RentalMode
+  hourly_date: string
+  start_time: string
+  end_time: string
   source: BookingSource
   adults_count: number
   children_count: number
@@ -22,11 +30,26 @@ interface FormData {
   notes: string
 }
 
+function datePart(value: string): string {
+  const parsed = parseISO(value)
+  return isValid(parsed) ? format(parsed, 'yyyy-MM-dd') : ''
+}
+
+function timePart(value: string): string {
+  const parsed = parseISO(value)
+  return isValid(parsed) ? format(parsed, 'HH:mm') : ''
+}
+
 function detailToForm(detail: BookingDetail): FormData {
   const b = detail.booking
+  const isHourly = b.rental_mode === 'hourly'
   return {
     check_in: b.check_in,
     check_out: b.check_out,
+    rental_mode: b.rental_mode,
+    hourly_date: isHourly ? datePart(b.check_in) : '',
+    start_time: isHourly ? timePart(b.check_in) : '',
+    end_time: isHourly ? timePart(b.check_out) : '',
     source: b.source,
     adults_count: b.adults_count,
     children_count: b.children_count,
@@ -59,8 +82,21 @@ function EditBookingForm({ detail, bookingId }: { detail: BookingDetail; booking
   const { t } = useTranslation()
   const navigate = useNavigate()
   const updateBooking = useUpdateBooking(bookingId)
+  const { data: property } = useProperty(detail.booking.property_id)
   const [form, setForm] = useState<FormData>(() => detailToForm(detail))
   const [errors, setErrors] = useState<Record<string, string>>({})
+
+  const isHourly = form.rental_mode === 'hourly'
+  const effectiveCheckIn = isHourly
+    ? form.hourly_date && form.start_time
+      ? `${form.hourly_date}T${form.start_time}:00`
+      : ''
+    : form.check_in
+  const effectiveCheckOut = isHourly
+    ? form.hourly_date && form.end_time
+      ? `${form.hourly_date}T${form.end_time}:00`
+      : ''
+    : form.check_out
 
   const SOURCES: { value: BookingSource; label: string }[] = [
     { value: 'direct', label: t('bookings.sources.direct') },
@@ -90,10 +126,19 @@ function EditBookingForm({ detail, bookingId }: { detail: BookingDetail; booking
 
   function validate(): boolean {
     const errs: Record<string, string> = {}
-    if (!form.check_in) errs.check_in = t('bookings.validation.checkInRequired')
-    if (!form.check_out) errs.check_out = t('bookings.validation.checkOutRequired')
-    if (form.check_in && form.check_out && form.check_in >= form.check_out) {
-      errs.check_out = t('bookings.validation.checkOutAfterCheckIn')
+    if (isHourly) {
+      if (!form.hourly_date) errs.check_in = t('bookings.validation.dateRequired')
+      if (!form.start_time) errs.start_time = t('bookings.validation.startTimeRequired')
+      if (!form.end_time) errs.end_time = t('bookings.validation.endTimeRequired')
+      if (form.start_time && form.end_time && form.start_time >= form.end_time) {
+        errs.end_time = t('bookings.validation.endTimeAfterStart')
+      }
+    } else {
+      if (!form.check_in) errs.check_in = t('bookings.validation.checkInRequired')
+      if (!form.check_out) errs.check_out = t('bookings.validation.checkOutRequired')
+      if (form.check_in && form.check_out && form.check_in >= form.check_out) {
+        errs.check_out = t('bookings.validation.checkOutAfterCheckIn')
+      }
     }
     if (form.adults_count < 1) errs.adults_count = t('bookings.validation.adultsRequired')
     setErrors(errs)
@@ -104,8 +149,9 @@ function EditBookingForm({ detail, bookingId }: { detail: BookingDetail; booking
     if (!validate()) return
 
     const payload: BookingUpdateInput = {
-      check_in: form.check_in,
-      check_out: form.check_out,
+      check_in: effectiveCheckIn,
+      check_out: effectiveCheckOut,
+      rental_mode: form.rental_mode,
       source: form.source,
       adults_count: form.adults_count,
       children_count: form.children_count,
@@ -155,26 +201,97 @@ function EditBookingForm({ detail, bookingId }: { detail: BookingDetail; booking
             <p className="text-xs text-gray-500">{detail.guest.phone}</p>
           </div>
 
+          {/* Rental mode toggle - only for properties that allow both */}
+          {property?.rental_mode === 'both' && (
+            <div>
+              <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
+                {t('bookings.rentalMode.label')}
+              </label>
+              <ToggleGroup
+                type="single"
+                value={form.rental_mode}
+                onValueChange={(value) => {
+                  if (!value) return
+                  updateField('rental_mode', value as RentalMode)
+                }}
+              >
+                <ToggleGroupItem value="daily">{t('bookings.rentalMode.daily')}</ToggleGroupItem>
+                <ToggleGroupItem value="hourly">{t('bookings.rentalMode.hourly')}</ToggleGroupItem>
+              </ToggleGroup>
+            </div>
+          )}
+
           {/* Dates */}
           <div>
-            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">
-              {t('bookings.dateRange')}
-            </label>
-            <DateRangePicker
-              startDate={form.check_in}
-              endDate={form.check_out}
-              onRangeChange={(start, end) => {
-                updateField('check_in', start)
-                updateField('check_out', end)
-              }}
-              placeholder={t('bookings.selectDates')}
-              error={!!errors.check_in || !!errors.check_out}
-            />
-            {errors.check_in && (
-              <p className="text-xs text-red-500 mt-1">{errors.check_in}</p>
-            )}
-            {errors.check_out && (
-              <p className="text-xs text-red-500 mt-1">{errors.check_out}</p>
+            {isHourly ? (
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">
+                    {t('bookings.date')}
+                  </label>
+                  <DatePicker
+                    value={form.hourly_date}
+                    onChange={(value) => updateField('hourly_date', value)}
+                    placeholder={t('bookings.selectDates')}
+                    className={errors.check_in ? 'border-red-300' : ''}
+                  />
+                  {errors.check_in && (
+                    <p className="text-xs text-red-500 mt-1">{errors.check_in}</p>
+                  )}
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">
+                      {t('bookings.startTime')}
+                    </label>
+                    <TimePicker
+                      value={form.start_time}
+                      onChange={(value) => updateField('start_time', value)}
+                      placeholder={t('bookings.selectTime')}
+                      className={errors.start_time ? 'border-red-300' : ''}
+                    />
+                    {errors.start_time && (
+                      <p className="text-xs text-red-500 mt-1">{errors.start_time}</p>
+                    )}
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">
+                      {t('bookings.endTime')}
+                    </label>
+                    <TimePicker
+                      value={form.end_time}
+                      onChange={(value) => updateField('end_time', value)}
+                      placeholder={t('bookings.selectTime')}
+                      className={errors.end_time ? 'border-red-300' : ''}
+                    />
+                    {errors.end_time && (
+                      <p className="text-xs text-red-500 mt-1">{errors.end_time}</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <>
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">
+                  {t('bookings.dateRange')}
+                </label>
+                <DateRangePicker
+                  startDate={form.check_in}
+                  endDate={form.check_out}
+                  onRangeChange={(start, end) => {
+                    updateField('check_in', start)
+                    updateField('check_out', end)
+                  }}
+                  placeholder={t('bookings.selectDates')}
+                  error={!!errors.check_in || !!errors.check_out}
+                />
+                {errors.check_in && (
+                  <p className="text-xs text-red-500 mt-1">{errors.check_in}</p>
+                )}
+                {errors.check_out && (
+                  <p className="text-xs text-red-500 mt-1">{errors.check_out}</p>
+                )}
+              </>
             )}
           </div>
 

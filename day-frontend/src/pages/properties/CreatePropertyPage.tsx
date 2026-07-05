@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next'
 import { useCreateProperty } from '../../hooks/useProperties'
 import { createOrUpdatePricing, linkAmenities } from '../../api/properties'
 import type { PropertyType, PropertyCreateInput, PricingInput } from '../../types/property'
+import type { RentalMode } from '../../types/booking'
 import PropertyFormStepBasic from '../../components/property/PropertyFormStepBasic'
 import PropertyFormStepAddress from '../../components/property/PropertyFormStepAddress'
 import PropertyFormStepDetails from '../../components/property/PropertyFormStepDetails'
@@ -40,8 +41,10 @@ interface FormData {
     area_living: string
     area_total: string
   }
+  rental_mode: RentalMode
   pricing: {
     base_price: string
+    hourly_price: string
     weekend_markup: string
     default_deposit: string
     extra_adult_price: string
@@ -61,7 +64,8 @@ const initialForm: FormData = {
   basic: { name: '', internal_name: '', type: 'apartment', description: '', source_url: '' },
   address: { address_full: '', apartment_number: '', entrance: '', block: '', floor: '', latitude: '', longitude: '' },
   details: { rooms: '', beds: '', area_living: '', area_total: '' },
-  pricing: { base_price: '', weekend_markup: '', default_deposit: '', extra_adult_price: '', extra_child_price: '', base_guests: '' },
+  rental_mode: 'daily',
+  pricing: { base_price: '', hourly_price: '', weekend_markup: '', default_deposit: '', extra_adult_price: '', extra_child_price: '', base_guests: '' },
   photos: [],
   rules: { check_in_instructions: '', check_out_instructions: '', house_rules: '' },
   amenityIds: [],
@@ -84,6 +88,7 @@ function toPricingInput(pricing: FormData['pricing']): PricingInput {
 
   return {
     base_price: toNumber(pricing.base_price, 0),
+    hourly_price: toNumber(pricing.hourly_price, 0),
     weekend_markup: toNumber(pricing.weekend_markup, 0),
     default_deposit: toNumber(pricing.default_deposit, 0),
     extra_adult_price: toNumber(pricing.extra_adult_price, 0),
@@ -132,6 +137,7 @@ export default function CreatePropertyPage() {
       name: form.basic.name,
       internal_name: form.basic.internal_name,
       type: form.basic.type,
+      rental_mode: form.rental_mode,
       description: form.basic.description || undefined,
       source_url: form.basic.source_url || undefined,
       address_full: form.address.address_full || undefined,
@@ -234,6 +240,8 @@ export default function CreatePropertyPage() {
                 <PropertyFormStepPricing
                   data={form.pricing}
                   onChange={(pricing) => setForm((f) => ({ ...f, pricing }))}
+                  rentalMode={form.rental_mode}
+                  onRentalModeChange={(rental_mode) => setForm((f) => ({ ...f, rental_mode }))}
                 />
               )}
               {step === 4 && (
