@@ -89,6 +89,7 @@ def _to_property_response(p, photos: list | None = None) -> PropertyResponse:
         internal_name=p.internal_name,
         type=p.type,
         status=p.status,
+        rental_mode=p.rental_mode,
         description=p.description,
         source_url=p.source_url,
         latitude=p.latitude,
@@ -130,6 +131,7 @@ async def create_property(
                 name=body.name,
                 internal_name=body.internal_name,
                 type=body.type,
+                rental_mode=body.rental_mode,
                 description=body.description,
                 source_url=body.source_url,
                 latitude=body.latitude,
@@ -410,6 +412,7 @@ async def upsert_pricing(
             company_id,
             PricingConfigInput(
                 base_price=body.base_price,
+                hourly_price=body.hourly_price,
                 weekend_markup=body.weekend_markup,
                 default_deposit=body.default_deposit,
                 extra_adult_price=body.extra_adult_price,

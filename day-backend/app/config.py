@@ -28,6 +28,11 @@ class Settings(BaseSettings):
 
     CORS_ORIGINS: list[str] = ["http://localhost:5173", "https://frontend-dev-62e8.up.railway.app"]
 
+    # Default clock times applied to daily bookings whose check-in/check-out
+    # arrive as a bare date (or midnight). Hourly bookings carry explicit times.
+    DEFAULT_CHECK_IN_HOUR: int = 14
+    DEFAULT_CHECK_OUT_HOUR: int = 12
+
     AI_SERVICE_URL: str = "http://ai-service:8001" if Path("/.dockerenv").exists() else "http://localhost:8001"
 
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}

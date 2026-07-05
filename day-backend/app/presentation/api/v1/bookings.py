@@ -125,6 +125,7 @@ def _to_booking_response(
         group_booking_id=b.group_booking_id,
         check_in=b.check_in,
         check_out=b.check_out,
+        rental_mode=b.rental_mode,
         source=b.source,
         status=b.status,
         gantt_color=b.gantt_color,
@@ -209,6 +210,7 @@ async def create_booking(
                 guest_email=body.guest_email,
                 check_in=body.check_in,
                 check_out=body.check_out,
+                rental_mode=body.rental_mode,
                 source=body.source,
                 adults_count=body.adults_count,
                 children_count=body.children_count,
@@ -311,22 +313,26 @@ async def get_today(
             property_status=prop.status if prop else None,
             check_in=b.check_in,
             check_out=b.check_out,
+            rental_mode=b.rental_mode,
             status=b.status,
             adults_count=b.adults_count,
             children_count=b.children_count,
         )
+        # check_in/check_out are datetimes; compare on their calendar date.
+        check_in_date = b.check_in.date() if b.check_in is not None else None
+        check_out_date = b.check_out.date() if b.check_out is not None else None
         if (
-            b.check_in == today
+            check_in_date == today
             and b.status in {BookingStatus.PENDING, BookingStatus.CONFIRMED}
         ):
             check_ins.append(item)
-        if b.check_out == today and b.status == BookingStatus.CHECKED_IN:
+        if check_out_date == today and b.status == BookingStatus.CHECKED_IN:
             check_outs.append(item)
         if (
             b.status == BookingStatus.CHECKED_IN
-            and b.check_in is not None
-            and b.check_out is not None
-            and b.check_in <= today < b.check_out
+            and check_in_date is not None
+            and check_out_date is not None
+            and check_in_date <= today < check_out_date
         ):
             in_house.append(item)
 
@@ -759,6 +765,7 @@ def _build_gantt_response(result) -> GanttDataResponse:
                         guest_name=b.guest_name,
                         check_in=b.check_in,
                         check_out=b.check_out,
+                        rental_mode=b.rental_mode,
                         status=b.status,
                         source=b.source,
                         gantt_color=b.gantt_color,

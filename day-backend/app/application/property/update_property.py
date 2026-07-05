@@ -18,6 +18,7 @@ class UpdatePropertyInput:
     name: object = _UNSET
     internal_name: object = _UNSET
     type: object = _UNSET
+    rental_mode: object = _UNSET
     description: object = _UNSET
     source_url: object = _UNSET
     latitude: object = _UNSET
@@ -39,7 +40,7 @@ class UpdatePropertyInput:
 
 
 _UPDATABLE_FIELDS = {
-    "name", "internal_name", "type", "description", "source_url",
+    "name", "internal_name", "type", "rental_mode", "description", "source_url",
     "latitude", "longitude", "address_full", "apartment_number",
     "entrance", "block", "floor", "rooms", "beds",
     "area_living", "area_total",

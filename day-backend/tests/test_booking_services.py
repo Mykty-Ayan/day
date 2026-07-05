@@ -1,7 +1,7 @@
 """Unit tests for booking application services."""
 
 import uuid
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 
 import pytest
@@ -364,6 +364,18 @@ def _make_property(
     )
 
 
+def _to_checkin_dt(value: date | datetime) -> datetime:
+    if isinstance(value, datetime):
+        return value
+    return datetime(value.year, value.month, value.day, 14, 0)
+
+
+def _to_checkout_dt(value: date | datetime) -> datetime:
+    if isinstance(value, datetime):
+        return value
+    return datetime(value.year, value.month, value.day, 12, 0)
+
+
 def _make_booking(
     property_id: uuid.UUID,
     company_id: uuid.UUID = COMPANY_ID,
@@ -373,13 +385,14 @@ def _make_booking(
     guest_id: uuid.UUID | None = None,
     **kwargs,
 ) -> Booking:
+    # Daily bookings now store datetimes with default 14:00 / 12:00 clock times.
     return Booking(
         id=uuid.uuid4(),
         company_id=company_id,
         property_id=property_id,
         guest_id=guest_id or uuid.uuid4(),
-        check_in=check_in or date(2025, 6, 1),
-        check_out=check_out or date(2025, 6, 5),
+        check_in=_to_checkin_dt(check_in or date(2025, 6, 1)),
+        check_out=_to_checkout_dt(check_out or date(2025, 6, 5)),
         status=status,
         **kwargs,
     )
@@ -637,8 +650,9 @@ class TestCreateBookingService:
 
         assert result.property_id == prop.id
         assert result.status == BookingStatus.PENDING
-        assert result.check_in == date(2025, 6, 2)
-        assert result.check_out == date(2025, 6, 5)
+        # Daily booking defaults to 14:00 check-in / 12:00 check-out.
+        assert result.check_in == datetime(2025, 6, 2, 14, 0)
+        assert result.check_out == datetime(2025, 6, 5, 12, 0)
         assert result.total_price > Decimal("0")
 
     @pytest.mark.asyncio
@@ -714,7 +728,7 @@ class TestCreateBookingService:
             )
         )
 
-        assert result.check_in == date(2025, 6, 5)
+        assert result.check_in == datetime(2025, 6, 5, 14, 0)
 
     @pytest.mark.asyncio
     async def test_property_not_found_raises(self):
@@ -975,8 +989,8 @@ class TestUpdateBookingService:
         )
 
         # Price should be recalculated because dates changed
-        assert result.check_in == date(2025, 7, 1)
-        assert result.check_out == date(2025, 7, 10)
+        assert result.check_in == datetime(2025, 7, 1, 14, 0)
+        assert result.check_out == datetime(2025, 7, 10, 12, 0)
         # calculated_price should have changed (9 nights * 100 = 900)
         assert result.calculated_price == Decimal("900")
         assert result.calculated_price != old_calc_price

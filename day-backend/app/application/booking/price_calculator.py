@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import uuid
 from dataclasses import dataclass
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from decimal import Decimal
 
 from app.domain.property.repositories import (
@@ -37,8 +37,8 @@ class PriceCalculatorService:
     async def calculate(
         self,
         property_id: uuid.UUID,
-        check_in: date,
-        check_out: date,
+        check_in: date | datetime,
+        check_out: date | datetime,
         adults_count: int,
         children_count: int,
     ) -> PriceBreakdown:
@@ -49,7 +49,13 @@ class PriceCalculatorService:
         seasonals = await self._seasonal_repo.list_by_pricing_config(pricing.id)
         discounts = await self._discount_repo.list_by_pricing_config(pricing.id)
 
-        nights = (check_out - check_in).days
+        # Daily pricing is whole-night based: derive nights from the date part so
+        # datetime-backed bookings (with default 14:00/12:00 times) yield the same
+        # per-night totals as bare-date bookings did.
+        check_in_date = check_in.date() if isinstance(check_in, datetime) else check_in
+        check_out_date = check_out.date() if isinstance(check_out, datetime) else check_out
+
+        nights = (check_out_date - check_in_date).days
         if nights <= 0:
             raise ValueError("Check-out must be after check-in")
 
@@ -57,7 +63,7 @@ class PriceCalculatorService:
         weekend_surcharge = Decimal("0")
         seasonal_adjustment = Decimal("0")
 
-        current = check_in
+        current = check_in_date
         for _ in range(nights):
             # Check if any seasonal price applies for this night
             night_price = pricing.base_price

@@ -1,3 +1,5 @@
+import type { RentalMode } from './booking'
+
 export type PropertyType = 'apartment' | 'house' | 'room'
 export type PropertyStatus = 'new' | 'active' | 'paused' | 'archived'
 export type AmenityCategory =
@@ -48,6 +50,7 @@ export interface PricingConfig {
   id: string
   property_id: string
   base_price: number
+  hourly_price: number
   weekend_markup: number
   default_deposit: number
   extra_adult_price: number
@@ -66,6 +69,7 @@ export interface Property {
   internal_name: string
   type: PropertyType
   status: PropertyStatus
+  rental_mode: RentalMode
   description: string
   source_url: string
   latitude: number | null
@@ -93,6 +97,7 @@ export interface PropertyCreateInput {
   name: string
   internal_name: string
   type: PropertyType
+  rental_mode?: RentalMode
   description?: string
   source_url?: string
   latitude?: number | null
@@ -115,6 +120,7 @@ export type PropertyUpdateInput = Partial<PropertyCreateInput>
 
 export interface PricingInput {
   base_price: number
+  hourly_price?: number
   weekend_markup: number
   default_deposit: number
   extra_adult_price: number

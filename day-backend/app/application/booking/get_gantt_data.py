@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import uuid
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, datetime
 
 from app.domain.booking.repositories import BookingRepository, GuestRepository
 from app.domain.property.repositories import PropertyRepository
@@ -13,8 +13,9 @@ from app.domain.property.value_objects import PropertyStatus
 class GanttBooking:
     id: uuid.UUID
     guest_name: str
-    check_in: date
-    check_out: date
+    check_in: datetime
+    check_out: datetime
+    rental_mode: str
     status: str
     source: str
     gantt_color: str
@@ -94,6 +95,7 @@ class GetGanttDataService:
                         guest_name=guest.name if guest else "Unknown",
                         check_in=b.check_in,
                         check_out=b.check_out,
+                        rental_mode=b.rental_mode.value,
                         status=b.status.value,
                         source=b.source.value,
                         gantt_color=b.gantt_color,

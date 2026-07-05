@@ -4,6 +4,7 @@ import uuid
 from dataclasses import dataclass, field
 from decimal import Decimal
 
+from app.application.booking.create_booking import apply_default_times
 from app.application.booking.price_calculator import PriceCalculatorService
 from app.domain.booking.entities import Booking, BookingAuditLog
 from app.domain.booking.repositories import (
@@ -91,6 +92,11 @@ class UpdateBookingService:
 
         # Re-check overlaps if dates changed
         if dates_changed and booking.check_in and booking.check_out:
+            # Daily bookings default their clock times (14:00 / 12:00) so the
+            # stored datetime is a superset of the incoming date.
+            booking.check_in, booking.check_out = apply_default_times(
+                booking.check_in, booking.check_out, booking.rental_mode
+            )
             if booking.check_out <= booking.check_in:
                 raise ValueError("Check-out must be after check-in")
             overlapping = await self._booking_repo.get_by_property_and_dates(

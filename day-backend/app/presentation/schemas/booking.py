@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import date, datetime
+from datetime import datetime
 from decimal import Decimal
 
 from pydantic import AliasChoices, BaseModel, ConfigDict, Field
@@ -14,6 +14,7 @@ from app.domain.booking.value_objects import (
     PaymentMethod,
     PaymentStatus,
     PaymentType,
+    RentalMode,
 )
 from app.domain.property.value_objects import PropertyStatus
 
@@ -55,8 +56,9 @@ class BookingCreate(BaseModel):
     guest_name: str = Field(..., min_length=1, max_length=255)
     guest_phone: str | None = None
     guest_email: str | None = None
-    check_in: date
-    check_out: date
+    check_in: datetime
+    check_out: datetime
+    rental_mode: RentalMode = RentalMode.DAILY
     source: BookingSource = BookingSource.DIRECT
     adults_count: int = Field(default=1, ge=1)
     children_count: int = Field(default=0, ge=0)
@@ -65,8 +67,9 @@ class BookingCreate(BaseModel):
 
 
 class BookingUpdate(BaseModel):
-    check_in: date | None = None
-    check_out: date | None = None
+    check_in: datetime | None = None
+    check_out: datetime | None = None
+    rental_mode: RentalMode | None = None
     source: BookingSource | None = None
     gantt_color: str | None = None
     gantt_icon: str | None = None
@@ -87,8 +90,9 @@ class BookingResponse(BaseModel):
     property_id: uuid.UUID
     guest_id: uuid.UUID
     group_booking_id: uuid.UUID | None = None
-    check_in: date
-    check_out: date
+    check_in: datetime
+    check_out: datetime
+    rental_mode: RentalMode = RentalMode.DAILY
     source: BookingSource
     status: BookingStatus
     gantt_color: str
@@ -223,8 +227,9 @@ class BookingCommentResponse(BaseModel):
 
 class PriceCalculateRequest(BaseModel):
     property_id: uuid.UUID
-    check_in: date
-    check_out: date
+    check_in: datetime
+    check_out: datetime
+    rental_mode: RentalMode = RentalMode.DAILY
     adults_count: int = Field(default=1, ge=1)
     children_count: int = Field(default=0, ge=0)
 
@@ -247,8 +252,9 @@ class PriceCalculateResponse(BaseModel):
 class GanttBookingResponse(BaseModel):
     id: uuid.UUID
     guest_name: str
-    check_in: date
-    check_out: date
+    check_in: datetime
+    check_out: datetime
+    rental_mode: RentalMode = RentalMode.DAILY
     status: str
     source: str
     gantt_color: str
@@ -280,8 +286,9 @@ class TodayBookingItem(BaseModel):
     property_name: str
     property_internal_name: str
     property_status: PropertyStatus | None = None
-    check_in: date
-    check_out: date
+    check_in: datetime
+    check_out: datetime
+    rental_mode: RentalMode = RentalMode.DAILY
     status: BookingStatus
     adults_count: int
     children_count: int

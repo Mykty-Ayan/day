@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from decimal import Decimal
 
 from sqlalchemy import Integer, Numeric, and_, case, cast, func, select
@@ -64,8 +64,12 @@ class SqlAnalyticsRepository(AnalyticsRepository):
         # Clamp booking nights to the analysis period
         eff_check_in = func.greatest(BookingModel.check_in, date_from)
         eff_check_out = func.least(BookingModel.check_out, date_to)
+        # TODO(phase6): check_in/check_out are now `timestamp`; subtracting them
+        # yields an interval that cannot cast to Integer. Collapse to whole-day
+        # date math for now so daily analytics keep working. Phase 6 replaces this
+        # with proper sub-day (fractional) occupancy handling.
         clamped_nights = func.greatest(
-            cast(eff_check_out - eff_check_in, Integer), 0
+            cast(func.date(eff_check_out) - func.date(eff_check_in), Integer), 0
         )
 
         # Main query: aggregate per property
@@ -217,6 +221,13 @@ class SqlAnalyticsRepository(AnalyticsRepository):
             for row in rows:
                 ci = row.check_in
                 co = row.check_out
+                # TODO(phase6): check_in/check_out are now `timestamp`; collapse to
+                # the calendar date so day-level bucket math (and date/datetime
+                # comparisons below) keep working. Phase 6 handles sub-day spans.
+                if isinstance(ci, datetime):
+                    ci = ci.date()
+                if isinstance(co, datetime):
+                    co = co.date()
                 # Does this booking overlap the bucket?
                 eff_start = max(ci, bucket_start)
                 eff_end = min(co, bucket_end)

@@ -6,6 +6,7 @@ from decimal import Decimal
 
 from pydantic import AliasChoices, BaseModel, ConfigDict, Field, computed_field, model_validator
 
+from app.domain.booking.value_objects import RentalMode
 from app.domain.property.value_objects import (
     AmenityCategory,
     AuditAction,
@@ -20,6 +21,7 @@ class PropertyCreate(BaseModel):
     name: str = Field(..., min_length=1, max_length=255)
     internal_name: str = Field(..., min_length=1, max_length=255)
     type: PropertyType
+    rental_mode: RentalMode = RentalMode.DAILY
     description: str | None = None
     source_url: str | None = None
     latitude: float | None = None
@@ -42,6 +44,7 @@ class PropertyUpdate(BaseModel):
     name: str | None = None
     internal_name: str | None = None
     type: PropertyType | None = None
+    rental_mode: RentalMode | None = None
     description: str | None = None
     source_url: str | None = None
     latitude: float | None = None
@@ -69,6 +72,7 @@ class PropertyResponse(BaseModel):
     internal_name: str
     type: PropertyType
     status: PropertyStatus
+    rental_mode: RentalMode = RentalMode.DAILY
     description: str | None = None
     source_url: str | None = None
     latitude: float | None = None
@@ -154,6 +158,7 @@ class PropertyAmenitiesSet(BaseModel):
 
 class PricingConfigCreate(BaseModel):
     base_price: Decimal = Field(..., ge=0)
+    hourly_price: Decimal = Field(default=Decimal("0"), ge=0)
     weekend_markup: Decimal = Field(default=Decimal("0"), ge=0)
     default_deposit: Decimal = Field(default=Decimal("0"), ge=0)
     extra_adult_price: Decimal = Field(default=Decimal("0"), ge=0)
@@ -170,6 +175,7 @@ class PricingConfigResponse(BaseModel):
     id: uuid.UUID
     property_id: uuid.UUID
     base_price: Decimal
+    hourly_price: Decimal
     weekend_markup: Decimal
     default_deposit: Decimal
     extra_adult_price: Decimal

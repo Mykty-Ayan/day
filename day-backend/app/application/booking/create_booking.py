@@ -2,18 +2,58 @@ from __future__ import annotations
 
 import uuid
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, datetime, time
 
 from app.application.booking.price_calculator import PriceCalculatorService
+from app.config import settings
 from app.domain.booking.entities import Booking, BookingAuditLog, Guest
 from app.domain.booking.repositories import (
     BookingAuditLogRepository,
     BookingRepository,
     GuestRepository,
 )
-from app.domain.booking.value_objects import BookingAuditAction, BookingSource, BookingStatus
+from app.domain.booking.value_objects import (
+    BookingAuditAction,
+    BookingSource,
+    BookingStatus,
+    RentalMode,
+)
 from app.domain.property.repositories import PropertyRepository
 from app.domain.property.value_objects import PropertyStatus
+
+
+def _coerce_default_time(value: date | datetime | None, hour: int) -> datetime | None:
+    """Attach a default clock time to a daily booking boundary.
+
+    Bare dates and midnight datetimes get the configured default hour; a datetime
+    that already carries a time of day is left untouched (hourly bookings).
+    """
+    if value is None:
+        return None
+    if isinstance(value, datetime):
+        if (value.hour, value.minute, value.second, value.microsecond) == (0, 0, 0, 0):
+            return value.replace(hour=hour)
+        return value
+    return datetime.combine(value, time(hour=hour))
+
+
+def apply_default_times(
+    check_in: date | datetime | None,
+    check_out: date | datetime | None,
+    rental_mode: RentalMode,
+) -> tuple[datetime | None, datetime | None]:
+    """Normalize daily-booking boundaries to carry default check-in/out times."""
+    if rental_mode != RentalMode.DAILY:
+        return (
+            check_in if check_in is None or isinstance(check_in, datetime)
+            else datetime.combine(check_in, time()),
+            check_out if check_out is None or isinstance(check_out, datetime)
+            else datetime.combine(check_out, time()),
+        )
+    return (
+        _coerce_default_time(check_in, settings.DEFAULT_CHECK_IN_HOUR),
+        _coerce_default_time(check_out, settings.DEFAULT_CHECK_OUT_HOUR),
+    )
 
 
 @dataclass
@@ -23,8 +63,9 @@ class CreateBookingInput:
     guest_name: str
     guest_phone: str | None = None
     guest_email: str | None = None
-    check_in: date | None = None
-    check_out: date | None = None
+    check_in: date | datetime | None = None
+    check_out: date | datetime | None = None
+    rental_mode: RentalMode = RentalMode.DAILY
     source: BookingSource = BookingSource.DIRECT
     adults_count: int = 1
     children_count: int = 0
@@ -60,12 +101,18 @@ class CreateBookingService:
 
         if inp.check_in is None or inp.check_out is None:
             raise ValueError("Check-in and check-out dates are required")
-        if inp.check_out <= inp.check_in:
+
+        # Daily bookings default their clock times (14:00 / 12:00) so the stored
+        # datetime is a superset of the incoming date.
+        check_in, check_out = apply_default_times(
+            inp.check_in, inp.check_out, inp.rental_mode
+        )
+        if check_out <= check_in:
             raise ValueError("Check-out must be after check-in")
 
         # Check date overlaps
         overlapping = await self._booking_repo.get_by_property_and_dates(
-            inp.property_id, inp.check_in, inp.check_out
+            inp.property_id, check_in, check_out
         )
         if overlapping:
             raise ValueError("Date range overlaps with existing booking")
@@ -88,8 +135,8 @@ class CreateBookingService:
         # Calculate price
         price_breakdown = await self._price_calculator.calculate(
             inp.property_id,
-            inp.check_in,
-            inp.check_out,
+            check_in,
+            check_out,
             inp.adults_count,
             inp.children_count,
         )
@@ -99,8 +146,9 @@ class CreateBookingService:
                 company_id=inp.company_id,
                 property_id=inp.property_id,
                 guest_id=guest.id,
-                check_in=inp.check_in,
-                check_out=inp.check_out,
+                check_in=check_in,
+                check_out=check_out,
+                rental_mode=inp.rental_mode,
                 source=inp.source,
                 status=BookingStatus.PENDING,
                 gantt_color=inp.gantt_color,

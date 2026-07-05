@@ -1,8 +1,8 @@
 import uuid
-from datetime import date, datetime
+from datetime import datetime
 
 from sqlalchemy import (
-    Date,
+    DateTime,
     ForeignKey,
     Integer,
     Numeric,
@@ -66,8 +66,9 @@ class BookingModel(Base):
     group_booking_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("group_bookings.id", ondelete="SET NULL"), nullable=True, index=True
     )
-    check_in: Mapped[date] = mapped_column(Date)
-    check_out: Mapped[date] = mapped_column(Date)
+    check_in: Mapped[datetime] = mapped_column(DateTime)
+    check_out: Mapped[datetime] = mapped_column(DateTime)
+    rental_mode: Mapped[str] = mapped_column(String(20), default="daily")
     source: Mapped[str] = mapped_column(String(50), default="direct")
     status: Mapped[str] = mapped_column(String(50), default="pending")
     gantt_color: Mapped[str] = mapped_column(String(20), default="#3B82F6")

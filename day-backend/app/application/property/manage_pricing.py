@@ -16,6 +16,7 @@ from app.domain.property.repositories import (
 @dataclass
 class PricingConfigInput:
     base_price: Decimal
+    hourly_price: Decimal = Decimal("0")
     weekend_markup: Decimal = Decimal("0")
     default_deposit: Decimal = Decimal("0")
     extra_adult_price: Decimal = Decimal("0")
@@ -53,6 +54,7 @@ class ManagePricingService:
         existing = await self._pricing_repo.get_by_property(property_id)
         if existing:
             existing.base_price = inp.base_price
+            existing.hourly_price = inp.hourly_price
             existing.weekend_markup = inp.weekend_markup
             existing.default_deposit = inp.default_deposit
             existing.extra_adult_price = inp.extra_adult_price
@@ -62,6 +64,7 @@ class ManagePricingService:
         config = PricingConfig(
             property_id=property_id,
             base_price=inp.base_price,
+            hourly_price=inp.hourly_price,
             weekend_markup=inp.weekend_markup,
             default_deposit=inp.default_deposit,
             extra_adult_price=inp.extra_adult_price,

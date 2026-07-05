@@ -7,6 +7,7 @@ export type PaymentStatus = 'pending' | 'completed' | 'failed'
 export type DepositStatus = 'pending' | 'paid' | 'returned' | 'held' | 'partially_held'
 export type DepositAction = 'pay' | 'return' | 'hold' | 'partial_hold'
 export type ContractStatus = 'draft' | 'generated' | 'sent' | 'signed'
+export type RentalMode = 'daily' | 'hourly' | 'both'
 
 export interface Guest {
   id: string
@@ -27,6 +28,7 @@ export interface Booking {
   group_booking_id?: string
   check_in: string
   check_out: string
+  rental_mode: RentalMode
   source: BookingSource
   status: BookingStatus
   gantt_color: string
@@ -156,6 +158,7 @@ export interface BookingCreateInput {
   guest_email?: string
   check_in: string
   check_out: string
+  rental_mode?: RentalMode
   source: BookingSource
   adults_count: number
   children_count: number
@@ -166,6 +169,7 @@ export interface BookingCreateInput {
 export interface BookingUpdateInput {
   check_in?: string
   check_out?: string
+  rental_mode?: RentalMode
   source?: BookingSource
   adults_count?: number
   children_count?: number

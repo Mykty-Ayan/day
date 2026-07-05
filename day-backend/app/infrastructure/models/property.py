@@ -26,6 +26,7 @@ class PropertyModel(Base):
     internal_name: Mapped[str] = mapped_column(String(255))
     type: Mapped[str] = mapped_column(String(50))
     status: Mapped[str] = mapped_column(String(50), default="new")
+    rental_mode: Mapped[str] = mapped_column(String(20), default="daily")
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     source_url: Mapped[str | None] = mapped_column(String(1024), nullable=True)
 
@@ -112,6 +113,7 @@ class PricingConfigModel(Base):
         ForeignKey("properties.id", ondelete="CASCADE"), unique=True, index=True
     )
     base_price: Mapped[float] = mapped_column(Numeric(12, 2), default=0)
+    hourly_price: Mapped[float] = mapped_column(Numeric(12, 2), default=0)
     weekend_markup: Mapped[float] = mapped_column(Numeric(12, 2), default=0)
     default_deposit: Mapped[float] = mapped_column(Numeric(12, 2), default=0)
     extra_adult_price: Mapped[float] = mapped_column(Numeric(12, 2), default=0)

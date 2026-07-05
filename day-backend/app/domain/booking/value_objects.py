@@ -21,6 +21,12 @@ _BOOKING_TRANSITIONS: dict[BookingStatus, set[BookingStatus]] = {
 }
 
 
+class RentalMode(str, enum.Enum):
+    DAILY = "daily"
+    HOURLY = "hourly"
+    BOTH = "both"
+
+
 class BookingSource(str, enum.Enum):
     DIRECT = "direct"
     BOOKING = "booking"

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import uuid
 from dataclasses import dataclass, field
-from datetime import date, datetime
+from datetime import datetime
 from decimal import Decimal
 
 from app.domain.booking.value_objects import (
@@ -15,6 +15,7 @@ from app.domain.booking.value_objects import (
     PaymentMethod,
     PaymentStatus,
     PaymentType,
+    RentalMode,
 )
 
 
@@ -53,8 +54,9 @@ class Booking:
     property_id: uuid.UUID = field(default_factory=uuid.uuid4)
     guest_id: uuid.UUID = field(default_factory=uuid.uuid4)
     group_booking_id: uuid.UUID | None = None
-    check_in: date | None = None
-    check_out: date | None = None
+    check_in: datetime | None = None
+    check_out: datetime | None = None
+    rental_mode: RentalMode = RentalMode.DAILY
     source: BookingSource = BookingSource.DIRECT
     status: BookingStatus = BookingStatus.PENDING
     gantt_color: str = "#3B82F6"
