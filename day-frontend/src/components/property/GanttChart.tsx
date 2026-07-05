@@ -51,21 +51,36 @@ const BAR_H = 28
 const BAR_Y = (ROW_H - BAR_H) / 2
 const MONTH_LABEL_W = 92
 const MONTH_LABEL_PAD = 6
+// Matches the backend DEFAULT_CHECK_IN_HOUR (14:00) used to seed hourly bookings.
+const DEFAULT_HOURLY_START_TIME = '14:00'
 
 function toDateStr(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
+// Take only the date component so ISO date-time strings (hourly bookings) still
+// place correctly on the per-day grid instead of producing an Invalid Date.
 function parseDateOnly(dateStr: string): Date {
-  const [year, month, day] = dateStr.split('-').map(Number)
+  const [year, month, day] = dateStr.split('T')[0].split('-').map(Number)
   return new Date(year, (month || 1) - 1, day || 1)
+}
+
+// Grid placement works in whole-day boundaries. A same-day hourly booking
+// (check_in date === check_out date) still occupies one full day cell, so the
+// exclusive end is nudged to the next day when the parsed dates collapse.
+function getBookingDayRange(checkIn: string, checkOut: string): { start: Date; end: Date } {
+  const start = parseDateOnly(checkIn)
+  let end = parseDateOnly(checkOut)
+  if (end <= start) {
+    end = new Date(start.getFullYear(), start.getMonth(), start.getDate() + 1)
+  }
+  return { start, end }
 }
 
 function isBookedOnDate(bookings: Booking[], day: Date): boolean {
   const dayStart = new Date(day.getFullYear(), day.getMonth(), day.getDate())
   return bookings.some((booking) => {
-    const checkIn = parseDateOnly(booking.check_in)
-    const checkOut = parseDateOnly(booking.check_out)
+    const { start: checkIn, end: checkOut } = getBookingDayRange(booking.check_in, booking.check_out)
     return checkIn <= dayStart && dayStart < checkOut
   })
 }
@@ -129,6 +144,27 @@ function getBookingNights(checkIn: string, checkOut: string): number {
   const end = parseDateOnly(checkOut).getTime()
   const nights = Math.round((end - start) / (24 * 60 * 60 * 1000))
   return Math.max(0, nights)
+}
+
+function isHourlyBooking(booking: Booking): boolean {
+  return booking.rental_mode === 'hourly'
+}
+
+// Whole hours (ceil, matching the backend hourly billing) between two datetimes.
+function getBookingHours(checkIn: string, checkOut: string): number {
+  const start = new Date(checkIn).getTime()
+  const end = new Date(checkOut).getTime()
+  if (Number.isNaN(start) || Number.isNaN(end)) return 0
+  const hours = Math.ceil((end - start) / (60 * 60 * 1000))
+  return Math.max(0, hours)
+}
+
+// Compact duration shown in tooltips: "3H" for hourly bookings, "2N" for daily.
+function formatBookingDuration(booking: Booking): string {
+  if (isHourlyBooking(booking)) {
+    return `${getBookingHours(booking.check_in, booking.check_out)}H`
+  }
+  return `${getBookingNights(booking.check_in, booking.check_out)}N`
 }
 
 function formatBookingDateRangeShort(checkIn: string, checkOut: string, monthNames: string[]): string {
@@ -384,8 +420,7 @@ export default function GanttChart({
   }, [hoverPreview, pendingSelection])
 
   function getBarPosition(booking: Booking): { left: number; width: number } | null {
-    const checkIn = parseDateOnly(booking.check_in)
-    const checkOut = parseDateOnly(booking.check_out)
+    const { start: checkIn, end: checkOut } = getBookingDayRange(booking.check_in, booking.check_out)
     const rangeEndExclusive = new Date(
       rangeEndDate.getFullYear(),
       rangeEndDate.getMonth(),
@@ -418,6 +453,20 @@ export default function GanttChart({
       return
     }
     const dateStr = toDateStr(day)
+    // Hourly-only properties skip the daily two-click range selection and jump
+    // straight into the create form seeded with a default start time. Phase 4
+    // reads the 'T' clock component in check_in to open the form in hourly mode.
+    if (property.rental_mode === 'hourly') {
+      navigate({
+        to: '/bookings/new',
+        search: {
+          property_id: property.id,
+          check_in: `${dateStr}T${DEFAULT_HOURLY_START_TIME}`,
+          from: 'gantt',
+        } as Record<string, string>,
+      })
+      return
+    }
     if (onCellClick) {
       onCellClick(property.id, dateStr)
     } else {
@@ -760,6 +809,23 @@ export default function GanttChart({
                         {booking.status === 'checked_in' && (
                           <div className="w-2 h-2 rounded-full bg-white mr-1 shrink-0 animate-pulse" />
                         )}
+                        {/* Hourly badge distinguishes sub-day bookings from nightly stays */}
+                        {isHourlyBooking(booking) && (
+                          <svg
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2.5"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            className="w-2.5 h-2.5 mr-1 shrink-0 text-white"
+                            role="img"
+                            aria-label={t('bookings.rentalMode.hourly')}
+                          >
+                            <circle cx="12" cy="12" r="9" />
+                            <path d="M12 7v5l3 2" />
+                          </svg>
+                        )}
                         <span className="text-[11px] font-semibold text-white truncate">
                           {booking.guest_name}
                         </span>
@@ -839,7 +905,7 @@ export default function GanttChart({
             <p className="mt-1 text-[11px] text-gray-300">
               {formatBookingDateRangeShort(tooltip.booking.check_in, tooltip.booking.check_out, shortMonthNames)}
               {' · '}
-              {getBookingNights(tooltip.booking.check_in, tooltip.booking.check_out)}N
+              {formatBookingDuration(tooltip.booking)}
             </p>
             <div className="mt-1 flex items-center gap-1.5 text-[11px] text-gray-300">
               <span>{formatGuestsCompact(tooltip.booking.adults_count, tooltip.booking.children_count)}</span>
@@ -875,7 +941,7 @@ export default function GanttChart({
                 shortMonthNames,
               )}
               {' · '}
-              {getBookingNights(touchTooltipBooking.check_in, touchTooltipBooking.check_out)}N
+              {formatBookingDuration(touchTooltipBooking)}
             </p>
             <div className="mt-1 flex items-center gap-1.5 text-[11px] text-gray-300">
               <span>{formatGuestsCompact(touchTooltipBooking.adults_count, touchTooltipBooking.children_count)}</span>

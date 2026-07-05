@@ -28,9 +28,17 @@ const bookingStatusClass: Record<BookingStatus, string> = {
   cancelled: 'border-rose-200 bg-rose-50 text-rose-700',
 }
 
+// Take only the date component so ISO date-time strings (hourly bookings) parse
+// as the correct day instead of an Invalid Date.
 function parseDateOnly(dateStr: string): Date {
-  const [year, month, day] = dateStr.split('-').map(Number)
+  const [year, month, day] = dateStr.split('T')[0].split('-').map(Number)
   return new Date(year, (month || 1) - 1, day || 1)
+}
+
+// Extract the HH:mm clock component from an ISO date-time string, if present.
+function formatTimeOfDay(value: string): string {
+  const time = value.split('T')[1]
+  return time ? time.slice(0, 5) : ''
 }
 
 function addDays(dateStr: string, days: number): string {
@@ -149,7 +157,20 @@ export default function GanttAgendaView({ rows, rangeStart, rangeEnd }: Props) {
                       </span>
                     </div>
                     <p className="mt-1 text-xs text-gray-600">
-                      {formatAgendaDate(booking.check_in)} - {formatAgendaDate(booking.check_out)}
+                      {booking.rental_mode === 'hourly' ? (
+                        <>
+                          {formatAgendaDate(booking.check_in)}
+                          {' · '}
+                          {formatTimeOfDay(booking.check_in)}–{formatTimeOfDay(booking.check_out)}
+                          <span className="ml-1.5 inline-flex rounded border border-indigo-200 bg-indigo-50 px-1 py-0.5 text-[10px] font-semibold text-indigo-700">
+                            {t('bookings.rentalMode.hourly')}
+                          </span>
+                        </>
+                      ) : (
+                        <>
+                          {formatAgendaDate(booking.check_in)} - {formatAgendaDate(booking.check_out)}
+                        </>
+                      )}
                     </p>
                     <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-gray-500">
                       <span>{t(`bookings.sources.${booking.source}`)}</span>

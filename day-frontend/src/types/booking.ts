@@ -138,6 +138,7 @@ export interface GanttPropertySummary {
   internal_name: string
   type: string
   status: 'new' | 'active' | 'paused' | 'archived'
+  rental_mode?: RentalMode
 }
 
 export interface GanttData {
