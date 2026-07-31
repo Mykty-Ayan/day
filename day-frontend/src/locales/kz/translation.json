@@ -56,6 +56,8 @@
     "reason": "Себеп",
     "selectDate": "Күнді таңдаңыз",
     "selectTime": "Уақытты таңдаңыз",
+    "timeInputHint": "СС:ММ",
+    "noResults": "Ештеңе табылмады",
     "time": "Уақыт",
     "selected": "Таңдалды",
     "pickDate": "Күнді таңдаңыз",
@@ -230,7 +232,10 @@
       "photoHint": "PNG, JPG 10 МБ дейін",
       "setAsCover": "Мұқаба ету",
       "cover": "Мұқаба",
-      "amenitiesError": "Ыңғайлылықтарды жүктеу сәтсіз аяқталды"
+      "amenitiesError": "Ыңғайлылықтарды жүктеу сәтсіз аяқталды",
+      "checkInInstructionsPlaceholder": "Кілт кіреберіс есіктегі сейф-боксте. Коды: ...",
+      "checkOutInstructionsPlaceholder": "Кілттерді ас үй үстеліне қалдырыңыз...",
+      "houseRulesPlaceholder": "Темекі шегуге болмайды. Жануарларсыз. Тыныштық 22:00-08:00..."
     },
     "validation": {
       "nameRequired": "Атауы міндетті",
@@ -246,7 +251,12 @@
     },
     "perNight": "/ түн",
     "roomsCount": "{{count}} бөлме",
-    "bedsCount": "{{count}} төсек"
+    "bedsCount": "{{count}} төсек",
+    "tags": {
+      "create": "Тег құру",
+      "namePlaceholder": "Тег атауы",
+      "color": "Тег түсі"
+    }
   },
   "bookings": {
     "title": "Броньдар",

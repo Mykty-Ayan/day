@@ -56,6 +56,8 @@
     "reason": "Reason",
     "selectDate": "Select date",
     "selectTime": "Select time",
+    "timeInputHint": "HH:MM",
+    "noResults": "No matches",
     "time": "Time",
     "selected": "Selected",
     "pickDate": "Pick a date",
@@ -230,7 +232,10 @@
       "photoHint": "PNG, JPG up to 10MB",
       "setAsCover": "Set as cover",
       "cover": "Cover",
-      "amenitiesError": "Failed to load amenities"
+      "amenitiesError": "Failed to load amenities",
+      "checkInInstructionsPlaceholder": "Key is in the lockbox by the front door. Code: ...",
+      "checkOutInstructionsPlaceholder": "Please leave the keys on the kitchen table...",
+      "houseRulesPlaceholder": "No smoking. No pets. Quiet hours 22:00-08:00..."
     },
     "validation": {
       "nameRequired": "Name is required",
@@ -246,7 +251,12 @@
     },
     "perNight": "/ night",
     "roomsCount": "{{count}} rooms",
-    "bedsCount": "{{count}} beds"
+    "bedsCount": "{{count}} beds",
+    "tags": {
+      "create": "Create tag",
+      "namePlaceholder": "Tag name",
+      "color": "Tag color"
+    }
   },
   "bookings": {
     "title": "Bookings",

@@ -204,10 +204,11 @@ function EditBookingForm({ detail, bookingId }: { detail: BookingDetail; booking
           {/* Rental mode toggle - only for properties that allow both */}
           {property?.rental_mode === 'both' && (
             <div>
-              <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
+              <span id="edit-rental-mode-label" className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
                 {t('bookings.rentalMode.label')}
-              </label>
+              </span>
               <ToggleGroup
+                aria-labelledby="edit-rental-mode-label"
                 type="single"
                 value={form.rental_mode}
                 onValueChange={(value) => {
@@ -226,10 +227,11 @@ function EditBookingForm({ detail, bookingId }: { detail: BookingDetail; booking
             {isHourly ? (
               <div className="space-y-3">
                 <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">
+                  <label htmlFor="edit-hourly-date" className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">
                     {t('bookings.date')}
                   </label>
                   <DatePicker
+                    id="edit-hourly-date"
                     value={form.hourly_date}
                     onChange={(value) => updateField('hourly_date', value)}
                     placeholder={t('bookings.selectDates')}
@@ -274,10 +276,11 @@ function EditBookingForm({ detail, bookingId }: { detail: BookingDetail; booking
               </div>
             ) : (
               <>
-                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">
+                <label htmlFor="edit-date-range" className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">
                   {t('bookings.dateRange')}
                 </label>
                 <DateRangePicker
+                  id="edit-date-range"
                   startDate={form.check_in}
                   endDate={form.check_out}
                   onRangeChange={(start, end) => {
@@ -299,10 +302,11 @@ function EditBookingForm({ detail, bookingId }: { detail: BookingDetail; booking
 
           {/* Source */}
           <div className="border-t border-gray-100 pt-5">
-            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
+            <span id="edit-source-label" className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
               {t('bookings.source')}
-            </label>
+            </span>
             <ToggleGroup
+              aria-labelledby="edit-source-label"
               type="single"
               value={form.source}
               onValueChange={(value) => {
@@ -322,10 +326,11 @@ function EditBookingForm({ detail, bookingId }: { detail: BookingDetail; booking
           <div className="border-t border-gray-100 pt-5">
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">
+                <label htmlFor="edit-adults" className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">
                   {t('bookings.adults')}
                 </label>
                 <NumberInput
+                  id="edit-adults"
                   value={form.adults_count}
                   onChange={(value) =>
                     updateField('adults_count', Math.max(1, parseInt(value) || 1))
@@ -339,10 +344,11 @@ function EditBookingForm({ detail, bookingId }: { detail: BookingDetail; booking
                 )}
               </div>
               <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">
+                <label htmlFor="edit-children" className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">
                   {t('bookings.children')}
                 </label>
                 <NumberInput
+                  id="edit-children"
                   value={form.children_count}
                   onChange={(value) =>
                     updateField('children_count', Math.max(0, parseInt(value) || 0))
@@ -356,10 +362,10 @@ function EditBookingForm({ detail, bookingId }: { detail: BookingDetail; booking
 
           {/* Gantt Color */}
           <div className="border-t border-gray-100 pt-5">
-            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
+            <span id="edit-color-label" className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
               {t('bookings.calendarColor')}
-            </label>
-            <div className="flex gap-1">
+            </span>
+            <div className="flex gap-1" role="group" aria-labelledby="edit-color-label">
               {GANTT_COLORS.map((c) => (
                 <motion.button
                   key={c.value}

@@ -39,6 +39,7 @@ import { showToast } from '../../components/ui/Toast'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import AuditTrail from '../../components/ui/AuditTrail'
 import Spinner from '../../components/ui/Spinner'
+import Button from '../../components/ui/Button'
 
 function getStatusActions(status: PropertyStatus): { labelKey: string; target: PropertyStatus; icon: typeof Play }[] {
   switch (status) {
@@ -163,8 +164,11 @@ export default function PropertyDetailPage() {
 
   if (!property) {
     return (
-      <div className="flex flex-col items-center justify-center py-20">
+      <div className="flex flex-col items-center justify-center gap-4 py-20">
         <p className="text-sm text-gray-500">{t('properties.notFound')}</p>
+        <Button variant="secondary" onClick={() => navigate({ to: '/properties' })}>
+          {t('properties.backToProperties')}
+        </Button>
       </div>
     )
   }

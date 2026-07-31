@@ -81,10 +81,15 @@ export default function CleaningDetailPage() {
 
       {/* Tabs */}
       <div className="mb-6 overflow-x-auto">
-        <div className="flex flex-wrap gap-1 rounded-xl bg-gray-100 p-1">
+        <div className="flex flex-wrap gap-1 rounded-xl bg-gray-100 p-1" role="tablist">
           {TABS.map((tab) => (
             <button
               key={tab}
+              type="button"
+              role="tab"
+              id={`cleaning-tab-${tab}`}
+              aria-selected={activeTab === tab}
+              aria-controls={`cleaning-panel-${tab}`}
               onClick={() => setActiveTab(tab)}
               className={`min-h-[44px] whitespace-nowrap rounded-lg px-4 py-2 text-sm font-medium transition-all ${
                 activeTab === tab
@@ -101,6 +106,9 @@ export default function CleaningDetailPage() {
       <AnimatePresence mode="wait">
         <motion.div
           key={activeTab}
+          role="tabpanel"
+          id={`cleaning-panel-${activeTab}`}
+          aria-labelledby={`cleaning-tab-${activeTab}`}
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -8 }}

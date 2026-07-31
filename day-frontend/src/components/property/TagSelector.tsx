@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { motion } from 'framer-motion'
 import { Plus, X, Check } from 'lucide-react'
 import TagBadge from './TagBadge'
@@ -29,6 +30,7 @@ export default function TagSelector({
   onCreateTag,
   loading = false,
 }: Props) {
+  const { t } = useTranslation()
   const [showCreate, setShowCreate] = useState(false)
   const [newName, setNewName] = useState('')
   const [newColor, setNewColor] = useState(TAG_COLORS[0])
@@ -100,7 +102,7 @@ export default function TagSelector({
               className="inline-flex min-h-[44px] min-w-[44px] items-center gap-1 rounded-xl px-3 py-1.5 text-xs font-bold text-gray-500 transition-colors hover:bg-gray-50 hover:text-gray-700"
             >
               <Plus className="w-3 h-3" />
-              Create Tag
+              {t('properties.tags.create')}
             </motion.button>
           ) : (
             <motion.div
@@ -112,17 +114,20 @@ export default function TagSelector({
                 type="text"
                 value={newName}
                 onChange={(e) => setNewName(e.target.value)}
-                placeholder="Tag name"
+                placeholder={t('properties.tags.namePlaceholder')}
+                aria-label={t('properties.tags.namePlaceholder')}
                 className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-black/10"
                 onKeyDown={(e) => e.key === 'Enter' && handleCreate()}
               />
-              <div className="flex flex-wrap gap-1.5">
+              <div className="flex flex-wrap gap-1.5" role="group" aria-label={t('properties.tags.color')}>
                 {TAG_COLORS.map((color) => (
                   <button
                     key={color}
                     type="button"
                     onClick={() => setNewColor(color)}
-                    className="relative h-9 w-9 rounded-full"
+                    aria-label={color}
+                    aria-pressed={newColor === color}
+                    className="relative flex h-11 w-11 items-center justify-center rounded-full"
                     style={{ backgroundColor: color }}
                   >
                     {newColor === color && (
@@ -139,11 +144,12 @@ export default function TagSelector({
                   disabled={loading || !newName.trim()}
                   className="min-h-[44px] rounded-lg bg-black px-3 py-1.5 text-xs font-bold text-white transition-colors hover:bg-gray-800 disabled:opacity-50"
                 >
-                  Create
+                  {t('common.create')}
                 </motion.button>
                 <button
                   type="button"
                   onClick={() => setShowCreate(false)}
+                  aria-label={t('common.cancel')}
                   className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg px-2 text-xs font-bold text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700"
                 >
                   <X className="w-3 h-3" />

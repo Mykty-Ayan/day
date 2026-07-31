@@ -74,7 +74,7 @@ export default function MobileShell({
 
   return (
     <div className="min-h-screen bg-white flex flex-col">
-      <header className="sticky top-0 z-40 border-b border-gray-100 bg-white safe-area-top">
+      <header className="sticky top-0 z-sticky border-b border-gray-100 bg-white safe-area-top">
         <div className="flex items-center px-4 py-3">
           <Link to="/" className="text-sm font-bold text-gray-900">
             Day
@@ -98,7 +98,7 @@ export default function MobileShell({
 
       <main className="flex min-w-0 flex-1 flex-col overflow-x-hidden pb-[calc(6rem+env(safe-area-inset-bottom))]">{children}</main>
 
-      <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-gray-100 bg-white safe-area-bottom">
+      <nav className="fixed inset-x-0 bottom-0 z-sticky border-t border-gray-100 bg-white safe-area-bottom">
         <div className="grid grid-cols-5 gap-1 px-2 py-2">
           {primaryTabs.map(({ to, label, icon: Icon }) => {
             const excludedByMore =
@@ -111,7 +111,7 @@ export default function MobileShell({
               <Link
                 key={to}
                 to={to}
-                className={`flex min-h-[48px] min-w-[48px] flex-col items-center justify-center gap-1 rounded-lg px-1 text-[10px] font-bold transition-colors ${
+                className={`flex min-h-[48px] min-w-[48px] flex-col items-center justify-center gap-1 rounded-lg px-1 text-[11px] font-bold leading-tight tracking-tight transition-colors ${
                   isActive
                     ? 'bg-gray-100 text-gray-900'
                     : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900'
@@ -126,7 +126,7 @@ export default function MobileShell({
           <button
             type="button"
             onClick={() => setIsMoreOpen(true)}
-            className={`flex min-h-[48px] min-w-[48px] flex-col items-center justify-center gap-1 rounded-lg px-1 text-[10px] font-bold transition-colors ${
+            className={`flex min-h-[48px] min-w-[48px] flex-col items-center justify-center gap-1 rounded-lg px-1 text-[11px] font-bold leading-tight tracking-tight transition-colors ${
               isMoreActive || isMoreOpen
                 ? 'bg-gray-100 text-gray-900'
                 : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900'
@@ -139,7 +139,7 @@ export default function MobileShell({
       </nav>
 
       {isMoreOpen && (
-        <div className="fixed inset-0 z-50">
+        <div className="fixed inset-0 z-overlay">
           <button
             type="button"
             aria-label={t('common.cancel')}

@@ -18,6 +18,8 @@ import {
 } from 'lucide-react'
 import { useNavigate, useParams } from '@tanstack/react-router'
 import Spinner from '../../components/ui/Spinner'
+import { useMediaQuery } from '../../hooks/useMediaQuery'
+import Button from '../../components/ui/Button'
 import {
   useBooking,
   useChangeBookingStatus,
@@ -135,6 +137,13 @@ export default function BookingDetailPage() {
   const [depositsViewMode, setDepositsViewMode] = useState<ViewMode>(() =>
     readInitialViewMode(BOOKING_DETAIL_DEPOSITS_VIEW_MODE_STORAGE_KEY),
   )
+  // A "table" preference persisted from desktop must not force a horizontally
+  // scrolling table onto a phone. The stored choice is kept, only the render
+  // falls back to cards while the viewport is narrow.
+  const isSmallScreen = useMediaQuery('(max-width: 640px)')
+  const effectivePaymentsViewMode: ViewMode = isSmallScreen ? 'cards' : paymentsViewMode
+  const effectiveDepositsViewMode: ViewMode = isSmallScreen ? 'cards' : depositsViewMode
+
   const from = useMemo(() => {
     if (typeof window === 'undefined') return ''
     const params = new URLSearchParams(window.location.search)
@@ -174,8 +183,11 @@ export default function BookingDetailPage() {
 
   if (!detail) {
     return (
-      <div className="flex flex-col items-center justify-center py-20">
+      <div className="flex flex-col items-center justify-center gap-4 py-20">
         <p className="text-sm text-gray-500">{t('bookings.notFound')}</p>
+        <Button variant="secondary" onClick={() => navigate({ to: '/bookings' })}>
+          {t('bookings.backToBookings')}
+        </Button>
       </div>
     )
   }
@@ -276,7 +288,7 @@ export default function BookingDetailPage() {
                 totalPrice={booking.total_price}
                 checkIn={booking.check_in}
                 checkOut={booking.check_out}
-                viewMode={paymentsViewMode}
+                viewMode={effectivePaymentsViewMode}
                 onViewModeChange={setPaymentsViewMode}
               />
             )}
@@ -284,7 +296,7 @@ export default function BookingDetailPage() {
               <DepositsTab
                 bookingId={bookingId}
                 deposits={detail.deposits}
-                viewMode={depositsViewMode}
+                viewMode={effectiveDepositsViewMode}
                 onViewModeChange={setDepositsViewMode}
               />
             )}

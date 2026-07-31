@@ -88,7 +88,7 @@ export default function ToastContainer() {
       role="status"
       aria-live="polite"
       aria-atomic="false"
-      className="fixed inset-x-0 top-0 z-50 flex flex-col gap-2 px-4 pt-2 safe-area-top sm:inset-x-auto sm:top-4 sm:right-4 sm:px-0 sm:pt-0"
+      className="fixed inset-x-0 top-0 z-toast flex flex-col gap-2 px-4 pt-2 safe-area-top sm:inset-x-auto sm:top-4 sm:right-4 sm:px-0 sm:pt-0"
     >
       <AnimatePresence>
         {toasts.map((toast) => (

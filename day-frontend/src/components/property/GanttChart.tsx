@@ -930,7 +930,7 @@ export default function GanttChart({
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 4, scale: 0.98 }}
             transition={{ duration: 0.15 }}
-            className="fixed z-40 rounded-xl border border-emerald-300/30 bg-emerald-950/95 px-3 py-2 text-white shadow-xl pointer-events-none"
+            className="fixed z-sticky rounded-xl border border-emerald-300/30 bg-emerald-950/95 px-3 py-2 text-white shadow-xl pointer-events-none"
             style={{
               left: rangePreviewTooltip.left,
               top: rangePreviewTooltip.top,
@@ -955,7 +955,7 @@ export default function GanttChart({
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 5 }}
             transition={{ duration: 0.15 }}
-            className="pointer-events-none fixed z-50 max-w-[280px] rounded-xl border border-white/10 bg-gray-950/95 px-3 py-2.5 text-white shadow-lg backdrop-blur-sm"
+            className="pointer-events-none fixed z-popover max-w-[280px] rounded-xl border border-white/10 bg-gray-950/95 px-3 py-2.5 text-white shadow-lg backdrop-blur-sm"
             style={{
               left: tooltip.x,
               top: tooltip.y - 8,
@@ -994,7 +994,7 @@ export default function GanttChart({
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 10 }}
             transition={{ duration: 0.2 }}
-            className="fixed inset-x-3 bottom-3 z-50 rounded-xl border border-white/10 bg-gray-950/95 p-3 text-white shadow-lg backdrop-blur-sm"
+            className="fixed inset-x-3 bottom-3 z-overlay rounded-xl border border-white/10 bg-gray-950/95 p-3 text-white shadow-lg backdrop-blur-sm"
           >
             <div className="flex items-center justify-between gap-2">
               <p className="truncate text-sm font-semibold">{touchTooltipBooking.guest_name}</p>
@@ -1062,7 +1062,7 @@ export default function GanttChart({
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 10 }}
             transition={{ duration: 0.2 }}
-            className="fixed inset-x-3 bottom-3 z-50 max-h-[70vh] overflow-hidden rounded-xl border border-white/10 bg-gray-950/95 p-3 text-white shadow-lg backdrop-blur-sm"
+            className="fixed inset-x-3 bottom-3 z-overlay max-h-[70vh] overflow-hidden rounded-xl border border-white/10 bg-gray-950/95 p-3 text-white shadow-lg backdrop-blur-sm"
           >
             <div className="flex items-center justify-between gap-2">
               <p className="text-sm font-semibold">{t('gantt.moveTo')}</p>

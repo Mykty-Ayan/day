@@ -10,6 +10,7 @@ import { Popover, PopoverContent, PopoverTrigger } from './popover'
 type DateLike = string | Date | undefined
 
 interface DatePickerProps {
+  id?: string
   value?: string
   onChange: (value: string) => void
   minDate?: DateLike
@@ -29,6 +30,7 @@ function normalizeDate(value?: DateLike): Date | undefined {
 }
 
 export default function DatePicker({
+  id,
   value,
   onChange,
   minDate,
@@ -47,6 +49,7 @@ export default function DatePicker({
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <button
+          id={id}
           type="button"
           disabled={disabled}
           className={cn(
@@ -61,7 +64,7 @@ export default function DatePicker({
         </button>
       </PopoverTrigger>
       <PopoverContent
-        className="z-[120] w-auto rounded-2xl border border-gray-200 bg-white p-2 shadow-2xl"
+        className="z-popover w-auto rounded-2xl border border-gray-200 bg-white p-2 shadow-2xl"
         align="start"
         sideOffset={8}
       >

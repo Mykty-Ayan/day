@@ -11,6 +11,7 @@ import { Popover, PopoverContent, PopoverTrigger } from './popover'
 type DateLike = string | Date | undefined
 
 interface DateRangePickerProps {
+  id?: string
   startDate?: string
   endDate?: string
   onRangeChange: (start: string, end: string) => void
@@ -34,6 +35,7 @@ function normalizeDate(value?: DateLike): Date | undefined {
 }
 
 export default function DateRangePicker({
+  id,
   startDate,
   endDate,
   onRangeChange,
@@ -83,6 +85,7 @@ export default function DateRangePicker({
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <button
+          id={id}
           type="button"
           disabled={disabled}
           className={cn(
@@ -98,7 +101,7 @@ export default function DateRangePicker({
         </button>
       </PopoverTrigger>
       <PopoverContent
-        className="z-[120] w-auto max-w-[calc(100vw-1rem)] overflow-hidden rounded-2xl border border-gray-200 bg-white p-2 shadow-2xl"
+        className="z-popover w-auto max-w-[calc(100vw-1rem)] overflow-hidden rounded-2xl border border-gray-200 bg-white p-2 shadow-2xl"
         align="start"
         sideOffset={8}
       >

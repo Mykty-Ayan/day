@@ -395,6 +395,8 @@ function PricingFormInner({
             aria-label={t('properties.pricing.addSeasonalAria')}
           >
             <Plus className="h-5 w-5" />
+            {/* A full-width icon-only button reads as ambiguous; keep the word. */}
+            <span className="ml-2 text-sm font-semibold">{t('common.add')}</span>
           </motion.button>
         </div>
         <div className="mt-1 space-y-1.5">
@@ -490,6 +492,8 @@ function PricingFormInner({
             aria-label={t('properties.pricing.addDiscountAria')}
           >
             <Plus className="h-5 w-5" />
+            {/* A full-width icon-only button reads as ambiguous; keep the word. */}
+            <span className="ml-2 text-sm font-semibold">{t('common.add')}</span>
           </motion.button>
         </div>
       </div>

@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { cn } from '../../lib/utils'
 
 interface NumberInputProps {
+  id?: string
   value: string | number
   onChange: (value: string) => void
   min?: number
@@ -35,6 +36,7 @@ function formatWithStep(value: number, step: number): string {
 }
 
 export default function NumberInput({
+  id,
   value,
   onChange,
   min,
@@ -87,6 +89,7 @@ export default function NumberInput({
   return (
     <div className={cn('relative', className)}>
       <input
+        id={id}
         type="number"
         value={value}
         onChange={(e) => onChange(e.target.value)}

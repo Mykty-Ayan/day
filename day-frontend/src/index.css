@@ -31,6 +31,21 @@ body {
   padding-bottom: env(safe-area-inset-bottom);
 }
 
+/* Overlay stacking scale. Every floating layer uses one of these tokens so the
+   order is decided here instead of by ad-hoc z-40/z-50/z-[90]/z-[120] values. */
+.z-sticky {
+  z-index: 40;
+}
+.z-overlay {
+  z-index: 100;
+}
+.z-popover {
+  z-index: 120;
+}
+.z-toast {
+  z-index: 140;
+}
+
 /* Hide native number spinners inside custom NumberInput */
 .number-input {
   -moz-appearance: textfield;

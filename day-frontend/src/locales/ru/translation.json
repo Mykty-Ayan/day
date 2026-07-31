@@ -56,6 +56,8 @@
     "reason": "Причина",
     "selectDate": "Выберите дату",
     "selectTime": "Выберите время",
+    "timeInputHint": "ЧЧ:ММ",
+    "noResults": "Ничего не найдено",
     "time": "Время",
     "selected": "Выбрано",
     "pickDate": "Выберите дату",
@@ -230,7 +232,10 @@
       "photoHint": "PNG, JPG до 10 МБ",
       "setAsCover": "Сделать обложкой",
       "cover": "Обложка",
-      "amenitiesError": "Не удалось загрузить удобства"
+      "amenitiesError": "Не удалось загрузить удобства",
+      "checkInInstructionsPlaceholder": "Ключ в сейф-боксе у входной двери. Код: ...",
+      "checkOutInstructionsPlaceholder": "Оставьте ключи на кухонном столе...",
+      "houseRulesPlaceholder": "Не курить. Без животных. Тишина с 22:00 до 08:00..."
     },
     "validation": {
       "nameRequired": "Название обязательно",
@@ -246,7 +251,12 @@
     },
     "perNight": "/ ночь",
     "roomsCount": "{{count}} комн.",
-    "bedsCount": "{{count}} кров."
+    "bedsCount": "{{count}} кров.",
+    "tags": {
+      "create": "Создать тег",
+      "namePlaceholder": "Название тега",
+      "color": "Цвет тега"
+    }
   },
   "bookings": {
     "title": "Бронирования",
