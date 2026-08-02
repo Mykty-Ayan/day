@@ -48,8 +48,39 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-    yield
-    await engine.dispose()
+    import asyncio
+
+    from app.domain.messaging.value_objects import Channel
+    from app.infrastructure.messaging.factory import get_provider
+    from app.infrastructure.messaging.worker import notification_worker
+
+    stop = asyncio.Event()
+    worker = asyncio.create_task(notification_worker(stop))
+
+    # Telegram only delivers to the URL it was last told about, and that URL
+    # changes with the deployment — so it is (re)registered on every boot.
+    telegram = get_provider(Channel.TELEGRAM)
+    if settings.TELEGRAM_BOT_TOKEN and settings.TELEGRAM_WEBHOOK_SECRET:
+        try:
+            await telegram.set_webhook(
+                f"{settings.PUBLIC_BASE_URL.rstrip('/')}/api/v1/webhooks/telegram",
+                settings.TELEGRAM_WEBHOOK_SECRET,
+            )
+            logger.info("Telegram webhook registered")
+        except Exception:
+            # A bot that cannot register must not stop the API from serving.
+            logger.exception("Telegram webhook registration failed")
+
+    try:
+        yield
+    finally:
+        stop.set()
+        worker.cancel()
+        try:
+            await worker
+        except (asyncio.CancelledError, Exception):
+            pass
+        await engine.dispose()
 
 
 def _setup_logging() -> None:

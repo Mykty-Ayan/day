@@ -31,7 +31,9 @@ from app.config import settings
 from app.domain.auth.permissions import Permission
 from app.domain.booking.entities import BookingComment, BookingFile
 from app.domain.booking.value_objects import BookingSource, BookingStatus
+from app.domain.messaging.value_objects import NotificationEvent
 from app.infrastructure.database import get_session
+from app.infrastructure.messaging.factory import build_notification_service
 from app.infrastructure.repositories.booking import (
     SqlBookingAuditLogRepository,
     SqlBookingCommentRepository,
@@ -186,6 +188,35 @@ def _content_disposition(filename: str) -> str:
 # ---------- Booking CRUD ----------
 
 
+async def _notify_booking(
+    session: AsyncSession,
+    company_id: uuid.UUID,
+    event: NotificationEvent,
+    booking,
+    repos: dict,
+) -> None:
+    """Queue a host notification in the same transaction as the change itself.
+
+    A company with no bot connected queues nothing, so this is a no-op until
+    someone links a chat.
+    """
+    prop = await repos["property"].get_by_id(booking.property_id)
+    guest = await repos["guest"].get_by_id(booking.guest_id) if booking.guest_id else None
+    await build_notification_service(session).notify_company(
+        company_id,
+        event,
+        {
+            "property_name": prop.name if prop else "—",
+            "guest_name": guest.name if guest else "—",
+            "check_in": booking.check_in.strftime("%d.%m.%Y %H:%M"),
+            "check_out": booking.check_out.strftime("%d.%m.%Y %H:%M"),
+            "total_price": str(booking.total_price) if booking.total_price is not None else None,
+            "source": booking.source.value,
+            "booking_id": str(booking.id),
+        },
+    )
+
+
 @booking_router.post(
     "",
     response_model=BookingResponse,
@@ -225,6 +256,7 @@ async def create_booking(
                 changed_by=user_id,
             )
         )
+        await _notify_booking(session, company_id, NotificationEvent.BOOKING_CREATED, result, repos)
         await session.commit()
         return _to_booking_response(result)
     except ValueError as e:
@@ -444,6 +476,10 @@ async def change_booking_status(
     svc = ChangeBookingStatusService(repos["booking"], repos["audit"])
     try:
         result = await svc.execute(booking_id, company_id, body.target_status, changed_by=user_id)
+        if body.target_status == BookingStatus.CANCELLED:
+            await _notify_booking(
+                session, company_id, NotificationEvent.BOOKING_CANCELLED, result, repos
+            )
         await session.commit()
         return _to_booking_response(result)
     except ValueError as e:
