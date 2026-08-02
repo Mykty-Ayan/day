@@ -773,5 +773,30 @@
     "codeFailed": "Не удалось выдать код",
     "whatsappConnected": "WhatsApp-канал подключён",
     "whatsappFailed": "Не удалось подключить канал"
+  },
+  "miniapp": {
+    "loading": "Загрузка…",
+    "loadFailed": "Не удалось загрузить данные",
+    "empty": "Пусто",
+    "openInTelegram": "Откройте страницу из Telegram-бота",
+    "authFailed": "Не удалось войти",
+    "connectHint": "Подключите чат в приложении: Настройки → Команда и API-ключи → Боты",
+    "tabs": {
+      "today": "Сегодня",
+      "free": "Свободно",
+      "bookings": "Брони"
+    },
+    "arrivals": "Заезды",
+    "departures": "Выезды",
+    "inHouse": "Проживают",
+    "until": "до",
+    "freeProperties": "Свободные объекты",
+    "noPrice": "нет цены",
+    "upcoming": "Ближайшие {{days}} дней",
+    "periods": {
+      "tonight": "Сегодня",
+      "tomorrow": "Завтра",
+      "weekend": "Выходные"
+    }
   }
 }

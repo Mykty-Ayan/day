@@ -23,6 +23,11 @@ class RefreshRequest(BaseModel):
     refresh_token: str
 
 
+class TelegramMiniAppRequest(BaseModel):
+    # The raw `window.Telegram.WebApp.initData` string, signature included.
+    init_data: str
+
+
 class TokenResponse(BaseModel):
     access_token: str
     refresh_token: str

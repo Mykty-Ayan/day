@@ -106,6 +106,25 @@ The bot then answers `/free` (with or without dates), `/today`, `/bookings`,
 `/help`, and `/stop` to disconnect. New and cancelled bookings — including ones
 the WhatsApp bot creates — arrive in the same chat.
 
+### Telegram Mini App (the visual view)
+
+The bot's chat commands answer questions; the Mini App shows the same data as a
+screen. It is served by the frontend at `/tma`, so it needs no separate deploy.
+
+In [@BotFather](https://t.me/BotFather): `/mybots` → your bot → **Bot Settings →
+Menu Button → Configure menu button** → URL `https://app.<your-domain>/tma`,
+label e.g. "Мои объекты".
+
+It signs in with no password: Telegram signs the `initData` blob it hands the
+page, the server verifies that HMAC against the bot token, and the chat's
+existing link decides which company the user sees. A Telegram account nobody
+linked gets nothing, and the check refuses blobs older than 24 hours so a
+captured one cannot be replayed forever.
+
+Three screens, deliberately narrow: **Сегодня** (arrivals, staying now,
+departures), **Свободно** (free properties for tonight / tomorrow / the weekend,
+with prices), **Брони** (the next 14 days). Cleaning is not in it.
+
 ### WhatsApp (the guest bot, via whapi.cloud)
 
 1. Create a channel at whapi.cloud and connect the operator's WhatsApp number.

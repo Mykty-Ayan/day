@@ -773,5 +773,30 @@
     "codeFailed": "Код беру мүмкін болмады",
     "whatsappConnected": "WhatsApp арнасы қосылды",
     "whatsappFailed": "Арнаны қосу мүмкін болмады"
+  },
+  "miniapp": {
+    "loading": "Жүктелуде…",
+    "loadFailed": "Деректерді жүктеу мүмкін болмады",
+    "empty": "Бос",
+    "openInTelegram": "Бетті Telegram-боттан ашыңыз",
+    "authFailed": "Кіру мүмкін болмады",
+    "connectHint": "Чатты қосыңыз: Баптаулар → Команда және API-кілттер → Боттар",
+    "tabs": {
+      "today": "Бүгін",
+      "free": "Бос",
+      "bookings": "Брондар"
+    },
+    "arrivals": "Кіру",
+    "departures": "Шығу",
+    "inHouse": "Тұрып жатыр",
+    "until": "дейін",
+    "freeProperties": "Бос нысандар",
+    "noPrice": "бағасы жоқ",
+    "upcoming": "Алдағы {{days}} күн",
+    "periods": {
+      "tonight": "Бүгін",
+      "tomorrow": "Ертең",
+      "weekend": "Демалыс"
+    }
   }
 }

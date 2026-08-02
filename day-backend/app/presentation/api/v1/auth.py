@@ -4,13 +4,18 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.application.auth.auth_service import AuthService
+from app.application.auth.telegram_login import TelegramLoginService, TelegramNotLinked
+from app.config import settings
 from app.infrastructure.database import get_session
 from app.infrastructure.repositories.auth import SqlCompanyRepository, SqlUserRepository
+from app.infrastructure.repositories.messaging import SqlChannelIdentityRepository
+from app.infrastructure.telegram_init_data import InitDataError, verify_init_data
 from app.presentation.api.deps import get_current_user
 from app.presentation.schemas.auth import (
     LoginRequest,
     RefreshRequest,
     RegisterRequest,
+    TelegramMiniAppRequest,
     TokenResponse,
     UserResponse,
 )
@@ -51,6 +56,28 @@ async def refresh(body: RefreshRequest, session: AsyncSession = Depends(get_sess
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(e))
     return tokens
+
+
+@auth_router.post("/telegram-miniapp", response_model=TokenResponse)
+async def telegram_miniapp_login(
+    body: TelegramMiniAppRequest,
+    session: AsyncSession = Depends(get_session),
+):
+    """Exchange a signed Telegram `initData` blob for ordinary API tokens.
+
+    The Mini App then talks to the same API as the web app, with the same
+    permissions as the linked user.
+    """
+    try:
+        telegram_user = verify_init_data(body.init_data, settings.TELEGRAM_BOT_TOKEN)
+    except InitDataError as e:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(e))
+
+    svc = TelegramLoginService(SqlChannelIdentityRepository(session), SqlUserRepository(session))
+    try:
+        return await svc.issue_tokens(telegram_user)
+    except TelegramNotLinked as e:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
 
 
 @auth_router.get("/me", response_model=UserResponse)

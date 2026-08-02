@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as TmaRouteImport } from './routes/tma'
 import { Route as RegisterRouteImport } from './routes/register'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as IndexRouteImport } from './routes/index'
@@ -36,6 +37,11 @@ import { Route as BookingsBookingIdIndexRouteImport } from './routes/bookings/$b
 import { Route as PropertiesPropertyIdEditRouteImport } from './routes/properties/$propertyId/edit'
 import { Route as BookingsBookingIdEditRouteImport } from './routes/bookings/$bookingId/edit'
 
+const TmaRoute = TmaRouteImport.update({
+  id: '/tma',
+  path: '/tma',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const RegisterRoute = RegisterRouteImport.update({
   id: '/register',
   path: '/register',
@@ -173,6 +179,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/register': typeof RegisterRoute
+  '/tma': typeof TmaRoute
   '/ai-import/$jobId': typeof AiImportJobIdRoute
   '/bookings/$bookingId': typeof BookingsBookingIdRouteWithChildren
   '/bookings/new': typeof BookingsNewRoute
@@ -201,6 +208,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/register': typeof RegisterRoute
+  '/tma': typeof TmaRoute
   '/ai-import/$jobId': typeof AiImportJobIdRoute
   '/bookings/new': typeof BookingsNewRoute
   '/bookings/today': typeof BookingsTodayRoute
@@ -228,6 +236,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/register': typeof RegisterRoute
+  '/tma': typeof TmaRoute
   '/ai-import/$jobId': typeof AiImportJobIdRoute
   '/bookings/$bookingId': typeof BookingsBookingIdRouteWithChildren
   '/bookings/new': typeof BookingsNewRoute
@@ -258,6 +267,7 @@ export interface FileRouteTypes {
     | '/'
     | '/login'
     | '/register'
+    | '/tma'
     | '/ai-import/$jobId'
     | '/bookings/$bookingId'
     | '/bookings/new'
@@ -286,6 +296,7 @@ export interface FileRouteTypes {
     | '/'
     | '/login'
     | '/register'
+    | '/tma'
     | '/ai-import/$jobId'
     | '/bookings/new'
     | '/bookings/today'
@@ -312,6 +323,7 @@ export interface FileRouteTypes {
     | '/'
     | '/login'
     | '/register'
+    | '/tma'
     | '/ai-import/$jobId'
     | '/bookings/$bookingId'
     | '/bookings/new'
@@ -341,6 +353,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   LoginRoute: typeof LoginRoute
   RegisterRoute: typeof RegisterRoute
+  TmaRoute: typeof TmaRoute
   AiImportJobIdRoute: typeof AiImportJobIdRoute
   BookingsBookingIdRoute: typeof BookingsBookingIdRouteWithChildren
   BookingsNewRoute: typeof BookingsNewRoute
@@ -364,6 +377,13 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/tma': {
+      id: '/tma'
+      path: '/tma'
+      fullPath: '/tma'
+      preLoaderRoute: typeof TmaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/register': {
       id: '/register'
       path: '/register'
@@ -579,6 +599,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   LoginRoute: LoginRoute,
   RegisterRoute: RegisterRoute,
+  TmaRoute: TmaRoute,
   AiImportJobIdRoute: AiImportJobIdRoute,
   BookingsBookingIdRoute: BookingsBookingIdRouteWithChildren,
   BookingsNewRoute: BookingsNewRoute,

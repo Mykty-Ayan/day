@@ -773,5 +773,30 @@
     "codeFailed": "Could not issue a code",
     "whatsappConnected": "WhatsApp channel connected",
     "whatsappFailed": "Could not connect the channel"
+  },
+  "miniapp": {
+    "loading": "Loading…",
+    "loadFailed": "Could not load data",
+    "empty": "Nothing here",
+    "openInTelegram": "Open this page from the Telegram bot",
+    "authFailed": "Could not sign in",
+    "connectHint": "Connect the chat in the app: Settings → Team & API keys → Bots",
+    "tabs": {
+      "today": "Today",
+      "free": "Free",
+      "bookings": "Bookings"
+    },
+    "arrivals": "Arrivals",
+    "departures": "Departures",
+    "inHouse": "Staying now",
+    "until": "until",
+    "freeProperties": "Free properties",
+    "noPrice": "no price",
+    "upcoming": "Next {{days}} days",
+    "periods": {
+      "tonight": "Tonight",
+      "tomorrow": "Tomorrow",
+      "weekend": "Weekend"
+    }
   }
 }

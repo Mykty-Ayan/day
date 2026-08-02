@@ -234,6 +234,28 @@ class PriceCalculateRequest(BaseModel):
     children_count: int = Field(default=0, ge=0)
 
 
+class AvailablePropertyResponse(BaseModel):
+    model_config = ConfigDict(json_encoders={Decimal: float})
+
+    property_id: uuid.UUID
+    name: str
+    internal_name: str
+    rental_mode: RentalMode
+    rooms: int | None = None
+    beds: int | None = None
+    total_price: Decimal | None = None
+    # Set when the unit is free but has no pricing configured, so the caller can
+    # tell "costs nothing" apart from "cannot be quoted".
+    price_error: str | None = None
+
+
+class AvailabilityResponse(BaseModel):
+    check_in: datetime
+    check_out: datetime
+    rental_mode: RentalMode
+    items: list[AvailablePropertyResponse]
+
+
 class PriceCalculateResponse(BaseModel):
     model_config = ConfigDict(json_encoders={Decimal: float})
 

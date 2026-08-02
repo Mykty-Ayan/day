@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import re
 import uuid
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from urllib.parse import quote, urlparse
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
@@ -12,6 +12,7 @@ from fastapi.responses import Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.application.booking.change_booking_status import ChangeBookingStatusService
+from app.application.booking.check_availability import CheckAvailabilityService
 from app.application.booking.create_booking import (
     CreateBookingInput,
     CreateBookingService,
@@ -30,7 +31,7 @@ from app.application.booking.update_booking import (
 from app.config import settings
 from app.domain.auth.permissions import Permission
 from app.domain.booking.entities import BookingComment, BookingFile
-from app.domain.booking.value_objects import BookingSource, BookingStatus
+from app.domain.booking.value_objects import BookingSource, BookingStatus, RentalMode
 from app.domain.messaging.value_objects import NotificationEvent
 from app.infrastructure.database import get_session
 from app.infrastructure.messaging.factory import build_notification_service
@@ -57,6 +58,8 @@ from app.infrastructure.storage.s3 import (
 )
 from app.presentation.api.deps import get_company_id, get_user_id, require
 from app.presentation.schemas.booking import (
+    AvailabilityResponse,
+    AvailablePropertyResponse,
     BookingAuditLogResponse,
     BookingCommentCreate,
     BookingCommentResponse,
@@ -511,6 +514,59 @@ async def move_booking(
 
 
 # ---------- Price Calculator ----------
+
+
+@booking_router.get(
+    "/availability",
+    response_model=AvailabilityResponse,
+    dependencies=[Depends(require(Permission.BOOKINGS_READ))],
+)
+async def get_availability(
+    check_in: datetime = Query(...),
+    check_out: datetime = Query(...),
+    adults_count: int = Query(default=1, ge=1),
+    children_count: int = Query(default=0, ge=0),
+    rental_mode: RentalMode = Query(default=RentalMode.DAILY),
+    session: AsyncSession = Depends(get_session),
+    company_id: uuid.UUID = Depends(get_company_id),
+):
+    """Properties free for the period, cheapest first, with a quote each.
+
+    Used by the Mini App and the bots, and available to any integration holding
+    a `bookings:read` key.
+    """
+    repos = _repos(session)
+    svc = CheckAvailabilityService(repos["property"], repos["booking"], _price_calculator(repos))
+    try:
+        available = await svc.execute(
+            company_id,
+            check_in,
+            check_out,
+            adults_count=adults_count,
+            children_count=children_count,
+            rental_mode=rental_mode,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    return AvailabilityResponse(
+        check_in=check_in,
+        check_out=check_out,
+        rental_mode=rental_mode,
+        items=[
+            AvailablePropertyResponse(
+                property_id=item.property.id,
+                name=item.property.name,
+                internal_name=item.property.internal_name,
+                rental_mode=item.property.rental_mode,
+                rooms=item.property.rooms,
+                beds=item.property.beds,
+                total_price=item.total_price,
+                price_error=item.price_error,
+            )
+            for item in available
+        ],
+    )
 
 
 @booking_router.post(
