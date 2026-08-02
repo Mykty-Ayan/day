@@ -757,5 +757,21 @@
       "emailAndPassword": "Нужен email и пароль минимум из 8 символов",
       "nameAndScopes": "Нужно название и хотя бы одно право"
     }
+  },
+  "channels": {
+    "title": "Боты",
+    "description": "Telegram — для вас, WhatsApp — для ваших гостей",
+    "telegram": "Telegram",
+    "whatsapp": "WhatsApp",
+    "telegramHint": "Отправьте код ниже боту. Код одноразовый и действует 30 минут.",
+    "whatsappHint": "Вставьте channel id из кабинета whapi.cloud — по нему входящие сообщения гостей попадут в эту компанию.",
+    "channelId": "channel id в whapi",
+    "channelIdRequired": "Укажите channel id",
+    "getCode": "Подключить Telegram",
+    "connect": "Подключить",
+    "disconnect": "Отключить",
+    "codeFailed": "Не удалось выдать код",
+    "whatsappConnected": "WhatsApp-канал подключён",
+    "whatsappFailed": "Не удалось подключить канал"
   }
 }

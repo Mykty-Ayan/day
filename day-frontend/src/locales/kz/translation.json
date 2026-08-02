@@ -757,5 +757,21 @@
       "emailAndPassword": "Email және кемінде 8 таңбалы құпиясөз керек",
       "nameAndScopes": "Атауы және кемінде бір құқық керек"
     }
+  },
+  "channels": {
+    "title": "Боттар",
+    "description": "Telegram — сізге, WhatsApp — қонақтарыңызға",
+    "telegram": "Telegram",
+    "whatsapp": "WhatsApp",
+    "telegramHint": "Төмендегі кодты ботқа жіберіңіз. Код бір реттік, 30 минут жарамды.",
+    "whatsappHint": "whapi.cloud кабинетіндегі channel id-ді енгізіңіз — қонақтардың хабарлары осы компанияға түседі.",
+    "channelId": "whapi channel id",
+    "channelIdRequired": "channel id енгізіңіз",
+    "getCode": "Telegram қосу",
+    "connect": "Қосу",
+    "disconnect": "Ажырату",
+    "codeFailed": "Код беру мүмкін болмады",
+    "whatsappConnected": "WhatsApp арнасы қосылды",
+    "whatsappFailed": "Арнаны қосу мүмкін болмады"
   }
 }

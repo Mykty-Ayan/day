@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { motion } from 'framer-motion'
-import { Copy, KeyRound, Plus, ShieldAlert, UserPlus, Users, X } from 'lucide-react'
+import { Copy, KeyRound, MessageCircle, Plus, Send, ShieldAlert, UserPlus, Users, X } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import Button from '../../components/ui/Button'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
@@ -15,6 +15,12 @@ import {
 } from '../../components/ui/select'
 import { Checkbox } from '../../components/ui/checkbox'
 import { useCurrentUser } from '../../hooks/useAuth'
+import {
+  useChannels,
+  useDisconnectChannel,
+  useRegisterWhatsApp,
+  useTelegramLinkCode,
+} from '../../hooks/useChannels'
 import {
   useApiKeyScopes,
   useApiKeys,
@@ -59,6 +65,11 @@ export default function TeamPage() {
   const createKey = useCreateApiKey()
   const revokeKey = useRevokeApiKey()
 
+  const { data: channels = [] } = useChannels(isOwner)
+  const requestTelegramCode = useTelegramLinkCode()
+  const registerWhatsApp = useRegisterWhatsApp()
+  const disconnectChannel = useDisconnectChannel()
+
   const [showMemberForm, setShowMemberForm] = useState(false)
   const [memberForm, setMemberForm] = useState({
     email: '',
@@ -75,6 +86,9 @@ export default function TeamPage() {
   // Shown once, right after creation — the secret cannot be retrieved again.
   const [issuedKey, setIssuedKey] = useState<CreatedApiKey | null>(null)
   const [keyToRevoke, setKeyToRevoke] = useState<{ id: string; name: string } | null>(null)
+
+  const [telegramCode, setTelegramCode] = useState<string | null>(null)
+  const [whatsappChannelId, setWhatsappChannelId] = useState('')
 
   const sortedTeam = useMemo(
     () => [...team].sort((a, b) => Number(b.is_active) - Number(a.is_active)),
@@ -137,6 +151,31 @@ export default function TeamPage() {
       showToast('success', t('team.keyCopied'))
     } catch {
       showToast('error', t('team.keyCopyFailed'))
+    }
+  }
+
+  async function requestCode() {
+    try {
+      const issued = await requestTelegramCode.mutateAsync()
+      setTelegramCode(issued.code)
+    } catch (error) {
+      const detail = (error as { response?: { data?: { detail?: string } } }).response?.data?.detail
+      showToast('error', detail || t('channels.codeFailed'))
+    }
+  }
+
+  async function submitWhatsApp() {
+    if (!whatsappChannelId.trim()) {
+      showToast('error', t('channels.channelIdRequired'))
+      return
+    }
+    try {
+      await registerWhatsApp.mutateAsync(whatsappChannelId.trim())
+      setWhatsappChannelId('')
+      showToast('success', t('channels.whatsappConnected'))
+    } catch (error) {
+      const detail = (error as { response?: { data?: { detail?: string } } }).response?.data?.detail
+      showToast('error', detail || t('channels.whatsappFailed'))
     }
   }
 
@@ -298,6 +337,109 @@ export default function TeamPage() {
               ))}
             </ul>
           )}
+        </section>
+
+        {/* ---------- bots ---------- */}
+        <section className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+          <div className="mb-4 flex items-center gap-2">
+            <MessageCircle className="h-4 w-4 text-gray-500" />
+            <div>
+              <h2 className="text-sm font-bold text-gray-900">{t('channels.title')}</h2>
+              <p className="text-xs text-gray-500">{t('channels.description')}</p>
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            {/* Telegram */}
+            <div className="rounded-xl bg-gray-50 p-4">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <Send className="h-4 w-4 text-gray-500" />
+                  <span className="text-sm font-semibold text-gray-900">
+                    {t('channels.telegram')}
+                  </span>
+                </div>
+                <Button
+                  variant="secondary"
+                  onClick={requestCode}
+                  disabled={requestTelegramCode.isPending}
+                >
+                  {t('channels.getCode')}
+                </Button>
+              </div>
+              <p className="mt-2 text-xs text-gray-500">{t('channels.telegramHint')}</p>
+
+              {telegramCode && (
+                <div className="mt-3 flex flex-wrap items-center gap-2 rounded-lg border border-gray-200 bg-white p-3">
+                  <code className="flex-1 text-base font-bold tracking-widest text-gray-900">
+                    /start {telegramCode}
+                  </code>
+                  <Button variant="secondary" onClick={() => copyKey(`/start ${telegramCode}`)}>
+                    <Copy className="h-4 w-4" />
+                    {t('team.copy')}
+                  </Button>
+                </div>
+              )}
+            </div>
+
+            {/* WhatsApp */}
+            <div className="rounded-xl bg-gray-50 p-4">
+              <div className="flex items-center gap-2">
+                <MessageCircle className="h-4 w-4 text-gray-500" />
+                <span className="text-sm font-semibold text-gray-900">
+                  {t('channels.whatsapp')}
+                </span>
+              </div>
+              <p className="mt-2 text-xs text-gray-500">{t('channels.whatsappHint')}</p>
+              <div className="mt-3 flex flex-wrap items-end gap-2">
+                <div className="min-w-[200px] flex-1">
+                  <label
+                    htmlFor="whapi-channel"
+                    className="mb-1.5 block text-xs font-bold text-gray-500"
+                  >
+                    {t('channels.channelId')}
+                  </label>
+                  <input
+                    id="whapi-channel"
+                    type="text"
+                    value={whatsappChannelId}
+                    onChange={(e) => setWhatsappChannelId(e.target.value)}
+                    placeholder="ABCDEF-1234"
+                    className="w-full rounded-xl border border-gray-200 bg-white p-3 text-sm outline-none focus:ring-2 focus:ring-black/10"
+                  />
+                </div>
+                <Button onClick={submitWhatsApp} disabled={registerWhatsApp.isPending}>
+                  {t('channels.connect')}
+                </Button>
+              </div>
+            </div>
+
+            {/* Connected */}
+            {channels.length > 0 && (
+              <ul className="divide-y divide-gray-100">
+                {channels.map((channel) => (
+                  <li key={channel.id} className="flex flex-wrap items-center gap-3 py-3">
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-semibold text-gray-900">
+                        {t(`channels.${channel.channel}`)}
+                        {channel.display_name ? ` · ${channel.display_name}` : ''}
+                      </p>
+                      <p className="truncate text-xs text-gray-500">
+                        <code>{channel.external_id}</code>
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => disconnectChannel.mutate(channel.id)}
+                      className="min-h-[44px] rounded-lg px-3 text-xs font-bold text-red-600 transition-colors hover:bg-red-50"
+                    >
+                      {t('channels.disconnect')}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
         </section>
 
         {/* ---------- service keys ---------- */}

@@ -88,6 +88,45 @@ Same page, **Service API keys**. Give each bot only what it needs:
 The key is shown once. It authenticates as `X-API-Key` and carries no role, so
 it can never reach team or key administration regardless of scopes.
 
+## 8. Connect the bots
+
+### Telegram (the host's bot)
+
+1. Talk to [@BotFather](https://t.me/BotFather) → `/newbot` → copy the token
+   into `TELEGRAM_BOT_TOKEN`.
+2. Put any random string in `TELEGRAM_WEBHOOK_SECRET`.
+3. Redeploy. The backend registers its own webhook at
+   `PUBLIC_BASE_URL/api/v1/webhooks/telegram` on every boot, so there is nothing
+   to call by hand. Look for `Telegram webhook registered` in the logs.
+4. In the app: **Settings → Team & API keys → Bots → Connect Telegram**. Send
+   the `/start XXXXXXXX` line it gives you to your bot. The code is single-use
+   and expires in 30 minutes.
+
+The bot then answers `/free` (with or without dates), `/today`, `/bookings`,
+`/help`, and `/stop` to disconnect. New and cancelled bookings — including ones
+the WhatsApp bot creates — arrive in the same chat.
+
+### WhatsApp (the guest bot, via whapi.cloud)
+
+1. Create a channel at whapi.cloud and connect the operator's WhatsApp number.
+2. Copy the channel token into `WHAPI_TOKEN`, set any random string as
+   `WHAPI_WEBHOOK_SECRET`, redeploy.
+3. In the whapi dashboard set the webhook to:
+   `https://api.<your-domain>/api/v1/webhooks/whatsapp/<WHAPI_WEBHOOK_SECRET>`
+   with mode **messages.post**.
+4. In the app: **Settings → Team & API keys → Bots → WhatsApp**, paste the whapi
+   **channel id** and connect. Without this the server cannot tell which company
+   an incoming guest message belongs to and will ignore it.
+
+whapi does not sign its webhooks, so that URL *is* the credential — treat it
+like a password, and rotate `WHAPI_WEBHOOK_SECRET` if it leaks.
+
+The guest flow: dates → available properties with prices → the guest picks a
+number → their name → a **pending** booking plus a Telegram ping to the host.
+Nothing is auto-confirmed. Asking for a "менеджер"/"оператор"/"человек" stops
+the bot in that conversation and notifies the host, and it stays stopped until
+someone changes the conversation state.
+
 ## Backups
 
 The `db-backup` service runs `pg_dump -Fc` every `BACKUP_INTERVAL_SECONDS`

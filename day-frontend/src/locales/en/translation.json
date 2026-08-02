@@ -757,5 +757,21 @@
       "emailAndPassword": "Email and a password of at least 8 characters are required",
       "nameAndScopes": "A name and at least one scope are required"
     }
+  },
+  "channels": {
+    "title": "Bots",
+    "description": "Telegram for you, WhatsApp for your guests",
+    "telegram": "Telegram",
+    "whatsapp": "WhatsApp",
+    "telegramHint": "Send the code below to the bot. It works once and expires in 30 minutes.",
+    "whatsappHint": "Paste the channel id from your whapi.cloud dashboard so incoming guest messages reach this company.",
+    "channelId": "whapi channel id",
+    "channelIdRequired": "Enter the channel id",
+    "getCode": "Connect Telegram",
+    "connect": "Connect",
+    "disconnect": "Disconnect",
+    "codeFailed": "Could not issue a code",
+    "whatsappConnected": "WhatsApp channel connected",
+    "whatsappFailed": "Could not connect the channel"
   }
 }
