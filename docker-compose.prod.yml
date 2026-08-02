@@ -12,6 +12,13 @@
 #
 # The bots' webhooks must reach the backend over HTTPS, which is exactly what
 # the api.<your-domain> mapping provides.
+#
+# Networks are declared explicitly on every service on purpose. Dokploy appends
+# `dokploy-network` to any service that has a domain, and the moment a service
+# carries an explicit network list Compose drops it from the project's implicit
+# `default` network — so a backend with a domain would stop resolving
+# `postgres`. Naming both networks here keeps service-to-service DNS working
+# whether or not a domain is attached.
 
 services:
   postgres:
@@ -28,6 +35,8 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - internal
 
   redis:
     image: redis:7-alpine
@@ -40,6 +49,8 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - internal
 
   minio:
     image: minio/minio:latest
@@ -55,6 +66,9 @@ services:
       interval: 15s
       timeout: 5s
       retries: 5
+    networks:
+      - internal
+      - dokploy-network
 
   backend:
     build:
@@ -85,6 +99,9 @@ services:
       PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:?PUBLIC_BASE_URL is required}
     expose:
       - "8000"
+    networks:
+      - internal
+      - dokploy-network
 
   frontend:
     build:
@@ -97,6 +114,8 @@ services:
       - backend
     expose:
       - "80"
+    networks:
+      - dokploy-network
 
   # Nightly pg_dump with retention. Keeps backups on a named volume; copy them
   # off the host regularly — a backup that only exists on the same machine is
@@ -115,6 +134,8 @@ services:
       BACKUP_INTERVAL_SECONDS: ${BACKUP_INTERVAL_SECONDS:-86400}
     volumes:
       - postgres_backups:/backups
+    networks:
+      - internal
     entrypoint: ["/bin/sh", "-c"]
     command:
       - |
@@ -131,6 +152,15 @@ services:
           fi
           sleep "$$BACKUP_INTERVAL_SECONDS"
         done
+
+networks:
+  # Private to this stack: databases and the API talk to each other here and
+  # are not reachable from any other project on the host.
+  internal:
+  # Dokploy's shared network — this is where Traefik finds anything with a
+  # domain. Created by Dokploy itself, so it is external here.
+  dokploy-network:
+    external: true
 
 volumes:
   postgres_data:
