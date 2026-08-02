@@ -69,6 +69,11 @@ services:
     networks:
       - internal
       - dokploy-network
+    labels:
+      # A container on two networks leaves Traefik guessing which address to
+      # dial, and it can pick the internal one it is not attached to — which
+      # shows up as a 504. This names the network to use.
+      - traefik.docker.network=dokploy-network
 
   backend:
     build:
@@ -102,6 +107,11 @@ services:
     networks:
       - internal
       - dokploy-network
+    labels:
+      # A container on two networks leaves Traefik guessing which address to
+      # dial, and it can pick the internal one it is not attached to — which
+      # shows up as a 504. This names the network to use.
+      - traefik.docker.network=dokploy-network
 
   frontend:
     build:
