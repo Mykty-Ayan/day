@@ -551,7 +551,8 @@
       "kitchen": "Kitchen",
       "bedroom": "Bedroom",
       "other": "Other"
-    }
+    },
+    "noCleaners": "No cleaners yet — add one under Team & API keys"
   },
   "checklists": {
     "title": "Checklist Templates",
@@ -700,5 +701,61 @@
     "language": "Language",
     "languageDescription": "Choose the interface language",
     "saved": "Settings saved"
+  },
+  "team": {
+    "title": "Team & API keys",
+    "settingsHint": "Accounts for managers and cleaners, service keys for bots",
+    "ownerOnly": "Only the company owner can manage the team and API keys",
+    "members": "Team",
+    "membersDescription": "Managers run the business; cleaners see only their own tasks",
+    "addMember": "Add member",
+    "createMember": "Create account",
+    "memberCreated": "Account created",
+    "memberFailed": "Could not create the account",
+    "memberDeactivated": "Account deactivated",
+    "email": "Email",
+    "password": "Password",
+    "passwordHint": "At least 8 characters",
+    "fullName": "Full name",
+    "phone": "Phone",
+    "role": "Role",
+    "deactivate": "Deactivate",
+    "reactivate": "Reactivate",
+    "deactivateTitle": "Deactivate account?",
+    "deactivateMessage": "{{name}} will no longer be able to sign in. Cleaning history is kept.",
+    "roles": {
+      "owner": "Owner",
+      "manager": "Manager",
+      "cleaner": "Cleaner"
+    },
+    "roleHints": {
+      "manager": "Properties, bookings, cleaning and analytics. Cannot manage the team, keys or settings.",
+      "cleaner": "Only their own cleaning tasks and reports, plus read-only property details."
+    },
+    "apiKeys": "Service API keys",
+    "apiKeysDescription": "Used by the Telegram and WhatsApp bots to reach the API",
+    "addKey": "New key",
+    "createKey": "Create key",
+    "keyName": "Key name",
+    "keyNamePlaceholder": "Telegram bot",
+    "scopes": "Scopes",
+    "scopesShort": "scopes",
+    "noKeys": "No keys yet",
+    "keyShownOnce": "Copy this key now — it is shown only once",
+    "keyStored": "I saved it",
+    "copy": "Copy",
+    "keyCopied": "Key copied",
+    "keyCopyFailed": "Could not copy the key",
+    "keyFailed": "Could not create the key",
+    "keyRevoked": "Key revoked",
+    "revoke": "Revoke",
+    "revoked": "Revoked",
+    "revokeTitle": "Revoke key?",
+    "revokeMessage": "Any bot using “{{name}}” stops working immediately.",
+    "lastUsed": "last used",
+    "validation": {
+      "emailAndPassword": "Email and a password of at least 8 characters are required",
+      "nameAndScopes": "A name and at least one scope are required"
+    }
   }
 }

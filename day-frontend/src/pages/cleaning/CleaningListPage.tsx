@@ -181,7 +181,7 @@ export default function CleaningListPage() {
                     <div className="mt-3 grid grid-cols-1 gap-2 text-xs text-gray-600 sm:grid-cols-2">
                       <span>{formatScheduled(task.scheduled_date, task.scheduled_time, i18n.language)}</span>
                       <span className="sm:text-right">
-                        {task.cleaner_id ? t('cleaning.assignedCleaner') : t('cleaning.unassigned')}
+                        {task.cleaner_name || (task.cleaner_id ? t('cleaning.assignedCleaner') : t('cleaning.unassigned'))}
                       </span>
                       <span className="sm:col-span-2">
                         <CleaningTypeBadge type={task.type} />
@@ -254,7 +254,7 @@ export default function CleaningListPage() {
                           </td>
                           <td className="px-4 py-3">
                             <span className="text-sm text-gray-600">
-                              {task.cleaner_id ? t('cleaning.assignedCleaner') : t('cleaning.unassigned')}
+                              {task.cleaner_name || (task.cleaner_id ? t('cleaning.assignedCleaner') : t('cleaning.unassigned'))}
                             </span>
                           </td>
                           <td className="px-4 py-3">

@@ -172,7 +172,7 @@ function OverviewTab({ data }: { data: CleaningTaskDetail }) {
           <div>
             <span className="text-gray-400">{t('cleaning.cleaner')}</span>
             <p className="font-medium mt-1">
-              {task.cleaner_id ? t('cleaning.assignedCleaner') : t('cleaning.unassigned')}
+              {task.cleaner_name || (task.cleaner_id ? t('cleaning.assignedCleaner') : t('cleaning.unassigned'))}
             </p>
           </div>
           <div>

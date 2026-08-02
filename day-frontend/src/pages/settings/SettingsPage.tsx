@@ -1,7 +1,9 @@
 import { motion } from 'framer-motion'
-import { Globe, Check } from 'lucide-react'
+import { Globe, Check, ChevronRight, Users } from 'lucide-react'
+import { Link } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 import { showToast } from '../../components/ui/Toast'
+import { useCurrentUser } from '../../hooks/useAuth'
 
 const LANGUAGES = [
   { code: 'ru', label: 'Русский', flag: 'RU' },
@@ -11,6 +13,7 @@ const LANGUAGES = [
 
 export default function SettingsPage() {
   const { t, i18n } = useTranslation()
+  const { data: currentUser } = useCurrentUser()
 
   async function changeLanguage(lang: string) {
     await i18n.changeLanguage(lang)
@@ -65,6 +68,23 @@ export default function SettingsPage() {
             })}
           </div>
         </div>
+
+        {/* Team and service keys live behind their own page — owner only. */}
+        {currentUser?.role === 'owner' && (
+          <Link
+            to="/settings/team"
+            className="mt-4 flex min-h-[44px] items-center justify-between gap-3 rounded-xl border border-gray-200 bg-white p-5 shadow-sm transition-colors hover:bg-gray-50"
+          >
+            <div className="flex min-w-0 items-center gap-2">
+              <Users className="h-4 w-4 shrink-0 text-gray-500" />
+              <div className="min-w-0">
+                <h2 className="text-sm font-bold text-gray-900">{t('team.title')}</h2>
+                <p className="text-xs text-gray-500">{t('team.settingsHint')}</p>
+              </div>
+            </div>
+            <ChevronRight className="h-4 w-4 shrink-0 text-gray-400" />
+          </Link>
+        )}
       </motion.div>
     </div>
   )

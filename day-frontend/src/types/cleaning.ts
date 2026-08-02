@@ -9,6 +9,7 @@ export interface CleaningTask {
   property_id: string
   booking_id: string | null
   cleaner_id: string | null
+  cleaner_name: string | null
   type: CleaningType
   status: CleaningStatus
   scheduled_date: string | null
