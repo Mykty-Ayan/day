@@ -21,6 +21,7 @@ from app.application.property.create_property import CreatePropertyService
 from app.application.property.manage_photos import ManagePhotosService
 from app.application.property.manage_pricing import ManagePricingService
 from app.config import settings
+from app.domain.auth.permissions import Permission
 from app.infrastructure.ai_service_client import AIServiceClient
 from app.infrastructure.database import get_session
 from app.infrastructure.repositories.ai_migration import SqlImportJobRepository
@@ -32,7 +33,7 @@ from app.infrastructure.repositories.property import (
     SqlPropertyRepository,
     SqlSeasonalPriceRepository,
 )
-from app.presentation.api.deps import get_company_id, get_user_id
+from app.presentation.api.deps import get_company_id, get_user_id, require
 from app.presentation.schemas.ai_migration import (
     ImportBatchRequest,
     ImportBatchResponse,
@@ -140,7 +141,12 @@ def _to_property_response(p) -> PropertyResponse:
 # ---------- Routes ----------
 
 
-@ai_migration_router.post("/import", response_model=ImportJobResponse, status_code=201)
+@ai_migration_router.post(
+    "/import",
+    response_model=ImportJobResponse,
+    status_code=201,
+    dependencies=[Depends(require(Permission.AI_IMPORT_WRITE))],
+)
 async def start_import(
     body: ImportStartRequest,
     session: AsyncSession = Depends(get_session),
@@ -165,7 +171,12 @@ async def start_import(
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@ai_migration_router.post("/import/text", response_model=ImportJobResponse, status_code=201)
+@ai_migration_router.post(
+    "/import/text",
+    response_model=ImportJobResponse,
+    status_code=201,
+    dependencies=[Depends(require(Permission.AI_IMPORT_WRITE))],
+)
 async def start_text_import(
     body: ImportTextStartRequest,
     session: AsyncSession = Depends(get_session),
@@ -190,7 +201,11 @@ async def start_text_import(
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@ai_migration_router.get("/import", response_model=ImportJobListResponse)
+@ai_migration_router.get(
+    "/import",
+    response_model=ImportJobListResponse,
+    dependencies=[Depends(require(Permission.AI_IMPORT_WRITE))],
+)
 async def list_imports(
     page: int = Query(default=1, ge=1),
     per_page: int = Query(default=50, ge=1, le=100),
@@ -211,7 +226,11 @@ async def list_imports(
     )
 
 
-@ai_migration_router.get("/import/{job_id}", response_model=ImportJobResponse)
+@ai_migration_router.get(
+    "/import/{job_id}",
+    response_model=ImportJobResponse,
+    dependencies=[Depends(require(Permission.AI_IMPORT_WRITE))],
+)
 async def get_import(
     job_id: uuid.UUID,
     session: AsyncSession = Depends(get_session),
@@ -226,7 +245,12 @@ async def get_import(
         raise HTTPException(status_code=404, detail="Import job not found")
 
 
-@ai_migration_router.post("/import/{job_id}/confirm", response_model=PropertyResponse, status_code=201)
+@ai_migration_router.post(
+    "/import/{job_id}/confirm",
+    response_model=PropertyResponse,
+    status_code=201,
+    dependencies=[Depends(require(Permission.AI_IMPORT_WRITE))],
+)
 async def confirm_import(
     job_id: uuid.UUID,
     body: ImportConfirmRequest,
@@ -260,7 +284,12 @@ async def confirm_import(
         raise HTTPException(status_code=400, detail=msg)
 
 
-@ai_migration_router.post("/import/batch", response_model=ImportBatchResponse, status_code=201)
+@ai_migration_router.post(
+    "/import/batch",
+    response_model=ImportBatchResponse,
+    status_code=201,
+    dependencies=[Depends(require(Permission.AI_IMPORT_WRITE))],
+)
 async def batch_import(
     body: ImportBatchRequest,
     session: AsyncSession = Depends(get_session),
@@ -290,7 +319,7 @@ async def batch_import(
     )
 
 
-@ai_migration_router.get("/photo/download")
+@ai_migration_router.get("/photo/download", dependencies=[Depends(require(Permission.AI_IMPORT_WRITE))])
 async def download_external_photo(
     url: str = Query(..., min_length=1, max_length=2048),
 ):

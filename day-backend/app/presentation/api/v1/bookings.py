@@ -28,6 +28,7 @@ from app.application.booking.update_booking import (
     UpdateBookingService,
 )
 from app.config import settings
+from app.domain.auth.permissions import Permission
 from app.domain.booking.entities import BookingComment, BookingFile
 from app.domain.booking.value_objects import BookingSource, BookingStatus
 from app.infrastructure.database import get_session
@@ -52,7 +53,7 @@ from app.infrastructure.storage.s3 import (
     download_booking_file,
     upload_booking_file,
 )
-from app.presentation.api.deps import get_company_id, get_user_id
+from app.presentation.api.deps import get_company_id, get_user_id, require
 from app.presentation.schemas.booking import (
     BookingAuditLogResponse,
     BookingCommentCreate,
@@ -185,7 +186,12 @@ def _content_disposition(filename: str) -> str:
 # ---------- Booking CRUD ----------
 
 
-@booking_router.post("", response_model=BookingResponse, status_code=201)
+@booking_router.post(
+    "",
+    response_model=BookingResponse,
+    status_code=201,
+    dependencies=[Depends(require(Permission.BOOKINGS_WRITE))],
+)
 async def create_booking(
     body: BookingCreate,
     session: AsyncSession = Depends(get_session),
@@ -226,7 +232,7 @@ async def create_booking(
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@booking_router.get("", response_model=BookingListResponse)
+@booking_router.get("", response_model=BookingListResponse, dependencies=[Depends(require(Permission.BOOKINGS_READ))])
 async def list_bookings(
     page: int = Query(default=1, ge=1),
     per_page: int = Query(default=50, ge=1, le=100),
@@ -279,7 +285,11 @@ async def list_bookings(
     )
 
 
-@booking_router.get("/today", response_model=TodayCheckResponse)
+@booking_router.get(
+    "/today",
+    response_model=TodayCheckResponse,
+    dependencies=[Depends(require(Permission.BOOKINGS_READ))],
+)
 async def get_today(
     date_value: date | None = Query(default=None, alias="date"),
     session: AsyncSession = Depends(get_session),
@@ -343,7 +353,11 @@ async def get_today(
     )
 
 
-@booking_router.get("/{booking_id:uuid}", response_model=BookingDetailResponse)
+@booking_router.get(
+    "/{booking_id:uuid}",
+    response_model=BookingDetailResponse,
+    dependencies=[Depends(require(Permission.BOOKINGS_READ))],
+)
 async def get_booking(
     booking_id: uuid.UUID,
     session: AsyncSession = Depends(get_session),
@@ -383,7 +397,11 @@ async def get_booking(
     )
 
 
-@booking_router.patch("/{booking_id:uuid}", response_model=BookingResponse)
+@booking_router.patch(
+    "/{booking_id:uuid}",
+    response_model=BookingResponse,
+    dependencies=[Depends(require(Permission.BOOKINGS_WRITE))],
+)
 async def update_booking(
     booking_id: uuid.UUID,
     body: BookingUpdate,
@@ -410,7 +428,11 @@ async def update_booking(
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@booking_router.post("/{booking_id:uuid}/status", response_model=BookingResponse)
+@booking_router.post(
+    "/{booking_id:uuid}/status",
+    response_model=BookingResponse,
+    dependencies=[Depends(require(Permission.BOOKINGS_WRITE))],
+)
 async def change_booking_status(
     booking_id: uuid.UUID,
     body: BookingStatusChange,
@@ -429,7 +451,11 @@ async def change_booking_status(
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@booking_router.post("/{booking_id:uuid}/move", response_model=BookingResponse)
+@booking_router.post(
+    "/{booking_id:uuid}/move",
+    response_model=BookingResponse,
+    dependencies=[Depends(require(Permission.BOOKINGS_WRITE))],
+)
 async def move_booking(
     booking_id: uuid.UUID,
     body: BookingMove,
@@ -451,7 +477,11 @@ async def move_booking(
 # ---------- Price Calculator ----------
 
 
-@booking_router.post("/calculate-price", response_model=PriceCalculateResponse)
+@booking_router.post(
+    "/calculate-price",
+    response_model=PriceCalculateResponse,
+    dependencies=[Depends(require(Permission.BOOKINGS_READ))],
+)
 async def calculate_price(
     body: PriceCalculateRequest,
     session: AsyncSession = Depends(get_session),
@@ -486,7 +516,12 @@ async def calculate_price(
 # ---------- Payments ----------
 
 
-@booking_router.post("/{booking_id:uuid}/payments", response_model=PaymentResponse, status_code=201)
+@booking_router.post(
+    "/{booking_id:uuid}/payments",
+    response_model=PaymentResponse,
+    status_code=201,
+    dependencies=[Depends(require(Permission.BOOKINGS_WRITE))],
+)
 async def add_payment(
     booking_id: uuid.UUID,
     body: PaymentCreate,
@@ -511,7 +546,11 @@ async def add_payment(
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@booking_router.get("/{booking_id:uuid}/payments", response_model=list[PaymentResponse])
+@booking_router.get(
+    "/{booking_id:uuid}/payments",
+    response_model=list[PaymentResponse],
+    dependencies=[Depends(require(Permission.BOOKINGS_READ))],
+)
 async def list_payments(
     booking_id: uuid.UUID,
     session: AsyncSession = Depends(get_session),
@@ -529,7 +568,12 @@ async def list_payments(
 # ---------- Deposits ----------
 
 
-@booking_router.post("/{booking_id:uuid}/deposits", response_model=DepositResponse, status_code=201)
+@booking_router.post(
+    "/{booking_id:uuid}/deposits",
+    response_model=DepositResponse,
+    status_code=201,
+    dependencies=[Depends(require(Permission.BOOKINGS_WRITE))],
+)
 async def create_deposit(
     booking_id: uuid.UUID,
     body: DepositCreate,
@@ -576,7 +620,11 @@ async def deposit_action(
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@booking_router.get("/{booking_id:uuid}/deposits", response_model=list[DepositResponse])
+@booking_router.get(
+    "/{booking_id:uuid}/deposits",
+    response_model=list[DepositResponse],
+    dependencies=[Depends(require(Permission.BOOKINGS_READ))],
+)
 async def list_deposits(
     booking_id: uuid.UUID,
     session: AsyncSession = Depends(get_session),
@@ -594,7 +642,12 @@ async def list_deposits(
 # ---------- Files ----------
 
 
-@booking_router.post("/{booking_id:uuid}/files", response_model=BookingFileResponse, status_code=201)
+@booking_router.post(
+    "/{booking_id:uuid}/files",
+    response_model=BookingFileResponse,
+    status_code=201,
+    dependencies=[Depends(require(Permission.BOOKINGS_WRITE))],
+)
 async def add_file(
     booking_id: uuid.UUID,
     file: UploadFile = File(...),
@@ -628,7 +681,11 @@ async def add_file(
     return _to_file_response(result)
 
 
-@booking_router.get("/{booking_id:uuid}/files", response_model=list[BookingFileResponse])
+@booking_router.get(
+    "/{booking_id:uuid}/files",
+    response_model=list[BookingFileResponse],
+    dependencies=[Depends(require(Permission.BOOKINGS_READ))],
+)
 async def list_files(
     booking_id: uuid.UUID,
     session: AsyncSession = Depends(get_session),
@@ -642,7 +699,10 @@ async def list_files(
     return [_to_file_response(f) for f in result]
 
 
-@booking_router.get("/{booking_id:uuid}/files/{file_id}/download")
+@booking_router.get(
+    "/{booking_id:uuid}/files/{file_id}/download",
+    dependencies=[Depends(require(Permission.BOOKINGS_READ))],
+)
 async def download_file(
     booking_id: uuid.UUID,
     file_id: uuid.UUID,
@@ -677,7 +737,11 @@ async def download_file(
     )
 
 
-@booking_router.delete("/{booking_id:uuid}/files/{file_id}", status_code=204)
+@booking_router.delete(
+    "/{booking_id:uuid}/files/{file_id}",
+    status_code=204,
+    dependencies=[Depends(require(Permission.BOOKINGS_WRITE))],
+)
 async def delete_file(
     booking_id: uuid.UUID,
     file_id: uuid.UUID,
@@ -695,7 +759,12 @@ async def delete_file(
 # ---------- Comments ----------
 
 
-@booking_router.post("/{booking_id:uuid}/comments", response_model=BookingCommentResponse, status_code=201)
+@booking_router.post(
+    "/{booking_id:uuid}/comments",
+    response_model=BookingCommentResponse,
+    status_code=201,
+    dependencies=[Depends(require(Permission.BOOKINGS_WRITE))],
+)
 async def add_comment(
     booking_id: uuid.UUID,
     body: BookingCommentCreate,
@@ -719,7 +788,11 @@ async def add_comment(
     return BookingCommentResponse.model_validate(result, from_attributes=True)
 
 
-@booking_router.get("/{booking_id:uuid}/comments", response_model=list[BookingCommentResponse])
+@booking_router.get(
+    "/{booking_id:uuid}/comments",
+    response_model=list[BookingCommentResponse],
+    dependencies=[Depends(require(Permission.BOOKINGS_READ))],
+)
 async def list_comments(
     booking_id: uuid.UUID,
     session: AsyncSession = Depends(get_session),
@@ -736,7 +809,11 @@ async def list_comments(
 # ---------- Audit Log ----------
 
 
-@booking_router.get("/{booking_id:uuid}/audit-log", response_model=list[BookingAuditLogResponse])
+@booking_router.get(
+    "/{booking_id:uuid}/audit-log",
+    response_model=list[BookingAuditLogResponse],
+    dependencies=[Depends(require(Permission.BOOKINGS_READ))],
+)
 async def get_audit_log(
     booking_id: uuid.UUID,
     offset: int = Query(default=0, ge=0),
@@ -787,8 +864,12 @@ def _build_gantt_response(result) -> GanttDataResponse:
     )
 
 
-@booking_router.get("/gantt", response_model=GanttDataResponse)
-@gantt_router.get("", response_model=GanttDataResponse)
+@booking_router.get(
+    "/gantt",
+    response_model=GanttDataResponse,
+    dependencies=[Depends(require(Permission.BOOKINGS_READ))],
+)
+@gantt_router.get("", response_model=GanttDataResponse, dependencies=[Depends(require(Permission.BOOKINGS_READ))])
 async def get_gantt_data(
     start_date: date = Query(...),
     end_date: date = Query(...),
@@ -804,7 +885,7 @@ async def get_gantt_data(
 # ---------- Guests ----------
 
 
-@guest_router.get("", response_model=GuestListResponse)
+@guest_router.get("", response_model=GuestListResponse, dependencies=[Depends(require(Permission.BOOKINGS_READ))])
 async def list_guests(
     offset: int = Query(default=0, ge=0),
     limit: int = Query(default=50, ge=1, le=100),
@@ -828,7 +909,11 @@ async def list_guests(
     )
 
 
-@guest_router.get("/{guest_id}", response_model=GuestResponse)
+@guest_router.get(
+    "/{guest_id}",
+    response_model=GuestResponse,
+    dependencies=[Depends(require(Permission.BOOKINGS_READ))],
+)
 async def get_guest(
     guest_id: uuid.UUID,
     session: AsyncSession = Depends(get_session),

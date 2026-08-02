@@ -35,7 +35,8 @@ class UpdatePropertyInput:
     check_in_instructions: object = _UNSET
     check_out_instructions: object = _UNSET
     house_rules: object = _UNSET
-    # TODO: replace with authenticated user_id when auth is implemented
+    # Set from the authenticated caller; a service key attributes the change
+    # to the operator who issued it.
     changed_by: uuid.UUID | None = None
 
 

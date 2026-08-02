@@ -20,9 +20,10 @@ from app.application.analytics.get_time_series import (
     GetTimeSeriesService,
 )
 from app.domain.analytics.value_objects import Granularity, PeriodPreset
+from app.domain.auth.permissions import Permission
 from app.infrastructure.database import get_session
 from app.infrastructure.repositories.analytics import SqlAnalyticsRepository
-from app.presentation.api.deps import get_company_id
+from app.presentation.api.deps import get_company_id, require
 from app.presentation.schemas.analytics import (
     AnalyticsMetricsResponse,
     AnalyticsSummaryResponse,
@@ -63,7 +64,11 @@ def _resolve_dates(
         return date_from, date_to
 
 
-@analytics_router.get("/metrics", response_model=AnalyticsMetricsResponse)
+@analytics_router.get(
+    "/metrics",
+    response_model=AnalyticsMetricsResponse,
+    dependencies=[Depends(require(Permission.ANALYTICS_READ))],
+)
 async def get_metrics(
     date_from: date | None = Query(default=None),
     date_to: date | None = Query(default=None),
@@ -130,7 +135,11 @@ async def get_metrics(
     )
 
 
-@analytics_router.get("/time-series", response_model=TimeSeriesResponse)
+@analytics_router.get(
+    "/time-series",
+    response_model=TimeSeriesResponse,
+    dependencies=[Depends(require(Permission.ANALYTICS_READ))],
+)
 async def get_time_series(
     date_from: date | None = Query(default=None),
     date_to: date | None = Query(default=None),
@@ -178,7 +187,7 @@ async def get_time_series(
     )
 
 
-@analytics_router.get("/export")
+@analytics_router.get("/export", dependencies=[Depends(require(Permission.ANALYTICS_READ))])
 async def export_csv(
     date_from: date | None = Query(default=None),
     date_to: date | None = Query(default=None),

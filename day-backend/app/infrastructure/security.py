@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import hashlib
+import secrets
 import uuid
 from datetime import datetime, timedelta, timezone
 
@@ -8,9 +10,34 @@ from jose import JWTError, jwt
 
 from app.config import settings
 
+API_KEY_PREFIX = "day_sk_"
+_API_KEY_ENTROPY_BYTES = 32
+# The visible head of a key, kept in the clear so the UI can tell two keys apart
+# without ever storing the secret itself.
+API_KEY_HINT_LENGTH = len(API_KEY_PREFIX) + 6
+
 
 def hash_password(password: str) -> str:
     return bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
+
+
+def generate_api_key() -> str:
+    """Return a fresh service key. Shown to the operator exactly once."""
+    return f"{API_KEY_PREFIX}{secrets.token_urlsafe(_API_KEY_ENTROPY_BYTES)}"
+
+
+def hash_api_key(key: str) -> str:
+    """Hash a service key for storage and lookup.
+
+    SHA-256 rather than bcrypt on purpose: the key is 256 bits of machine
+    entropy, so there is nothing to brute-force, and a bot authenticates on
+    every request — a deliberately slow KDF would put ~100ms on each call.
+    """
+    return hashlib.sha256(key.encode()).hexdigest()
+
+
+def api_key_hint(key: str) -> str:
+    return key[:API_KEY_HINT_LENGTH]
 
 
 def verify_password(plain: str, hashed: str) -> bool:

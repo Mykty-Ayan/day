@@ -35,8 +35,10 @@ from app.application.cleaning.submit_report import (
     SubmitReportInput,
     SubmitReportService,
 )
+from app.domain.auth.permissions import Permission
 from app.domain.cleaning.value_objects import CleaningStatus
 from app.infrastructure.database import get_session
+from app.infrastructure.repositories.auth import SqlUserRepository
 from app.infrastructure.repositories.cleaning import (
     SqlCleanerRatingRepository,
     SqlCleanerRouteRepository,
@@ -48,7 +50,7 @@ from app.infrastructure.repositories.cleaning import (
     SqlCleaningTaskRepository,
 )
 from app.infrastructure.repositories.property import SqlPropertyRepository
-from app.presentation.api.deps import get_company_id, get_user_id
+from app.presentation.api.deps import Principal, get_company_id, get_principal, get_user_id, require
 from app.presentation.schemas.cleaning import (
     ChecklistItemAdd,
     ChecklistItemReorder,
@@ -100,6 +102,7 @@ def _to_task_response(
     t,
     property_name: str | None = None,
     property_internal_name: str | None = None,
+    cleaner_name: str | None = None,
 ) -> CleaningTaskResponse:
     return CleaningTaskResponse(
         id=t.id,
@@ -107,6 +110,7 @@ def _to_task_response(
         property_id=t.property_id,
         booking_id=t.booking_id,
         cleaner_id=t.cleaner_id,
+        cleaner_name=cleaner_name,
         type=t.type,
         status=t.status,
         scheduled_date=t.scheduled_date,
@@ -122,10 +126,50 @@ def _to_task_response(
     )
 
 
+async def _cleaner_names(session: AsyncSession, cleaner_ids: list[uuid.UUID]) -> dict[uuid.UUID, str]:
+    """Resolve cleaner ids to display names in one query."""
+    ids = [cid for cid in cleaner_ids if cid is not None]
+    if not ids:
+        return {}
+    users = await SqlUserRepository(session).get_many(ids)
+    return {uid: (user.full_name or user.email) for uid, user in users.items()}
+
+
+async def cleaner_scope(principal: Principal = Depends(get_principal)) -> uuid.UUID | None:
+    """The cleaner the caller is confined to, or None when they see everything.
+
+    A cleaner holds `cleaning:read` + `cleaning:own` but not `cleaning:write`, so
+    every task query they make is narrowed to their own assignments.
+    """
+    if principal.has(Permission.CLEANING_WRITE):
+        return None
+    if principal.has(Permission.CLEANING_OWN):
+        return principal.user_id
+    return None
+
+
+def _forbid_other_cleaner(scope: uuid.UUID | None, cleaner_id: uuid.UUID | None) -> None:
+    """404 rather than 403: a confined caller should not learn the task exists."""
+    if scope is not None and cleaner_id != scope:
+        raise HTTPException(status_code=404, detail="Cleaning task not found")
+
+
+async def _assert_company_cleaner(session: AsyncSession, cleaner_id: uuid.UUID, company_id: uuid.UUID) -> None:
+    """Guard the cleaner-id path params, which would otherwise cross tenants."""
+    user = await SqlUserRepository(session).get_by_id(cleaner_id)
+    if user is None or user.company_id != company_id:
+        raise HTTPException(status_code=404, detail="Cleaner not found")
+
+
 # ---------- Cleaning Task CRUD ----------
 
 
-@cleaning_router.post("", response_model=CleaningTaskResponse, status_code=201)
+@cleaning_router.post(
+    "",
+    response_model=CleaningTaskResponse,
+    status_code=201,
+    dependencies=[Depends(require(Permission.CLEANING_WRITE))],
+)
 async def create_cleaning_task(
     body: CleaningTaskCreate,
     session: AsyncSession = Depends(get_session),
@@ -153,7 +197,11 @@ async def create_cleaning_task(
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@cleaning_router.get("", response_model=CleaningTaskListResponse)
+@cleaning_router.get(
+    "",
+    response_model=CleaningTaskListResponse,
+    dependencies=[Depends(require(Permission.CLEANING_READ))],
+)
 async def list_cleaning_tasks(
     page: int = Query(default=1, ge=1),
     per_page: int = Query(default=50, ge=1, le=100),
@@ -164,8 +212,12 @@ async def list_cleaning_tasks(
     date_to: date | None = None,
     session: AsyncSession = Depends(get_session),
     company_id: uuid.UUID = Depends(get_company_id),
+    scope: uuid.UUID | None = Depends(cleaner_scope),
 ):
     repos = _repos(session)
+    # The filter is not a suggestion for a confined caller — it is the boundary.
+    if scope is not None:
+        cleaner_id = scope
     offset = (page - 1) * per_page
     tasks = await repos["task"].list_by_company(
         company_id,
@@ -186,6 +238,7 @@ async def list_cleaning_tasks(
         date_to=date_to,
     )
 
+    names = await _cleaner_names(session, [t.cleaner_id for t in tasks])
     items = []
     for t in tasks:
         prop = await repos["property"].get_by_id(t.property_id)
@@ -194,6 +247,7 @@ async def list_cleaning_tasks(
                 t,
                 property_name=prop.name if prop else None,
                 property_internal_name=prop.internal_name if prop else None,
+                cleaner_name=names.get(t.cleaner_id),
             )
         )
 
@@ -207,22 +261,30 @@ async def list_cleaning_tasks(
     )
 
 
-@cleaning_router.get("/{task_id}", response_model=CleaningTaskDetailResponse)
+@cleaning_router.get(
+    "/{task_id}",
+    response_model=CleaningTaskDetailResponse,
+    dependencies=[Depends(require(Permission.CLEANING_READ))],
+)
 async def get_cleaning_task(
     task_id: uuid.UUID,
     session: AsyncSession = Depends(get_session),
     company_id: uuid.UUID = Depends(get_company_id),
+    scope: uuid.UUID | None = Depends(cleaner_scope),
 ):
     repos = _repos(session)
     task = await repos["task"].get_by_id(task_id)
     if task is None or task.company_id != company_id:
         raise HTTPException(status_code=404, detail="Cleaning task not found")
+    _forbid_other_cleaner(scope, task.cleaner_id)
 
     prop = await repos["property"].get_by_id(task.property_id)
+    names = await _cleaner_names(session, [task.cleaner_id])
     task_resp = _to_task_response(
         task,
         property_name=prop.name if prop else None,
         property_internal_name=prop.internal_name if prop else None,
+        cleaner_name=names.get(task.cleaner_id),
     )
 
     # Get report if exists
@@ -240,14 +302,24 @@ async def get_cleaning_task(
     return CleaningTaskDetailResponse(task=task_resp, report=report_detail)
 
 
-@cleaning_router.post("/{task_id}/status", response_model=CleaningTaskResponse)
+@cleaning_router.post(
+    "/{task_id}/status",
+    response_model=CleaningTaskResponse,
+    dependencies=[Depends(require(Permission.CLEANING_READ))],
+)
 async def change_task_status(
     task_id: uuid.UUID,
     body: CleaningTaskStatusChange,
     session: AsyncSession = Depends(get_session),
     company_id: uuid.UUID = Depends(get_company_id),
+    scope: uuid.UUID | None = Depends(cleaner_scope),
 ):
     repos = _repos(session)
+    if scope is not None:
+        task = await repos["task"].get_by_id(task_id)
+        if task is None or task.company_id != company_id:
+            raise HTTPException(status_code=404, detail="Cleaning task not found")
+        _forbid_other_cleaner(scope, task.cleaner_id)
     svc = ChangeCleaningTaskStatusService(repos["task"])
     try:
         result = await svc.execute(task_id, company_id, body.target_status)
@@ -258,7 +330,11 @@ async def change_task_status(
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@cleaning_router.post("/{task_id}/assign", response_model=CleaningTaskResponse)
+@cleaning_router.post(
+    "/{task_id}/assign",
+    response_model=CleaningTaskResponse,
+    dependencies=[Depends(require(Permission.CLEANING_WRITE))],
+)
 async def assign_cleaner(
     task_id: uuid.UUID,
     body: CleaningTaskAssign,
@@ -276,7 +352,11 @@ async def assign_cleaner(
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@cleaning_router.get("/property/{property_id}", response_model=list[CleaningTaskResponse])
+@cleaning_router.get(
+    "/property/{property_id}",
+    response_model=list[CleaningTaskResponse],
+    dependencies=[Depends(require(Permission.CLEANING_WRITE))],
+)
 async def list_property_cleaning_history(
     property_id: uuid.UUID,
     offset: int = Query(default=0, ge=0),
@@ -296,14 +376,27 @@ async def list_property_cleaning_history(
 # ---------- Reports ----------
 
 
-@cleaning_router.post("/{task_id}/report", response_model=CleaningReportResponse, status_code=201)
+@cleaning_router.post(
+    "/{task_id}/report",
+    response_model=CleaningReportResponse,
+    status_code=201,
+    dependencies=[Depends(require(Permission.CLEANING_READ))],
+)
 async def submit_report(
     task_id: uuid.UUID,
     body: SubmitReportCreate,
     session: AsyncSession = Depends(get_session),
     company_id: uuid.UUID = Depends(get_company_id),
+    scope: uuid.UUID | None = Depends(cleaner_scope),
 ):
     repos = _repos(session)
+    if scope is not None:
+        task = await repos["task"].get_by_id(task_id)
+        if task is None or task.company_id != company_id:
+            raise HTTPException(status_code=404, detail="Cleaning task not found")
+        _forbid_other_cleaner(scope, task.cleaner_id)
+        if body.cleaner_id != scope:
+            raise HTTPException(status_code=403, detail="A report can only be filed under your own account")
     svc = SubmitReportService(
         repos["task"], repos["report"], repos["photo"], repos["report_checklist"]
     )
@@ -342,7 +435,10 @@ async def submit_report(
 # ---------- Checklist Templates ----------
 
 
-@checklist_router.post("", response_model=ChecklistTemplateResponse, status_code=201)
+@checklist_router.post(
+    "", response_model=ChecklistTemplateResponse, status_code=201,
+    dependencies=[Depends(require(Permission.CLEANING_WRITE))],
+)
 async def create_checklist_template(
     body: ChecklistTemplateCreate,
     session: AsyncSession = Depends(get_session),
@@ -364,7 +460,11 @@ async def create_checklist_template(
     return ChecklistTemplateResponse.model_validate(template, from_attributes=True)
 
 
-@checklist_router.get("", response_model=list[ChecklistTemplateResponse])
+@checklist_router.get(
+    "",
+    response_model=list[ChecklistTemplateResponse],
+    dependencies=[Depends(require(Permission.CLEANING_READ))],
+)
 async def list_checklist_templates(
     session: AsyncSession = Depends(get_session),
     company_id: uuid.UUID = Depends(get_company_id),
@@ -375,7 +475,11 @@ async def list_checklist_templates(
     return [ChecklistTemplateResponse.model_validate(t, from_attributes=True) for t in templates]
 
 
-@checklist_router.get("/{template_id}", response_model=ChecklistTemplateDetailResponse)
+@checklist_router.get(
+    "/{template_id}",
+    response_model=ChecklistTemplateDetailResponse,
+    dependencies=[Depends(require(Permission.CLEANING_READ))],
+)
 async def get_checklist_template(
     template_id: uuid.UUID,
     session: AsyncSession = Depends(get_session),
@@ -393,7 +497,10 @@ async def get_checklist_template(
     )
 
 
-@checklist_router.delete("/{template_id}", status_code=204)
+@checklist_router.delete(
+    "/{template_id}", status_code=204,
+    dependencies=[Depends(require(Permission.CLEANING_WRITE))],
+)
 async def delete_checklist_template(
     template_id: uuid.UUID,
     session: AsyncSession = Depends(get_session),
@@ -409,7 +516,10 @@ async def delete_checklist_template(
         raise HTTPException(status_code=404, detail=str(e))
 
 
-@checklist_router.patch("/{template_id}", response_model=ChecklistTemplateResponse)
+@checklist_router.patch(
+    "/{template_id}", response_model=ChecklistTemplateResponse,
+    dependencies=[Depends(require(Permission.CLEANING_WRITE))],
+)
 async def update_checklist_template(
     template_id: uuid.UUID,
     body: ChecklistTemplateUpdate,
@@ -427,7 +537,10 @@ async def update_checklist_template(
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@checklist_router.post("/{template_id}/items", response_model=ChecklistItemResponse, status_code=201)
+@checklist_router.post(
+    "/{template_id}/items", response_model=ChecklistItemResponse, status_code=201,
+    dependencies=[Depends(require(Permission.CLEANING_WRITE))],
+)
 async def add_checklist_item(
     template_id: uuid.UUID,
     body: ChecklistItemAdd,
@@ -445,7 +558,10 @@ async def add_checklist_item(
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@checklist_router.patch("/{template_id}/items/{item_id}", response_model=ChecklistItemResponse)
+@checklist_router.patch(
+    "/{template_id}/items/{item_id}", response_model=ChecklistItemResponse,
+    dependencies=[Depends(require(Permission.CLEANING_WRITE))],
+)
 async def update_checklist_item(
     template_id: uuid.UUID,
     item_id: uuid.UUID,
@@ -466,11 +582,11 @@ async def update_checklist_item(
 
 @checklist_router.post(
     "/{template_id}/reorder-items",
-    response_model=list[ChecklistItemResponse],
+    response_model=list[ChecklistItemResponse],    dependencies=[Depends(require(Permission.CLEANING_WRITE))],
 )
 @checklist_router.post(
     "/{template_id}/items/reorder",
-    response_model=list[ChecklistItemResponse],
+    response_model=list[ChecklistItemResponse],    dependencies=[Depends(require(Permission.CLEANING_WRITE))],
 )
 async def reorder_checklist_items(
     template_id: uuid.UUID,
@@ -489,7 +605,10 @@ async def reorder_checklist_items(
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@checklist_router.delete("/{template_id}/items/{item_id}", status_code=204)
+@checklist_router.delete(
+    "/{template_id}/items/{item_id}", status_code=204,
+    dependencies=[Depends(require(Permission.CLEANING_WRITE))],
+)
 async def delete_checklist_item(
     template_id: uuid.UUID,
     item_id: uuid.UUID,
@@ -505,7 +624,12 @@ async def delete_checklist_item(
 # ---------- Ratings ----------
 
 
-@rating_router.post("", response_model=CleanerRatingResponse, status_code=201)
+@rating_router.post(
+    "",
+    response_model=CleanerRatingResponse,
+    status_code=201,
+    dependencies=[Depends(require(Permission.CLEANING_WRITE))],
+)
 async def rate_cleaner(
     body: RateCleanerCreate,
     session: AsyncSession = Depends(get_session),
@@ -532,25 +656,41 @@ async def rate_cleaner(
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@rating_router.get("/{cleaner_id}", response_model=list[CleanerRatingResponse])
+@rating_router.get(
+    "/{cleaner_id}",
+    response_model=list[CleanerRatingResponse],
+    dependencies=[Depends(require(Permission.CLEANING_READ))],
+)
 async def list_cleaner_ratings(
     cleaner_id: uuid.UUID,
     offset: int = Query(default=0, ge=0),
     limit: int = Query(default=50, ge=1, le=100),
     session: AsyncSession = Depends(get_session),
     company_id: uuid.UUID = Depends(get_company_id),
+    scope: uuid.UUID | None = Depends(cleaner_scope),
 ):
+    if scope is not None and cleaner_id != scope:
+        raise HTTPException(status_code=404, detail="Cleaner not found")
+    await _assert_company_cleaner(session, cleaner_id, company_id)
     repos = _repos(session)
     ratings = await repos["rating"].list_by_cleaner(cleaner_id, offset=offset, limit=limit)
     return [CleanerRatingResponse.model_validate(r, from_attributes=True) for r in ratings]
 
 
-@rating_router.get("/{cleaner_id}/kpi", response_model=CleanerKPIResponse)
+@rating_router.get(
+    "/{cleaner_id}/kpi",
+    response_model=CleanerKPIResponse,
+    dependencies=[Depends(require(Permission.CLEANING_READ))],
+)
 async def get_cleaner_kpi(
     cleaner_id: uuid.UUID,
     session: AsyncSession = Depends(get_session),
     company_id: uuid.UUID = Depends(get_company_id),
+    scope: uuid.UUID | None = Depends(cleaner_scope),
 ):
+    if scope is not None and cleaner_id != scope:
+        raise HTTPException(status_code=404, detail="Cleaner not found")
+    await _assert_company_cleaner(session, cleaner_id, company_id)
     repos = _repos(session)
     svc = RateCleanerService(repos["rating"], repos["task"])
     kpi = await svc.get_kpi(cleaner_id)

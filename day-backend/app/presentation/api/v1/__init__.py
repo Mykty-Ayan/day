@@ -10,6 +10,7 @@ from app.presentation.api.v1.properties import amenity_router
 from app.presentation.api.v1.properties import router as properties_router
 from app.presentation.api.v1.settings import settings_router
 from app.presentation.api.v1.tags import tag_router
+from app.presentation.api.v1.users import api_key_router, user_router
 
 api_v1_router = APIRouter(prefix="/api/v1")
 api_v1_router.include_router(auth_router)
@@ -26,3 +27,5 @@ api_v1_router.include_router(rating_router)
 api_v1_router.include_router(analytics_router)
 api_v1_router.include_router(ai_migration_router)
 api_v1_router.include_router(settings_router)
+api_v1_router.include_router(user_router)
+api_v1_router.include_router(api_key_router)

@@ -32,7 +32,8 @@ class CreatePropertyInput:
     check_in_instructions: str | None = None
     check_out_instructions: str | None = None
     house_rules: str | None = None
-    # TODO: replace with authenticated user_id when auth is implemented
+    # Set from the authenticated caller; a service key attributes the change
+    # to the operator who issued it.
     changed_by: uuid.UUID | None = None
 
 
