@@ -292,6 +292,27 @@ async def ensure_seed_identity(session: AsyncSession) -> tuple[str, str]:
     return SEED_USER_EMAIL, SEED_USER_PASSWORD
 
 
+async def seed_cleaner_users(session: AsyncSession) -> None:
+    """Create the cleaner accounts referenced by cleaning tasks, routes and ratings."""
+    for index, cleaner_id in enumerate(CLEANER_IDS, start=1):
+        if await session.get(UserModel, cleaner_id):
+            print(f"  [ok] Cleaner #{index} already exists")
+            continue
+        session.add(
+            UserModel(
+                id=cleaner_id,
+                email=f"cleaner{index}@day.kz",
+                hashed_password=hash_password(SEED_USER_PASSWORD),
+                company_id=COMPANY_ID,
+                role="cleaner",
+                full_name=f"Клинер {index}",
+                is_active=True,
+            )
+        )
+        print(f"  [+] Created cleaner #{index}: cleaner{index}@day.kz")
+    await session.flush()
+
+
 # ---------- Seed functions ----------
 
 async def seed_amenities(session: AsyncSession) -> dict[str, uuid.UUID]:
@@ -1160,6 +1181,7 @@ async def main() -> None:
         try:
             print("\n--- Auth Seed Identity ---")
             seed_email, _ = await ensure_seed_identity(session)
+            await seed_cleaner_users(session)
 
             print("\n--- Amenities ---")
             amenity_map = await seed_amenities(session)
