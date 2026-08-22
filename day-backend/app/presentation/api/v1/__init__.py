@@ -5,6 +5,7 @@ from app.presentation.api.v1.analytics import analytics_router
 from app.presentation.api.v1.auth import auth_router
 from app.presentation.api.v1.bookings import booking_router, gantt_router, guest_router
 from app.presentation.api.v1.channels import channel_router
+from app.presentation.api.v1.channex import channex_router
 from app.presentation.api.v1.cleaning import checklist_router, cleaning_router, rating_router
 from app.presentation.api.v1.health import router as health_router
 from app.presentation.api.v1.properties import amenity_router
@@ -32,4 +33,5 @@ api_v1_router.include_router(settings_router)
 api_v1_router.include_router(user_router)
 api_v1_router.include_router(api_key_router)
 api_v1_router.include_router(channel_router)
+api_v1_router.include_router(channex_router)
 api_v1_router.include_router(webhook_router)

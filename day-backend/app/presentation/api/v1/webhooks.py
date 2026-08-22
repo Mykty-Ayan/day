@@ -30,6 +30,7 @@ from app.domain.messaging.value_objects import (
     MessageStatus,
     NotificationEvent,
 )
+from app.infrastructure.channex.factory import build_booking_event_service
 from app.infrastructure.database import get_session
 from app.infrastructure.messaging.factory import (
     build_guest_bot,
@@ -149,6 +150,44 @@ async def telegram_webhook(
             # Telegram redeliver it.
             logger.warning("Telegram reply to %s failed: %s", chat_id, exc)
 
+    return _ok()
+
+
+@webhook_router.post("/channex/{secret}", include_in_schema=False)
+async def channex_webhook(
+    secret: str,
+    request: Request,
+    session: AsyncSession = Depends(get_session),
+):
+    """Inbound Channex events. Booking events are applied through the revision
+    pipeline (idempotent by revision id); ARI echoes are ignored."""
+    if not settings.CHANNEX_WEBHOOK_SECRET:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Channex is not configured")
+    if secret != settings.CHANNEX_WEBHOOK_SECRET:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden")
+
+    event = await request.json()
+    event_name = str(event.get("event") or "")
+    if not event_name.startswith("booking"):
+        return _ok()
+
+    payload = event.get("payload") or {}
+    if not payload:
+        return _ok()
+
+    service = build_booking_event_service(session)
+    try:
+        result = await service.execute(payload)
+    except Exception as exc:
+        # Partial flushes (booking updates, the event row) must not survive a
+        # failed revision; the un-acked revision stays in the feed and the next
+        # delivery retries it from scratch. Channex must still get a 200.
+        await session.rollback()
+        logger.warning("Channex event failed: %s", exc)
+        return _ok()
+
+    if result.applied:
+        await session.commit()
     return _ok()
 
 

@@ -49,6 +49,12 @@ class Settings(BaseSettings):
     WHAPI_API_URL: str = "https://gate.whapi.cloud"
     WHAPI_WEBHOOK_SECRET: str = ""
 
+    # Channex — channel manager (OTA distribution). The webhook secret is a
+    # path segment on /webhooks/channex/{secret}, same scheme as whapi.
+    CHANNEX_API_URL: str = "https://staging.channex.io"
+    CHANNEX_API_KEY: str = ""
+    CHANNEX_WEBHOOK_SECRET: str = ""
+
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
 
 
