@@ -52,3 +52,6 @@ obsidian-vault/
 
 # Playwright MCP session artifacts
 .playwright-mcp/
+
+# OMC runtime state (oh-my-claudecode)
+.omc/
