@@ -50,6 +50,10 @@ class PropertyModel(Base):
     check_out_instructions: Mapped[str | None] = mapped_column(Text, nullable=True)
     house_rules: Mapped[str | None] = mapped_column(Text, nullable=True)
 
+    # Access
+    wifi_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    wifi_password: Mapped[str | None] = mapped_column(String(255), nullable=True)
+
     created_at: Mapped[datetime] = mapped_column(default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(default=datetime.utcnow, onupdate=datetime.utcnow)
 

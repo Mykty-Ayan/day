@@ -107,6 +107,8 @@ def _to_property_response(p, photos: list | None = None) -> PropertyResponse:
         check_in_instructions=p.check_in_instructions,
         check_out_instructions=p.check_out_instructions,
         house_rules=p.house_rules,
+        wifi_name=p.wifi_name,
+        wifi_password=p.wifi_password,
         photos=[PropertyPhotoResponse.model_validate(photo, from_attributes=True) for photo in (photos or [])],
         created_at=p.created_at,
         updated_at=p.updated_at,
@@ -154,6 +156,8 @@ async def create_property(
                 check_in_instructions=body.check_in_instructions,
                 check_out_instructions=body.check_out_instructions,
                 house_rules=body.house_rules,
+                wifi_name=body.wifi_name,
+                wifi_password=body.wifi_password,
                 changed_by=user_id,
             )
         )

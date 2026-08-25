@@ -235,7 +235,11 @@
       "amenitiesError": "Не удалось загрузить удобства",
       "checkInInstructionsPlaceholder": "Ключ в сейф-боксе у входной двери. Код: ...",
       "checkOutInstructionsPlaceholder": "Оставьте ключи на кухонном столе...",
-      "houseRulesPlaceholder": "Не курить. Без животных. Тишина с 22:00 до 08:00..."
+      "houseRulesPlaceholder": "Не курить. Без животных. Тишина с 22:00 до 08:00...",
+      "wifiName": "Wi-Fi сеть",
+      "wifiNamePlaceholder": "Home 28",
+      "wifiPassword": "Пароль Wi-Fi",
+      "wifiPasswordPlaceholder": "Пароль от сети"
     },
     "validation": {
       "nameRequired": "Название обязательно",
@@ -784,7 +788,8 @@
     "tabs": {
       "today": "Сегодня",
       "free": "Свободно",
-      "bookings": "Брони"
+      "bookings": "Брони",
+      "flats": "Квартиры"
     },
     "arrivals": "Заезды",
     "departures": "Выезды",
@@ -797,6 +802,11 @@
       "tonight": "Сегодня",
       "tomorrow": "Завтра",
       "weekend": "Выходные"
-    }
+    },
+    "flats": "Квартиры",
+    "wifi": "Wi-Fi",
+    "noWifi": "Wi-Fi не указан",
+    "copied": "Скопировано",
+    "floor": "этаж"
   }
 }

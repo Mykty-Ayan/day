@@ -38,6 +38,8 @@ class PropertyCreate(BaseModel):
     check_in_instructions: str | None = None
     check_out_instructions: str | None = None
     house_rules: str | None = None
+    wifi_name: str | None = Field(default=None, max_length=255)
+    wifi_password: str | None = Field(default=None, max_length=255)
 
 
 class PropertyUpdate(BaseModel):
@@ -61,6 +63,8 @@ class PropertyUpdate(BaseModel):
     check_in_instructions: str | None = None
     check_out_instructions: str | None = None
     house_rules: str | None = None
+    wifi_name: str | None = Field(default=None, max_length=255)
+    wifi_password: str | None = Field(default=None, max_length=255)
 
 
 class PropertyResponse(BaseModel):
@@ -89,6 +93,8 @@ class PropertyResponse(BaseModel):
     check_in_instructions: str | None = None
     check_out_instructions: str | None = None
     house_rules: str | None = None
+    wifi_name: str | None = None
+    wifi_password: str | None = None
     photos: list["PropertyPhotoResponse"] = Field(default_factory=list)
     created_at: datetime | None = None
     updated_at: datetime | None = None

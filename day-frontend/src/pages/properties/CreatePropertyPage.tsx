@@ -57,6 +57,8 @@ interface FormData {
     check_in_instructions: string
     check_out_instructions: string
     house_rules: string
+    wifi_name: string
+    wifi_password: string
   }
   amenityIds: string[]
 }
@@ -68,7 +70,7 @@ const initialForm: FormData = {
   rental_mode: 'daily',
   pricing: { base_price: '', hourly_price: '', weekend_markup: '', default_deposit: '', extra_adult_price: '', extra_child_price: '', base_guests: '' },
   photos: [],
-  rules: { check_in_instructions: '', check_out_instructions: '', house_rules: '' },
+  rules: { check_in_instructions: '', check_out_instructions: '', house_rules: '', wifi_name: '', wifi_password: '' },
   amenityIds: [],
 }
 
@@ -152,6 +154,8 @@ export default function CreatePropertyPage() {
       check_in_instructions: form.rules.check_in_instructions || undefined,
       check_out_instructions: form.rules.check_out_instructions || undefined,
       house_rules: form.rules.house_rules || undefined,
+      wifi_name: form.rules.wifi_name || undefined,
+      wifi_password: form.rules.wifi_password || undefined,
     }
 
     try {

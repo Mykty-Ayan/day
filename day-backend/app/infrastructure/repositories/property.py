@@ -71,6 +71,8 @@ def _model_to_property(m: PropertyModel) -> Property:
         check_in_instructions=m.check_in_instructions,
         check_out_instructions=m.check_out_instructions,
         house_rules=m.house_rules,
+        wifi_name=m.wifi_name,
+        wifi_password=m.wifi_password,
         created_at=m.created_at,
         updated_at=m.updated_at,
     )
@@ -100,6 +102,8 @@ def _property_to_dict(p: Property) -> dict:
         "check_in_instructions": p.check_in_instructions,
         "check_out_instructions": p.check_out_instructions,
         "house_rules": p.house_rules,
+        "wifi_name": p.wifi_name,
+        "wifi_password": p.wifi_password,
     }
 
 
