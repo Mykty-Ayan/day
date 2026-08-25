@@ -19,6 +19,17 @@ _AIRBNB_SECTION_IDS = {
     "DESCRIPTION_DEFAULT",
     "AMENITIES_DEFAULT",
 }
+
+# Nodes carrying a ``sectionId`` hold only layout, and their ``section`` field is
+# an empty shell such as ``{"__typename": "LocationSection"}``. The body lives in
+# a separate normalized entity, reachable only by its own ``__typename``.
+_AIRBNB_SECTION_TYPENAMES: dict[str, tuple[str, ...]] = {
+    "LOCATION_DEFAULT": ("StaysPdpLocation", "LocationSection"),
+    "POLICIES_DEFAULT": ("StaysPdpRuleDetails", "PoliciesSection"),
+    "HIGHLIGHTS_DEFAULT": ("StaysPdpHighlights", "HighlightsSection"),
+    "DESCRIPTION_DEFAULT": ("StaysPdpDescription", "DescriptionSection"),
+    "AMENITIES_DEFAULT": ("StaysPdpAmenitiesDetails", "AmenitiesSection"),
+}
 _MAX_LIST_ITEMS = 30
 _MAX_TEXT_LENGTH = 400
 
@@ -179,21 +190,63 @@ class AirbnbParser(BaseParser):
             return parsed
         return None
 
+    @classmethod
+    def _payload_weight(cls, payload: object, limit: int = 5000) -> int:
+        """Count the scalar values a payload carries.
+
+        Airbnb repeats every section: an empty shell like
+        ``{"__typename": "LocationSection"}``, a layout node of paddings and
+        borders, and the entity that actually holds the content. Keeping the
+        first match froze the shell in place, so candidates are ranked by how
+        much they carry instead.
+        """
+        count = 0
+        for node in cls._iter_nodes(payload):
+            for key, value in node.items():
+                if key == "__typename":
+                    continue
+                if isinstance(value, (str, int, float, bool)):
+                    count += 1
+            if count >= limit:
+                break
+        return count
+
     def _collect_section_payloads(self, deferred_state: dict | list) -> dict[str, object]:
         sections: dict[str, object] = {}
+        # Reverse index so a single walk can place a node by its type.
+        by_typename: dict[str, str] = {
+            typename: section_id
+            for section_id, typenames in _AIRBNB_SECTION_TYPENAMES.items()
+            for typename in typenames
+        }
+
+        # A content entity always outranks anything reached through sectionId,
+        # whose nodes hold layout only. Rank breaks ties inside a tier.
+        ranked: dict[str, tuple[int, int]] = {}
+
+        def offer(section_id: str, payload: object, tier: int) -> None:
+            if not isinstance(payload, (dict, list)):
+                return
+            rank = (tier, self._payload_weight(payload))
+            if section_id not in ranked or rank > ranked[section_id]:
+                ranked[section_id] = rank
+                sections[section_id] = payload
+
         for node in self._iter_nodes(deferred_state):
             if not isinstance(node, dict):
                 continue
 
+            typename = node.get("__typename")
+            if isinstance(typename, str) and typename in by_typename:
+                offer(by_typename[typename], node, tier=2)
+
             section_id = node.get("sectionId")
-            if isinstance(section_id, str) and section_id in _AIRBNB_SECTION_IDS and section_id not in sections:
+            if isinstance(section_id, str) and section_id in _AIRBNB_SECTION_IDS:
                 payload = node.get("section")
-                sections[section_id] = payload if isinstance(payload, (dict, list)) else node
+                offer(section_id, payload if isinstance(payload, (dict, list)) else node, tier=1)
 
             for key in _AIRBNB_SECTION_IDS:
-                payload = node.get(key)
-                if key not in sections and isinstance(payload, (dict, list)):
-                    sections[key] = payload
+                offer(key, node.get(key), tier=1)
         return sections
 
     def _extract_amenity_groups(self, data: object) -> list[dict]:
@@ -319,8 +372,8 @@ class AirbnbParser(BaseParser):
         return rooms, beds
 
     def _extract_checkin_checkout_instructions(self, data: object) -> tuple[str | None, str | None]:
-        checkin_tokens = ("check-in", "check in", "checkin", "заезд")
-        checkout_tokens = ("check-out", "check out", "checkout", "выезд")
+        checkin_tokens = ("check-in", "check in", "checkin", "заезд", "прибытие")
+        checkout_tokens = ("check-out", "check out", "checkout", "выезд", "отъезд")
         checkin: str | None = None
         checkout: str | None = None
 
@@ -339,9 +392,15 @@ class AirbnbParser(BaseParser):
             segments = [self._normalize_text(s) for s in re.split(r"[,;]\s*", line)]
             for segment in segments:
                 lowered = segment.lower()
-                if checkin is None and any(token in lowered for token in checkin_tokens):
+                is_checkin = any(token in lowered for token in checkin_tokens)
+                is_checkout = any(token in lowered for token in checkout_tokens)
+                if is_checkin and is_checkout:
+                    # "Прибытие и выезд" is the section heading, not an
+                    # instruction for either side.
+                    continue
+                if checkin is None and is_checkin:
                     checkin = segment
-                if checkout is None and any(token in lowered for token in checkout_tokens):
+                if checkout is None and is_checkout:
                     checkout = segment
                 if checkin and checkout:
                     return checkin, checkout
@@ -551,10 +610,17 @@ class AirbnbParser(BaseParser):
                 enrichment["latitude"] = lat
             if lng is not None:
                 enrichment["longitude"] = lng
-            subtitle = self._first_text(location, ("subtitle",))
-            title = self._first_text(location, ("title",))
-            if subtitle or title:
-                enrichment["address_full"] = ", ".join([part for part in [subtitle, title] if part])
+            # Only the section's own fields: a deep search reaches the map's
+            # category pins ("Рестораны", "Магазины") and glues them onto the
+            # address.
+            address_parts = [
+                self._normalize_text(value)
+                for key in ("subtitle", "title", "exactAddress")
+                if isinstance(value := location.get(key) if isinstance(location, dict) else None, str)
+                and value.strip()
+            ]
+            if address_parts:
+                enrichment["address_full"] = ", ".join(_unique_limited(address_parts, limit=3))
 
         description = sections.get("DESCRIPTION_DEFAULT")
         if description is not None:
