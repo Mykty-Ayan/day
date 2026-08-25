@@ -97,7 +97,7 @@ export default function AnalyticsFilterBar({
             onValueChange={(value) => {
               if (value) onPeriodChange(value as PeriodPreset)
             }}
-            className="min-w-max self-start"
+            className="self-start"
           >
             {PERIOD_OPTIONS.map((opt) => (
               <ToggleGroupItem key={opt.value} value={opt.value}>
@@ -114,7 +114,7 @@ export default function AnalyticsFilterBar({
             onValueChange={(value) => {
               if (value) onGranularityChange(value as Granularity)
             }}
-            className="min-w-max self-start"
+            className="self-start"
           >
             {GRANULARITY_OPTIONS.map((opt) => (
               <ToggleGroupItem key={opt.value} value={opt.value}>

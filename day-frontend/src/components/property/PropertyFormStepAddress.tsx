@@ -31,7 +31,7 @@ export default function PropertyFormStepAddress({ data, onChange }: Props) {
           type="text"
           value={data.address_full}
           onChange={(e) => update('address_full', e.target.value)}
-          placeholder="123 Main Street, City, Country"
+          placeholder={t('properties.form.fullAddressPlaceholder')}
           className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 outline-none focus:ring-2 focus:ring-black/10 text-gray-800 text-sm"
         />
       </div>
@@ -45,7 +45,7 @@ export default function PropertyFormStepAddress({ data, onChange }: Props) {
             type="text"
             value={data.apartment_number}
             onChange={(e) => update('apartment_number', e.target.value)}
-            placeholder="4B"
+            placeholder={t('properties.form.apartmentNumberPlaceholder')}
             className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 outline-none focus:ring-2 focus:ring-black/10 text-gray-800 text-sm"
           />
         </div>
@@ -57,7 +57,7 @@ export default function PropertyFormStepAddress({ data, onChange }: Props) {
             type="text"
             value={data.entrance}
             onChange={(e) => update('entrance', e.target.value)}
-            placeholder="A"
+            placeholder={t('properties.form.entrancePlaceholder')}
             className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 outline-none focus:ring-2 focus:ring-black/10 text-gray-800 text-sm"
           />
         </div>
@@ -72,7 +72,7 @@ export default function PropertyFormStepAddress({ data, onChange }: Props) {
             type="text"
             value={data.block}
             onChange={(e) => update('block', e.target.value)}
-            placeholder="B"
+            placeholder={t('properties.form.blockPlaceholder')}
             className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 outline-none focus:ring-2 focus:ring-black/10 text-gray-800 text-sm"
           />
         </div>
@@ -84,7 +84,7 @@ export default function PropertyFormStepAddress({ data, onChange }: Props) {
             type="text"
             value={data.floor}
             onChange={(e) => update('floor', e.target.value)}
-            placeholder="3"
+            placeholder={t('properties.form.floorPlaceholder')}
             className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 outline-none focus:ring-2 focus:ring-black/10 text-gray-800 text-sm"
           />
         </div>
@@ -99,7 +99,7 @@ export default function PropertyFormStepAddress({ data, onChange }: Props) {
             type="text"
             value={data.latitude}
             onChange={(e) => update('latitude', e.target.value)}
-            placeholder="43.2381"
+            placeholder={t('properties.form.latitudePlaceholder')}
             className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 outline-none focus:ring-2 focus:ring-black/10 text-gray-800 text-sm"
           />
         </div>
@@ -111,7 +111,7 @@ export default function PropertyFormStepAddress({ data, onChange }: Props) {
             type="text"
             value={data.longitude}
             onChange={(e) => update('longitude', e.target.value)}
-            placeholder="76.9454"
+            placeholder={t('properties.form.longitudePlaceholder')}
             className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 outline-none focus:ring-2 focus:ring-black/10 text-gray-800 text-sm"
           />
         </div>

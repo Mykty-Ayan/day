@@ -56,6 +56,14 @@
     "reason": "Себеп",
     "selectDate": "Күнді таңдаңыз",
     "selectTime": "Уақытты таңдаңыз",
+    "timeInputHint": "СС:ММ",
+    "noResults": "Ештеңе табылмады",
+    "time": "Уақыт",
+    "selected": "Таңдалды",
+    "pickDate": "Күнді таңдаңыз",
+    "selectDates": "Күндерді таңдаңыз",
+    "increment": "Арттыру",
+    "decrement": "Азайту",
     "amount": "Сома",
     "created": "Жасалған",
     "direct": "Тікелей",
@@ -79,6 +87,9 @@
     "transfer": "Аударым",
     "processing": "Өңделуде...",
     "retry": "Қайталау",
+    "unknown": "Белгісіз",
+    "errorTitle": "Бірдеңе дұрыс болмады",
+    "errorLoading": "Деректерді жүктеу мүмкін болмады. Қайтадан көріңіз.",
     "logout": "Шығу"
   },
   "home": {
@@ -94,12 +105,14 @@
     "searchPlaceholder": "Атауы бойынша іздеу...",
     "noProperties": "Нысандар табылмады",
     "createFirst": "Алғашқы нысаныңызды жасаңыз",
+    "tagsLabel": "Тег бойынша сүзу",
     "createProperty": "Нысан жасау",
     "backToProperties": "Нысандарға оралу",
     "cloneProperty": "Нысанды көшіру",
     "clonePropertyMessage": "\"{{name}}\" нысанының барлық деректерімен көшірмесін жасау керек пе?",
     "propertyCloned": "Нысан көшірілді",
     "failedClone": "Нысанды көшіру сәтсіз аяқталды",
+    "propertyCreated": "Нысан жасалды",
     "propertyUpdated": "Нысан жаңартылды",
     "failedUpdate": "Нысанды жаңарту сәтсіз аяқталды",
     "failedCreate": "Нысанды жасау сәтсіз аяқталды. Қайтадан көріңіз.",
@@ -110,7 +123,38 @@
     "description": "Сипаттама",
     "rules": "Ережелер",
     "amenities": "Ыңғайлылықтар",
-    "pricing": "Бағалар",
+    "pricing": {
+      "title": "Бағалар",
+      "basePricing": "Базалық бағалар",
+      "rentalMode": "Жалдау режимі",
+      "daily": "Тәулікпен",
+      "hourly": "Сағаттап",
+      "both": "Екеуі де",
+      "basePrice": "Базалық баға",
+      "hourlyPrice": "Сағаттық баға",
+      "weekendMarkup": "Демалыс күні үстемесі (%)",
+      "defaultDeposit": "Әдепкі кепіл",
+      "baseGuests": "Базалық қонақ саны",
+      "extraAdultPrice": "Қосымша ересек бағасы",
+      "extraChildPrice": "Қосымша бала бағасы",
+      "savePricing": "Бағаларды сақтау",
+      "seasonalPrices": "Маусымдық бағалар",
+      "suggestedSeasons": "Басқа нысандардан ұсынылған маусымдар",
+      "addSuggestion": "«{{name}}» қосу ({{start}} – {{end}})",
+      "moreSuggestions": "Бар маусымдарды қосқаннан кейін тағы {{count}} ұсыныс қолжетімді болады.",
+      "namePlaceholder": "Атауы",
+      "startDatePlaceholder": "Басталу күні",
+      "endDatePlaceholder": "Аяқталу күні",
+      "pricePlaceholder": "Баға",
+      "addSeasonalAria": "Маусымдық баға қосу",
+      "discountRules": "Жеңілдік ережелері",
+      "discountLabel": "{{nights}}+ түн: {{amount}} жеңілдік",
+      "minNightsPlaceholder": "Мин. түн",
+      "valuePlaceholder": "Мән",
+      "percent": "Пайыз",
+      "fixed": "Тұрақты",
+      "addDiscountAria": "Жеңілдік ережесін қосу"
+    },
     "checkIn": "Кіру",
     "checkOut": "Шығу",
     "houseRules": "Үй ережелері",
@@ -167,7 +211,31 @@
       "houseRules": "Үй ережелері",
       "searchAmenities": "Ыңғайлылықтарды іздеу...",
       "noAmenities": "Ыңғайлылықтар әлі қосылмаған.",
-      "amenitiesSelected": "{{count}} ыңғайлылық таңдалды"
+      "amenitiesSelected": "{{count}} ыңғайлылық таңдалды",
+      "hourlyPrice": "Сағаттық баға",
+      "rentalMode": "Жалдау режимі",
+      "rentalModeDaily": "Тәулікпен",
+      "rentalModeHourly": "Сағаттап",
+      "rentalModeBoth": "Екеуі де",
+      "publicNamePlaceholder": "Орталықтағы жайлы студия",
+      "internalNamePlaceholder": "APT-001-Ortalyq",
+      "descriptionPlaceholder": "Қала орталығындағы тамаша нысан...",
+      "sourceUrlPlaceholder": "https://booking.com/...",
+      "fullAddressPlaceholder": "Абай к-сі 10, қала, ел",
+      "apartmentNumberPlaceholder": "4Б",
+      "entrancePlaceholder": "А",
+      "blockPlaceholder": "Б",
+      "floorPlaceholder": "3",
+      "latitudePlaceholder": "43.2381",
+      "longitudePlaceholder": "76.9454",
+      "dropPhotos": "Фотоларды осында сүйреңіз немесе жүктеу үшін басыңыз",
+      "photoHint": "PNG, JPG 10 МБ дейін",
+      "setAsCover": "Мұқаба ету",
+      "cover": "Мұқаба",
+      "amenitiesError": "Ыңғайлылықтарды жүктеу сәтсіз аяқталды",
+      "checkInInstructionsPlaceholder": "Кілт кіреберіс есіктегі сейф-боксте. Коды: ...",
+      "checkOutInstructionsPlaceholder": "Кілттерді ас үй үстеліне қалдырыңыз...",
+      "houseRulesPlaceholder": "Темекі шегуге болмайды. Жануарларсыз. Тыныштық 22:00-08:00..."
     },
     "validation": {
       "nameRequired": "Атауы міндетті",
@@ -183,7 +251,12 @@
     },
     "perNight": "/ түн",
     "roomsCount": "{{count}} бөлме",
-    "bedsCount": "{{count}} төсек"
+    "bedsCount": "{{count}} төсек",
+    "tags": {
+      "create": "Тег құру",
+      "namePlaceholder": "Тег атауы",
+      "color": "Тег түсі"
+    }
   },
   "bookings": {
     "title": "Броньдар",
@@ -214,6 +287,7 @@
     "adults": "Ересектер",
     "children": "Балалар",
     "selectProperty": "Нысанды таңдаңыз...",
+    "paused": "тоқтатылған",
     "tabs": {
       "overview": "Шолу",
       "payments": "Төлемдер",
@@ -238,7 +312,12 @@
       "totalPaidOverpaid": "Жиынтық / Төленген / Артық төлем",
       "daily": "Күнделікті",
       "firstDay": "Бірінші күн",
-      "overpaid": "Артық төлем"
+      "overpaid": "Артық төлем",
+      "paymentStatus": {
+        "pending": "Күтуде",
+        "completed": "Аяқталған",
+        "failed": "Қате"
+      }
     },
     "deposits": {
       "createDeposit": "Кепіл жасау",
@@ -249,7 +328,14 @@
       "hold": "Ұстап қалу",
       "partiallyHold": "Ішінара ұстау",
       "held": "Ұсталған",
-      "amountToHold": "Ұстау сомасы"
+      "amountToHold": "Ұстау сомасы",
+      "status": {
+        "pending": "Күтуде",
+        "paid": "Төленген",
+        "returned": "Қайтарылған",
+        "held": "Ұсталған",
+        "partiallyHeld": "Ішінара ұсталған"
+      }
     },
     "files": {
       "files": "Файлдар",
@@ -266,6 +352,8 @@
     "unableToCalculate": "Бағаны есептеу мүмкін болмады.",
     "nights": "{{count}} түн",
     "nights_other": "{{count}} түн",
+    "hours": "{{count}} сағат",
+    "hours_other": "{{count}} сағат",
     "weekendSurcharge": "Демалыс күні үстемесі",
     "seasonalAdjustment": "Маусымдық түзету",
     "extraGuestSurcharge": "Қосымша қонақ үстемесі",
@@ -283,7 +371,11 @@
       "dateRangeOverlap": "Күндер аралығы бар броньмен қабаттасады",
       "guestNameRequired": "Қонақ атын көрсетіңіз",
       "guestPhoneRequired": "Қонақ телефонын көрсетіңіз",
-      "atLeastOneAdult": "Кемінде 1 ересек қажет"
+      "atLeastOneAdult": "Кемінде 1 ересек қажет",
+      "dateRequired": "Күнді көрсетіңіз",
+      "startTimeRequired": "Басталу уақытын көрсетіңіз",
+      "endTimeRequired": "Аяқталу уақытын көрсетіңіз",
+      "endTimeAfterStart": "Аяқталу уақыты басталу уақытынан кейін болуы керек"
     },
     "sources": {
       "direct": "Тікелей",
@@ -305,7 +397,16 @@
       "purple": "Күлгін",
       "pink": "Қызғылт",
       "cyan": "Көгілдір"
-    }
+    },
+    "rentalMode": {
+      "label": "Жалдау режимі",
+      "daily": "Тәулікпен",
+      "hourly": "Сағаттап"
+    },
+    "date": "Күні",
+    "startTime": "Басталу уақыты",
+    "endTime": "Аяқталу уақыты",
+    "selectTime": "Уақытты таңдаңыз"
   },
   "today": {
     "title": "Бүгін",
@@ -335,8 +436,31 @@
     "pausedUnavailable": "Тоқтатылған нысандар бронь жасау үшін қол жетімді емес",
     "inHouse": "Үйде",
     "sourceBcom": "Bcom",
-    "weekdays": { "0": "Жс", "1": "Дс", "2": "Сс", "3": "Ср", "4": "Бс", "5": "Жм", "6": "Сн" },
-    "monthsShort": { "0": "Қаң", "1": "Ақп", "2": "Нау", "3": "Сәу", "4": "Мам", "5": "Мау", "6": "Шіл", "7": "Там", "8": "Қыр", "9": "Қаз", "10": "Қар", "11": "Жел" },
+    "moveTo": "Көшіру…",
+    "noMoveTargets": "Басқа нысандар жоқ",
+    "weekdays": {
+      "0": "Жс",
+      "1": "Дс",
+      "2": "Сс",
+      "3": "Ср",
+      "4": "Бс",
+      "5": "Жм",
+      "6": "Сн"
+    },
+    "monthsShort": {
+      "0": "Қаң",
+      "1": "Ақп",
+      "2": "Нау",
+      "3": "Сәу",
+      "4": "Мам",
+      "5": "Мау",
+      "6": "Шіл",
+      "7": "Там",
+      "8": "Қыр",
+      "9": "Қаз",
+      "10": "Қар",
+      "11": "Жел"
+    },
     "months": {
       "0": "Қаңтар",
       "1": "Ақпан",
@@ -392,6 +516,14 @@
     "submitted": "Жіберілген",
     "photos": "Фото",
     "checklist": "Тексеру тізімі",
+    "reportStatus": {
+      "submitted": "Жіберілген",
+      "approved": "Мақұлданған",
+      "rejected": "Қабылданбаған"
+    },
+    "checklistItem": "Тармақ {{number}}",
+    "assignedCleaner": "Тағайындалған тазалаушы",
+    "atTime": "{{time}}-де",
     "types": {
       "postCheckout": "Шығудан кейін",
       "midStay": "Аралық",
@@ -419,7 +551,8 @@
       "kitchen": "Ас үй",
       "bedroom": "Жатын бөлме",
       "other": "Басқа"
-    }
+    },
+    "noCleaners": "Тазалаушылар әзірге жоқ — «Команда және API-кілттер» бөлімінен қосыңыз"
   },
   "checklists": {
     "title": "Тексеру тізімі үлгілері",
@@ -491,7 +624,8 @@
     "taskNotFound": "Тапсырма табылмады",
     "cleaningTask": "Тазалау тапсырмасы",
     "activeCount": "Белсенді ({{count}})",
-    "completedCount": "Аяқталған ({{count}})"
+    "completedCount": "Аяқталған ({{count}})",
+    "backToTasks": "Тапсырмаларға оралу"
   },
   "aiImport": {
     "title": "AI Импорт",
@@ -567,5 +701,102 @@
     "language": "Тіл",
     "languageDescription": "Интерфейс тілін таңдаңыз",
     "saved": "Баптаулар сақталды"
+  },
+  "team": {
+    "title": "Команда және API-кілттер",
+    "settingsHint": "Менеджерлер мен тазалаушылар аккаунттары, боттарға арналған кілттер",
+    "ownerOnly": "Команда мен кілттерді тек компания иесі басқара алады",
+    "members": "Команда",
+    "membersDescription": "Менеджер бизнесті жүргізеді, тазалаушы тек өз тапсырмаларын көреді",
+    "addMember": "Қосу",
+    "createMember": "Аккаунт құру",
+    "memberCreated": "Аккаунт құрылды",
+    "memberFailed": "Аккаунт құру мүмкін болмады",
+    "memberDeactivated": "Аккаунт өшірілді",
+    "email": "Email",
+    "password": "Құпиясөз",
+    "passwordHint": "Кемінде 8 таңба",
+    "fullName": "Аты-жөні",
+    "phone": "Телефон",
+    "role": "Рөлі",
+    "deactivate": "Өшіру",
+    "reactivate": "Қосу",
+    "deactivateTitle": "Аккаунтты өшіру керек пе?",
+    "deactivateMessage": "{{name}} енді кіре алмайды. Тазалау тарихы сақталады.",
+    "roles": {
+      "owner": "Иесі",
+      "manager": "Менеджер",
+      "cleaner": "Тазалаушы"
+    },
+    "roleHints": {
+      "manager": "Нысандар, брондар, тазалау және аналитика. Команданы, кілттерді, баптауларды басқармайды.",
+      "cleaner": "Тек өз тапсырмалары мен есептері, нысан деректері оқуға ғана."
+    },
+    "apiKeys": "Сервистік API-кілттер",
+    "apiKeysDescription": "Telegram және WhatsApp боттары API-ге осылар арқылы кіреді",
+    "addKey": "Жаңа кілт",
+    "createKey": "Кілт құру",
+    "keyName": "Кілт атауы",
+    "keyNamePlaceholder": "Telegram-бот",
+    "scopes": "Құқықтар",
+    "scopesShort": "құқық",
+    "noKeys": "Кілттер әзірге жоқ",
+    "keyShownOnce": "Кілтті қазір көшіріңіз — ол бір рет қана көрсетіледі",
+    "keyStored": "Сақтадым",
+    "copy": "Көшіру",
+    "keyCopied": "Кілт көшірілді",
+    "keyCopyFailed": "Кілтті көшіру мүмкін болмады",
+    "keyFailed": "Кілт құру мүмкін болмады",
+    "keyRevoked": "Кілт қайтарып алынды",
+    "revoke": "Қайтарып алу",
+    "revoked": "Қайтарылған",
+    "revokeTitle": "Кілтті қайтарып алу керек пе?",
+    "revokeMessage": "«{{name}}» кілтімен жұмыс істейтін бот бірден тоқтайды.",
+    "lastUsed": "қолданылған",
+    "validation": {
+      "emailAndPassword": "Email және кемінде 8 таңбалы құпиясөз керек",
+      "nameAndScopes": "Атауы және кемінде бір құқық керек"
+    }
+  },
+  "channels": {
+    "title": "Боттар",
+    "description": "Telegram — сізге, WhatsApp — қонақтарыңызға",
+    "telegram": "Telegram",
+    "whatsapp": "WhatsApp",
+    "telegramHint": "Төмендегі кодты ботқа жіберіңіз. Код бір реттік, 30 минут жарамды.",
+    "whatsappHint": "whapi.cloud кабинетіндегі channel id-ді енгізіңіз — қонақтардың хабарлары осы компанияға түседі.",
+    "channelId": "whapi channel id",
+    "channelIdRequired": "channel id енгізіңіз",
+    "getCode": "Telegram қосу",
+    "connect": "Қосу",
+    "disconnect": "Ажырату",
+    "codeFailed": "Код беру мүмкін болмады",
+    "whatsappConnected": "WhatsApp арнасы қосылды",
+    "whatsappFailed": "Арнаны қосу мүмкін болмады"
+  },
+  "miniapp": {
+    "loading": "Жүктелуде…",
+    "loadFailed": "Деректерді жүктеу мүмкін болмады",
+    "empty": "Бос",
+    "openInTelegram": "Бетті Telegram-боттан ашыңыз",
+    "authFailed": "Кіру мүмкін болмады",
+    "connectHint": "Чатты қосыңыз: Баптаулар → Команда және API-кілттер → Боттар",
+    "tabs": {
+      "today": "Бүгін",
+      "free": "Бос",
+      "bookings": "Брондар"
+    },
+    "arrivals": "Кіру",
+    "departures": "Шығу",
+    "inHouse": "Тұрып жатыр",
+    "until": "дейін",
+    "freeProperties": "Бос нысандар",
+    "noPrice": "бағасы жоқ",
+    "upcoming": "Алдағы {{days}} күн",
+    "periods": {
+      "tonight": "Бүгін",
+      "tomorrow": "Ертең",
+      "weekend": "Демалыс"
+    }
   }
 }

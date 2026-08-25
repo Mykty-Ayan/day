@@ -1,7 +1,9 @@
 import { ChevronDown, ChevronUp } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { cn } from '../../lib/utils'
 
 interface NumberInputProps {
+  id?: string
   value: string | number
   onChange: (value: string) => void
   min?: number
@@ -34,6 +36,7 @@ function formatWithStep(value: number, step: number): string {
 }
 
 export default function NumberInput({
+  id,
   value,
   onChange,
   min,
@@ -45,6 +48,8 @@ export default function NumberInput({
   disabled,
   ariaLabel,
 }: NumberInputProps) {
+  const { t } = useTranslation()
+
   function clampValue(num: number): number {
     let next = num
     if (typeof min === 'number') next = Math.max(min, next)
@@ -84,6 +89,7 @@ export default function NumberInput({
   return (
     <div className={cn('relative', className)}>
       <input
+        id={id}
         type="number"
         value={value}
         onChange={(e) => onChange(e.target.value)}
@@ -100,13 +106,15 @@ export default function NumberInput({
           inputClassName,
         )}
       />
-      <div className="absolute right-2 top-1/2 -translate-y-1/2 flex flex-col gap-1">
+      {/* Flush spinner: two half-height segments sized to the input so the
+          controls sit inside the field instead of overflowing it. */}
+      <div className="absolute right-1.5 top-1.5 bottom-1.5 flex w-7 flex-col overflow-hidden rounded-lg border border-gray-200">
         <button
           type="button"
           onClick={() => handleStep(1)}
           disabled={disabled}
-          className="flex h-6 w-6 items-center justify-center rounded-md border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 disabled:opacity-40"
-          aria-label="Increment"
+          className="flex flex-1 items-center justify-center bg-white text-gray-500 hover:bg-gray-100 disabled:opacity-40"
+          aria-label={t('common.increment')}
         >
           <ChevronUp className="h-3.5 w-3.5" />
         </button>
@@ -114,8 +122,8 @@ export default function NumberInput({
           type="button"
           onClick={() => handleStep(-1)}
           disabled={disabled}
-          className="flex h-6 w-6 items-center justify-center rounded-md border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 disabled:opacity-40"
-          aria-label="Decrement"
+          className="flex flex-1 items-center justify-center border-t border-gray-200 bg-white text-gray-500 hover:bg-gray-100 disabled:opacity-40"
+          aria-label={t('common.decrement')}
         >
           <ChevronDown className="h-3.5 w-3.5" />
         </button>

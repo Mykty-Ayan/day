@@ -42,11 +42,11 @@ class PropertyMetricsResponse(BaseModel):
     expenses: Decimal
     profit: Decimal
     commission: Decimal
-    vacancy_days: int
+    vacancy_days: Decimal
     occupancy_rate: Decimal
     avg_stay_duration: Decimal
     total_bookings: int
-    booked_nights: int
+    booked_nights: Decimal
 
 
 class AnalyticsSummaryResponse(BaseModel):
@@ -64,8 +64,8 @@ class AnalyticsSummaryResponse(BaseModel):
     overall_occupancy_rate: Decimal
     avg_stay_duration: Decimal
     total_bookings: int
-    total_booked_nights: int
-    total_vacancy_days: int
+    total_booked_nights: Decimal
+    total_vacancy_days: Decimal
     properties_count: int
 
 
@@ -88,7 +88,7 @@ class TimeSeriesPointResponse(BaseModel):
     period_label: str
     revenue: Decimal
     bookings_count: int
-    booked_nights: int
+    booked_nights: Decimal
     occupancy_rate: Decimal
 
 

@@ -38,10 +38,11 @@ function readInitialViewMode(): ViewMode {
 }
 
 export default function BookingListPage() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const navigate = useNavigate()
   const { symbol } = useCurrency()
   const [search, setSearch] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<BookingStatus | 'all'>('all')
   const [sourceFilter, setSourceFilter] = useState<BookingSource | 'all'>('all')
   const [propertyFilter, setPropertyFilter] = useState('all')
@@ -72,14 +73,23 @@ export default function BookingListPage() {
   const { data: propertiesData } = useProperties({ per_page: 100, status: 'active' })
   const properties = propertiesData?.items ?? []
 
-  const { data, isLoading } = useBookings({
+  const { data, isLoading, isError, refetch } = useBookings({
     page,
     per_page: 20,
     status: statusFilter === 'all' ? undefined : statusFilter,
     source: sourceFilter === 'all' ? undefined : sourceFilter,
     property_id: propertyFilter === 'all' ? undefined : propertyFilter,
-    search: search || undefined,
+    search: debouncedSearch || undefined,
   })
+
+  // Debounce the search input so the query fires ~300ms after typing stops.
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      setDebouncedSearch(search)
+      setPage(1)
+    }, 300)
+    return () => clearTimeout(timeout)
+  }, [search])
 
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -119,7 +129,7 @@ export default function BookingListPage() {
               <input
                 type="text"
                 value={search}
-                onChange={(e) => { setSearch(e.target.value); setPage(1) }}
+                onChange={(e) => setSearch(e.target.value)}
                 placeholder={t('bookings.searchPlaceholder')}
                 className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 pl-9 outline-none focus:ring-2 focus:ring-black/10 text-gray-800 text-sm"
               />
@@ -156,46 +166,52 @@ export default function BookingListPage() {
               </SelectContent>
             </Select>
           </div>
-          <div className="w-full overflow-x-auto">
-            <ToggleGroup
-              type="single"
-              value={statusFilter}
-              onValueChange={(value) => {
-                if (!value) return
-                setStatusFilter(value as BookingStatus | 'all')
-                setPage(1)
-              }}
-              className="min-w-max"
-            >
-              {STATUS_TABS.map((tab) => (
-                <ToggleGroupItem key={tab.value} value={tab.value}>
-                  {tab.label}
-                </ToggleGroupItem>
-              ))}
-            </ToggleGroup>
-          </div>
-          <div className="w-full overflow-x-auto">
-            <ToggleGroup
-              type="single"
-              value={viewMode}
-              onValueChange={(value) => {
-                if (!value) return
-                setViewMode(value as ViewMode)
-              }}
-              className="min-w-max"
-            >
-              {VIEW_OPTIONS.map((option) => (
-                <ToggleGroupItem key={option.value} value={option.value}>
-                  {option.label}
-                </ToggleGroupItem>
-              ))}
-            </ToggleGroup>
-          </div>
+          <ToggleGroup
+            type="single"
+            value={statusFilter}
+            onValueChange={(value) => {
+              if (!value) return
+              setStatusFilter(value as BookingStatus | 'all')
+              setPage(1)
+            }}
+          >
+            {STATUS_TABS.map((tab) => (
+              <ToggleGroupItem key={tab.value} value={tab.value}>
+                {tab.label}
+              </ToggleGroupItem>
+            ))}
+          </ToggleGroup>
+          <ToggleGroup
+            type="single"
+            value={viewMode}
+            onValueChange={(value) => {
+              if (!value) return
+              setViewMode(value as ViewMode)
+            }}
+          >
+            {VIEW_OPTIONS.map((option) => (
+              <ToggleGroupItem key={option.value} value={option.value}>
+                {option.label}
+              </ToggleGroupItem>
+            ))}
+          </ToggleGroup>
         </div>
 
         {/* Content */}
         {isLoading ? (
           <Spinner />
+        ) : isError ? (
+          <div className="flex flex-col items-center justify-center py-20 text-center">
+            <p className="mb-1 text-sm font-semibold text-gray-900">{t('common.errorTitle')}</p>
+            <p className="mb-4 text-sm text-gray-500">{t('common.errorLoading')}</p>
+            <motion.button
+              whileTap={{ scale: 0.97 }}
+              onClick={() => refetch()}
+              className="flex min-h-[44px] items-center gap-2 rounded-xl border border-gray-200 bg-white px-6 py-2.5 font-semibold text-gray-700 shadow-sm transition-colors hover:bg-gray-50"
+            >
+              {t('common.retry')}
+            </motion.button>
+          </div>
         ) : !data || data.items.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20">
             <p className="text-sm text-gray-500 mb-4">{t('bookings.noBookings')}</p>
@@ -241,7 +257,7 @@ export default function BookingListPage() {
                     </div>
                     <div className="mt-3 grid grid-cols-1 gap-2 text-xs text-gray-600 sm:grid-cols-2">
                       <span>
-                        {formatDate(booking.check_in)} <ArrowRight className="inline h-3 w-3 text-gray-400" /> {formatDate(booking.check_out)}
+                        {formatDate(booking.check_in, i18n.language)} <ArrowRight className="inline h-3 w-3 text-gray-400" /> {formatDate(booking.check_out, i18n.language)}
                       </span>
                       <span className="capitalize sm:text-right">{t('bookings.sources.' + booking.source)}</span>
                       <span className="font-semibold text-gray-900 sm:col-span-2 sm:text-right">
@@ -274,7 +290,16 @@ export default function BookingListPage() {
                           animate={{ opacity: 1, y: 0 }}
                           transition={{ duration: 0.2, delay: i * 0.02 }}
                           onClick={() => navigate({ to: '/bookings/$bookingId', params: { bookingId: booking.id } })}
-                          className="border-b border-gray-50 hover:bg-gray-50 cursor-pointer transition-colors"
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.preventDefault()
+                              navigate({ to: '/bookings/$bookingId', params: { bookingId: booking.id } })
+                            }
+                          }}
+                          tabIndex={0}
+                          role="button"
+                          aria-label={`${booking.property_internal_name || booking.property_name} — ${booking.guest_name}`}
+                          className="border-b border-gray-50 hover:bg-gray-50 cursor-pointer transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-black/20"
                         >
                           <td className="px-4 py-3">
                             <div className="flex items-center gap-2">
@@ -295,7 +320,7 @@ export default function BookingListPage() {
                           </td>
                           <td className="px-4 py-3">
                             <span className="text-sm text-gray-600">
-                              {formatDate(booking.check_in)} <ArrowRight className="w-3 h-3 inline text-gray-400" /> {formatDate(booking.check_out)}
+                              {formatDate(booking.check_in, i18n.language)} <ArrowRight className="w-3 h-3 inline text-gray-400" /> {formatDate(booking.check_out, i18n.language)}
                             </span>
                           </td>
                           <td className="px-4 py-3">
@@ -351,7 +376,7 @@ export default function BookingListPage() {
   )
 }
 
-function formatDate(dateStr: string): string {
+function formatDate(dateStr: string, locale: string): string {
   const d = new Date(dateStr)
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+  return d.toLocaleDateString(locale, { month: 'short', day: 'numeric' })
 }

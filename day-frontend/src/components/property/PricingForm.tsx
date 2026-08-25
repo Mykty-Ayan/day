@@ -1,10 +1,13 @@
 import { useMemo, useState } from 'react'
 import { format, isValid, parseISO } from 'date-fns'
 import { motion } from 'framer-motion'
+import { useTranslation } from 'react-i18next'
 import { Plus, X, Loader2 } from 'lucide-react'
 import type { PricingConfig, SeasonalPrice, DiscountRule } from '../../types/property'
+import type { RentalMode } from '../../types/booking'
 import DatePicker from '../ui/date-picker'
 import NumberInput from '../ui/number-input'
+import { ToggleGroup, ToggleGroupItem } from '../ui/toggle-group'
 import { useCurrency } from '../../hooks/useCurrency'
 import {
   Select,
@@ -25,9 +28,12 @@ export interface SeasonalSuggestion {
 
 interface Props {
   pricing: PricingConfig | null
+  rentalMode: RentalMode
   seasonalSuggestions?: SeasonalSuggestion[]
   onSaveBase: (data: {
     base_price: number
+    hourly_price: number
+    rental_mode: RentalMode
     weekend_markup: number
     default_deposit: number
     extra_adult_price: number
@@ -44,7 +50,7 @@ interface Props {
 function formatSeasonalDate(value: string): string {
   const parsed = parseISO(value)
   if (!isValid(parsed)) return value
-  return format(parsed, 'dd MMM yyyy')
+  return format(parsed, 'dd.MM.yyyy')
 }
 
 function formatMoney(value: number): string {
@@ -59,9 +65,12 @@ const primaryActionButtonClass =
   'flex items-center justify-center gap-2 rounded-xl bg-black text-white hover:bg-gray-800 px-6 py-2.5 font-semibold shadow-lg transition-colors disabled:cursor-not-allowed disabled:opacity-50'
 const fixedActionButtonClass =
   `${primaryActionButtonClass} h-11 w-full sm:w-60`
+const compactActionButtonClass =
+  `${primaryActionButtonClass} h-11 w-full sm:w-auto sm:px-5`
 
 function PricingFormInner({
   pricing,
+  rentalMode: initialRentalMode,
   seasonalSuggestions = [],
   onSaveBase,
   onAddSeasonal,
@@ -70,8 +79,11 @@ function PricingFormInner({
   onDeleteDiscount,
   isSaving,
 }: Props) {
+  const { t } = useTranslation()
   const { symbol: currencySymbol } = useCurrency()
+  const [rentalMode, setRentalMode] = useState<RentalMode>(initialRentalMode)
   const [basePrice, setBasePrice] = useState(String(pricing?.base_price ?? ''))
+  const [hourlyPrice, setHourlyPrice] = useState(String(pricing?.hourly_price ?? ''))
   const [weekendMarkup, setWeekendMarkup] = useState(String(pricing?.weekend_markup ?? ''))
   const [deposit, setDeposit] = useState(String(pricing?.default_deposit ?? ''))
   const [extraAdult, setExtraAdult] = useState(String(pricing?.extra_adult_price ?? ''))
@@ -134,6 +146,8 @@ function PricingFormInner({
   function handleSaveBase() {
     onSaveBase({
       base_price: parseNumber(basePrice, 0),
+      hourly_price: parseNumber(hourlyPrice, 0),
+      rental_mode: rentalMode,
       weekend_markup: parseNumber(weekendMarkup, 0),
       default_deposit: parseNumber(deposit, 0),
       extra_adult_price: parseNumber(extraAdult, 0),
@@ -173,11 +187,28 @@ function PricingFormInner({
     <div className="space-y-6">
       {/* Base pricing */}
       <div>
-        <h3 className="text-sm font-bold text-gray-900 mb-3">Base Pricing</h3>
+        <h3 className="text-sm font-bold text-gray-900 mb-3">{t('properties.pricing.basePricing')}</h3>
+        <div className="mb-3">
+          <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">
+            {t('properties.pricing.rentalMode')}
+          </label>
+          <ToggleGroup
+            type="single"
+            value={rentalMode}
+            onValueChange={(value) => {
+              if (!value) return
+              setRentalMode(value as RentalMode)
+            }}
+          >
+            <ToggleGroupItem value="daily">{t('properties.pricing.daily')}</ToggleGroupItem>
+            <ToggleGroupItem value="hourly">{t('properties.pricing.hourly')}</ToggleGroupItem>
+            <ToggleGroupItem value="both">{t('properties.pricing.both')}</ToggleGroupItem>
+          </ToggleGroup>
+        </div>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div>
             <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">
-              Base Price
+              {t('properties.pricing.basePrice')}
             </label>
             <NumberInput
               value={basePrice}
@@ -186,9 +217,22 @@ function PricingFormInner({
               step={1000}
             />
           </div>
+          {rentalMode !== 'daily' && (
+            <div>
+              <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">
+                {t('properties.pricing.hourlyPrice')}
+              </label>
+              <NumberInput
+                value={hourlyPrice}
+                onChange={setHourlyPrice}
+                min={0}
+                step={500}
+              />
+            </div>
+          )}
           <div>
             <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">
-              Weekend Markup (%)
+              {t('properties.pricing.weekendMarkup')}
             </label>
             <NumberInput
               value={weekendMarkup}
@@ -199,7 +243,7 @@ function PricingFormInner({
           </div>
           <div>
             <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">
-              Default Deposit
+              {t('properties.pricing.defaultDeposit')}
             </label>
             <NumberInput
               value={deposit}
@@ -210,7 +254,7 @@ function PricingFormInner({
           </div>
           <div>
             <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">
-              Base Guests
+              {t('properties.pricing.baseGuests')}
             </label>
             <NumberInput
               value={baseGuests}
@@ -221,7 +265,7 @@ function PricingFormInner({
           </div>
           <div>
             <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">
-              Extra Adult Price
+              {t('properties.pricing.extraAdultPrice')}
             </label>
             <NumberInput
               value={extraAdult}
@@ -232,7 +276,7 @@ function PricingFormInner({
           </div>
           <div>
             <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">
-              Extra Child Price
+              {t('properties.pricing.extraChildPrice')}
             </label>
             <NumberInput
               value={extraChild}
@@ -250,18 +294,18 @@ function PricingFormInner({
           className={`mt-3 ${fixedActionButtonClass}`}
         >
           {isSaving && <Loader2 className="w-4 h-4 animate-spin" />}
-          Save Pricing
+          {t('properties.pricing.savePricing')}
         </motion.button>
       </div>
 
       {/* Seasonal prices */}
       <div>
-        <h3 className="text-sm font-bold text-gray-900 mb-3">Seasonal Prices</h3>
+        <h3 className="text-sm font-bold text-gray-900 mb-3">{t('properties.pricing.seasonalPrices')}</h3>
 
         {seasonalSuggestions.length > 0 && (
           <div className="mb-3 rounded-xl border border-gray-200 bg-gray-50 p-3">
             <p className="text-xs font-bold uppercase tracking-wider text-gray-500">
-              Suggested seasons from other properties
+              {t('properties.pricing.suggestedSeasons')}
             </p>
             <div className="mt-2 flex flex-wrap gap-2">
               {seasonalSuggestions.slice(0, 8).map((suggestion) => (
@@ -272,13 +316,17 @@ function PricingFormInner({
                   className="rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-100 transition-colors"
                   title={suggestion.source_properties.join(', ')}
                 >
-                  Add "{suggestion.name}" ({formatSeasonalDate(suggestion.start_date)} - {formatSeasonalDate(suggestion.end_date)})
+                  {t('properties.pricing.addSuggestion', {
+                    name: suggestion.name,
+                    start: formatSeasonalDate(suggestion.start_date),
+                    end: formatSeasonalDate(suggestion.end_date),
+                  })}
                 </button>
               ))}
             </div>
             {seasonalSuggestions.length > 8 && (
               <p className="mt-2 text-xs text-gray-500">
-                {seasonalSuggestions.length - 8} more suggestions available after adding existing ones.
+                {t('properties.pricing.moreSuggestions', { count: seasonalSuggestions.length - 8 })}
               </p>
             )}
           </div>
@@ -312,19 +360,19 @@ function PricingFormInner({
             type="text"
             value={seasonalName}
             onChange={(e) => setSeasonalName(e.target.value)}
-            placeholder="Name"
+            placeholder={t('properties.pricing.namePlaceholder')}
             className="w-full rounded-xl border border-gray-200 bg-gray-50 p-2.5 text-sm text-gray-800 outline-none focus:ring-2 focus:ring-black/10 xl:col-span-2"
           />
           <DatePicker
             value={seasonalStart}
             onChange={setSeasonalStart}
-            placeholder="Start date"
+            placeholder={t('properties.pricing.startDatePlaceholder')}
             className="xl:col-span-1"
           />
           <DatePicker
             value={seasonalEnd}
             onChange={setSeasonalEnd}
-            placeholder="End date"
+            placeholder={t('properties.pricing.endDatePlaceholder')}
             minDate={seasonalStart || undefined}
             className="xl:col-span-1"
           />
@@ -334,7 +382,7 @@ function PricingFormInner({
               onChange={setSeasonalPrice}
               min={0}
               step={1000}
-              placeholder="Price"
+              placeholder={t('properties.pricing.pricePlaceholder')}
               inputClassName="p-2.5 text-sm"
               className="min-w-0"
             />
@@ -344,9 +392,11 @@ function PricingFormInner({
             whileTap={{ scale: 0.97 }}
             onClick={handleAddSeasonal}
             className="flex h-11 w-full items-center justify-center rounded-xl bg-black text-white hover:bg-gray-800 shadow-lg transition-colors disabled:cursor-not-allowed disabled:opacity-50 xl:col-span-1"
-            aria-label="Add seasonal price"
+            aria-label={t('properties.pricing.addSeasonalAria')}
           >
             <Plus className="h-5 w-5" />
+            {/* A full-width icon-only button reads as ambiguous; keep the word. */}
+            <span className="ml-2 text-sm font-semibold">{t('common.add')}</span>
           </motion.button>
         </div>
         <div className="mt-1 space-y-1.5">
@@ -386,14 +436,17 @@ function PricingFormInner({
 
       {/* Discount rules */}
       <div>
-        <h3 className="text-sm font-bold text-gray-900 mb-3">Discount Rules</h3>
+        <h3 className="text-sm font-bold text-gray-900 mb-3">{t('properties.pricing.discountRules')}</h3>
         {discountRules.map((dr: DiscountRule) => (
           <div
             key={dr.id}
             className="mb-2 flex flex-col gap-2 rounded-xl border border-gray-200 bg-gray-50 p-3 sm:flex-row sm:items-center sm:justify-between"
           >
             <span className="text-sm text-gray-700">
-              {dr.min_nights}+ nights: {dr.type === 'percent' ? `${dr.value}%` : `${currencySymbol}${dr.value}`} off
+              {t('properties.pricing.discountLabel', {
+                nights: dr.min_nights,
+                amount: dr.type === 'percent' ? `${dr.value}%` : `${currencySymbol}${dr.value}`,
+              })}
             </span>
             <button
               onClick={() => onDeleteDiscount(dr.id)}
@@ -409,7 +462,7 @@ function PricingFormInner({
             onChange={setDiscountNights}
             min={1}
             step={1}
-            placeholder="Min nights"
+            placeholder={t('properties.pricing.minNightsPlaceholder')}
             inputClassName="p-2.5 text-sm"
             className="w-full sm:flex-1 min-w-0"
           />
@@ -418,8 +471,8 @@ function PricingFormInner({
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="percent">Percent</SelectItem>
-              <SelectItem value="fixed">Fixed</SelectItem>
+              <SelectItem value="percent">{t('properties.pricing.percent')}</SelectItem>
+              <SelectItem value="fixed">{t('properties.pricing.fixed')}</SelectItem>
             </SelectContent>
           </Select>
           <NumberInput
@@ -427,7 +480,7 @@ function PricingFormInner({
             onChange={setDiscountValue}
             min={0}
             step={discountStep}
-            placeholder="Value"
+            placeholder={t('properties.pricing.valuePlaceholder')}
             inputClassName="p-2.5 text-sm"
             className="w-full sm:flex-1 min-w-0"
           />
@@ -435,10 +488,12 @@ function PricingFormInner({
             type="button"
             whileTap={{ scale: 0.97 }}
             onClick={handleAddDiscount}
-            className={fixedActionButtonClass}
-            aria-label="Add discount rule"
+            className={compactActionButtonClass}
+            aria-label={t('properties.pricing.addDiscountAria')}
           >
             <Plus className="h-5 w-5" />
+            {/* A full-width icon-only button reads as ambiguous; keep the word. */}
+            <span className="ml-2 text-sm font-semibold">{t('common.add')}</span>
           </motion.button>
         </div>
       </div>
@@ -448,7 +503,7 @@ function PricingFormInner({
 
 export default function PricingForm(props: Props) {
   const pricingKey = props.pricing
-    ? `${props.pricing.id}:${props.pricing.updated_at ?? '0'}`
-    : 'new'
+    ? `${props.pricing.id}:${props.pricing.updated_at ?? '0'}:${props.rentalMode}`
+    : `new:${props.rentalMode}`
   return <PricingFormInner key={pricingKey} {...props} />
 }

@@ -7,6 +7,7 @@ export type PaymentStatus = 'pending' | 'completed' | 'failed'
 export type DepositStatus = 'pending' | 'paid' | 'returned' | 'held' | 'partially_held'
 export type DepositAction = 'pay' | 'return' | 'hold' | 'partial_hold'
 export type ContractStatus = 'draft' | 'generated' | 'sent' | 'signed'
+export type RentalMode = 'daily' | 'hourly' | 'both'
 
 export interface Guest {
   id: string
@@ -27,6 +28,7 @@ export interface Booking {
   group_booking_id?: string
   check_in: string
   check_out: string
+  rental_mode: RentalMode
   source: BookingSource
   status: BookingStatus
   gantt_color: string
@@ -35,6 +37,7 @@ export interface Booking {
   calculated_price: number
   adults_count: number
   children_count: number
+  notes?: string | null
   guest_name: string
   guest_phone?: string | null
   property_name: string
@@ -119,6 +122,9 @@ export interface BookingDetail {
 
 export interface PriceCalculation {
   nights: number
+  hours: number
+  unit_label: string
+  rental_mode: RentalMode
   base_total: number
   weekend_surcharge: number
   seasonal_adjustment: number
@@ -133,6 +139,7 @@ export interface GanttPropertySummary {
   internal_name: string
   type: string
   status: 'new' | 'active' | 'paused' | 'archived'
+  rental_mode?: RentalMode
 }
 
 export interface GanttData {
@@ -156,6 +163,7 @@ export interface BookingCreateInput {
   guest_email?: string
   check_in: string
   check_out: string
+  rental_mode?: RentalMode
   source: BookingSource
   adults_count: number
   children_count: number
@@ -166,6 +174,7 @@ export interface BookingCreateInput {
 export interface BookingUpdateInput {
   check_in?: string
   check_out?: string
+  rental_mode?: RentalMode
   source?: BookingSource
   adults_count?: number
   children_count?: number
@@ -211,6 +220,9 @@ export interface PriceCalculateInput {
   check_out: string
   adults_count: number
   children_count: number
+  hours?: number
+  unit_label?: string
+  rental_mode?: RentalMode
 }
 
 export interface MoveBookingInput {

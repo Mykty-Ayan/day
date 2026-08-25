@@ -1,5 +1,9 @@
 @import "tailwindcss";
 
+:root {
+  color-scheme: light;
+}
+
 html {
   scrollbar-gutter: stable both-edges;
 }
@@ -25,6 +29,43 @@ body {
 
 .safe-area-bottom {
   padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* Overlay stacking scale. Every floating layer uses one of these tokens so the
+   order is decided here instead of by ad-hoc z-40/z-50/z-[90]/z-[120] values. */
+.z-sticky {
+  z-index: 40;
+}
+.z-overlay {
+  z-index: 100;
+}
+.z-popover {
+  z-index: 120;
+}
+.z-toast {
+  z-index: 140;
+}
+
+/* Telegram Mini App surfaces.
+   Telegram injects --tg-theme-* variables; the fallbacks keep the page readable
+   when it is opened in a plain browser for debugging. */
+.tg-root {
+  background: var(--tg-theme-bg-color, #ffffff);
+  color: var(--tg-theme-text-color, #111827);
+}
+.tg-surface {
+  background: var(--tg-theme-secondary-bg-color, #f3f4f6);
+}
+.tg-hint {
+  color: var(--tg-theme-hint-color, #6b7280);
+}
+.tg-active {
+  background: var(--tg-theme-button-color, #111827);
+  color: var(--tg-theme-button-text-color, #ffffff);
+}
+.tg-divide > li + li {
+  border-top: 1px solid var(--tg-theme-hint-color, #d1d5db);
+  border-top-color: color-mix(in srgb, var(--tg-theme-hint-color, #d1d5db) 25%, transparent);
 }
 
 /* Hide native number spinners inside custom NumberInput */

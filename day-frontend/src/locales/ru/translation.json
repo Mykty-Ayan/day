@@ -56,6 +56,14 @@
     "reason": "Причина",
     "selectDate": "Выберите дату",
     "selectTime": "Выберите время",
+    "timeInputHint": "ЧЧ:ММ",
+    "noResults": "Ничего не найдено",
+    "time": "Время",
+    "selected": "Выбрано",
+    "pickDate": "Выберите дату",
+    "selectDates": "Выберите даты",
+    "increment": "Увеличить",
+    "decrement": "Уменьшить",
     "amount": "Сумма",
     "created": "Создано",
     "direct": "Прямое",
@@ -79,6 +87,9 @@
     "transfer": "Перевод",
     "processing": "Обработка...",
     "retry": "Повторить",
+    "unknown": "Неизвестно",
+    "errorTitle": "Что-то пошло не так",
+    "errorLoading": "Не удалось загрузить данные. Попробуйте ещё раз.",
     "logout": "Выйти"
   },
   "home": {
@@ -94,12 +105,14 @@
     "searchPlaceholder": "Поиск по названию...",
     "noProperties": "Объекты не найдены",
     "createFirst": "Создайте ваш первый объект",
+    "tagsLabel": "Фильтр по тегу",
     "createProperty": "Создать объект",
     "backToProperties": "К объектам",
     "cloneProperty": "Клонировать объект",
     "clonePropertyMessage": "Создать копию \"{{name}}\" со всеми данными?",
     "propertyCloned": "Объект клонирован",
     "failedClone": "Не удалось клонировать объект",
+    "propertyCreated": "Объект создан",
     "propertyUpdated": "Объект обновлён",
     "failedUpdate": "Не удалось обновить объект",
     "failedCreate": "Не удалось создать объект. Попробуйте ещё раз.",
@@ -110,7 +123,38 @@
     "description": "Описание",
     "rules": "Правила",
     "amenities": "Удобства",
-    "pricing": "Цены",
+    "pricing": {
+      "title": "Цены",
+      "basePricing": "Базовые цены",
+      "rentalMode": "Режим аренды",
+      "daily": "Посуточно",
+      "hourly": "Почасовая",
+      "both": "Оба",
+      "basePrice": "Базовая цена",
+      "hourlyPrice": "Цена за час",
+      "weekendMarkup": "Наценка на выходные (%)",
+      "defaultDeposit": "Залог по умолчанию",
+      "baseGuests": "Базовое кол-во гостей",
+      "extraAdultPrice": "Доплата за взрослого",
+      "extraChildPrice": "Доплата за ребёнка",
+      "savePricing": "Сохранить цены",
+      "seasonalPrices": "Сезонные цены",
+      "suggestedSeasons": "Предлагаемые сезоны из других объектов",
+      "addSuggestion": "Добавить «{{name}}» ({{start}} – {{end}})",
+      "moreSuggestions": "Ещё {{count}} предложений станут доступны после добавления текущих.",
+      "namePlaceholder": "Название",
+      "startDatePlaceholder": "Дата начала",
+      "endDatePlaceholder": "Дата окончания",
+      "pricePlaceholder": "Цена",
+      "addSeasonalAria": "Добавить сезонную цену",
+      "discountRules": "Правила скидок",
+      "discountLabel": "От {{nights}} ночей: скидка {{amount}}",
+      "minNightsPlaceholder": "Мин. ночей",
+      "valuePlaceholder": "Значение",
+      "percent": "Процент",
+      "fixed": "Фиксированная",
+      "addDiscountAria": "Добавить правило скидки"
+    },
     "checkIn": "Заезд",
     "checkOut": "Выезд",
     "houseRules": "Правила дома",
@@ -167,7 +211,31 @@
       "houseRules": "Правила дома",
       "searchAmenities": "Поиск удобств...",
       "noAmenities": "Удобства ещё не добавлены.",
-      "amenitiesSelected": "Выбрано удобств: {{count}}"
+      "amenitiesSelected": "Выбрано удобств: {{count}}",
+      "hourlyPrice": "Цена за час",
+      "rentalMode": "Режим аренды",
+      "rentalModeDaily": "Посуточно",
+      "rentalModeHourly": "Почасовая",
+      "rentalModeBoth": "Оба",
+      "publicNamePlaceholder": "Уютная студия в центре",
+      "internalNamePlaceholder": "APT-001-Center",
+      "descriptionPlaceholder": "Прекрасный объект в самом сердце города...",
+      "sourceUrlPlaceholder": "https://booking.com/...",
+      "fullAddressPlaceholder": "ул. Абая 10, город, страна",
+      "apartmentNumberPlaceholder": "4Б",
+      "entrancePlaceholder": "А",
+      "blockPlaceholder": "Б",
+      "floorPlaceholder": "3",
+      "latitudePlaceholder": "43.2381",
+      "longitudePlaceholder": "76.9454",
+      "dropPhotos": "Перетащите фото сюда или нажмите для загрузки",
+      "photoHint": "PNG, JPG до 10 МБ",
+      "setAsCover": "Сделать обложкой",
+      "cover": "Обложка",
+      "amenitiesError": "Не удалось загрузить удобства",
+      "checkInInstructionsPlaceholder": "Ключ в сейф-боксе у входной двери. Код: ...",
+      "checkOutInstructionsPlaceholder": "Оставьте ключи на кухонном столе...",
+      "houseRulesPlaceholder": "Не курить. Без животных. Тишина с 22:00 до 08:00..."
     },
     "validation": {
       "nameRequired": "Название обязательно",
@@ -183,7 +251,12 @@
     },
     "perNight": "/ ночь",
     "roomsCount": "{{count}} комн.",
-    "bedsCount": "{{count}} кров."
+    "bedsCount": "{{count}} кров.",
+    "tags": {
+      "create": "Создать тег",
+      "namePlaceholder": "Название тега",
+      "color": "Цвет тега"
+    }
   },
   "bookings": {
     "title": "Бронирования",
@@ -214,6 +287,7 @@
     "adults": "Взрослые",
     "children": "Дети",
     "selectProperty": "Выберите объект...",
+    "paused": "на паузе",
     "tabs": {
       "overview": "Обзор",
       "payments": "Оплаты",
@@ -238,7 +312,12 @@
       "totalPaidOverpaid": "Итого / Оплачено / Переплата",
       "daily": "Посуточно",
       "firstDay": "Первый день",
-      "overpaid": "Переплата"
+      "overpaid": "Переплата",
+      "paymentStatus": {
+        "pending": "Ожидание",
+        "completed": "Завершено",
+        "failed": "Ошибка"
+      }
     },
     "deposits": {
       "createDeposit": "Создать залог",
@@ -249,7 +328,14 @@
       "hold": "Удержать",
       "partiallyHold": "Частично удержать",
       "held": "Удержано",
-      "amountToHold": "Сумма удержания"
+      "amountToHold": "Сумма удержания",
+      "status": {
+        "pending": "Ожидание",
+        "paid": "Оплачен",
+        "returned": "Возвращён",
+        "held": "Удержан",
+        "partiallyHeld": "Частично удержан"
+      }
     },
     "files": {
       "files": "Файлы",
@@ -266,6 +352,8 @@
     "unableToCalculate": "Не удалось рассчитать стоимость.",
     "nights": "{{count}} ночь",
     "nights_other": "{{count}} ночей",
+    "hours": "{{count}} час",
+    "hours_other": "{{count}} часов",
     "weekendSurcharge": "Наценка за выходные",
     "seasonalAdjustment": "Сезонная корректировка",
     "extraGuestSurcharge": "Доплата за доп. гостей",
@@ -283,7 +371,11 @@
       "dateRangeOverlap": "Диапазон дат пересекается с существующим бронированием",
       "guestNameRequired": "Укажите имя гостя",
       "guestPhoneRequired": "Укажите телефон гостя",
-      "atLeastOneAdult": "Минимум 1 взрослый"
+      "atLeastOneAdult": "Минимум 1 взрослый",
+      "dateRequired": "Укажите дату",
+      "startTimeRequired": "Укажите время начала",
+      "endTimeRequired": "Укажите время окончания",
+      "endTimeAfterStart": "Время окончания должно быть позже начала"
     },
     "sources": {
       "direct": "Прямое",
@@ -305,7 +397,16 @@
       "purple": "Фиолетовый",
       "pink": "Розовый",
       "cyan": "Голубой"
-    }
+    },
+    "rentalMode": {
+      "label": "Режим аренды",
+      "daily": "Посуточно",
+      "hourly": "Почасовая"
+    },
+    "date": "Дата",
+    "startTime": "Время начала",
+    "endTime": "Время окончания",
+    "selectTime": "Выберите время"
   },
   "today": {
     "title": "Сегодня",
@@ -335,8 +436,31 @@
     "pausedUnavailable": "Объекты на паузе недоступны для бронирования",
     "inHouse": "В доме",
     "sourceBcom": "Bcom",
-    "weekdays": { "0": "Вс", "1": "Пн", "2": "Вт", "3": "Ср", "4": "Чт", "5": "Пт", "6": "Сб" },
-    "monthsShort": { "0": "Янв", "1": "Фев", "2": "Мар", "3": "Апр", "4": "Май", "5": "Июн", "6": "Июл", "7": "Авг", "8": "Сен", "9": "Окт", "10": "Ноя", "11": "Дек" },
+    "moveTo": "Переместить в…",
+    "noMoveTargets": "Нет других объектов",
+    "weekdays": {
+      "0": "Вс",
+      "1": "Пн",
+      "2": "Вт",
+      "3": "Ср",
+      "4": "Чт",
+      "5": "Пт",
+      "6": "Сб"
+    },
+    "monthsShort": {
+      "0": "Янв",
+      "1": "Фев",
+      "2": "Мар",
+      "3": "Апр",
+      "4": "Май",
+      "5": "Июн",
+      "6": "Июл",
+      "7": "Авг",
+      "8": "Сен",
+      "9": "Окт",
+      "10": "Ноя",
+      "11": "Дек"
+    },
     "months": {
       "0": "Январь",
       "1": "Февраль",
@@ -392,6 +516,14 @@
     "submitted": "Отправлен",
     "photos": "Фото",
     "checklist": "Чеклист",
+    "reportStatus": {
+      "submitted": "Отправлен",
+      "approved": "Одобрен",
+      "rejected": "Отклонён"
+    },
+    "checklistItem": "Пункт {{number}}",
+    "assignedCleaner": "Назначенный клинер",
+    "atTime": "в {{time}}",
     "types": {
       "postCheckout": "После выезда",
       "midStay": "Промежуточная",
@@ -419,7 +551,8 @@
       "kitchen": "Кухня",
       "bedroom": "Спальня",
       "other": "Другое"
-    }
+    },
+    "noCleaners": "Горничных пока нет — заведите в разделе «Команда и API-ключи»"
   },
   "checklists": {
     "title": "Шаблоны чеклистов",
@@ -491,7 +624,8 @@
     "taskNotFound": "Задача не найдена",
     "cleaningTask": "Задача по уборке",
     "activeCount": "Активные ({{count}})",
-    "completedCount": "Завершённые ({{count}})"
+    "completedCount": "Завершённые ({{count}})",
+    "backToTasks": "Назад к задачам"
   },
   "aiImport": {
     "title": "AI Импорт",
@@ -567,5 +701,102 @@
     "language": "Язык",
     "languageDescription": "Выберите язык интерфейса",
     "saved": "Настройки сохранены"
+  },
+  "team": {
+    "title": "Команда и API-ключи",
+    "settingsHint": "Аккаунты менеджеров и горничных, сервисные ключи для ботов",
+    "ownerOnly": "Управлять командой и ключами может только владелец компании",
+    "members": "Команда",
+    "membersDescription": "Менеджер ведёт бизнес, горничная видит только свои задачи",
+    "addMember": "Добавить",
+    "createMember": "Создать аккаунт",
+    "memberCreated": "Аккаунт создан",
+    "memberFailed": "Не удалось создать аккаунт",
+    "memberDeactivated": "Аккаунт отключён",
+    "email": "Email",
+    "password": "Пароль",
+    "passwordHint": "Минимум 8 символов",
+    "fullName": "Имя",
+    "phone": "Телефон",
+    "role": "Роль",
+    "deactivate": "Отключить",
+    "reactivate": "Включить",
+    "deactivateTitle": "Отключить аккаунт?",
+    "deactivateMessage": "{{name}} больше не сможет войти. История уборок сохранится.",
+    "roles": {
+      "owner": "Владелец",
+      "manager": "Менеджер",
+      "cleaner": "Горничная"
+    },
+    "roleHints": {
+      "manager": "Объекты, брони, уборка и аналитика. Без управления командой, ключами и настройками.",
+      "cleaner": "Только свои задачи и отчёты плюс данные объекта на чтение."
+    },
+    "apiKeys": "Сервисные API-ключи",
+    "apiKeysDescription": "По ним Telegram- и WhatsApp-боты ходят в API",
+    "addKey": "Новый ключ",
+    "createKey": "Создать ключ",
+    "keyName": "Название ключа",
+    "keyNamePlaceholder": "Telegram-бот",
+    "scopes": "Права",
+    "scopesShort": "прав",
+    "noKeys": "Ключей пока нет",
+    "keyShownOnce": "Скопируйте ключ сейчас — он показывается один раз",
+    "keyStored": "Сохранил",
+    "copy": "Копировать",
+    "keyCopied": "Ключ скопирован",
+    "keyCopyFailed": "Не удалось скопировать ключ",
+    "keyFailed": "Не удалось создать ключ",
+    "keyRevoked": "Ключ отозван",
+    "revoke": "Отозвать",
+    "revoked": "Отозван",
+    "revokeTitle": "Отозвать ключ?",
+    "revokeMessage": "Бот, работающий по ключу «{{name}}», перестанет работать сразу.",
+    "lastUsed": "использован",
+    "validation": {
+      "emailAndPassword": "Нужен email и пароль минимум из 8 символов",
+      "nameAndScopes": "Нужно название и хотя бы одно право"
+    }
+  },
+  "channels": {
+    "title": "Боты",
+    "description": "Telegram — для вас, WhatsApp — для ваших гостей",
+    "telegram": "Telegram",
+    "whatsapp": "WhatsApp",
+    "telegramHint": "Отправьте код ниже боту. Код одноразовый и действует 30 минут.",
+    "whatsappHint": "Вставьте channel id из кабинета whapi.cloud — по нему входящие сообщения гостей попадут в эту компанию.",
+    "channelId": "channel id в whapi",
+    "channelIdRequired": "Укажите channel id",
+    "getCode": "Подключить Telegram",
+    "connect": "Подключить",
+    "disconnect": "Отключить",
+    "codeFailed": "Не удалось выдать код",
+    "whatsappConnected": "WhatsApp-канал подключён",
+    "whatsappFailed": "Не удалось подключить канал"
+  },
+  "miniapp": {
+    "loading": "Загрузка…",
+    "loadFailed": "Не удалось загрузить данные",
+    "empty": "Пусто",
+    "openInTelegram": "Откройте страницу из Telegram-бота",
+    "authFailed": "Не удалось войти",
+    "connectHint": "Подключите чат в приложении: Настройки → Команда и API-ключи → Боты",
+    "tabs": {
+      "today": "Сегодня",
+      "free": "Свободно",
+      "bookings": "Брони"
+    },
+    "arrivals": "Заезды",
+    "departures": "Выезды",
+    "inHouse": "Проживают",
+    "until": "до",
+    "freeProperties": "Свободные объекты",
+    "noPrice": "нет цены",
+    "upcoming": "Ближайшие {{days}} дней",
+    "periods": {
+      "tonight": "Сегодня",
+      "tomorrow": "Завтра",
+      "weekend": "Выходные"
+    }
   }
 }

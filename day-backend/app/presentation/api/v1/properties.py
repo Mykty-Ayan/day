@@ -25,6 +25,7 @@ from app.application.property.update_property import (
     UpdatePropertyInput,
     UpdatePropertyService,
 )
+from app.domain.auth.permissions import Permission
 from app.domain.property.entities import DiscountRule, SeasonalPrice
 from app.domain.property.value_objects import PropertyStatus
 from app.infrastructure.database import get_session
@@ -37,7 +38,7 @@ from app.infrastructure.repositories.property import (
     SqlPropertyRepository,
     SqlSeasonalPriceRepository,
 )
-from app.presentation.api.deps import get_company_id, get_user_id
+from app.presentation.api.deps import get_company_id, get_user_id, require
 from app.presentation.schemas.property import (
     AmenityCreate,
     AmenityResponse,
@@ -89,6 +90,7 @@ def _to_property_response(p, photos: list | None = None) -> PropertyResponse:
         internal_name=p.internal_name,
         type=p.type,
         status=p.status,
+        rental_mode=p.rental_mode,
         description=p.description,
         source_url=p.source_url,
         latitude=p.latitude,
@@ -114,7 +116,12 @@ def _to_property_response(p, photos: list | None = None) -> PropertyResponse:
 # ---------- Property CRUD ----------
 
 
-@router.post("", response_model=PropertyResponse, status_code=201)
+@router.post(
+    "",
+    response_model=PropertyResponse,
+    status_code=201,
+    dependencies=[Depends(require(Permission.PROPERTIES_WRITE))],
+)
 async def create_property(
     body: PropertyCreate,
     session: AsyncSession = Depends(get_session),
@@ -130,6 +137,7 @@ async def create_property(
                 name=body.name,
                 internal_name=body.internal_name,
                 type=body.type,
+                rental_mode=body.rental_mode,
                 description=body.description,
                 source_url=body.source_url,
                 latitude=body.latitude,
@@ -157,7 +165,7 @@ async def create_property(
         raise HTTPException(status_code=status_code, detail=str(e))
 
 
-@router.get("", response_model=PropertyListResponse)
+@router.get("", response_model=PropertyListResponse, dependencies=[Depends(require(Permission.PROPERTIES_READ))])
 async def list_properties(
     page: int = Query(default=1, ge=1),
     per_page: int = Query(default=50, ge=1, le=100),
@@ -185,7 +193,11 @@ async def list_properties(
     )
 
 
-@router.get("/{property_id}", response_model=PropertyDetailResponse)
+@router.get(
+    "/{property_id}",
+    response_model=PropertyDetailResponse,
+    dependencies=[Depends(require(Permission.PROPERTIES_READ))],
+)
 async def get_property(
     property_id: uuid.UUID,
     session: AsyncSession = Depends(get_session),
@@ -213,7 +225,11 @@ async def get_property(
     )
 
 
-@router.patch("/{property_id}", response_model=PropertyResponse)
+@router.patch(
+    "/{property_id}",
+    response_model=PropertyResponse,
+    dependencies=[Depends(require(Permission.PROPERTIES_WRITE))],
+)
 async def update_property(
     property_id: uuid.UUID,
     body: PropertyUpdate,
@@ -239,7 +255,11 @@ async def update_property(
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@router.post("/{property_id}/status", response_model=PropertyResponse)
+@router.post(
+    "/{property_id}/status",
+    response_model=PropertyResponse,
+    dependencies=[Depends(require(Permission.PROPERTIES_WRITE))],
+)
 async def change_property_status(
     property_id: uuid.UUID,
     body: PropertyStatusChange,
@@ -261,7 +281,12 @@ async def change_property_status(
 # ---------- Clone ----------
 
 
-@router.post("/{property_id}/clone", response_model=PropertyResponse, status_code=201)
+@router.post(
+    "/{property_id}/clone",
+    response_model=PropertyResponse,
+    status_code=201,
+    dependencies=[Depends(require(Permission.PROPERTIES_WRITE))],
+)
 async def clone_property(
     property_id: uuid.UUID,
     session: AsyncSession = Depends(get_session),
@@ -292,7 +317,12 @@ async def clone_property(
 # ---------- Photos ----------
 
 
-@router.post("/{property_id}/photos", response_model=PropertyPhotoResponse, status_code=201)
+@router.post(
+    "/{property_id}/photos",
+    response_model=PropertyPhotoResponse,
+    status_code=201,
+    dependencies=[Depends(require(Permission.PROPERTIES_WRITE))],
+)
 async def add_photo(
     property_id: uuid.UUID,
     body: PhotoCreate,
@@ -316,7 +346,11 @@ async def add_photo(
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@router.delete("/{property_id}/photos/{photo_id}", status_code=204)
+@router.delete(
+    "/{property_id}/photos/{photo_id}",
+    status_code=204,
+    dependencies=[Depends(require(Permission.PROPERTIES_WRITE))],
+)
 async def delete_photo(
     property_id: uuid.UUID,
     photo_id: uuid.UUID,
@@ -333,7 +367,11 @@ async def delete_photo(
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@router.put("/{property_id}/photos/reorder", response_model=list[PropertyPhotoResponse])
+@router.put(
+    "/{property_id}/photos/reorder",
+    response_model=list[PropertyPhotoResponse],
+    dependencies=[Depends(require(Permission.PROPERTIES_WRITE))],
+)
 async def reorder_photos(
     property_id: uuid.UUID,
     body: PhotoReorder,
@@ -354,7 +392,11 @@ async def reorder_photos(
 # ---------- Amenities ----------
 
 
-@amenity_router.get("", response_model=list[AmenityResponse])
+@amenity_router.get(
+    "",
+    response_model=list[AmenityResponse],
+    dependencies=[Depends(require(Permission.PROPERTIES_READ))],
+)
 async def list_amenities(session: AsyncSession = Depends(get_session)):
     repos = _repos(session)
     svc = ManageAmenitiesService(repos["amenity"], repos["property"])
@@ -362,7 +404,12 @@ async def list_amenities(session: AsyncSession = Depends(get_session)):
     return [AmenityResponse.model_validate(a, from_attributes=True) for a in result]
 
 
-@amenity_router.post("", response_model=AmenityResponse, status_code=201)
+@amenity_router.post(
+    "",
+    response_model=AmenityResponse,
+    status_code=201,
+    dependencies=[Depends(require(Permission.PROPERTIES_WRITE))],
+)
 async def create_amenity(
     body: AmenityCreate,
     session: AsyncSession = Depends(get_session),
@@ -374,7 +421,11 @@ async def create_amenity(
     return AmenityResponse.model_validate(result, from_attributes=True)
 
 
-@router.post("/{property_id}/amenities", response_model=list[AmenityResponse])
+@router.post(
+    "/{property_id}/amenities",
+    response_model=list[AmenityResponse],
+    dependencies=[Depends(require(Permission.PROPERTIES_WRITE))],
+)
 async def set_property_amenities(
     property_id: uuid.UUID,
     body: PropertyAmenitiesSet,
@@ -395,7 +446,11 @@ async def set_property_amenities(
 # ---------- Pricing ----------
 
 
-@router.put("/{property_id}/pricing", response_model=PricingConfigResponse)
+@router.put(
+    "/{property_id}/pricing",
+    response_model=PricingConfigResponse,
+    dependencies=[Depends(require(Permission.PROPERTIES_WRITE))],
+)
 async def upsert_pricing(
     property_id: uuid.UUID,
     body: PricingConfigCreate,
@@ -410,6 +465,7 @@ async def upsert_pricing(
             company_id,
             PricingConfigInput(
                 base_price=body.base_price,
+                hourly_price=body.hourly_price,
                 weekend_markup=body.weekend_markup,
                 default_deposit=body.default_deposit,
                 extra_adult_price=body.extra_adult_price,
@@ -424,7 +480,11 @@ async def upsert_pricing(
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@router.get("/{property_id}/pricing", response_model=PricingConfigResponse | None)
+@router.get(
+    "/{property_id}/pricing",
+    response_model=PricingConfigResponse | None,
+    dependencies=[Depends(require(Permission.PROPERTIES_READ))],
+)
 async def get_pricing(
     property_id: uuid.UUID,
     session: AsyncSession = Depends(get_session),
@@ -472,7 +532,11 @@ async def add_seasonal_price(
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@router.delete("/{property_id}/pricing/seasonal/{season_id}", status_code=204)
+@router.delete(
+    "/{property_id}/pricing/seasonal/{season_id}",
+    status_code=204,
+    dependencies=[Depends(require(Permission.PROPERTIES_WRITE))],
+)
 async def delete_seasonal_price(
     property_id: uuid.UUID,
     season_id: uuid.UUID,
@@ -542,7 +606,11 @@ async def add_discount_rule(
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@router.delete("/{property_id}/pricing/discounts/{discount_id}", status_code=204)
+@router.delete(
+    "/{property_id}/pricing/discounts/{discount_id}",
+    status_code=204,
+    dependencies=[Depends(require(Permission.PROPERTIES_WRITE))],
+)
 async def delete_discount_rule(
     property_id: uuid.UUID,
     discount_id: uuid.UUID,
@@ -582,7 +650,11 @@ async def list_discount_rules(
 # ---------- Audit log ----------
 
 
-@router.get("/{property_id}/audit-log", response_model=list[PropertyAuditLogResponse])
+@router.get(
+    "/{property_id}/audit-log",
+    response_model=list[PropertyAuditLogResponse],
+    dependencies=[Depends(require(Permission.PROPERTIES_READ))],
+)
 async def get_audit_log(
     property_id: uuid.UUID,
     offset: int = Query(default=0, ge=0),
@@ -602,7 +674,11 @@ async def get_audit_log(
 # ---------- Property Tags ----------
 
 
-@router.post("/{property_id}/tags", response_model=list[TagResponse])
+@router.post(
+    "/{property_id}/tags",
+    response_model=list[TagResponse],
+    dependencies=[Depends(require(Permission.PROPERTIES_WRITE))],
+)
 async def assign_property_tag(
     property_id: uuid.UUID,
     body: TagAssign,
@@ -624,7 +700,11 @@ async def assign_property_tag(
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@router.delete("/{property_id}/tags/{tag_id}", status_code=204)
+@router.delete(
+    "/{property_id}/tags/{tag_id}",
+    status_code=204,
+    dependencies=[Depends(require(Permission.PROPERTIES_WRITE))],
+)
 async def remove_property_tag(
     property_id: uuid.UUID,
     tag_id: uuid.UUID,
@@ -645,7 +725,11 @@ async def remove_property_tag(
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@router.get("/{property_id}/tags", response_model=list[TagResponse])
+@router.get(
+    "/{property_id}/tags",
+    response_model=list[TagResponse],
+    dependencies=[Depends(require(Permission.PROPERTIES_READ))],
+)
 async def get_property_tags(
     property_id: uuid.UUID,
     session: AsyncSession = Depends(get_session),

@@ -18,6 +18,7 @@ class UpdatePropertyInput:
     name: object = _UNSET
     internal_name: object = _UNSET
     type: object = _UNSET
+    rental_mode: object = _UNSET
     description: object = _UNSET
     source_url: object = _UNSET
     latitude: object = _UNSET
@@ -34,12 +35,13 @@ class UpdatePropertyInput:
     check_in_instructions: object = _UNSET
     check_out_instructions: object = _UNSET
     house_rules: object = _UNSET
-    # TODO: replace with authenticated user_id when auth is implemented
+    # Set from the authenticated caller; a service key attributes the change
+    # to the operator who issued it.
     changed_by: uuid.UUID | None = None
 
 
 _UPDATABLE_FIELDS = {
-    "name", "internal_name", "type", "description", "source_url",
+    "name", "internal_name", "type", "rental_mode", "description", "source_url",
     "latitude", "longitude", "address_full", "apartment_number",
     "entrance", "block", "floor", "rooms", "beds",
     "area_living", "area_total",

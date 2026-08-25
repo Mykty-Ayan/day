@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import { Plus, Search, LayoutGrid, Grid2X2, List, Tag } from 'lucide-react'
 import { Link } from '@tanstack/react-router'
@@ -14,6 +14,7 @@ const statusTabValues: (PropertyStatus | 'all')[] = ['all', 'active', 'paused', 
 export default function PropertyListPage() {
   const { t } = useTranslation()
   const [search, setSearch] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<PropertyStatus | 'all'>('all')
   const [viewMode, setViewMode] = useState<'large' | 'medium' | 'list'>('large')
   const [tagFilter, setTagFilter] = useState<string>('')
@@ -22,11 +23,17 @@ export default function PropertyListPage() {
   const primaryActionClass =
     'inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl bg-black px-6 py-2.5 font-semibold text-white shadow-lg transition-colors hover:bg-gray-800 sm:w-auto'
 
-  const { data, isLoading } = useAllProperties({
+  const { data, isLoading, isError, refetch } = useAllProperties({
     status: statusFilter === 'all' ? undefined : statusFilter,
-    search: search || undefined,
+    search: debouncedSearch || undefined,
     tag_id: tagFilter || undefined,
   })
+
+  // Debounce the search input so the query fires ~300ms after typing stops.
+  useEffect(() => {
+    const timeout = setTimeout(() => setDebouncedSearch(search), 300)
+    return () => clearTimeout(timeout)
+  }, [search])
 
   return (
     <div className="px-4 py-4 sm:px-6 sm:py-6 max-w-7xl mx-auto w-full">
@@ -59,7 +66,7 @@ export default function PropertyListPage() {
             />
           </div>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-            <div className="w-full overflow-x-auto sm:w-auto">
+            <div className="w-full sm:w-auto">
               <ToggleGroup
                 type="single"
                 value={statusFilter}
@@ -67,7 +74,6 @@ export default function PropertyListPage() {
                   if (!value) return
                   setStatusFilter(value as PropertyStatus | 'all')
                 }}
-                className="min-w-max"
               >
                 {statusTabValues.map((value) => (
                   <ToggleGroupItem key={value} value={value}>
@@ -76,7 +82,7 @@ export default function PropertyListPage() {
                 ))}
               </ToggleGroup>
             </div>
-            <div className="w-full overflow-x-auto sm:w-auto">
+            <div className="w-full sm:w-auto">
               <ToggleGroup
                 type="single"
                 value={viewMode}
@@ -84,7 +90,6 @@ export default function PropertyListPage() {
                   if (!value) return
                   setViewMode(value as 'large' | 'medium' | 'list')
                 }}
-                className="min-w-max"
               >
                 <ToggleGroupItem value="large" aria-label="Large tiles">
                   <span className="inline-flex items-center gap-1">
@@ -109,8 +114,9 @@ export default function PropertyListPage() {
           </div>
           {allTags.length > 0 && (
             <div className="space-y-1.5">
-              <div className="flex items-center gap-1.5">
-                <Tag className="w-3.5 h-3.5 text-gray-400" />
+              <div className="flex items-center gap-1.5 text-gray-500">
+                <Tag className="w-3.5 h-3.5 text-gray-400" aria-hidden="true" />
+                <span className="text-xs font-bold uppercase tracking-wider">{t('properties.tagsLabel')}</span>
               </div>
               <div className="flex flex-wrap gap-1.5">
                 <button
@@ -150,6 +156,18 @@ export default function PropertyListPage() {
         {/* Content */}
         {isLoading ? (
           <Spinner />
+        ) : isError ? (
+          <div className="flex flex-col items-center justify-center py-20 text-center">
+            <p className="mb-1 text-sm font-semibold text-gray-900">{t('common.errorTitle')}</p>
+            <p className="mb-4 text-sm text-gray-500">{t('common.errorLoading')}</p>
+            <motion.button
+              whileTap={{ scale: 0.97 }}
+              onClick={() => refetch()}
+              className="flex min-h-[44px] items-center gap-2 rounded-xl border border-gray-200 bg-white px-6 py-2.5 font-semibold text-gray-700 shadow-sm transition-colors hover:bg-gray-50"
+            >
+              {t('common.retry')}
+            </motion.button>
+          </div>
         ) : !data || data.items.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20">
             <p className="text-sm text-gray-500 mb-4">{t('properties.noProperties')}</p>

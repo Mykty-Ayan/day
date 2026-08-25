@@ -1,11 +1,15 @@
 import { useState } from 'react'
+import { format, isValid, parseISO } from 'date-fns'
 import { useTranslation } from 'react-i18next'
 import { motion } from 'framer-motion'
 import { ArrowLeft, Check, Loader2 } from 'lucide-react'
 import { useNavigate, useParams } from '@tanstack/react-router'
 import { useBooking, useUpdateBooking } from '../../hooks/useBookings'
-import type { BookingDetail, BookingSource, BookingUpdateInput } from '../../types/booking'
+import { useProperty } from '../../hooks/useProperties'
+import type { BookingDetail, BookingSource, BookingUpdateInput, RentalMode } from '../../types/booking'
 import DateRangePicker from '../../components/ui/date-range-picker'
+import DatePicker from '../../components/ui/date-picker'
+import TimePicker from '../../components/ui/time-picker'
 import { ToggleGroup, ToggleGroupItem } from '../../components/ui/toggle-group'
 import NumberInput from '../../components/ui/number-input'
 import Spinner from '../../components/ui/Spinner'
@@ -15,6 +19,10 @@ import { getBookingApiErrorMessage, getBookingFieldError } from '../../lib/booki
 interface FormData {
   check_in: string
   check_out: string
+  rental_mode: RentalMode
+  hourly_date: string
+  start_time: string
+  end_time: string
   source: BookingSource
   adults_count: number
   children_count: number
@@ -22,16 +30,31 @@ interface FormData {
   notes: string
 }
 
+function datePart(value: string): string {
+  const parsed = parseISO(value)
+  return isValid(parsed) ? format(parsed, 'yyyy-MM-dd') : ''
+}
+
+function timePart(value: string): string {
+  const parsed = parseISO(value)
+  return isValid(parsed) ? format(parsed, 'HH:mm') : ''
+}
+
 function detailToForm(detail: BookingDetail): FormData {
   const b = detail.booking
+  const isHourly = b.rental_mode === 'hourly'
   return {
     check_in: b.check_in,
     check_out: b.check_out,
+    rental_mode: b.rental_mode,
+    hourly_date: isHourly ? datePart(b.check_in) : '',
+    start_time: isHourly ? timePart(b.check_in) : '',
+    end_time: isHourly ? timePart(b.check_out) : '',
     source: b.source,
     adults_count: b.adults_count,
     children_count: b.children_count,
     gantt_color: b.gantt_color || '#3B82F6',
-    notes: '',
+    notes: b.notes ?? '',
   }
 }
 
@@ -59,8 +82,21 @@ function EditBookingForm({ detail, bookingId }: { detail: BookingDetail; booking
   const { t } = useTranslation()
   const navigate = useNavigate()
   const updateBooking = useUpdateBooking(bookingId)
+  const { data: property } = useProperty(detail.booking.property_id)
   const [form, setForm] = useState<FormData>(() => detailToForm(detail))
   const [errors, setErrors] = useState<Record<string, string>>({})
+
+  const isHourly = form.rental_mode === 'hourly'
+  const effectiveCheckIn = isHourly
+    ? form.hourly_date && form.start_time
+      ? `${form.hourly_date}T${form.start_time}:00`
+      : ''
+    : form.check_in
+  const effectiveCheckOut = isHourly
+    ? form.hourly_date && form.end_time
+      ? `${form.hourly_date}T${form.end_time}:00`
+      : ''
+    : form.check_out
 
   const SOURCES: { value: BookingSource; label: string }[] = [
     { value: 'direct', label: t('bookings.sources.direct') },
@@ -90,10 +126,19 @@ function EditBookingForm({ detail, bookingId }: { detail: BookingDetail; booking
 
   function validate(): boolean {
     const errs: Record<string, string> = {}
-    if (!form.check_in) errs.check_in = t('bookings.validation.checkInRequired')
-    if (!form.check_out) errs.check_out = t('bookings.validation.checkOutRequired')
-    if (form.check_in && form.check_out && form.check_in >= form.check_out) {
-      errs.check_out = t('bookings.validation.checkOutAfterCheckIn')
+    if (isHourly) {
+      if (!form.hourly_date) errs.check_in = t('bookings.validation.dateRequired')
+      if (!form.start_time) errs.start_time = t('bookings.validation.startTimeRequired')
+      if (!form.end_time) errs.end_time = t('bookings.validation.endTimeRequired')
+      if (form.start_time && form.end_time && form.start_time >= form.end_time) {
+        errs.end_time = t('bookings.validation.endTimeAfterStart')
+      }
+    } else {
+      if (!form.check_in) errs.check_in = t('bookings.validation.checkInRequired')
+      if (!form.check_out) errs.check_out = t('bookings.validation.checkOutRequired')
+      if (form.check_in && form.check_out && form.check_in >= form.check_out) {
+        errs.check_out = t('bookings.validation.checkOutAfterCheckIn')
+      }
     }
     if (form.adults_count < 1) errs.adults_count = t('bookings.validation.adultsRequired')
     setErrors(errs)
@@ -104,8 +149,9 @@ function EditBookingForm({ detail, bookingId }: { detail: BookingDetail; booking
     if (!validate()) return
 
     const payload: BookingUpdateInput = {
-      check_in: form.check_in,
-      check_out: form.check_out,
+      check_in: effectiveCheckIn,
+      check_out: effectiveCheckOut,
+      rental_mode: form.rental_mode,
       source: form.source,
       adults_count: form.adults_count,
       children_count: form.children_count,
@@ -155,61 +201,136 @@ function EditBookingForm({ detail, bookingId }: { detail: BookingDetail; booking
             <p className="text-xs text-gray-500">{detail.guest.phone}</p>
           </div>
 
+          {/* Rental mode toggle - only for properties that allow both */}
+          {property?.rental_mode === 'both' && (
+            <div>
+              <span id="edit-rental-mode-label" className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
+                {t('bookings.rentalMode.label')}
+              </span>
+              <ToggleGroup
+                aria-labelledby="edit-rental-mode-label"
+                type="single"
+                value={form.rental_mode}
+                onValueChange={(value) => {
+                  if (!value) return
+                  updateField('rental_mode', value as RentalMode)
+                }}
+              >
+                <ToggleGroupItem value="daily">{t('bookings.rentalMode.daily')}</ToggleGroupItem>
+                <ToggleGroupItem value="hourly">{t('bookings.rentalMode.hourly')}</ToggleGroupItem>
+              </ToggleGroup>
+            </div>
+          )}
+
           {/* Dates */}
           <div>
-            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">
-              {t('bookings.dateRange')}
-            </label>
-            <DateRangePicker
-              startDate={form.check_in}
-              endDate={form.check_out}
-              onRangeChange={(start, end) => {
-                updateField('check_in', start)
-                updateField('check_out', end)
-              }}
-              placeholder={t('bookings.selectDates')}
-              error={!!errors.check_in || !!errors.check_out}
-            />
-            {errors.check_in && (
-              <p className="text-xs text-red-500 mt-1">{errors.check_in}</p>
-            )}
-            {errors.check_out && (
-              <p className="text-xs text-red-500 mt-1">{errors.check_out}</p>
+            {isHourly ? (
+              <div className="space-y-3">
+                <div>
+                  <label htmlFor="edit-hourly-date" className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">
+                    {t('bookings.date')}
+                  </label>
+                  <DatePicker
+                    id="edit-hourly-date"
+                    value={form.hourly_date}
+                    onChange={(value) => updateField('hourly_date', value)}
+                    placeholder={t('bookings.selectDates')}
+                    className={errors.check_in ? 'border-red-300' : ''}
+                  />
+                  {errors.check_in && (
+                    <p className="text-xs text-red-500 mt-1">{errors.check_in}</p>
+                  )}
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label htmlFor="edit-start-time" className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">
+                      {t('bookings.startTime')}
+                    </label>
+                    <TimePicker
+                      id="edit-start-time"
+                      value={form.start_time}
+                      onChange={(value) => updateField('start_time', value)}
+                      placeholder={t('bookings.selectTime')}
+                      className={errors.start_time ? 'border-red-300' : ''}
+                    />
+                    {errors.start_time && (
+                      <p className="text-xs text-red-500 mt-1">{errors.start_time}</p>
+                    )}
+                  </div>
+                  <div>
+                    <label htmlFor="edit-end-time" className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">
+                      {t('bookings.endTime')}
+                    </label>
+                    <TimePicker
+                      id="edit-end-time"
+                      value={form.end_time}
+                      onChange={(value) => updateField('end_time', value)}
+                      placeholder={t('bookings.selectTime')}
+                      className={errors.end_time ? 'border-red-300' : ''}
+                    />
+                    {errors.end_time && (
+                      <p className="text-xs text-red-500 mt-1">{errors.end_time}</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <>
+                <label htmlFor="edit-date-range" className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">
+                  {t('bookings.dateRange')}
+                </label>
+                <DateRangePicker
+                  id="edit-date-range"
+                  startDate={form.check_in}
+                  endDate={form.check_out}
+                  onRangeChange={(start, end) => {
+                    updateField('check_in', start)
+                    updateField('check_out', end)
+                  }}
+                  placeholder={t('bookings.selectDates')}
+                  error={!!errors.check_in || !!errors.check_out}
+                />
+                {errors.check_in && (
+                  <p className="text-xs text-red-500 mt-1">{errors.check_in}</p>
+                )}
+                {errors.check_out && (
+                  <p className="text-xs text-red-500 mt-1">{errors.check_out}</p>
+                )}
+              </>
             )}
           </div>
 
           {/* Source */}
           <div className="border-t border-gray-100 pt-5">
-            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
+            <span id="edit-source-label" className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
               {t('bookings.source')}
-            </label>
-            <div className="w-full overflow-x-auto">
-              <ToggleGroup
-                type="single"
-                value={form.source}
-                onValueChange={(value) => {
-                  if (!value) return
-                  updateField('source', value as BookingSource)
-                }}
-                className="min-w-max"
-              >
-                {SOURCES.map((s) => (
-                  <ToggleGroupItem key={s.value} value={s.value}>
-                    {s.label}
-                  </ToggleGroupItem>
-                ))}
-              </ToggleGroup>
-            </div>
+            </span>
+            <ToggleGroup
+              aria-labelledby="edit-source-label"
+              type="single"
+              value={form.source}
+              onValueChange={(value) => {
+                if (!value) return
+                updateField('source', value as BookingSource)
+              }}
+            >
+              {SOURCES.map((s) => (
+                <ToggleGroupItem key={s.value} value={s.value}>
+                  {s.label}
+                </ToggleGroupItem>
+              ))}
+            </ToggleGroup>
           </div>
 
           {/* Guests Count */}
           <div className="border-t border-gray-100 pt-5">
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">
+                <label htmlFor="edit-adults" className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">
                   {t('bookings.adults')}
                 </label>
                 <NumberInput
+                  id="edit-adults"
                   value={form.adults_count}
                   onChange={(value) =>
                     updateField('adults_count', Math.max(1, parseInt(value) || 1))
@@ -223,10 +344,11 @@ function EditBookingForm({ detail, bookingId }: { detail: BookingDetail; booking
                 )}
               </div>
               <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">
+                <label htmlFor="edit-children" className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">
                   {t('bookings.children')}
                 </label>
                 <NumberInput
+                  id="edit-children"
                   value={form.children_count}
                   onChange={(value) =>
                     updateField('children_count', Math.max(0, parseInt(value) || 0))
@@ -240,26 +362,32 @@ function EditBookingForm({ detail, bookingId }: { detail: BookingDetail; booking
 
           {/* Gantt Color */}
           <div className="border-t border-gray-100 pt-5">
-            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
+            <span id="edit-color-label" className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
               {t('bookings.calendarColor')}
-            </label>
-            <div className="flex gap-2">
+            </span>
+            <div className="flex gap-1" role="group" aria-labelledby="edit-color-label">
               {GANTT_COLORS.map((c) => (
                 <motion.button
                   key={c.value}
                   whileTap={{ scale: 0.9 }}
                   type="button"
                   onClick={() => updateField('gantt_color', c.value)}
-                  className="relative w-8 h-8 rounded-full transition-transform"
-                  style={{ backgroundColor: c.value }}
+                  aria-label={c.label}
+                  aria-pressed={form.gantt_color === c.value}
                   title={c.label}
+                  className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-full p-1 transition-transform"
                 >
-                  {form.gantt_color === c.value && (
-                    <motion.div
-                      layoutId="edit-color-ring"
-                      className="absolute inset-[-3px] rounded-full border-2 border-gray-900"
-                    />
-                  )}
+                  <span
+                    className="relative block h-8 w-8 rounded-full"
+                    style={{ backgroundColor: c.value }}
+                  >
+                    {form.gantt_color === c.value && (
+                      <motion.div
+                        layoutId="edit-color-ring"
+                        className="absolute inset-[-3px] rounded-full border-2 border-gray-900"
+                      />
+                    )}
+                  </span>
                 </motion.button>
               ))}
             </div>
@@ -267,10 +395,11 @@ function EditBookingForm({ detail, bookingId }: { detail: BookingDetail; booking
 
           {/* Notes */}
           <div className="border-t border-gray-100 pt-5">
-            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">
+            <label htmlFor="edit-notes" className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">
               {t('common.notes')}
             </label>
             <textarea
+              id="edit-notes"
               value={form.notes}
               onChange={(e) => updateField('notes', e.target.value)}
               placeholder={t('common.optionalNotes')}

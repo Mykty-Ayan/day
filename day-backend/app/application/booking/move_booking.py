@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import uuid
 
+from app.application.booking.create_booking import validate_rental_mode_allowed
 from app.domain.booking.entities import Booking, BookingAuditLog
 from app.domain.booking.repositories import (
     BookingAuditLogRepository,
@@ -45,6 +46,9 @@ class MoveBookingService:
             raise ValueError("Target property is not active")
         if target.company_id != company_id:
             raise ValueError("Target property does not belong to company")
+
+        # The booking's rental mode must be one the target property allows.
+        validate_rental_mode_allowed(booking.rental_mode, target.rental_mode)
 
         # Check overlaps on target property
         overlapping = await self._booking_repo.get_by_property_and_dates(

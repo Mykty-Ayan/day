@@ -1,7 +1,7 @@
 """Unit tests for booking application services."""
 
 import uuid
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 
 import pytest
@@ -41,6 +41,7 @@ from app.domain.booking.value_objects import (
     PaymentMethod,
     PaymentStatus,
     PaymentType,
+    RentalMode,
 )
 from app.domain.property.entities import DiscountRule, PricingConfig, Property, SeasonalPrice
 from app.domain.property.repositories import (
@@ -353,6 +354,7 @@ def _make_property(
     status: PropertyStatus = PropertyStatus.ACTIVE,
     name: str = "Test Prop",
     internal_name: str = "test-prop",
+    rental_mode: RentalMode = RentalMode.DAILY,
 ) -> Property:
     return Property(
         id=uuid.uuid4(),
@@ -361,7 +363,20 @@ def _make_property(
         internal_name=internal_name,
         status=status,
         type=PropertyType.APARTMENT,
+        rental_mode=rental_mode,
     )
+
+
+def _to_checkin_dt(value: date | datetime) -> datetime:
+    if isinstance(value, datetime):
+        return value
+    return datetime(value.year, value.month, value.day, 14, 0)
+
+
+def _to_checkout_dt(value: date | datetime) -> datetime:
+    if isinstance(value, datetime):
+        return value
+    return datetime(value.year, value.month, value.day, 12, 0)
 
 
 def _make_booking(
@@ -373,13 +388,14 @@ def _make_booking(
     guest_id: uuid.UUID | None = None,
     **kwargs,
 ) -> Booking:
+    # Daily bookings now store datetimes with default 14:00 / 12:00 clock times.
     return Booking(
         id=uuid.uuid4(),
         company_id=company_id,
         property_id=property_id,
         guest_id=guest_id or uuid.uuid4(),
-        check_in=check_in or date(2025, 6, 1),
-        check_out=check_out or date(2025, 6, 5),
+        check_in=_to_checkin_dt(check_in or date(2025, 6, 1)),
+        check_out=_to_checkout_dt(check_out or date(2025, 6, 5)),
         status=status,
         **kwargs,
     )
@@ -637,8 +653,9 @@ class TestCreateBookingService:
 
         assert result.property_id == prop.id
         assert result.status == BookingStatus.PENDING
-        assert result.check_in == date(2025, 6, 2)
-        assert result.check_out == date(2025, 6, 5)
+        # Daily booking defaults to 14:00 check-in / 12:00 check-out.
+        assert result.check_in == datetime(2025, 6, 2, 14, 0)
+        assert result.check_out == datetime(2025, 6, 5, 12, 0)
         assert result.total_price > Decimal("0")
 
     @pytest.mark.asyncio
@@ -714,7 +731,7 @@ class TestCreateBookingService:
             )
         )
 
-        assert result.check_in == date(2025, 6, 5)
+        assert result.check_in == datetime(2025, 6, 5, 14, 0)
 
     @pytest.mark.asyncio
     async def test_property_not_found_raises(self):
@@ -871,18 +888,50 @@ class TestCreateBookingService:
 
 
 class TestUpdateBookingService:
-    async def _setup(self):
+    async def _setup(self, property_rental_mode: RentalMode = RentalMode.DAILY):
         booking_repo = FakeBookingRepository()
         audit_repo = FakeBookingAuditLogRepository()
         pricing_repo = FakePricingConfigRepository()
-        prop_id = uuid.uuid4()
+        prop_repo = FakePropertyRepository()
+        prop = _make_property(rental_mode=property_rental_mode)
+        await prop_repo.save(prop)
+        prop_id = prop.id
         pricing = _make_pricing_config(prop_id)
         await pricing_repo.save(pricing)
         price_calc = _build_price_calculator(pricing_repo=pricing_repo)
-        svc = UpdateBookingService(booking_repo, audit_repo, price_calc)
+        svc = UpdateBookingService(booking_repo, prop_repo, audit_repo, price_calc)
         booking = _make_booking(prop_id, total_price=Decimal("300"), calculated_price=Decimal("300"))
         await booking_repo.create(booking)
         return booking_repo, audit_repo, svc, booking, prop_id
+
+    @pytest.mark.asyncio
+    async def test_update_rental_mode_rejected_on_daily_only_property(self):
+        # Regression: switching a booking to hourly on a daily-only property
+        # must be rejected on UPDATE (not only on create/move).
+        _, _, svc, booking, _ = await self._setup(property_rental_mode=RentalMode.DAILY)
+
+        with pytest.raises(ValueError, match="not allowed"):
+            await svc.execute(
+                UpdateBookingInput(
+                    booking_id=booking.id,
+                    company_id=COMPANY_ID,
+                    rental_mode=RentalMode.HOURLY,
+                )
+            )
+
+    @pytest.mark.asyncio
+    async def test_update_rental_mode_allowed_on_both_property(self):
+        _, _, svc, booking, _ = await self._setup(property_rental_mode=RentalMode.BOTH)
+
+        result = await svc.execute(
+            UpdateBookingInput(
+                booking_id=booking.id,
+                company_id=COMPANY_ID,
+                rental_mode=RentalMode.HOURLY,
+            )
+        )
+
+        assert result.rental_mode == RentalMode.HOURLY
 
     @pytest.mark.asyncio
     async def test_update_notes(self):
@@ -975,8 +1024,8 @@ class TestUpdateBookingService:
         )
 
         # Price should be recalculated because dates changed
-        assert result.check_in == date(2025, 7, 1)
-        assert result.check_out == date(2025, 7, 10)
+        assert result.check_in == datetime(2025, 7, 1, 14, 0)
+        assert result.check_out == datetime(2025, 7, 10, 12, 0)
         # calculated_price should have changed (9 nights * 100 = 900)
         assert result.calculated_price == Decimal("900")
         assert result.calculated_price != old_calc_price
@@ -1279,6 +1328,139 @@ class TestMoveBookingService:
 
         with pytest.raises(ValueError, match="does not belong"):
             await svc.execute(booking.id, OTHER_COMPANY_ID, prop_b.id)
+
+
+# ---------- TestHourlyBookingServices ----------
+
+
+class TestHourlyBookingServices:
+    async def _setup_create(
+        self,
+        prop_rental_mode: RentalMode = RentalMode.BOTH,
+        hourly_price: Decimal = Decimal("50"),
+    ):
+        prop_repo = FakePropertyRepository()
+        booking_repo = FakeBookingRepository()
+        guest_repo = FakeGuestRepository()
+        audit_repo = FakeBookingAuditLogRepository()
+        pricing_repo = FakePricingConfigRepository()
+
+        prop = _make_property(rental_mode=prop_rental_mode)
+        await prop_repo.save(prop)
+        await pricing_repo.save(
+            PricingConfig(
+                property_id=prop.id,
+                base_price=Decimal("100"),
+                hourly_price=hourly_price,
+            )
+        )
+
+        price_calc = _build_price_calculator(pricing_repo=pricing_repo)
+        svc = CreateBookingService(booking_repo, guest_repo, prop_repo, audit_repo, price_calc)
+        return booking_repo, svc, prop
+
+    @pytest.mark.asyncio
+    async def test_create_hourly_same_day_succeeds(self):
+        _, svc, prop = await self._setup_create()
+
+        result = await svc.execute(
+            CreateBookingInput(
+                company_id=COMPANY_ID,
+                property_id=prop.id,
+                guest_name="Hourly Guest",
+                check_in=datetime(2025, 6, 2, 10, 0),
+                check_out=datetime(2025, 6, 2, 13, 0),
+                rental_mode=RentalMode.HOURLY,
+            )
+        )
+
+        assert result.rental_mode == RentalMode.HOURLY
+        assert result.check_in == datetime(2025, 6, 2, 10, 0)
+        assert result.check_out == datetime(2025, 6, 2, 13, 0)
+        # 3 hours * 50 = 150
+        assert result.total_price == Decimal("150")
+
+    @pytest.mark.asyncio
+    async def test_create_hourly_on_daily_only_property_rejected(self):
+        _, svc, prop = await self._setup_create(prop_rental_mode=RentalMode.DAILY)
+
+        with pytest.raises(ValueError, match="not allowed"):
+            await svc.execute(
+                CreateBookingInput(
+                    company_id=COMPANY_ID,
+                    property_id=prop.id,
+                    guest_name="Hourly Guest",
+                    check_in=datetime(2025, 6, 2, 10, 0),
+                    check_out=datetime(2025, 6, 2, 13, 0),
+                    rental_mode=RentalMode.HOURLY,
+                )
+            )
+
+    @pytest.mark.asyncio
+    async def test_move_to_property_disallowing_mode_rejected(self):
+        booking_repo = FakeBookingRepository()
+        prop_repo = FakePropertyRepository()
+        audit_repo = FakeBookingAuditLogRepository()
+        prop_a = _make_property(name="Prop A", internal_name="prop-a", rental_mode=RentalMode.BOTH)
+        prop_b = _make_property(name="Prop B", internal_name="prop-b", rental_mode=RentalMode.DAILY)
+        await prop_repo.save(prop_a)
+        await prop_repo.save(prop_b)
+        booking = _make_booking(
+            prop_a.id,
+            check_in=None,
+            check_out=None,
+            rental_mode=RentalMode.HOURLY,
+        )
+        booking.check_in = datetime(2025, 6, 2, 10, 0)
+        booking.check_out = datetime(2025, 6, 2, 13, 0)
+        await booking_repo.create(booking)
+        svc = MoveBookingService(booking_repo, prop_repo, audit_repo)
+
+        with pytest.raises(ValueError, match="not allowed"):
+            await svc.execute(booking.id, COMPANY_ID, prop_b.id)
+
+    @pytest.mark.asyncio
+    async def test_hourly_overlap_same_day(self):
+        booking_repo, svc, prop = await self._setup_create()
+
+        await svc.execute(
+            CreateBookingInput(
+                company_id=COMPANY_ID,
+                property_id=prop.id,
+                guest_name="First",
+                check_in=datetime(2025, 6, 2, 10, 0),
+                check_out=datetime(2025, 6, 2, 13, 0),
+                rental_mode=RentalMode.HOURLY,
+            )
+        )
+
+        # Overlapping window (12:00-14:00 vs 10:00-13:00) is rejected.
+        with pytest.raises(ValueError, match="overlaps"):
+            await svc.execute(
+                CreateBookingInput(
+                    company_id=COMPANY_ID,
+                    property_id=prop.id,
+                    guest_name="Second",
+                    check_in=datetime(2025, 6, 2, 12, 0),
+                    check_out=datetime(2025, 6, 2, 14, 0),
+                    rental_mode=RentalMode.HOURLY,
+                )
+            )
+
+        # Non-overlapping window (13:00-15:00) on the same day is accepted.
+        result = await svc.execute(
+            CreateBookingInput(
+                company_id=COMPANY_ID,
+                property_id=prop.id,
+                guest_name="Third",
+                check_in=datetime(2025, 6, 2, 13, 0),
+                check_out=datetime(2025, 6, 2, 15, 0),
+                rental_mode=RentalMode.HOURLY,
+            )
+        )
+
+        assert result.check_in == datetime(2025, 6, 2, 13, 0)
+        assert result.check_out == datetime(2025, 6, 2, 15, 0)
 
 
 # ---------- TestManagePaymentsService ----------

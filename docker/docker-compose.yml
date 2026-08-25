@@ -2,7 +2,7 @@ services:
   postgres:
     image: postgres:16-alpine
     ports:
-      - "5432:5432"
+      - "5433:5432"
     env_file:
       - ../.env
     environment:
@@ -31,8 +31,8 @@ services:
   minio:
     image: minio/minio:latest
     ports:
-      - "9000:9000"
-      - "9001:9001"
+      - "9010:9000"
+      - "9011:9001"
     env_file:
       - ../.env
     volumes:

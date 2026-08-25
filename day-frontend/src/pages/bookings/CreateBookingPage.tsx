@@ -5,8 +5,10 @@ import { ArrowLeft, Check, Loader2, Calculator, User, Phone, Mail } from 'lucide
 import { useNavigate } from '@tanstack/react-router'
 import { useCreateBooking, useCalculatePrice, useGuests } from '../../hooks/useBookings'
 import { useAllProperties } from '../../hooks/useProperties'
-import type { BookingSource, BookingCreateInput, PriceCalculateInput } from '../../types/booking'
+import type { BookingSource, BookingCreateInput, PriceCalculateInput, RentalMode } from '../../types/booking'
 import DateRangePicker from '../../components/ui/date-range-picker'
+import DatePicker from '../../components/ui/date-picker'
+import TimePicker from '../../components/ui/time-picker'
 import {
   Select,
   SelectContent,
@@ -23,6 +25,10 @@ interface FormData {
   property_id: string
   check_in: string
   check_out: string
+  rental_mode: RentalMode
+  hourly_date: string
+  start_time: string
+  end_time: string
   guest_name: string
   guest_phone: string
   guest_email: string
@@ -37,6 +43,10 @@ const initialForm: FormData = {
   property_id: '',
   check_in: '',
   check_out: '',
+  rental_mode: 'daily',
+  hourly_date: '',
+  start_time: '',
+  end_time: '',
   guest_name: '',
   guest_phone: '',
   guest_email: '',
@@ -47,6 +57,12 @@ const initialForm: FormData = {
   notes: '',
 }
 
+// Split an ISO date-time (or bare date) into its date and HH:mm components.
+function splitDateTime(value: string): { date: string; time: string } {
+  const [date, rest] = value.split('T')
+  return { date: date || '', time: rest ? rest.slice(0, 5) : '' }
+}
+
 interface BookingPrefill {
   propertyId: string
   checkIn: string
@@ -55,7 +71,9 @@ interface BookingPrefill {
 }
 
 function isDateOnly(value: string): boolean {
-  return /^\d{4}-\d{2}-\d{2}$/.test(value)
+  // Accepts a bare date or an ISO date-time (optional clock component) so that a
+  // gantt hourly cell click can prefill a specific time.
+  return /^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}(:\d{2})?)?$/.test(value)
 }
 
 function getBookingPrefill(): BookingPrefill {
@@ -87,14 +105,27 @@ export default function CreateBookingPage() {
   const prefill = useMemo(() => getBookingPrefill(), [])
   const navigate = useNavigate()
   const createBooking = useCreateBooking()
-  const [form, setForm] = useState<FormData>(() => ({
-    ...initialForm,
-    property_id: prefill.propertyId,
-    check_in: prefill.checkIn,
-    check_out: prefill.checkOut,
-  }))
+  const [form, setForm] = useState<FormData>(() => {
+    // A prefilled clock component (from a gantt hourly cell) seeds the hourly UI.
+    const prefillHasTime = prefill.checkIn.includes('T')
+    const ci = splitDateTime(prefill.checkIn)
+    const co = splitDateTime(prefill.checkOut)
+    return {
+      ...initialForm,
+      property_id: prefill.propertyId,
+      check_in: prefillHasTime ? '' : prefill.checkIn,
+      check_out: prefillHasTime ? '' : prefill.checkOut,
+      rental_mode: prefillHasTime ? 'hourly' : 'daily',
+      hourly_date: prefillHasTime ? ci.date : '',
+      start_time: prefillHasTime ? ci.time : '',
+      end_time: prefillHasTime ? co.time : '',
+    }
+  })
   const [errors, setErrors] = useState<Record<string, string>>({})
-  const guestSearch = form.guest_phone.trim()
+  // The backend matches a guest by name OR phone, so the lookup follows
+  // whichever of the two fields the operator is typing into.
+  const [guestQueryField, setGuestQueryField] = useState<'phone' | 'name'>('phone')
+  const guestSearch = (guestQueryField === 'name' ? form.guest_name : form.guest_phone).trim()
   const canSearchGuests = guestSearch.length >= 2
   const [showGuestSuggestions, setShowGuestSuggestions] = useState(false)
 
@@ -125,6 +156,32 @@ export default function CreateBookingPage() {
     [properties, form.property_id],
   )
 
+  // The property constrains the booking mode: hourly-only forces hourly,
+  // daily-only forces daily, and `both` honours whatever the operator picked.
+  // Derived during render so switching properties needs no state sync.
+  const rentalMode: RentalMode =
+    selectedProperty?.rental_mode === 'hourly'
+      ? 'hourly'
+      : selectedProperty?.rental_mode === 'both'
+        ? form.rental_mode
+        : selectedProperty
+          ? 'daily'
+          : form.rental_mode
+
+  const isHourly = rentalMode === 'hourly'
+  // For hourly the check-in/out are assembled from a single day + start/end time;
+  // for daily the DateRangePicker writes the date-only values directly.
+  const effectiveCheckIn = isHourly
+    ? form.hourly_date && form.start_time
+      ? `${form.hourly_date}T${form.start_time}:00`
+      : ''
+    : form.check_in
+  const effectiveCheckOut = isHourly
+    ? form.hourly_date && form.end_time
+      ? `${form.hourly_date}T${form.end_time}:00`
+      : ''
+    : form.check_out
+
   const { data: guestsData } = useGuests(
     { search: guestSearch, limit: 5 },
     canSearchGuests,
@@ -135,15 +192,16 @@ export default function CreateBookingPage() {
   const [debouncedPriceParams, setDebouncedPriceParams] = useState<PriceCalculateInput | null>(null)
 
   const priceParams = useMemo<PriceCalculateInput | null>(() => {
-    if (!form.property_id || !form.check_in || !form.check_out) return null
+    if (!form.property_id || !effectiveCheckIn || !effectiveCheckOut) return null
     return {
       property_id: form.property_id,
-      check_in: form.check_in,
-      check_out: form.check_out,
+      check_in: effectiveCheckIn,
+      check_out: effectiveCheckOut,
       adults_count: form.adults_count,
       children_count: form.children_count,
+      rental_mode: rentalMode,
     }
-  }, [form.property_id, form.check_in, form.check_out, form.adults_count, form.children_count])
+  }, [form.property_id, effectiveCheckIn, effectiveCheckOut, form.adults_count, form.children_count, rentalMode])
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -168,10 +226,19 @@ export default function CreateBookingPage() {
     if (!form.property_id) errs.property_id = t('bookings.validation.propertyRequired')
     else if (!selectedProperty) errs.property_id = t('bookings.validation.propertyUnavailable')
     else if (selectedProperty.status === 'paused') errs.property_id = t('bookings.validation.propertyPaused')
-    if (!form.check_in) errs.check_in = t('bookings.validation.checkInRequired')
-    if (!form.check_out) errs.check_out = t('bookings.validation.checkOutRequired')
-    if (form.check_in && form.check_out && form.check_in >= form.check_out) {
-      errs.check_out = t('bookings.validation.checkOutAfterCheckIn')
+    if (isHourly) {
+      if (!form.hourly_date) errs.check_in = t('bookings.validation.dateRequired')
+      if (!form.start_time) errs.start_time = t('bookings.validation.startTimeRequired')
+      if (!form.end_time) errs.end_time = t('bookings.validation.endTimeRequired')
+      if (form.start_time && form.end_time && form.start_time >= form.end_time) {
+        errs.end_time = t('bookings.validation.endTimeAfterStart')
+      }
+    } else {
+      if (!form.check_in) errs.check_in = t('bookings.validation.checkInRequired')
+      if (!form.check_out) errs.check_out = t('bookings.validation.checkOutRequired')
+      if (form.check_in && form.check_out && form.check_in >= form.check_out) {
+        errs.check_out = t('bookings.validation.checkOutAfterCheckIn')
+      }
     }
     if (!form.guest_name.trim()) errs.guest_name = t('bookings.validation.guestNameRequired')
     if (!form.guest_phone.trim()) errs.guest_phone = t('bookings.validation.guestPhoneRequired')
@@ -185,8 +252,9 @@ export default function CreateBookingPage() {
 
     const payload: BookingCreateInput = {
       property_id: form.property_id,
-      check_in: form.check_in,
-      check_out: form.check_out,
+      check_in: effectiveCheckIn,
+      check_out: effectiveCheckOut,
+      rental_mode: rentalMode,
       guest_name: form.guest_name,
       guest_phone: form.guest_phone,
       guest_email: form.guest_email || undefined,
@@ -249,7 +317,7 @@ export default function CreateBookingPage() {
             <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm space-y-5">
               {/* Property */}
               <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">
+                <label htmlFor="create-property" className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">
                   {t('bookings.property')}
                 </label>
                 <Select
@@ -257,6 +325,7 @@ export default function CreateBookingPage() {
                   onValueChange={(value) => updateField('property_id', value)}
                 >
                   <SelectTrigger
+                    id="create-property"
                     className={errors.property_id ? 'border-red-300' : ''}
                   >
                     <SelectValue placeholder={t('bookings.selectProperty')} />
@@ -264,7 +333,7 @@ export default function CreateBookingPage() {
                   <SelectContent>
                     {properties.map((p) => (
                       <SelectItem key={p.id} value={p.id}>
-                        {p.internal_name} ({p.name}){p.status === 'paused' ? ' [paused]' : ''}
+                        {p.internal_name} ({p.name}){p.status === 'paused' ? ` [${t('bookings.paused')}]` : ''}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -274,27 +343,104 @@ export default function CreateBookingPage() {
                 )}
               </div>
 
+              {/* Rental mode toggle - only for properties that allow both */}
+              {selectedProperty?.rental_mode === 'both' && (
+                <div>
+                  <span id="create-rental-mode-label" className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
+                    {t('bookings.rentalMode.label')}
+                  </span>
+                  <ToggleGroup
+                    aria-labelledby="create-rental-mode-label"
+                    type="single"
+                    value={rentalMode}
+                    onValueChange={(value) => {
+                      if (!value) return
+                      updateField('rental_mode', value as RentalMode)
+                    }}
+                  >
+                    <ToggleGroupItem value="daily">{t('bookings.rentalMode.daily')}</ToggleGroupItem>
+                    <ToggleGroupItem value="hourly">{t('bookings.rentalMode.hourly')}</ToggleGroupItem>
+                  </ToggleGroup>
+                </div>
+              )}
+
               {/* Dates */}
               <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">
-                  {t('bookings.dateRange')}
-                </label>
-                <DateRangePicker
-                  startDate={form.check_in}
-                  endDate={form.check_out}
-                  onRangeChange={(start, end) => {
-                    updateField('check_in', start)
-                    updateField('check_out', end)
-                  }}
-                  minDate={new Date()}
-                  placeholder={t('bookings.selectDates')}
-                  error={!!errors.check_in || !!errors.check_out}
-                />
-                {errors.check_in && (
-                  <p className="text-xs text-red-500 mt-1">{errors.check_in}</p>
-                )}
-                {errors.check_out && (
-                  <p className="text-xs text-red-500 mt-1">{errors.check_out}</p>
+                {isHourly ? (
+                  <div className="space-y-3">
+                    <div>
+                      <label htmlFor="create-hourly-date" className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">
+                        {t('bookings.date')}
+                      </label>
+                      <DatePicker
+                        id="create-hourly-date"
+                        value={form.hourly_date}
+                        onChange={(value) => updateField('hourly_date', value)}
+                        minDate={new Date()}
+                        placeholder={t('bookings.selectDates')}
+                        className={errors.check_in ? 'border-red-300' : ''}
+                      />
+                      {errors.check_in && (
+                        <p className="text-xs text-red-500 mt-1">{errors.check_in}</p>
+                      )}
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label htmlFor="create-start-time" className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">
+                          {t('bookings.startTime')}
+                        </label>
+                        <TimePicker
+                          id="create-start-time"
+                          value={form.start_time}
+                          onChange={(value) => updateField('start_time', value)}
+                          placeholder={t('bookings.selectTime')}
+                          className={errors.start_time ? 'border-red-300' : ''}
+                        />
+                        {errors.start_time && (
+                          <p className="text-xs text-red-500 mt-1">{errors.start_time}</p>
+                        )}
+                      </div>
+                      <div>
+                        <label htmlFor="create-end-time" className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">
+                          {t('bookings.endTime')}
+                        </label>
+                        <TimePicker
+                          id="create-end-time"
+                          value={form.end_time}
+                          onChange={(value) => updateField('end_time', value)}
+                          placeholder={t('bookings.selectTime')}
+                          className={errors.end_time ? 'border-red-300' : ''}
+                        />
+                        {errors.end_time && (
+                          <p className="text-xs text-red-500 mt-1">{errors.end_time}</p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <label htmlFor="create-date-range" className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">
+                      {t('bookings.dateRange')}
+                    </label>
+                    <DateRangePicker
+                      id="create-date-range"
+                      startDate={form.check_in}
+                      endDate={form.check_out}
+                      onRangeChange={(start, end) => {
+                        updateField('check_in', start)
+                        updateField('check_out', end)
+                      }}
+                      minDate={new Date()}
+                      placeholder={t('bookings.selectDates')}
+                      error={!!errors.check_in || !!errors.check_out}
+                    />
+                    {errors.check_in && (
+                      <p className="text-xs text-red-500 mt-1">{errors.check_in}</p>
+                    )}
+                    {errors.check_out && (
+                      <p className="text-xs text-red-500 mt-1">{errors.check_out}</p>
+                    )}
+                  </>
                 )}
               </div>
 
@@ -305,14 +451,16 @@ export default function CreateBookingPage() {
                 </h3>
                 <div className="space-y-3">
                   <div className="relative">
-                    <label className="block text-xs font-bold text-gray-500 mb-1.5">
+                    <label htmlFor="create-guest-phone" className="block text-xs font-bold text-gray-500 mb-1.5">
                       <span className="flex items-center gap-1"><Phone className="w-3 h-3" /> {t('bookings.phone')}</span>
                     </label>
                     <input
+                      id="create-guest-phone"
                       type="tel"
                       value={form.guest_phone}
                       onChange={(e) => {
                         updateField('guest_phone', e.target.value)
+                        setGuestQueryField('phone')
                         setShowGuestSuggestions(true)
                       }}
                       onBlur={() => setTimeout(() => setShowGuestSuggestions(false), 200)}
@@ -326,7 +474,7 @@ export default function CreateBookingPage() {
                     )}
 
                     {/* Guest suggestions */}
-                    {showGuestSuggestions && canSearchGuests && guestSuggestions.length > 0 && (
+                    {guestQueryField === 'phone' && showGuestSuggestions && canSearchGuests && guestSuggestions.length > 0 && (
                       <div className="absolute z-20 top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden">
                         {guestSuggestions.map((g) => (
                           <button
@@ -348,24 +496,30 @@ export default function CreateBookingPage() {
                               })
                               setShowGuestSuggestions(false)
                             }}
-                            className="w-full text-left px-3 py-2 hover:bg-gray-50 transition-colors"
+                            className="flex min-h-[44px] w-full flex-col justify-center px-3 py-2 text-left transition-colors hover:bg-gray-50"
                           >
                             <span className="text-sm font-medium text-gray-900">{g.name}</span>
-                            <span className="text-xs text-gray-500 ml-2">{g.phone}</span>
+                            <span className="text-xs text-gray-500">{g.phone}</span>
                           </button>
                         ))}
                       </div>
                     )}
                   </div>
 
-                  <div>
-                    <label className="block text-xs font-bold text-gray-500 mb-1.5">
+                  <div className="relative">
+                    <label htmlFor="create-guest-name" className="block text-xs font-bold text-gray-500 mb-1.5">
                       <span className="flex items-center gap-1"><User className="w-3 h-3" /> {t('bookings.guestName')}</span>
                     </label>
                     <input
+                      id="create-guest-name"
                       type="text"
                       value={form.guest_name}
-                      onChange={(e) => updateField('guest_name', e.target.value)}
+                      onChange={(e) => {
+                        updateField('guest_name', e.target.value)
+                        setGuestQueryField('name')
+                        setShowGuestSuggestions(true)
+                      }}
+                      onBlur={() => setTimeout(() => setShowGuestSuggestions(false), 200)}
                       placeholder={t('bookings.guestNamePlaceholder')}
                       className={`w-full bg-gray-50 border rounded-xl p-3 outline-none focus:ring-2 focus:ring-black/10 text-sm ${
                         errors.guest_name ? 'border-red-300' : 'border-gray-200'
@@ -374,13 +528,46 @@ export default function CreateBookingPage() {
                     {errors.guest_name && (
                       <p className="text-xs text-red-500 mt-1">{errors.guest_name}</p>
                     )}
+
+                    {/* Guest suggestions */}
+                    {guestQueryField === 'name' && showGuestSuggestions && canSearchGuests && guestSuggestions.length > 0 && (
+                      <div className="absolute z-20 top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden">
+                        {guestSuggestions.map((g) => (
+                          <button
+                            key={g.id}
+                            type="button"
+                            onMouseDown={(e) => e.preventDefault()}
+                            onClick={() => {
+                              setForm((f) => ({
+                                ...f,
+                                guest_name: g.name,
+                                guest_phone: g.phone,
+                                guest_email: g.email || '',
+                              }))
+                              setErrors((e) => {
+                                const next = { ...e }
+                                delete next.guest_name
+                                delete next.guest_phone
+                                return next
+                              })
+                              setShowGuestSuggestions(false)
+                            }}
+                            className="flex min-h-[44px] w-full flex-col justify-center px-3 py-2 text-left transition-colors hover:bg-gray-50"
+                          >
+                            <span className="text-sm font-medium text-gray-900">{g.name}</span>
+                            <span className="text-xs text-gray-500">{g.phone}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   </div>
 
                   <div>
-                    <label className="block text-xs font-bold text-gray-500 mb-1.5">
+                    <label htmlFor="create-guest-email" className="block text-xs font-bold text-gray-500 mb-1.5">
                       <span className="flex items-center gap-1"><Mail className="w-3 h-3" /> {t('bookings.email')}</span>
                     </label>
                     <input
+                      id="create-guest-email"
                       type="email"
                       value={form.guest_email}
                       onChange={(e) => updateField('guest_email', e.target.value)}
@@ -393,36 +580,35 @@ export default function CreateBookingPage() {
 
               {/* Source */}
               <div className="border-t border-gray-100 pt-5">
-                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
+                <span id="create-source-label" className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
                   {t('bookings.source')}
-                </label>
-                <div className="w-full overflow-x-auto">
-                  <ToggleGroup
-                    type="single"
-                    value={form.source}
-                    onValueChange={(value) => {
-                      if (!value) return
-                      updateField('source', value as BookingSource)
-                    }}
-                    className="min-w-max"
-                  >
-                    {SOURCES.map((s) => (
-                      <ToggleGroupItem key={s.value} value={s.value}>
-                        {s.label}
-                      </ToggleGroupItem>
-                    ))}
-                  </ToggleGroup>
-                </div>
+                </span>
+                <ToggleGroup
+                  aria-labelledby="create-source-label"
+                  type="single"
+                  value={form.source}
+                  onValueChange={(value) => {
+                    if (!value) return
+                    updateField('source', value as BookingSource)
+                  }}
+                >
+                  {SOURCES.map((s) => (
+                    <ToggleGroupItem key={s.value} value={s.value}>
+                      {s.label}
+                    </ToggleGroupItem>
+                  ))}
+                </ToggleGroup>
               </div>
 
               {/* Guests Count */}
               <div className="border-t border-gray-100 pt-5">
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <div>
-                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">
+                    <label htmlFor="create-adults" className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">
                       {t('bookings.adults')}
                     </label>
                     <NumberInput
+                      id="create-adults"
                       value={form.adults_count}
                       onChange={(value) =>
                         updateField('adults_count', Math.max(1, parseInt(value) || 1))
@@ -436,10 +622,11 @@ export default function CreateBookingPage() {
                     )}
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">
+                    <label htmlFor="create-children" className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">
                       {t('bookings.children')}
                     </label>
                     <NumberInput
+                      id="create-children"
                       value={form.children_count}
                       onChange={(value) =>
                         updateField('children_count', Math.max(0, parseInt(value) || 0))
@@ -453,26 +640,32 @@ export default function CreateBookingPage() {
 
               {/* Gantt Color */}
               <div className="border-t border-gray-100 pt-5">
-                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
+                <span id="create-color-label" className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
                   {t('bookings.calendarColor')}
-                </label>
-                <div className="flex gap-2">
+                </span>
+                <div className="flex gap-1" role="group" aria-labelledby="create-color-label">
                   {GANTT_COLORS.map((c) => (
                     <motion.button
                       key={c.value}
                       whileTap={{ scale: 0.9 }}
                       type="button"
                       onClick={() => updateField('gantt_color', c.value)}
-                      className="relative w-8 h-8 rounded-full transition-transform"
-                      style={{ backgroundColor: c.value }}
+                      aria-label={c.label}
+                      aria-pressed={form.gantt_color === c.value}
                       title={c.label}
+                      className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-full p-1 transition-transform"
                     >
-                      {form.gantt_color === c.value && (
-                        <motion.div
-                          layoutId="color-ring"
-                          className="absolute inset-[-3px] rounded-full border-2 border-gray-900"
-                        />
-                      )}
+                      <span
+                        className="relative block h-8 w-8 rounded-full"
+                        style={{ backgroundColor: c.value }}
+                      >
+                        {form.gantt_color === c.value && (
+                          <motion.div
+                            layoutId="color-ring"
+                            className="absolute inset-[-3px] rounded-full border-2 border-gray-900"
+                          />
+                        )}
+                      </span>
                     </motion.button>
                   ))}
                 </div>
@@ -480,10 +673,11 @@ export default function CreateBookingPage() {
 
               {/* Notes */}
               <div className="border-t border-gray-100 pt-5">
-                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">
+                <label htmlFor="create-notes" className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">
                   {t('common.notes')}
                 </label>
                 <textarea
+                  id="create-notes"
                   value={form.notes}
                   onChange={(e) => updateField('notes', e.target.value)}
                   placeholder={t('common.optionalNotes')}
@@ -538,7 +732,7 @@ export default function CreateBookingPage() {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.3, delay: 0.2 }}
-            className="lg:w-80 lg:sticky lg:top-6 lg:self-start"
+            className="order-first lg:order-none lg:w-80 lg:sticky lg:top-6 lg:self-start"
           >
             <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
               <div className="flex items-center gap-2 mb-4">
@@ -546,7 +740,7 @@ export default function CreateBookingPage() {
                 <h3 className="text-sm font-bold text-gray-900">{t('bookings.priceBreakdown')}</h3>
               </div>
 
-              {!form.property_id || !form.check_in || !form.check_out ? (
+              {!form.property_id || !effectiveCheckIn || !effectiveCheckOut ? (
                 <p className="text-xs text-gray-400">
                   {t('bookings.selectPropertyAndDates')}
                 </p>
@@ -556,7 +750,11 @@ export default function CreateBookingPage() {
                 </div>
               ) : priceData ? (
                 <div className="space-y-2">
-                  <PriceLine label={t('bookings.nights', { count: priceData.nights })} amount={priceData.base_total} currencySymbol={symbol} />
+                  {priceData.unit_label === 'hours' ? (
+                    <PriceLine label={t('bookings.hours', { count: priceData.hours })} amount={priceData.base_total} currencySymbol={symbol} />
+                  ) : (
+                    <PriceLine label={t('bookings.nights', { count: priceData.nights })} amount={priceData.base_total} currencySymbol={symbol} />
+                  )}
                   {priceData.weekend_surcharge > 0 && (
                     <PriceLine label={t('bookings.weekendSurcharge')} amount={priceData.weekend_surcharge} currencySymbol={symbol} />
                   )}

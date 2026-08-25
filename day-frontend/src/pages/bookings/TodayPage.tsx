@@ -137,7 +137,7 @@ function TodayCard({
   actionColor?: string
   onClick: () => void
 }) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const changeStatus = useChangeBookingStatus(booking.id)
   const canRunAction = Boolean(actionLabel && actionTarget && actionColor)
 
@@ -164,7 +164,7 @@ function TodayCard({
           <div className="flex items-center gap-2 mt-1">
             <Phone className="w-3 h-3 text-gray-400" />
             <span className="text-xs text-gray-500">
-              {formatDate(booking.check_in)} <ArrowRight className="w-3 h-3 inline text-gray-400" /> {formatDate(booking.check_out)}
+              {formatDate(booking.check_in, i18n.language)} <ArrowRight className="w-3 h-3 inline text-gray-400" /> {formatDate(booking.check_out, i18n.language)}
             </span>
           </div>
           <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -195,7 +195,7 @@ function TodayCard({
   )
 }
 
-function formatDate(dateStr: string): string {
+function formatDate(dateStr: string, locale: string): string {
   const d = new Date(dateStr)
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+  return d.toLocaleDateString(locale, { month: 'short', day: 'numeric' })
 }

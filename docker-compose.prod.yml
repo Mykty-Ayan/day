@@ -1,0 +1,179 @@
+# Production stack for Dokploy (Hetzner).
+#
+# Dokploy runs Traefik itself and attaches domains to services from its UI, so
+# nothing here publishes a host port except the two web services' internal
+# ports, which Traefik reaches over the shared network. TLS, certificates and
+# redirects are Dokploy's job.
+#
+# In Dokploy: create a Compose application pointing at this file, paste the
+# variables from .env.production.example, then attach domains:
+#   backend  -> api.<your-domain>   (port 8000)
+#   frontend -> app.<your-domain>   (port 80)
+#
+# The bots' webhooks must reach the backend over HTTPS, which is exactly what
+# the api.<your-domain> mapping provides.
+#
+# Networks are declared explicitly on every service on purpose. Dokploy appends
+# `dokploy-network` to any service that has a domain, and the moment a service
+# carries an explicit network list Compose drops it from the project's implicit
+# `default` network — so a backend with a domain would stop resolving
+# `postgres`. Naming both networks here keeps service-to-service DNS working
+# whether or not a domain is attached.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-day}
+      POSTGRES_USER: ${POSTGRES_USER:-day}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-day} -d ${POSTGRES_DB:-day}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - internal
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - internal
+
+  minio:
+    image: minio/minio:latest
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${S3_ACCESS_KEY:?S3_ACCESS_KEY is required}
+      MINIO_ROOT_PASSWORD: ${S3_SECRET_KEY:?S3_SECRET_KEY is required}
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    networks:
+      - internal
+      - dokploy-network
+    labels:
+      # A container on two networks leaves Traefik guessing which address to
+      # dial, and it can pick the internal one it is not attached to — which
+      # shows up as a 504. This names the network to use.
+      - traefik.docker.network=dokploy-network
+
+  backend:
+    build:
+      context: ./day-backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-day}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-day}
+      REDIS_URL: redis://redis:6379/0
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
+      ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-30}
+      CORS_ORIGINS: ${CORS_ORIGINS:?CORS_ORIGINS is required}
+      S3_ENDPOINT: http://minio:9000
+      S3_PUBLIC_ENDPOINT: ${S3_PUBLIC_ENDPOINT}
+      S3_PUBLIC_READ: ${S3_PUBLIC_READ:-true}
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY}
+      S3_SECRET_KEY: ${S3_SECRET_KEY}
+      S3_BUCKET: ${S3_BUCKET:-day-uploads}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      TELEGRAM_WEBHOOK_SECRET: ${TELEGRAM_WEBHOOK_SECRET:-}
+      WHAPI_TOKEN: ${WHAPI_TOKEN:-}
+      WHAPI_API_URL: ${WHAPI_API_URL:-https://gate.whapi.cloud}
+      WHAPI_WEBHOOK_SECRET: ${WHAPI_WEBHOOK_SECRET:-}
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:?PUBLIC_BASE_URL is required}
+    expose:
+      - "8000"
+    networks:
+      - internal
+      - dokploy-network
+    labels:
+      # A container on two networks leaves Traefik guessing which address to
+      # dial, and it can pick the internal one it is not attached to — which
+      # shows up as a 504. This names the network to use.
+      - traefik.docker.network=dokploy-network
+
+  frontend:
+    build:
+      context: ./day-frontend
+      args:
+        # Baked at build time — changing it requires a rebuild, not a restart.
+        VITE_API_URL: ${VITE_API_URL:?VITE_API_URL is required}
+    restart: unless-stopped
+    depends_on:
+      - backend
+    expose:
+      - "80"
+    networks:
+      - dokploy-network
+
+  # Nightly pg_dump with retention. Keeps backups on a named volume; copy them
+  # off the host regularly — a backup that only exists on the same machine is
+  # not a backup.
+  db-backup:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_USER: ${POSTGRES_USER:-day}
+      POSTGRES_DB: ${POSTGRES_DB:-day}
+      BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-14}
+      BACKUP_INTERVAL_SECONDS: ${BACKUP_INTERVAL_SECONDS:-86400}
+    volumes:
+      - postgres_backups:/backups
+    networks:
+      - internal
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        set -e
+        while true; do
+          stamp=$$(date +%Y%m%d-%H%M%S)
+          echo "[backup] starting $$stamp"
+          if pg_dump -h postgres -U "$$POSTGRES_USER" -d "$$POSTGRES_DB" -Fc \
+              -f "/backups/day-$$stamp.dump"; then
+            echo "[backup] wrote /backups/day-$$stamp.dump"
+            find /backups -name 'day-*.dump' -mtime +$$BACKUP_RETENTION_DAYS -delete
+          else
+            echo "[backup] FAILED for $$stamp" >&2
+          fi
+          sleep "$$BACKUP_INTERVAL_SECONDS"
+        done
+
+networks:
+  # Private to this stack: databases and the API talk to each other here and
+  # are not reachable from any other project on the host.
+  internal:
+  # Dokploy's shared network — this is where Traefik finds anything with a
+  # domain. Created by Dokploy itself, so it is external here.
+  dokploy-network:
+    external: true
+
+volumes:
+  postgres_data:
+  postgres_backups:
+  redis_data:
+  minio_data:

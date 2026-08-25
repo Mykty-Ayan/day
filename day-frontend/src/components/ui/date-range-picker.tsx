@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { format, isValid, parseISO } from 'date-fns'
 import { Calendar as CalendarIcon } from 'lucide-react'
 import type { DateRange } from 'react-day-picker'
+import { useTranslation } from 'react-i18next'
 import { cn } from '../../lib/utils'
 import { useMediaQuery } from '../../hooks/useMediaQuery'
 import { Calendar } from './calendar'
@@ -10,6 +11,7 @@ import { Popover, PopoverContent, PopoverTrigger } from './popover'
 type DateLike = string | Date | undefined
 
 interface DateRangePickerProps {
+  id?: string
   startDate?: string
   endDate?: string
   onRangeChange: (start: string, end: string) => void
@@ -33,17 +35,19 @@ function normalizeDate(value?: DateLike): Date | undefined {
 }
 
 export default function DateRangePicker({
+  id,
   startDate,
   endDate,
   onRangeChange,
   minDate,
   responsiveMonths = true,
   months,
-  placeholder = 'Select dates',
+  placeholder,
   disabled,
   className,
   error,
 }: DateRangePickerProps) {
+  const { t } = useTranslation()
   const [open, setOpen] = useState(false)
   const isMdUp = useMediaQuery('(min-width: 768px)')
   const start = normalizeDate(startDate)
@@ -68,9 +72,11 @@ export default function DateRangePicker({
     }
   }
 
-  let label = placeholder
+  let label = placeholder ?? t('common.selectDates')
   if (start && end) {
-    label = `${format(start, 'dd.MM')} → ${format(end, 'dd.MM')}`
+    // Include the year on both ends when they span different years to avoid ambiguity.
+    const fmt = start.getFullYear() === end.getFullYear() ? 'dd.MM' : 'dd.MM.yy'
+    label = `${format(start, fmt)} → ${format(end, fmt)}`
   } else if (start) {
     label = `${format(start, 'dd.MM')} → ...`
   }
@@ -79,6 +85,7 @@ export default function DateRangePicker({
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <button
+          id={id}
           type="button"
           disabled={disabled}
           className={cn(
@@ -94,7 +101,7 @@ export default function DateRangePicker({
         </button>
       </PopoverTrigger>
       <PopoverContent
-        className="z-[120] w-auto max-w-[calc(100vw-1rem)] overflow-hidden rounded-2xl border border-gray-200 bg-white p-2 shadow-2xl"
+        className="z-popover w-auto max-w-[calc(100vw-1rem)] overflow-hidden rounded-2xl border border-gray-200 bg-white p-2 shadow-2xl"
         align="start"
         sideOffset={8}
       >

@@ -8,10 +8,14 @@ import { useMediaQuery } from '../hooks/useMediaQuery'
 
 const PUBLIC_ROUTES = ['/login', '/register']
 const CLEANER_ROUTE_PREFIX = '/cleaner'
+// The Mini App authenticates itself from Telegram's signed initData, so it must
+// not be bounced to /login before it has had the chance.
+const MINIAPP_ROUTE = '/tma'
 
 export const Route = createRootRoute({
   beforeLoad: ({ location }) => {
     const token = localStorage.getItem('access_token')
+    if (location.pathname === MINIAPP_ROUTE) return
     if (!token && !PUBLIC_ROUTES.includes(location.pathname)) {
       throw redirect({ to: '/login' })
     }
@@ -23,6 +27,15 @@ function RootLayout() {
   const pathname = useRouterState({ select: (s) => s.location.pathname })
 
   if (PUBLIC_ROUTES.includes(pathname)) {
+    return (
+      <>
+        <Outlet />
+        <ToastContainer />
+      </>
+    )
+  }
+
+  if (pathname === MINIAPP_ROUTE) {
     return (
       <>
         <Outlet />
@@ -88,7 +101,7 @@ function AuthenticatedLayout() {
         <Link to="/" className="text-sm font-bold text-gray-900 mr-4">
           Day
         </Link>
-        <nav className="flex items-center gap-1 flex-1">
+        <nav className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto">
           {navItems.map(({ to, label, icon: Icon }) => {
             const isActive = activeItem?.to === to
             return (

@@ -7,6 +7,7 @@ from decimal import Decimal
 from sqlalchemy import delete, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.domain.booking.value_objects import RentalMode
 from app.domain.property.entities import (
     Amenity,
     DiscountRule,
@@ -53,6 +54,7 @@ def _model_to_property(m: PropertyModel) -> Property:
         internal_name=m.internal_name,
         type=PropertyType(m.type),
         status=PropertyStatus(m.status),
+        rental_mode=RentalMode(m.rental_mode),
         description=m.description,
         source_url=m.source_url,
         latitude=m.latitude,
@@ -81,6 +83,7 @@ def _property_to_dict(p: Property) -> dict:
         "internal_name": p.internal_name,
         "type": p.type.value,
         "status": p.status.value,
+        "rental_mode": p.rental_mode.value,
         "description": p.description,
         "source_url": p.source_url,
         "latitude": p.latitude,
@@ -125,6 +128,7 @@ def _model_to_pricing(m: PricingConfigModel) -> PricingConfig:
         id=m.id,
         property_id=m.property_id,
         base_price=Decimal(str(m.base_price)),
+        hourly_price=Decimal(str(m.hourly_price)),
         weekend_markup=Decimal(str(m.weekend_markup)),
         default_deposit=Decimal(str(m.default_deposit)),
         extra_adult_price=Decimal(str(m.extra_adult_price)),
@@ -373,6 +377,7 @@ class SqlPricingConfigRepository(PricingConfigRepository):
             id=config.id,
             property_id=config.property_id,
             base_price=float(config.base_price),
+            hourly_price=float(config.hourly_price),
             weekend_markup=float(config.weekend_markup),
             default_deposit=float(config.default_deposit),
             extra_adult_price=float(config.extra_adult_price),
@@ -390,6 +395,7 @@ class SqlPricingConfigRepository(PricingConfigRepository):
             .where(PricingConfigModel.id == config.id)
             .values(
                 base_price=float(config.base_price),
+                hourly_price=float(config.hourly_price),
                 weekend_markup=float(config.weekend_markup),
                 default_deposit=float(config.default_deposit),
                 extra_adult_price=float(config.extra_adult_price),

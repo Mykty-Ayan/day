@@ -27,7 +27,9 @@ class CleaningTaskModel(Base):
     booking_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("bookings.id", ondelete="SET NULL"), nullable=True, index=True
     )
-    cleaner_id: Mapped[uuid.UUID | None] = mapped_column(nullable=True, index=True)
+    cleaner_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("users.id"), nullable=True, index=True
+    )
     type: Mapped[str] = mapped_column(String(50), default="post_checkout")
     status: Mapped[str] = mapped_column(String(50), default="pending")
     scheduled_date: Mapped[date | None] = mapped_column(Date, nullable=True)
@@ -81,7 +83,7 @@ class CleaningReportModel(Base):
     task_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("cleaning_tasks.id", ondelete="CASCADE"), index=True
     )
-    cleaner_id: Mapped[uuid.UUID] = mapped_column(index=True)
+    cleaner_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), index=True)
     status: Mapped[str] = mapped_column(String(50), default="submitted")
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     submitted_at: Mapped[datetime | None] = mapped_column(nullable=True)
@@ -130,7 +132,7 @@ class CleanerRouteModel(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     company_id: Mapped[uuid.UUID] = mapped_column(index=True)
-    cleaner_id: Mapped[uuid.UUID] = mapped_column(index=True)
+    cleaner_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), index=True)
     route_date: Mapped[date] = mapped_column(Date)
     ordered_task_ids: Mapped[list | None] = mapped_column(JSONB, nullable=True)
     route_polyline: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
@@ -145,7 +147,7 @@ class CleanerRatingModel(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     company_id: Mapped[uuid.UUID] = mapped_column(index=True)
-    cleaner_id: Mapped[uuid.UUID] = mapped_column(index=True)
+    cleaner_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), index=True)
     task_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("cleaning_tasks.id", ondelete="SET NULL"), nullable=True
     )

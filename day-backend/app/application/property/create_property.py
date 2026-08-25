@@ -3,6 +3,7 @@ from __future__ import annotations
 import uuid
 from dataclasses import dataclass
 
+from app.domain.booking.value_objects import RentalMode
 from app.domain.property.entities import Property, PropertyAuditLog
 from app.domain.property.repositories import PropertyAuditLogRepository, PropertyRepository
 from app.domain.property.value_objects import AuditAction, PropertyStatus, PropertyType
@@ -14,6 +15,7 @@ class CreatePropertyInput:
     name: str
     internal_name: str
     type: PropertyType
+    rental_mode: RentalMode = RentalMode.DAILY
     description: str | None = None
     source_url: str | None = None
     latitude: float | None = None
@@ -30,7 +32,8 @@ class CreatePropertyInput:
     check_in_instructions: str | None = None
     check_out_instructions: str | None = None
     house_rules: str | None = None
-    # TODO: replace with authenticated user_id when auth is implemented
+    # Set from the authenticated caller; a service key attributes the change
+    # to the operator who issued it.
     changed_by: uuid.UUID | None = None
 
 
@@ -58,6 +61,7 @@ class CreatePropertyService:
             internal_name=inp.internal_name,
             type=inp.type,
             status=PropertyStatus.NEW,
+            rental_mode=inp.rental_mode,
             description=inp.description,
             source_url=inp.source_url,
             latitude=inp.latitude,

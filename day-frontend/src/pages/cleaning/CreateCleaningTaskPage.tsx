@@ -8,6 +8,7 @@ import Button from '../../components/ui/Button'
 import { showToast } from '../../components/ui/Toast'
 import { useCreateCleaningTask } from '../../hooks/useCleaning'
 import { useProperties } from '../../hooks/useProperties'
+import { useCleaners } from '../../hooks/useTeam'
 import type { CleaningType } from '../../types/cleaning'
 import DatePicker from '../../components/ui/date-picker'
 import TimePicker from '../../components/ui/time-picker'
@@ -43,6 +44,7 @@ export default function CreateCleaningTaskPage() {
   const [form, setForm] = useState<FormData>(initialForm)
   const [errors, setErrors] = useState<Record<string, string>>({})
   const { data: propertiesData } = useProperties()
+  const { data: cleaners = [] } = useCleaners()
   const createMutation = useCreateCleaningTask()
 
   function validate(): boolean {
@@ -148,6 +150,31 @@ export default function CreateCleaningTaskPage() {
                 <SelectItem value="on_demand">{t('cleaning.types.onDemand')}</SelectItem>
               </SelectContent>
             </Select>
+          </div>
+
+          {/* Cleaner */}
+          <div>
+            <label htmlFor="task-cleaner" className="block text-sm font-medium text-gray-700 mb-1">
+              {t('cleaning.cleaner')}
+            </label>
+            <Select
+              value={form.cleaner_id || undefined}
+              onValueChange={(value) => setForm({ ...form, cleaner_id: value })}
+            >
+              <SelectTrigger id="task-cleaner">
+                <SelectValue placeholder={t('cleaning.unassigned')} />
+              </SelectTrigger>
+              <SelectContent>
+                {cleaners.map((cleaner) => (
+                  <SelectItem key={cleaner.id} value={cleaner.id}>
+                    {cleaner.full_name || cleaner.email}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {cleaners.length === 0 && (
+              <p className="mt-1 text-xs text-gray-500">{t('cleaning.noCleaners')}</p>
+            )}
           </div>
 
           {/* Scheduled Date */}

@@ -26,7 +26,7 @@ export default function PropertyFormStepRules({ data, onChange }: Props) {
         <textarea
           value={data.check_in_instructions}
           onChange={(e) => update('check_in_instructions', e.target.value)}
-          placeholder="Key is in the lockbox by the front door. Code: ..."
+          placeholder={t('properties.form.checkInInstructionsPlaceholder')}
           rows={4}
           className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 outline-none focus:ring-2 focus:ring-black/10 text-gray-800 text-sm resize-none"
         />
@@ -39,7 +39,7 @@ export default function PropertyFormStepRules({ data, onChange }: Props) {
         <textarea
           value={data.check_out_instructions}
           onChange={(e) => update('check_out_instructions', e.target.value)}
-          placeholder="Please leave the keys on the kitchen table..."
+          placeholder={t('properties.form.checkOutInstructionsPlaceholder')}
           rows={4}
           className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 outline-none focus:ring-2 focus:ring-black/10 text-gray-800 text-sm resize-none"
         />
@@ -52,7 +52,7 @@ export default function PropertyFormStepRules({ data, onChange }: Props) {
         <textarea
           value={data.house_rules}
           onChange={(e) => update('house_rules', e.target.value)}
-          placeholder="No smoking. No pets. Quiet hours 22:00-08:00..."
+          placeholder={t('properties.form.houseRulesPlaceholder')}
           rows={4}
           className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 outline-none focus:ring-2 focus:ring-black/10 text-gray-800 text-sm resize-none"
         />

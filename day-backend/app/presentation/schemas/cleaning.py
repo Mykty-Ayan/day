@@ -33,6 +33,7 @@ class CleaningTaskResponse(BaseModel):
     property_id: uuid.UUID
     booking_id: uuid.UUID | None = None
     cleaner_id: uuid.UUID | None = None
+    cleaner_name: str | None = None
     type: CleaningType
     status: CleaningStatus
     scheduled_date: date | None = None

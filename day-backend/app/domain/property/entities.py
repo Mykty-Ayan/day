@@ -5,6 +5,7 @@ from dataclasses import dataclass, field
 from datetime import date, datetime
 from decimal import Decimal
 
+from app.domain.booking.value_objects import RentalMode
 from app.domain.property.value_objects import (
     AmenityCategory,
     AuditAction,
@@ -23,6 +24,7 @@ class Property:
     internal_name: str = ""
     type: PropertyType = PropertyType.APARTMENT
     status: PropertyStatus = PropertyStatus.NEW
+    rental_mode: RentalMode = RentalMode.DAILY
     description: str | None = None
     source_url: str | None = None
 
@@ -78,6 +80,7 @@ class PricingConfig:
     id: uuid.UUID = field(default_factory=uuid.uuid4)
     property_id: uuid.UUID = field(default_factory=uuid.uuid4)
     base_price: Decimal = Decimal("0")
+    hourly_price: Decimal = Decimal("0")
     weekend_markup: Decimal = Decimal("0")
     default_deposit: Decimal = Decimal("0")
     extra_adult_price: Decimal = Decimal("0")

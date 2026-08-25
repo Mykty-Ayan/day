@@ -1,5 +1,6 @@
 import { useCallback, useRef } from 'react'
-import { Upload, X, GripVertical, Star } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
+import { Upload, X, Star } from 'lucide-react'
 
 export interface PhotoEntry {
   id: string
@@ -14,6 +15,7 @@ interface Props {
 }
 
 export default function PropertyFormStepPhotos({ photos, onChange }: Props) {
+  const { t } = useTranslation()
   const inputRef = useRef<HTMLInputElement>(null)
 
   const handleFiles = useCallback(
@@ -55,16 +57,25 @@ export default function PropertyFormStepPhotos({ photos, onChange }: Props) {
   return (
     <div className="space-y-4">
       <div
+        role="button"
+        tabIndex={0}
+        aria-label={t('properties.form.dropPhotos')}
         onDrop={handleDrop}
         onDragOver={(e) => e.preventDefault()}
         onClick={() => inputRef.current?.click()}
-        className="border-2 border-dashed border-gray-200 rounded-xl p-8 text-center cursor-pointer hover:border-gray-300 hover:bg-gray-50 transition-colors"
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault()
+            inputRef.current?.click()
+          }
+        }}
+        className="border-2 border-dashed border-gray-200 rounded-xl p-8 text-center cursor-pointer hover:border-gray-300 hover:bg-gray-50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/20"
       >
         <Upload className="w-8 h-8 text-gray-400 mx-auto mb-2" />
         <p className="text-sm text-gray-700 font-semibold">
-          Drop photos here or click to upload
+          {t('properties.form.dropPhotos')}
         </p>
-        <p className="text-xs text-gray-400 mt-1">PNG, JPG up to 10MB</p>
+        <p className="text-xs text-gray-400 mt-1">{t('properties.form.photoHint')}</p>
         <input
           ref={inputRef}
           type="file"
@@ -88,9 +99,6 @@ export default function PropertyFormStepPhotos({ photos, onChange }: Props) {
                 className="w-full h-full object-cover"
               />
               <div className="absolute inset-0 bg-black/15 transition-colors sm:bg-black/0 sm:group-hover:bg-black/30" />
-              <div className="absolute top-2 left-2 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100">
-                <GripVertical className="w-4 h-4 text-white cursor-grab" />
-              </div>
               <div className="absolute top-2 right-2 flex gap-1 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100">
                 <button
                   type="button"
@@ -100,7 +108,8 @@ export default function PropertyFormStepPhotos({ photos, onChange }: Props) {
                       ? 'bg-amber-400 text-white'
                       : 'bg-white/80 text-gray-700 hover:bg-white'
                   }`}
-                  title="Set as cover"
+                  title={t('properties.form.setAsCover')}
+                  aria-label={t('properties.form.setAsCover')}
                 >
                   <Star className="w-3.5 h-3.5" />
                 </button>
@@ -114,7 +123,7 @@ export default function PropertyFormStepPhotos({ photos, onChange }: Props) {
               </div>
               {photo.isCover && (
                 <div className="absolute bottom-2 left-2 bg-amber-400 text-white text-[10px] font-bold uppercase px-2 py-0.5 rounded-md">
-                  Cover
+                  {t('properties.form.cover')}
                 </div>
               )}
             </div>

@@ -264,7 +264,7 @@ export default function GanttChartPage() {
         </div>
 
         <div className="mb-4 flex flex-col gap-3">
-          <div className="w-full overflow-x-auto sm:w-auto">
+          <div className="w-full sm:w-auto">
             <ToggleGroup
               type="single"
               value={viewMode}
@@ -273,7 +273,6 @@ export default function GanttChartPage() {
                 setPendingSelection(null)
                 setViewMode(value as GanttViewMode)
               }}
-              className="min-w-max"
             >
               <ToggleGroupItem value="agenda">{t('gantt.agenda')}</ToggleGroupItem>
               <ToggleGroupItem value="gantt">{t('gantt.title')}</ToggleGroupItem>

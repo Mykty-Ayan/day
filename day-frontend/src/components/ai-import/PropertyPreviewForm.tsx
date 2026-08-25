@@ -312,7 +312,7 @@ export default function PropertyPreviewForm({ data, onChange }: Props) {
 
       {/* Pricing */}
       <div className="border-t border-gray-100 pt-4">
-        <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">{t('properties.pricing')}</h4>
+        <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">{t('properties.pricing.title')}</h4>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div className="space-y-2">
             <FieldRow label={t('aiImport.basePricePerNight')} value={data.base_price} field="base_price" editing={editing} onChange={handleFieldChange} type="number" />

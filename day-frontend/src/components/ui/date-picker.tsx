@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { format, isValid, parseISO } from 'date-fns'
 import { Calendar as CalendarIcon } from 'lucide-react'
 import type { Matcher } from 'react-day-picker'
+import { useTranslation } from 'react-i18next'
 import { cn } from '../../lib/utils'
 import { Calendar } from './calendar'
 import { Popover, PopoverContent, PopoverTrigger } from './popover'
@@ -9,6 +10,7 @@ import { Popover, PopoverContent, PopoverTrigger } from './popover'
 type DateLike = string | Date | undefined
 
 interface DatePickerProps {
+  id?: string
   value?: string
   onChange: (value: string) => void
   minDate?: DateLike
@@ -28,14 +30,17 @@ function normalizeDate(value?: DateLike): Date | undefined {
 }
 
 export default function DatePicker({
+  id,
   value,
   onChange,
   minDate,
-  placeholder = 'Pick a date',
+  placeholder,
   disabled,
   className,
 }: DatePickerProps) {
+  const { t } = useTranslation()
   const [open, setOpen] = useState(false)
+  const resolvedPlaceholder = placeholder ?? t('common.pickDate')
   const selected = normalizeDate(value)
   const min = normalizeDate(minDate)
   const disabledDays: Matcher | undefined = min ? { before: min } : undefined
@@ -44,6 +49,7 @@ export default function DatePicker({
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <button
+          id={id}
           type="button"
           disabled={disabled}
           className={cn(
@@ -53,12 +59,12 @@ export default function DatePicker({
             className,
           )}
         >
-          <span className="truncate">{selected ? format(selected, 'dd.MM.yyyy') : placeholder}</span>
+          <span className="truncate">{selected ? format(selected, 'dd.MM.yyyy') : resolvedPlaceholder}</span>
           <CalendarIcon className="h-4 w-4 text-gray-400" />
         </button>
       </PopoverTrigger>
       <PopoverContent
-        className="z-[120] w-auto rounded-2xl border border-gray-200 bg-white p-2 shadow-2xl"
+        className="z-popover w-auto rounded-2xl border border-gray-200 bg-white p-2 shadow-2xl"
         align="start"
         sideOffset={8}
       >

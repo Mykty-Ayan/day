@@ -40,6 +40,7 @@ from app.domain.booking.value_objects import (
     PaymentMethod,
     PaymentStatus,
     PaymentType,
+    RentalMode,
 )
 from app.infrastructure.models.booking import (
     BookingAuditLogModel,
@@ -78,6 +79,7 @@ def _model_to_booking(m: BookingModel) -> Booking:
         group_booking_id=m.group_booking_id,
         check_in=m.check_in,
         check_out=m.check_out,
+        rental_mode=RentalMode(m.rental_mode),
         source=BookingSource(m.source),
         status=BookingStatus(m.status),
         gantt_color=m.gantt_color,
@@ -292,6 +294,7 @@ class SqlBookingRepository(BookingRepository):
             group_booking_id=booking.group_booking_id,
             check_in=booking.check_in,
             check_out=booking.check_out,
+            rental_mode=booking.rental_mode.value,
             source=booking.source.value,
             status=booking.status.value,
             gantt_color=booking.gantt_color,
@@ -452,6 +455,7 @@ class SqlBookingRepository(BookingRepository):
                 group_booking_id=booking.group_booking_id,
                 check_in=booking.check_in,
                 check_out=booking.check_out,
+                rental_mode=booking.rental_mode.value,
                 source=booking.source.value,
                 status=booking.status.value,
                 gantt_color=booking.gantt_color,

@@ -4,13 +4,22 @@ import uuid
 from dataclasses import dataclass, field
 from decimal import Decimal
 
+from app.application.booking.create_booking import (
+    apply_default_times,
+    validate_rental_mode_allowed,
+)
 from app.application.booking.price_calculator import PriceCalculatorService
 from app.domain.booking.entities import Booking, BookingAuditLog
 from app.domain.booking.repositories import (
     BookingAuditLogRepository,
     BookingRepository,
 )
-from app.domain.booking.value_objects import BookingAuditAction, BookingSource
+from app.domain.booking.value_objects import (
+    BookingAuditAction,
+    BookingSource,
+    RentalMode,
+)
+from app.domain.property.repositories import PropertyRepository
 
 _UNSET = object()
 
@@ -22,6 +31,7 @@ class UpdateBookingInput:
     changed_by: uuid.UUID | None = None
     check_in: object = field(default=_UNSET)
     check_out: object = field(default=_UNSET)
+    rental_mode: object = field(default=_UNSET)
     source: object = field(default=_UNSET)
     gantt_color: object = field(default=_UNSET)
     gantt_icon: object = field(default=_UNSET)
@@ -35,10 +45,12 @@ class UpdateBookingService:
     def __init__(
         self,
         booking_repo: BookingRepository,
+        property_repo: PropertyRepository,
         audit_repo: BookingAuditLogRepository,
         price_calculator: PriceCalculatorService,
     ) -> None:
         self._booking_repo = booking_repo
+        self._property_repo = property_repo
         self._audit_repo = audit_repo
         self._price_calculator = price_calculator
 
@@ -65,6 +77,18 @@ class UpdateBookingService:
             _track("check_out", booking.check_out, inp.check_out)
             booking.check_out = inp.check_out  # type: ignore[assignment]
             dates_changed = True
+        if inp.rental_mode is not _UNSET:
+            new_mode = RentalMode(inp.rental_mode)  # type: ignore[arg-type]
+            # The new mode must still be permitted by the property. Validate
+            # BEFORE the price-recalc try/except below so the ValueError is not
+            # swallowed and an invalid mode never persists.
+            prop = await self._property_repo.get_by_id(booking.property_id)
+            if prop is None:
+                raise ValueError("Property not found")
+            validate_rental_mode_allowed(new_mode, prop.rental_mode)
+            _track("rental_mode", booking.rental_mode.value, new_mode.value)
+            booking.rental_mode = new_mode
+            dates_changed = True  # re-guard + recalculate price under the new mode
         if inp.source is not _UNSET:
             _track("source", booking.source.value, inp.source)
             booking.source = BookingSource(inp.source)  # type: ignore[arg-type]
@@ -91,6 +115,11 @@ class UpdateBookingService:
 
         # Re-check overlaps if dates changed
         if dates_changed and booking.check_in and booking.check_out:
+            # Daily bookings default their clock times (14:00 / 12:00) so the
+            # stored datetime is a superset of the incoming date.
+            booking.check_in, booking.check_out = apply_default_times(
+                booking.check_in, booking.check_out, booking.rental_mode
+            )
             if booking.check_out <= booking.check_in:
                 raise ValueError("Check-out must be after check-in")
             overlapping = await self._booking_repo.get_by_property_and_dates(
@@ -108,6 +137,7 @@ class UpdateBookingService:
                     booking.check_out,
                     booking.adults_count,
                     booking.children_count,
+                    booking.rental_mode,
                 )
                 booking.calculated_price = breakdown.total
             except ValueError:

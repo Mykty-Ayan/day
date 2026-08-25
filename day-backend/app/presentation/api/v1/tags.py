@@ -9,13 +9,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.application.property.batch_pricing_by_tag import BatchUpdatePricingByTagService
 from app.application.property.manage_tags import ManageTagsService
+from app.domain.auth.permissions import Permission
 from app.infrastructure.database import get_session
 from app.infrastructure.repositories.property import (
     SqlPricingConfigRepository,
     SqlPropertyRepository,
     SqlPropertyTagRepository,
 )
-from app.presentation.api.deps import get_company_id
+from app.presentation.api.deps import get_company_id, require
 from app.presentation.schemas.property import (
     BatchPricingUpdate,
     TagCreate,
@@ -37,7 +38,12 @@ def _tag_repos(session: AsyncSession):
 # ---------- Tag CRUD ----------
 
 
-@tag_router.post("", response_model=TagResponse, status_code=201)
+@tag_router.post(
+    "",
+    response_model=TagResponse,
+    status_code=201,
+    dependencies=[Depends(require(Permission.PROPERTIES_WRITE))],
+)
 async def create_tag(
     body: TagCreate,
     session: AsyncSession = Depends(get_session),
@@ -55,7 +61,7 @@ async def create_tag(
         raise HTTPException(status_code=status_code, detail=str(e))
 
 
-@tag_router.get("", response_model=list[TagResponse])
+@tag_router.get("", response_model=list[TagResponse], dependencies=[Depends(require(Permission.PROPERTIES_READ))])
 async def list_tags(
     session: AsyncSession = Depends(get_session),
     company_id: uuid.UUID = Depends(get_company_id),
@@ -66,7 +72,7 @@ async def list_tags(
     return [TagResponse.model_validate(t, from_attributes=True) for t in result]
 
 
-@tag_router.patch("/{tag_id}", response_model=TagResponse)
+@tag_router.patch("/{tag_id}", response_model=TagResponse, dependencies=[Depends(require(Permission.PROPERTIES_WRITE))])
 async def update_tag(
     tag_id: uuid.UUID,
     body: TagUpdate,
@@ -86,7 +92,7 @@ async def update_tag(
         raise HTTPException(status_code=status_code, detail=str(e))
 
 
-@tag_router.delete("/{tag_id}", status_code=204)
+@tag_router.delete("/{tag_id}", status_code=204, dependencies=[Depends(require(Permission.PROPERTIES_WRITE))])
 async def delete_tag(
     tag_id: uuid.UUID,
     session: AsyncSession = Depends(get_session),
@@ -105,7 +111,7 @@ async def delete_tag(
 # ---------- Batch pricing ----------
 
 
-@tag_router.post("/{tag_id}/batch-pricing")
+@tag_router.post("/{tag_id}/batch-pricing", dependencies=[Depends(require(Permission.PROPERTIES_WRITE))])
 async def batch_update_pricing(
     tag_id: uuid.UUID,
     body: BatchPricingUpdate,

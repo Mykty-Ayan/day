@@ -51,21 +51,36 @@ const BAR_H = 28
 const BAR_Y = (ROW_H - BAR_H) / 2
 const MONTH_LABEL_W = 92
 const MONTH_LABEL_PAD = 6
+// Matches the backend DEFAULT_CHECK_IN_HOUR (14:00) used to seed hourly bookings.
+const DEFAULT_HOURLY_START_TIME = '14:00'
 
 function toDateStr(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
+// Take only the date component so ISO date-time strings (hourly bookings) still
+// place correctly on the per-day grid instead of producing an Invalid Date.
 function parseDateOnly(dateStr: string): Date {
-  const [year, month, day] = dateStr.split('-').map(Number)
+  const [year, month, day] = dateStr.split('T')[0].split('-').map(Number)
   return new Date(year, (month || 1) - 1, day || 1)
+}
+
+// Grid placement works in whole-day boundaries. A same-day hourly booking
+// (check_in date === check_out date) still occupies one full day cell, so the
+// exclusive end is nudged to the next day when the parsed dates collapse.
+function getBookingDayRange(checkIn: string, checkOut: string): { start: Date; end: Date } {
+  const start = parseDateOnly(checkIn)
+  let end = parseDateOnly(checkOut)
+  if (end <= start) {
+    end = new Date(start.getFullYear(), start.getMonth(), start.getDate() + 1)
+  }
+  return { start, end }
 }
 
 function isBookedOnDate(bookings: Booking[], day: Date): boolean {
   const dayStart = new Date(day.getFullYear(), day.getMonth(), day.getDate())
   return bookings.some((booking) => {
-    const checkIn = parseDateOnly(booking.check_in)
-    const checkOut = parseDateOnly(booking.check_out)
+    const { start: checkIn, end: checkOut } = getBookingDayRange(booking.check_in, booking.check_out)
     return checkIn <= dayStart && dayStart < checkOut
   })
 }
@@ -131,6 +146,27 @@ function getBookingNights(checkIn: string, checkOut: string): number {
   return Math.max(0, nights)
 }
 
+function isHourlyBooking(booking: Booking): boolean {
+  return booking.rental_mode === 'hourly'
+}
+
+// Whole hours (ceil, matching the backend hourly billing) between two datetimes.
+function getBookingHours(checkIn: string, checkOut: string): number {
+  const start = new Date(checkIn).getTime()
+  const end = new Date(checkOut).getTime()
+  if (Number.isNaN(start) || Number.isNaN(end)) return 0
+  const hours = Math.ceil((end - start) / (60 * 60 * 1000))
+  return Math.max(0, hours)
+}
+
+// Compact duration shown in tooltips: "3H" for hourly bookings, "2N" for daily.
+function formatBookingDuration(booking: Booking): string {
+  if (isHourlyBooking(booking)) {
+    return `${getBookingHours(booking.check_in, booking.check_out)}H`
+  }
+  return `${getBookingNights(booking.check_in, booking.check_out)}N`
+}
+
 function formatBookingDateRangeShort(checkIn: string, checkOut: string, monthNames: string[]): string {
   const start = parseDateOnly(checkIn)
   const end = parseDateOnly(checkOut)
@@ -190,11 +226,12 @@ const tooltipStatusTone: Record<BookingStatus, string> = {
   cancelled: 'bg-rose-300/20 text-rose-100',
 }
 
+// Unified booking-source i18n namespace (shared with GanttAgendaView).
 const sourceKeys: Record<Booking['source'], string> = {
-  direct: 'common.direct',
-  booking: 'gantt.sourceBcom',
-  airbnb: 'common.airbnb',
-  other: 'common.other',
+  direct: 'bookings.sources.direct',
+  booking: 'bookings.sources.booking',
+  airbnb: 'bookings.sources.airbnb',
+  other: 'bookings.sources.other',
 }
 
 export default function GanttChart({
@@ -214,6 +251,11 @@ export default function GanttChart({
   const queryClient = useQueryClient()
   const { symbol: currencySymbol } = useCurrency()
   const isCoarsePointer = useMediaQuery('(hover: none), (pointer: coarse)')
+  // On phones the fixed 180px name column + 40px cells only show ~5 days; shrink
+  // both so more day cells fit without constant horizontal scrolling.
+  const isMobile = useMediaQuery('(max-width: 640px)')
+  const cellW = isMobile ? 36 : CELL_W
+  const nameW = isMobile ? 110 : NAME_W
   const scrollRef = useRef<HTMLDivElement>(null)
 
   const weekdayNames = useMemo(() => Array.from({ length: 7 }, (_, i) => t(`gantt.weekdays.${i}`)), [t])
@@ -300,6 +342,23 @@ export default function GanttChart({
   const [dragOverPropertyId, setDragOverPropertyId] = useState<string | null>(null)
   const [isDragging, setIsDragging] = useState(false)
 
+  // Touch fallback for the drag-only move feature: a bottom-sheet property picker.
+  const [moveSheetBooking, setMoveSheetBooking] = useState<Booking | null>(null)
+
+  // Horizontal-scroll affordance: edge fades that appear when the track can scroll.
+  const [scrollShadow, setScrollShadow] = useState<{ start: boolean; end: boolean }>({
+    start: false,
+    end: true,
+  })
+
+  const updateScrollShadow = useCallback(() => {
+    const el = scrollRef.current
+    if (!el) return
+    const start = el.scrollLeft > 1
+    const end = el.scrollLeft < el.scrollWidth - el.clientWidth - 1
+    setScrollShadow((prev) => (prev.start === start && prev.end === end ? prev : { start, end }))
+  }, [])
+
   useEffect(() => {
     const container = scrollRef.current
     if (!container) return
@@ -314,10 +373,11 @@ export default function GanttChart({
     if (targetIndex < 0) return
 
     const maxScrollLeft = Math.max(0, container.scrollWidth - container.clientWidth)
-    const target = Math.min(targetIndex * CELL_W, maxScrollLeft)
+    const target = Math.min(targetIndex * cellW, maxScrollLeft)
     container.scrollLeft = target
     autoScrollKeyRef.current = scrollKey
-  }, [days, month, rangeEnd, rangeStart, todayMonth, todayScrollNonce, todayStr, todayYear, year])
+    updateScrollShadow()
+  }, [cellW, days, month, rangeEnd, rangeStart, todayMonth, todayScrollNonce, todayStr, todayYear, updateScrollShadow, year])
 
   const handleDragStart = useCallback((
     e: React.DragEvent,
@@ -375,6 +435,31 @@ export default function GanttChart({
     setDragBooking(null)
   }, [dragBooking, propertyStatusById, queryClient, t])
 
+  // Touch-friendly move: same semantics as drag-and-drop, driven by the picker.
+  const handleMoveBookingTo = useCallback(async (
+    booking: Booking,
+    targetPropertyId: string,
+  ) => {
+    if (propertyStatusById[targetPropertyId] === 'paused') {
+      showToast('error', t('gantt.cannotMoveToPaused'))
+      return
+    }
+    if (booking.property_id === targetPropertyId) {
+      setMoveSheetBooking(null)
+      return
+    }
+    try {
+      await moveBooking(booking.id, { target_property_id: targetPropertyId })
+      queryClient.invalidateQueries({ queryKey: ['gantt-data'] })
+      queryClient.invalidateQueries({ queryKey: ['bookings'] })
+      showToast('success', t('gantt.bookingMoved'))
+    } catch {
+      showToast('error', t('gantt.failedMoveBooking'))
+    }
+    setMoveSheetBooking(null)
+    setTouchTooltipBooking(null)
+  }, [propertyStatusById, queryClient, t])
+
   // Active preview end date while hovering after selecting check-in.
   const pendingPreviewEnd = useMemo(() => {
     if (!pendingSelection || !hoverPreview) return null
@@ -384,8 +469,7 @@ export default function GanttChart({
   }, [hoverPreview, pendingSelection])
 
   function getBarPosition(booking: Booking): { left: number; width: number } | null {
-    const checkIn = parseDateOnly(booking.check_in)
-    const checkOut = parseDateOnly(booking.check_out)
+    const { start: checkIn, end: checkOut } = getBookingDayRange(booking.check_in, booking.check_out)
     const rangeEndExclusive = new Date(
       rangeEndDate.getFullYear(),
       rangeEndDate.getMonth(),
@@ -405,8 +489,11 @@ export default function GanttChart({
       (visibleEnd.getTime() - rangeStartDate.getTime()) / 86400000,
     )
 
-    const left = startDayOffset * CELL_W
-    const width = Math.max((endDayOffset - startDayOffset) * CELL_W, CELL_W * 0.5)
+    const left = startDayOffset * cellW
+    // Hourly / same-day bookings collapse to a sub-cell span; keep them at a full
+    // cell so they stay tappable and identifiable (see the distinct pill styling).
+    const minWidth = isHourlyBooking(booking) ? cellW : cellW * 0.5
+    const width = Math.max((endDayOffset - startDayOffset) * cellW, minWidth)
 
     return { left, width }
   }
@@ -418,6 +505,20 @@ export default function GanttChart({
       return
     }
     const dateStr = toDateStr(day)
+    // Hourly-only properties skip the daily two-click range selection and jump
+    // straight into the create form seeded with a default start time. Phase 4
+    // reads the 'T' clock component in check_in to open the form in hourly mode.
+    if (property.rental_mode === 'hourly') {
+      navigate({
+        to: '/bookings/new',
+        search: {
+          property_id: property.id,
+          check_in: `${dateStr}T${DEFAULT_HOURLY_START_TIME}`,
+          from: 'gantt',
+        } as Record<string, string>,
+      })
+      return
+    }
     if (onCellClick) {
       onCellClick(property.id, dateStr)
     } else {
@@ -454,7 +555,7 @@ export default function GanttChart({
       )}
       <div className="flex">
         {/* Fixed property names column */}
-        <div className="shrink-0 border-r border-gray-200 bg-white z-10" style={{ width: NAME_W }}>
+        <div className="shrink-0 border-r border-gray-200 bg-white z-10" style={{ width: nameW }}>
           <div
             className="border-b border-gray-200 bg-gray-50"
             style={{ height: MONTH_ROW_H }}
@@ -506,11 +607,13 @@ export default function GanttChart({
         </div>
 
         {/* Scrollable dates area */}
-        <div
-          ref={scrollRef}
-          className="overflow-x-auto flex-1"
-        >
-          <div style={{ width: days.length * CELL_W }}>
+        <div className="relative min-w-0 flex-1">
+          <div
+            ref={scrollRef}
+            className="overflow-x-auto"
+            onScroll={updateScrollShadow}
+          >
+          <div style={{ width: days.length * cellW }}>
             <div className="relative border-b border-gray-200 bg-gray-50" style={{ height: MONTH_ROW_H }}>
               <div className="flex h-full">
                 {monthSegments.map((segment, idx) => (
@@ -521,7 +624,7 @@ export default function GanttChart({
                     } ${
                       idx % 2 === 0 ? 'bg-gray-50' : 'bg-gray-100/60'
                     }`}
-                    style={{ width: segment.daysCount * CELL_W }}
+                    style={{ width: segment.daysCount * cellW }}
                   >
                     <div
                       className="sticky z-10 flex h-full items-center pointer-events-none"
@@ -550,9 +653,9 @@ export default function GanttChart({
                     } ${
                       isToday ? 'bg-blue-50' : isWeekend ? 'bg-gray-50' : ''
                     }`}
-                    style={{ width: CELL_W }}
+                    style={{ width: cellW }}
                   >
-                    <span className="text-[10px] text-gray-400">
+                    <span className="text-[11px] leading-none text-gray-400">
                       {weekdayNames[day.getDay()]}
                     </span>
                     <span
@@ -621,9 +724,11 @@ export default function GanttChart({
                     ? null
                     : getNightlyRateForDate(pricingByProperty?.[row.property.id], day)
                   return (
-                    <div
+                    <button
                       key={dayKey}
-                      className={`relative shrink-0 border-r border-gray-100 transition-colors ${
+                      type="button"
+                      aria-label={`${row.property.internal_name}, ${weekdayNames[day.getDay()]} ${day.getDate()} ${shortMonthNames[day.getMonth()]}`}
+                      className={`relative shrink-0 border-r border-gray-100 transition-colors focus-visible:z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500 ${
                         isPaused
                           ? 'cursor-not-allowed bg-amber-50/40'
                           : `cursor-pointer ${isPendingRow ? 'hover:bg-violet-100/90' : 'hover:bg-gray-100/50'}`
@@ -645,7 +750,7 @@ export default function GanttChart({
                             ? 'bg-amber-100 ring-2 ring-inset ring-amber-500 border-amber-200'
                           : ''
                       }`}
-                      style={{ width: CELL_W, height: '100%' }}
+                      style={{ width: cellW, height: '100%' }}
                       onMouseEnter={(e) => {
                         if (isPaused) {
                           setRangePreviewTooltip(null)
@@ -704,12 +809,12 @@ export default function GanttChart({
                     >
                       {nightlyRate !== null && (
                         <div className="pointer-events-none flex h-full items-end justify-center pb-1">
-                          <span className={`text-[9px] font-semibold ${isPaused ? 'text-gray-500' : 'text-emerald-700'}`}>
+                          <span className={`text-[10px] font-semibold ${isPaused ? 'text-gray-500' : 'text-emerald-700'}`}>
                             {formatCellPrice(nightlyRate, currencySymbol)}
                           </span>
                         </div>
                       )}
-                    </div>
+                    </button>
                   )
                 })}
 
@@ -719,8 +824,10 @@ export default function GanttChart({
                   if (!pos) return null
 
                   return (
-                    <div
+                    <button
                       key={booking.id}
+                      type="button"
+                      aria-label={`${booking.guest_name}, ${formatBookingDateRangeShort(booking.check_in, booking.check_out, shortMonthNames)}`}
                       draggable
                       onDragStart={(e) => handleDragStart(e, booking, row.property.id)}
                       onDragEnd={handleDragEnd}
@@ -745,7 +852,11 @@ export default function GanttChart({
                         if (isCoarsePointer) return
                         setTooltip(null)
                       }}
-                      className={`absolute rounded-lg cursor-grab active:cursor-grabbing shadow-sm hover:shadow-md transition-shadow ${getStatusBarStyle(booking.status)}`}
+                      className={`absolute cursor-grab active:cursor-grabbing shadow-sm hover:shadow-md transition-shadow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-1 focus-visible:ring-offset-blue-500 ${
+                        // Hourly / sub-day bookings render as a distinct pill so they
+                        // read differently from multi-night bars at min width.
+                        isHourlyBooking(booking) ? 'rounded-full ring-1 ring-white/70' : 'rounded-lg'
+                      } ${getStatusBarStyle(booking.status)}`}
                       style={{
                         left: pos.left,
                         width: pos.width,
@@ -760,6 +871,23 @@ export default function GanttChart({
                         {booking.status === 'checked_in' && (
                           <div className="w-2 h-2 rounded-full bg-white mr-1 shrink-0 animate-pulse" />
                         )}
+                        {/* Hourly badge distinguishes sub-day bookings from nightly stays */}
+                        {isHourlyBooking(booking) && (
+                          <svg
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2.5"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            className="w-2.5 h-2.5 mr-1 shrink-0 text-white"
+                            role="img"
+                            aria-label={t('bookings.rentalMode.hourly')}
+                          >
+                            <circle cx="12" cy="12" r="9" />
+                            <path d="M12 7v5l3 2" />
+                          </svg>
+                        )}
                         <span className="text-[11px] font-semibold text-white truncate">
                           {booking.guest_name}
                         </span>
@@ -770,13 +898,21 @@ export default function GanttChart({
                           <div className="w-full h-[1px] bg-white/70" />
                         </div>
                       )}
-                    </div>
+                    </button>
                   )
                 })}
                 </div>
               )
             })}
           </div>
+          </div>
+          {/* Edge fades hint that the date track scrolls horizontally. */}
+          {scrollShadow.start && (
+            <div className="pointer-events-none absolute inset-y-0 left-0 w-6 bg-gradient-to-r from-black/10 to-transparent" />
+          )}
+          {scrollShadow.end && (
+            <div className="pointer-events-none absolute inset-y-0 right-0 w-6 bg-gradient-to-l from-black/10 to-transparent" />
+          )}
         </div>
       </div>
 
@@ -794,7 +930,7 @@ export default function GanttChart({
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 4, scale: 0.98 }}
             transition={{ duration: 0.15 }}
-            className="fixed z-40 rounded-xl border border-emerald-300/30 bg-emerald-950/95 px-3 py-2 text-white shadow-xl pointer-events-none"
+            className="fixed z-sticky rounded-xl border border-emerald-300/30 bg-emerald-950/95 px-3 py-2 text-white shadow-xl pointer-events-none"
             style={{
               left: rangePreviewTooltip.left,
               top: rangePreviewTooltip.top,
@@ -819,7 +955,7 @@ export default function GanttChart({
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 5 }}
             transition={{ duration: 0.15 }}
-            className="pointer-events-none fixed z-50 max-w-[280px] rounded-xl border border-white/10 bg-gray-950/95 px-3 py-2.5 text-white shadow-lg backdrop-blur-sm"
+            className="pointer-events-none fixed z-popover max-w-[280px] rounded-xl border border-white/10 bg-gray-950/95 px-3 py-2.5 text-white shadow-lg backdrop-blur-sm"
             style={{
               left: tooltip.x,
               top: tooltip.y - 8,
@@ -839,7 +975,7 @@ export default function GanttChart({
             <p className="mt-1 text-[11px] text-gray-300">
               {formatBookingDateRangeShort(tooltip.booking.check_in, tooltip.booking.check_out, shortMonthNames)}
               {' · '}
-              {getBookingNights(tooltip.booking.check_in, tooltip.booking.check_out)}N
+              {formatBookingDuration(tooltip.booking)}
             </p>
             <div className="mt-1 flex items-center gap-1.5 text-[11px] text-gray-300">
               <span>{formatGuestsCompact(tooltip.booking.adults_count, tooltip.booking.children_count)}</span>
@@ -858,7 +994,7 @@ export default function GanttChart({
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 10 }}
             transition={{ duration: 0.2 }}
-            className="fixed inset-x-3 bottom-3 z-50 rounded-xl border border-white/10 bg-gray-950/95 p-3 text-white shadow-lg backdrop-blur-sm"
+            className="fixed inset-x-3 bottom-3 z-overlay rounded-xl border border-white/10 bg-gray-950/95 p-3 text-white shadow-lg backdrop-blur-sm"
           >
             <div className="flex items-center justify-between gap-2">
               <p className="truncate text-sm font-semibold">{touchTooltipBooking.guest_name}</p>
@@ -875,7 +1011,7 @@ export default function GanttChart({
                 shortMonthNames,
               )}
               {' · '}
-              {getBookingNights(touchTooltipBooking.check_in, touchTooltipBooking.check_out)}N
+              {formatBookingDuration(touchTooltipBooking)}
             </p>
             <div className="mt-1 flex items-center gap-1.5 text-[11px] text-gray-300">
               <span>{formatGuestsCompact(touchTooltipBooking.adults_count, touchTooltipBooking.children_count)}</span>
@@ -902,12 +1038,76 @@ export default function GanttChart({
               </button>
               <button
                 type="button"
+                onClick={() => {
+                  setMoveSheetBooking(touchTooltipBooking)
+                  setTouchTooltipBooking(null)
+                }}
+                className="inline-flex min-h-[44px] items-center justify-center rounded-lg border border-white/20 px-3 py-2 text-xs font-bold text-white/90 transition-colors hover:bg-white/10 hover:text-white"
+              >
+                {t('gantt.moveTo')}
+              </button>
+              <button
+                type="button"
                 onClick={() => setTouchTooltipBooking(null)}
                 className="inline-flex min-h-[44px] items-center justify-center rounded-lg border border-white/20 px-3 py-2 text-xs font-bold text-white/80 transition-colors hover:bg-white/10 hover:text-white"
               >
                 {t('common.cancel')}
               </button>
             </div>
+          </motion.div>
+        )}
+        {isCoarsePointer && moveSheetBooking && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 10 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-x-3 bottom-3 z-overlay max-h-[70vh] overflow-hidden rounded-xl border border-white/10 bg-gray-950/95 p-3 text-white shadow-lg backdrop-blur-sm"
+          >
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-sm font-semibold">{t('gantt.moveTo')}</p>
+              <span className="truncate text-[11px] text-gray-400">{moveSheetBooking.guest_name}</span>
+            </div>
+            <div className="mt-3 max-h-[45vh] space-y-1.5 overflow-y-auto">
+              {(() => {
+                const targets = sortedRows.filter(
+                  (row) => row.property.id !== moveSheetBooking.property_id,
+                )
+                if (targets.length === 0) {
+                  return (
+                    <p className="rounded-lg border border-dashed border-white/15 px-3 py-3 text-center text-xs text-gray-400">
+                      {t('gantt.noMoveTargets')}
+                    </p>
+                  )
+                }
+                return targets.map((row) => {
+                  const isPaused = row.property.status === 'paused'
+                  return (
+                    <button
+                      key={row.property.id}
+                      type="button"
+                      disabled={isPaused}
+                      onClick={() => handleMoveBookingTo(moveSheetBooking, row.property.id)}
+                      className="flex min-h-[44px] w-full items-center justify-between gap-2 rounded-lg border border-white/15 px-3 py-2 text-left text-xs font-semibold text-white transition-colors hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      <span className="truncate">{row.property.internal_name}</span>
+                      {isPaused && (
+                        <span className="shrink-0 rounded-md border border-amber-300/40 bg-amber-400/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-200">
+                          {t('common.paused')}
+                        </span>
+                      )}
+                    </button>
+                  )
+                })
+              })()}
+            </div>
+            <button
+              type="button"
+              onClick={() => setMoveSheetBooking(null)}
+              className="mt-3 inline-flex min-h-[44px] w-full items-center justify-center rounded-lg border border-white/20 px-3 py-2 text-xs font-bold text-white/80 transition-colors hover:bg-white/10 hover:text-white"
+            >
+              {t('common.cancel')}
+            </button>
           </motion.div>
         )}
       </AnimatePresence>

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import re
 import uuid
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from urllib.parse import quote, urlparse
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
@@ -12,6 +12,7 @@ from fastapi.responses import Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.application.booking.change_booking_status import ChangeBookingStatusService
+from app.application.booking.check_availability import CheckAvailabilityService
 from app.application.booking.create_booking import (
     CreateBookingInput,
     CreateBookingService,
@@ -28,9 +29,12 @@ from app.application.booking.update_booking import (
     UpdateBookingService,
 )
 from app.config import settings
+from app.domain.auth.permissions import Permission
 from app.domain.booking.entities import BookingComment, BookingFile
-from app.domain.booking.value_objects import BookingSource, BookingStatus
+from app.domain.booking.value_objects import BookingSource, BookingStatus, RentalMode
+from app.domain.messaging.value_objects import NotificationEvent
 from app.infrastructure.database import get_session
+from app.infrastructure.messaging.factory import build_notification_service
 from app.infrastructure.repositories.booking import (
     SqlBookingAuditLogRepository,
     SqlBookingCommentRepository,
@@ -52,8 +56,10 @@ from app.infrastructure.storage.s3 import (
     download_booking_file,
     upload_booking_file,
 )
-from app.presentation.api.deps import get_company_id, get_user_id
+from app.presentation.api.deps import get_company_id, get_user_id, require
 from app.presentation.schemas.booking import (
+    AvailabilityResponse,
+    AvailablePropertyResponse,
     BookingAuditLogResponse,
     BookingCommentCreate,
     BookingCommentResponse,
@@ -125,6 +131,7 @@ def _to_booking_response(
         group_booking_id=b.group_booking_id,
         check_in=b.check_in,
         check_out=b.check_out,
+        rental_mode=b.rental_mode,
         source=b.source,
         status=b.status,
         gantt_color=b.gantt_color,
@@ -184,7 +191,41 @@ def _content_disposition(filename: str) -> str:
 # ---------- Booking CRUD ----------
 
 
-@booking_router.post("", response_model=BookingResponse, status_code=201)
+async def _notify_booking(
+    session: AsyncSession,
+    company_id: uuid.UUID,
+    event: NotificationEvent,
+    booking,
+    repos: dict,
+) -> None:
+    """Queue a host notification in the same transaction as the change itself.
+
+    A company with no bot connected queues nothing, so this is a no-op until
+    someone links a chat.
+    """
+    prop = await repos["property"].get_by_id(booking.property_id)
+    guest = await repos["guest"].get_by_id(booking.guest_id) if booking.guest_id else None
+    await build_notification_service(session).notify_company(
+        company_id,
+        event,
+        {
+            "property_name": prop.name if prop else "—",
+            "guest_name": guest.name if guest else "—",
+            "check_in": booking.check_in.strftime("%d.%m.%Y %H:%M"),
+            "check_out": booking.check_out.strftime("%d.%m.%Y %H:%M"),
+            "total_price": str(booking.total_price) if booking.total_price is not None else None,
+            "source": booking.source.value,
+            "booking_id": str(booking.id),
+        },
+    )
+
+
+@booking_router.post(
+    "",
+    response_model=BookingResponse,
+    status_code=201,
+    dependencies=[Depends(require(Permission.BOOKINGS_WRITE))],
+)
 async def create_booking(
     body: BookingCreate,
     session: AsyncSession = Depends(get_session),
@@ -209,6 +250,7 @@ async def create_booking(
                 guest_email=body.guest_email,
                 check_in=body.check_in,
                 check_out=body.check_out,
+                rental_mode=body.rental_mode,
                 source=body.source,
                 adults_count=body.adults_count,
                 children_count=body.children_count,
@@ -217,6 +259,7 @@ async def create_booking(
                 changed_by=user_id,
             )
         )
+        await _notify_booking(session, company_id, NotificationEvent.BOOKING_CREATED, result, repos)
         await session.commit()
         return _to_booking_response(result)
     except ValueError as e:
@@ -224,7 +267,7 @@ async def create_booking(
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@booking_router.get("", response_model=BookingListResponse)
+@booking_router.get("", response_model=BookingListResponse, dependencies=[Depends(require(Permission.BOOKINGS_READ))])
 async def list_bookings(
     page: int = Query(default=1, ge=1),
     per_page: int = Query(default=50, ge=1, le=100),
@@ -277,7 +320,11 @@ async def list_bookings(
     )
 
 
-@booking_router.get("/today", response_model=TodayCheckResponse)
+@booking_router.get(
+    "/today",
+    response_model=TodayCheckResponse,
+    dependencies=[Depends(require(Permission.BOOKINGS_READ))],
+)
 async def get_today(
     date_value: date | None = Query(default=None, alias="date"),
     session: AsyncSession = Depends(get_session),
@@ -311,22 +358,26 @@ async def get_today(
             property_status=prop.status if prop else None,
             check_in=b.check_in,
             check_out=b.check_out,
+            rental_mode=b.rental_mode,
             status=b.status,
             adults_count=b.adults_count,
             children_count=b.children_count,
         )
+        # check_in/check_out are datetimes; compare on their calendar date.
+        check_in_date = b.check_in.date() if b.check_in is not None else None
+        check_out_date = b.check_out.date() if b.check_out is not None else None
         if (
-            b.check_in == today
+            check_in_date == today
             and b.status in {BookingStatus.PENDING, BookingStatus.CONFIRMED}
         ):
             check_ins.append(item)
-        if b.check_out == today and b.status == BookingStatus.CHECKED_IN:
+        if check_out_date == today and b.status == BookingStatus.CHECKED_IN:
             check_outs.append(item)
         if (
             b.status == BookingStatus.CHECKED_IN
-            and b.check_in is not None
-            and b.check_out is not None
-            and b.check_in <= today < b.check_out
+            and check_in_date is not None
+            and check_out_date is not None
+            and check_in_date <= today < check_out_date
         ):
             in_house.append(item)
 
@@ -337,7 +388,11 @@ async def get_today(
     )
 
 
-@booking_router.get("/{booking_id:uuid}", response_model=BookingDetailResponse)
+@booking_router.get(
+    "/{booking_id:uuid}",
+    response_model=BookingDetailResponse,
+    dependencies=[Depends(require(Permission.BOOKINGS_READ))],
+)
 async def get_booking(
     booking_id: uuid.UUID,
     session: AsyncSession = Depends(get_session),
@@ -377,7 +432,11 @@ async def get_booking(
     )
 
 
-@booking_router.patch("/{booking_id:uuid}", response_model=BookingResponse)
+@booking_router.patch(
+    "/{booking_id:uuid}",
+    response_model=BookingResponse,
+    dependencies=[Depends(require(Permission.BOOKINGS_WRITE))],
+)
 async def update_booking(
     booking_id: uuid.UUID,
     body: BookingUpdate,
@@ -386,7 +445,9 @@ async def update_booking(
     user_id: uuid.UUID | None = Depends(get_user_id),
 ):
     repos = _repos(session)
-    svc = UpdateBookingService(repos["booking"], repos["audit"], _price_calculator(repos))
+    svc = UpdateBookingService(
+        repos["booking"], repos["property"], repos["audit"], _price_calculator(repos)
+    )
 
     provided = body.model_dump(exclude_unset=True)
     inp = UpdateBookingInput(booking_id=booking_id, company_id=company_id, changed_by=user_id)
@@ -402,7 +463,11 @@ async def update_booking(
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@booking_router.post("/{booking_id:uuid}/status", response_model=BookingResponse)
+@booking_router.post(
+    "/{booking_id:uuid}/status",
+    response_model=BookingResponse,
+    dependencies=[Depends(require(Permission.BOOKINGS_WRITE))],
+)
 async def change_booking_status(
     booking_id: uuid.UUID,
     body: BookingStatusChange,
@@ -414,6 +479,10 @@ async def change_booking_status(
     svc = ChangeBookingStatusService(repos["booking"], repos["audit"])
     try:
         result = await svc.execute(booking_id, company_id, body.target_status, changed_by=user_id)
+        if body.target_status == BookingStatus.CANCELLED:
+            await _notify_booking(
+                session, company_id, NotificationEvent.BOOKING_CANCELLED, result, repos
+            )
         await session.commit()
         return _to_booking_response(result)
     except ValueError as e:
@@ -421,7 +490,11 @@ async def change_booking_status(
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@booking_router.post("/{booking_id:uuid}/move", response_model=BookingResponse)
+@booking_router.post(
+    "/{booking_id:uuid}/move",
+    response_model=BookingResponse,
+    dependencies=[Depends(require(Permission.BOOKINGS_WRITE))],
+)
 async def move_booking(
     booking_id: uuid.UUID,
     body: BookingMove,
@@ -443,7 +516,64 @@ async def move_booking(
 # ---------- Price Calculator ----------
 
 
-@booking_router.post("/calculate-price", response_model=PriceCalculateResponse)
+@booking_router.get(
+    "/availability",
+    response_model=AvailabilityResponse,
+    dependencies=[Depends(require(Permission.BOOKINGS_READ))],
+)
+async def get_availability(
+    check_in: datetime = Query(...),
+    check_out: datetime = Query(...),
+    adults_count: int = Query(default=1, ge=1),
+    children_count: int = Query(default=0, ge=0),
+    rental_mode: RentalMode = Query(default=RentalMode.DAILY),
+    session: AsyncSession = Depends(get_session),
+    company_id: uuid.UUID = Depends(get_company_id),
+):
+    """Properties free for the period, cheapest first, with a quote each.
+
+    Used by the Mini App and the bots, and available to any integration holding
+    a `bookings:read` key.
+    """
+    repos = _repos(session)
+    svc = CheckAvailabilityService(repos["property"], repos["booking"], _price_calculator(repos))
+    try:
+        available = await svc.execute(
+            company_id,
+            check_in,
+            check_out,
+            adults_count=adults_count,
+            children_count=children_count,
+            rental_mode=rental_mode,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    return AvailabilityResponse(
+        check_in=check_in,
+        check_out=check_out,
+        rental_mode=rental_mode,
+        items=[
+            AvailablePropertyResponse(
+                property_id=item.property.id,
+                name=item.property.name,
+                internal_name=item.property.internal_name,
+                rental_mode=item.property.rental_mode,
+                rooms=item.property.rooms,
+                beds=item.property.beds,
+                total_price=item.total_price,
+                price_error=item.price_error,
+            )
+            for item in available
+        ],
+    )
+
+
+@booking_router.post(
+    "/calculate-price",
+    response_model=PriceCalculateResponse,
+    dependencies=[Depends(require(Permission.BOOKINGS_READ))],
+)
 async def calculate_price(
     body: PriceCalculateRequest,
     session: AsyncSession = Depends(get_session),
@@ -458,9 +588,12 @@ async def calculate_price(
             body.check_out,
             body.adults_count,
             body.children_count,
+            body.rental_mode,
         )
         return PriceCalculateResponse(
             nights=result.nights,
+            hours=result.units if result.unit_label == "hours" else 0,
+            unit_label=result.unit_label,
             base_total=result.base_total,
             weekend_surcharge=result.weekend_surcharge,
             seasonal_adjustment=result.seasonal_adjustment,
@@ -475,7 +608,12 @@ async def calculate_price(
 # ---------- Payments ----------
 
 
-@booking_router.post("/{booking_id:uuid}/payments", response_model=PaymentResponse, status_code=201)
+@booking_router.post(
+    "/{booking_id:uuid}/payments",
+    response_model=PaymentResponse,
+    status_code=201,
+    dependencies=[Depends(require(Permission.BOOKINGS_WRITE))],
+)
 async def add_payment(
     booking_id: uuid.UUID,
     body: PaymentCreate,
@@ -500,7 +638,11 @@ async def add_payment(
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@booking_router.get("/{booking_id:uuid}/payments", response_model=list[PaymentResponse])
+@booking_router.get(
+    "/{booking_id:uuid}/payments",
+    response_model=list[PaymentResponse],
+    dependencies=[Depends(require(Permission.BOOKINGS_READ))],
+)
 async def list_payments(
     booking_id: uuid.UUID,
     session: AsyncSession = Depends(get_session),
@@ -518,7 +660,12 @@ async def list_payments(
 # ---------- Deposits ----------
 
 
-@booking_router.post("/{booking_id:uuid}/deposits", response_model=DepositResponse, status_code=201)
+@booking_router.post(
+    "/{booking_id:uuid}/deposits",
+    response_model=DepositResponse,
+    status_code=201,
+    dependencies=[Depends(require(Permission.BOOKINGS_WRITE))],
+)
 async def create_deposit(
     booking_id: uuid.UUID,
     body: DepositCreate,
@@ -565,7 +712,11 @@ async def deposit_action(
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@booking_router.get("/{booking_id:uuid}/deposits", response_model=list[DepositResponse])
+@booking_router.get(
+    "/{booking_id:uuid}/deposits",
+    response_model=list[DepositResponse],
+    dependencies=[Depends(require(Permission.BOOKINGS_READ))],
+)
 async def list_deposits(
     booking_id: uuid.UUID,
     session: AsyncSession = Depends(get_session),
@@ -583,7 +734,12 @@ async def list_deposits(
 # ---------- Files ----------
 
 
-@booking_router.post("/{booking_id:uuid}/files", response_model=BookingFileResponse, status_code=201)
+@booking_router.post(
+    "/{booking_id:uuid}/files",
+    response_model=BookingFileResponse,
+    status_code=201,
+    dependencies=[Depends(require(Permission.BOOKINGS_WRITE))],
+)
 async def add_file(
     booking_id: uuid.UUID,
     file: UploadFile = File(...),
@@ -617,7 +773,11 @@ async def add_file(
     return _to_file_response(result)
 
 
-@booking_router.get("/{booking_id:uuid}/files", response_model=list[BookingFileResponse])
+@booking_router.get(
+    "/{booking_id:uuid}/files",
+    response_model=list[BookingFileResponse],
+    dependencies=[Depends(require(Permission.BOOKINGS_READ))],
+)
 async def list_files(
     booking_id: uuid.UUID,
     session: AsyncSession = Depends(get_session),
@@ -631,7 +791,10 @@ async def list_files(
     return [_to_file_response(f) for f in result]
 
 
-@booking_router.get("/{booking_id:uuid}/files/{file_id}/download")
+@booking_router.get(
+    "/{booking_id:uuid}/files/{file_id}/download",
+    dependencies=[Depends(require(Permission.BOOKINGS_READ))],
+)
 async def download_file(
     booking_id: uuid.UUID,
     file_id: uuid.UUID,
@@ -666,7 +829,11 @@ async def download_file(
     )
 
 
-@booking_router.delete("/{booking_id:uuid}/files/{file_id}", status_code=204)
+@booking_router.delete(
+    "/{booking_id:uuid}/files/{file_id}",
+    status_code=204,
+    dependencies=[Depends(require(Permission.BOOKINGS_WRITE))],
+)
 async def delete_file(
     booking_id: uuid.UUID,
     file_id: uuid.UUID,
@@ -684,7 +851,12 @@ async def delete_file(
 # ---------- Comments ----------
 
 
-@booking_router.post("/{booking_id:uuid}/comments", response_model=BookingCommentResponse, status_code=201)
+@booking_router.post(
+    "/{booking_id:uuid}/comments",
+    response_model=BookingCommentResponse,
+    status_code=201,
+    dependencies=[Depends(require(Permission.BOOKINGS_WRITE))],
+)
 async def add_comment(
     booking_id: uuid.UUID,
     body: BookingCommentCreate,
@@ -708,7 +880,11 @@ async def add_comment(
     return BookingCommentResponse.model_validate(result, from_attributes=True)
 
 
-@booking_router.get("/{booking_id:uuid}/comments", response_model=list[BookingCommentResponse])
+@booking_router.get(
+    "/{booking_id:uuid}/comments",
+    response_model=list[BookingCommentResponse],
+    dependencies=[Depends(require(Permission.BOOKINGS_READ))],
+)
 async def list_comments(
     booking_id: uuid.UUID,
     session: AsyncSession = Depends(get_session),
@@ -725,7 +901,11 @@ async def list_comments(
 # ---------- Audit Log ----------
 
 
-@booking_router.get("/{booking_id:uuid}/audit-log", response_model=list[BookingAuditLogResponse])
+@booking_router.get(
+    "/{booking_id:uuid}/audit-log",
+    response_model=list[BookingAuditLogResponse],
+    dependencies=[Depends(require(Permission.BOOKINGS_READ))],
+)
 async def get_audit_log(
     booking_id: uuid.UUID,
     offset: int = Query(default=0, ge=0),
@@ -759,6 +939,7 @@ def _build_gantt_response(result) -> GanttDataResponse:
                         guest_name=b.guest_name,
                         check_in=b.check_in,
                         check_out=b.check_out,
+                        rental_mode=b.rental_mode,
                         status=b.status,
                         source=b.source,
                         gantt_color=b.gantt_color,
@@ -775,8 +956,12 @@ def _build_gantt_response(result) -> GanttDataResponse:
     )
 
 
-@booking_router.get("/gantt", response_model=GanttDataResponse)
-@gantt_router.get("", response_model=GanttDataResponse)
+@booking_router.get(
+    "/gantt",
+    response_model=GanttDataResponse,
+    dependencies=[Depends(require(Permission.BOOKINGS_READ))],
+)
+@gantt_router.get("", response_model=GanttDataResponse, dependencies=[Depends(require(Permission.BOOKINGS_READ))])
 async def get_gantt_data(
     start_date: date = Query(...),
     end_date: date = Query(...),
@@ -792,7 +977,7 @@ async def get_gantt_data(
 # ---------- Guests ----------
 
 
-@guest_router.get("", response_model=GuestListResponse)
+@guest_router.get("", response_model=GuestListResponse, dependencies=[Depends(require(Permission.BOOKINGS_READ))])
 async def list_guests(
     offset: int = Query(default=0, ge=0),
     limit: int = Query(default=50, ge=1, le=100),
@@ -816,7 +1001,11 @@ async def list_guests(
     )
 
 
-@guest_router.get("/{guest_id}", response_model=GuestResponse)
+@guest_router.get(
+    "/{guest_id}",
+    response_model=GuestResponse,
+    dependencies=[Depends(require(Permission.BOOKINGS_READ))],
+)
 async def get_guest(
     guest_id: uuid.UUID,
     session: AsyncSession = Depends(get_session),

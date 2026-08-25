@@ -19,6 +19,9 @@ _MUTATE_LIMIT = 30
 
 # Paths excluded from rate limiting
 _EXCLUDED_PATHS = {"/api/v1/health", "/health"}
+# Provider webhooks: a 429 makes Telegram and whapi redeliver the same update
+# instead of backing off, so throttling them makes the burst worse.
+_EXCLUDED_PREFIXES = ("/api/v1/webhooks/",)
 
 
 def _get_redis():
@@ -47,6 +50,14 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
         # Skip excluded paths
         if request.url.path in _EXCLUDED_PATHS:
+            return await call_next(request)
+        if request.url.path.startswith(_EXCLUDED_PREFIXES):
+            return await call_next(request)
+
+        # Never rate-limit CORS preflight: browsers auto-send OPTIONS and a 429
+        # here would short-circuit before the CORS middleware, so the browser
+        # would report an opaque CORS failure instead of a rate-limit response.
+        if request.method.upper() == "OPTIONS":
             return await call_next(request)
 
         r = self._ensure_redis()

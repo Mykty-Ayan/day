@@ -14,7 +14,7 @@ logs:
 
 # Database migrations (run locally)
 migrate:
-	cd day-backend && uv run alembic -x sqlalchemy.url=postgresql+asyncpg://day:changeme@localhost:5432/day upgrade head
+	cd day-backend && uv run alembic -x sqlalchemy.url=postgresql+asyncpg://day:changeme@localhost:5433/day upgrade head
 
 # Seed demo data
 seed:

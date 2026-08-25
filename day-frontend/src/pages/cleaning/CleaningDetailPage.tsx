@@ -10,7 +10,7 @@ import Button from '../../components/ui/Button'
 import { showToast } from '../../components/ui/Toast'
 import Spinner from '../../components/ui/Spinner'
 import { useChangeCleaningTaskStatus, useCleaningTask } from '../../hooks/useCleaning'
-import type { CleaningStatus, CleaningTaskDetail } from '../../types/cleaning'
+import type { CleaningStatus, CleaningTaskDetail, CleaningType } from '../../types/cleaning'
 import { CLEANING_VALID_TRANSITIONS } from '../../types/cleaning'
 
 type Tab = 'overview' | 'report'
@@ -29,7 +29,18 @@ export default function CleaningDetailPage() {
 
   if (!data) {
     return (
-      <div className="px-4 py-4 sm:px-6 sm:py-6 text-center text-gray-400">{t('cleaning.taskNotFound')}</div>
+      <div className="px-4 py-4 sm:px-6 sm:py-6 max-w-4xl mx-auto">
+        <Link
+          to="/cleaning"
+          className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 mb-4"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          {t('cleaning.backToCleaningTasks')}
+        </Link>
+        <div className="flex flex-col items-center justify-center py-20 text-center">
+          <p className="text-sm text-gray-500">{t('cleaning.taskNotFound')}</p>
+        </div>
+      </div>
     )
   }
 
@@ -56,7 +67,7 @@ export default function CleaningDetailPage() {
       <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
           <h1 className="text-2xl font-bold text-gray-900">
-            {data.task.property_name || 'Cleaning Task'}
+            {data.task.property_name || t('cleaner.cleaningTask')}
           </h1>
           <p className="mt-1 truncate text-sm text-gray-400">
             {data.task.property_internal_name}
@@ -70,10 +81,15 @@ export default function CleaningDetailPage() {
 
       {/* Tabs */}
       <div className="mb-6 overflow-x-auto">
-        <div className="flex min-w-max gap-1 rounded-xl bg-gray-100 p-1">
+        <div className="flex flex-wrap gap-1 rounded-xl bg-gray-100 p-1" role="tablist">
           {TABS.map((tab) => (
             <button
               key={tab}
+              type="button"
+              role="tab"
+              id={`cleaning-tab-${tab}`}
+              aria-selected={activeTab === tab}
+              aria-controls={`cleaning-panel-${tab}`}
               onClick={() => setActiveTab(tab)}
               className={`min-h-[44px] whitespace-nowrap rounded-lg px-4 py-2 text-sm font-medium transition-all ${
                 activeTab === tab
@@ -90,6 +106,9 @@ export default function CleaningDetailPage() {
       <AnimatePresence mode="wait">
         <motion.div
           key={activeTab}
+          role="tabpanel"
+          id={`cleaning-panel-${activeTab}`}
+          aria-labelledby={`cleaning-tab-${activeTab}`}
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -8 }}
@@ -107,6 +126,12 @@ function OverviewTab({ data }: { data: CleaningTaskDetail }) {
   const { t } = useTranslation()
   const { task } = data
   const statusMutation = useChangeCleaningTaskStatus(task.id)
+
+  const typeLabels: Record<CleaningType, string> = {
+    post_checkout: t('cleaning.types.postCheckout'),
+    mid_stay: t('cleaning.types.midStay'),
+    on_demand: t('cleaning.types.onDemand'),
+  }
 
   const nextStatuses = CLEANING_VALID_TRANSITIONS[task.status]
 
@@ -128,7 +153,7 @@ function OverviewTab({ data }: { data: CleaningTaskDetail }) {
         <div className="grid grid-cols-1 gap-4 text-sm sm:grid-cols-2">
           <div>
             <span className="text-gray-400">{t('cleaning.type')}</span>
-            <p className="font-medium mt-1">{task.type}</p>
+            <p className="font-medium mt-1">{typeLabels[task.type]}</p>
           </div>
           <div>
             <span className="text-gray-400">{t('common.status')}</span>
@@ -145,8 +170,10 @@ function OverviewTab({ data }: { data: CleaningTaskDetail }) {
             <p className="font-medium mt-1">{task.scheduled_time || '—'}</p>
           </div>
           <div>
-            <span className="text-gray-400">{t('cleaning.cleanerId')}</span>
-            <p className="font-medium mt-1">{task.cleaner_id || 'Unassigned'}</p>
+            <span className="text-gray-400">{t('cleaning.cleaner')}</span>
+            <p className="font-medium mt-1">
+              {task.cleaner_name || (task.cleaner_id ? t('cleaning.assignedCleaner') : t('cleaning.unassigned'))}
+            </p>
           </div>
           <div>
             <span className="text-gray-400">{t('cleaning.bookingId')}</span>
@@ -226,8 +253,8 @@ function ReportTab({ data }: { data: CleaningTaskDetail }) {
         <div className="mb-4 grid grid-cols-1 gap-4 text-sm sm:grid-cols-2">
           <div>
             <span className="text-gray-400">{t('common.status')}</span>
-            <p className="font-medium mt-1 capitalize">
-              {report.report.status}
+            <p className="font-medium mt-1">
+              {t('cleaning.reportStatus.' + report.report.status)}
             </p>
           </div>
           <div>
@@ -263,8 +290,8 @@ function ReportTab({ data }: { data: CleaningTaskDetail }) {
                   {photo.url}
                 </div>
                 <div className="p-2 text-xs">
-                  <span className="text-gray-400 capitalize">
-                    {photo.room_type}
+                  <span className="text-gray-400">
+                    {t('cleaning.roomTypes.' + photo.room_type)}
                   </span>
                   {photo.metadata_verified && (
                     <span className="ml-2 text-green-600">{t('cleaning.verified')}</span>
@@ -283,7 +310,7 @@ function ReportTab({ data }: { data: CleaningTaskDetail }) {
             {t('cleaning.checklist')} ({report.checklist.length})
           </h3>
           <div className="space-y-2">
-            {report.checklist.map((item) => (
+            {report.checklist.map((item, index) => (
               <div
                 key={item.id}
                 className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg"
@@ -297,7 +324,7 @@ function ReportTab({ data }: { data: CleaningTaskDetail }) {
                 >
                   {item.is_done && <CheckCircle2 className="w-3 h-3" />}
                 </div>
-                <span className="text-sm">{item.checklist_item_id}</span>
+                <span className="text-sm">{t('cleaning.checklistItem', { number: index + 1 })}</span>
                 {item.note && (
                   <span className="text-xs text-gray-400 ml-auto">
                     {item.note}

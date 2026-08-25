@@ -56,6 +56,14 @@
     "reason": "Reason",
     "selectDate": "Select date",
     "selectTime": "Select time",
+    "timeInputHint": "HH:MM",
+    "noResults": "No matches",
+    "time": "Time",
+    "selected": "Selected",
+    "pickDate": "Pick a date",
+    "selectDates": "Select dates",
+    "increment": "Increment",
+    "decrement": "Decrement",
     "amount": "Amount",
     "created": "Created",
     "direct": "Direct",
@@ -79,6 +87,9 @@
     "transfer": "Transfer",
     "processing": "Processing...",
     "retry": "Retry",
+    "unknown": "Unknown",
+    "errorTitle": "Something went wrong",
+    "errorLoading": "We couldn't load this data. Please try again.",
     "logout": "Log out"
   },
   "home": {
@@ -94,12 +105,14 @@
     "searchPlaceholder": "Search by name...",
     "noProperties": "No properties found",
     "createFirst": "Create your first property",
+    "tagsLabel": "Filter by tag",
     "createProperty": "Create Property",
     "backToProperties": "Back to properties",
     "cloneProperty": "Clone Property",
     "clonePropertyMessage": "Create a copy of \"{{name}}\" with all its details?",
     "propertyCloned": "Property cloned",
     "failedClone": "Failed to clone property",
+    "propertyCreated": "Property created",
     "propertyUpdated": "Property updated",
     "failedUpdate": "Failed to update property",
     "failedCreate": "Failed to create property. Please try again.",
@@ -110,7 +123,38 @@
     "description": "Description",
     "rules": "Rules",
     "amenities": "Amenities",
-    "pricing": "Pricing",
+    "pricing": {
+      "title": "Pricing",
+      "basePricing": "Base Pricing",
+      "rentalMode": "Rental Mode",
+      "daily": "Daily",
+      "hourly": "Hourly",
+      "both": "Both",
+      "basePrice": "Base Price",
+      "hourlyPrice": "Hourly Price",
+      "weekendMarkup": "Weekend Markup (%)",
+      "defaultDeposit": "Default Deposit",
+      "baseGuests": "Base Guests",
+      "extraAdultPrice": "Extra Adult Price",
+      "extraChildPrice": "Extra Child Price",
+      "savePricing": "Save Pricing",
+      "seasonalPrices": "Seasonal Prices",
+      "suggestedSeasons": "Suggested seasons from other properties",
+      "addSuggestion": "Add \"{{name}}\" ({{start}} – {{end}})",
+      "moreSuggestions": "{{count}} more suggestions available after adding existing ones.",
+      "namePlaceholder": "Name",
+      "startDatePlaceholder": "Start date",
+      "endDatePlaceholder": "End date",
+      "pricePlaceholder": "Price",
+      "addSeasonalAria": "Add seasonal price",
+      "discountRules": "Discount Rules",
+      "discountLabel": "{{nights}}+ nights: {{amount}} off",
+      "minNightsPlaceholder": "Min nights",
+      "valuePlaceholder": "Value",
+      "percent": "Percent",
+      "fixed": "Fixed",
+      "addDiscountAria": "Add discount rule"
+    },
     "checkIn": "Check-in",
     "checkOut": "Check-out",
     "houseRules": "House Rules",
@@ -167,7 +211,31 @@
       "houseRules": "House Rules",
       "searchAmenities": "Search amenities...",
       "noAmenities": "No amenities available yet.",
-      "amenitiesSelected": "{{count}} amenities selected"
+      "amenitiesSelected": "{{count}} amenities selected",
+      "hourlyPrice": "Hourly Price",
+      "rentalMode": "Rental Mode",
+      "rentalModeDaily": "Daily",
+      "rentalModeHourly": "Hourly",
+      "rentalModeBoth": "Both",
+      "publicNamePlaceholder": "Cozy Downtown Studio",
+      "internalNamePlaceholder": "APT-001-Downtown",
+      "descriptionPlaceholder": "A beautiful property in the heart of the city...",
+      "sourceUrlPlaceholder": "https://booking.com/...",
+      "fullAddressPlaceholder": "123 Main Street, City, Country",
+      "apartmentNumberPlaceholder": "4B",
+      "entrancePlaceholder": "A",
+      "blockPlaceholder": "B",
+      "floorPlaceholder": "3",
+      "latitudePlaceholder": "43.2381",
+      "longitudePlaceholder": "76.9454",
+      "dropPhotos": "Drop photos here or click to upload",
+      "photoHint": "PNG, JPG up to 10MB",
+      "setAsCover": "Set as cover",
+      "cover": "Cover",
+      "amenitiesError": "Failed to load amenities",
+      "checkInInstructionsPlaceholder": "Key is in the lockbox by the front door. Code: ...",
+      "checkOutInstructionsPlaceholder": "Please leave the keys on the kitchen table...",
+      "houseRulesPlaceholder": "No smoking. No pets. Quiet hours 22:00-08:00..."
     },
     "validation": {
       "nameRequired": "Name is required",
@@ -183,7 +251,12 @@
     },
     "perNight": "/ night",
     "roomsCount": "{{count}} rooms",
-    "bedsCount": "{{count}} beds"
+    "bedsCount": "{{count}} beds",
+    "tags": {
+      "create": "Create tag",
+      "namePlaceholder": "Tag name",
+      "color": "Tag color"
+    }
   },
   "bookings": {
     "title": "Bookings",
@@ -214,6 +287,7 @@
     "adults": "Adults",
     "children": "Children",
     "selectProperty": "Select property...",
+    "paused": "paused",
     "tabs": {
       "overview": "Overview",
       "payments": "Payments",
@@ -238,7 +312,12 @@
       "totalPaidOverpaid": "Total / Paid / Overpaid",
       "daily": "Daily",
       "firstDay": "First day",
-      "overpaid": "Overpaid"
+      "overpaid": "Overpaid",
+      "paymentStatus": {
+        "pending": "Pending",
+        "completed": "Completed",
+        "failed": "Failed"
+      }
     },
     "deposits": {
       "createDeposit": "Create Deposit",
@@ -249,7 +328,14 @@
       "hold": "Hold",
       "partiallyHold": "Partially Hold",
       "held": "Held",
-      "amountToHold": "Amount to hold"
+      "amountToHold": "Amount to hold",
+      "status": {
+        "pending": "Pending",
+        "paid": "Paid",
+        "returned": "Returned",
+        "held": "Held",
+        "partiallyHeld": "Partially Held"
+      }
     },
     "files": {
       "files": "Files",
@@ -266,6 +352,8 @@
     "unableToCalculate": "Unable to calculate price.",
     "nights": "{{count}} night",
     "nights_other": "{{count}} nights",
+    "hours": "{{count}} hour",
+    "hours_other": "{{count}} hours",
     "weekendSurcharge": "Weekend surcharge",
     "seasonalAdjustment": "Seasonal adjustment",
     "extraGuestSurcharge": "Extra guest surcharge",
@@ -283,7 +371,11 @@
       "dateRangeOverlap": "Date range overlaps with an existing booking",
       "guestNameRequired": "Guest name is required",
       "guestPhoneRequired": "Guest phone is required",
-      "atLeastOneAdult": "At least 1 adult required"
+      "atLeastOneAdult": "At least 1 adult required",
+      "dateRequired": "Date is required",
+      "startTimeRequired": "Start time is required",
+      "endTimeRequired": "End time is required",
+      "endTimeAfterStart": "End time must be after start time"
     },
     "sources": {
       "direct": "Direct",
@@ -305,7 +397,16 @@
       "purple": "Purple",
       "pink": "Pink",
       "cyan": "Cyan"
-    }
+    },
+    "rentalMode": {
+      "label": "Rental mode",
+      "daily": "Daily",
+      "hourly": "Hourly"
+    },
+    "date": "Date",
+    "startTime": "Start time",
+    "endTime": "End time",
+    "selectTime": "Select time"
   },
   "today": {
     "title": "Today",
@@ -335,8 +436,31 @@
     "pausedUnavailable": "Paused properties are unavailable for booking",
     "inHouse": "In house",
     "sourceBcom": "Bcom",
-    "weekdays": { "0": "Sun", "1": "Mon", "2": "Tue", "3": "Wed", "4": "Thu", "5": "Fri", "6": "Sat" },
-    "monthsShort": { "0": "Jan", "1": "Feb", "2": "Mar", "3": "Apr", "4": "May", "5": "Jun", "6": "Jul", "7": "Aug", "8": "Sep", "9": "Oct", "10": "Nov", "11": "Dec" },
+    "moveTo": "Move to…",
+    "noMoveTargets": "No other properties available",
+    "weekdays": {
+      "0": "Sun",
+      "1": "Mon",
+      "2": "Tue",
+      "3": "Wed",
+      "4": "Thu",
+      "5": "Fri",
+      "6": "Sat"
+    },
+    "monthsShort": {
+      "0": "Jan",
+      "1": "Feb",
+      "2": "Mar",
+      "3": "Apr",
+      "4": "May",
+      "5": "Jun",
+      "6": "Jul",
+      "7": "Aug",
+      "8": "Sep",
+      "9": "Oct",
+      "10": "Nov",
+      "11": "Dec"
+    },
     "months": {
       "0": "January",
       "1": "February",
@@ -392,6 +516,14 @@
     "submitted": "Submitted",
     "photos": "Photos",
     "checklist": "Checklist",
+    "reportStatus": {
+      "submitted": "Submitted",
+      "approved": "Approved",
+      "rejected": "Rejected"
+    },
+    "checklistItem": "Item {{number}}",
+    "assignedCleaner": "Assigned cleaner",
+    "atTime": "at {{time}}",
     "types": {
       "postCheckout": "Post Checkout",
       "midStay": "Mid Stay",
@@ -419,7 +551,8 @@
       "kitchen": "Kitchen",
       "bedroom": "Bedroom",
       "other": "Other"
-    }
+    },
+    "noCleaners": "No cleaners yet — add one under Team & API keys"
   },
   "checklists": {
     "title": "Checklist Templates",
@@ -491,7 +624,8 @@
     "taskNotFound": "Task not found",
     "cleaningTask": "Cleaning Task",
     "activeCount": "Active ({{count}})",
-    "completedCount": "Completed ({{count}})"
+    "completedCount": "Completed ({{count}})",
+    "backToTasks": "Back to tasks"
   },
   "aiImport": {
     "title": "AI Import",
@@ -567,5 +701,102 @@
     "language": "Language",
     "languageDescription": "Choose the interface language",
     "saved": "Settings saved"
+  },
+  "team": {
+    "title": "Team & API keys",
+    "settingsHint": "Accounts for managers and cleaners, service keys for bots",
+    "ownerOnly": "Only the company owner can manage the team and API keys",
+    "members": "Team",
+    "membersDescription": "Managers run the business; cleaners see only their own tasks",
+    "addMember": "Add member",
+    "createMember": "Create account",
+    "memberCreated": "Account created",
+    "memberFailed": "Could not create the account",
+    "memberDeactivated": "Account deactivated",
+    "email": "Email",
+    "password": "Password",
+    "passwordHint": "At least 8 characters",
+    "fullName": "Full name",
+    "phone": "Phone",
+    "role": "Role",
+    "deactivate": "Deactivate",
+    "reactivate": "Reactivate",
+    "deactivateTitle": "Deactivate account?",
+    "deactivateMessage": "{{name}} will no longer be able to sign in. Cleaning history is kept.",
+    "roles": {
+      "owner": "Owner",
+      "manager": "Manager",
+      "cleaner": "Cleaner"
+    },
+    "roleHints": {
+      "manager": "Properties, bookings, cleaning and analytics. Cannot manage the team, keys or settings.",
+      "cleaner": "Only their own cleaning tasks and reports, plus read-only property details."
+    },
+    "apiKeys": "Service API keys",
+    "apiKeysDescription": "Used by the Telegram and WhatsApp bots to reach the API",
+    "addKey": "New key",
+    "createKey": "Create key",
+    "keyName": "Key name",
+    "keyNamePlaceholder": "Telegram bot",
+    "scopes": "Scopes",
+    "scopesShort": "scopes",
+    "noKeys": "No keys yet",
+    "keyShownOnce": "Copy this key now — it is shown only once",
+    "keyStored": "I saved it",
+    "copy": "Copy",
+    "keyCopied": "Key copied",
+    "keyCopyFailed": "Could not copy the key",
+    "keyFailed": "Could not create the key",
+    "keyRevoked": "Key revoked",
+    "revoke": "Revoke",
+    "revoked": "Revoked",
+    "revokeTitle": "Revoke key?",
+    "revokeMessage": "Any bot using “{{name}}” stops working immediately.",
+    "lastUsed": "last used",
+    "validation": {
+      "emailAndPassword": "Email and a password of at least 8 characters are required",
+      "nameAndScopes": "A name and at least one scope are required"
+    }
+  },
+  "channels": {
+    "title": "Bots",
+    "description": "Telegram for you, WhatsApp for your guests",
+    "telegram": "Telegram",
+    "whatsapp": "WhatsApp",
+    "telegramHint": "Send the code below to the bot. It works once and expires in 30 minutes.",
+    "whatsappHint": "Paste the channel id from your whapi.cloud dashboard so incoming guest messages reach this company.",
+    "channelId": "whapi channel id",
+    "channelIdRequired": "Enter the channel id",
+    "getCode": "Connect Telegram",
+    "connect": "Connect",
+    "disconnect": "Disconnect",
+    "codeFailed": "Could not issue a code",
+    "whatsappConnected": "WhatsApp channel connected",
+    "whatsappFailed": "Could not connect the channel"
+  },
+  "miniapp": {
+    "loading": "Loading…",
+    "loadFailed": "Could not load data",
+    "empty": "Nothing here",
+    "openInTelegram": "Open this page from the Telegram bot",
+    "authFailed": "Could not sign in",
+    "connectHint": "Connect the chat in the app: Settings → Team & API keys → Bots",
+    "tabs": {
+      "today": "Today",
+      "free": "Free",
+      "bookings": "Bookings"
+    },
+    "arrivals": "Arrivals",
+    "departures": "Departures",
+    "inHouse": "Staying now",
+    "until": "until",
+    "freeProperties": "Free properties",
+    "noPrice": "no price",
+    "upcoming": "Next {{days}} days",
+    "periods": {
+      "tonight": "Tonight",
+      "tomorrow": "Tomorrow",
+      "weekend": "Weekend"
+    }
   }
 }

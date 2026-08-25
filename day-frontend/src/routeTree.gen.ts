@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as TmaRouteImport } from './routes/tma'
 import { Route as RegisterRouteImport } from './routes/register'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as IndexRouteImport } from './routes/index'
@@ -19,6 +20,7 @@ import { Route as CleanerIndexRouteImport } from './routes/cleaner/index'
 import { Route as BookingsIndexRouteImport } from './routes/bookings/index'
 import { Route as AnalyticsIndexRouteImport } from './routes/analytics/index'
 import { Route as AiImportIndexRouteImport } from './routes/ai-import/index'
+import { Route as SettingsTeamRouteImport } from './routes/settings/team'
 import { Route as PropertiesNewRouteImport } from './routes/properties/new'
 import { Route as PropertiesGanttRouteImport } from './routes/properties/gantt'
 import { Route as PropertiesPropertyIdRouteImport } from './routes/properties/$propertyId'
@@ -35,6 +37,11 @@ import { Route as BookingsBookingIdIndexRouteImport } from './routes/bookings/$b
 import { Route as PropertiesPropertyIdEditRouteImport } from './routes/properties/$propertyId/edit'
 import { Route as BookingsBookingIdEditRouteImport } from './routes/bookings/$bookingId/edit'
 
+const TmaRoute = TmaRouteImport.update({
+  id: '/tma',
+  path: '/tma',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const RegisterRoute = RegisterRouteImport.update({
   id: '/register',
   path: '/register',
@@ -83,6 +90,11 @@ const AnalyticsIndexRoute = AnalyticsIndexRouteImport.update({
 const AiImportIndexRoute = AiImportIndexRouteImport.update({
   id: '/ai-import/',
   path: '/ai-import/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SettingsTeamRoute = SettingsTeamRouteImport.update({
+  id: '/settings/team',
+  path: '/settings/team',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PropertiesNewRoute = PropertiesNewRouteImport.update({
@@ -167,6 +179,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/register': typeof RegisterRoute
+  '/tma': typeof TmaRoute
   '/ai-import/$jobId': typeof AiImportJobIdRoute
   '/bookings/$bookingId': typeof BookingsBookingIdRouteWithChildren
   '/bookings/new': typeof BookingsNewRoute
@@ -178,6 +191,7 @@ export interface FileRoutesByFullPath {
   '/properties/$propertyId': typeof PropertiesPropertyIdRouteWithChildren
   '/properties/gantt': typeof PropertiesGanttRoute
   '/properties/new': typeof PropertiesNewRoute
+  '/settings/team': typeof SettingsTeamRoute
   '/ai-import/': typeof AiImportIndexRoute
   '/analytics/': typeof AnalyticsIndexRoute
   '/bookings/': typeof BookingsIndexRoute
@@ -194,6 +208,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/register': typeof RegisterRoute
+  '/tma': typeof TmaRoute
   '/ai-import/$jobId': typeof AiImportJobIdRoute
   '/bookings/new': typeof BookingsNewRoute
   '/bookings/today': typeof BookingsTodayRoute
@@ -203,6 +218,7 @@ export interface FileRoutesByTo {
   '/cleaning/new': typeof CleaningNewRoute
   '/properties/gantt': typeof PropertiesGanttRoute
   '/properties/new': typeof PropertiesNewRoute
+  '/settings/team': typeof SettingsTeamRoute
   '/ai-import': typeof AiImportIndexRoute
   '/analytics': typeof AnalyticsIndexRoute
   '/bookings': typeof BookingsIndexRoute
@@ -220,6 +236,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/register': typeof RegisterRoute
+  '/tma': typeof TmaRoute
   '/ai-import/$jobId': typeof AiImportJobIdRoute
   '/bookings/$bookingId': typeof BookingsBookingIdRouteWithChildren
   '/bookings/new': typeof BookingsNewRoute
@@ -231,6 +248,7 @@ export interface FileRoutesById {
   '/properties/$propertyId': typeof PropertiesPropertyIdRouteWithChildren
   '/properties/gantt': typeof PropertiesGanttRoute
   '/properties/new': typeof PropertiesNewRoute
+  '/settings/team': typeof SettingsTeamRoute
   '/ai-import/': typeof AiImportIndexRoute
   '/analytics/': typeof AnalyticsIndexRoute
   '/bookings/': typeof BookingsIndexRoute
@@ -249,6 +267,7 @@ export interface FileRouteTypes {
     | '/'
     | '/login'
     | '/register'
+    | '/tma'
     | '/ai-import/$jobId'
     | '/bookings/$bookingId'
     | '/bookings/new'
@@ -260,6 +279,7 @@ export interface FileRouteTypes {
     | '/properties/$propertyId'
     | '/properties/gantt'
     | '/properties/new'
+    | '/settings/team'
     | '/ai-import/'
     | '/analytics/'
     | '/bookings/'
@@ -276,6 +296,7 @@ export interface FileRouteTypes {
     | '/'
     | '/login'
     | '/register'
+    | '/tma'
     | '/ai-import/$jobId'
     | '/bookings/new'
     | '/bookings/today'
@@ -285,6 +306,7 @@ export interface FileRouteTypes {
     | '/cleaning/new'
     | '/properties/gantt'
     | '/properties/new'
+    | '/settings/team'
     | '/ai-import'
     | '/analytics'
     | '/bookings'
@@ -301,6 +323,7 @@ export interface FileRouteTypes {
     | '/'
     | '/login'
     | '/register'
+    | '/tma'
     | '/ai-import/$jobId'
     | '/bookings/$bookingId'
     | '/bookings/new'
@@ -312,6 +335,7 @@ export interface FileRouteTypes {
     | '/properties/$propertyId'
     | '/properties/gantt'
     | '/properties/new'
+    | '/settings/team'
     | '/ai-import/'
     | '/analytics/'
     | '/bookings/'
@@ -329,6 +353,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   LoginRoute: typeof LoginRoute
   RegisterRoute: typeof RegisterRoute
+  TmaRoute: typeof TmaRoute
   AiImportJobIdRoute: typeof AiImportJobIdRoute
   BookingsBookingIdRoute: typeof BookingsBookingIdRouteWithChildren
   BookingsNewRoute: typeof BookingsNewRoute
@@ -340,6 +365,7 @@ export interface RootRouteChildren {
   PropertiesPropertyIdRoute: typeof PropertiesPropertyIdRouteWithChildren
   PropertiesGanttRoute: typeof PropertiesGanttRoute
   PropertiesNewRoute: typeof PropertiesNewRoute
+  SettingsTeamRoute: typeof SettingsTeamRoute
   AiImportIndexRoute: typeof AiImportIndexRoute
   AnalyticsIndexRoute: typeof AnalyticsIndexRoute
   BookingsIndexRoute: typeof BookingsIndexRoute
@@ -351,6 +377,13 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/tma': {
+      id: '/tma'
+      path: '/tma'
+      fullPath: '/tma'
+      preLoaderRoute: typeof TmaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/register': {
       id: '/register'
       path: '/register'
@@ -419,6 +452,13 @@ declare module '@tanstack/react-router' {
       path: '/ai-import'
       fullPath: '/ai-import/'
       preLoaderRoute: typeof AiImportIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/settings/team': {
+      id: '/settings/team'
+      path: '/settings/team'
+      fullPath: '/settings/team'
+      preLoaderRoute: typeof SettingsTeamRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/properties/new': {
@@ -559,6 +599,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   LoginRoute: LoginRoute,
   RegisterRoute: RegisterRoute,
+  TmaRoute: TmaRoute,
   AiImportJobIdRoute: AiImportJobIdRoute,
   BookingsBookingIdRoute: BookingsBookingIdRouteWithChildren,
   BookingsNewRoute: BookingsNewRoute,
@@ -570,6 +611,7 @@ const rootRouteChildren: RootRouteChildren = {
   PropertiesPropertyIdRoute: PropertiesPropertyIdRouteWithChildren,
   PropertiesGanttRoute: PropertiesGanttRoute,
   PropertiesNewRoute: PropertiesNewRoute,
+  SettingsTeamRoute: SettingsTeamRoute,
   AiImportIndexRoute: AiImportIndexRoute,
   AnalyticsIndexRoute: AnalyticsIndexRoute,
   BookingsIndexRoute: BookingsIndexRoute,
