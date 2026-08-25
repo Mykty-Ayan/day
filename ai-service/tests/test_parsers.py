@@ -324,6 +324,71 @@ class TestAirbnbParserHTTP:
         assert '"check_out_instructions": "Checkout before 12:00 PM"' in result
         assert '"photos": ["https://a0.muscache.com/photo-1.jpg"]' in result
 
+    @pytest.mark.asyncio
+    async def test_enrichment_reads_sections_stored_as_separate_entities(self):
+        """Airbnb ships each section twice: a layout node carrying the
+        ``sectionId`` whose ``section`` is an empty shell, and the typed entity
+        holding the content. Keying off ``sectionId`` alone found only shells,
+        so amenities, coordinates and rules came back empty.
+        """
+        deferred_state = {
+            "sections": [
+                {"sectionId": "LOCATION_DEFAULT", "section": {"__typename": "LocationSection"}},
+                {"sectionId": "AMENITIES_DEFAULT", "section": {"__typename": "AmenitiesSection"}},
+                {"sectionId": "POLICIES_DEFAULT", "section": {"__typename": "PoliciesSection"}},
+                # Layout siblings repeat the ids and carry nothing but styling.
+                {"sectionId": "LOCATION_DEFAULT", "topPaddingPoints": 8, "divider": "NONE"},
+                {"sectionId": "AMENITIES_DEFAULT", "topPaddingPoints": 8, "divider": "NONE"},
+            ],
+            "entities": [
+                {
+                    "__typename": "StaysPdpLocation",
+                    "subtitle": "Алма-Ата, Almaty Region, Казахстан",
+                    "latitude": 43.2635,
+                    "longitude": 76.9326,
+                    "isExactLocation": True,
+                    # A deep search would glue these map pins onto the address.
+                    "categoryConfigs": [{"title": "Рестораны"}, {"title": "Магазины"}],
+                },
+                {
+                    "__typename": "StaysPdpAmenitiesDetails",
+                    "seeAllAmenitiesGroups": [
+                        {
+                            "__typename": "AmenityItemsGroup",
+                            "title": "Ванная",
+                            "amenities": [{"title": "Фен"}, {"title": "Шампунь"}],
+                        }
+                    ],
+                },
+                {
+                    "__typename": "StaysPdpRuleDetails",
+                    "title": "Прибытие и выезд",
+                    "groupItems": [{"title": "Прибытие после 15:00"}, {"title": "Максимум 2 гостя"}],
+                },
+            ],
+        }
+        html = (
+            "<html><body>"
+            '<script id="data-deferred-state-0" type="application/json">' + json.dumps(deferred_state) + "</script>"
+            "</body></html>"
+        )
+        mock_response = _mock_httpx_response(html)
+        patcher, _ = _patch_httpx_client(mock_response)
+
+        with patcher:
+            result = await AirbnbParser().fetch_content("https://www.airbnb.ru/rooms/12345")
+
+        assert '"latitude": 43.2635' in result
+        assert '"longitude": 76.9326' in result
+        assert '"amenities": ["Фен", "Шампунь"]' in result
+        assert "Прибытие после 15:00" in result
+        # The address keeps the section's own fields and drops the map pins.
+        assert '"address_full": "Алма-Ата, Almaty Region, Казахстан"' in result
+        assert "Рестораны" not in result
+        # A heading naming both sides is not an instruction for either.
+        assert '"check_out_instructions"' not in result
+        assert '"check_in_instructions": "Прибытие после 15:00"' in result
+
     def test_source_type_is_airbnb(self):
         parser = AirbnbParser()
         assert parser.get_source_type() == SourceType.AIRBNB
