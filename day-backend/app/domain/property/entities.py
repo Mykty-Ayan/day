@@ -48,6 +48,11 @@ class Property:
     check_out_instructions: str | None = None
     house_rules: str | None = None
 
+    # Access. The guest asks for the Wi-Fi password more often than anything
+    # else, so it lives on the unit rather than buried in the check-in text.
+    wifi_name: str | None = None
+    wifi_password: str | None = None
+
     created_at: datetime | None = None
     updated_at: datetime | None = None
 

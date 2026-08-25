@@ -263,6 +263,28 @@ class TestCreatePropertyService:
         assert result.company_id == COMPANY_ID
 
     @pytest.mark.asyncio
+    async def test_stores_wifi_credentials(self):
+        prop_repo = FakePropertyRepository()
+        audit_repo = FakePropertyAuditLogRepository()
+        svc = CreatePropertyService(prop_repo, audit_repo)
+
+        result = await svc.execute(
+            CreatePropertyInput(
+                company_id=COMPANY_ID,
+                name="Auezov City 28",
+                internal_name="28auc",
+                type=PropertyType.APARTMENT,
+                wifi_name="Home 28",
+                wifi_password="1234554321",
+            )
+        )
+
+        saved = await prop_repo.get_by_id(result.id)
+        assert saved is not None
+        assert saved.wifi_name == "Home 28"
+        assert saved.wifi_password == "1234554321"
+
+    @pytest.mark.asyncio
     async def test_duplicate_internal_name_raises(self):
         prop_repo = FakePropertyRepository()
         audit_repo = FakePropertyAuditLogRepository()
@@ -430,6 +452,23 @@ class TestUpdatePropertyService:
 
         assert result.name == "New Name"
         assert result.internal_name == prop.internal_name  # unchanged
+
+    @pytest.mark.asyncio
+    async def test_update_wifi_credentials(self):
+        prop_repo, _, svc, prop = await self._setup()
+
+        result = await svc.execute(
+            UpdatePropertyInput(
+                property_id=prop.id,
+                company_id=COMPANY_ID,
+                wifi_name="Home 64",
+                wifi_password="rotated",
+            )
+        )
+
+        assert result.wifi_name == "Home 64"
+        assert result.wifi_password == "rotated"
+        assert result.name == prop.name  # unchanged
 
     @pytest.mark.asyncio
     async def test_update_creates_audit_log(self):

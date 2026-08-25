@@ -235,7 +235,11 @@
       "amenitiesError": "Failed to load amenities",
       "checkInInstructionsPlaceholder": "Key is in the lockbox by the front door. Code: ...",
       "checkOutInstructionsPlaceholder": "Please leave the keys on the kitchen table...",
-      "houseRulesPlaceholder": "No smoking. No pets. Quiet hours 22:00-08:00..."
+      "houseRulesPlaceholder": "No smoking. No pets. Quiet hours 22:00-08:00...",
+      "wifiName": "Wi-Fi network",
+      "wifiNamePlaceholder": "Home 28",
+      "wifiPassword": "Wi-Fi password",
+      "wifiPasswordPlaceholder": "Network password"
     },
     "validation": {
       "nameRequired": "Name is required",
@@ -784,7 +788,8 @@
     "tabs": {
       "today": "Today",
       "free": "Free",
-      "bookings": "Bookings"
+      "bookings": "Bookings",
+      "flats": "Units"
     },
     "arrivals": "Arrivals",
     "departures": "Departures",
@@ -797,6 +802,11 @@
       "tonight": "Tonight",
       "tomorrow": "Tomorrow",
       "weekend": "Weekend"
-    }
+    },
+    "flats": "Units",
+    "wifi": "Wi-Fi",
+    "noWifi": "No Wi-Fi set",
+    "copied": "Copied",
+    "floor": "floor"
   }
 }

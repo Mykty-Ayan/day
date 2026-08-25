@@ -235,7 +235,11 @@
       "amenitiesError": "Ыңғайлылықтарды жүктеу сәтсіз аяқталды",
       "checkInInstructionsPlaceholder": "Кілт кіреберіс есіктегі сейф-боксте. Коды: ...",
       "checkOutInstructionsPlaceholder": "Кілттерді ас үй үстеліне қалдырыңыз...",
-      "houseRulesPlaceholder": "Темекі шегуге болмайды. Жануарларсыз. Тыныштық 22:00-08:00..."
+      "houseRulesPlaceholder": "Темекі шегуге болмайды. Жануарларсыз. Тыныштық 22:00-08:00...",
+      "wifiName": "Wi-Fi желісі",
+      "wifiNamePlaceholder": "Home 28",
+      "wifiPassword": "Wi-Fi құпиясөзі",
+      "wifiPasswordPlaceholder": "Желі құпиясөзі"
     },
     "validation": {
       "nameRequired": "Атауы міндетті",
@@ -784,7 +788,8 @@
     "tabs": {
       "today": "Бүгін",
       "free": "Бос",
-      "bookings": "Брондар"
+      "bookings": "Брондар",
+      "flats": "Пәтерлер"
     },
     "arrivals": "Кіру",
     "departures": "Шығу",
@@ -797,6 +802,11 @@
       "tonight": "Бүгін",
       "tomorrow": "Ертең",
       "weekend": "Демалыс"
-    }
+    },
+    "flats": "Пәтерлер",
+    "wifi": "Wi-Fi",
+    "noWifi": "Wi-Fi көрсетілмеген",
+    "copied": "Көшірілді",
+    "floor": "қабат"
   }
 }

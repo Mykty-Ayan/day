@@ -81,6 +81,8 @@ class ClonePropertyService:
             check_in_instructions=source.check_in_instructions,
             check_out_instructions=source.check_out_instructions,
             house_rules=source.house_rules,
+            wifi_name=source.wifi_name,
+            wifi_password=source.wifi_password,
         )
         saved = await self._property_repo.save(clone)
 

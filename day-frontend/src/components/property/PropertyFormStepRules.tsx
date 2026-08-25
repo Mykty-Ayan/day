@@ -4,6 +4,8 @@ interface RulesData {
   check_in_instructions: string
   check_out_instructions: string
   house_rules: string
+  wifi_name: string
+  wifi_password: string
 }
 
 interface Props {
@@ -56,6 +58,34 @@ export default function PropertyFormStepRules({ data, onChange }: Props) {
           rows={4}
           className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 outline-none focus:ring-2 focus:ring-black/10 text-gray-800 text-sm resize-none"
         />
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div>
+          <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">
+            {t('properties.form.wifiName')}
+          </label>
+          <input
+            type="text"
+            value={data.wifi_name}
+            onChange={(e) => update('wifi_name', e.target.value)}
+            placeholder={t('properties.form.wifiNamePlaceholder')}
+            className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 outline-none focus:ring-2 focus:ring-black/10 text-gray-800 text-sm"
+          />
+        </div>
+
+        <div>
+          <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">
+            {t('properties.form.wifiPassword')}
+          </label>
+          <input
+            type="text"
+            value={data.wifi_password}
+            onChange={(e) => update('wifi_password', e.target.value)}
+            placeholder={t('properties.form.wifiPasswordPlaceholder')}
+            className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 outline-none focus:ring-2 focus:ring-black/10 text-gray-800 text-sm"
+          />
+        </div>
       </div>
     </div>
   )

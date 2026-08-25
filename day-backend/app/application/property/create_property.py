@@ -32,6 +32,8 @@ class CreatePropertyInput:
     check_in_instructions: str | None = None
     check_out_instructions: str | None = None
     house_rules: str | None = None
+    wifi_name: str | None = None
+    wifi_password: str | None = None
     # Set from the authenticated caller; a service key attributes the change
     # to the operator who issued it.
     changed_by: uuid.UUID | None = None
@@ -78,6 +80,8 @@ class CreatePropertyService:
             check_in_instructions=inp.check_in_instructions,
             check_out_instructions=inp.check_out_instructions,
             house_rules=inp.house_rules,
+            wifi_name=inp.wifi_name,
+            wifi_password=inp.wifi_password,
         )
 
         saved = await self._property_repo.save(prop)

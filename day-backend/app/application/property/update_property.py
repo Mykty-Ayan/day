@@ -35,6 +35,8 @@ class UpdatePropertyInput:
     check_in_instructions: object = _UNSET
     check_out_instructions: object = _UNSET
     house_rules: object = _UNSET
+    wifi_name: object = _UNSET
+    wifi_password: object = _UNSET
     # Set from the authenticated caller; a service key attributes the change
     # to the operator who issued it.
     changed_by: uuid.UUID | None = None
@@ -46,6 +48,7 @@ _UPDATABLE_FIELDS = {
     "entrance", "block", "floor", "rooms", "beds",
     "area_living", "area_total",
     "check_in_instructions", "check_out_instructions", "house_rules",
+    "wifi_name", "wifi_password",
 }
 
 

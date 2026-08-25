@@ -1,13 +1,15 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { CalendarCheck, DoorOpen, KeyRound, LogIn, LogOut, Users } from 'lucide-react'
+import { Building2, CalendarCheck, DoorOpen, KeyRound, LogIn, LogOut, Users, Wifi } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { getTodayChecks, listBookings } from '../../api/bookings'
 import { getAvailability, telegramMiniAppLogin } from '../../api/miniapp'
+import { listAllProperties } from '../../api/properties'
 import { getInitData, initTelegram, isInsideTelegram, tapFeedback } from '../../lib/telegram'
 import type { Booking } from '../../types/booking'
+import type { Property } from '../../types/property'
 
-type Tab = 'today' | 'free' | 'bookings'
+type Tab = 'today' | 'free' | 'bookings' | 'flats'
 type Period = 'tonight' | 'tomorrow' | 'weekend'
 
 const UPCOMING_DAYS = 14
@@ -100,6 +102,12 @@ export default function MiniAppPage() {
     enabled: enabled && tab === 'free',
   })
 
+  const flatsQuery = useQuery({
+    queryKey: ['miniapp', 'flats'],
+    queryFn: () => listAllProperties(),
+    enabled: enabled && tab === 'flats',
+  })
+
   const bookingsQuery = useQuery({
     queryKey: ['miniapp', 'bookings'],
     queryFn: () =>
@@ -137,6 +145,7 @@ export default function MiniAppPage() {
             ['today', t('miniapp.tabs.today')],
             ['free', t('miniapp.tabs.free')],
             ['bookings', t('miniapp.tabs.bookings')],
+            ['flats', t('miniapp.tabs.flats')],
           ] as [Tab, string][]
         ).map(([value, label]) => (
           <button
@@ -267,6 +276,24 @@ export default function MiniAppPage() {
           </>
         )}
 
+        {tab === 'flats' && (
+          <>
+            {flatsQuery.isLoading && <p className="tg-hint text-sm">{t('miniapp.loading')}</p>}
+            {flatsQuery.isError && <p className="text-sm">{t('miniapp.loadFailed')}</p>}
+            {flatsQuery.data && (
+              <Group
+                icon={<Building2 className="h-4 w-4" />}
+                title={t('miniapp.flats')}
+                count={flatsQuery.data.items.length}
+              >
+                {flatsQuery.data.items.map((property) => (
+                  <FlatRow key={property.id} property={property} />
+                ))}
+              </Group>
+            )}
+          </>
+        )}
+
         {tab === 'bookings' && (
           <>
             {bookingsQuery.isLoading && <p className="tg-hint text-sm">{t('miniapp.loading')}</p>}
@@ -330,6 +357,48 @@ function Group({
         <ul className="tg-divide">{children}</ul>
       )}
     </section>
+  )
+}
+
+/** A unit with its Wi-Fi credentials, which is what a host is asked for mid-chat.
+ *  Tapping copies "network / password" so it can be pasted straight back. */
+function FlatRow({ property }: { property: Property }) {
+  const { t } = useTranslation()
+  const [copied, setCopied] = useState(false)
+
+  const credentials = [property.wifi_name, property.wifi_password].filter(Boolean).join(' / ')
+  const location = [property.address_full, property.floor ? `${property.floor} ${t('miniapp.floor')}` : null]
+    .filter(Boolean)
+    .join(' · ')
+
+  async function copy() {
+    if (!credentials) return
+    tapFeedback()
+    try {
+      await navigator.clipboard.writeText(credentials)
+      setCopied(true)
+      window.setTimeout(() => setCopied(false), 1500)
+    } catch {
+      // Telegram's in-app browser can refuse clipboard access; the text stays
+      // on screen either way, so there is nothing to recover from.
+    }
+  }
+
+  return (
+    <li className="px-3 py-2.5">
+      <p className="truncate text-sm font-semibold">{property.name || property.internal_name}</p>
+      {location && <p className="tg-hint truncate text-xs">{location}</p>}
+      <button
+        type="button"
+        onClick={copy}
+        disabled={!credentials}
+        className="mt-1.5 flex min-h-[36px] w-full items-center gap-2 rounded-lg px-2 text-left text-xs tg-surface disabled:opacity-50"
+      >
+        <Wifi className="h-3.5 w-3.5 shrink-0" />
+        <span className="flex-1 truncate font-semibold">{credentials || t('miniapp.noWifi')}</span>
+        {copied && <span className="tg-hint shrink-0">{t('miniapp.copied')}</span>}
+      </button>
+    </li>
   )
 }
 

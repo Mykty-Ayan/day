@@ -41,6 +41,8 @@ interface FormData {
     check_in_instructions: string
     check_out_instructions: string
     house_rules: string
+    wifi_name: string
+    wifi_password: string
   }
 }
 
@@ -72,6 +74,8 @@ function propertyToForm(property: Property): FormData {
       check_in_instructions: property.check_in_instructions || '',
       check_out_instructions: property.check_out_instructions || '',
       house_rules: property.house_rules || '',
+      wifi_name: property.wifi_name || '',
+      wifi_password: property.wifi_password || '',
     },
   }
 }
@@ -149,6 +153,8 @@ function EditPropertyForm({ property, propertyId }: { property: Property; proper
       check_in_instructions: form.rules.check_in_instructions || undefined,
       check_out_instructions: form.rules.check_out_instructions || undefined,
       house_rules: form.rules.house_rules || undefined,
+      wifi_name: form.rules.wifi_name || undefined,
+      wifi_password: form.rules.wifi_password || undefined,
     }
 
     updateProperty.mutate(payload, {

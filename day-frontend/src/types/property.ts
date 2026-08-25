@@ -86,6 +86,8 @@ export interface Property {
   check_in_instructions: string
   check_out_instructions: string
   house_rules: string
+  wifi_name: string | null
+  wifi_password: string | null
   photos: PropertyPhoto[]
   amenities: Amenity[]
   pricing: PricingConfig | null
@@ -114,6 +116,8 @@ export interface PropertyCreateInput {
   check_in_instructions?: string
   check_out_instructions?: string
   house_rules?: string
+  wifi_name?: string
+  wifi_password?: string
 }
 
 export type PropertyUpdateInput = Partial<PropertyCreateInput>
