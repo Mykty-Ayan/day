@@ -82,6 +82,7 @@ class HostBotService:
         text: str,
         display_name: str = "",
         today: date | None = None,
+        history: list | None = None,
     ) -> BotReply:
         today = today or date.today()
         command, _, argument = text.strip().partition(" ")
@@ -108,15 +109,21 @@ class HostBotService:
 
         # Not a command. The operator wrote a sentence, and the assistant can
         # answer the same questions the Mini App answers.
-        return await self._ask_assistant(identity.company_id, text.strip(), today)
+        return await self._ask_assistant(identity.company_id, text.strip(), today, history)
 
-    async def _ask_assistant(self, company_id: uuid.UUID, question: str, today: date) -> BotReply:
+    async def _ask_assistant(
+        self,
+        company_id: uuid.UUID,
+        question: str,
+        today: date,
+        history: list | None = None,
+    ) -> BotReply:
         assistant = self._assistant_for(company_id) if self._assistant_for else None
         if assistant is None:
             return BotReply(f"Не понял команду.\n\n{_HELP}")
 
         try:
-            reply = await assistant.execute(question, today=today)
+            reply = await assistant.execute(question, history=history or [], today=today)
         except AssistantUnavailable:
             return BotReply(f"Не понял команду.\n\n{_HELP}")
         except Exception:

@@ -1,4 +1,6 @@
-"""Voice notes: the limits, and what happens when the model or Telegram says no.
+"""Voice notes and the bot's memory of the thread.
+
+Voice notes: the limits, and what happens when the model or Telegram says no.
 
 The expensive mistake here is not a wrong transcript — it is transcribing
 something we should not have: a stranger's audio, or a forwarded hour of
@@ -10,6 +12,7 @@ from __future__ import annotations
 import pytest
 
 from app.domain.assistant.value_objects import AssistantUnavailable
+from app.domain.messaging.value_objects import MessageDirection
 from app.infrastructure.assistant.openrouter import _MIME_TO_FORMAT
 from app.infrastructure.messaging.providers import ProviderError, TelegramProvider
 from app.presentation.api.v1 import webhooks
@@ -122,3 +125,59 @@ class TestDownloadFile:
 
         with pytest.raises(ProviderError, match="TELEGRAM_BOT_TOKEN"):
             await provider.download_file("abc", 1024)
+
+
+class StubMessage:
+    def __init__(self, direction, body: str) -> None:
+        self.direction = direction
+        self.body = body
+
+
+class StubMessageRepo:
+    """Returns messages newest-first, the way the SQL repository does."""
+
+    def __init__(self, messages) -> None:
+        self._messages = messages
+        self.limits: list[int] = []
+
+    async def list_by_conversation(self, conversation_id, *, limit: int = 50):
+        self.limits.append(limit)
+        return list(self._messages)[:limit]
+
+
+class TestRecentTurns:
+    @pytest.mark.asyncio
+    async def test_the_thread_comes_back_oldest_first_with_roles(self, monkeypatch):
+        stored = [
+            StubMessage(MessageDirection.OUTBOUND, "Свободна 62-я."),
+            StubMessage(MessageDirection.INBOUND, "что свободно завтра?"),
+        ]
+        monkeypatch.setattr(webhooks, "SqlMessageRepository", lambda session: StubMessageRepo(stored))
+
+        turns = await webhooks._recent_turns(None, "conv")
+
+        assert [(turn.role, turn.content) for turn in turns] == [
+            ("user", "что свободно завтра?"),
+            ("assistant", "Свободна 62-я."),
+        ]
+
+    @pytest.mark.asyncio
+    async def test_empty_bodies_are_dropped(self, monkeypatch):
+        stored = [
+            StubMessage(MessageDirection.INBOUND, "   "),
+            StubMessage(MessageDirection.INBOUND, "что свободно?"),
+        ]
+        monkeypatch.setattr(webhooks, "SqlMessageRepository", lambda session: StubMessageRepo(stored))
+
+        turns = await webhooks._recent_turns(None, "conv")
+
+        assert [turn.content for turn in turns] == ["что свободно?"]
+
+    @pytest.mark.asyncio
+    async def test_the_thread_is_bounded(self, monkeypatch):
+        repo = StubMessageRepo([])
+        monkeypatch.setattr(webhooks, "SqlMessageRepository", lambda session: repo)
+
+        await webhooks._recent_turns(None, "conv")
+
+        assert repo.limits == [webhooks._HISTORY_TURNS]
