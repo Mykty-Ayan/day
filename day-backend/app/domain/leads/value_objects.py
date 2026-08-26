@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import enum
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, timedelta
 from decimal import Decimal
 
 
@@ -46,8 +46,6 @@ class DateRange:
 
     @property
     def check_out(self) -> date | None:
-        from datetime import timedelta
-
         if self.check_in is None or self.nights is None:
             return None
         return self.check_in + timedelta(days=self.nights)

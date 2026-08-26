@@ -127,7 +127,9 @@ def _load_json(raw: str) -> dict | None:
 
 
 def _text(value: object) -> str:
-    return str(value).strip() if isinstance(value, (str, int)) and str(value).strip() else ""
+    if not isinstance(value, (str, int)):
+        return ""
+    return str(value).strip()
 
 
 def _bounded_int(value: object, low: int, high: int) -> int | None:

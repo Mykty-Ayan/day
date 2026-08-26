@@ -28,10 +28,6 @@ class Match:
     price_per_night: Decimal | None
     within_budget: bool
 
-    @property
-    def property_id(self):
-        return self.available.property.id
-
 
 @dataclass(frozen=True)
 class LeadMatches:

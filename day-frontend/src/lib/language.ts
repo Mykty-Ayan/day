@@ -13,7 +13,7 @@
 
 export type Language = 'ru' | 'kz' | 'en'
 
-export const LANGUAGES: Language[] = ['ru', 'kz', 'en']
+const LANGUAGES: Language[] = ['ru', 'kz', 'en']
 
 export const DEFAULT_LANGUAGE: Language = 'ru'
 
