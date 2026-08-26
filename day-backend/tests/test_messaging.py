@@ -15,6 +15,7 @@ from app.application.messaging.notifications import (
     NotificationService,
     render,
 )
+from app.domain.assistant.gateway import ChatMessage
 from app.domain.assistant.value_objects import AssistantReply, AssistantUnavailable, PendingAction
 from app.domain.messaging.entities import (
     ChannelIdentity,
@@ -372,9 +373,11 @@ class StubAssistant:
         self._reply = reply
         self._raises = raises
         self.asked: list[str] = []
+        self.history_seen: list = []
 
-    async def execute(self, question, today=None):
+    async def execute(self, question, history=None, today=None):
         self.asked.append(question)
+        self.history_seen.append(list(history or []))
         if self._raises is not None:
             raise self._raises
         return self._reply
@@ -452,6 +455,17 @@ class TestHostBotAssistant:
 
         assert "Команды" in reply.text
         assert assistant.asked == []
+
+    @pytest.mark.asyncio
+    async def test_the_thread_is_handed_to_the_assistant(self):
+        # "а на послезавтра?" means nothing without what came before it.
+        assistant = StubAssistant(AssistantReply(text="Свободна 62-я."))
+        bot = _host_bot(assistant=assistant)
+        earlier = [ChatMessage(role="user", content="что свободно завтра?")]
+
+        await bot.handle(self.IDENTITY, "555", "а на послезавтра?", history=earlier)
+
+        assert assistant.history_seen == [earlier]
 
     @pytest.mark.asyncio
     async def test_a_very_long_answer_is_trimmed_for_telegram(self):

@@ -23,6 +23,7 @@ from app.application.messaging.guest_bot import GuestBotService
 from app.application.messaging.host_bot import HostBotService
 from app.application.messaging.notifications import NotificationService
 from app.config import settings
+from app.domain.assistant.gateway import ChatMessage
 from app.domain.assistant.value_objects import AssistantUnavailable
 from app.domain.messaging.entities import ChannelIdentity, Conversation, Message
 from app.domain.messaging.value_objects import (
@@ -108,6 +109,26 @@ async def _reply(chat_id: str, text: str) -> None:
         logger.warning("Telegram reply to %s failed: %s", chat_id, exc)
 
 
+# Enough for a follow-up to make sense; short enough that a long-running chat
+# does not quietly grow every prompt.
+_HISTORY_TURNS = 6
+
+
+async def _recent_turns(session: AsyncSession, conversation_id: uuid.UUID) -> list[ChatMessage]:
+    """The last few things said, oldest first, as the assistant expects them."""
+    stored = await SqlMessageRepository(session).list_by_conversation(
+        conversation_id, limit=_HISTORY_TURNS
+    )
+    turns: list[ChatMessage] = []
+    for message in reversed(stored):
+        body = (message.body or "").strip()
+        if not body:
+            continue
+        role = "user" if message.direction is MessageDirection.INBOUND else "assistant"
+        turns.append(ChatMessage(role=role, content=body))
+    return turns
+
+
 async def _transcribe_voice(voice: dict) -> str:
     """Best-effort transcription. An empty string means "say so and move on"."""
     duration = voice.get("duration")
@@ -169,6 +190,17 @@ async def telegram_webhook(
     identities = SqlChannelIdentityRepository(session)
     identity = await identities.get_by_external_id(Channel.TELEGRAM, chat_id)
 
+    # The conversation has to exist before the bot answers, because the answer
+    # depends on what was said a moment ago: "а на послезавтра?" means nothing
+    # on its own.
+    conversation = None
+    history: list[ChatMessage] = []
+    if identity is not None and identity.is_active:
+        conversation = await _conversation_for(
+            session, identity.id, identity.company_id, Channel.TELEGRAM
+        )
+        history = await _recent_turns(session, conversation.id)
+
     # An operator on the move dictates rather than types. Once transcribed the
     # voice note is an ordinary message and takes exactly the same path.
     #
@@ -185,12 +217,15 @@ async def telegram_webhook(
             return _ok()
 
     bot: HostBotService = build_host_bot(session)
-    reply = await bot.handle(identity, chat_id, text, display_name)
+    reply = await bot.handle(identity, chat_id, text, display_name, history=history)
 
     # The identity may have just been created by /start.
     identity = identity or await identities.get_by_external_id(Channel.TELEGRAM, chat_id)
     if identity is not None:
-        conversation = await _conversation_for(session, identity.id, identity.company_id, Channel.TELEGRAM)
+        if conversation is None:
+            conversation = await _conversation_for(
+                session, identity.id, identity.company_id, Channel.TELEGRAM
+            )
         await _record(
             session,
             conversation.id,
@@ -198,19 +233,25 @@ async def telegram_webhook(
             text,
             provider_message_id,
             MessageStatus.RECEIVED,
-            {"chat_id": chat_id},
+            {"chat_id": chat_id, "voice": bool(voice)},
         )
+        # The bot's own words are half the thread; without them the next
+        # question has nothing to refer back to.
+        if reply.text:
+            await _record(
+                session,
+                conversation.id,
+                MessageDirection.OUTBOUND,
+                reply.text,
+                None,
+                MessageStatus.SENT,
+                {"chat_id": chat_id},
+            )
 
     await session.commit()
 
     if reply.text:
-        provider = get_provider(Channel.TELEGRAM)
-        try:
-            await provider.send_text(chat_id, reply.text)
-        except Exception as exc:
-            # The update is already consumed; a failed reply must not make
-            # Telegram redeliver it.
-            logger.warning("Telegram reply to %s failed: %s", chat_id, exc)
+        await _reply(chat_id, reply.text)
 
     return _ok()
 
