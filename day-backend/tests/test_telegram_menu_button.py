@@ -123,3 +123,16 @@ class TestSetMenuButton:
 
         with pytest.raises(ProviderError, match="Unauthorized"):
             await provider.set_menu_button("https://app.example.com/tma", "Day")
+
+
+class TestButtonLabel:
+    def test_the_label_matches_the_name_the_bot_uses_for_it(self):
+        # The bot tells people to "открыть «Панель»" when it cannot help. If the
+        # button is registered under another name, that sentence points at a
+        # control that does not exist on screen.
+        from app.config import Settings
+        from app.presentation.api.v1.webhooks import _VOICE_FAILED
+
+        label = Settings.model_fields["TELEGRAM_MENU_BUTTON_TEXT"].default
+
+        assert f"«{label}»" in _VOICE_FAILED
