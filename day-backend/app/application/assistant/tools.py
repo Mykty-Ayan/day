@@ -304,6 +304,11 @@ class ToolContext:
     async def money(self, date_from: str | None = None, date_to: str | None = None) -> Any:
         start = parse_date(date_from, self._today.replace(day=1))
         end = parse_date(date_to, self._today)
+        # Metrics are computed over a half-open range, so a single day has to be
+        # asked for as two. On the first of the month "сколько за этот месяц"
+        # otherwise collapses to an empty range and the tool errors.
+        if end <= start:
+            end = start + timedelta(days=1)
         summary = await self._metrics.execute(self._company_id, start, end)
         return {"from": start.isoformat(), "to": end.isoformat(), "summary": summary}
 
@@ -342,9 +347,19 @@ class ToolContext:
         return await self._describe_booking(moved)
 
     async def record_payment(self, booking_id: str, amount: float, method: str = "transfer") -> Any:
+        # The HTTP schema refuses anything but a positive amount; a tool that
+        # reaches the service directly has to say so itself, or the assistant
+        # becomes the one way to write a payment that makes a debt grow.
+        try:
+            value = float(amount)
+        except (TypeError, ValueError) as error:
+            raise ValueError(f"Не понимаю сумму «{amount}»") from error
+        if value <= 0:
+            raise ValueError("Сумма оплаты должна быть больше нуля")
+
         booking = await self._own_booking(booking_id)
         payment = await self._payments(
-            booking_id=booking.id, company_id=self._company_id, amount=amount, method=method
+            booking_id=booking.id, company_id=self._company_id, amount=value, method=method
         )
         return {"booking_id": str(booking.id), "amount": float(payment.amount)}
 
