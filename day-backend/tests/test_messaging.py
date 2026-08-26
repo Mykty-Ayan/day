@@ -15,6 +15,7 @@ from app.application.messaging.notifications import (
     NotificationService,
     render,
 )
+from app.domain.assistant.value_objects import AssistantReply, AssistantUnavailable, PendingAction
 from app.domain.messaging.entities import (
     ChannelIdentity,
     ChannelLinkCode,
@@ -353,14 +354,113 @@ class TestNotifications:
 # ---------- host bot ----------
 
 
-def _host_bot(availability=None, bookings=None) -> HostBotService:
+def _host_bot(availability=None, bookings=None, assistant=None) -> HostBotService:
     return HostBotService(
         LinkChannelService(FakeLinkCodeRepository(), FakeIdentityRepository()),
         availability or StubAvailability([]),
         bookings,
         None,
         None,
+        assistant_for=(lambda company_id: assistant) if assistant is not None else None,
     )
+
+
+class StubAssistant:
+    """Stands in for the model: returns whatever it was handed."""
+
+    def __init__(self, reply=None, raises: Exception | None = None) -> None:
+        self._reply = reply
+        self._raises = raises
+        self.asked: list[str] = []
+
+    async def execute(self, question, today=None):
+        self.asked.append(question)
+        if self._raises is not None:
+            raise self._raises
+        return self._reply
+
+
+class TestHostBotAssistant:
+    """Free text is not a command; the bot hands it to the assistant."""
+
+    IDENTITY = None  # set in setup_method
+
+    def setup_method(self):
+        self.IDENTITY = ChannelIdentity(
+            company_id=COMPANY_ID, channel=Channel.TELEGRAM, external_id="555", user_id=OWNER_ID
+        )
+
+    @pytest.mark.asyncio
+    async def test_a_sentence_is_answered_by_the_assistant(self):
+        assistant = StubAssistant(AssistantReply(text="Свободна 62-я, 25 000 ₸."))
+        bot = _host_bot(assistant=assistant)
+
+        reply = await bot.handle(self.IDENTITY, "555", "что свободно завтра?")
+
+        assert reply.text == "Свободна 62-я, 25 000 ₸."
+        assert assistant.asked == ["что свободно завтра?"]
+
+    @pytest.mark.asyncio
+    async def test_a_proposed_change_is_described_not_performed(self):
+        assistant = StubAssistant(
+            AssistantReply(
+                text="",
+                pending=PendingAction(
+                    tool="create_booking",
+                    arguments={"guest_name": "Ерлан"},
+                    summary="Забронировать 28auc на Ерлана",
+                ),
+            )
+        )
+        bot = _host_bot(assistant=assistant)
+
+        reply = await bot.handle(self.IDENTITY, "555", "забронируй 28auc на Ерлана")
+
+        assert "Забронировать 28auc на Ерлана" in reply.text
+        # There is no button in a chat, so the bot must send them where one is.
+        assert "Панел" in reply.text
+
+    @pytest.mark.asyncio
+    async def test_without_a_model_the_bot_behaves_as_before(self):
+        reply = await _host_bot().handle(self.IDENTITY, "555", "что свободно завтра?")
+
+        assert "Не понял команду" in reply.text
+
+    @pytest.mark.asyncio
+    async def test_an_unavailable_model_falls_back_to_the_help_text(self):
+        bot = _host_bot(assistant=StubAssistant(raises=AssistantUnavailable("off")))
+
+        reply = await bot.handle(self.IDENTITY, "555", "что свободно завтра?")
+
+        assert "Не понял команду" in reply.text
+
+    @pytest.mark.asyncio
+    async def test_a_broken_model_does_not_leak_its_error(self):
+        bot = _host_bot(assistant=StubAssistant(raises=RuntimeError("boom")))
+
+        reply = await bot.handle(self.IDENTITY, "555", "что свободно завтра?")
+
+        assert "boom" not in reply.text
+        assert "Панел" in reply.text
+
+    @pytest.mark.asyncio
+    async def test_commands_still_win_over_the_assistant(self):
+        assistant = StubAssistant(AssistantReply(text="я бы ответил"))
+        bot = _host_bot(assistant=assistant)
+
+        reply = await bot.handle(self.IDENTITY, "555", "/help")
+
+        assert "Команды" in reply.text
+        assert assistant.asked == []
+
+    @pytest.mark.asyncio
+    async def test_a_very_long_answer_is_trimmed_for_telegram(self):
+        assistant = StubAssistant(AssistantReply(text="я" * 5000))
+        bot = _host_bot(assistant=assistant)
+
+        reply = await bot.handle(self.IDENTITY, "555", "расскажи всё")
+
+        assert len(reply.text) < 4096
 
 
 class TestHostBot:

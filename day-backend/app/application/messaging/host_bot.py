@@ -7,13 +7,16 @@ surface, not a conversation.
 
 from __future__ import annotations
 
+import logging
 import uuid
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import date, timedelta
 
 from app.application.booking.check_availability import CheckAvailabilityService
 from app.application.messaging.date_parsing import format_date, parse_range
 from app.application.messaging.link_channel import LinkChannelService
+from app.domain.assistant.value_objects import AssistantUnavailable
 from app.domain.booking.repositories import BookingRepository, GuestRepository
 from app.domain.booking.value_objects import BookingStatus
 from app.domain.messaging.entities import ChannelIdentity
@@ -34,6 +37,17 @@ _NOT_LINKED = """Этот чат не привязан к компании.
 «Подключить Telegram» и отправьте сюда полученный код."""
 
 _MAX_LISTED = 15
+# Telegram refuses anything past 4096 characters; an assistant answer that long
+# is a bug in the prompt, not something to split across messages.
+_MAX_REPLY = 3500
+
+
+def _shorten(text: str) -> str:
+    text = (text or "").strip()
+    return text if len(text) <= _MAX_REPLY else text[:_MAX_REPLY].rstrip() + "…"
+
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -49,12 +63,17 @@ class HostBotService:
         booking_repo: BookingRepository,
         property_repo: PropertyRepository,
         guest_repo: GuestRepository,
+        # Given a company, returns something that can answer a free-text
+        # question — or None when no model is configured, which leaves the bot
+        # exactly as it was.
+        assistant_for: Callable[[uuid.UUID], object | None] | None = None,
     ) -> None:
         self._link = link_service
         self._availability = availability
         self._bookings = booking_repo
         self._properties = property_repo
         self._guests = guest_repo
+        self._assistant_for = assistant_for
 
     async def handle(
         self,
@@ -87,7 +106,31 @@ class HostBotService:
         if command == "bookings":
             return await self._upcoming(identity.company_id, today)
 
-        return BotReply(f"Не понял команду.\n\n{_HELP}")
+        # Not a command. The operator wrote a sentence, and the assistant can
+        # answer the same questions the Mini App answers.
+        return await self._ask_assistant(identity.company_id, text.strip(), today)
+
+    async def _ask_assistant(self, company_id: uuid.UUID, question: str, today: date) -> BotReply:
+        assistant = self._assistant_for(company_id) if self._assistant_for else None
+        if assistant is None:
+            return BotReply(f"Не понял команду.\n\n{_HELP}")
+
+        try:
+            reply = await assistant.execute(question, today=today)
+        except AssistantUnavailable:
+            return BotReply(f"Не понял команду.\n\n{_HELP}")
+        except Exception:
+            logger.exception("Assistant failed to answer a bot message")
+            return BotReply("Не смог ответить. Попробуйте иначе или откройте «Панель».")
+
+        if reply.pending is not None:
+            # The bot has no button to approve with, and approving by typing
+            # "да" would turn a chat into a state machine nobody can audit.
+            return BotReply(
+                f"{reply.pending.summary}\n\nПодтвердить можно в «Панели» — там кнопка."
+            )
+
+        return BotReply(_shorten(reply.text) or f"Не понял команду.\n\n{_HELP}")
 
     async def _start(
         self,

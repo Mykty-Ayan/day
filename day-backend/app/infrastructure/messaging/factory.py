@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.application.assistant.ask import AskAssistantService
 from app.application.booking.check_availability import CheckAvailabilityService
 from app.application.booking.create_booking import CreateBookingService
 from app.application.booking.price_calculator import PriceCalculatorService
@@ -15,8 +16,11 @@ from app.application.messaging.guest_bot import GuestBotService
 from app.application.messaging.host_bot import HostBotService
 from app.application.messaging.link_channel import LinkChannelService
 from app.application.messaging.notifications import NotificationDispatcher, NotificationService
+from app.config import settings
 from app.domain.messaging.services import MessageProvider
 from app.domain.messaging.value_objects import Channel
+from app.infrastructure.assistant.factory import build_assistant_tools
+from app.infrastructure.assistant.openrouter import OpenRouterAssistantGateway
 from app.infrastructure.messaging.providers import TelegramProvider, WhapiProvider
 from app.infrastructure.repositories.booking import (
     SqlBookingAuditLogRepository,
@@ -74,12 +78,22 @@ def build_link_service(session: AsyncSession) -> LinkChannelService:
 
 
 def build_host_bot(session: AsyncSession) -> HostBotService:
+    def assistant_for(company_id):
+        # No key, no assistant: the bot keeps answering commands and says it did
+        # not understand anything else, exactly as before.
+        if not settings.ASSISTANT_API_KEY:
+            return None
+        return AskAssistantService(
+            OpenRouterAssistantGateway(), build_assistant_tools(session, company_id)
+        )
+
     return HostBotService(
         build_link_service(session),
         build_availability(session),
         SqlBookingRepository(session),
         SqlPropertyRepository(session),
         SqlGuestRepository(session),
+        assistant_for=assistant_for,
     )
 
 
