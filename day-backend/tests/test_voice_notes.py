@@ -11,9 +11,10 @@ from __future__ import annotations
 
 import pytest
 
+from app.config import settings
 from app.domain.assistant.value_objects import AssistantUnavailable
 from app.domain.messaging.value_objects import MessageDirection
-from app.infrastructure.assistant.openrouter import _MIME_TO_FORMAT
+from app.infrastructure.assistant.openrouter import _MIME_TO_FORMAT, OpenRouterTranscriber
 from app.infrastructure.messaging.providers import ProviderError, TelegramProvider
 from app.presentation.api.v1 import webhooks
 
@@ -181,3 +182,30 @@ class TestRecentTurns:
         await webhooks._recent_turns(None, "conv")
 
         assert repo.limits == [webhooks._HISTORY_TURNS]
+
+
+class TestTranscriptionModel:
+    """Which model the audio is billed against.
+
+    Voice used to go through whatever answers questions, which meant speech was
+    billed at reasoning prices. The knob exists so the two can be moved apart;
+    the default keeps the old behaviour so an unset variable changes nothing.
+    """
+
+    def test_it_falls_back_to_the_assistant_model(self, monkeypatch):
+        monkeypatch.setattr(settings, "ASSISTANT_MODEL", "vendor/answers")
+        monkeypatch.setattr(settings, "ASSISTANT_TRANSCRIBE_MODEL", "")
+
+        assert OpenRouterTranscriber().model == "vendor/answers"
+
+    def test_a_separate_model_wins(self, monkeypatch):
+        monkeypatch.setattr(settings, "ASSISTANT_MODEL", "vendor/answers")
+        monkeypatch.setattr(settings, "ASSISTANT_TRANSCRIBE_MODEL", "vendor/cheap-ears")
+
+        assert OpenRouterTranscriber().model == "vendor/cheap-ears"
+
+    def test_an_explicit_argument_beats_both(self, monkeypatch):
+        monkeypatch.setattr(settings, "ASSISTANT_MODEL", "vendor/answers")
+        monkeypatch.setattr(settings, "ASSISTANT_TRANSCRIBE_MODEL", "vendor/cheap-ears")
+
+        assert OpenRouterTranscriber(model="vendor/pinned").model == "vendor/pinned"
