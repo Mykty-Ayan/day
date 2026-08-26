@@ -15,7 +15,8 @@
     "test:e2e:report": "playwright show-report",
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build",
-    "start": "serve dist -s -l tcp://0.0.0.0:$PORT"
+    "start": "serve dist -s -l tcp://0.0.0.0:$PORT",
+    "test:unit": "playwright test --config=playwright.unit.config.ts"
   },
   "dependencies": {
     "@radix-ui/react-checkbox": "^1.3.3",

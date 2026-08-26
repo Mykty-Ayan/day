@@ -63,9 +63,14 @@ body {
   background: var(--tg-theme-button-color, #111827);
   color: var(--tg-theme-button-text-color, #ffffff);
 }
-.tg-divide > li + li {
+.tg-divide > li + li,
+.tg-divide-y > * + * {
   border-top: 1px solid var(--tg-theme-hint-color, #d1d5db);
   border-top-color: color-mix(in srgb, var(--tg-theme-hint-color, #d1d5db) 25%, transparent);
+}
+/* Telegram paints the button colour; on a dark theme its text must follow. */
+.tg-accent-text {
+  color: var(--tg-theme-link-color, var(--tg-theme-button-color, #111827));
 }
 
 /* Hide native number spinners inside custom NumberInput */

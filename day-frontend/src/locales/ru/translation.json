@@ -789,7 +789,8 @@
       "today": "Сегодня",
       "free": "Свободно",
       "bookings": "Брони",
-      "flats": "Квартиры"
+      "flats": "Квартиры",
+      "sell": "Продать"
     },
     "arrivals": "Заезды",
     "departures": "Выезды",
@@ -807,6 +808,54 @@
     "wifi": "Wi-Fi",
     "noWifi": "Wi-Fi не указан",
     "copied": "Скопировано",
-    "floor": "этаж"
+    "floor": "этаж",
+    "offer": {
+      "title": "Варианты гостю",
+      "pickDate": "Дата",
+      "from": "Заезд",
+      "nights": "Ночей",
+      "guestPhone": "Телефон гостя",
+      "sendWhatsApp": "В WhatsApp",
+      "copy": "Копировать",
+      "nothingFree": "На эти даты всё занято",
+      "hint": "Откроется ваш WhatsApp с готовым текстом — останется нажать «отправить».",
+      "messageHead": "Свободно {{range}}:",
+      "messageTail": "Заезд с 14:00, выезд до 12:00.",
+      "forNights": "за {{count}} ноч.",
+      "rooms": "{{count}}-комн."
+    },
+    "book": {
+      "total": "К оплате",
+      "guestName": "Имя гостя",
+      "guestPhone": "Телефон",
+      "confirm": "Забронировать",
+      "saving": "Сохраняю…",
+      "failed": "Не удалось забронировать",
+      "nights": "{{count}} ноч."
+    },
+    "booking": {
+      "due": "Остаток",
+      "extend": "+1 ночь",
+      "checkIn": "Заселить",
+      "checkOut": "Выселить",
+      "payment": "Оплата",
+      "record": "Внести",
+      "sendGuest": "Гостю",
+      "messageHead": "{{name}}, добро пожаловать!",
+      "block": "блок {{value}}",
+      "flat": "кв. {{value}}",
+      "floor": "{{value}} этаж",
+      "messageDates": "Заезд {{from}}, выезд {{to}}."
+    },
+    "cleaning": {
+      "title": "Уборка",
+      "short": "Уборка",
+      "after": "После выезда {{date}}",
+      "time": "Время",
+      "cleaner": "Клинер",
+      "noCleaners": "Клинеров пока нет",
+      "schedule": "Поставить уборку",
+      "failed": "Не удалось поставить уборку"
+    }
   }
 }

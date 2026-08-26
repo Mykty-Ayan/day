@@ -789,7 +789,8 @@
       "today": "Бүгін",
       "free": "Бос",
       "bookings": "Брондар",
-      "flats": "Пәтерлер"
+      "flats": "Пәтерлер",
+      "sell": "Сату"
     },
     "arrivals": "Кіру",
     "departures": "Шығу",
@@ -807,6 +808,54 @@
     "wifi": "Wi-Fi",
     "noWifi": "Wi-Fi көрсетілмеген",
     "copied": "Көшірілді",
-    "floor": "қабат"
+    "floor": "қабат",
+    "offer": {
+      "title": "Қонаққа нұсқалар",
+      "pickDate": "Күні",
+      "from": "Кіру",
+      "nights": "Түн",
+      "guestPhone": "Қонақ телефоны",
+      "sendWhatsApp": "WhatsApp-қа",
+      "copy": "Көшіру",
+      "nothingFree": "Бұл күндерге бос орын жоқ",
+      "hint": "Дайын мәтінмен WhatsApp ашылады — жіберу ғана қалады.",
+      "messageHead": "{{range}} бос:",
+      "messageTail": "Кіру 14:00-ден, шығу 12:00-ге дейін.",
+      "forNights": "{{count}} түнге",
+      "rooms": "{{count}} бөлме"
+    },
+    "book": {
+      "total": "Төлемге",
+      "guestName": "Қонақ аты",
+      "guestPhone": "Телефон",
+      "confirm": "Брондау",
+      "saving": "Сақталуда…",
+      "failed": "Брондау сәтсіз",
+      "nights": "{{count}} түн"
+    },
+    "booking": {
+      "due": "Қалдық",
+      "extend": "+1 түн",
+      "checkIn": "Кіргізу",
+      "checkOut": "Шығару",
+      "payment": "Төлем",
+      "record": "Енгізу",
+      "sendGuest": "Қонаққа",
+      "messageHead": "{{name}}, қош келдіңіз!",
+      "block": "блок {{value}}",
+      "flat": "пәтер {{value}}",
+      "floor": "{{value}} қабат",
+      "messageDates": "Кіру {{from}}, шығу {{to}}."
+    },
+    "cleaning": {
+      "title": "Тазалау",
+      "short": "Тазалау",
+      "after": "{{date}} шыққаннан кейін",
+      "time": "Уақыт",
+      "cleaner": "Тазалаушы",
+      "noCleaners": "Тазалаушылар жоқ",
+      "schedule": "Тазалау тағайындау",
+      "failed": "Тағайындау сәтсіз"
+    }
   }
 }
