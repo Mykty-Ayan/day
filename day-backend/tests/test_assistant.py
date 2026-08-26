@@ -6,12 +6,13 @@ reads may run on the model's say-so, and a tool that changes anything may not.
 
 from __future__ import annotations
 
+import uuid
 from datetime import date
 
 import pytest
 
 from app.application.assistant.ask import MAX_STEPS, AskAssistantService
-from app.application.assistant.tools import Tool
+from app.application.assistant.tools import Tool, ToolContext
 from app.domain.assistant.gateway import AssistantGateway, ChatMessage, ModelResponse
 from app.domain.assistant.value_objects import AssistantUnavailable, ToolCall, ToolEffect
 
@@ -191,3 +192,71 @@ class TestAskAssistantService:
         assert contents[1] == "Что свободно сегодня?"
         assert contents[2] == "А на завтра?"
         assert "2026-08-26" in contents[0], "the model was not told what day it is"
+
+
+class TestToolGuards:
+    """The tools reach the services directly, so the checks the HTTP schemas
+    make are not made for them. These are the ones that touch money."""
+
+    def _context(self, today: date = TODAY, metrics=None) -> ToolContext:
+        return ToolContext(
+            uuid.uuid4(),
+            availability_service=None,
+            booking_repo=None,
+            guest_repo=None,
+            property_repo=None,
+            create_booking_service=None,
+            update_booking_service=None,
+            payment_service=None,
+            cleaning_service=None,
+            metrics_service=metrics,
+            today=today,
+        )
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("amount", [-25000, 0, -0.01])
+    async def test_a_payment_must_be_positive(self, amount):
+        # PaymentCreate declares gt=0, but nothing goes through PaymentCreate
+        # here: an unguarded tool would be the one way to write a payment that
+        # makes a debt grow.
+        with pytest.raises(ValueError, match="больше нуля"):
+            await self._context().record_payment(booking_id=str(uuid.uuid4()), amount=amount)
+
+    @pytest.mark.asyncio
+    async def test_an_unreadable_amount_is_refused_before_anything_is_looked_up(self):
+        with pytest.raises(ValueError, match="сумму"):
+            await self._context().record_payment(booking_id=str(uuid.uuid4()), amount="много")
+
+    @pytest.mark.asyncio
+    async def test_asking_about_money_on_the_first_of_the_month_still_answers(self):
+        # Metrics span a half-open range and refuse date_to <= date_from, so on
+        # the 1st "сколько за этот месяц" used to collapse to an empty range.
+        seen: list[tuple] = []
+
+        class Metrics:
+            async def execute(self, company, date_from, date_to):
+                seen.append((date_from, date_to))
+                return {"revenue": 0.0}
+
+        context = self._context(today=date(2026, 9, 1), metrics=Metrics())
+
+        answer = await context.money()
+
+        assert seen == [(date(2026, 9, 1), date(2026, 9, 2))]
+        assert answer["from"] == "2026-09-01"
+        assert answer["to"] == "2026-09-02"
+
+    @pytest.mark.asyncio
+    async def test_a_normal_month_is_left_alone(self):
+        seen: list[tuple] = []
+
+        class Metrics:
+            async def execute(self, company, date_from, date_to):
+                seen.append((date_from, date_to))
+                return {}
+
+        context = self._context(today=date(2026, 9, 17), metrics=Metrics())
+
+        await context.money()
+
+        assert seen == [(date(2026, 9, 1), date(2026, 9, 17))]
