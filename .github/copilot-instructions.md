@@ -259,9 +259,15 @@ docker/
 - CI runs tests with isolated PostgreSQL database
 
 ### Git Workflow
-- Main branch is `main`
-- CI runs on all pushes and PRs to main
-- All CI checks must pass before merge
+GitFlow. Full rules in `CONTRIBUTING.md`.
+- `main` is production — tagged releases only, no direct commits
+- `develop` is the integration branch — no direct commits either
+- Work happens in `feature/*`, `fix/*`, `refactor/*`, `test/*`, `docs/*`, `ci/*` branched off `develop`
+- `release/<version>` goes `develop` -> `main` (tag `v<version>`), then back-merges into `develop`
+- `hotfix/<version>` goes `main` -> `main`, then back-merges into `develop` — the back-merge is mandatory
+- Open PRs against `develop`, not `main`
+- Conventional Commits: `<type>(<scope>): <what changed>`
+- CI runs on PRs to `main`, `develop` and `release/*`; all checks must pass before merge
 
 ## Key Facts
 
