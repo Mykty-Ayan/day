@@ -789,7 +789,8 @@
       "today": "Today",
       "free": "Free",
       "bookings": "Bookings",
-      "flats": "Units"
+      "flats": "Units",
+      "sell": "Sell"
     },
     "arrivals": "Arrivals",
     "departures": "Departures",
@@ -807,6 +808,54 @@
     "wifi": "Wi-Fi",
     "noWifi": "No Wi-Fi set",
     "copied": "Copied",
-    "floor": "floor"
+    "floor": "floor",
+    "offer": {
+      "title": "Send options",
+      "pickDate": "Date",
+      "from": "Check-in",
+      "nights": "Nights",
+      "guestPhone": "Guest phone",
+      "sendWhatsApp": "WhatsApp",
+      "copy": "Copy",
+      "nothingFree": "Nothing free on those dates",
+      "hint": "Opens your WhatsApp with the message ready — just hit send.",
+      "messageHead": "Free {{range}}:",
+      "messageTail": "Check-in from 14:00, check-out by 12:00.",
+      "forNights": "for {{count}} night(s)",
+      "rooms": "{{count}} bed(s)"
+    },
+    "book": {
+      "total": "Total",
+      "guestName": "Guest name",
+      "guestPhone": "Phone",
+      "confirm": "Book",
+      "saving": "Saving…",
+      "failed": "Could not book",
+      "nights": "{{count}} night(s)"
+    },
+    "booking": {
+      "due": "Outstanding",
+      "extend": "+1 night",
+      "checkIn": "Check in",
+      "checkOut": "Check out",
+      "payment": "Payment",
+      "record": "Record",
+      "sendGuest": "To guest",
+      "messageHead": "{{name}}, welcome!",
+      "block": "block {{value}}",
+      "flat": "flat {{value}}",
+      "floor": "floor {{value}}",
+      "messageDates": "Check-in {{from}}, check-out {{to}}."
+    },
+    "cleaning": {
+      "title": "Cleaning",
+      "short": "Clean",
+      "after": "After check-out {{date}}",
+      "time": "Time",
+      "cleaner": "Cleaner",
+      "noCleaners": "No cleaners yet",
+      "schedule": "Schedule cleaning",
+      "failed": "Could not schedule cleaning"
+    }
   }
 }
