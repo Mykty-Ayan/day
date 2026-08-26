@@ -9,9 +9,17 @@ type AuthTokens = {
   refresh_token: string
 }
 
+/** Per-test fixtures. */
 interface AuthFixtures {
-  authTokens: AuthTokens
   companyHeader: string
+}
+
+/** Shared for the lifetime of a worker: logging in once per worker is the whole
+ *  point of the token cache below, and Playwright only honours that when the
+ *  fixture is declared in the worker type parameter — not merely tagged
+ *  `{ scope: 'worker' }` at the call site. */
+interface AuthWorkerFixtures {
+  authTokens: AuthTokens
 }
 
 const AUTH_CACHE_PATH = path.join(os.tmpdir(), 'day2-playwright-auth-cache.json')
@@ -163,7 +171,7 @@ async function loginOrRegister(request: APIRequestContext): Promise<AuthTokens> 
   throw new Error('Failed to acquire auth tokens for Playwright E2E tests')
 }
 
-export const test = base.extend<AuthFixtures>({
+export const test = base.extend<AuthFixtures, AuthWorkerFixtures>({
   authTokens: [
     async ({ playwright }, use) => {
       const cached = await readCachedTokens()

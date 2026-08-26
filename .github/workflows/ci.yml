@@ -47,8 +47,11 @@ jobs:
         run: cd day-frontend && npm ci
       - name: Lint
         run: cd day-frontend && npm run lint
+      # `tsc --noEmit` with no project reads tsconfig.json, which is a solution
+      # file with `files: []` — it checked nothing and passed on anything. This
+      # covers src and tests together.
       - name: Type check
-        run: cd day-frontend && npx tsc --noEmit
+        run: cd day-frontend && npm run typecheck
 
   frontend-build:
     runs-on: ubuntu-latest

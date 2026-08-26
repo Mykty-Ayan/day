@@ -33,7 +33,10 @@ function normalizeApiContextPaths(ctx: APIRequestContext): void {
 
   for (const method of methods) {
     const original = ctx[method].bind(ctx)
-    ;(ctx as unknown as Record<string, unknown>)[method] = (url: string, options?: unknown) =>
+    // Borrow the method's own options type rather than widening to unknown,
+    // which then has to be forced back in at the call.
+    type Options = Parameters<typeof original>[1]
+    ;(ctx as unknown as Record<string, unknown>)[method] = (url: string, options?: Options) =>
       original(normalizeApiPath(url), options)
   }
 }
