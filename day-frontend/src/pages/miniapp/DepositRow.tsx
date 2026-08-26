@@ -8,7 +8,7 @@
 
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ShieldCheck, Undo2, Wallet } from 'lucide-react'
+import { HandCoins, ShieldCheck, Undo2, Wallet } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { createDeposit, depositAction, listDeposits } from '../../api/bookings'
 import type { BookingDeposit } from '../../types/booking'
@@ -28,6 +28,11 @@ export default function DepositRow({
   const { t, i18n } = useTranslation()
   const queryClient = useQueryClient()
   const [amount, setAmount] = useState('')
+  // Keeping money needs a number and a reason, so the form only appears once
+  // the operator says they intend to keep some.
+  const [holdingFor, setHoldingFor] = useState<string | null>(null)
+  const [heldAmount, setHeldAmount] = useState('')
+  const [reason, setReason] = useState('')
 
   const deposits = useQuery({
     queryKey: ['miniapp', 'deposits', bookingId],
@@ -53,6 +58,27 @@ export default function DepositRow({
     mutationFn: ({ deposit, action }: { deposit: BookingDeposit; action: 'pay' | 'return' }) =>
       depositAction(bookingId, deposit.id, { action }),
     onSuccess: refresh,
+    onError,
+  })
+
+  const hold = useMutation({
+    mutationFn: (deposit: BookingDeposit) => {
+      const kept = Number(heldAmount || deposit.amount)
+      // Keeping the whole thing is its own action; the partial one refuses an
+      // amount equal to the deposit only by accident of naming, so be explicit.
+      const whole = kept >= deposit.amount
+      return depositAction(bookingId, deposit.id, {
+        action: whole ? 'hold' : 'partial_hold',
+        held_amount: whole ? undefined : kept,
+        reason: reason.trim() || undefined,
+      })
+    },
+    onSuccess: () => {
+      setHoldingFor(null)
+      setHeldAmount('')
+      setReason('')
+      refresh()
+    },
     onError,
   })
 
@@ -106,8 +132,8 @@ export default function DepositRow({
               </ActionButton>
             </div>
           )}
-          {deposit.status === 'paid' && (
-            <div className="mt-2">
+          {deposit.status === 'paid' && holdingFor !== deposit.id && (
+            <div className="mt-2 grid grid-cols-2 gap-2">
               <ActionButton
                 disabled={act.isPending}
                 onClick={() => act.mutate({ deposit, action: 'return' })}
@@ -115,6 +141,48 @@ export default function DepositRow({
                 <Undo2 className="h-4 w-4" />
                 {t('miniapp.deposit.give_back')}
               </ActionButton>
+              <ActionButton
+                onClick={() => {
+                  setHoldingFor(deposit.id)
+                  setHeldAmount(String(deposit.amount))
+                  setReason('')
+                }}
+              >
+                <HandCoins className="h-4 w-4" />
+                {t('miniapp.deposit.keep')}
+              </ActionButton>
+            </div>
+          )}
+
+          {deposit.status === 'paid' && holdingFor === deposit.id && (
+            <div className="mt-2 space-y-2">
+              <Field
+                label={t('miniapp.deposit.keepAmount')}
+                value={heldAmount}
+                onChange={setHeldAmount}
+                type="number"
+                inputMode="numeric"
+                placeholder={String(deposit.amount)}
+              />
+              <Field
+                label={t('miniapp.deposit.reason')}
+                value={reason}
+                onChange={setReason}
+                placeholder={t('miniapp.deposit.reasonPlaceholder')}
+              />
+              <div className="grid grid-cols-2 gap-2">
+                <ActionButton onClick={() => setHoldingFor(null)}>
+                  {t('miniapp.deposit.cancel')}
+                </ActionButton>
+                <ActionButton
+                  tone="primary"
+                  disabled={hold.isPending || Number(heldAmount) <= 0}
+                  onClick={() => hold.mutate(deposit)}
+                >
+                  <HandCoins className="h-4 w-4" />
+                  {t('miniapp.deposit.keep')}
+                </ActionButton>
+              </div>
             </div>
           )}
         </div>
