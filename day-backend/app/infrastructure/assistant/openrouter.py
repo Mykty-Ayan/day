@@ -132,7 +132,7 @@ _TRANSCRIBE_PROMPT = (
 
 
 class OpenRouterTranscriber(Transcriber):
-    """Transcription through the same model that answers questions.
+    """Speech to text through an audio-capable chat model.
 
     Verified against Telegram's own format: ogg/opus goes straight through, so
     nothing has to transcode audio inside the container.
@@ -147,8 +147,15 @@ class OpenRouterTranscriber(Transcriber):
     ) -> None:
         self._api_key = api_key if api_key is not None else settings.ASSISTANT_API_KEY
         self._base_url = (base_url or settings.ASSISTANT_API_URL).rstrip("/")
-        self._model = model or settings.ASSISTANT_MODEL
+        # Transcribing needs audio in and text out — no tools, no reasoning — so
+        # it can run on a cheaper model than the one that answers questions.
+        # Unset means the two share a model, which is how this behaved before.
+        self._model = model or settings.ASSISTANT_TRANSCRIBE_MODEL or settings.ASSISTANT_MODEL
         self._timeout = timeout_seconds or settings.ASSISTANT_TIMEOUT_SECONDS
+
+    @property
+    def model(self) -> str:
+        return self._model
 
     async def transcribe(self, audio: bytes, mime_type: str) -> str:
         if not self._api_key:

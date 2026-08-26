@@ -105,7 +105,11 @@ services:
       # Assistant. Without a key /assistant/ask reports it is switched off
       # rather than failing mid-conversation.
       ASSISTANT_API_KEY: ${ASSISTANT_API_KEY:-}
-      ASSISTANT_MODEL: ${ASSISTANT_MODEL:-google/gemini-2.5-flash}
+      ASSISTANT_API_URL: ${ASSISTANT_API_URL:-https://openrouter.ai/api/v1}
+      ASSISTANT_MODEL: ${ASSISTANT_MODEL:-google/gemini-3.7-flash}
+      # Empty means voice notes are transcribed by ASSISTANT_MODEL. Point it at
+      # a cheaper audio-capable model to stop paying reasoning prices for speech.
+      ASSISTANT_TRANSCRIBE_MODEL: ${ASSISTANT_TRANSCRIBE_MODEL:-}
       PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:?PUBLIC_BASE_URL is required}
       # Front-end origin. The Mini App is served at `/tma` under it, and the
       # bot's menu button is re-pointed there on every boot.

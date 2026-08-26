@@ -66,7 +66,12 @@ class Settings(BaseSettings):
     # it is switched off rather than failing mid-conversation.
     ASSISTANT_API_KEY: str = ""
     ASSISTANT_API_URL: str = "https://openrouter.ai/api/v1"
-    ASSISTANT_MODEL: str = "google/gemini-2.5-flash"
+    ASSISTANT_MODEL: str = "google/gemini-3.7-flash"
+    # Transcription is a different job from answering: it needs audio input but
+    # no tool calling and no reasoning, so it can run on a cheaper model. Empty
+    # means "whatever ASSISTANT_MODEL is", which is how it behaved before this
+    # knob existed.
+    ASSISTANT_TRANSCRIBE_MODEL: str = ""
     ASSISTANT_TIMEOUT_SECONDS: int = 45
 
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
