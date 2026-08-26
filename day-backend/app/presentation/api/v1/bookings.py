@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import re
 import uuid
+from decimal import Decimal
 from datetime import date, datetime, timedelta
 from urllib.parse import quote, urlparse
 
@@ -122,6 +123,7 @@ def _to_booking_response(
     guest_phone: str | None = None,
     property_name: str | None = None,
     property_internal_name: str | None = None,
+    paid_amount: Decimal | None = None,
 ) -> BookingResponse:
     return BookingResponse(
         id=b.id,
@@ -138,6 +140,7 @@ def _to_booking_response(
         gantt_icon=b.gantt_icon,
         total_price=b.total_price,
         calculated_price=b.calculated_price,
+        paid_amount=paid_amount if paid_amount is not None else Decimal("0"),
         adults_count=b.adults_count,
         children_count=b.children_count,
         notes=b.notes,
@@ -295,7 +298,9 @@ async def list_bookings(
         date_to=date_to,
     )
 
-    # Enrich with guest and property names
+    # Enrich with guest and property names, plus what has been received —
+    # one aggregate query for the whole page rather than one per booking.
+    paid = await repos["payment"].sum_paid_by_bookings([b.id for b in result.items])
     items = []
     for b in result.items:
         guest = await repos["guest"].get_by_id(b.guest_id)
@@ -307,6 +312,7 @@ async def list_bookings(
                 guest_phone=guest.phone if guest else None,
                 property_name=prop.name if prop else None,
                 property_internal_name=prop.internal_name if prop else None,
+                paid_amount=paid.get(b.id),
             )
         )
 

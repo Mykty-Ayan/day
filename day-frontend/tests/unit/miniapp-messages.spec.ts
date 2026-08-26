@@ -69,6 +69,7 @@ function booking(overrides: Partial<Booking> = {}): Booking {
     gantt_color: '#000',
     total_price: 50000,
     calculated_price: 50000,
+    paid_amount: 0,
     adults_count: 2,
     children_count: 0,
     guest_name: 'Ерлан',

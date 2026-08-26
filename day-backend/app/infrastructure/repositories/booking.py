@@ -2,10 +2,11 @@ from __future__ import annotations
 
 import re
 import uuid
+from collections.abc import Sequence
 from datetime import date, datetime
 from decimal import Decimal
 
-from sqlalchemy import delete, func, select, update
+from sqlalchemy import case, delete, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.domain.booking.entities import (
@@ -542,6 +543,23 @@ class SqlBookingPaymentRepository(BookingPaymentRepository):
     async def get_by_id(self, payment_id: uuid.UUID) -> BookingPayment | None:
         result = await self._session.get(BookingPaymentModel, payment_id)
         return _model_to_payment(result) if result else None
+
+    async def sum_paid_by_bookings(self, booking_ids: Sequence[uuid.UUID]) -> dict[uuid.UUID, Decimal]:
+        if not booking_ids:
+            return {}
+        # Refunds count against what was received, so the sign is decided in SQL
+        # rather than by summing two columns in Python.
+        signed = case(
+            (BookingPaymentModel.type == PaymentType.REFUND.value, -BookingPaymentModel.amount),
+            else_=BookingPaymentModel.amount,
+        )
+        stmt = (
+            select(BookingPaymentModel.booking_id, func.coalesce(func.sum(signed), 0))
+            .where(BookingPaymentModel.booking_id.in_(booking_ids))
+            .group_by(BookingPaymentModel.booking_id)
+        )
+        rows = await self._session.execute(stmt)
+        return {booking_id: Decimal(str(total)) for booking_id, total in rows.all()}
 
 
 class SqlBookingDepositRepository(BookingDepositRepository):

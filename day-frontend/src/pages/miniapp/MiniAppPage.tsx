@@ -164,6 +164,8 @@ export default function MiniAppPage() {
       <main className="space-y-4 p-3">
         {tab === 'today' && (
           <>
+            <MoneyStrip bookings={upcoming} />
+
             <ActionButton tone="primary" onClick={() => setOfferOpen(true)}>
               <Send className="h-4 w-4" />
               {t('miniapp.offer.title')}
@@ -352,6 +354,34 @@ export default function MiniAppPage() {
         checkOut={`${toISODate(checkOut)}T12:00:00`}
         onClose={() => setUnitToBook(null)}
       />
+    </div>
+  )
+}
+
+/** Two figures the operator checks last thing at night, read straight off the
+ *  list that is already loaded — no extra request, no separate screen. */
+function MoneyStrip({ bookings }: { bookings: Booking[] }) {
+  const { t, i18n } = useTranslation()
+
+  const owed = bookings.reduce(
+    (sum, booking) => sum + Math.max(0, booking.total_price - (booking.paid_amount ?? 0)),
+    0,
+  )
+  const booked = bookings.reduce((sum, booking) => sum + booking.total_price, 0)
+
+  return (
+    <div className="tg-surface grid grid-cols-2 gap-px overflow-hidden rounded-xl">
+      <Figure label={t('miniapp.money.owed')} value={`${formatMoney(owed, i18n.language)} ₸`} />
+      <Figure label={t('miniapp.money.booked')} value={`${formatMoney(booked, i18n.language)} ₸`} />
+    </div>
+  )
+}
+
+function Figure({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="px-3 py-2.5">
+      <p className="tg-hint text-xs font-bold uppercase tracking-wide">{label}</p>
+      <p className="mt-0.5 text-lg font-bold tabular-nums">{value}</p>
     </div>
   )
 }

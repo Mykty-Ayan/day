@@ -35,6 +35,8 @@ export interface Booking {
   gantt_icon?: string
   total_price: number
   calculated_price: number
+  /** Net received: payments less refunds. Lets a list show who still owes. */
+  paid_amount: number
   adults_count: number
   children_count: number
   notes?: string | null
