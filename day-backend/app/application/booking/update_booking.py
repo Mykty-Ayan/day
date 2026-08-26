@@ -68,6 +68,9 @@ class UpdateBookingService:
                 changes.append((field_name, str(old_val), str(new_val)))
 
         dates_changed = False
+        # A price the operator typed in by hand is their number and survives a
+        # date change; one the system worked out should follow the new dates.
+        price_was_system_set = booking.total_price == booking.calculated_price
 
         if inp.check_in is not _UNSET:
             _track("check_in", booking.check_in, inp.check_in)
@@ -140,6 +143,11 @@ class UpdateBookingService:
                     booking.rental_mode,
                 )
                 booking.calculated_price = breakdown.total
+                # Without this an extra night is added for free: the charge
+                # stays on the old dates while the stay grows.
+                if price_was_system_set and inp.total_price is _UNSET:
+                    _track("total_price", str(booking.total_price), str(breakdown.total))
+                    booking.total_price = breakdown.total
             except ValueError:
                 pass  # No pricing config, keep existing calculated_price
 
