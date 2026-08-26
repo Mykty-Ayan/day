@@ -101,6 +101,10 @@ services:
       WHAPI_TOKEN: ${WHAPI_TOKEN:-}
       WHAPI_API_URL: ${WHAPI_API_URL:-https://gate.whapi.cloud}
       WHAPI_WEBHOOK_SECRET: ${WHAPI_WEBHOOK_SECRET:-}
+      # Assistant. Without a key /assistant/ask reports it is switched off
+      # rather than failing mid-conversation.
+      ASSISTANT_API_KEY: ${ASSISTANT_API_KEY:-}
+      ASSISTANT_MODEL: ${ASSISTANT_MODEL:-google/gemini-2.5-flash}
       PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:?PUBLIC_BASE_URL is required}
     expose:
       - "8000"

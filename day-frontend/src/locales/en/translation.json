@@ -790,7 +790,8 @@
       "free": "Free",
       "bookings": "Bookings",
       "flats": "Units",
-      "sell": "Sell"
+      "sell": "Sell",
+      "ask": "Ask"
     },
     "arrivals": "Arrivals",
     "departures": "Departures",
@@ -876,6 +877,19 @@
         "held": "Deposit kept",
         "partially_held": "Deposit partly kept"
       }
+    },
+    "ask": {
+      "intro": "Ask in words — I answer and act.",
+      "placeholder": "What's free on Friday?",
+      "send": "Send",
+      "thinking": "Thinking…",
+      "failed": "That did not work. Try rephrasing.",
+      "confirm": "Confirm",
+      "applied": "Done",
+      "proposes": "I suggest:",
+      "s1": "What's free tomorrow and for how much?",
+      "s2": "What's the Wi-Fi in 62auc?",
+      "s3": "How much did I earn this month?"
     }
   }
 }

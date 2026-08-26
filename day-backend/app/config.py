@@ -55,6 +55,14 @@ class Settings(BaseSettings):
     CHANNEX_API_KEY: str = ""
     CHANNEX_WEBHOOK_SECRET: str = ""
 
+    # Assistant — the operator asks in words, the model answers by calling the
+    # same API they would have tapped. Without a key the endpoint reports that
+    # it is switched off rather than failing mid-conversation.
+    ASSISTANT_API_KEY: str = ""
+    ASSISTANT_API_URL: str = "https://openrouter.ai/api/v1"
+    ASSISTANT_MODEL: str = "google/gemini-2.5-flash"
+    ASSISTANT_TIMEOUT_SECONDS: int = 45
+
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
 
 
