@@ -88,6 +88,72 @@ Ports: Backend `:8000` (API at `/api/v1`), Frontend `:3000`, PostgreSQL `:5432`,
 - Commission rates: Booking.com 15%, Airbnb 3%
 
 <!-- code-review-graph MCP tools -->
+## Git Workflow (GitFlow)
+
+Full rules live in `CONTRIBUTING.md`. The short version an agent needs:
+
+- `main` — production only. Every commit is a tagged release. Never commit or push here.
+- `develop` — integration branch. Next release accumulates here. Never push directly.
+- `feature/*`, `fix/*`, `refactor/*`, `test/*`, `docs/*`, `ci/*` — branch off `develop`, PR back into `develop`.
+- `release/<version>` — branch off `develop`, PR into `main`, then a second PR back into `develop`. Tag `v<version>` on `main` after merge.
+- `hotfix/<version>` — branch off `main`, PR into `main`, then a second PR back into `develop`. The back-merge is mandatory.
+
+Before editing anything, confirm the current branch. If it is `main` or `develop`, create a
+working branch first — do not start editing in place.
+
+```bash
+git status --short --branch
+git checkout develop && git pull && git checkout -b feature/<slug>
+```
+
+Commits: Conventional Commits — `<type>(<scope>): <what changed>`.
+Scopes in use: `booking`, `property`, `cleaning`, `analytics`, `assistant`, `bot`, `miniapp`, `api`, `db`, `ci`.
+
+Commit and push only when the user asks. Open PRs against `develop`, not `main`
+(except `release/*` and `hotfix/*`).
+
+## Working with AI agents on this repo
+
+Rules that came out of things going wrong here, not generic advice.
+
+**Read the graph before reading files.** `semantic_search_nodes` / `query_graph` beat Grep for
+anything structural. See the MCP section below. Grep is the fallback, not the default.
+
+**Small, reviewable diffs.** One PR = one intent. A 1000-line AI-written PR gets rubber-stamped,
+and rubber-stamped code is how bugs reach the six live apartments in production. If a task grows
+past ~400 lines of diff, split it into PRs that each stand on their own.
+
+**Never claim done without evidence.** "Done" means a command was run and its output seen:
+`ruff check .`, `pytest`, `pytest -m integration`, `npm run build`, `npm run lint`. Compiling is
+not passing. Passing unit tests is not passing integration tests.
+
+**Placeholders are blockers, not progress.** `TODO`, `pass  # implement later`, `test.skip`,
+`.only`, an empty `except`, a hardcoded return that makes a test green — none of these ship.
+Before reporting completion, grep the diff for them.
+
+**Tests belong in the same commit as the change.** A bug fix without a test that fails before
+the fix is not a fix — it is a coincidence.
+
+**Multi-tenancy is not optional.** Every new query, repository method, and endpoint scopes by
+`company_id`. A missing filter leaks one client's bookings into another client's screen. This is
+the single most damaging class of bug in this codebase — check it on every data-access change.
+
+**Money and destructive actions need a guard.** Anything that changes a price, a paid amount, a
+deposit, or deletes a record goes through explicit confirmation — this is already the contract
+for the assistant tools (see the assistant wiki page). New tools follow it.
+
+**Migrations: one head, tested against real data.** Generate the Alembic revision in the same
+branch as the model change. After merging, check `alembic heads` — two heads means someone
+merged two branches with migrations and a merge revision is needed. Test against a copy of the
+production dump, not an empty database.
+
+**Don't invent API surface.** Before using an SDK, framework, or library API, check the actual
+docs (context7) or the installed source. A plausible-looking method name that does not exist
+costs more than the lookup did.
+
+**Say what was not done.** Partial work reported as complete is worse than partial work reported
+honestly. Name the skipped part and why.
+
 ## MCP Tools: code-review-graph
 
 **IMPORTANT: This project has a knowledge graph. ALWAYS use the
