@@ -27,6 +27,7 @@ import { listAllProperties } from '../../api/properties'
 import { copyText, getInitData, initTelegram, isInsideTelegram, tapFeedback } from '../../lib/telegram'
 import type { Booking } from '../../types/booking'
 import type { Property } from '../../types/property'
+import AskScreen from './AskScreen'
 import BookSheet from './BookSheet'
 import BookingSheet from './BookingSheet'
 import CleaningSheet from './CleaningSheet'
@@ -34,7 +35,7 @@ import OfferSheet from './OfferSheet'
 import { addDays, formatDay, formatMoney, formatTime, toISODate } from './format'
 import { ActionButton, Chip, Screen, Section } from './miniapp-ui'
 
-type Tab = 'today' | 'sell' | 'units'
+type Tab = 'today' | 'sell' | 'units' | 'ask'
 type Period = 'tonight' | 'tomorrow' | 'weekend'
 
 const UPCOMING_DAYS = 14
@@ -155,6 +156,7 @@ export default function MiniAppPage() {
             ['today', t('miniapp.tabs.today')],
             ['sell', t('miniapp.tabs.sell')],
             ['units', t('miniapp.tabs.flats')],
+            ['ask', t('miniapp.tabs.ask')],
           ] as [Tab, string][]
         ).map(([value, label]) => (
           <Chip key={value} label={label} active={tab === value} onClick={() => setTab(value)} />
@@ -342,6 +344,8 @@ export default function MiniAppPage() {
             )}
           </>
         )}
+
+        {tab === 'ask' && <AskScreen />}
       </main>
 
       <OfferSheet key={offerOpen ? 'open' : 'closed'} open={offerOpen} onClose={() => setOfferOpen(false)} />

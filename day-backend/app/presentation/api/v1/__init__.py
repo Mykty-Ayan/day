@@ -2,6 +2,7 @@ from fastapi import APIRouter
 
 from app.presentation.api.v1.ai_migration import ai_migration_router
 from app.presentation.api.v1.analytics import analytics_router
+from app.presentation.api.v1.assistant import assistant_router
 from app.presentation.api.v1.auth import auth_router
 from app.presentation.api.v1.bookings import booking_router, gantt_router, guest_router
 from app.presentation.api.v1.channels import channel_router
@@ -34,4 +35,5 @@ api_v1_router.include_router(user_router)
 api_v1_router.include_router(api_key_router)
 api_v1_router.include_router(channel_router)
 api_v1_router.include_router(channex_router)
+api_v1_router.include_router(assistant_router)
 api_v1_router.include_router(webhook_router)
