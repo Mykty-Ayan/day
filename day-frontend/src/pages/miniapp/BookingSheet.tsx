@@ -13,6 +13,7 @@ import { getProperty } from '../../api/properties'
 import type { Booking, BookingStatus } from '../../types/booking'
 import { copyText, openWhatsApp, resultFeedback } from '../../lib/telegram'
 import { addDays, formatDay, formatMoney, toISODate } from './format'
+import DepositRow from './DepositRow'
 import { buildCheckInMessage } from './messages'
 import { ActionButton, Field, Sheet } from './miniapp-ui'
 
@@ -169,6 +170,8 @@ export default function BookingSheet({
           </ActionButton>
         </div>
       )}
+
+      <DepositRow bookingId={booking.id} suggestedAmount={booking.total_price} onError={fail} />
 
       <pre className="tg-surface max-h-40 overflow-y-auto whitespace-pre-wrap rounded-xl p-3 text-xs">
         {checkInText}
