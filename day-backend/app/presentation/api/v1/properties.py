@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.application.property.change_status import ChangePropertyStatusService
@@ -26,7 +26,7 @@ from app.application.property.update_property import (
     UpdatePropertyService,
 )
 from app.domain.auth.permissions import Permission
-from app.domain.property.entities import DiscountRule, SeasonalPrice
+from app.domain.property.entities import DiscountRule, PropertyCosts, SeasonalPrice
 from app.domain.property.value_objects import PropertyStatus
 from app.infrastructure.database import get_session
 from app.infrastructure.repositories.property import (
@@ -34,6 +34,7 @@ from app.infrastructure.repositories.property import (
     SqlDiscountRuleRepository,
     SqlPricingConfigRepository,
     SqlPropertyAuditLogRepository,
+    SqlPropertyCostsRepository,
     SqlPropertyPhotoRepository,
     SqlPropertyRepository,
     SqlSeasonalPriceRepository,
@@ -50,6 +51,8 @@ from app.presentation.schemas.property import (
     PricingConfigResponse,
     PropertyAmenitiesSet,
     PropertyAuditLogResponse,
+    PropertyCostsInput,
+    PropertyCostsResponse,
     PropertyCreate,
     PropertyDetailResponse,
     PropertyListResponse,
@@ -445,6 +448,70 @@ async def set_property_amenities(
     except ValueError as e:
         await session.rollback()
         raise HTTPException(status_code=400, detail=str(e))
+
+
+# ---------- Costs ----------
+
+
+async def _load_property_or_404(session, property_id: uuid.UUID, company_id: uuid.UUID):
+    """Costs hang off a flat, and a flat belongs to exactly one company.
+
+    Without this check a company could read and rewrite another company's
+    rent by guessing a UUID: the costs table is keyed by property alone.
+    """
+    prop = await SqlPropertyRepository(session).get_by_id(property_id)
+    if prop is None or prop.company_id != company_id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Property not found")
+    return prop
+
+
+@router.get(
+    "/{property_id}/costs",
+    response_model=PropertyCostsResponse | None,
+    # Deliberately not PROPERTIES_READ. A cleaner holds that permission — they
+    # have to see the flats they clean — and would then be able to read what
+    # the subletter pays its owner. Costs are financial data, so they sit
+    # behind the same permission as the analytics that report them.
+    dependencies=[Depends(require(Permission.ANALYTICS_READ))],
+)
+async def get_costs(
+    property_id: uuid.UUID,
+    session: AsyncSession = Depends(get_session),
+    company_id: uuid.UUID = Depends(get_company_id),
+):
+    await _load_property_or_404(session, property_id, company_id)
+    costs = await SqlPropertyCostsRepository(session).get_by_property(property_id)
+    return PropertyCostsResponse.model_validate(costs, from_attributes=True) if costs else None
+
+
+@router.put(
+    "/{property_id}/costs",
+    response_model=PropertyCostsResponse,
+    # Writing costs moves every profit figure and every price floor, so it
+    # needs both: the right to change the flat and the right to see its money.
+    dependencies=[
+        Depends(require(Permission.PROPERTIES_WRITE)),
+        Depends(require(Permission.ANALYTICS_READ)),
+    ],
+)
+async def upsert_costs(
+    property_id: uuid.UUID,
+    body: PropertyCostsInput,
+    session: AsyncSession = Depends(get_session),
+    company_id: uuid.UUID = Depends(get_company_id),
+):
+    await _load_property_or_404(session, property_id, company_id)
+    saved = await SqlPropertyCostsRepository(session).upsert(
+        PropertyCosts(
+            property_id=property_id,
+            monthly_rent=body.monthly_rent,
+            monthly_utilities=body.monthly_utilities,
+            cleaning_cost=body.cleaning_cost,
+            consumables_per_night=body.consumables_per_night,
+        )
+    )
+    await session.commit()
+    return PropertyCostsResponse.model_validate(saved, from_attributes=True)
 
 
 # ---------- Pricing ----------

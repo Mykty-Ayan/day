@@ -96,6 +96,54 @@ class PricingConfig:
 
 
 @dataclass
+class PropertyCosts:
+    """What a flat costs its subletter, split by whether a guest triggers it.
+
+    The distinction is the whole point. Rent and utilities are paid whether
+    anyone sleeps there or not, so they can never argue against selling a night
+    cheaply — they argue about whether to keep the flat at all. Cleaning and
+    consumables leave the account because a guest came, so they set the price
+    below which an empty flat is strictly better.
+
+    Analytics needs both; tonight's price needs only the second.
+    """
+
+    id: uuid.UUID = field(default_factory=uuid.uuid4)
+    property_id: uuid.UUID = field(default_factory=uuid.uuid4)
+    #: Paid to the flat's owner every month.
+    monthly_rent: Decimal = Decimal("0")
+    #: Utilities, internet, building fees — everything that arrives monthly.
+    monthly_utilities: Decimal = Decimal("0")
+    #: Paid to the cleaner once per stay, not per night.
+    cleaning_cost: Decimal = Decimal("0")
+    #: Soap, water, coffee, laundry — what a night of occupancy uses up.
+    consumables_per_night: Decimal = Decimal("0")
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
+
+    def marginal_cost(self, nights: int = 1) -> Decimal:
+        """What selling this stay costs us, cleaning included.
+
+        The cleaner is paid once however long the guest stays, so a longer stay
+        carries the same cleaning over more nights — which is exactly why long
+        stays can be sold cheaper per night without losing money.
+        """
+        nights = max(nights, 1)
+        return self.cleaning_cost + self.consumables_per_night * nights
+
+    def fixed_cost(self, days: int) -> Decimal:
+        """Rent and utilities for a stretch of calendar, occupied or not.
+
+        Prorated by the average length of a month rather than by 30, so a year
+        of periods adds up to a year of rent instead of twelve-and-a-bit.
+        """
+        if days <= 0:
+            return Decimal("0")
+        monthly = self.monthly_rent + self.monthly_utilities
+        return (monthly * 12 * Decimal(days) / Decimal(365)).quantize(Decimal("0.01"))
+
+
+@dataclass
 class SeasonalPrice:
     id: uuid.UUID = field(default_factory=uuid.uuid4)
     pricing_config_id: uuid.UUID = field(default_factory=uuid.uuid4)

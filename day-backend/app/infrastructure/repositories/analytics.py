@@ -158,8 +158,12 @@ class SqlAnalyticsRepository(AnalyticsRepository):
 
         # Compute derived metrics
         for pm in props_map.values():
-            pm.expenses = pm.commission  # In this phase, expenses = commission
-            pm.profit = pm.revenue - pm.expenses
+            # Expenses and profit are not computed here. Rent, utilities and
+            # cleaning live in property_costs, which this repository does not
+            # read — the application service joins the two. Setting expenses to
+            # the commission alone, as this did, produced a "profit" that was
+            # revenue with the OTA cut taken off and everything a subletter
+            # actually pays left in.
             pm.vacancy_days = max(
                 Decimal("0"), Decimal(total_period_days) - pm.booked_nights
             )

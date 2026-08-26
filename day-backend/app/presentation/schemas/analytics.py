@@ -42,6 +42,11 @@ class PropertyMetricsResponse(BaseModel):
     expenses: Decimal
     profit: Decimal
     commission: Decimal
+    # Split so the operator can see which half moved: rent and utilities are
+    # paid whether the flat was let or not, cleaning and consumables only when
+    # guests came.
+    fixed_costs: Decimal
+    variable_costs: Decimal
     vacancy_days: Decimal
     occupancy_rate: Decimal
     avg_stay_duration: Decimal
@@ -59,6 +64,8 @@ class AnalyticsSummaryResponse(BaseModel):
     total_expenses: Decimal
     total_profit: Decimal
     total_commission: Decimal
+    total_fixed_costs: Decimal
+    total_variable_costs: Decimal
     overall_adr: Decimal
     overall_revpar: Decimal
     overall_occupancy_rate: Decimal

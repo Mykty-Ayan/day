@@ -17,8 +17,27 @@ from app.application.analytics.get_time_series import (
 from app.domain.analytics.entities import PropertyMetrics, TimeSeriesPoint
 from app.domain.analytics.repositories import AnalyticsRepository
 from app.domain.analytics.value_objects import Granularity
+from app.domain.property.entities import PropertyCosts
+from app.domain.property.repositories import PropertyCostsRepository
 
 # ---------- In-memory fake repository ----------
+
+
+class FakePropertyCostsRepository(PropertyCostsRepository):
+    """Costs nobody filled in, unless a test says otherwise."""
+
+    def __init__(self, costs: dict[uuid.UUID, PropertyCosts] | None = None) -> None:
+        self._costs = costs or {}
+
+    async def get_by_property(self, property_id: uuid.UUID) -> PropertyCosts | None:
+        return self._costs.get(property_id)
+
+    async def list_for_properties(self, property_ids) -> dict[uuid.UUID, PropertyCosts]:
+        return {pid: self._costs[pid] for pid in property_ids if pid in self._costs}
+
+    async def upsert(self, costs: PropertyCosts) -> PropertyCosts:
+        self._costs[costs.property_id] = costs
+        return costs
 
 
 class FakeAnalyticsRepository(AnalyticsRepository):
@@ -60,6 +79,7 @@ class FakeAnalyticsRepository(AnalyticsRepository):
 
 
 COMPANY_ID = uuid.UUID("00000000-0000-0000-0000-000000000001")
+PROPERTY_ID = uuid.UUID("00000000-0000-0000-0000-0000000000aa")
 
 
 # ---------- CalculateMetricsService ----------
@@ -69,7 +89,7 @@ class TestCalculateMetricsService:
     @pytest.mark.asyncio
     async def test_empty_properties_returns_zero_summary(self):
         repo = FakeAnalyticsRepository(metrics=[])
-        svc = CalculateMetricsService(repo)
+        svc = CalculateMetricsService(repo, FakePropertyCostsRepository())
 
         result = await svc.execute(
             CalculateMetricsInput(
@@ -104,7 +124,7 @@ class TestCalculateMetricsService:
             occupancy_rate=Decimal("33.33"),
         )
         repo = FakeAnalyticsRepository(metrics=[pm])
-        svc = CalculateMetricsService(repo)
+        svc = CalculateMetricsService(repo, FakePropertyCostsRepository())
 
         result = await svc.execute(
             CalculateMetricsInput(
@@ -145,7 +165,7 @@ class TestCalculateMetricsService:
             profit=Decimal("4850"),
         )
         repo = FakeAnalyticsRepository(metrics=[pm1, pm2])
-        svc = CalculateMetricsService(repo)
+        svc = CalculateMetricsService(repo, FakePropertyCostsRepository())
 
         result = await svc.execute(
             CalculateMetricsInput(
@@ -173,7 +193,7 @@ class TestCalculateMetricsService:
             avg_stay_duration=Decimal("3.33"),
         )
         repo = FakeAnalyticsRepository(metrics=[pm])
-        svc = CalculateMetricsService(repo)
+        svc = CalculateMetricsService(repo, FakePropertyCostsRepository())
 
         result = await svc.execute(
             CalculateMetricsInput(
@@ -196,7 +216,7 @@ class TestCalculateMetricsService:
             avg_stay_duration=Decimal("3.33"),
         )
         repo = FakeAnalyticsRepository(metrics=[pm])
-        svc = CalculateMetricsService(repo)
+        svc = CalculateMetricsService(repo, FakePropertyCostsRepository())
 
         result = await svc.execute(
             CalculateMetricsInput(
@@ -219,7 +239,7 @@ class TestCalculateMetricsService:
             avg_stay_duration=Decimal("3"),
         )
         repo = FakeAnalyticsRepository(metrics=[pm])
-        svc = CalculateMetricsService(repo)
+        svc = CalculateMetricsService(repo, FakePropertyCostsRepository())
 
         result = await svc.execute(
             CalculateMetricsInput(
@@ -249,7 +269,7 @@ class TestCalculateMetricsService:
             avg_stay_duration=Decimal("3"),  # 3 bookings * 3 nights
         )
         repo = FakeAnalyticsRepository(metrics=[pm1, pm2])
-        svc = CalculateMetricsService(repo)
+        svc = CalculateMetricsService(repo, FakePropertyCostsRepository())
 
         result = await svc.execute(
             CalculateMetricsInput(
@@ -265,7 +285,7 @@ class TestCalculateMetricsService:
     @pytest.mark.asyncio
     async def test_date_validation_rejects_invalid_range(self):
         repo = FakeAnalyticsRepository()
-        svc = CalculateMetricsService(repo)
+        svc = CalculateMetricsService(repo, FakePropertyCostsRepository())
 
         with pytest.raises(ValueError, match="date_to must be after date_from"):
             await svc.execute(
@@ -279,7 +299,7 @@ class TestCalculateMetricsService:
     @pytest.mark.asyncio
     async def test_date_validation_rejects_same_dates(self):
         repo = FakeAnalyticsRepository()
-        svc = CalculateMetricsService(repo)
+        svc = CalculateMetricsService(repo, FakePropertyCostsRepository())
 
         with pytest.raises(ValueError, match="date_to must be after date_from"):
             await svc.execute(
@@ -303,7 +323,7 @@ class TestCalculateMetricsService:
             booked_nights=6, vacancy_days=24, avg_stay_duration=Decimal("3"),
         )
         repo = FakeAnalyticsRepository(metrics=[pm1, pm2])
-        svc = CalculateMetricsService(repo)
+        svc = CalculateMetricsService(repo, FakePropertyCostsRepository())
 
         result = await svc.execute(
             CalculateMetricsInput(
@@ -328,7 +348,7 @@ class TestCalculateMetricsService:
             avg_stay_duration=Decimal("0"),
         )
         repo = FakeAnalyticsRepository(metrics=[pm])
-        svc = CalculateMetricsService(repo)
+        svc = CalculateMetricsService(repo, FakePropertyCostsRepository())
 
         result = await svc.execute(
             CalculateMetricsInput(
@@ -450,3 +470,93 @@ class TestGetTimeSeriesService:
         )
 
         assert isinstance(result, list)
+
+
+class TestCostsReachTheReport:
+    """Profit used to be revenue minus the OTA commission.
+
+    For a subletter that number is not profit at all: the rent they pay the
+    flat's owner is their largest outgoing and none of it was counted. Someone
+    reading that screen would see a good month and be in the red.
+    """
+
+    def _metrics(self, revenue="600000", bookings=10, nights="20"):
+        return PropertyMetrics(
+            property_id=PROPERTY_ID,
+            revenue=Decimal(revenue),
+            total_bookings=bookings,
+            booked_nights=Decimal(nights),
+            commission=Decimal("30000"),
+        )
+
+    def _costs(self):
+        return PropertyCosts(
+            property_id=PROPERTY_ID,
+            monthly_rent=Decimal("300000"),
+            monthly_utilities=Decimal("15000"),
+            cleaning_cost=Decimal("4000"),
+            consumables_per_night=Decimal("500"),
+        )
+
+    async def _run(self, costs_repo):
+        svc = CalculateMetricsService(
+            FakeAnalyticsRepository([self._metrics()]), costs_repo
+        )
+        return await svc.execute(
+            CalculateMetricsInput(
+                company_id=COMPANY_ID,
+                date_from=date(2026, 8, 1),
+                date_to=date(2026, 8, 31),
+            )
+        )
+
+    @pytest.mark.asyncio
+    async def test_rent_and_utilities_land_in_the_fixed_costs(self):
+        result = await self._run(FakePropertyCostsRepository({PROPERTY_ID: self._costs()}))
+        pm = result.properties[0]
+
+        # 30 days of a 315 000 ₸ month, prorated across the year.
+        assert Decimal(300000) < pm.fixed_costs < Decimal(325000)
+
+    @pytest.mark.asyncio
+    async def test_cleaning_is_charged_per_stay_and_consumables_per_night(self):
+        result = await self._run(FakePropertyCostsRepository({PROPERTY_ID: self._costs()}))
+
+        # 10 stays × 4 000 + 20 nights × 500
+        assert result.properties[0].variable_costs == Decimal("50000")
+
+    @pytest.mark.asyncio
+    async def test_profit_is_what_is_left_after_all_of_it(self):
+        result = await self._run(FakePropertyCostsRepository({PROPERTY_ID: self._costs()}))
+        pm = result.properties[0]
+
+        assert pm.expenses == pm.commission + pm.fixed_costs + pm.variable_costs
+        assert pm.profit == pm.revenue - pm.expenses
+
+    @pytest.mark.asyncio
+    async def test_the_old_number_was_larger_by_the_whole_rent(self):
+        # The point of the change, stated as a test: a month that looked like
+        # 570 000 ₸ of profit is closer to 210 000 ₸.
+        with_costs = await self._run(FakePropertyCostsRepository({PROPERTY_ID: self._costs()}))
+        without = await self._run(FakePropertyCostsRepository())
+
+        assert without.properties[0].profit > with_costs.properties[0].profit
+        assert without.properties[0].profit == Decimal("570000")
+
+    @pytest.mark.asyncio
+    async def test_a_flat_with_no_costs_recorded_still_reports(self):
+        # Costs are opt-in per flat. A report that refuses to render is worse
+        # than one that is incomplete for the flats nobody configured yet.
+        result = await self._run(FakePropertyCostsRepository())
+        pm = result.properties[0]
+
+        assert pm.fixed_costs == Decimal("0")
+        assert pm.expenses == pm.commission
+
+    @pytest.mark.asyncio
+    async def test_the_summary_carries_the_same_split(self):
+        result = await self._run(FakePropertyCostsRepository({PROPERTY_ID: self._costs()}))
+
+        assert result.summary.total_fixed_costs == result.properties[0].fixed_costs
+        assert result.summary.total_variable_costs == result.properties[0].variable_costs
+        assert result.summary.total_profit == result.properties[0].profit
