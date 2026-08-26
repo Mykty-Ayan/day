@@ -876,7 +876,12 @@
         "returned": "Deposit returned",
         "held": "Deposit kept",
         "partially_held": "Deposit partly kept"
-      }
+      },
+      "keep": "Keep",
+      "keepAmount": "How much to keep",
+      "reason": "Reason",
+      "reasonPlaceholder": "Broken mirror",
+      "cancel": "Cancel"
     },
     "ask": {
       "intro": "Ask in words — I answer and act.",
