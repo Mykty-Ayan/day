@@ -6,15 +6,29 @@
 
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { BedDouble, Copy, LogIn, LogOut, Send, Wallet } from 'lucide-react'
+import { BedDouble, CheckCircle2, Copy, LogIn, LogOut, Send, Wallet } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { addPayment, changeBookingStatus, listPayments, updateBooking } from '../../api/bookings'
 import { getProperty } from '../../api/properties'
-import type { Booking } from '../../types/booking'
+import type { Booking, BookingStatus } from '../../types/booking'
 import { copyText, openWhatsApp, resultFeedback } from '../../lib/telegram'
 import { addDays, formatDay, formatMoney, toISODate } from './format'
 import { buildCheckInMessage } from './messages'
 import { ActionButton, Field, Sheet } from './miniapp-ui'
+
+/** The single legal step forward from each status.
+ *
+ *  The backend refuses to skip a link — pending goes to confirmed, never
+ *  straight to checked_in — so offering a fixed "Заселить" button turned into
+ *  an error the moment a booking was taken by phone. */
+const NEXT_STEP: Partial<
+  Record<BookingStatus, { status: BookingStatus; labelKey: string; Icon: typeof LogIn }>
+> = {
+  pending: { status: 'confirmed', labelKey: 'miniapp.booking.confirm', Icon: CheckCircle2 },
+  confirmed: { status: 'checked_in', labelKey: 'miniapp.booking.checkIn', Icon: LogIn },
+  checked_in: { status: 'checked_out', labelKey: 'miniapp.booking.checkOut', Icon: LogOut },
+  checked_out: { status: 'completed', labelKey: 'miniapp.booking.complete', Icon: CheckCircle2 },
+}
 
 export default function BookingSheet({
   booking,
@@ -73,7 +87,7 @@ export default function BookingSheet({
   })
 
   const setStatus = useMutation({
-    mutationFn: (status: 'checked_in' | 'checked_out') => changeBookingStatus(booking!.id, status),
+    mutationFn: (status: BookingStatus) => changeBookingStatus(booking!.id, status),
     onSuccess: () => {
       resultFeedback('success')
       refresh()
@@ -100,6 +114,7 @@ export default function BookingSheet({
 
   if (!booking) return null
 
+  const next = NEXT_STEP[booking.status]
   const checkInText = buildCheckInMessage(booking, property.data, i18n.language, t)
 
   return (
@@ -130,15 +145,10 @@ export default function BookingSheet({
           {t('miniapp.booking.extend')}
         </ActionButton>
 
-        {booking.status === 'checked_in' ? (
-          <ActionButton disabled={setStatus.isPending} onClick={() => setStatus.mutate('checked_out')}>
-            <LogOut className="h-4 w-4" />
-            {t('miniapp.booking.checkOut')}
-          </ActionButton>
-        ) : (
-          <ActionButton disabled={setStatus.isPending} onClick={() => setStatus.mutate('checked_in')}>
-            <LogIn className="h-4 w-4" />
-            {t('miniapp.booking.checkIn')}
+        {next && (
+          <ActionButton disabled={setStatus.isPending} onClick={() => setStatus.mutate(next.status)}>
+            <next.Icon className="h-4 w-4" />
+            {t(next.labelKey)}
           </ActionButton>
         )}
       </div>

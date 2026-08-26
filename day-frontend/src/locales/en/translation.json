@@ -845,7 +845,9 @@
       "block": "block {{value}}",
       "flat": "flat {{value}}",
       "floor": "floor {{value}}",
-      "messageDates": "Check-in {{from}}, check-out {{to}}."
+      "messageDates": "Check-in {{from}}, check-out {{to}}.",
+      "confirm": "Confirm",
+      "complete": "Complete"
     },
     "cleaning": {
       "title": "Cleaning",

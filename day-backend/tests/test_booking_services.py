@@ -1,7 +1,7 @@
 """Unit tests for booking application services."""
 
 import uuid
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from decimal import Decimal
 
 import pytest
@@ -932,6 +932,43 @@ class TestUpdateBookingService:
         )
 
         assert result.rental_mode == RentalMode.HOURLY
+
+    @pytest.mark.asyncio
+    async def test_extending_the_stay_also_raises_the_charge(self):
+        # Regression: the service recalculated calculated_price but left
+        # total_price on the old dates, so "+1 night" in the Mini App handed the
+        # guest an extra night for free.
+        booking_repo, _, svc, booking, _ = await self._setup()
+        before = booking.total_price
+
+        result = await svc.execute(
+            UpdateBookingInput(
+                booking_id=booking.id,
+                company_id=COMPANY_ID,
+                check_out=booking.check_out + timedelta(days=1),
+            )
+        )
+
+        assert result.total_price > before
+        assert result.total_price == result.calculated_price
+
+    @pytest.mark.asyncio
+    async def test_a_hand_written_price_survives_a_date_change(self):
+        # The operator's own number is a decision, not a stale value.
+        booking_repo, _, svc, booking, _ = await self._setup()
+        booking.total_price = Decimal("1")
+        await booking_repo.update(booking)
+
+        result = await svc.execute(
+            UpdateBookingInput(
+                booking_id=booking.id,
+                company_id=COMPANY_ID,
+                check_out=booking.check_out + timedelta(days=1),
+            )
+        )
+
+        assert result.total_price == Decimal("1")
+        assert result.calculated_price > Decimal("1")
 
     @pytest.mark.asyncio
     async def test_update_notes(self):

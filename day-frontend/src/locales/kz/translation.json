@@ -845,7 +845,9 @@
       "block": "блок {{value}}",
       "flat": "пәтер {{value}}",
       "floor": "{{value}} қабат",
-      "messageDates": "Кіру {{from}}, шығу {{to}}."
+      "messageDates": "Кіру {{from}}, шығу {{to}}.",
+      "confirm": "Растау",
+      "complete": "Аяқтау"
     },
     "cleaning": {
       "title": "Тазалау",
