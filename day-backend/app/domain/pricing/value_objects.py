@@ -111,9 +111,12 @@ class Demand:
 @dataclass(frozen=True)
 class PriceStep:
     reason: PriceReason
-    #: Multiplier applied at this step, e.g. 0.85 for a 15 % cut.
-    factor: Decimal
     price_after: Decimal
+    #: Multiplier applied at this step, e.g. 0.85 for a 15 % cut. None where the
+    #: step is not a multiplication — the floor and the late-night RevPAR target
+    #: set a price outright, and a factor of zero would have claimed they
+    #: multiplied it away.
+    factor: Decimal | None = None
     note: str = ""
 
 

@@ -52,7 +52,7 @@ def suggest_price(
     def apply(reason: PriceReason, factor: Decimal, note: str = "") -> None:
         nonlocal price
         price = _round(price * factor)
-        steps.append(PriceStep(reason=reason, factor=factor, price_after=price, note=note))
+        steps.append(PriceStep(reason=reason, price_after=price, factor=factor, note=note))
 
     if demand.occupancy >= _TIGHT:
         apply(PriceReason.HIGH_OCCUPANCY, Decimal("1.15"), f"занято {demand.occupancy:.0%}")
@@ -71,7 +71,6 @@ def suggest_price(
             steps.append(
                 PriceStep(
                     reason=PriceReason.TONIGHT,
-                    factor=Decimal("0"),
                     price_after=price,
                     note=f"{demand.hour}:00, ночь почти ушла",
                 )
@@ -90,26 +89,27 @@ def suggest_price(
                 f"рядом медиана {competitors.median:.0f} ₸ по {competitors.sample_size} объектам",
             )
 
+    # A suggestion well above the rack rate is a bug in the signals, not an
+    # opportunity. There is no matching cap on the way down: an empty night
+    # really is worth nothing, and the floor below is what stops the fall.
+    ceiling = _round(rack * _MAX_UPLIFT)
+    price = min(price, ceiling)
+
     # The floor is last and absolute. Everything above argued about how much a
-    # night is worth; this says what it costs us to sell one.
+    # night is worth; this says what it costs us to sell one. It runs after the
+    # cap deliberately: a flat whose cleaning costs more than the cap allows is
+    # a flat that cannot be sold at its rack rate, and the operator has to see
+    # that number rather than one the cap quietly pushed back under the floor.
     floor = economics.floor
     if price < floor:
         price = _round(floor)
         steps.append(
             PriceStep(
                 reason=PriceReason.FLOOR,
-                factor=Decimal("0"),
                 price_after=price,
                 note="ниже себестоимости ночи",
             )
         )
-
-    # A suggestion that doubles the rack rate is a bug in the signals, not an
-    # opportunity. Cap the upside; there is no cap on the way down beyond the
-    # floor, because an empty night really is worth nothing.
-    ceiling = _round(rack * _MAX_UPLIFT)
-    if price > ceiling:
-        price = ceiling
 
     return PriceSuggestion(rack=rack, suggested=price, floor=floor, steps=tuple(steps))
 
