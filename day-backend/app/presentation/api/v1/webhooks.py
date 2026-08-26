@@ -23,6 +23,7 @@ from app.application.messaging.guest_bot import GuestBotService
 from app.application.messaging.host_bot import HostBotService
 from app.application.messaging.notifications import NotificationService
 from app.config import settings
+from app.domain.assistant.value_objects import AssistantUnavailable
 from app.domain.messaging.entities import ChannelIdentity, Conversation, Message
 from app.domain.messaging.value_objects import (
     Channel,
@@ -30,6 +31,7 @@ from app.domain.messaging.value_objects import (
     MessageStatus,
     NotificationEvent,
 )
+from app.infrastructure.assistant.openrouter import OpenRouterTranscriber
 from app.infrastructure.channex.factory import build_booking_event_service
 from app.infrastructure.database import get_session
 from app.infrastructure.messaging.factory import (
@@ -89,6 +91,50 @@ async def _record(
     )
 
 
+# Long enough for a sentence someone dictates while walking; short enough that a
+# forwarded podcast cannot bill us for transcribing it.
+_MAX_VOICE_BYTES = 2 * 1024 * 1024
+_MAX_VOICE_SECONDS = 120
+
+_VOICE_FAILED = "Не разобрал голосовое. Напишите текстом или откройте «Панель»."
+_NOT_LINKED_VOICE = "Этот чат не привязан к компании. Отправьте /start и код из приложения."
+
+
+async def _reply(chat_id: str, text: str) -> None:
+    """Say something back without letting a failed send retry the update."""
+    try:
+        await get_provider(Channel.TELEGRAM).send_text(chat_id, text)
+    except Exception as exc:
+        logger.warning("Telegram reply to %s failed: %s", chat_id, exc)
+
+
+async def _transcribe_voice(voice: dict) -> str:
+    """Best-effort transcription. An empty string means "say so and move on"."""
+    duration = voice.get("duration")
+    if isinstance(duration, int) and duration > _MAX_VOICE_SECONDS:
+        logger.info("Voice note of %ss is over the limit", duration)
+        return ""
+
+    file_id = voice.get("file_id")
+    if not isinstance(file_id, str) or not file_id:
+        return ""
+
+    provider = get_provider(Channel.TELEGRAM)
+    download = getattr(provider, "download_file", None)
+    if download is None:
+        return ""
+
+    try:
+        audio = await download(file_id, _MAX_VOICE_BYTES)
+        return await OpenRouterTranscriber().transcribe(audio, voice.get("mime_type") or "audio/ogg")
+    except AssistantUnavailable as exc:
+        logger.info("Transcription unavailable: %s", exc)
+        return ""
+    except Exception:
+        logger.exception("Could not transcribe a voice note")
+        return ""
+
+
 @webhook_router.post("/telegram", include_in_schema=False)
 async def telegram_webhook(
     request: Request,
@@ -106,8 +152,9 @@ async def telegram_webhook(
     chat = message.get("chat") or {}
     text = (message.get("text") or "").strip()
     chat_id = str(chat.get("id") or "")
+    voice = message.get("voice") or message.get("audio") or {}
 
-    if not chat_id or not text:
+    if not chat_id or not (text or voice):
         # Photos, stickers, edits and joins are not commands.
         return _ok()
 
@@ -121,6 +168,21 @@ async def telegram_webhook(
 
     identities = SqlChannelIdentityRepository(session)
     identity = await identities.get_by_external_id(Channel.TELEGRAM, chat_id)
+
+    # An operator on the move dictates rather than types. Once transcribed the
+    # voice note is an ordinary message and takes exactly the same path.
+    #
+    # Transcription happens only for a chat that is already linked: anyone can
+    # find the bot, and an unlinked stranger's voice notes would otherwise bill
+    # a model call each before we ever look at who they are.
+    if not text and voice:
+        if identity is None or not identity.is_active:
+            await _reply(chat_id, _NOT_LINKED_VOICE)
+            return _ok()
+        text = await _transcribe_voice(voice)
+        if not text:
+            await _reply(chat_id, _VOICE_FAILED)
+            return _ok()
 
     bot: HostBotService = build_host_bot(session)
     reply = await bot.handle(identity, chat_id, text, display_name)
