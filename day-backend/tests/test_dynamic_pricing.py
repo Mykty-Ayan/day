@@ -68,6 +68,21 @@ class TestTheFloor:
         assert suggestion.suggested > Decimal(9000)
         assert PriceReason.FLOOR not in reasons(suggestion)
 
+    def test_the_uplift_cap_cannot_push_a_price_under_the_floor(self):
+        # The cap on the way up ran after the clamp on the way down, so a flat
+        # whose cleaning costs more than 1.3× its rack rate came back priced
+        # under its own floor — while the steps still said it had been raised to
+        # it. An explanation that contradicts the number is worse than either
+        # mistake alone.
+        suggestion = suggest_price(
+            RACK,
+            economics(marginal=30000),
+            Demand(occupancy=0.5, days_ahead=5),
+        )
+
+        assert suggestion.suggested >= suggestion.floor
+        assert suggestion.suggested == Decimal(30000)
+
     def test_rent_to_the_owner_is_not_part_of_the_floor(self):
         # It is paid whether anyone sleeps there or not, so it cannot argue
         # against selling tonight cheaply. It argues about keeping the flat,
