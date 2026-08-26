@@ -47,8 +47,10 @@ class Settings(BaseSettings):
     # X-Telegram-Bot-Api-Secret-Token header on every webhook delivery.
     TELEGRAM_BOT_TOKEN: str = ""
     TELEGRAM_WEBHOOK_SECRET: str = ""
-    # Label on the bot's menu button, the one that opens the Mini App.
-    TELEGRAM_MENU_BUTTON_TEXT: str = "Day"
+    # Label on the bot's menu button, the one that opens the Mini App. The
+    # bot's own copy sends people to it by name — "откройте «Панель»" — so the
+    # two have to agree, and renaming the button means changing that copy too.
+    TELEGRAM_MENU_BUTTON_TEXT: str = "Панель"
 
     # WhatsApp via whapi.cloud — guest-facing bot.
     WHAPI_TOKEN: str = ""
