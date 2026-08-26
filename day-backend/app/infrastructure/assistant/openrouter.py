@@ -7,6 +7,7 @@ decide what a tool call means.
 
 from __future__ import annotations
 
+import base64
 import json
 import logging
 from typing import Any
@@ -14,7 +15,7 @@ from typing import Any
 import httpx
 
 from app.config import settings
-from app.domain.assistant.gateway import AssistantGateway, ChatMessage, ModelResponse
+from app.domain.assistant.gateway import AssistantGateway, ChatMessage, ModelResponse, Transcriber
 from app.domain.assistant.value_objects import AssistantUnavailable, ToolCall
 
 logger = logging.getLogger(__name__)
@@ -108,3 +109,89 @@ def _read_tool_calls(raw: Any) -> list[ToolCall]:
 
         calls.append(ToolCall(name=name, arguments=arguments, call_id=str(entry.get("id") or name)))
     return calls
+
+
+# Telegram sends voice notes as opus in an ogg container. The provider sniffs
+# the container rather than trusting this, but sending the truth costs nothing.
+_MIME_TO_FORMAT = {
+    "audio/ogg": "ogg",
+    "audio/oga": "ogg",
+    "audio/opus": "opus",
+    "audio/mpeg": "mp3",
+    "audio/mp3": "mp3",
+    "audio/wav": "wav",
+    "audio/x-wav": "wav",
+    "audio/mp4": "mp4",
+    "audio/m4a": "m4a",
+}
+
+_TRANSCRIBE_PROMPT = (
+    "Расшифруй эту речь дословно. Верни только сам текст, без пояснений, "
+    "без кавычек и без описания аудио."
+)
+
+
+class OpenRouterTranscriber(Transcriber):
+    """Transcription through the same model that answers questions.
+
+    Verified against Telegram's own format: ogg/opus goes straight through, so
+    nothing has to transcode audio inside the container.
+    """
+
+    def __init__(
+        self,
+        api_key: str | None = None,
+        base_url: str | None = None,
+        model: str | None = None,
+        timeout_seconds: int | None = None,
+    ) -> None:
+        self._api_key = api_key if api_key is not None else settings.ASSISTANT_API_KEY
+        self._base_url = (base_url or settings.ASSISTANT_API_URL).rstrip("/")
+        self._model = model or settings.ASSISTANT_MODEL
+        self._timeout = timeout_seconds or settings.ASSISTANT_TIMEOUT_SECONDS
+
+    async def transcribe(self, audio: bytes, mime_type: str) -> str:
+        if not self._api_key:
+            raise AssistantUnavailable("Assistant is not configured")
+        if not audio:
+            raise AssistantUnavailable("Empty audio")
+
+        payload = {
+            "model": self._model,
+            "messages": [
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": _TRANSCRIBE_PROMPT},
+                        {
+                            "type": "input_audio",
+                            "input_audio": {
+                                "data": base64.b64encode(audio).decode(),
+                                "format": _MIME_TO_FORMAT.get(mime_type.split(";")[0].strip(), "ogg"),
+                            },
+                        },
+                    ],
+                }
+            ],
+            "temperature": 0,
+        }
+        headers = {
+            "Authorization": f"Bearer {self._api_key}",
+            "Content-Type": "application/json",
+            "HTTP-Referer": settings.PUBLIC_BASE_URL,
+            "X-Title": "Day PMS",
+        }
+
+        async with httpx.AsyncClient(timeout=self._timeout) as client:
+            response = await client.post(
+                f"{self._base_url}/chat/completions", json=payload, headers=headers
+            )
+            if response.status_code >= 400:
+                logger.warning("Transcription failed: %s %s", response.status_code, response.text[:300])
+                raise AssistantUnavailable(f"Model returned {response.status_code}")
+            body = response.json()
+
+        choices = body.get("choices") or []
+        if not choices:
+            raise AssistantUnavailable("Model returned no choices")
+        return ((choices[0].get("message") or {}).get("content") or "").strip()

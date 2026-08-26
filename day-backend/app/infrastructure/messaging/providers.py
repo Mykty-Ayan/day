@@ -59,6 +59,44 @@ class TelegramProvider:
             raise ProviderError(f"Telegram rejected the message: {body.get('description')}")
         return SentMessage(provider_message_id=str(body["result"]["message_id"]))
 
+    async def download_file(self, file_id: str, max_bytes: int) -> bytes:
+        """Fetch a file the user sent us — a voice note, in practice.
+
+        Two hops, because Telegram hands out a path before it hands out bytes.
+        The size is checked against the metadata first so an oversized file
+        costs one small request rather than a download.
+        """
+        if not self.is_configured:
+            raise ProviderError("TELEGRAM_BOT_TOKEN is not set")
+
+        async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
+            described = await client.get(
+                f"https://api.telegram.org/bot{self._token}/getFile", params={"file_id": file_id}
+            )
+            if described.status_code != 200:
+                raise ProviderError(f"Telegram returned {described.status_code} for getFile")
+
+            body = described.json()
+            if not body.get("ok"):
+                raise ProviderError(f"Telegram refused the file: {body.get('description')}")
+
+            result = body.get("result") or {}
+            path = result.get("file_path")
+            if not path:
+                raise ProviderError("Telegram returned no file path")
+            size = result.get("file_size")
+            if isinstance(size, int) and size > max_bytes:
+                raise ProviderError(f"File is {size} bytes, over the {max_bytes} limit")
+
+            downloaded = await client.get(f"https://api.telegram.org/file/bot{self._token}/{path}")
+            if downloaded.status_code != 200:
+                raise ProviderError(f"Telegram returned {downloaded.status_code} downloading the file")
+
+        content = downloaded.content
+        if len(content) > max_bytes:
+            raise ProviderError(f"File is {len(content)} bytes, over the {max_bytes} limit")
+        return content
+
     async def set_webhook(self, url: str, secret: str) -> None:
         """Point Telegram at our webhook. Safe to call on every boot."""
         if not self.is_configured:

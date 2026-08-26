@@ -57,3 +57,15 @@ class AssistantGateway(abc.ABC):
         messages: list[ChatMessage],
         tools: list[dict[str, Any]],
     ) -> ModelResponse: ...
+
+
+class Transcriber(abc.ABC):
+    """Turning a voice note into the sentence the operator said.
+
+    Separate from the chat gateway on purpose: transcription is a different
+    capability with a different failure mode, and a deployment may well have one
+    without the other.
+    """
+
+    @abc.abstractmethod
+    async def transcribe(self, audio: bytes, mime_type: str) -> str: ...
