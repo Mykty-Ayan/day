@@ -862,6 +862,20 @@
     "money": {
       "owed": "Outstanding",
       "booked": "Booked"
+    },
+    "deposit": {
+      "title": "Deposit",
+      "take": "Take",
+      "received": "Received",
+      "give_back": "Return",
+      "held": "{{amount}} ₸ held",
+      "status": {
+        "pending": "Deposit expected",
+        "paid": "Deposit held by you",
+        "returned": "Deposit returned",
+        "held": "Deposit kept",
+        "partially_held": "Deposit partly kept"
+      }
     }
   }
 }
