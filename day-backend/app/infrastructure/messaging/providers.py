@@ -118,6 +118,40 @@ class TelegramProvider:
         if response.status_code != 200 or not body.get("ok"):
             raise ProviderError(f"setWebhook failed: {body.get('description', response.text[:200])}")
 
+    async def set_menu_button(self, url: str, text: str) -> None:
+        """Point the bot's menu button at the Mini App.
+
+        Nothing else registers the Mini App: the URL was previously typed into
+        BotFather by hand, so a change of front-end domain left the button
+        pointing at an address that no longer serves the app — and the failure
+        was invisible here, because the request never reached us. Re-registering
+        on every boot keeps the button and the deployment in step, the same way
+        `set_webhook` already does for updates.
+        """
+        if not self.is_configured:
+            raise ProviderError("TELEGRAM_BOT_TOKEN is not set")
+        if not url.startswith("https://"):
+            # Telegram rejects anything else, and a developer running against
+            # localhost has no Mini App to point at anyway.
+            raise ProviderError(f"Mini App URL must be https, got {url!r}")
+
+        async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
+            response = await client.post(
+                f"https://api.telegram.org/bot{self._token}/setChatMenuButton",
+                json={
+                    # No chat_id: this sets the default button for every chat
+                    # the bot is in, including ones opened after the deploy.
+                    "menu_button": {
+                        "type": "web_app",
+                        "text": text,
+                        "web_app": {"url": url},
+                    }
+                },
+            )
+        body = response.json()
+        if response.status_code != 200 or not body.get("ok"):
+            raise ProviderError(f"setChatMenuButton failed: {body.get('description', response.text[:200])}")
+
 
 class WhapiProvider:
     """WhatsApp through whapi.cloud — the guest-facing channel."""

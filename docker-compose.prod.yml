@@ -98,6 +98,7 @@ services:
       S3_BUCKET: ${S3_BUCKET:-day-uploads}
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
       TELEGRAM_WEBHOOK_SECRET: ${TELEGRAM_WEBHOOK_SECRET:-}
+      TELEGRAM_MENU_BUTTON_TEXT: ${TELEGRAM_MENU_BUTTON_TEXT:-Day}
       WHAPI_TOKEN: ${WHAPI_TOKEN:-}
       WHAPI_API_URL: ${WHAPI_API_URL:-https://gate.whapi.cloud}
       WHAPI_WEBHOOK_SECRET: ${WHAPI_WEBHOOK_SECRET:-}
@@ -106,6 +107,9 @@ services:
       ASSISTANT_API_KEY: ${ASSISTANT_API_KEY:-}
       ASSISTANT_MODEL: ${ASSISTANT_MODEL:-google/gemini-2.5-flash}
       PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:?PUBLIC_BASE_URL is required}
+      # Front-end origin. The Mini App is served at `/tma` under it, and the
+      # bot's menu button is re-pointed there on every boot.
+      PUBLIC_APP_URL: ${PUBLIC_APP_URL:?PUBLIC_APP_URL is required}
     expose:
       - "8000"
     networks:

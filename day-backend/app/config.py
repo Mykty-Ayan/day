@@ -39,10 +39,16 @@ class Settings(BaseSettings):
     # so it must be the address the provider can actually reach.
     PUBLIC_BASE_URL: str = "http://localhost:8000"
 
+    # Public HTTPS origin of the web app. The Mini App lives at `/tma` under it,
+    # and Telegram will only accept an https URL for the menu button.
+    PUBLIC_APP_URL: str = "http://localhost:5173"
+
     # Telegram — host-facing bot. The secret is echoed back by Telegram in the
     # X-Telegram-Bot-Api-Secret-Token header on every webhook delivery.
     TELEGRAM_BOT_TOKEN: str = ""
     TELEGRAM_WEBHOOK_SECRET: str = ""
+    # Label on the bot's menu button, the one that opens the Mini App.
+    TELEGRAM_MENU_BUTTON_TEXT: str = "Day"
 
     # WhatsApp via whapi.cloud — guest-facing bot.
     WHAPI_TOKEN: str = ""
