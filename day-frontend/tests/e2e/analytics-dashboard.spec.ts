@@ -1,3 +1,4 @@
+import type { APIRequestContext } from '@playwright/test'
 import { test, expect } from '../fixtures/e2e-auth'
 import {
   createTestProperty,
@@ -31,11 +32,7 @@ test.afterEach(async ({ request }) => {
   propertyIdsToCleanup = []
 })
 
-async function setupActiveProperty(
-  request: ReturnType<typeof test.info>['_steps'] extends unknown
-    ? Parameters<Parameters<typeof test>[2]>[0]['request']
-    : never,
-) {
+async function setupActiveProperty(request: APIRequestContext) {
   const data = createTestProperty()
   const propRes = await request.post(`${API_BASE}/properties`, { data })
   const prop = await propRes.json()
