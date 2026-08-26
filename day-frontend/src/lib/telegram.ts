@@ -6,8 +6,18 @@
  * can be opened for debugging.
  */
 
+interface TelegramWebAppUser {
+  id: number
+  first_name?: string
+  last_name?: string
+  username?: string
+  /** The person's Telegram language, not the phone's. */
+  language_code?: string
+}
+
 interface TelegramWebApp {
   initData: string
+  initDataUnsafe?: { user?: TelegramWebAppUser }
   colorScheme: 'light' | 'dark'
   themeParams: Record<string, string>
   ready: () => void
