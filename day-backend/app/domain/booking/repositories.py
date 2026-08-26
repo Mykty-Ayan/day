@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import abc
 import uuid
+from collections.abc import Sequence
 from datetime import date
+from decimal import Decimal
 
 from app.domain.booking.entities import (
     Booking,
@@ -140,6 +142,15 @@ class BookingPaymentRepository(abc.ABC):
 
     @abc.abstractmethod
     async def get_by_id(self, payment_id: uuid.UUID) -> BookingPayment | None: ...
+
+    @abc.abstractmethod
+    async def sum_paid_by_bookings(self, booking_ids: Sequence[uuid.UUID]) -> dict[uuid.UUID, Decimal]:
+        """Net amount received per booking: payments less refunds.
+
+        A list of bookings needs one figure each, and asking per booking turns a
+        single screen into fifty round trips.
+        """
+        ...
 
 
 class BookingDepositRepository(abc.ABC):

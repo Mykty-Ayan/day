@@ -228,6 +228,16 @@ class FakeBookingPaymentRepository(BookingPaymentRepository):
     async def get_by_id(self, payment_id: uuid.UUID) -> BookingPayment | None:
         return self._payments.get(payment_id)
 
+    async def sum_paid_by_bookings(self, booking_ids) -> dict[uuid.UUID, Decimal]:
+        totals: dict[uuid.UUID, Decimal] = {}
+        wanted = set(booking_ids)
+        for payment in self._payments.values():
+            if payment.booking_id not in wanted:
+                continue
+            signed = -payment.amount if payment.type == PaymentType.REFUND else payment.amount
+            totals[payment.booking_id] = totals.get(payment.booking_id, Decimal("0")) + signed
+        return totals
+
 
 class FakeBookingDepositRepository(BookingDepositRepository):
     def __init__(self) -> None:

@@ -99,6 +99,9 @@ class BookingResponse(BaseModel):
     gantt_icon: str | None = None
     total_price: Decimal
     calculated_price: Decimal
+    # What has actually been received, so a list can show who still owes without
+    # asking for every booking's payments one at a time.
+    paid_amount: Decimal = Decimal("0")
     adults_count: int
     children_count: int
     notes: str | None = None

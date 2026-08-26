@@ -858,6 +858,10 @@
       "noCleaners": "No cleaners yet",
       "schedule": "Schedule cleaning",
       "failed": "Could not schedule cleaning"
+    },
+    "money": {
+      "owed": "Outstanding",
+      "booked": "Booked"
     }
   }
 }
