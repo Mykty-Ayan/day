@@ -71,6 +71,17 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             # A bot that cannot register must not stop the API from serving.
             logger.exception("Telegram webhook registration failed")
 
+        # The menu button is the only way into the Mini App. It used to be set
+        # by hand in BotFather, so it silently kept pointing at the previous
+        # front-end domain after a move; registering it here ties it to the
+        # deployment instead.
+        mini_app_url = f"{settings.PUBLIC_APP_URL.rstrip('/')}/tma"
+        try:
+            await telegram.set_menu_button(mini_app_url, settings.TELEGRAM_MENU_BUTTON_TEXT)
+            logger.info("Telegram menu button points at %s", mini_app_url)
+        except Exception:
+            logger.exception("Telegram menu button registration failed")
+
     try:
         yield
     finally:
