@@ -9,6 +9,7 @@ import app.infrastructure.models.auth  # noqa: F401
 import app.infrastructure.models.booking  # noqa: F401
 import app.infrastructure.models.channex  # noqa: F401
 import app.infrastructure.models.cleaning  # noqa: F401
+import app.infrastructure.models.leads  # noqa: F401
 import app.infrastructure.models.messaging  # noqa: F401
 
 # Import all ORM models so Base.metadata is populated for autogenerate
