@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import uuid
+from collections.abc import Sequence
 from datetime import datetime
 from decimal import Decimal
 
@@ -14,6 +15,7 @@ from app.domain.property.entities import (
     PricingConfig,
     Property,
     PropertyAuditLog,
+    PropertyCosts,
     PropertyPhoto,
     SeasonalPrice,
 )
@@ -22,6 +24,7 @@ from app.domain.property.repositories import (
     DiscountRuleRepository,
     PricingConfigRepository,
     PropertyAuditLogRepository,
+    PropertyCostsRepository,
     PropertyPhotoRepository,
     PropertyRepository,
     SeasonalPriceRepository,
@@ -38,6 +41,7 @@ from app.infrastructure.models.property import (
     PricingConfigModel,
     PropertyAmenityModel,
     PropertyAuditLogModel,
+    PropertyCostsModel,
     PropertyModel,
     PropertyPhotoModel,
     SeasonalPriceModel,
@@ -365,6 +369,54 @@ class SqlAmenityRepository(AmenityRepository):
         )
         result = await self._session.scalars(stmt)
         return [_model_to_amenity(m) for m in result.all()]
+
+
+def _model_to_costs(m: PropertyCostsModel) -> PropertyCosts:
+    return PropertyCosts(
+        id=m.id,
+        property_id=m.property_id,
+        monthly_rent=Decimal(str(m.monthly_rent or 0)),
+        monthly_utilities=Decimal(str(m.monthly_utilities or 0)),
+        cleaning_cost=Decimal(str(m.cleaning_cost or 0)),
+        consumables_per_night=Decimal(str(m.consumables_per_night or 0)),
+        created_at=m.created_at,
+        updated_at=m.updated_at,
+    )
+
+
+class SqlPropertyCostsRepository(PropertyCostsRepository):
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+
+    async def get_by_property(self, property_id: uuid.UUID) -> PropertyCosts | None:
+        stmt = select(PropertyCostsModel).where(PropertyCostsModel.property_id == property_id)
+        model = await self._session.scalar(stmt)
+        return _model_to_costs(model) if model else None
+
+    async def list_for_properties(
+        self, property_ids: Sequence[uuid.UUID]
+    ) -> dict[uuid.UUID, PropertyCosts]:
+        if not property_ids:
+            return {}
+        stmt = select(PropertyCostsModel).where(PropertyCostsModel.property_id.in_(property_ids))
+        rows = await self._session.scalars(stmt)
+        return {m.property_id: _model_to_costs(m) for m in rows.all()}
+
+    async def upsert(self, costs: PropertyCosts) -> PropertyCosts:
+        existing = await self._session.scalar(
+            select(PropertyCostsModel).where(PropertyCostsModel.property_id == costs.property_id)
+        )
+        if existing is None:
+            existing = PropertyCostsModel(id=costs.id, property_id=costs.property_id)
+            self._session.add(existing)
+
+        existing.monthly_rent = costs.monthly_rent
+        existing.monthly_utilities = costs.monthly_utilities
+        existing.cleaning_cost = costs.cleaning_cost
+        existing.consumables_per_night = costs.consumables_per_night
+        await self._session.flush()
+        await self._session.refresh(existing)
+        return _model_to_costs(existing)
 
 
 class SqlPricingConfigRepository(PricingConfigRepository):

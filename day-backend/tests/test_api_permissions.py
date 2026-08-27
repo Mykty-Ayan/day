@@ -65,6 +65,10 @@ CLEANER_FORBIDDEN = [
     ("GET", "/api/v1/api-keys"),
     ("POST", "/api/v1/cleaning"),
     ("PATCH", "/api/v1/settings"),
+    # What the flat costs its owner is the subletter's own margin. A cleaner
+    # holding a token must not be able to read the rent, let alone rewrite it.
+    ("GET", f"/api/v1/properties/{uuid.uuid4()}/costs"),
+    ("PUT", f"/api/v1/properties/{uuid.uuid4()}/costs"),
 ]
 
 
