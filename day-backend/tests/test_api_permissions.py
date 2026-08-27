@@ -69,6 +69,12 @@ CLEANER_FORBIDDEN = [
     # holding a token must not be able to read the rent, let alone rewrite it.
     ("GET", f"/api/v1/properties/{uuid.uuid4()}/costs"),
     ("PUT", f"/api/v1/properties/{uuid.uuid4()}/costs"),
+    # Leads carry a colleague's guest and their budget; the blacklist carries
+    # someone's phone number and what was said about them in a private group.
+    ("GET", "/api/v1/leads"),
+    ("GET", "/api/v1/blacklist"),
+    ("GET", "/api/v1/blacklist/check?phone=%2B77786823184"),
+    ("POST", "/api/v1/blacklist"),
 ]
 
 

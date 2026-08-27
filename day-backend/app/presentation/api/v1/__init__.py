@@ -9,6 +9,7 @@ from app.presentation.api.v1.channels import channel_router
 from app.presentation.api.v1.channex import channex_router
 from app.presentation.api.v1.cleaning import checklist_router, cleaning_router, rating_router
 from app.presentation.api.v1.health import router as health_router
+from app.presentation.api.v1.leads import blacklist_router, lead_router
 from app.presentation.api.v1.properties import amenity_router
 from app.presentation.api.v1.properties import router as properties_router
 from app.presentation.api.v1.settings import settings_router
@@ -20,6 +21,8 @@ api_v1_router = APIRouter(prefix="/api/v1")
 api_v1_router.include_router(auth_router)
 api_v1_router.include_router(health_router)
 api_v1_router.include_router(properties_router)
+api_v1_router.include_router(lead_router)
+api_v1_router.include_router(blacklist_router)
 api_v1_router.include_router(amenity_router)
 api_v1_router.include_router(tag_router)
 api_v1_router.include_router(booking_router)
