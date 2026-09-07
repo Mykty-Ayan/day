@@ -1,12 +1,16 @@
 # Day PMS — Property Management System
 
-Multi-tenant SaaS for short-term rental management (bookings, properties, cleaning, analytics).
+Multi-tenant SaaS for short-term rental management: bookings, properties, cleaning, analytics,
+dynamic pricing, an AI assistant (Telegram bot + Mini App), lead exchange with colleague groups,
+and channel management via Channex. Six live apartments run on it in production.
 
 ## Architecture
 
 - **Backend:** FastAPI + SQLAlchemy async + PostgreSQL, Clean Architecture with DDD
 - **Frontend:** React 19 + TypeScript + TanStack Router/Query + Tailwind CSS 4
-- **Infra:** Docker Compose (PostgreSQL 16, Redis, MinIO)
+- **AI service:** separate FastAPI app in `ai-service/` (`:8001`, `AI_SERVICE_URL`) that parses OTA listings for import. Same ruff/pytest setup as the backend.
+- **Infra:** Docker Compose (PostgreSQL 16, Redis, MinIO); production via Dokploy on Hetzner, see `DEPLOY.md`
+- **Other dirs:** `docs/` (specs, PRD, Channex design), `openrouter-agent/` (standalone TypeScript agent experiment, not wired into the product), `scripts/`, `docker/`
 
 ## Backend (`day-backend/`)
 
@@ -18,7 +22,9 @@ app/
 └── presentation/     # FastAPI routes (api/v1/) and Pydantic schemas
 ```
 
-Bounded contexts: `property`, `booking`, `cleaning`, `analytics`, identity/access.
+Bounded contexts (`app/domain/`): `auth`, `property`, `booking`, `cleaning`, `analytics`, `pricing`,
+`assistant` (AI agent + tools), `messaging` (Telegram / WhatsApp via Whapi), `leads` (colleague lead
+exchange + guest blacklist), `channex`, `settings`, `ai_migration` (listing import via `ai-service`).
 
 - Linter: `ruff` (line-length 120, Python 3.12, rules: E, F, I)
 - Migrations: Alembic (`alembic/`)
@@ -47,8 +53,11 @@ src/
 ├── api/           # Axios API client (client.ts + per-domain modules)
 ├── hooks/         # TanStack Query hooks (useProperties, useBookings, etc.)
 ├── types/         # TypeScript interfaces
-└── stores/        # Global state
+├── stores/        # Global state
+└── locales/       # i18n strings (i18n.ts)
 ```
+
+`routes/tma.tsx` is the Telegram Mini App entry.
 
 ```bash
 npm run dev        # Vite dev server
@@ -69,15 +78,13 @@ make down          # Stop services
 
 Ports: Backend `:8000` (API at `/api/v1`), Frontend `:3000`, PostgreSQL `:5432`, Redis `:6379`, MinIO `:9000`
 
-## Phases
+## Status
 
-- Phase 0-1: Foundation + Auth (complete)
-- Phase 2: Property Core (complete)
-- Phase 3: Booking Core (complete)
-- Phase 4: Cleaning (complete)
-- Phase 5: Analytics (complete)
-- Phase 6: AI Migration (planned)
-- Phase 7: Polish & Launch (planned)
+Core PMS (auth, properties, bookings, cleaning, analytics) is complete and in production.
+Shipped on top of it: pricing suggestions, AI assistant with Telegram bot and Mini App, lead
+exchange + guest blacklist, listing import through `ai-service`. Channex integration works on
+staging and waits on certification before production. Curated project knowledge lives in
+`.omc/wiki/` (see below).
 
 ## Key Patterns
 
@@ -87,7 +94,6 @@ Ports: Backend `:8000` (API at `/api/v1`), Frontend `:3000`, PostgreSQL `:5432`,
 - Audit logging on domain changes
 - Commission rates: Booking.com 15%, Airbnb 3%
 
-<!-- code-review-graph MCP tools -->
 ## Git Workflow (GitFlow)
 
 Full rules live in `CONTRIBUTING.md`. The short version an agent needs:
@@ -107,7 +113,8 @@ git checkout develop && git pull && git checkout -b feature/<slug>
 ```
 
 Commits: Conventional Commits — `<type>(<scope>): <what changed>`.
-Scopes in use: `booking`, `property`, `cleaning`, `analytics`, `assistant`, `bot`, `miniapp`, `api`, `db`, `ci`.
+Scopes in use: `booking`, `property`, `cleaning`, `analytics`, `pricing`, `leads`, `assistant`, `bot`,
+`miniapp`, `messaging`, `channex`, `ai-service`, `ui`, `api`, `db`, `deploy`, `ci`.
 
 Commit and push only when the user asks. Open PRs against `develop`, not `main`
 (except `release/*` and `hotfix/*`).
@@ -116,8 +123,9 @@ Commit and push only when the user asks. Open PRs against `develop`, not `main`
 
 Rules that came out of things going wrong here, not generic advice.
 
-**Read the graph before reading files.** `semantic_search_nodes` / `query_graph` beat Grep for
-anything structural. See the MCP section below. Grep is the fallback, not the default.
+**Read the graph before reading files, when it is up.** `semantic_search_nodes` / `query_graph`
+beat Grep for anything structural. See the MCP section below. If the `code-review-graph` server
+failed to connect this session, go straight to Grep/Glob and say so; do not wait on it.
 
 **Small, reviewable diffs.** One PR = one intent. A 1000-line AI-written PR gets rubber-stamped,
 and rubber-stamped code is how bugs reach the six live apartments in production. If a task grows
@@ -156,9 +164,8 @@ honestly. Name the skipped part and why.
 
 ## MCP Tools: code-review-graph
 
-**IMPORTANT: This project has a knowledge graph. ALWAYS use the
-code-review-graph MCP tools BEFORE using Grep/Glob/Read to explore
-the codebase.** The graph is faster, cheaper (fewer tokens), and gives
+**This project has a knowledge graph. When the `code-review-graph` server is connected, use its
+tools BEFORE Grep/Glob/Read to explore the codebase.** The graph is faster, cheaper (fewer tokens), and gives
 you structural context (callers, dependents, test coverage) that file
 scanning cannot.
 
@@ -192,17 +199,15 @@ Fall back to Grep/Glob/Read when the graph doesn't cover what you need (migratio
 3. Use `get_affected_flows` to understand impact.
 4. Use `query_graph` pattern="tests_for" to check coverage.
 
-## Obsidian Vault
+## Project wiki (`.omc/wiki/`)
 
-Project knowledge base is at `obsidian-vault/` (not in git).
+Curated knowledge that is not derivable from the code lives in `.omc/wiki/` (gitignored, local).
+Search it with `wiki_query`, browse with `wiki_list`, read with `wiki_read`. Pages worth knowing:
 
-Structure:
-- `Architecture/` — bounded contexts (Identity, Property, Booking, Cleaning, Analytics, AI Migration, System Overview)
-- `Business/` — Domain Model, Roles & Access, Pricing Logic
-- `Roadmap/` — Phases, MVP
-- `Status/` — Progress, Code Graph
+- `assistant.md` — the assistant contract: reads on its own, changes only with confirmation
+- `hetzner-dokploy.md` — production layout and the deploy order (dump first)
+- `ota.md` — what OTAs expose automatically and what they do not
+- `page-18dc03da.md` — which tests check what, and where they trip
 
-When user says "обнови obsidian", "update obsidian", or "обнови vault":
-- Update `Status/Progress.md` with current phase status and recent changes
-- Update any Architecture/ or Business/ files if domain logic changed
-- Update `Roadmap/Phases.md` if a phase was completed
+When the user says "обнови wiki" / "update wiki": promote findings from this session into the
+relevant page via `wiki_ingest`, and add a new page only for a fact that has no home yet.
