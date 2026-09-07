@@ -98,14 +98,22 @@ services:
       S3_BUCKET: ${S3_BUCKET:-day-uploads}
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
       TELEGRAM_WEBHOOK_SECRET: ${TELEGRAM_WEBHOOK_SECRET:-}
+      TELEGRAM_MENU_BUTTON_TEXT: ${TELEGRAM_MENU_BUTTON_TEXT:-Панель}
       WHAPI_TOKEN: ${WHAPI_TOKEN:-}
       WHAPI_API_URL: ${WHAPI_API_URL:-https://gate.whapi.cloud}
       WHAPI_WEBHOOK_SECRET: ${WHAPI_WEBHOOK_SECRET:-}
       # Assistant. Without a key /assistant/ask reports it is switched off
       # rather than failing mid-conversation.
       ASSISTANT_API_KEY: ${ASSISTANT_API_KEY:-}
-      ASSISTANT_MODEL: ${ASSISTANT_MODEL:-google/gemini-2.5-flash}
+      ASSISTANT_API_URL: ${ASSISTANT_API_URL:-https://openrouter.ai/api/v1}
+      ASSISTANT_MODEL: ${ASSISTANT_MODEL:-google/gemini-3.7-flash}
+      # Empty means voice notes are transcribed by ASSISTANT_MODEL. Point it at
+      # a cheaper audio-capable model to stop paying reasoning prices for speech.
+      ASSISTANT_TRANSCRIBE_MODEL: ${ASSISTANT_TRANSCRIBE_MODEL:-}
       PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:?PUBLIC_BASE_URL is required}
+      # Front-end origin. The Mini App is served at `/tma` under it, and the
+      # bot's menu button is re-pointed there on every boot.
+      PUBLIC_APP_URL: ${PUBLIC_APP_URL:?PUBLIC_APP_URL is required}
     expose:
       - "8000"
     networks:

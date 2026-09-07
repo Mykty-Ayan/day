@@ -55,3 +55,7 @@ obsidian-vault/
 
 # OMC runtime state (oh-my-claudecode)
 .omc/
+
+# Выгрузки переписок: настоящие номера и личные разговоры гостей.
+# Репозиторий публичный — сюда это не кладём.
+useful-info/*.csv

@@ -18,9 +18,16 @@ class PropertyMetrics:
     revenue: Decimal = Decimal("0")
     adr: Decimal = Decimal("0")  # Average Daily Rate
     revpar: Decimal = Decimal("0")  # Revenue Per Available Room-night
+    #: Everything the flat cost over the period: commission, rent, utilities,
+    #: cleaning and consumables. Split below, because an operator who cannot see
+    #: which part grew cannot do anything about it.
     expenses: Decimal = Decimal("0")
     profit: Decimal = Decimal("0")
     commission: Decimal = Decimal("0")
+    #: Rent to the flat's owner plus utilities — paid whether it was let or not.
+    fixed_costs: Decimal = Decimal("0")
+    #: Cleaning and consumables — paid because guests came.
+    variable_costs: Decimal = Decimal("0")
     # Occupancy unit = booked *days*: whole calendar nights for daily/multi-day
     # stays, fractional days (hours/24) for sub-day hourly stays. Decimal so
     # sub-day occupancy is not truncated to zero.
@@ -53,6 +60,8 @@ class AnalyticsSummary:
     total_expenses: Decimal = Decimal("0")
     total_profit: Decimal = Decimal("0")
     total_commission: Decimal = Decimal("0")
+    total_fixed_costs: Decimal = Decimal("0")
+    total_variable_costs: Decimal = Decimal("0")
     overall_adr: Decimal = Decimal("0")
     overall_revpar: Decimal = Decimal("0")
     overall_occupancy_rate: Decimal = Decimal("0")

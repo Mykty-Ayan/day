@@ -135,6 +135,23 @@ class PricingConfigModel(Base):
     )
 
 
+class PropertyCostsModel(Base):
+    """What the flat costs us, as opposed to what it charges the guest."""
+
+    __tablename__ = "property_costs"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    property_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("properties.id", ondelete="CASCADE"), unique=True, index=True
+    )
+    monthly_rent: Mapped[float] = mapped_column(Numeric(12, 2), default=0)
+    monthly_utilities: Mapped[float] = mapped_column(Numeric(12, 2), default=0)
+    cleaning_cost: Mapped[float] = mapped_column(Numeric(12, 2), default=0)
+    consumables_per_night: Mapped[float] = mapped_column(Numeric(12, 2), default=0)
+    created_at: Mapped[datetime] = mapped_column(default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
 class SeasonalPriceModel(Base):
     __tablename__ = "seasonal_prices"
 

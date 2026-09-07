@@ -39,10 +39,18 @@ class Settings(BaseSettings):
     # so it must be the address the provider can actually reach.
     PUBLIC_BASE_URL: str = "http://localhost:8000"
 
+    # Public HTTPS origin of the web app. The Mini App lives at `/tma` under it,
+    # and Telegram will only accept an https URL for the menu button.
+    PUBLIC_APP_URL: str = "http://localhost:5173"
+
     # Telegram — host-facing bot. The secret is echoed back by Telegram in the
     # X-Telegram-Bot-Api-Secret-Token header on every webhook delivery.
     TELEGRAM_BOT_TOKEN: str = ""
     TELEGRAM_WEBHOOK_SECRET: str = ""
+    # Label on the bot's menu button, the one that opens the Mini App. The
+    # bot's own copy sends people to it by name — "откройте «Панель»" — so the
+    # two have to agree, and renaming the button means changing that copy too.
+    TELEGRAM_MENU_BUTTON_TEXT: str = "Панель"
 
     # WhatsApp via whapi.cloud — guest-facing bot.
     WHAPI_TOKEN: str = ""
@@ -60,7 +68,12 @@ class Settings(BaseSettings):
     # it is switched off rather than failing mid-conversation.
     ASSISTANT_API_KEY: str = ""
     ASSISTANT_API_URL: str = "https://openrouter.ai/api/v1"
-    ASSISTANT_MODEL: str = "google/gemini-2.5-flash"
+    ASSISTANT_MODEL: str = "google/gemini-3.7-flash"
+    # Transcription is a different job from answering: it needs audio input but
+    # no tool calling and no reasoning, so it can run on a cheaper model. Empty
+    # means "whatever ASSISTANT_MODEL is", which is how it behaved before this
+    # knob existed.
+    ASSISTANT_TRANSCRIBE_MODEL: str = ""
     ASSISTANT_TIMEOUT_SECONDS: int = 45
 
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}

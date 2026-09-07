@@ -11,7 +11,7 @@ from datetime import date
 
 import pytest
 
-from app.application.assistant.ask import MAX_STEPS, AskAssistantService
+from app.application.assistant.ask import MAX_STEPS, SYSTEM_PROMPT, AskAssistantService
 from app.application.assistant.tools import Tool, ToolContext
 from app.domain.assistant.gateway import AssistantGateway, ChatMessage, ModelResponse
 from app.domain.assistant.value_objects import AssistantUnavailable, ToolCall, ToolEffect
@@ -260,3 +260,12 @@ class TestToolGuards:
         await context.money()
 
         assert seen == [(date(2026, 9, 1), date(2026, 9, 17))]
+
+
+class TestSystemPrompt:
+    def test_it_says_voice_arrives_as_text(self):
+        # A voice note reaches the model already transcribed. Without being told
+        # so, it answered "Я умею работать только с текстом." to a dictated
+        # message — an apology for a limitation it does not have.
+        assert "расшифрованными" in SYSTEM_PROMPT
+        assert "не умеешь с ним работать" in SYSTEM_PROMPT

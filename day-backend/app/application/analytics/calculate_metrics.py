@@ -9,6 +9,8 @@ from decimal import Decimal
 
 from app.domain.analytics.entities import AnalyticsSummary, PropertyMetrics
 from app.domain.analytics.repositories import AnalyticsRepository
+from app.domain.property.entities import PropertyCosts
+from app.domain.property.repositories import PropertyCostsRepository
 
 
 @dataclass
@@ -27,8 +29,13 @@ class CalculateMetricsResult:
 
 
 class CalculateMetricsService:
-    def __init__(self, analytics_repo: AnalyticsRepository) -> None:
+    def __init__(
+        self,
+        analytics_repo: AnalyticsRepository,
+        costs_repo: PropertyCostsRepository,
+    ) -> None:
         self._analytics_repo = analytics_repo
+        self._costs_repo = costs_repo
 
     async def execute(self, inp: CalculateMetricsInput) -> CalculateMetricsResult:
         if inp.date_to <= inp.date_from:
@@ -41,6 +48,13 @@ class CalculateMetricsService:
             property_ids=inp.property_ids,
             source=inp.source,
         )
+
+        # What each flat costs is stored per property and is not part of the
+        # booking aggregate, so it is joined here rather than in the query.
+        costs = await self._costs_repo.list_for_properties([pm.property_id for pm in properties])
+        period_days = (inp.date_to - inp.date_from).days
+        for pm in properties:
+            _apply_costs(pm, costs.get(pm.property_id), period_days)
 
         # Build summary from per-property metrics
         summary = AnalyticsSummary()
@@ -57,6 +71,8 @@ class CalculateMetricsService:
             summary.total_expenses += pm.expenses
             summary.total_profit += pm.profit
             summary.total_commission += pm.commission
+            summary.total_fixed_costs += pm.fixed_costs
+            summary.total_variable_costs += pm.variable_costs
             summary.total_bookings += pm.total_bookings
             summary.total_booked_nights += pm.booked_nights
             summary.total_vacancy_days += pm.vacancy_days
@@ -80,3 +96,24 @@ class CalculateMetricsService:
             summary.avg_stay_duration = weighted_stay_sum / summary.total_bookings
 
         return CalculateMetricsResult(summary=summary, properties=properties)
+
+
+def _apply_costs(pm: PropertyMetrics, costs: PropertyCosts | None, period_days: int) -> None:
+    """Fill in what the flat cost, and what is actually left.
+
+    A flat with no costs recorded keeps the old arithmetic — revenue minus
+    commission — rather than reporting an error or a zero. That is not the right
+    number, but it is the number that was there before anyone filled the form
+    in, and a report that refuses to render is worse than one that is
+    incomplete for the flats nobody has configured yet.
+    """
+    if costs is not None:
+        pm.fixed_costs = costs.fixed_cost(period_days)
+        # The cleaner is paid once per stay; consumables go by night.
+        pm.variable_costs = (
+            costs.cleaning_cost * pm.total_bookings
+            + costs.consumables_per_night * pm.booked_nights
+        )
+
+    pm.expenses = pm.commission + pm.fixed_costs + pm.variable_costs
+    pm.profit = pm.revenue - pm.expenses

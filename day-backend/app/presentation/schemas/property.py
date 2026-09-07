@@ -172,6 +172,32 @@ class PricingConfigCreate(BaseModel):
     base_guests: int = Field(default=1, ge=1)
 
 
+class PropertyCostsInput(BaseModel):
+    """What the flat costs its subletter.
+
+    Split by whether a guest triggers the spending: rent and utilities are paid
+    regardless, cleaning and consumables only when someone stays. The first pair
+    decides whether the flat is worth keeping; the second sets the price below
+    which selling a night loses money.
+    """
+
+    monthly_rent: Decimal = Field(default=Decimal("0"), ge=0)
+    monthly_utilities: Decimal = Field(default=Decimal("0"), ge=0)
+    cleaning_cost: Decimal = Field(default=Decimal("0"), ge=0)
+    consumables_per_night: Decimal = Field(default=Decimal("0"), ge=0)
+
+
+class PropertyCostsResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True, json_encoders={Decimal: float})
+
+    id: uuid.UUID
+    property_id: uuid.UUID
+    monthly_rent: Decimal
+    monthly_utilities: Decimal
+    cleaning_cost: Decimal
+    consumables_per_night: Decimal
+
+
 class PricingConfigResponse(BaseModel):
     model_config = ConfigDict(
         from_attributes=True,

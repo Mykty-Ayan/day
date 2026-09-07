@@ -23,6 +23,7 @@ from app.domain.analytics.value_objects import Granularity, PeriodPreset
 from app.domain.auth.permissions import Permission
 from app.infrastructure.database import get_session
 from app.infrastructure.repositories.analytics import SqlAnalyticsRepository
+from app.infrastructure.repositories.property import SqlPropertyCostsRepository
 from app.presentation.api.deps import get_company_id, require
 from app.presentation.schemas.analytics import (
     AnalyticsMetricsResponse,
@@ -81,7 +82,7 @@ async def get_metrics(
     resolved_from, resolved_to = _resolve_dates(date_from, date_to, period)
 
     repo = SqlAnalyticsRepository(session)
-    svc = CalculateMetricsService(repo)
+    svc = CalculateMetricsService(repo, SqlPropertyCostsRepository(session))
 
     try:
         result = await svc.execute(
@@ -102,6 +103,8 @@ async def get_metrics(
             total_expenses=result.summary.total_expenses,
             total_profit=result.summary.total_profit,
             total_commission=result.summary.total_commission,
+            total_fixed_costs=result.summary.total_fixed_costs,
+            total_variable_costs=result.summary.total_variable_costs,
             overall_adr=result.summary.overall_adr,
             overall_revpar=result.summary.overall_revpar,
             overall_occupancy_rate=result.summary.overall_occupancy_rate,
@@ -121,6 +124,8 @@ async def get_metrics(
                 revpar=pm.revpar,
                 expenses=pm.expenses,
                 profit=pm.profit,
+                fixed_costs=pm.fixed_costs,
+                variable_costs=pm.variable_costs,
                 commission=pm.commission,
                 vacancy_days=pm.vacancy_days,
                 occupancy_rate=pm.occupancy_rate,
@@ -200,7 +205,7 @@ async def export_csv(
     resolved_from, resolved_to = _resolve_dates(date_from, date_to, period)
 
     repo = SqlAnalyticsRepository(session)
-    svc = CalculateMetricsService(repo)
+    svc = CalculateMetricsService(repo, SqlPropertyCostsRepository(session))
 
     try:
         result = await svc.execute(
@@ -227,6 +232,8 @@ async def export_csv(
         "Expenses",
         "Profit",
         "Commission",
+        "Fixed costs",
+        "Variable costs",
         "Vacancy Days",
         "Occupancy %",
         "Avg Stay",
@@ -243,6 +250,8 @@ async def export_csv(
             f"{pm.expenses:.2f}",
             f"{pm.profit:.2f}",
             f"{pm.commission:.2f}",
+            f"{pm.fixed_costs:.2f}",
+            f"{pm.variable_costs:.2f}",
             pm.vacancy_days,
             f"{pm.occupancy_rate:.1f}",
             f"{pm.avg_stay_duration:.1f}",

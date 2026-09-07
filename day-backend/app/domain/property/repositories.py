@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import abc
 import uuid
+from collections.abc import Sequence
 
 from app.domain.property.entities import (
     Amenity,
@@ -9,6 +10,7 @@ from app.domain.property.entities import (
     PricingConfig,
     Property,
     PropertyAuditLog,
+    PropertyCosts,
     PropertyPhoto,
     PropertyTag,
     SeasonalPrice,
@@ -89,6 +91,25 @@ class PricingConfigRepository(abc.ABC):
 
     @abc.abstractmethod
     async def update(self, config: PricingConfig) -> PricingConfig: ...
+
+
+class PropertyCostsRepository(abc.ABC):
+    @abc.abstractmethod
+    async def get_by_property(self, property_id: uuid.UUID) -> PropertyCosts | None: ...
+
+    @abc.abstractmethod
+    async def list_for_properties(
+        self, property_ids: Sequence[uuid.UUID]
+    ) -> dict[uuid.UUID, PropertyCosts]:
+        """Costs for many flats at once.
+
+        Analytics reports every flat in one screen; asking per flat would turn
+        one report into a query per property.
+        """
+
+    @abc.abstractmethod
+    async def upsert(self, costs: PropertyCosts) -> PropertyCosts:
+        """Costs are one row per flat, edited in place rather than versioned."""
 
 
 class SeasonalPriceRepository(abc.ABC):

@@ -3,19 +3,7 @@ import { initReactI18next } from 'react-i18next'
 import ru from './locales/ru/translation.json'
 import kz from './locales/kz/translation.json'
 import en from './locales/en/translation.json'
-
-function detectLanguage(): string {
-  try {
-    const saved = localStorage.getItem('language')
-    if (saved) return saved
-    const browserLang = navigator.language?.slice(0, 2).toLowerCase()
-    if (browserLang === 'kk') return 'kz'
-    if (browserLang === 'en') return 'en'
-  } catch {
-    // localStorage or navigator unavailable (SSR/tests)
-  }
-  return 'ru'
-}
+import { DEFAULT_LANGUAGE, detectLanguage } from './lib/language'
 
 const savedLang = detectLanguage()
 
@@ -26,7 +14,7 @@ i18n.use(initReactI18next).init({
     en: { translation: en },
   },
   lng: savedLang,
-  fallbackLng: 'ru',
+  fallbackLng: DEFAULT_LANGUAGE,
   interpolation: {
     escapeValue: false,
   },
