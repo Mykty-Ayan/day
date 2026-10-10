@@ -98,7 +98,7 @@ function AuthenticatedLayout() {
   return (
     <div className="min-h-screen bg-white flex flex-col">
       <header className="flex items-center gap-6 px-6 py-3 border-b border-gray-100 bg-white">
-        <Link to="/" className="text-sm font-bold text-gray-900 mr-4">
+        <Link to="/bookings/today" className="text-sm font-bold text-gray-900 mr-4">
           Day
         </Link>
         <nav className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto">

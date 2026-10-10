@@ -92,10 +92,6 @@
     "errorLoading": "We couldn't load this data. Please try again.",
     "logout": "Log out"
   },
-  "home": {
-    "subtitle": "Booking & calendar management",
-    "getStarted": "Get Started"
-  },
   "properties": {
     "title": "Properties",
     "addProperty": "Add Property",
@@ -186,6 +182,7 @@
     "form": {
       "publicName": "Public Name",
       "internalName": "Internal Name",
+      "bedsHint": "A bed or a sofa bed counts as 1",
       "type": "Type",
       "description": "Description",
       "sourceUrl": "Source URL",
