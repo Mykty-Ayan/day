@@ -576,6 +576,7 @@ async def get_pricing(
     "/{property_id}/pricing/seasonal",
     response_model=SeasonalPriceResponse,
     status_code=201,
+    dependencies=[Depends(require(Permission.PROPERTIES_WRITE))],
 )
 async def add_seasonal_price(
     property_id: uuid.UUID,
@@ -627,6 +628,7 @@ async def delete_seasonal_price(
 @router.get(
     "/{property_id}/pricing/seasonal",
     response_model=list[SeasonalPriceResponse],
+    dependencies=[Depends(require(Permission.PROPERTIES_READ))],
 )
 async def list_seasonal_prices(
     property_id: uuid.UUID,
@@ -651,6 +653,7 @@ async def list_seasonal_prices(
     "/{property_id}/pricing/discounts",
     response_model=DiscountRuleResponse,
     status_code=201,
+    dependencies=[Depends(require(Permission.PROPERTIES_WRITE))],
 )
 async def add_discount_rule(
     property_id: uuid.UUID,
@@ -701,6 +704,7 @@ async def delete_discount_rule(
 @router.get(
     "/{property_id}/pricing/discounts",
     response_model=list[DiscountRuleResponse],
+    dependencies=[Depends(require(Permission.PROPERTIES_READ))],
 )
 async def list_discount_rules(
     property_id: uuid.UUID,

@@ -586,6 +586,9 @@ async def calculate_price(
     company_id: uuid.UUID = Depends(get_company_id),
 ):
     repos = _repos(session)
+    prop = await repos["property"].get_by_id(body.property_id)
+    if prop is None or prop.company_id != company_id:
+        raise HTTPException(status_code=404, detail="Property not found")
     calc = _price_calculator(repos)
     try:
         result = await calc.calculate(
@@ -692,6 +695,7 @@ async def create_deposit(
 @booking_router.post(
     "/{booking_id:uuid}/deposits/{deposit_id}/action",
     response_model=DepositResponse,
+    dependencies=[Depends(require(Permission.BOOKINGS_WRITE))],
 )
 async def deposit_action(
     booking_id: uuid.UUID,
@@ -850,6 +854,9 @@ async def delete_file(
     booking = await repos["booking"].get_by_id(booking_id)
     if booking is None or booking.company_id != company_id:
         raise HTTPException(status_code=404, detail="Booking not found")
+    file_rec = await repos["file"].get_by_id(file_id)
+    if file_rec is None or file_rec.booking_id != booking_id:
+        raise HTTPException(status_code=404, detail="File not found")
     await repos["file"].delete(file_id)
     await session.commit()
 
