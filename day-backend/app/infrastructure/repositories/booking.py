@@ -6,7 +6,7 @@ from collections.abc import Sequence
 from datetime import date, datetime
 from decimal import Decimal
 
-from sqlalchemy import case, delete, func, select, update
+from sqlalchemy import case, delete, func, select, tuple_, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.domain.booking.entities import (
@@ -442,6 +442,30 @@ class SqlBookingRepository(BookingRepository):
                 BookingModel.check_out > start_date,
             )
             .order_by(BookingModel.check_in)
+        )
+        result = await self._session.scalars(stmt)
+        return [_model_to_booking(m) for m in result.all()]
+
+    async def list_changed(
+        self,
+        company_id: uuid.UUID,
+        *,
+        after: tuple[datetime, uuid.UUID],
+        until: datetime,
+        limit: int,
+    ) -> list[Booking]:
+        # Served by the company_id index plus a sort. Fine for hundreds of
+        # bookings per company; add an index on (company_id, updated_at, id)
+        # when a company grows past tens of thousands.
+        stmt = (
+            select(BookingModel)
+            .where(
+                BookingModel.company_id == company_id,
+                tuple_(BookingModel.updated_at, BookingModel.id) > tuple_(*after),
+                BookingModel.updated_at <= until,
+            )
+            .order_by(BookingModel.updated_at, BookingModel.id)
+            .limit(limit)
         )
         result = await self._session.scalars(stmt)
         return [_model_to_booking(m) for m in result.all()]

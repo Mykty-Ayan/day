@@ -166,6 +166,14 @@ class FakeBookingRepository(BookingRepository):
             and b.check_out > start_date
         ]
 
+    async def list_changed(self, company_id, *, after, until, limit):
+        rows = [
+            b
+            for b in self._bookings.values()
+            if b.company_id == company_id and (b.updated_at, b.id) > after and b.updated_at <= until
+        ]
+        return sorted(rows, key=lambda b: (b.updated_at, b.id))[:limit]
+
     async def update(self, booking: Booking) -> Booking:
         self._bookings[booking.id] = booking
         return booking

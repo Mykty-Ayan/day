@@ -3,7 +3,7 @@ from __future__ import annotations
 import abc
 import uuid
 from collections.abc import Sequence
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 
 from app.domain.booking.entities import (
@@ -115,6 +115,17 @@ class BookingRepository(abc.ABC):
         start_date: date,
         end_date: date,
     ) -> list[Booking]: ...
+
+    @abc.abstractmethod
+    async def list_changed(
+        self,
+        company_id: uuid.UUID,
+        *,
+        after: tuple[datetime, uuid.UUID],
+        until: datetime,
+        limit: int,
+    ) -> list[Booking]:
+        """Bookings with (updated_at, id) > after and updated_at <= until, in that order."""
 
     @abc.abstractmethod
     async def update(self, booking: Booking) -> Booking: ...

@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime
 from decimal import Decimal
 
-from pydantic import AliasChoices, BaseModel, ConfigDict, Field
+from pydantic import AliasChoices, BaseModel, ConfigDict, Field, field_serializer
 
 from app.domain.booking.value_objects import (
     BookingAuditAction,
@@ -111,6 +111,47 @@ class BookingResponse(BaseModel):
     property_internal_name: str | None = None
     created_at: datetime | None = None
     updated_at: datetime | None = None
+
+
+class BookingFeedItem(BaseModel):
+    """One change in GET /bookings/feed.
+
+    Written for integrations rather than the Day front end: instants carry
+    their zone and money is a decimal string, so nothing is left to guess.
+    check_in/check_out stay local times of the company, as everywhere in Day.
+    """
+
+    id: uuid.UUID
+    property_id: uuid.UUID
+    property_name: str | None = None
+    guest_id: uuid.UUID
+    guest_name: str | None = None
+    guest_phone: str | None = None
+    # Digits of +7XXXXXXXXXX without the plus, null when the phone is not one
+    # Day can normalise. A WhatsApp id is the same digits.
+    guest_phone_e164: str | None = None
+    check_in: datetime
+    check_out: datetime
+    rental_mode: RentalMode
+    status: BookingStatus
+    source: BookingSource
+    total_price: Decimal
+    paid_amount: Decimal
+    adults_count: int
+    children_count: int
+    created_at: datetime
+    updated_at: datetime
+
+    @field_serializer("total_price", "paid_amount")
+    def _money(self, value: Decimal) -> str:
+        return format(value.quantize(Decimal("0.01")), "f")
+
+
+class BookingFeedResponse(BaseModel):
+    items: list[BookingFeedItem]
+    next_cursor: str
+    has_more: bool
+    currency: str
 
 
 class BookingStatusChange(BaseModel):
