@@ -22,7 +22,7 @@ export function useLogin() {
       localStorage.setItem('access_token', tokens.access_token)
       localStorage.setItem('refresh_token', tokens.refresh_token)
       queryClient.invalidateQueries({ queryKey: [AUTH_USER_KEY] })
-      navigate({ to: '/' })
+      navigate({ to: '/bookings/today' })
     },
   })
 }
@@ -36,7 +36,7 @@ export function useRegister() {
       localStorage.setItem('access_token', tokens.access_token)
       localStorage.setItem('refresh_token', tokens.refresh_token)
       queryClient.invalidateQueries({ queryKey: [AUTH_USER_KEY] })
-      navigate({ to: '/' })
+      navigate({ to: '/bookings/today' })
     },
   })
 }

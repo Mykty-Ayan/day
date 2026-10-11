@@ -76,7 +76,7 @@ export default function MobileShell({
     <div className="min-h-screen bg-white flex flex-col">
       <header className="sticky top-0 z-sticky border-b border-gray-100 bg-white safe-area-top">
         <div className="flex items-center px-4 py-3">
-          <Link to="/" className="text-sm font-bold text-gray-900">
+          <Link to="/bookings/today" className="text-sm font-bold text-gray-900">
             Day
           </Link>
           <div className="mx-3 min-w-0 flex-1">

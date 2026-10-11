@@ -15,11 +15,11 @@ test.describe('Navigation - E2E', () => {
     propertyIdsToCleanup = []
   })
 
-  test('home page loads', async ({ page }) => {
+  test('root redirects to today', async ({ page }) => {
     await page.goto('/')
-    await page.waitForLoadState('networkidle')
+    await page.waitForURL(/\/bookings\/today/, { timeout: 5000 })
 
-    // Should see the "Day" header
+    await expect(page).toHaveURL(/\/bookings\/today/)
     await expect(page.getByText('Day').first()).toBeVisible()
   })
 
