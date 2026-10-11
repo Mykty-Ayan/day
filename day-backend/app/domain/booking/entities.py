@@ -70,6 +70,12 @@ class Booking:
     # confirmed it to the guest. Such a booking is exempt from the database's
     # no-overlap constraint, and the host has to resolve the clash.
     overbooking: bool = False
+    # The id of this booking in the system that asked for it (a CRM deal).
+    external_id: str | None = None
+    # The Idempotency-Key of the create request and a hash of its body, so a
+    # retry gets this booking back and a reused key with another body is caught.
+    idempotency_key: str | None = None
+    idempotency_hash: str | None = None
     created_at: datetime | None = None
     updated_at: datetime | None = None
 

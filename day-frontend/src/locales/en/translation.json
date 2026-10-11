@@ -385,7 +385,8 @@
       "direct": "Direct",
       "booking": "Booking.com",
       "airbnb": "Airbnb",
-      "other": "Other"
+      "other": "Other",
+      "crm": "CRM"
     },
     "adultsCount": "{{count}} adult",
     "adultsCount_other": "{{count}} adults",

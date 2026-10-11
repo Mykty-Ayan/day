@@ -2,13 +2,15 @@
 
 from __future__ import annotations
 
+import hashlib
+import json
 import re
 import uuid
 from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 from urllib.parse import quote, urlparse
 
-from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
+from fastapi import APIRouter, Depends, File, Header, HTTPException, Query, UploadFile
 from fastapi.responses import Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -34,7 +36,11 @@ from app.application.leads.check_guest import normalise_phone
 from app.config import settings
 from app.domain.auth.permissions import Permission
 from app.domain.booking.entities import BookingComment, BookingFile
-from app.domain.booking.exceptions import BookingOverlapError
+from app.domain.booking.exceptions import (
+    BookingOverlapError,
+    IdempotencyKeyReusedError,
+    IdempotencyKeyTakenError,
+)
 from app.domain.booking.value_objects import BookingSource, BookingStatus, RentalMode
 from app.domain.messaging.value_objects import NotificationEvent
 from app.domain.settings.entities import CompanySettings
@@ -167,6 +173,7 @@ def _to_booking_response(
         guest_phone=guest_phone,
         property_name=property_name,
         property_internal_name=property_internal_name,
+        external_id=b.external_id,
         created_at=b.created_at,
         updated_at=b.updated_at,
     )
@@ -250,10 +257,18 @@ async def _notify_booking(
 )
 async def create_booking(
     body: BookingCreate,
+    response: Response,
+    idempotency_key: str | None = Header(default=None, alias="Idempotency-Key", min_length=1, max_length=255),
     session: AsyncSession = Depends(get_session),
     company_id: uuid.UUID = Depends(get_company_id),
     user_id: uuid.UUID | None = Depends(get_user_id),
 ):
+    """Create a pending booking.
+
+    With an `Idempotency-Key` header a retry of the same request answers 200
+    with the booking the first one made (header `Idempotent-Replayed: true`),
+    and the same key with a different body answers 422.
+    """
     repos = _repos(session)
     svc = CreateBookingService(
         repos["booking"],
@@ -262,6 +277,27 @@ async def create_booking(
         repos["audit"],
         _price_calculator(repos),
     )
+    request_hash = (
+        hashlib.sha256(json.dumps(body.model_dump(mode="json"), sort_keys=True).encode()).hexdigest()
+        if idempotency_key
+        else None
+    )
+
+    async def replayed() -> BookingResponse | None:
+        if not idempotency_key:
+            return None
+        try:
+            booking = await svc.replay(company_id, idempotency_key, request_hash)
+        except IdempotencyKeyReusedError as e:
+            raise HTTPException(status_code=422, detail=str(e))
+        if booking is None:
+            return None
+        response.status_code = 200
+        response.headers["Idempotent-Replayed"] = "true"
+        return _to_booking_response(booking)
+
+    if (answer := await replayed()) is not None:
+        return answer
     try:
         result = await svc.execute(
             CreateBookingInput(
@@ -279,14 +315,21 @@ async def create_booking(
                 gantt_color=body.gantt_color,
                 notes=body.notes,
                 changed_by=user_id,
+                external_id=body.external_id,
+                idempotency_key=idempotency_key,
+                idempotency_hash=request_hash,
             )
         )
         await _notify_booking(session, company_id, NotificationEvent.BOOKING_CREATED, result, repos)
         await session.commit()
         return _to_booking_response(result)
-    except BookingOverlapError as e:
+    except (BookingOverlapError, IdempotencyKeyTakenError) as e:
         await session.rollback()
-        raise HTTPException(status_code=409, detail=str(e))
+        # A request with the same key may have committed while this one ran;
+        # then this one is its retry and gets the same answer.
+        if (answer := await replayed()) is not None:
+            return answer
+        raise HTTPException(status_code=409, detail=str(e) or "Conflict")
     except ValueError as e:
         await session.rollback()
         raise HTTPException(status_code=400, detail=str(e))
@@ -414,6 +457,7 @@ async def booking_feed(
                 paid_amount=paid.get(b.id, Decimal("0")),
                 adults_count=b.adults_count,
                 children_count=b.children_count,
+                external_id=b.external_id,
                 created_at=b.created_at.replace(tzinfo=timezone.utc),
                 updated_at=b.updated_at.replace(tzinfo=timezone.utc),
             )

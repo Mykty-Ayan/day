@@ -385,7 +385,8 @@
       "direct": "Прямое",
       "booking": "Booking.com",
       "airbnb": "Airbnb",
-      "other": "Другое"
+      "other": "Другое",
+      "crm": "CRM"
     },
     "adultsCount": "{{count}} взрослый",
     "adultsCount_other": "{{count}} взрослых",
