@@ -147,6 +147,9 @@ class FakeBookingRepository(BookingRepository):
     async def list_by_company_date_range(self, company_id, start_date, end_date):
         return [b for b in self.items.values() if b.company_id == company_id]
 
+    async def list_changed(self, company_id, *, after, until, limit):
+        return []
+
     async def update(self, booking):
         self.items[booking.id] = booking
         return booking

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import re
 import uuid
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 from urllib.parse import quote, urlparse
 
@@ -12,6 +12,7 @@ from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
 from fastapi.responses import Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.application.booking.booking_feed import BookingFeedService, FeedPosition
 from app.application.booking.change_booking_status import ChangeBookingStatusService
 from app.application.booking.check_availability import CheckAvailabilityService
 from app.application.booking.create_booking import (
@@ -29,11 +30,13 @@ from app.application.booking.update_booking import (
     UpdateBookingInput,
     UpdateBookingService,
 )
+from app.application.leads.check_guest import normalise_phone
 from app.config import settings
 from app.domain.auth.permissions import Permission
 from app.domain.booking.entities import BookingComment, BookingFile
 from app.domain.booking.value_objects import BookingSource, BookingStatus, RentalMode
 from app.domain.messaging.value_objects import NotificationEvent
+from app.domain.settings.entities import CompanySettings
 from app.infrastructure.database import get_session
 from app.infrastructure.messaging.factory import build_notification_service
 from app.infrastructure.repositories.booking import (
@@ -52,6 +55,7 @@ from app.infrastructure.repositories.property import (
     SqlPropertyRepository,
     SqlSeasonalPriceRepository,
 )
+from app.infrastructure.repositories.settings import SqlCompanySettingsRepository
 from app.infrastructure.storage.s3 import (
     FileTooLargeError,
     download_booking_file,
@@ -66,6 +70,8 @@ from app.presentation.schemas.booking import (
     BookingCommentResponse,
     BookingCreate,
     BookingDetailResponse,
+    BookingFeedItem,
+    BookingFeedResponse,
     BookingFileResponse,
     BookingListResponse,
     BookingMove,
@@ -110,7 +116,19 @@ def _repos(session: AsyncSession):
         "pricing": SqlPricingConfigRepository(session),
         "seasonal": SqlSeasonalPriceRepository(session),
         "discount": SqlDiscountRuleRepository(session),
+        "settings": SqlCompanySettingsRepository(session),
     }
+
+
+def _utcnow() -> datetime:
+    return datetime.utcnow()
+
+
+def _naive_utc(value: datetime) -> datetime:
+    """Day stores instants as naive UTC; a naive input is taken to be UTC."""
+    if value.tzinfo is None:
+        return value
+    return value.astimezone(timezone.utc).replace(tzinfo=None)
 
 
 def _price_calculator(repos):
@@ -323,6 +341,85 @@ async def list_bookings(
         page=page,
         per_page=per_page,
         pages=pages,
+    )
+
+
+@booking_router.get(
+    "/feed",
+    response_model=BookingFeedResponse,
+    dependencies=[Depends(require(Permission.BOOKINGS_READ))],
+)
+async def booking_feed(
+    updated_since: datetime | None = None,
+    cursor: str | None = None,
+    limit: int = Query(default=100, ge=1, le=200),
+    session: AsyncSession = Depends(get_session),
+    company_id: uuid.UUID = Depends(get_company_id),
+):
+    """Every change to the company's bookings, oldest first, cancelled ones included.
+
+    Start with `updated_since` (or nothing, for the whole history), then pass
+    back `next_cursor` from each answer. A booking appears again every time it
+    changes. Changes show up about 30 s after they happen.
+    """
+    if updated_since is not None and cursor is not None:
+        raise HTTPException(status_code=400, detail="Pass updated_since or cursor, not both")
+    after = None
+    if cursor is not None:
+        try:
+            after = FeedPosition.decode(cursor)
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+    elif updated_since is not None:
+        after = FeedPosition.since(_naive_utc(updated_since))
+
+    repos = _repos(session)
+    page = await BookingFeedService(repos["booking"]).execute(
+        company_id, after=after, limit=limit, now=_utcnow()
+    )
+
+    company_settings = await repos["settings"].get_by_company(company_id)
+    currency = (company_settings or CompanySettings()).default_currency.value
+    paid = await repos["payment"].sum_paid_by_bookings([b.id for b in page.items])
+    # A page usually holds a few properties and guests many times over.
+    guests: dict = {}
+    props: dict = {}
+    items = []
+    for b in page.items:
+        if b.guest_id not in guests:
+            guests[b.guest_id] = await repos["guest"].get_by_id(b.guest_id)
+        if b.property_id not in props:
+            props[b.property_id] = await repos["property"].get_by_id(b.property_id)
+        guest, prop = guests[b.guest_id], props[b.property_id]
+        phone = guest.phone if guest else None
+        items.append(
+            BookingFeedItem(
+                id=b.id,
+                property_id=b.property_id,
+                property_name=prop.name if prop else None,
+                guest_id=b.guest_id,
+                guest_name=guest.name if guest else None,
+                guest_phone=phone,
+                guest_phone_e164=normalise_phone(phone).lstrip("+") or None,
+                check_in=b.check_in,
+                check_out=b.check_out,
+                rental_mode=b.rental_mode,
+                status=b.status,
+                source=b.source,
+                total_price=b.total_price,
+                paid_amount=paid.get(b.id, Decimal("0")),
+                adults_count=b.adults_count,
+                children_count=b.children_count,
+                created_at=b.created_at.replace(tzinfo=timezone.utc),
+                updated_at=b.updated_at.replace(tzinfo=timezone.utc),
+            )
+        )
+
+    return BookingFeedResponse(
+        items=items,
+        next_cursor=page.next_position.encode(),
+        has_more=page.has_more,
+        currency=currency,
     )
 
 
