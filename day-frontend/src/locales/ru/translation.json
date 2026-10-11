@@ -321,7 +321,8 @@
         "pending": "Ожидание",
         "completed": "Завершено",
         "failed": "Ошибка"
-      }
+      },
+      "confirm": "Подтвердить"
     },
     "deposits": {
       "createDeposit": "Создать залог",

@@ -132,6 +132,10 @@ class BookingPaymentModel(Base):
     status: Mapped[str] = mapped_column(String(50), default="pending")
     note: Mapped[str | None] = mapped_column(Text, nullable=True)
     paid_at: Mapped[datetime | None] = mapped_column(nullable=True)
+    external_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    # Unique per booking where set (uq_booking_payments_booking_idempotency_key, migration 022).
+    idempotency_key: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    idempotency_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
     created_at: Mapped[datetime] = mapped_column(default=datetime.utcnow)
 
     booking: Mapped["BookingModel"] = relationship(back_populates="payments")

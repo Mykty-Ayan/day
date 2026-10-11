@@ -57,7 +57,7 @@ def build_assistant_tools(
 
     create_booking = CreateBookingService(bookings, guests, properties, audit, prices)
     update_booking = UpdateBookingService(bookings, properties, audit, prices)
-    manage_payments = ManagePaymentsService(bookings, payments)
+    manage_payments = ManagePaymentsService(bookings, payments, audit)
     create_cleaning = CreateCleaningTaskService(SqlCleaningTaskRepository(session), properties)
     metrics = CalculateMetricsService(SqlAnalyticsRepository(session), SqlPropertyCostsRepository(session))
 

@@ -41,7 +41,7 @@ from app.domain.booking.exceptions import (
     IdempotencyKeyReusedError,
     IdempotencyKeyTakenError,
 )
-from app.domain.booking.value_objects import BookingSource, BookingStatus, RentalMode
+from app.domain.booking.value_objects import BookingSource, BookingStatus, PaymentStatus, RentalMode
 from app.domain.messaging.value_objects import NotificationEvent
 from app.domain.settings.entities import CompanySettings
 from app.infrastructure.database import get_session
@@ -136,6 +136,11 @@ def _naive_utc(value: datetime) -> datetime:
     if value.tzinfo is None:
         return value
     return value.astimezone(timezone.utc).replace(tzinfo=None)
+
+
+def _request_hash(body) -> str:
+    """What an Idempotency-Key retry must repeat: the body, defaults filled in."""
+    return hashlib.sha256(json.dumps(body.model_dump(mode="json"), sort_keys=True).encode()).hexdigest()
 
 
 def _price_calculator(repos):
@@ -259,11 +264,7 @@ async def create_booking(
         repos["audit"],
         _price_calculator(repos),
     )
-    request_hash = (
-        hashlib.sha256(json.dumps(body.model_dump(mode="json"), sort_keys=True).encode()).hexdigest()
-        if idempotency_key
-        else None
-    )
+    request_hash = _request_hash(body) if idempotency_key else None
 
     async def replayed() -> BookingResponse | None:
         if not idempotency_key:
@@ -760,11 +761,38 @@ async def calculate_price(
 async def add_payment(
     booking_id: uuid.UUID,
     body: PaymentCreate,
+    response: Response,
+    idempotency_key: str | None = Header(default=None, alias="Idempotency-Key", min_length=1, max_length=255),
     session: AsyncSession = Depends(get_session),
     company_id: uuid.UUID = Depends(get_company_id),
+    user_id: uuid.UUID | None = Depends(get_user_id),
 ):
+    """Record money for a booking. A completed payment confirms a pending booking.
+
+    Idempotency-Key works as on POST /bookings: a retry answers 200 with the
+    first payment (Idempotent-Replayed: true), another body with the key is 422.
+    """
     repos = _repos(session)
-    svc = ManagePaymentsService(repos["booking"], repos["payment"])
+    svc = ManagePaymentsService(repos["booking"], repos["payment"], repos["audit"])
+    request_hash = _request_hash(body) if idempotency_key else None
+
+    async def replayed() -> PaymentResponse | None:
+        if not idempotency_key:
+            return None
+        try:
+            payment = await svc.replay_payment(booking_id, company_id, idempotency_key, request_hash)
+        except IdempotencyKeyReusedError as e:
+            raise HTTPException(status_code=422, detail=str(e))
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+        if payment is None:
+            return None
+        response.status_code = 200
+        response.headers["Idempotent-Replayed"] = "true"
+        return PaymentResponse.model_validate(payment, from_attributes=True)
+
+    if (answer := await replayed()) is not None:
+        return answer
     try:
         result = await svc.add_payment(
             booking_id,
@@ -773,12 +801,47 @@ async def add_payment(
             body.type,
             body.method,
             body.note,
+            status=PaymentStatus(body.status),
+            external_id=body.external_id,
+            idempotency_key=idempotency_key,
+            idempotency_hash=request_hash,
+            changed_by=user_id,
         )
+        await session.commit()
+        return PaymentResponse.model_validate(result, from_attributes=True)
+    except IdempotencyKeyTakenError:
+        await session.rollback()
+        if (answer := await replayed()) is not None:
+            return answer
+        raise HTTPException(status_code=409, detail="Conflict")
+    except ValueError as e:
+        await session.rollback()
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@booking_router.post(
+    "/{booking_id:uuid}/payments/{payment_id:uuid}/confirm",
+    response_model=PaymentResponse,
+    dependencies=[Depends(require(Permission.BOOKINGS_WRITE))],
+)
+async def confirm_payment(
+    booking_id: uuid.UUID,
+    payment_id: uuid.UUID,
+    session: AsyncSession = Depends(get_session),
+    company_id: uuid.UUID = Depends(get_company_id),
+    user_id: uuid.UUID | None = Depends(get_user_id),
+):
+    """The money of a pending payment arrived; a pending booking becomes confirmed."""
+    repos = _repos(session)
+    svc = ManagePaymentsService(repos["booking"], repos["payment"], repos["audit"])
+    try:
+        result = await svc.confirm_payment(booking_id, payment_id, company_id, changed_by=user_id)
         await session.commit()
         return PaymentResponse.model_validate(result, from_attributes=True)
     except ValueError as e:
         await session.rollback()
-        raise HTTPException(status_code=400, detail=str(e))
+        status = 404 if str(e) in ("Booking not found", "Payment not found") else 400
+        raise HTTPException(status_code=status, detail=str(e))
 
 
 @booking_router.get(
@@ -792,7 +855,7 @@ async def list_payments(
     company_id: uuid.UUID = Depends(get_company_id),
 ):
     repos = _repos(session)
-    svc = ManagePaymentsService(repos["booking"], repos["payment"])
+    svc = ManagePaymentsService(repos["booking"], repos["payment"], repos["audit"])
     try:
         result = await svc.list_payments(booking_id, company_id)
         return [PaymentResponse.model_validate(p, from_attributes=True) for p in result]

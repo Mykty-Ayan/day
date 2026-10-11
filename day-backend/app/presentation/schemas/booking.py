@@ -3,6 +3,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 from decimal import Decimal
+from typing import Literal
 
 from pydantic import AliasChoices, AwareDatetime, BaseModel, ConfigDict, Field, computed_field, field_serializer
 
@@ -203,6 +204,10 @@ class PaymentCreate(BaseModel):
     type: PaymentType = PaymentType.PAYMENT
     method: PaymentMethod = PaymentMethod.CASH
     note: str | None = None
+    # pending: promised (a transfer still to check); confirm it when it lands.
+    status: Literal["pending", "completed"] = "completed"
+    # The id of this payment in the system that records it (CRM, bank).
+    external_id: str | None = Field(default=None, max_length=255)
 
 
 class PaymentResponse(BaseModel):
@@ -219,6 +224,7 @@ class PaymentResponse(BaseModel):
     status: PaymentStatus
     note: str | None = None
     paid_at: datetime | None = None
+    external_id: str | None = None
     created_at: datetime | None = None
 
 

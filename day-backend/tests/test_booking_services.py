@@ -257,11 +257,24 @@ class FakeBookingPaymentRepository(BookingPaymentRepository):
     async def get_by_id(self, payment_id: uuid.UUID) -> BookingPayment | None:
         return self._payments.get(payment_id)
 
+    async def lock_idempotency_key(self, booking_id, key):
+        pass
+
+    async def get_by_idempotency_key(self, booking_id, key):
+        return next(
+            (p for p in self._payments.values() if p.booking_id == booking_id and p.idempotency_key == key),
+            None,
+        )
+
+    async def update(self, payment: BookingPayment) -> BookingPayment:
+        self._payments[payment.id] = payment
+        return payment
+
     async def sum_paid_by_bookings(self, booking_ids) -> dict[uuid.UUID, Decimal]:
         totals: dict[uuid.UUID, Decimal] = {}
         wanted = set(booking_ids)
         for payment in self._payments.values():
-            if payment.booking_id not in wanted:
+            if payment.booking_id not in wanted or payment.status != PaymentStatus.COMPLETED:
                 continue
             signed = -payment.amount if payment.type == PaymentType.REFUND else payment.amount
             totals[payment.booking_id] = totals.get(payment.booking_id, Decimal("0")) + signed
@@ -1574,7 +1587,7 @@ class TestManagePaymentsService:
         prop_id = uuid.uuid4()
         booking = _make_booking(prop_id)
         await booking_repo.create(booking)
-        svc = ManagePaymentsService(booking_repo, payment_repo)
+        svc = ManagePaymentsService(booking_repo, payment_repo, FakeBookingAuditLogRepository())
         return booking_repo, payment_repo, svc, booking
 
     @pytest.mark.asyncio

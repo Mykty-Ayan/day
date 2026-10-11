@@ -170,6 +170,16 @@ class BookingPaymentRepository(abc.ABC):
     async def get_by_id(self, payment_id: uuid.UUID) -> BookingPayment | None: ...
 
     @abc.abstractmethod
+    async def lock_idempotency_key(self, booking_id: uuid.UUID, key: str) -> None:
+        """Serialize requests carrying one Idempotency-Key until the transaction ends."""
+
+    @abc.abstractmethod
+    async def get_by_idempotency_key(self, booking_id: uuid.UUID, key: str) -> BookingPayment | None: ...
+
+    @abc.abstractmethod
+    async def update(self, payment: BookingPayment) -> BookingPayment: ...
+
+    @abc.abstractmethod
     async def sum_paid_by_bookings(self, booking_ids: Sequence[uuid.UUID]) -> dict[uuid.UUID, Decimal]:
         """Net amount received per booking: payments less refunds.
 
