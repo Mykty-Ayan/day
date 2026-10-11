@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.application.property.change_status import ChangePropertyStatusService
@@ -16,6 +16,7 @@ from app.application.property.create_property import (
 from app.application.property.get_property import GetPropertyService
 from app.application.property.list_properties import ListPropertiesService
 from app.application.property.manage_amenities import ManageAmenitiesService
+from app.application.property.manage_facts import ManageFactsService
 from app.application.property.manage_photos import ManagePhotosService
 from app.application.property.manage_pricing import (
     ManagePricingService,
@@ -27,7 +28,7 @@ from app.application.property.update_property import (
 )
 from app.domain.auth.permissions import Permission
 from app.domain.property.entities import DiscountRule, PropertyCosts, SeasonalPrice
-from app.domain.property.value_objects import PropertyStatus
+from app.domain.property.value_objects import FactSource, PropertyStatus
 from app.infrastructure.database import get_session
 from app.infrastructure.repositories.property import (
     SqlAmenityRepository,
@@ -35,11 +36,12 @@ from app.infrastructure.repositories.property import (
     SqlPricingConfigRepository,
     SqlPropertyAuditLogRepository,
     SqlPropertyCostsRepository,
+    SqlPropertyFactRepository,
     SqlPropertyPhotoRepository,
     SqlPropertyRepository,
     SqlSeasonalPriceRepository,
 )
-from app.presentation.api.deps import get_company_id, get_user_id, require
+from app.presentation.api.deps import Principal, get_company_id, get_principal, get_user_id, require
 from app.presentation.schemas.property import (
     AmenityCreate,
     AmenityResponse,
@@ -55,6 +57,8 @@ from app.presentation.schemas.property import (
     PropertyCostsResponse,
     PropertyCreate,
     PropertyDetailResponse,
+    PropertyFactCreate,
+    PropertyFactResponse,
     PropertyListResponse,
     PropertyPhotoResponse,
     PropertyResponse,
@@ -82,6 +86,7 @@ def _repos(session: AsyncSession):
         "seasonal": SqlSeasonalPriceRepository(session),
         "discount": SqlDiscountRuleRepository(session),
         "audit": SqlPropertyAuditLogRepository(session),
+        "fact": SqlPropertyFactRepository(session),
     }
 
 
@@ -225,11 +230,83 @@ async def get_property(
     except ValueError:
         raise HTTPException(status_code=404, detail="Property not found")
     prop = _to_property_response(detail.property, photos=detail.photos)
+    facts = await repos["fact"].list_by_property(property_id)
     return PropertyDetailResponse(
         **prop.model_dump(),
         amenities=[AmenityResponse.model_validate(a, from_attributes=True) for a in detail.amenities],
         pricing=PricingConfigResponse.model_validate(detail.pricing, from_attributes=True) if detail.pricing else None,
+        facts=[PropertyFactResponse.model_validate(f, from_attributes=True) for f in facts],
     )
+
+
+# ---------- Knowledge base ----------
+
+
+@router.get(
+    "/{property_id}/facts",
+    response_model=list[PropertyFactResponse],
+    dependencies=[Depends(require(Permission.PROPERTIES_READ))],
+)
+async def list_facts(
+    property_id: uuid.UUID,
+    session: AsyncSession = Depends(get_session),
+    company_id: uuid.UUID = Depends(get_company_id),
+):
+    repos = _repos(session)
+    try:
+        facts = await ManageFactsService(repos["property"], repos["fact"]).list(property_id, company_id)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    return [PropertyFactResponse.model_validate(f, from_attributes=True) for f in facts]
+
+
+@router.post(
+    "/{property_id}/facts",
+    response_model=PropertyFactResponse,
+    status_code=201,
+    dependencies=[Depends(require(Permission.PROPERTY_FACTS_WRITE))],
+)
+async def add_fact(
+    property_id: uuid.UUID,
+    body: PropertyFactCreate,
+    response: Response,
+    session: AsyncSession = Depends(get_session),
+    principal: Principal = Depends(get_principal),
+):
+    """Add a fact. The same text again answers 200 with the fact already kept."""
+    repos = _repos(session)
+    source = FactSource.API_KEY if principal.kind == "api_key" else FactSource.USER
+    try:
+        fact, created = await ManageFactsService(repos["property"], repos["fact"]).add(
+            property_id, principal.company_id, body.text, body.audience, source=source
+        )
+    except ValueError as e:
+        await session.rollback()
+        raise HTTPException(status_code=404 if str(e) == "Property not found" else 400, detail=str(e))
+    await session.commit()
+    if not created:
+        response.status_code = 200
+    return PropertyFactResponse.model_validate(fact, from_attributes=True)
+
+
+@router.delete(
+    "/{property_id}/facts/{fact_id}",
+    status_code=204,
+    dependencies=[Depends(require(Permission.PROPERTY_FACTS_WRITE))],
+)
+async def delete_fact(
+    property_id: uuid.UUID,
+    fact_id: uuid.UUID,
+    session: AsyncSession = Depends(get_session),
+    company_id: uuid.UUID = Depends(get_company_id),
+):
+    repos = _repos(session)
+    try:
+        await ManageFactsService(repos["property"], repos["fact"]).delete(property_id, company_id, fact_id)
+    except ValueError as e:
+        await session.rollback()
+        raise HTTPException(status_code=404, detail=str(e))
+    await session.commit()
 
 
 @router.patch(

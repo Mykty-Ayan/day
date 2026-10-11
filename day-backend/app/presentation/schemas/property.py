@@ -10,6 +10,8 @@ from app.domain.booking.value_objects import RentalMode
 from app.domain.property.value_objects import (
     AmenityCategory,
     AuditAction,
+    FactAudience,
+    FactSource,
     PropertyStatus,
     PropertyType,
 )
@@ -114,6 +116,23 @@ class PropertyListResponse(BaseModel):
 
 
 # ---------- Photos ----------
+
+
+class PropertyFactCreate(BaseModel):
+    text: str = Field(..., min_length=1, max_length=1000)
+    # guest: only for a guest with a confirmed stay (codes, passwords).
+    audience: FactAudience = FactAudience.GUEST
+
+
+class PropertyFactResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    property_id: uuid.UUID
+    text: str
+    audience: FactAudience
+    source: FactSource
+    created_at: datetime | None = None
 
 
 class PropertyPhotoResponse(BaseModel):
@@ -323,6 +342,8 @@ class PropertyDetailResponse(PropertyResponse):
     photos: list[PropertyPhotoResponse] = []
     amenities: list[AmenityResponse] = []
     pricing: PricingConfigResponse | None = None
+    # Every fact, each with its audience; the reader decides who hears which.
+    facts: list[PropertyFactResponse] = []
 
 
 # ---------- Tags ----------
