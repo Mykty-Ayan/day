@@ -71,6 +71,8 @@ class PropertyPhoto:
     url: str = ""
     sort_order: int = 0
     is_cover: bool = False
+    # What the picture shows ("entrance from the yard"), for whoever sends it on.
+    caption: str | None = None
     created_at: datetime | None = None
 
 

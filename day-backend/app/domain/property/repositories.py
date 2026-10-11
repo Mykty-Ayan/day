@@ -65,6 +65,9 @@ class PropertyPhotoRepository(abc.ABC):
     @abc.abstractmethod
     async def reorder(self, property_id: uuid.UUID, photo_ids: list[uuid.UUID]) -> None: ...
 
+    @abc.abstractmethod
+    async def set_caption(self, photo_id: uuid.UUID, caption: str | None) -> None: ...
+
 
 class AmenityRepository(abc.ABC):
     @abc.abstractmethod

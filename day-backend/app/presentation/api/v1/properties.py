@@ -47,6 +47,7 @@ from app.presentation.schemas.property import (
     AmenityResponse,
     DiscountRuleCreate,
     DiscountRuleResponse,
+    PhotoCaption,
     PhotoCreate,
     PhotoReorder,
     PricingConfigCreate,
@@ -422,12 +423,36 @@ async def add_photo(
             body.url,
             sort_order=body.sort_order,
             is_cover=body.is_cover,
+            caption=body.caption,
         )
         await session.commit()
         return PropertyPhotoResponse.model_validate(result, from_attributes=True)
     except ValueError as e:
         await session.rollback()
         raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.patch(
+    "/{property_id}/photos/{photo_id}",
+    response_model=PropertyPhotoResponse,
+    dependencies=[Depends(require(Permission.PROPERTIES_WRITE))],
+)
+async def set_photo_caption(
+    property_id: uuid.UUID,
+    photo_id: uuid.UUID,
+    body: PhotoCaption,
+    session: AsyncSession = Depends(get_session),
+    company_id: uuid.UUID = Depends(get_company_id),
+):
+    repos = _repos(session)
+    svc = ManagePhotosService(repos["property"], repos["photo"])
+    try:
+        result = await svc.set_caption(photo_id, property_id, company_id, body.caption)
+    except ValueError as e:
+        await session.rollback()
+        raise HTTPException(status_code=404, detail=str(e))
+    await session.commit()
+    return PropertyPhotoResponse.model_validate(result, from_attributes=True)
 
 
 @router.delete(

@@ -143,6 +143,9 @@ class FakePropertyPhotoRepository(PropertyPhotoRepository):
             if pid in self._photos:
                 self._photos[pid].sort_order = idx
 
+    async def set_caption(self, photo_id: uuid.UUID, caption: str | None) -> None:
+        self._photos[photo_id].caption = caption
+
 
 class FakeAmenityRepository(AmenityRepository):
     def __init__(self) -> None:

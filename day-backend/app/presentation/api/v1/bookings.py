@@ -59,6 +59,7 @@ from app.infrastructure.repositories.booking import (
 from app.infrastructure.repositories.property import (
     SqlDiscountRuleRepository,
     SqlPricingConfigRepository,
+    SqlPropertyPhotoRepository,
     SqlPropertyRepository,
     SqlSeasonalPriceRepository,
 )
@@ -71,6 +72,7 @@ from app.infrastructure.storage.s3 import (
 from app.presentation.api.deps import get_company_id, get_user_id, require
 from app.presentation.schemas.booking import (
     AvailabilityResponse,
+    AvailablePhotoResponse,
     AvailablePropertyResponse,
     BookingAuditLogResponse,
     BookingCommentCreate,
@@ -124,6 +126,7 @@ def _repos(session: AsyncSession):
         "seasonal": SqlSeasonalPriceRepository(session),
         "discount": SqlDiscountRuleRepository(session),
         "settings": SqlCompanySettingsRepository(session),
+        "photo": SqlPropertyPhotoRepository(session),
     }
 
 
@@ -693,6 +696,8 @@ async def get_availability(
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
+    # One query per free flat, one after another: a session runs one statement at a time.
+    photos = [await repos["photo"].list_by_property(item.property.id) for item in available]
     return AvailabilityResponse(
         check_in=check_in,
         check_out=check_out,
@@ -707,8 +712,12 @@ async def get_availability(
                 beds=item.property.beds,
                 total_price=item.total_price,
                 price_error=item.price_error,
+                photos=[
+                    AvailablePhotoResponse(url=p.url, caption=p.caption, is_cover=p.is_cover, sort_order=p.sort_order)
+                    for p in sorted(flat_photos, key=lambda p: (not p.is_cover, p.sort_order))
+                ],
             )
-            for item in available
+            for item, flat_photos in zip(available, photos)
         ],
     )
 

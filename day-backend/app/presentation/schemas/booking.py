@@ -306,6 +306,13 @@ class PriceCalculateRequest(BaseModel):
     children_count: int = Field(default=0, ge=0)
 
 
+class AvailablePhotoResponse(BaseModel):
+    url: str
+    caption: str | None = None
+    is_cover: bool
+    sort_order: int
+
+
 class AvailablePropertyResponse(BaseModel):
     model_config = ConfigDict(json_encoders={Decimal: float})
 
@@ -319,6 +326,8 @@ class AvailablePropertyResponse(BaseModel):
     # Set when the unit is free but has no pricing configured, so the caller can
     # tell "costs nothing" apart from "cannot be quoted".
     price_error: str | None = None
+    # Cover first, then in the host's order: one answer is enough to offer a flat.
+    photos: list[AvailablePhotoResponse] = []
 
 
 class AvailabilityResponse(BaseModel):
