@@ -4,8 +4,9 @@ import uuid
 from datetime import datetime
 from decimal import Decimal
 
-from pydantic import AliasChoices, AwareDatetime, BaseModel, ConfigDict, Field, field_serializer
+from pydantic import AliasChoices, AwareDatetime, BaseModel, ConfigDict, Field, computed_field, field_serializer
 
+from app.application.leads.check_guest import normalise_phone
 from app.domain.booking.value_objects import (
     BookingAuditAction,
     BookingSource,
@@ -39,6 +40,12 @@ class GuestResponse(BaseModel):
     notes: str | None = None
     created_at: datetime | None = None
     updated_at: datetime | None = None
+
+    @computed_field
+    @property
+    def phone_e164(self) -> str | None:
+        """Digits of +7XXXXXXXXXX without the plus; null for other numbers."""
+        return normalise_phone(self.phone).lstrip("+") or None
 
 
 class GuestListResponse(BaseModel):

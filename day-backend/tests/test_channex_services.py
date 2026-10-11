@@ -184,6 +184,9 @@ class FakeGuestRepository(GuestRepository):
     async def search_by_name_or_phone(self, company_id, query):
         return []
 
+    async def list_by_phone(self, company_id, phone):
+        return [g for g in self.items.values() if g.company_id == company_id and g.phone == phone]
+
     async def find_by_phone(self, company_id, phone):
         return next(
             (g for g in self.items.values() if g.company_id == company_id and g.phone == phone),

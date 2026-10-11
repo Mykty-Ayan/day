@@ -1,5 +1,6 @@
 import json
 import logging
+import re
 import time
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
@@ -28,6 +29,13 @@ class JSONFormatter(logging.Formatter):
         return json.dumps(log, ensure_ascii=False)
 
 
+def _redact_query(query: str) -> str | None:
+    """The query string for the request log, without guests' phone numbers."""
+    if not query:
+        return None
+    return re.sub(r"(^|&)phone=[^&]*", r"\1phone=***", query)
+
+
 class RequestLoggingMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
         start = time.perf_counter()
@@ -39,7 +47,7 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
                 "path": request.url.path,
                 "status": response.status_code,
                 "duration_ms": elapsed_ms,
-                "query": str(request.url.query) or None,
+                "query": _redact_query(str(request.url.query)),
             }
         }
         logger.info("%s %s %d %dms", request.method, request.url.path, response.status_code, elapsed_ms, extra=extra)

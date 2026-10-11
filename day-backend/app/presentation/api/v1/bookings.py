@@ -1125,10 +1125,19 @@ async def list_guests(
     offset: int = Query(default=0, ge=0),
     limit: int = Query(default=50, ge=1, le=100),
     search: str | None = None,
+    phone: str | None = Query(default=None, description="Exact match: 8…, +7… and 7… are one number"),
     session: AsyncSession = Depends(get_session),
     company_id: uuid.UUID = Depends(get_company_id),
 ):
     repos = _repos(session)
+    if phone is not None:
+        found = await repos["guest"].list_by_phone(company_id, phone)
+        return GuestListResponse(
+            items=[GuestResponse.model_validate(g, from_attributes=True) for g in found[offset : offset + limit]],
+            total=len(found),
+            offset=offset,
+            limit=limit,
+        )
     guests = await repos["guest"].get_by_company(
         company_id,
         offset=offset,

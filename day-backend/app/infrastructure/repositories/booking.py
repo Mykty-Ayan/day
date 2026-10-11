@@ -7,7 +7,7 @@ from collections.abc import Sequence
 from datetime import date, datetime
 from decimal import Decimal
 
-from sqlalchemy import case, delete, func, select, text, tuple_, update
+from sqlalchemy import and_, case, delete, func, select, text, tuple_, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -226,6 +226,30 @@ def _phone_digits_expr():
     return expr
 
 
+def phone_key(raw: str) -> str:
+    """The digits a phone is matched on: 8…/+7…/10 digits become one Kazakh number.
+
+    Twin of _phone_key_expr; change both together. A foreign number keeps its
+    digits as typed. normalise_phone (leads) gives the same key for +7 numbers.
+    """
+    digits = _digits_only(raw)
+    if len(digits) == 11 and digits.startswith("8"):
+        return "7" + digits[1:]
+    if len(digits) == 10:
+        return "7" + digits
+    return digits
+
+
+def _phone_key_expr():
+    """phone_key computed in SQL over the stored, free-form guests.phone."""
+    digits = func.regexp_replace(func.coalesce(GuestModel.phone, ""), r"\D", "", "g")
+    return case(
+        (and_(func.length(digits) == 11, func.left(digits, 1) == "8"), func.concat("7", func.substr(digits, 2))),
+        (func.length(digits) == 10, func.concat("7", digits)),
+        else_=digits,
+    )
+
+
 def _guest_search_clause(search: str):
     query = search.strip()
     name_or_raw_phone = (GuestModel.name.ilike(f"%{query}%")) | (
@@ -304,15 +328,26 @@ class SqlGuestRepository(GuestRepository):
         result = await self._session.scalars(stmt)
         return [_model_to_guest(m) for m in result.all()]
 
+    async def list_by_phone(self, company_id: uuid.UUID, phone: str) -> list[Guest]:
+        # Computed over the company's guests (company_id index); add a stored,
+        # indexed key column if a company grows past tens of thousands of guests.
+        key = phone_key(phone)
+        if not key:
+            return []
+        stmt = (
+            select(GuestModel)
+            .where(GuestModel.company_id == company_id, _phone_key_expr() == key)
+            .order_by(GuestModel.created_at, GuestModel.id)
+        )
+        result = await self._session.scalars(stmt)
+        return [_model_to_guest(m) for m in result.all()]
+
     async def find_by_phone(
         self, company_id: uuid.UUID, phone: str
     ) -> Guest | None:
-        stmt = select(GuestModel).where(
-            GuestModel.company_id == company_id,
-            GuestModel.phone == phone,
-        )
-        result = await self._session.scalar(stmt)
-        return _model_to_guest(result) if result else None
+        # Earlier bookings may have left duplicates of one guest; the oldest wins.
+        guests = await self.list_by_phone(company_id, phone)
+        return guests[0] if guests else None
 
 
 class SqlBookingRepository(BookingRepository):
