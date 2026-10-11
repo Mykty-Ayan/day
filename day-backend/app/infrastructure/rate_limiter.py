@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import logging
 import time
 
@@ -33,6 +34,22 @@ def _get_redis():
     except Exception:
         logger.warning("Redis unavailable for rate limiting, requests will pass through")
         return None
+
+
+def _bucket_owner(request: Request) -> str:
+    """Who this request counts against.
+
+    The limiter runs before auth, so the company is not known yet. The caller's
+    own credential is the closest stable identity: one key or one login token
+    gets one bucket, and a busy integration cannot use up the limit of every
+    other user. Anonymous calls (login, register) fall back to the client
+    address; behind a proxy that is the proxy, so they share one bucket.
+    """
+    for header in ("x-api-key", "authorization"):
+        value = request.headers.get(header)
+        if value:
+            return f"{header}:{hashlib.sha256(value.encode()).hexdigest()[:16]}"
+    return f"ip:{request.client.host if request.client else 'unknown'}"
 
 
 class RateLimitMiddleware(BaseHTTPMiddleware):
@@ -72,14 +89,13 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         else:
             limit = _MUTATE_LIMIT
 
-        # Extract company_id from header
-        company_id = request.headers.get("x-company-id", "default")
+        owner = _bucket_owner(request)
         bucket = "get" if method == "GET" else "mutate"
         window = 60  # 1 minute window
 
         now = int(time.time())
         window_start = now - (now % window)
-        key = f"ratelimit:{company_id}:{bucket}:{window_start}"
+        key = f"ratelimit:{owner}:{bucket}:{window_start}"
 
         try:
             pipe = r.pipeline()
