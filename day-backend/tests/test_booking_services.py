@@ -105,6 +105,15 @@ class FakeBookingRepository(BookingRepository):
     async def get_by_id(self, booking_id: uuid.UUID) -> Booking | None:
         return self._bookings.get(booking_id)
 
+    async def lock_idempotency_key(self, company_id, key):
+        pass
+
+    async def get_by_idempotency_key(self, company_id, key):
+        return next(
+            (b for b in self._bookings.values() if b.company_id == company_id and b.idempotency_key == key),
+            None,
+        )
+
     async def get_by_property_and_dates(self, property_id, check_in, check_out, *, exclude_id=None) -> list[Booking]:
         result = []
         for b in self._bookings.values():

@@ -64,6 +64,8 @@ class BookingCreate(BaseModel):
     children_count: int = Field(default=0, ge=0)
     gantt_color: str = "#3B82F6"
     notes: str | None = None
+    # The id of this booking in the system that asks for it, e.g. a CRM deal.
+    external_id: str | None = Field(default=None, max_length=255)
 
 
 class BookingUpdate(BaseModel):
@@ -109,6 +111,7 @@ class BookingResponse(BaseModel):
     guest_phone: str | None = None
     property_name: str | None = None
     property_internal_name: str | None = None
+    external_id: str | None = None
     created_at: datetime | None = None
     updated_at: datetime | None = None
 
@@ -139,6 +142,7 @@ class BookingFeedItem(BaseModel):
     paid_amount: Decimal
     adults_count: int
     children_count: int
+    external_id: str | None = None
     created_at: datetime
     updated_at: datetime
 

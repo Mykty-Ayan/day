@@ -32,6 +32,7 @@ class BookingSource(str, enum.Enum):
     BOOKING = "booking"
     AIRBNB = "airbnb"
     OTHER = "other"
+    CRM = "crm"
 
 
 class PaymentType(str, enum.Enum):

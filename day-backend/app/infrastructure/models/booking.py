@@ -83,6 +83,10 @@ class BookingModel(Base):
     # (migration 018): no two active, unflagged stays of one property may share
     # a moment of [check_in, check_out).
     overbooking: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
+    external_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    # Unique per company where set (uq_bookings_company_idempotency_key, migration 019).
+    idempotency_key: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    idempotency_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
     created_at: Mapped[datetime] = mapped_column(default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(
         default=datetime.utcnow, onupdate=datetime.utcnow

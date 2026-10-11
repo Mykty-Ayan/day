@@ -385,7 +385,8 @@
       "direct": "Тікелей",
       "booking": "Booking.com",
       "airbnb": "Airbnb",
-      "other": "Басқа"
+      "other": "Басқа",
+      "crm": "CRM"
     },
     "adultsCount": "{{count}} ересек",
     "adultsCount_other": "{{count}} ересек",

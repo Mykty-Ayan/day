@@ -10,3 +10,14 @@ class BookingOverlapError(ValueError):
 
     def __init__(self, message: str = "Date range overlaps with existing booking") -> None:
         super().__init__(message)
+
+
+class IdempotencyKeyReusedError(ValueError):
+    """An Idempotency-Key came back with a request different from its first one."""
+
+    def __init__(self) -> None:
+        super().__init__("Idempotency-Key was already used with a different request")
+
+
+class IdempotencyKeyTakenError(Exception):
+    """Another request with the same Idempotency-Key committed first."""

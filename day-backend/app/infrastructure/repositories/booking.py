@@ -7,7 +7,7 @@ from collections.abc import Sequence
 from datetime import date, datetime
 from decimal import Decimal
 
-from sqlalchemy import case, delete, func, select, tuple_, update
+from sqlalchemy import case, delete, func, select, text, tuple_, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -22,7 +22,7 @@ from app.domain.booking.entities import (
     GroupBooking,
     Guest,
 )
-from app.domain.booking.exceptions import BookingOverlapError
+from app.domain.booking.exceptions import BookingOverlapError, IdempotencyKeyTakenError
 from app.domain.booking.repositories import (
     BookingAuditLogRepository,
     BookingCommentRepository,
@@ -94,6 +94,9 @@ def _model_to_booking(m: BookingModel) -> Booking:
         children_count=m.children_count,
         notes=m.notes,
         overbooking=m.overbooking,
+        external_id=m.external_id,
+        idempotency_key=m.idempotency_key,
+        idempotency_hash=m.idempotency_hash,
         created_at=m.created_at,
         updated_at=m.updated_at,
     )
@@ -186,11 +189,13 @@ def _model_to_audit(m: BookingAuditLogModel) -> BookingAuditLog:
 
 
 _EXCLUSION_VIOLATION = "23P01"
+_UNIQUE_VIOLATION = "23505"
+_IDEMPOTENCY_INDEX = "uq_bookings_company_idempotency_key"
 
 
 @contextlib.asynccontextmanager
-async def _no_overlap(session: AsyncSession):
-    """Turn the database's no-overlap refusal into BookingOverlapError.
+async def _guarded_write(session: AsyncSession):
+    """Turn the database's refusals of a booking write into domain errors.
 
     The write runs in a savepoint, so a refusal rolls back only that write and
     the caller's transaction stays usable for its answer.
@@ -199,8 +204,12 @@ async def _no_overlap(session: AsyncSession):
         async with session.begin_nested():
             yield
     except IntegrityError as exc:
-        if getattr(exc.orig, "sqlstate", None) == _EXCLUSION_VIOLATION:
+        state = getattr(exc.orig, "sqlstate", None)
+        if state == _EXCLUSION_VIOLATION:
             raise BookingOverlapError() from exc
+        constraint = getattr(exc.orig.__cause__, "constraint_name", None)
+        if state == _UNIQUE_VIOLATION and constraint == _IDEMPOTENCY_INDEX:
+            raise IdempotencyKeyTakenError() from exc
         raise
 
 
@@ -329,8 +338,11 @@ class SqlBookingRepository(BookingRepository):
             children_count=booking.children_count,
             notes=booking.notes,
             overbooking=booking.overbooking,
+            external_id=booking.external_id,
+            idempotency_key=booking.idempotency_key,
+            idempotency_hash=booking.idempotency_hash,
         )
-        async with _no_overlap(self._session):
+        async with _guarded_write(self._session):
             self._session.add(model)
             await self._session.flush()
         await self._session.refresh(model)
@@ -338,6 +350,24 @@ class SqlBookingRepository(BookingRepository):
 
     async def get_by_id(self, booking_id: uuid.UUID) -> Booking | None:
         result = await self._session.get(BookingModel, booking_id)
+        return _model_to_booking(result) if result else None
+
+    async def lock_idempotency_key(self, company_id: uuid.UUID, key: str) -> None:
+        # Held until the transaction ends. A second request with the same key
+        # waits here, then finds the first one's booking instead of racing it
+        # into the constraints (where the two can deadlock).
+        await self._session.execute(
+            text("SELECT pg_advisory_xact_lock(hashtextextended(:k, 0))"),
+            {"k": f"booking-idempotency:{company_id}:{key}"},
+        )
+
+    async def get_by_idempotency_key(self, company_id: uuid.UUID, key: str) -> Booking | None:
+        result = await self._session.scalar(
+            select(BookingModel).where(
+                BookingModel.company_id == company_id,
+                BookingModel.idempotency_key == key,
+            )
+        )
         return _model_to_booking(result) if result else None
 
     async def get_by_property_and_dates(
@@ -519,7 +549,7 @@ class SqlBookingRepository(BookingRepository):
                 updated_at=datetime.utcnow(),
             )
         )
-        async with _no_overlap(self._session):
+        async with _guarded_write(self._session):
             await self._session.execute(stmt)
         await self._session.flush()
         result = await self._session.get(BookingModel, booking.id)

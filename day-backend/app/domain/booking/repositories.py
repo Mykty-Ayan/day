@@ -61,6 +61,13 @@ class BookingRepository(abc.ABC):
     async def get_by_id(self, booking_id: uuid.UUID) -> Booking | None: ...
 
     @abc.abstractmethod
+    async def lock_idempotency_key(self, company_id: uuid.UUID, key: str) -> None:
+        """Serialize requests carrying one Idempotency-Key until the transaction ends."""
+
+    @abc.abstractmethod
+    async def get_by_idempotency_key(self, company_id: uuid.UUID, key: str) -> Booking | None: ...
+
+    @abc.abstractmethod
     async def get_by_property_and_dates(
         self,
         property_id: uuid.UUID,
