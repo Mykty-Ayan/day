@@ -41,3 +41,17 @@ class AuditAction(str, enum.Enum):
     UPDATE = "update"
     STATUS_CHANGE = "status_change"
     CLONE = "clone"
+
+
+class FactAudience(str, enum.Enum):
+    """Who may hear a fact about an apartment."""
+
+    PUBLIC = "public"  # anyone who asks, before booking
+    GUEST = "guest"  # only a guest with a confirmed stay: codes, passwords
+
+
+class FactSource(str, enum.Enum):
+    """The kind of credential that wrote a fact."""
+
+    USER = "user"  # a person logged in to Day
+    API_KEY = "api_key"  # an integration, e.g. the CRM after the owner approved a learned fact
