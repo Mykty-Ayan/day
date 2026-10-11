@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import contextlib
 import re
 import uuid
 from collections.abc import Sequence
@@ -7,6 +8,7 @@ from datetime import date, datetime
 from decimal import Decimal
 
 from sqlalchemy import case, delete, func, select, tuple_, update
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.domain.booking.entities import (
@@ -20,6 +22,7 @@ from app.domain.booking.entities import (
     GroupBooking,
     Guest,
 )
+from app.domain.booking.exceptions import BookingOverlapError
 from app.domain.booking.repositories import (
     BookingAuditLogRepository,
     BookingCommentRepository,
@@ -90,6 +93,7 @@ def _model_to_booking(m: BookingModel) -> Booking:
         adults_count=m.adults_count,
         children_count=m.children_count,
         notes=m.notes,
+        overbooking=m.overbooking,
         created_at=m.created_at,
         updated_at=m.updated_at,
     )
@@ -179,6 +183,25 @@ def _model_to_audit(m: BookingAuditLogModel) -> BookingAuditLog:
         action=BookingAuditAction(m.action),
         created_at=m.created_at,
     )
+
+
+_EXCLUSION_VIOLATION = "23P01"
+
+
+@contextlib.asynccontextmanager
+async def _no_overlap(session: AsyncSession):
+    """Turn the database's no-overlap refusal into BookingOverlapError.
+
+    The write runs in a savepoint, so a refusal rolls back only that write and
+    the caller's transaction stays usable for its answer.
+    """
+    try:
+        async with session.begin_nested():
+            yield
+    except IntegrityError as exc:
+        if getattr(exc.orig, "sqlstate", None) == _EXCLUSION_VIOLATION:
+            raise BookingOverlapError() from exc
+        raise
 
 
 def _digits_only(value: str) -> str:
@@ -305,9 +328,11 @@ class SqlBookingRepository(BookingRepository):
             adults_count=booking.adults_count,
             children_count=booking.children_count,
             notes=booking.notes,
+            overbooking=booking.overbooking,
         )
-        self._session.add(model)
-        await self._session.flush()
+        async with _no_overlap(self._session):
+            self._session.add(model)
+            await self._session.flush()
         await self._session.refresh(model)
         return _model_to_booking(model)
 
@@ -490,10 +515,12 @@ class SqlBookingRepository(BookingRepository):
                 adults_count=booking.adults_count,
                 children_count=booking.children_count,
                 notes=booking.notes,
+                overbooking=booking.overbooking,
                 updated_at=datetime.utcnow(),
             )
         )
-        await self._session.execute(stmt)
+        async with _no_overlap(self._session):
+            await self._session.execute(stmt)
         await self._session.flush()
         result = await self._session.get(BookingModel, booking.id)
         return _model_to_booking(result)  # type: ignore[arg-type]

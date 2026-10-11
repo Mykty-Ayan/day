@@ -4,6 +4,7 @@ import uuid
 
 from app.application.booking.create_booking import validate_rental_mode_allowed
 from app.domain.booking.entities import Booking, BookingAuditLog
+from app.domain.booking.exceptions import BookingOverlapError
 from app.domain.booking.repositories import (
     BookingAuditLogRepository,
     BookingRepository,
@@ -56,7 +57,9 @@ class MoveBookingService:
             exclude_id=booking.id,
         )
         if overlapping:
-            raise ValueError("Date range overlaps with existing booking on target property")
+            raise BookingOverlapError("Date range overlaps with existing booking on target property")
+        # The target is free on these dates, so an OTA overbooking is resolved.
+        booking.overbooking = False
 
         old_property_id = booking.property_id
         booking.property_id = target_property_id

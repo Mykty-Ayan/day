@@ -10,6 +10,7 @@ from app.application.booking.create_booking import (
 )
 from app.application.booking.price_calculator import PriceCalculatorService
 from app.domain.booking.entities import Booking, BookingAuditLog
+from app.domain.booking.exceptions import BookingOverlapError
 from app.domain.booking.repositories import (
     BookingAuditLogRepository,
     BookingRepository,
@@ -130,7 +131,9 @@ class UpdateBookingService:
                 exclude_id=booking.id,
             )
             if overlapping:
-                raise ValueError("Date range overlaps with existing booking")
+                raise BookingOverlapError()
+            # The new dates clash with nothing, so an OTA overbooking is resolved.
+            booking.overbooking = False
 
             # Recalculate price
             try:

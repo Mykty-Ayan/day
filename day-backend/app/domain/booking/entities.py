@@ -66,6 +66,10 @@ class Booking:
     adults_count: int = 1
     children_count: int = 0
     notes: str | None = None
+    # An OTA stay Day had to accept on top of another one: the OTA has already
+    # confirmed it to the guest. Such a booking is exempt from the database's
+    # no-overlap constraint, and the host has to resolve the clash.
+    overbooking: bool = False
     created_at: datetime | None = None
     updated_at: datetime | None = None
 
