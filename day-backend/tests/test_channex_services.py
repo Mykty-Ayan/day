@@ -124,6 +124,9 @@ class FakeBookingRepository(BookingRepository):
     async def lock_idempotency_key(self, company_id, key):
         pass
 
+    async def list_expired_holds(self, now, *, limit):
+        return []
+
     async def get_by_idempotency_key(self, company_id, key):
         return None
 

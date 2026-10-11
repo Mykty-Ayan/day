@@ -97,6 +97,7 @@ def _model_to_booking(m: BookingModel) -> Booking:
         external_id=m.external_id,
         idempotency_key=m.idempotency_key,
         idempotency_hash=m.idempotency_hash,
+        expires_at=m.expires_at,
         created_at=m.created_at,
         updated_at=m.updated_at,
     )
@@ -341,6 +342,7 @@ class SqlBookingRepository(BookingRepository):
             external_id=booking.external_id,
             idempotency_key=booking.idempotency_key,
             idempotency_hash=booking.idempotency_hash,
+            expires_at=booking.expires_at,
         )
         async with _guarded_write(self._session):
             self._session.add(model)
@@ -525,6 +527,25 @@ class SqlBookingRepository(BookingRepository):
         result = await self._session.scalars(stmt)
         return [_model_to_booking(m) for m in result.all()]
 
+    async def list_expired_holds(self, now: datetime, *, limit: int) -> list[Booking]:
+        # A system sweep across every company: each hold is cancelled within
+        # its own company, and nothing here is shown to a caller. Rows stay
+        # locked until the sweep commits; SKIP LOCKED lets several API
+        # instances sweep at once without taking the same hold twice.
+        stmt = (
+            select(BookingModel)
+            .where(
+                BookingModel.status == BookingStatus.PENDING.value,
+                BookingModel.expires_at.is_not(None),
+                BookingModel.expires_at <= now,
+            )
+            .order_by(BookingModel.expires_at)
+            .limit(limit)
+            .with_for_update(skip_locked=True)
+        )
+        result = await self._session.scalars(stmt)
+        return [_model_to_booking(m) for m in result.all()]
+
     async def update(self, booking: Booking) -> Booking:
         stmt = (
             update(BookingModel)
@@ -546,6 +567,7 @@ class SqlBookingRepository(BookingRepository):
                 children_count=booking.children_count,
                 notes=booking.notes,
                 overbooking=booking.overbooking,
+                expires_at=booking.expires_at,
                 updated_at=datetime.utcnow(),
             )
         )

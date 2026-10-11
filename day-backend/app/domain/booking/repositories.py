@@ -135,6 +135,10 @@ class BookingRepository(abc.ABC):
         """Bookings with (updated_at, id) > after and updated_at <= until, in that order."""
 
     @abc.abstractmethod
+    async def list_expired_holds(self, now: datetime, *, limit: int) -> list[Booking]:
+        """Pending bookings of every company whose expires_at <= now, locked for the caller."""
+
+    @abc.abstractmethod
     async def update(self, booking: Booking) -> Booking: ...
 
 

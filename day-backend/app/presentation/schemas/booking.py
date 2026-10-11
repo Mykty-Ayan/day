@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime
 from decimal import Decimal
 
-from pydantic import AliasChoices, BaseModel, ConfigDict, Field, field_serializer
+from pydantic import AliasChoices, AwareDatetime, BaseModel, ConfigDict, Field, field_serializer
 
 from app.domain.booking.value_objects import (
     BookingAuditAction,
@@ -66,6 +66,10 @@ class BookingCreate(BaseModel):
     notes: str | None = None
     # The id of this booking in the system that asks for it, e.g. a CRM deal.
     external_id: str | None = Field(default=None, max_length=255)
+    # Makes the booking a hold that Day cancels at this moment unless it is
+    # confirmed first. Must carry its zone: a hold set at night for "09:00"
+    # means the company's morning, not UTC's.
+    expires_at: AwareDatetime | None = None
 
 
 class BookingUpdate(BaseModel):
@@ -79,6 +83,8 @@ class BookingUpdate(BaseModel):
     children_count: int | None = None
     total_price: Decimal | None = None
     notes: str | None = None
+    # Extends a hold, or releases it with null. Pending bookings only.
+    expires_at: AwareDatetime | None = None
 
 
 class BookingResponse(BaseModel):
@@ -112,6 +118,8 @@ class BookingResponse(BaseModel):
     property_name: str | None = None
     property_internal_name: str | None = None
     external_id: str | None = None
+    # UTC, with its zone.
+    expires_at: datetime | None = None
     created_at: datetime | None = None
     updated_at: datetime | None = None
 
@@ -143,6 +151,7 @@ class BookingFeedItem(BaseModel):
     adults_count: int
     children_count: int
     external_id: str | None = None
+    expires_at: datetime | None = None
     created_at: datetime
     updated_at: datetime
 

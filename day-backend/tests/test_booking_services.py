@@ -108,6 +108,14 @@ class FakeBookingRepository(BookingRepository):
     async def lock_idempotency_key(self, company_id, key):
         pass
 
+    async def list_expired_holds(self, now, *, limit):
+        rows = [
+            b
+            for b in self._bookings.values()
+            if b.status == BookingStatus.PENDING and b.expires_at is not None and b.expires_at <= now
+        ]
+        return rows[:limit]
+
     async def get_by_idempotency_key(self, company_id, key):
         return next(
             (b for b in self._bookings.values() if b.company_id == company_id and b.idempotency_key == key),

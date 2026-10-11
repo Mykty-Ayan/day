@@ -87,6 +87,7 @@ class BookingModel(Base):
     # Unique per company where set (uq_bookings_company_idempotency_key, migration 019).
     idempotency_key: Mapped[str | None] = mapped_column(String(255), nullable=True)
     idempotency_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     created_at: Mapped[datetime] = mapped_column(default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(
         default=datetime.utcnow, onupdate=datetime.utcnow

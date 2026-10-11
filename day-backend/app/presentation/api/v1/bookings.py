@@ -45,7 +45,7 @@ from app.domain.booking.value_objects import BookingSource, BookingStatus, Renta
 from app.domain.messaging.value_objects import NotificationEvent
 from app.domain.settings.entities import CompanySettings
 from app.infrastructure.database import get_session
-from app.infrastructure.messaging.factory import build_notification_service
+from app.infrastructure.messaging.booking_notice import notify_booking
 from app.infrastructure.repositories.booking import (
     SqlBookingAuditLogRepository,
     SqlBookingCommentRepository,
@@ -174,6 +174,7 @@ def _to_booking_response(
         property_name=property_name,
         property_internal_name=property_internal_name,
         external_id=b.external_id,
+        expires_at=b.expires_at.replace(tzinfo=timezone.utc) if b.expires_at else None,
         created_at=b.created_at,
         updated_at=b.updated_at,
     )
@@ -227,26 +228,7 @@ async def _notify_booking(
     booking,
     repos: dict,
 ) -> None:
-    """Queue a host notification in the same transaction as the change itself.
-
-    A company with no bot connected queues nothing, so this is a no-op until
-    someone links a chat.
-    """
-    prop = await repos["property"].get_by_id(booking.property_id)
-    guest = await repos["guest"].get_by_id(booking.guest_id) if booking.guest_id else None
-    await build_notification_service(session).notify_company(
-        company_id,
-        event,
-        {
-            "property_name": prop.name if prop else "—",
-            "guest_name": guest.name if guest else "—",
-            "check_in": booking.check_in.strftime("%d.%m.%Y %H:%M"),
-            "check_out": booking.check_out.strftime("%d.%m.%Y %H:%M"),
-            "total_price": str(booking.total_price) if booking.total_price is not None else None,
-            "source": booking.source.value,
-            "booking_id": str(booking.id),
-        },
-    )
+    await notify_booking(session, company_id, event, booking, repos["property"], repos["guest"])
 
 
 @booking_router.post(
@@ -318,6 +300,7 @@ async def create_booking(
                 external_id=body.external_id,
                 idempotency_key=idempotency_key,
                 idempotency_hash=request_hash,
+                expires_at=_naive_utc(body.expires_at) if body.expires_at else None,
             )
         )
         await _notify_booking(session, company_id, NotificationEvent.BOOKING_CREATED, result, repos)
@@ -458,6 +441,7 @@ async def booking_feed(
                 adults_count=b.adults_count,
                 children_count=b.children_count,
                 external_id=b.external_id,
+                expires_at=b.expires_at.replace(tzinfo=timezone.utc) if b.expires_at else None,
                 created_at=b.created_at.replace(tzinfo=timezone.utc),
                 updated_at=b.updated_at.replace(tzinfo=timezone.utc),
             )
@@ -603,6 +587,8 @@ async def update_booking(
     provided = body.model_dump(exclude_unset=True)
     inp = UpdateBookingInput(booking_id=booking_id, company_id=company_id, changed_by=user_id)
     for field_name, value in provided.items():
+        if field_name == "expires_at" and value is not None:
+            value = _naive_utc(value)
         setattr(inp, field_name, value)
 
     try:
