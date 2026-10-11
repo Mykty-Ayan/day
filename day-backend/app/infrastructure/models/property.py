@@ -83,6 +83,7 @@ class PropertyPhotoModel(Base):
     url: Mapped[str] = mapped_column(String(1024))
     sort_order: Mapped[int] = mapped_column(Integer, default=0)
     is_cover: Mapped[bool] = mapped_column(Boolean, default=False)
+    caption: Mapped[str | None] = mapped_column(String(500), nullable=True)
     created_at: Mapped[datetime] = mapped_column(default=datetime.utcnow)
 
     property: Mapped["PropertyModel"] = relationship(back_populates="photos")

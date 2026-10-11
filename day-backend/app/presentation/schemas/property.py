@@ -143,6 +143,7 @@ class PropertyPhotoResponse(BaseModel):
     url: str
     sort_order: int
     is_cover: bool
+    caption: str | None = None
     created_at: datetime | None = None
 
 
@@ -150,6 +151,12 @@ class PhotoCreate(BaseModel):
     url: str = Field(..., min_length=1, max_length=1024)
     sort_order: int = 0
     is_cover: bool = False
+    caption: str | None = Field(default=None, max_length=500)
+
+
+class PhotoCaption(BaseModel):
+    # null removes the caption.
+    caption: str | None = Field(..., max_length=500)
 
 
 class PhotoReorder(BaseModel):

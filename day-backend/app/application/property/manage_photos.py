@@ -23,6 +23,7 @@ class ManagePhotosService:
         *,
         sort_order: int = 0,
         is_cover: bool = False,
+        caption: str | None = None,
     ) -> PropertyPhoto:
         prop = await self._property_repo.get_by_id(property_id)
         if prop is None or prop.company_id != company_id:
@@ -33,8 +34,22 @@ class ManagePhotosService:
             url=url,
             sort_order=sort_order,
             is_cover=is_cover,
+            caption=caption,
         )
         return await self._photo_repo.save(photo)
+
+    async def set_caption(
+        self, photo_id: uuid.UUID, property_id: uuid.UUID, company_id: uuid.UUID, caption: str | None
+    ) -> PropertyPhoto:
+        prop = await self._property_repo.get_by_id(property_id)
+        if prop is None or prop.company_id != company_id:
+            raise ValueError("Property not found")
+        photo = next((p for p in await self._photo_repo.list_by_property(property_id) if p.id == photo_id), None)
+        if photo is None:
+            raise ValueError("Photo not found")
+        await self._photo_repo.set_caption(photo_id, caption)
+        photo.caption = caption
+        return photo
 
     async def delete_photo(
         self,

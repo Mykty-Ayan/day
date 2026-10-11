@@ -123,6 +123,7 @@ def _model_to_photo(m: PropertyPhotoModel) -> PropertyPhoto:
         url=m.url,
         sort_order=m.sort_order,
         is_cover=m.is_cover,
+        caption=m.caption,
         created_at=m.created_at,
     )
 
@@ -306,6 +307,7 @@ class SqlPropertyPhotoRepository(PropertyPhotoRepository):
             url=photo.url,
             sort_order=photo.sort_order,
             is_cover=photo.is_cover,
+            caption=photo.caption,
         )
         self._session.add(model)
         await self._session.flush()
@@ -315,6 +317,12 @@ class SqlPropertyPhotoRepository(PropertyPhotoRepository):
     async def delete(self, photo_id: uuid.UUID) -> None:
         stmt = delete(PropertyPhotoModel).where(PropertyPhotoModel.id == photo_id)
         await self._session.execute(stmt)
+        await self._session.flush()
+
+    async def set_caption(self, photo_id: uuid.UUID, caption: str | None) -> None:
+        await self._session.execute(
+            update(PropertyPhotoModel).where(PropertyPhotoModel.id == photo_id).values(caption=caption)
+        )
         await self._session.flush()
 
     async def reorder(self, property_id: uuid.UUID, photo_ids: list[uuid.UUID]) -> None:
