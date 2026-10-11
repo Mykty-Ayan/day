@@ -104,6 +104,11 @@ class BookingPayment:
     status: PaymentStatus = PaymentStatus.PENDING
     note: str | None = None
     paid_at: datetime | None = None
+    # The id of this payment in the system that recorded it (CRM, bank).
+    external_id: str | None = None
+    # As on Booking: the create request's Idempotency-Key and body hash.
+    idempotency_key: str | None = None
+    idempotency_hash: str | None = None
     created_at: datetime | None = None
 
 

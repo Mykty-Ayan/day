@@ -321,7 +321,8 @@
         "pending": "Күтуде",
         "completed": "Аяқталған",
         "failed": "Қате"
-      }
+      },
+      "confirm": "Растау"
     },
     "deposits": {
       "createDeposit": "Кепіл жасау",

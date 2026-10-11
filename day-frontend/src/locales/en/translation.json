@@ -321,7 +321,8 @@
         "pending": "Pending",
         "completed": "Completed",
         "failed": "Failed"
-      }
+      },
+      "confirm": "Confirm"
     },
     "deposits": {
       "createDeposit": "Create Deposit",

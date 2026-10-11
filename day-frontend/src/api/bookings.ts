@@ -97,6 +97,11 @@ export async function addPayment(
   return res.data
 }
 
+export async function confirmPayment(bookingId: string, paymentId: string): Promise<BookingPayment> {
+  const res = await apiClient.post(`/bookings/${bookingId}/payments/${paymentId}/confirm`)
+  return res.data
+}
+
 // --- Deposits ---
 
 export async function listDeposits(bookingId: string): Promise<BookingDeposit[]> {

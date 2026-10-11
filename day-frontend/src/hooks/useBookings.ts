@@ -26,6 +26,7 @@ import {
   calculatePrice,
   listPayments,
   addPayment,
+  confirmPayment,
   listDeposits,
   createDeposit,
   depositAction,
@@ -136,6 +137,18 @@ export function useAddPayment(bookingId: string) {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (data: PaymentInput) => addPayment(bookingId, data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: [PAYMENTS_KEY, bookingId] })
+      qc.invalidateQueries({ queryKey: [BOOKING_KEY, bookingId] })
+    },
+  })
+}
+
+// A confirmed payment can confirm the booking too, so both are refetched.
+export function useConfirmPayment(bookingId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (paymentId: string) => confirmPayment(bookingId, paymentId),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: [PAYMENTS_KEY, bookingId] })
       qc.invalidateQueries({ queryKey: [BOOKING_KEY, bookingId] })

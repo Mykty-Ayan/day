@@ -24,6 +24,7 @@ import {
   useBooking,
   useChangeBookingStatus,
   useAddPayment,
+  useConfirmPayment,
   useCreateDeposit,
   useDepositAction,
   useAddComment,
@@ -434,6 +435,7 @@ function PaymentsTab({
   const { t } = useTranslation()
   const { symbol } = useCurrency()
   const addPayment = useAddPayment(bookingId)
+  const confirmPayment = useConfirmPayment(bookingId)
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState({ amount: '', type: 'payment' as PaymentType, method: 'cash' as PaymentMethod, note: '' })
   const amountStep = 1000
@@ -659,9 +661,21 @@ function PaymentsTab({
                     {paymentTypeLabels[payment.type]} · {paymentMethodLabels[payment.method]}
                   </p>
                 </div>
-                <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase ${paymentStatusStyle(payment.status)}`}>
-                  {paymentStatusLabels[payment.status]}
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase ${paymentStatusStyle(payment.status)}`}>
+                    {paymentStatusLabels[payment.status]}
+                  </span>
+                  {payment.status === 'pending' && (
+                    <button
+                      type="button"
+                      onClick={() => confirmPayment.mutate(payment.id)}
+                      disabled={confirmPayment.isPending}
+                      className="text-xs font-semibold text-blue-600 hover:text-blue-800 disabled:opacity-50"
+                    >
+                      {t('bookings.payments.confirm')}
+                    </button>
+                  )}
+                </div>
               </div>
               <div className="mt-3 grid grid-cols-1 gap-1 text-xs text-gray-600 sm:grid-cols-2">
                 <span>{new Date(payment.paid_at || payment.created_at).toLocaleDateString()}</span>
@@ -696,6 +710,16 @@ function PaymentsTab({
                       <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase ${paymentStatusStyle(p.status)}`}>
                         {paymentStatusLabels[p.status]}
                       </span>
+                      {p.status === 'pending' && (
+                        <button
+                          type="button"
+                          onClick={() => confirmPayment.mutate(p.id)}
+                          disabled={confirmPayment.isPending}
+                          className="ml-2 text-xs font-semibold text-blue-600 hover:text-blue-800 disabled:opacity-50"
+                        >
+                          {t('bookings.payments.confirm')}
+                        </button>
+                      )}
                     </td>
                     <td className="px-4 py-3 text-xs text-gray-500">
                       {new Date(p.paid_at || p.created_at).toLocaleDateString()}

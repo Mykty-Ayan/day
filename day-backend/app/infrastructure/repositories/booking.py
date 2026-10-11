@@ -126,6 +126,9 @@ def _model_to_payment(m: BookingPaymentModel) -> BookingPayment:
         status=PaymentStatus(m.status),
         note=m.note,
         paid_at=m.paid_at,
+        external_id=m.external_id,
+        idempotency_key=m.idempotency_key,
+        idempotency_hash=m.idempotency_hash,
         created_at=m.created_at,
     )
 
@@ -191,7 +194,7 @@ def _model_to_audit(m: BookingAuditLogModel) -> BookingAuditLog:
 
 _EXCLUSION_VIOLATION = "23P01"
 _UNIQUE_VIOLATION = "23505"
-_IDEMPOTENCY_INDEX = "uq_bookings_company_idempotency_key"
+_IDEMPOTENCY_INDEXES = {"uq_bookings_company_idempotency_key", "uq_booking_payments_booking_idempotency_key"}
 
 
 @contextlib.asynccontextmanager
@@ -209,7 +212,7 @@ async def _guarded_write(session: AsyncSession):
         if state == _EXCLUSION_VIOLATION:
             raise BookingOverlapError() from exc
         constraint = getattr(exc.orig.__cause__, "constraint_name", None)
-        if state == _UNIQUE_VIOLATION and constraint == _IDEMPOTENCY_INDEX:
+        if state == _UNIQUE_VIOLATION and constraint in _IDEMPOTENCY_INDEXES:
             raise IdempotencyKeyTakenError() from exc
         raise
 
@@ -663,11 +666,41 @@ class SqlBookingPaymentRepository(BookingPaymentRepository):
             status=payment.status.value,
             note=payment.note,
             paid_at=payment.paid_at,
+            external_id=payment.external_id,
+            idempotency_key=payment.idempotency_key,
+            idempotency_hash=payment.idempotency_hash,
         )
-        self._session.add(model)
-        await self._session.flush()
+        async with _guarded_write(self._session):
+            self._session.add(model)
+            await self._session.flush()
         await self._session.refresh(model)
         return _model_to_payment(model)
+
+    async def lock_idempotency_key(self, booking_id: uuid.UUID, key: str) -> None:
+        # Same reason as SqlBookingRepository.lock_idempotency_key.
+        await self._session.execute(
+            text("SELECT pg_advisory_xact_lock(hashtextextended(:k, 0))"),
+            {"k": f"payment-idempotency:{booking_id}:{key}"},
+        )
+
+    async def get_by_idempotency_key(self, booking_id: uuid.UUID, key: str) -> BookingPayment | None:
+        result = await self._session.scalar(
+            select(BookingPaymentModel).where(
+                BookingPaymentModel.booking_id == booking_id,
+                BookingPaymentModel.idempotency_key == key,
+            )
+        )
+        return _model_to_payment(result) if result else None
+
+    async def update(self, payment: BookingPayment) -> BookingPayment:
+        await self._session.execute(
+            update(BookingPaymentModel)
+            .where(BookingPaymentModel.id == payment.id)
+            .values(status=payment.status.value, paid_at=payment.paid_at)
+        )
+        await self._session.flush()
+        result = await self._session.get(BookingPaymentModel, payment.id, populate_existing=True)
+        return _model_to_payment(result)  # type: ignore[arg-type]
 
     async def list_by_booking(self, booking_id: uuid.UUID) -> list[BookingPayment]:
         stmt = (
@@ -693,7 +726,11 @@ class SqlBookingPaymentRepository(BookingPaymentRepository):
         )
         stmt = (
             select(BookingPaymentModel.booking_id, func.coalesce(func.sum(signed), 0))
-            .where(BookingPaymentModel.booking_id.in_(booking_ids))
+            .where(
+                BookingPaymentModel.booking_id.in_(booking_ids),
+                # A pending payment is money promised, not received.
+                BookingPaymentModel.status == PaymentStatus.COMPLETED.value,
+            )
             .group_by(BookingPaymentModel.booking_id)
         )
         rows = await self._session.execute(stmt)
