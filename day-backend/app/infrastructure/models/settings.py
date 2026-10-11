@@ -14,6 +14,7 @@ class CompanySettingsModel(Base):
     company_id: Mapped[uuid.UUID] = mapped_column(index=True)
     default_currency: Mapped[str] = mapped_column(String(10), default="KZT")
     default_language: Mapped[str] = mapped_column(String(10), default="ru")
+    time_zone: Mapped[str] = mapped_column(String(64), default="Asia/Almaty", server_default="Asia/Almaty")
     created_at: Mapped[datetime] = mapped_column(default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(default=datetime.utcnow, onupdate=datetime.utcnow)
 

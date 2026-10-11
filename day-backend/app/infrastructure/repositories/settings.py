@@ -18,6 +18,7 @@ def _model_to_settings(m: CompanySettingsModel) -> CompanySettings:
         company_id=m.company_id,
         default_currency=Currency(m.default_currency),
         default_language=Language(m.default_language),
+        time_zone=m.time_zone,
         created_at=m.created_at,
         updated_at=m.updated_at,
     )
@@ -38,6 +39,7 @@ class SqlCompanySettingsRepository(CompanySettingsRepository):
             company_id=settings.company_id,
             default_currency=settings.default_currency.value,
             default_language=settings.default_language.value,
+            time_zone=settings.time_zone,
         )
         self._session.add(model)
         await self._session.flush()
@@ -51,6 +53,7 @@ class SqlCompanySettingsRepository(CompanySettingsRepository):
             .values(
                 default_currency=settings.default_currency.value,
                 default_language=settings.default_language.value,
+                time_zone=settings.time_zone,
                 updated_at=datetime.utcnow(),
             )
         )

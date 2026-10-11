@@ -267,6 +267,8 @@ async def test_an_item_carries_what_the_crm_matches_on(feed_api):
     body = response.json()
     assert body["has_more"] is False
     assert body["currency"] == "KZT"
+    # check_in/check_out are local times on this clock.
+    assert body["time_zone"] == "Asia/Almaty"
     assert FeedPosition.decode(body["next_cursor"]) == FeedPosition(row.updated_at, row.id)
     item = body["items"][0]
     assert item["id"] == str(row.id)

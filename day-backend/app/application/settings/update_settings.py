@@ -17,6 +17,7 @@ class UpdateSettingsService:
         *,
         default_currency: Currency | None = None,
         default_language: Language | None = None,
+        time_zone: str | None = None,
     ) -> CompanySettings:
         settings = await self._repo.get_by_company(company_id)
         if settings is None:
@@ -29,10 +30,14 @@ class UpdateSettingsService:
                 settings.default_currency = default_currency
             if default_language is not None:
                 settings.default_language = default_language
+            if time_zone is not None:
+                settings.time_zone = time_zone
             return await self._repo.save(settings)
 
         if default_currency is not None:
             settings.default_currency = default_currency
         if default_language is not None:
             settings.default_language = default_language
+        if time_zone is not None:
+            settings.time_zone = time_zone
         return await self._repo.update(settings)
