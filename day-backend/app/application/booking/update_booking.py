@@ -6,6 +6,7 @@ from decimal import Decimal
 
 from app.application.booking.create_booking import (
     apply_default_times,
+    validate_hold_expiry,
     validate_rental_mode_allowed,
 )
 from app.application.booking.price_calculator import PriceCalculatorService
@@ -18,6 +19,7 @@ from app.domain.booking.repositories import (
 from app.domain.booking.value_objects import (
     BookingAuditAction,
     BookingSource,
+    BookingStatus,
     RentalMode,
 )
 from app.domain.property.repositories import PropertyRepository
@@ -40,6 +42,8 @@ class UpdateBookingInput:
     children_count: object = field(default=_UNSET)
     total_price: object = field(default=_UNSET)
     notes: object = field(default=_UNSET)
+    # Naive UTC; None releases the hold.
+    expires_at: object = field(default=_UNSET)
 
 
 class UpdateBookingService:
@@ -116,6 +120,12 @@ class UpdateBookingService:
         if inp.notes is not _UNSET:
             _track("notes", booking.notes, inp.notes)
             booking.notes = inp.notes  # type: ignore[assignment]
+        if inp.expires_at is not _UNSET:
+            if inp.expires_at is not None and booking.status != BookingStatus.PENDING:
+                raise ValueError("Only a pending booking can hold dates")
+            validate_hold_expiry(inp.expires_at)  # type: ignore[arg-type]
+            _track("expires_at", booking.expires_at, inp.expires_at)
+            booking.expires_at = inp.expires_at  # type: ignore[assignment]
 
         # Re-check overlaps if dates changed
         if dates_changed and booking.check_in and booking.check_out:

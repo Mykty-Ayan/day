@@ -76,6 +76,9 @@ class Booking:
     # retry gets this booking back and a reused key with another body is caught.
     idempotency_key: str | None = None
     idempotency_hash: str | None = None
+    # A pending booking with this set is a hold: a background sweep cancels it
+    # once this moment (naive UTC) passes unless someone confirms it first.
+    expires_at: datetime | None = None
     created_at: datetime | None = None
     updated_at: datetime | None = None
 
@@ -85,6 +88,10 @@ class Booking:
                 f"Cannot transition from {self.status.value} to {new_status.value}"
             )
         self.status = new_status
+        # A confirmed stay holds its nights for good. A cancelled hold keeps
+        # its expiry, which says why it went.
+        if new_status == BookingStatus.CONFIRMED:
+            self.expires_at = None
 
 
 @dataclass

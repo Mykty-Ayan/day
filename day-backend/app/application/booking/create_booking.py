@@ -101,6 +101,13 @@ class CreateBookingInput:
     external_id: str | None = None
     idempotency_key: str | None = None
     idempotency_hash: str | None = None
+    # Naive UTC. Makes the booking a hold that lapses at this moment.
+    expires_at: datetime | None = None
+
+
+def validate_hold_expiry(expires_at: datetime | None) -> None:
+    if expires_at is not None and expires_at <= datetime.utcnow():
+        raise ValueError("expires_at must be in the future")
 
 
 class CreateBookingService:
@@ -145,6 +152,7 @@ class CreateBookingService:
 
         if inp.check_in is None or inp.check_out is None:
             raise ValueError("Check-in and check-out dates are required")
+        validate_hold_expiry(inp.expires_at)
 
         # Daily bookings default their clock times (14:00 / 12:00) so the stored
         # datetime is a superset of the incoming date. Hourly bookings keep their
@@ -207,6 +215,7 @@ class CreateBookingService:
                 external_id=inp.external_id,
                 idempotency_key=inp.idempotency_key,
                 idempotency_hash=inp.idempotency_hash,
+                expires_at=inp.expires_at,
             )
         )
 

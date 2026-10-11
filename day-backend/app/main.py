@@ -51,11 +51,12 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     import asyncio
 
     from app.domain.messaging.value_objects import Channel
+    from app.infrastructure.hold_worker import hold_worker
     from app.infrastructure.messaging.factory import get_provider
     from app.infrastructure.messaging.worker import notification_worker
 
     stop = asyncio.Event()
-    worker = asyncio.create_task(notification_worker(stop))
+    workers = [asyncio.create_task(notification_worker(stop)), asyncio.create_task(hold_worker(stop))]
 
     # Telegram only delivers to the URL it was last told about, and that URL
     # changes with the deployment — so it is (re)registered on every boot.
@@ -86,11 +87,12 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         yield
     finally:
         stop.set()
-        worker.cancel()
-        try:
-            await worker
-        except (asyncio.CancelledError, Exception):
-            pass
+        for worker in workers:
+            worker.cancel()
+            try:
+                await worker
+            except (asyncio.CancelledError, Exception):
+                pass
         await engine.dispose()
 
 
