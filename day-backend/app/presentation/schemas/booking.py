@@ -172,6 +172,8 @@ class BookingFeedResponse(BaseModel):
     next_cursor: str
     has_more: bool
     currency: str
+    # IANA zone the items' check_in/check_out are local to.
+    time_zone: str
 
 
 class BookingStatusChange(BaseModel):

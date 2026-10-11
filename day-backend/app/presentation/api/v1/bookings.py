@@ -408,8 +408,7 @@ async def booking_feed(
         company_id, after=after, limit=limit, now=_utcnow()
     )
 
-    company_settings = await repos["settings"].get_by_company(company_id)
-    currency = (company_settings or CompanySettings()).default_currency.value
+    company_settings = await repos["settings"].get_by_company(company_id) or CompanySettings()
     paid = await repos["payment"].sum_paid_by_bookings([b.id for b in page.items])
     # A page usually holds a few properties and guests many times over.
     guests: dict = {}
@@ -451,7 +450,8 @@ async def booking_feed(
         items=items,
         next_cursor=page.next_position.encode(),
         has_more=page.has_more,
-        currency=currency,
+        currency=company_settings.default_currency.value,
+        time_zone=company_settings.time_zone,
     )
 
 
