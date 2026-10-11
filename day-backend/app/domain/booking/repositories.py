@@ -48,6 +48,10 @@ class GuestRepository(abc.ABC):
     ) -> list[Guest]: ...
 
     @abc.abstractmethod
+    async def list_by_phone(self, company_id: uuid.UUID, phone: str) -> list[Guest]:
+        """Guests whose phone is this number however either was written, oldest first."""
+
+    @abc.abstractmethod
     async def find_by_phone(
         self, company_id: uuid.UUID, phone: str
     ) -> Guest | None: ...

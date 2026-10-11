@@ -221,6 +221,9 @@ class FakeGuestRepository(GuestRepository):
             if g.company_id == company_id and (query.lower() in g.name.lower() or (g.phone and query in g.phone))
         ]
 
+    async def list_by_phone(self, company_id, phone):
+        return [g for g in self._guests.values() if g.company_id == company_id and g.phone == phone]
+
     async def find_by_phone(self, company_id: uuid.UUID, phone: str) -> Guest | None:
         for g in self._guests.values():
             if g.company_id == company_id and g.phone == phone:
