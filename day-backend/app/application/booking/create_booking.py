@@ -7,6 +7,7 @@ from datetime import date, datetime, time
 from app.application.booking.price_calculator import PriceCalculatorService
 from app.config import settings
 from app.domain.booking.entities import Booking, BookingAuditLog, Guest
+from app.domain.booking.exceptions import BookingOverlapError
 from app.domain.booking.repositories import (
     BookingAuditLogRepository,
     BookingRepository,
@@ -145,7 +146,7 @@ class CreateBookingService:
             inp.property_id, check_in, check_out
         )
         if overlapping:
-            raise ValueError("Date range overlaps with existing booking")
+            raise BookingOverlapError()
 
         # Auto-create or find guest
         guest = None

@@ -34,6 +34,7 @@ from app.application.leads.check_guest import normalise_phone
 from app.config import settings
 from app.domain.auth.permissions import Permission
 from app.domain.booking.entities import BookingComment, BookingFile
+from app.domain.booking.exceptions import BookingOverlapError
 from app.domain.booking.value_objects import BookingSource, BookingStatus, RentalMode
 from app.domain.messaging.value_objects import NotificationEvent
 from app.domain.settings.entities import CompanySettings
@@ -283,6 +284,9 @@ async def create_booking(
         await _notify_booking(session, company_id, NotificationEvent.BOOKING_CREATED, result, repos)
         await session.commit()
         return _to_booking_response(result)
+    except BookingOverlapError as e:
+        await session.rollback()
+        raise HTTPException(status_code=409, detail=str(e))
     except ValueError as e:
         await session.rollback()
         raise HTTPException(status_code=400, detail=str(e))
@@ -561,6 +565,9 @@ async def update_booking(
         result = await svc.execute(inp)
         await session.commit()
         return _to_booking_response(result)
+    except BookingOverlapError as e:
+        await session.rollback()
+        raise HTTPException(status_code=409, detail=str(e))
     except ValueError as e:
         await session.rollback()
         raise HTTPException(status_code=400, detail=str(e))
@@ -611,6 +618,9 @@ async def move_booking(
         result = await svc.execute(booking_id, company_id, body.target_property_id, changed_by=user_id)
         await session.commit()
         return _to_booking_response(result)
+    except BookingOverlapError as e:
+        await session.rollback()
+        raise HTTPException(status_code=409, detail=str(e))
     except ValueError as e:
         await session.rollback()
         raise HTTPException(status_code=400, detail=str(e))

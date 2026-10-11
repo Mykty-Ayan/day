@@ -23,6 +23,7 @@ from app.domain.booking.entities import (
     BookingPayment,
     Guest,
 )
+from app.domain.booking.exceptions import BookingOverlapError
 from app.domain.booking.repositories import (
     BookingAuditLogRepository,
     BookingCommentRepository,
@@ -721,7 +722,7 @@ class TestCreateBookingService:
         existing = _make_booking(prop.id, check_in=date(2025, 6, 1), check_out=date(2025, 6, 5))
         await booking_repo.create(existing)
 
-        with pytest.raises(ValueError, match="overlaps"):
+        with pytest.raises(BookingOverlapError, match="overlaps"):
             await svc.execute(
                 CreateBookingInput(
                     company_id=COMPANY_ID,
@@ -1048,13 +1049,29 @@ class TestUpdateBookingService:
             )
 
     @pytest.mark.asyncio
+    async def test_moving_dates_off_a_clash_clears_the_overbooking_flag(self):
+        booking_repo, _, svc, booking, _ = await self._setup()
+        booking.overbooking = True
+
+        result = await svc.execute(
+            UpdateBookingInput(
+                booking_id=booking.id,
+                company_id=COMPANY_ID,
+                check_in=date(2025, 7, 1),
+                check_out=date(2025, 7, 3),
+            )
+        )
+
+        assert result.overbooking is False
+
+    @pytest.mark.asyncio
     async def test_overlap_check_on_date_change(self):
         booking_repo, _, svc, booking, prop_id = await self._setup()
         # Add another booking that would overlap
         other = _make_booking(prop_id, check_in=date(2025, 6, 10), check_out=date(2025, 6, 15))
         await booking_repo.create(other)
 
-        with pytest.raises(ValueError, match="overlaps"):
+        with pytest.raises(BookingOverlapError, match="overlaps"):
             await svc.execute(
                 UpdateBookingInput(
                     booking_id=booking.id,
@@ -1332,6 +1349,15 @@ class TestMoveBookingService:
         assert logs[0].changed_by == USER_ID
 
     @pytest.mark.asyncio
+    async def test_move_to_free_nights_clears_the_overbooking_flag(self):
+        _, _, _, svc, booking, _, prop_b = await self._setup()
+        booking.overbooking = True
+
+        result = await svc.execute(booking.id, COMPANY_ID, prop_b.id)
+
+        assert result.overbooking is False
+
+    @pytest.mark.asyncio
     async def test_move_overlap_on_target_raises(self):
         booking_repo, _, _, svc, booking, _, prop_b = await self._setup()
         # Create conflicting booking on prop_b
@@ -1342,7 +1368,7 @@ class TestMoveBookingService:
         )
         await booking_repo.create(conflicting)
 
-        with pytest.raises(ValueError, match="overlaps"):
+        with pytest.raises(BookingOverlapError, match="overlaps"):
             await svc.execute(booking.id, COMPANY_ID, prop_b.id)
 
     @pytest.mark.asyncio
@@ -1490,7 +1516,7 @@ class TestHourlyBookingServices:
         )
 
         # Overlapping window (12:00-14:00 vs 10:00-13:00) is rejected.
-        with pytest.raises(ValueError, match="overlaps"):
+        with pytest.raises(BookingOverlapError, match="overlaps"):
             await svc.execute(
                 CreateBookingInput(
                     company_id=COMPANY_ID,
