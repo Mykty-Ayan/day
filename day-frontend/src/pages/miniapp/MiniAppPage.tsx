@@ -111,7 +111,7 @@ export default function MiniAppPage() {
   }, [t, attempt])
 
   // The booking screens' reads; a cleaner would only get 403s from them.
-  const enabled = authState === 'ready' && role !== 'cleaner'
+  const enabled = authState === 'ready' && role !== 'cleaner' && !paused
 
   const todayQuery = useQuery({
     queryKey: ['miniapp', 'today'],
@@ -182,12 +182,10 @@ export default function MiniAppPage() {
         <div className="mt-4 w-full max-w-xs">
           <ActionButton
             tone="primary"
-            onClick={() => {
-              // Signing this window in again takes the session back; the other window pauses then.
-              setPaused(false)
-              setAuthState('pending')
-              setAttempt((value) => value + 1)
-            }}
+            // A fresh page signs this window in again (the other window pauses then)
+            // and drops whatever the other account's session left in memory; the
+            // chat may even have been relinked meanwhile.
+            onClick={() => window.location.reload()}
           >
             {t('miniapp.continueHere')}
           </ActionButton>
