@@ -46,7 +46,6 @@ from app.infrastructure.security import calendar_token
 from app.infrastructure.storage.s3 import upload_property_photo
 from app.presentation.api.deps import Principal, get_company_id, get_principal, get_user_id, require
 from app.presentation.schemas.property import (
-    AmenityCreate,
     AmenityResponse,
     DiscountRuleCreate,
     DiscountRuleResponse,
@@ -623,23 +622,6 @@ async def list_amenities(session: AsyncSession = Depends(get_session)):
     svc = ManageAmenitiesService(repos["amenity"], repos["property"])
     result = await svc.list_amenities()
     return [AmenityResponse.model_validate(a, from_attributes=True) for a in result]
-
-
-@amenity_router.post(
-    "",
-    response_model=AmenityResponse,
-    status_code=201,
-    dependencies=[Depends(require(Permission.PROPERTIES_WRITE))],
-)
-async def create_amenity(
-    body: AmenityCreate,
-    session: AsyncSession = Depends(get_session),
-):
-    repos = _repos(session)
-    svc = ManageAmenitiesService(repos["amenity"], repos["property"])
-    result = await svc.create_amenity(body.name, body.category, body.icon)
-    await session.commit()
-    return AmenityResponse.model_validate(result, from_attributes=True)
 
 
 @router.post(
