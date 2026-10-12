@@ -89,8 +89,20 @@ export function saveStored(storage: AttemptStore | undefined, key: string, value
   }
 }
 
+/** An attempt found on the phone. Its first answer may never have been seen (the
+ *  app was closed mid-request), so it counts as possibly recorded. */
 export function loadAttempt(storage: AttemptStore | undefined, bookingId: string): MoneyAttempt | null {
-  return loadStored<MoneyAttempt>(storage, attemptKey(bookingId))
+  const stored = loadStored<MoneyAttempt>(storage, attemptKey(bookingId))
+  return stored ? { ...stored, uncertain: true } : null
+}
+
+/** Whether an answer belongs to this attempt: a late answer to an earlier one
+ *  must not settle, or overwrite, a newer one. */
+export function sameAttempt(current: MoneyAttempt | null, finished: MoneyAttempt): boolean {
+  if (!current || current.kind !== finished.kind) return false
+  return current.kind === 'payment'
+    ? current.key === (finished as typeof current).key
+    : current.paymentId === (finished as typeof current).paymentId
 }
 
 /** Whether the attempt is kept on the phone. Money is not sent unkept: closing
