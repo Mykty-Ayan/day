@@ -922,7 +922,8 @@
       "notKept": "The phone would not keep the payment attempt, so it is not sent: a dropped connection could double it. Free some space or record the payment on the web.",
       "checkAttempt": "Check on the server",
       "notRecorded": "The {{amount}} payment was not recorded and never will be. If the money came, enter it again.",
-      "notReceived": "Confirming {{amount}} did not go through. If the money came, press “Received” again."
+      "notReceived": "Confirming {{amount}} has not landed yet. Press retry: the money will not count twice.",
+      "receiveGone": "The {{amount}} payment no longer waits for confirmation; the attempt is cleared."
     },
     "cleaning": {
       "title": "Cleaning",

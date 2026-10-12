@@ -78,6 +78,16 @@ export function afterFailure<T extends { uncertain?: boolean }>(attempt: T, erro
   return attempt.uncertain ? attempt : null
 }
 
+/** What a fresh read says of a "received" whose answer was lost. Only a
+ *  completed payment settles it. A pending one may still be confirmed by the
+ *  lost call, so nothing new is recorded until a retry lands; a failed or
+ *  missing one can never be confirmed. */
+export function receiveOutcome(payment: BookingPayment | undefined): 'received' | 'waiting' | 'gone' {
+  if (payment?.status === 'completed') return 'received'
+  if (payment?.status === 'pending') return 'waiting'
+  return 'gone'
+}
+
 export type AttemptStore = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>
 
 const attemptKey = (bookingId: string) => `day.miniapp.money.${bookingId}`
