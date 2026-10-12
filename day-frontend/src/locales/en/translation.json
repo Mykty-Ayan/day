@@ -1028,7 +1028,9 @@
         "active": "active",
         "archived": "archived"
       }
-    }
+    },
+    "linkedFailed": "Couldn't open the booking from the notice.",
+    "tapToHide": "Tap to hide"
   },
   "auth": {
     "forgot": {

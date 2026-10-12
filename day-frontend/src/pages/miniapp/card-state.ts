@@ -6,3 +6,11 @@ export function readyToAct(
 ): boolean {
   return read.isSuccess && !read.isFetching && read.dataUpdatedAt >= openedAt
 }
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+/** The booking a bot notice's "Open booking" button points at (`?booking=<id>`). */
+export function linkedBookingId(search: string): string | null {
+  const id = new URLSearchParams(search).get('booking')
+  return id && UUID.test(id) ? id : null
+}

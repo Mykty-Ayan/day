@@ -212,7 +212,8 @@ class HostBotService:
         return BotReply("\n".join(lines))
 
     async def _today(self, company_id: uuid.UUID, today: date) -> BotReply:
-        bookings = await self._bookings.list_by_company_date_range(company_id, today, today)
+        # A date bound means midnight: up to tomorrow, or the guest arriving at 14:00 is missed.
+        bookings = await self._bookings.list_by_company_date_range(company_id, today, today + timedelta(days=1))
         arrivals, departures = [], []
         for booking in bookings:
             if booking.status == BookingStatus.CANCELLED:
@@ -253,8 +254,8 @@ class HostBotService:
         for booking in bookings:
             prop = await self._properties.get_by_id(booking.property_id)
             guest = await self._guests.get_by_id(booking.guest_id) if booking.guest_id else None
-            name = prop.name if prop else "—"
-            guest_name = guest.name if guest else "—"
+            name = html.escape(prop.name) if prop else "—"
+            guest_name = html.escape(guest.name) if guest else "—"
             lines.append(
                 f"• {name} · {guest_name} · "
                 f"{booking.check_in.strftime('%d.%m %H:%M')} → {booking.check_out.strftime('%d.%m %H:%M')}"

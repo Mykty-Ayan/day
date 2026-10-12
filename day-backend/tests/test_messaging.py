@@ -1,7 +1,7 @@
 """Unit tests for the messaging context: link codes, outbox, and both bots."""
 
 import uuid
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, time, timedelta
 from decimal import Decimal
 
 import pytest
@@ -17,6 +17,8 @@ from app.application.messaging.notifications import (
 )
 from app.domain.assistant.gateway import ChatMessage
 from app.domain.assistant.value_objects import AssistantReply, AssistantUnavailable, PendingAction
+from app.domain.booking.entities import Booking
+from app.domain.booking.value_objects import BookingStatus
 from app.domain.messaging.entities import (
     ChannelIdentity,
     ChannelLinkCode,
@@ -28,6 +30,7 @@ from app.domain.messaging.repositories import (
     ChannelLinkCodeRepository,
     OutboundNotificationRepository,
 )
+from app.domain.messaging.services import AppButton
 from app.domain.messaging.value_objects import (
     Channel,
     ConversationState,
@@ -351,6 +354,76 @@ class TestNotifications:
         for event in NotificationEvent:
             assert render(event, {}) != ""
 
+    def test_render_escapes_what_guests_and_hosts_typed(self):
+        # Telegram parses the message as HTML: a "<" in a name used to make it refuse the whole notice.
+        text = render(
+            NotificationEvent.BOOKING_CREATED,
+            {"property_name": "Loft <2>", "guest_name": "Ann & <b>Co</b>"},
+        )
+
+        assert "Loft &lt;2&gt;" in text
+        assert "Ann &amp; &lt;b&gt;Co&lt;/b&gt;" in text
+
+    def test_long_message_is_cut_before_it_is_escaped(self):
+        text = render(NotificationEvent.GUEST_INQUIRY, {"text": "&" * 500})
+
+        assert text.count("&amp;") == 400
+        assert text.endswith("&amp;")
+
+    def test_render_shows_money_with_currency_and_a_readable_source(self):
+        text = render(NotificationEvent.BOOKING_CREATED, {"total_price": "25000.00", "source": "direct"})
+
+        assert "Сумма: 25 000 ₸" in text
+        assert "Источник: Прямое" in text
+
+    @pytest.mark.asyncio
+    async def test_booking_notice_carries_a_button_that_opens_the_booking(self):
+        repo = FakeNotificationRepository()
+        booking_id = str(uuid.uuid4())
+        await repo.save(
+            OutboundNotification(
+                company_id=COMPANY_ID,
+                channel=Channel.TELEGRAM,
+                target="555",
+                event=NotificationEvent.BOOKING_CREATED,
+                payload={"booking_id": booking_id},
+            )
+        )
+        provider = FakeProvider()
+        dispatcher = NotificationDispatcher(
+            repo, {Channel.TELEGRAM: provider}, mini_app_url="https://app.example.com/tma"
+        )
+
+        await dispatcher.dispatch_due()
+
+        assert provider.buttons == [[AppButton("Открыть бронь", f"https://app.example.com/tma?booking={booking_id}")]]
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("target", "url"),
+        [
+            ("-100123", "https://app.example.com/tma"),  # a group: Mini App buttons work in private chats only
+            ("555", "http://localhost:5173/tma"),  # Telegram refuses a Mini App that is not https
+            ("555", None),
+        ],
+    )
+    async def test_no_button_where_telegram_would_refuse_it(self, target, url):
+        repo = FakeNotificationRepository()
+        await repo.save(
+            OutboundNotification(
+                company_id=COMPANY_ID,
+                channel=Channel.TELEGRAM,
+                target=target,
+                event=NotificationEvent.BOOKING_CREATED,
+                payload={"booking_id": str(uuid.uuid4())},
+            )
+        )
+        provider = FakeProvider()
+
+        await NotificationDispatcher(repo, {Channel.TELEGRAM: provider}, mini_app_url=url).dispatch_due()
+
+        assert provider.buttons == [None]
+
 
 # ---------- host bot ----------
 
@@ -527,6 +600,47 @@ class TestHostBot:
 
         _, check_in, check_out = availability.calls[0]
         assert (check_in, check_out) == (TODAY, TODAY + timedelta(days=1))
+
+    @pytest.mark.asyncio
+    async def test_today_lists_the_guest_arriving_this_afternoon(self):
+        class SqlLikeRange:
+            """The repository's own overlap test: a date bound means midnight."""
+
+            def __init__(self, rows):
+                self.rows = rows
+
+            async def list_by_company_date_range(self, company_id, start, end):
+                start, end = datetime.combine(start, time()), datetime.combine(end, time())
+                return [b for b in self.rows if b.check_in < end and b.check_out > start]
+
+        class Named:
+            def __init__(self, name):
+                self.name = name
+
+        class ByName:
+            async def get_by_id(self, _id):
+                return Named("Studio <12>")
+
+        arriving = Booking(
+            company_id=COMPANY_ID,
+            check_in=datetime.combine(TODAY, time(14)),
+            check_out=datetime.combine(TODAY + timedelta(days=2), time(12)),
+            status=BookingStatus.CONFIRMED,
+        )
+        bot = HostBotService(
+            LinkChannelService(FakeLinkCodeRepository(), FakeIdentityRepository()),
+            StubAvailability([]),
+            SqlLikeRange([arriving]),
+            ByName(),
+            ByName(),
+        )
+        identity = ChannelIdentity(company_id=COMPANY_ID, channel=Channel.TELEGRAM, external_id="555")
+
+        reply = await bot.handle(identity, "555", "/today", today=TODAY)
+
+        arrivals = reply.text.split("<b>Выезды</b>")[0]
+        assert "10.08 14:00" in arrivals
+        assert "Studio &lt;12&gt;" in arrivals  # Telegram reads the reply as HTML
 
     @pytest.mark.asyncio
     async def test_unknown_command_shows_help(self):

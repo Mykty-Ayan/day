@@ -127,4 +127,8 @@ def build_notification_service(session: AsyncSession) -> NotificationService:
 
 
 def build_dispatcher(session: AsyncSession) -> NotificationDispatcher:
-    return NotificationDispatcher(SqlOutboundNotificationRepository(session), _PROVIDERS)
+    return NotificationDispatcher(
+        SqlOutboundNotificationRepository(session),
+        _PROVIDERS,
+        mini_app_url=f"{settings.PUBLIC_APP_URL.rstrip('/')}/tma",
+    )
