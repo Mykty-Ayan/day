@@ -262,6 +262,16 @@ test.describe('buildCheckInMessage', () => {
     expect(plain(message)).not.toContain('4815')
   })
 
+  test('no Wi-Fi password before the stay is confirmed, nor from a read not made just now', () => {
+    for (const status of ['pending', 'cancelled'] as const) {
+      expect(plain(buildCheckInMessage(booking({ status }), FLAT, 'ru', t))).not.toContain('1234554321')
+    }
+    // The flat may still be loading, or its last read failed: an old password must not go out.
+    const stale = buildCheckInMessage(booking({ status: 'confirmed' }), FLAT, 'ru', t, false)
+    expect(plain(stale)).not.toContain('1234554321')
+    expect(plain(stale)).toContain('Wi-Fi: Zhanargul')
+  })
+
   test('says nothing about the way in when it is just "other"', () => {
     const message = buildCheckInMessage(booking(), { ...FLAT, check_in_method: 'other' }, 'ru', t)
 
