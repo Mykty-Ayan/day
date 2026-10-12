@@ -315,7 +315,8 @@ export default function TeamPage() {
             <ul className="divide-y divide-gray-100">
               {sortedTeam.map((member) => (
                 <li key={member.id} className="flex flex-wrap items-center gap-3 py-3">
-                  <div className="min-w-0 flex-1">
+                  {/* Room for the name: on a phone the buttons wrap below it instead. */}
+                  <div className="min-w-[10rem] flex-1">
                     <p className="truncate text-sm font-semibold text-gray-900">
                       {member.full_name || member.email}
                     </p>
