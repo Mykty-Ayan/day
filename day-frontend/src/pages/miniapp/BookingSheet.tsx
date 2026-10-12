@@ -13,7 +13,7 @@ import { getProperty } from '../../api/properties'
 import type { Booking, BookingStatus } from '../../types/booking'
 import { copyText, openWhatsApp, resultFeedback } from '../../lib/telegram'
 import { addDays, formatDay, formatMoney, toISODate } from './format'
-import { readyToAct } from './card-state'
+import { cardRead, readyToAct } from './card-state'
 import DepositRow from './DepositRow'
 import { errorText } from './errors'
 import { buildCheckInMessage } from './messages'
@@ -54,12 +54,9 @@ export default function BookingSheet({
   // status change moves it. The card works on the booking — and its payments —
   // as one fresh answer from the server.
   const fresh = useQuery({
-    queryKey: ['miniapp', 'booking', opened?.id],
-    queryFn: () => getBooking(opened!.id),
-    enabled: Boolean(opened),
     // Someone else (the CRM, the web) may have moved it since the last look.
-    staleTime: 0,
-    refetchOnMount: 'always',
+    ...cardRead(['miniapp', 'booking', opened?.id], (signal) => getBooking(opened!.id, signal)),
+    enabled: Boolean(opened),
   })
   const booking = fresh.data?.booking ?? opened
   // Acting on a booking read before this card opened sends old dates or statuses.
