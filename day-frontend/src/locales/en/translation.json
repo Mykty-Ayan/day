@@ -346,7 +346,10 @@
       "noFiles": "No files",
       "comments": "Comments",
       "noComments": "No comments",
-      "addComment": "Add a comment..."
+      "addComment": "Add a comment...",
+      "download": "Download",
+      "downloadFailed": "Could not download the file",
+      "uploadFailed": "Could not upload the file"
     },
     "activityHistory": "Activity History",
     "priceBreakdown": "Price Breakdown",

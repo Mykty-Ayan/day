@@ -42,8 +42,19 @@ def _ensure_bucket(client) -> None:
         raise
 
 
-def _ensure_public_read(client) -> None:
+def apply_read_policy(client) -> None:
+    """Make the bucket's anonymous read match S3_PUBLIC_READ, both ways.
+
+    Booking files are guests' documents and are served only through the API,
+    so the bucket is private by default. A bucket made public by an earlier
+    deploy keeps its policy until it is removed, hence the delete.
+    """
     if not settings.S3_PUBLIC_READ:
+        try:
+            client.delete_bucket_policy(Bucket=settings.S3_BUCKET)
+        except ClientError as exc:
+            if exc.response.get("Error", {}).get("Code") not in {"NoSuchBucketPolicy", "NoSuchBucket"}:
+                raise
         return
 
     policy = {
@@ -59,6 +70,13 @@ def _ensure_public_read(client) -> None:
         ],
     }
     client.put_bucket_policy(Bucket=settings.S3_BUCKET, Policy=json.dumps(policy))
+
+
+async def sync_read_policy() -> None:
+    """Apply the read policy at startup, so a bucket left public is closed without waiting for an upload."""
+    client = _s3_client()
+    await asyncio.to_thread(_ensure_bucket, client)
+    await asyncio.to_thread(apply_read_policy, client)
 
 
 def build_public_url(key: str) -> str:
@@ -93,7 +111,7 @@ async def upload_booking_file(
 ) -> str:
     client = _s3_client()
     await asyncio.to_thread(_ensure_bucket, client)
-    await asyncio.to_thread(_ensure_public_read, client)
+    await asyncio.to_thread(apply_read_policy, client)
 
     safe_name = _sanitize_filename(filename)
     key = f"bookings/{booking_id}/{uuid.uuid4()}-{safe_name}"
