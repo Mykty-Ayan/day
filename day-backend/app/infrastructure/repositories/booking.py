@@ -570,12 +570,25 @@ class SqlBookingRepository(BookingRepository):
         # its own company, and nothing here is shown to a caller. Rows stay
         # locked until the sweep commits; SKIP LOCKED lets several API
         # instances sweep at once without taking the same hold twice.
+        # A hold with money on it is never swept: a write racing the payment
+        # can put a paid booking back to pending, and cancelling it would
+        # release nights the guest has paid for.
+        paid = (
+            select(BookingPaymentModel.id)
+            .where(
+                BookingPaymentModel.booking_id == BookingModel.id,
+                BookingPaymentModel.type == PaymentType.PAYMENT.value,
+                BookingPaymentModel.status == PaymentStatus.COMPLETED.value,
+            )
+            .exists()
+        )
         stmt = (
             select(BookingModel)
             .where(
                 BookingModel.status == BookingStatus.PENDING.value,
                 BookingModel.expires_at.is_not(None),
                 BookingModel.expires_at <= now,
+                ~paid,
             )
             .order_by(BookingModel.expires_at)
             .limit(limit)
@@ -614,6 +627,11 @@ class SqlBookingRepository(BookingRepository):
         await self._session.flush()
         result = await self._session.get(BookingModel, booking.id)
         return _model_to_booking(result)  # type: ignore[arg-type]
+
+    async def touch(self, booking_id: uuid.UUID) -> None:
+        await self._session.execute(
+            update(BookingModel).where(BookingModel.id == booking_id).values(updated_at=datetime.utcnow())
+        )
 
 
 class SqlGroupBookingRepository(GroupBookingRepository):

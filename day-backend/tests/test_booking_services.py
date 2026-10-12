@@ -108,6 +108,9 @@ class FakeBookingRepository(BookingRepository):
     async def lock_idempotency_key(self, company_id, key):
         pass
 
+    async def touch(self, booking_id):
+        self.touched = [*getattr(self, "touched", []), booking_id]
+
     async def list_expired_holds(self, now, *, limit):
         rows = [
             b

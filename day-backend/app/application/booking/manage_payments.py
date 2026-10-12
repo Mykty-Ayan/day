@@ -97,6 +97,7 @@ class ManagePaymentsService:
                 idempotency_hash=idempotency_hash,
             )
         )
+        await self._booking_repo.touch(booking_id)
         await self._confirm_paid_booking(booking, payment, changed_by)
         return payment
 
@@ -121,6 +122,7 @@ class ManagePaymentsService:
         payment.status = PaymentStatus.COMPLETED
         payment.paid_at = datetime.utcnow()
         payment = await self._payment_repo.update(payment)
+        await self._booking_repo.touch(booking_id)
         await self._confirm_paid_booking(booking, payment, changed_by)
         return payment
 

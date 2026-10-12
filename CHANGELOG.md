@@ -21,6 +21,7 @@ Day becomes the system of record for the CRM (aidyn_crm): an integration can rea
 ### Fixed
 - Permission and tenant checks: the price of another company's apartment, prices and deposits through a read-only key, files of another booking; the rate limit counts per caller (#69)
 - The root opens today's bookings; the bed field says what counts as a bed (#79)
+- Release review: the hold sweep never cancels a booking that already has a completed payment; a payment moves its booking up the feed so the CRM sees the new paid amount; rolling migration 019 back turns `crm` bookings into `other` so the older code can still read them
 
 ## 0.1.0 — 2026-09-07
 

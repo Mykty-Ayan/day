@@ -145,6 +145,10 @@ class BookingRepository(abc.ABC):
     @abc.abstractmethod
     async def update(self, booking: Booking) -> Booking: ...
 
+    @abc.abstractmethod
+    async def touch(self, booking_id: uuid.UUID) -> None:
+        """Mark the booking changed (moves it up the feed) without rewriting it."""
+
 
 class GroupBookingRepository(abc.ABC):
     @abc.abstractmethod
