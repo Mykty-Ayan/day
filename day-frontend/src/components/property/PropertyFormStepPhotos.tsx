@@ -80,7 +80,7 @@ export default function PropertyFormStepPhotos({ photos, onChange }: Props) {
           ref={inputRef}
           type="file"
           multiple
-          accept="image/*"
+          accept="image/jpeg,image/png,image/webp"
           onChange={(e) => handleFiles(e.target.files)}
           className="hidden"
         />

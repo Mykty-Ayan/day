@@ -101,7 +101,7 @@ async def _sync_storage_read_policy(stop: asyncio.Event) -> None:
     while not stop.is_set():
         try:
             await sync_read_policy()
-            logger.info("Storage read policy applied (public read: %s)", settings.S3_PUBLIC_READ)
+            logger.info("Storage read policy applied: listing photos public, everything else private")
             return
         except Exception:
             logger.exception("Storage read policy could not be applied, retrying in %.0fs", delay)

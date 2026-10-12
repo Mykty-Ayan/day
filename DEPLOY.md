@@ -49,10 +49,10 @@ In the **Domains** tab, one entry per service:
 Enable HTTPS on all three; Dokploy requests the certificates. The `minio` entry
 must match `S3_PUBLIC_ENDPOINT`.
 
-`S3_PUBLIC_READ` stays `false`: booking files are guests' documents (passports,
-contracts) and the API serves them to signed-in users only. An environment
-copied from an older template may still say `true` — that value overrides the
-default and re-opens the bucket on every start, so change it.
+Only listing photos (`properties/…`) open by link without signing in; the API
+sets that bucket policy on every start. Booking files are guests' documents
+(passports, contracts) and are served to signed-in users only. An old
+`S3_PUBLIC_READ` variable in the environment is no longer read and can go.
 
 Point the DNS A records at the Hetzner box before deploying, or certificate
 issuance fails and you will be debugging the wrong layer.
