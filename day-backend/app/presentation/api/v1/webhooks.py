@@ -63,13 +63,7 @@ async def _conversation_for(
     company_id: uuid.UUID,
     channel: Channel,
 ) -> Conversation:
-    conversations = SqlConversationRepository(session)
-    existing = await conversations.get_by_identity(identity_id, company_id)
-    if existing is not None:
-        return existing
-    return await conversations.save(
-        Conversation(company_id=company_id, channel=channel, identity_id=identity_id)
-    )
+    return await SqlConversationRepository(session).get_or_create(identity_id, company_id, channel)
 
 
 async def _record(

@@ -4,6 +4,7 @@ import uuid
 from datetime import datetime
 
 from sqlalchemy import or_, select
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.domain.messaging.entities import (
@@ -174,6 +175,18 @@ class SqlConversationRepository(ConversationRepository):
         )
         result = await self._session.scalar(stmt)
         return _to_conversation(result) if result else None
+
+    async def get_or_create(self, identity_id: uuid.UUID, company_id: uuid.UUID, channel: Channel) -> Conversation:
+        # INSERT … ON CONFLICT: a second first-message waits for the first one's
+        # row and then reads it, instead of failing on the unique pair.
+        await self._session.execute(
+            pg_insert(ConversationModel)
+            .values(id=uuid.uuid4(), company_id=company_id, channel=channel.value, identity_id=identity_id)
+            .on_conflict_do_nothing(constraint="uq_conversation_identity_company")
+        )
+        conversation = await self.get_by_identity(identity_id, company_id)
+        assert conversation is not None  # inserted above or by the transaction we waited for
+        return conversation
 
     async def save(self, conversation: Conversation) -> Conversation:
         model = ConversationModel(

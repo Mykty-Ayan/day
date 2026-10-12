@@ -40,6 +40,10 @@ class ConversationRepository(abc.ABC):
         """The chat's thread in this company; a chat moved to another company has a separate one."""
 
     @abc.abstractmethod
+    async def get_or_create(self, identity_id: uuid.UUID, company_id: uuid.UUID, channel: Channel) -> Conversation:
+        """The thread, created if missing; two first messages at once must end up in one thread."""
+
+    @abc.abstractmethod
     async def save(self, conversation: Conversation) -> Conversation: ...
 
     @abc.abstractmethod

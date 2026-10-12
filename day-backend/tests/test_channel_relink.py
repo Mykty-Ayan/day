@@ -137,3 +137,42 @@ async def test_a_moved_chat_gets_a_fresh_conversation_and_the_old_one_stays():
             ]
         finally:
             await session.rollback()
+
+
+@pytest.mark.integration
+async def test_two_first_messages_at_once_land_in_one_conversation():
+    import asyncio
+
+    from sqlalchemy import delete
+
+    from app.infrastructure.models.auth import CompanyModel
+    from app.infrastructure.models.messaging import ChannelIdentityModel, ConversationModel
+    from app.presentation.api.v1.webhooks import _conversation_for
+
+    company, identity_id = uuid.uuid4(), uuid.uuid4()
+    async with _fresh_session() as setup:
+        setup.add(CompanyModel(id=company, name="Munar"))
+        await setup.flush()
+        setup.add(ChannelIdentityModel(id=identity_id, company_id=company, channel="telegram",
+                                       external_id=f"race-{identity_id}"))
+        await setup.commit()
+
+    async def first_message():
+        async with _fresh_session() as session:
+            conversation = await _conversation_for(session, identity_id, company, Channel.TELEGRAM)
+            await session.commit()
+            return conversation.id
+
+    try:
+        # One run can miss a race; several make it show.
+        for _ in range(10):
+            async with _fresh_session() as session:
+                await session.execute(delete(ConversationModel).where(ConversationModel.identity_id == identity_id))
+                await session.commit()
+            first, second = await asyncio.gather(first_message(), first_message())
+            assert first == second
+    finally:
+        async with _fresh_session() as cleanup:
+            await cleanup.execute(delete(ChannelIdentityModel).where(ChannelIdentityModel.id == identity_id))
+            await cleanup.execute(delete(CompanyModel).where(CompanyModel.id == company))
+            await cleanup.commit()
