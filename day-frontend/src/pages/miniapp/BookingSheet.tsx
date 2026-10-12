@@ -305,7 +305,13 @@ export default function BookingSheet({
       if (!attempt.call) setUnsettledState(null)
       return 'notKept' as const
     })
-    if (call === 'other') return resultFeedback('error')
+    if (call === 'other') {
+      // The other window's money may have landed: nothing moves on this card's
+      // old figures, so the typed amount goes and the booking is read again.
+      setAmount('')
+      refresh()
+      return resultFeedback('error')
+    }
     if (call === 'notKept') {
       resultFeedback('error')
       setError(t('miniapp.booking.notKept'))
