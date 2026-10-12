@@ -28,6 +28,8 @@ const RU: Record<string, string> = {
   'miniapp.booking.flat': 'кв. {{value}}',
   'miniapp.booking.floor': '{{value}} этаж',
   'miniapp.booking.messageDates': 'Заезд {{from}}, выезд {{to}}.',
+  'miniapp.booking.howIn': 'Как зайти: {{method}}.',
+  'properties.checkInMethod.lockbox': 'ключница',
 }
 
 const t: Translate = (key, options) =>
@@ -215,11 +217,32 @@ test.describe('buildCheckInMessage', () => {
         '',
         'Wi-Fi: Zhanargul / 1234554321',
         '',
-        'Заезд 28 авг., выезд 30 авг.',
+        'Заезд 28 авг. 14:00, выезд 30 авг. 12:00.',
         '',
         'Ключи в сейфе у двери, код 1305.',
       ].join('\n'),
     )
+  })
+
+  test('says how to get in and adds what is meant for the guest, not the public notes', () => {
+    const message = buildCheckInMessage(
+      booking(),
+      {
+        ...FLAT,
+        check_in_instructions: '',
+        check_in_method: 'lockbox',
+        facts: [
+          { text: 'Код ключницы 4815', audience: 'guest' },
+          { text: 'Парковка платная', audience: 'public' },
+        ],
+      },
+      'ru',
+      t,
+    )
+
+    expect(plain(message)).toContain('Как зайти: ключница.')
+    expect(plain(message)).toContain('Код ключницы 4815')
+    expect(plain(message)).not.toContain('Парковка')
   })
 
   test('drops the Wi-Fi line rather than printing a half of it', () => {
@@ -240,7 +263,7 @@ test.describe('buildCheckInMessage', () => {
     const message = buildCheckInMessage(booking(), undefined, 'ru', t)
 
     expect(plain(message)).toBe(
-      ['Ерлан, добро пожаловать!', '', 'Заезд 28 авг., выезд 30 авг.'].join('\n'),
+      ['Ерлан, добро пожаловать!', '', 'Заезд 28 авг. 14:00, выезд 30 авг. 12:00.'].join('\n'),
     )
     expect(plain(message)).not.toContain('undefined')
     expect(plain(message)).not.toContain('null')

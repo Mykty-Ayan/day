@@ -925,7 +925,8 @@
       "call": "Call",
       "stale": "Couldn't refresh the booking. Actions wait until it loads.",
       "unsettled": "No answer to the payment of {{amount}} — it may already be recorded. Retry: it will not be recorded twice.",
-      "retryPayment": "Retry the payment of {{amount}}"
+      "retryPayment": "Retry the payment of {{amount}}",
+      "howIn": "Getting in: {{method}}."
     },
     "cleaning": {
       "title": "Cleaning",
@@ -998,6 +999,31 @@
       "hours": "Hours",
       "guests": "Guests",
       "hoursShort": "{{count}} h"
+    },
+    "unit": {
+      "address": "Address",
+      "entrance": "entrance {{value}}",
+      "checkIn": "Check-in",
+      "hours": "Check-in from {{from}} · check-out by {{to}}",
+      "maxGuests": "up to {{count}} guests",
+      "wifiNoPassword": "The Wi-Fi password is not set or hidden for your role.",
+      "prices": "Prices",
+      "perNight": "night {{value}}",
+      "perHour": "hour {{value}}",
+      "deposit": "deposit {{value}}",
+      "facts": "What the assistant knows",
+      "forGuest": "guest",
+      "forAll": "all",
+      "amenities": "Amenities",
+      "calendar": "Calendar for Airbnb and Booking",
+      "calendarHint": "Paste the link into the platform's calendar sync — bookings made in Day close those dates there.",
+      "copyLink": "Copy link",
+      "status": {
+        "new": "not active",
+        "paused": "paused",
+        "active": "active",
+        "archived": "archived"
+      }
     }
   },
   "auth": {

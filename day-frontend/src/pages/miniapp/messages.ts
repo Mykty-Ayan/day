@@ -8,7 +8,8 @@
 
 import type { AvailableProperty } from '../../api/miniapp'
 import type { Booking } from '../../types/booking'
-import { formatDay, formatMoney, intlLocale } from './format'
+import type { CheckInMethod, PropertyFact } from '../../types/property'
+import { formatDay, formatMoney, formatTime, intlLocale } from './format'
 
 export type Translate = (key: string, options?: Record<string, unknown>) => string
 
@@ -21,6 +22,9 @@ export interface PropertyBrief {
   wifi_name?: string | null
   wifi_password?: string | null
   check_in_instructions?: string | null
+  check_in_method?: CheckInMethod | null
+  /** Only "guest" facts go into this text; "public" ones are for offers. */
+  facts?: Pick<PropertyFact, 'text' | 'audience'>[]
 }
 
 export function buildOfferMessage(
@@ -103,13 +107,19 @@ export function buildCheckInMessage(
     '',
     sentence(
       t('miniapp.booking.messageDates', {
-        from: formatDay(booking.check_in, language),
-        to: formatDay(booking.check_out, language),
+        // The flat's own hours are on the booking; the guest needs them more than the day.
+        from: `${formatDay(booking.check_in, language)} ${formatTime(booking.check_in, language)}`,
+        to: `${formatDay(booking.check_out, language)} ${formatTime(booking.check_out, language)}`,
       }),
     ),
   )
 
+  if (property?.check_in_method) {
+    lines.push('', t('miniapp.booking.howIn', { method: t(`properties.checkInMethod.${property.check_in_method}`) }))
+  }
   if (property?.check_in_instructions) lines.push('', property.check_in_instructions.trim())
+  const forGuest = (property?.facts ?? []).filter((fact) => fact.audience === 'guest').map((fact) => fact.text.trim())
+  if (forGuest.length > 0) lines.push('', ...forGuest)
 
   // A missing greeting would otherwise leave the text starting with a blank line.
   return lines.join('\n').trimStart()
