@@ -101,3 +101,37 @@ def test_public_read_is_still_available_when_asked_for(monkeypatch):
     bucket = _Bucket()
     s3.apply_read_policy(bucket)
     assert bucket.calls == ["put"]
+
+
+@pytest.mark.asyncio
+async def test_the_startup_sync_keeps_trying_until_storage_answers(monkeypatch):
+    import asyncio
+
+    from app import main
+
+    calls = []
+
+    async def flaky():
+        calls.append(1)
+        if len(calls) < 3:
+            raise ConnectionError("minio not up yet")
+
+    monkeypatch.setattr(s3, "sync_read_policy", flaky)
+    monkeypatch.setattr(main, "_STORAGE_RETRY_FIRST_DELAY", 0.001)
+    await asyncio.wait_for(main._sync_storage_read_policy(asyncio.Event()), timeout=2)
+    assert len(calls) == 3
+
+
+@pytest.mark.asyncio
+async def test_the_startup_sync_stops_with_the_api(monkeypatch):
+    import asyncio
+
+    from app import main
+
+    async def down():
+        raise ConnectionError("minio down")
+
+    monkeypatch.setattr(s3, "sync_read_policy", down)
+    stop = asyncio.Event()
+    stop.set()
+    await asyncio.wait_for(main._sync_storage_read_policy(stop), timeout=2)
