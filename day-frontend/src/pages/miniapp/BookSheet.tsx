@@ -12,6 +12,7 @@ import { useTranslation } from 'react-i18next'
 import { calculatePrice, createBooking } from '../../api/bookings'
 import { MINIAPP_ADULTS, type AvailableProperty } from '../../api/miniapp'
 import { resultFeedback } from '../../lib/telegram'
+import { errorText } from './errors'
 import { formatMoney } from './format'
 import { ActionButton, Field, Sheet } from './miniapp-ui'
 
@@ -67,9 +68,7 @@ export default function BookSheet({
     },
     onError: (mutationError) => {
       resultFeedback('error')
-      const detail = (mutationError as { response?: { data?: { detail?: string } } }).response?.data
-        ?.detail
-      setError(detail || t('miniapp.book.failed'))
+      setError(errorText(mutationError, t('miniapp.book.failed'), t))
     },
   })
 

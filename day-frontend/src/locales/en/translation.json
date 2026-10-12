@@ -900,7 +900,8 @@
       "floor": "floor {{value}}",
       "messageDates": "Check-in {{from}}, check-out {{to}}.",
       "confirm": "Confirm",
-      "complete": "Complete"
+      "complete": "Complete",
+      "stale": "Couldn't refresh the booking. Actions wait until it loads."
     },
     "cleaning": {
       "title": "Cleaning",
@@ -933,7 +934,8 @@
       "keepAmount": "How much to keep",
       "reason": "Reason",
       "reasonPlaceholder": "Broken mirror",
-      "cancel": "Cancel"
+      "cancel": "Cancel",
+      "alreadyTaken": "A deposit is already taken; the list is updated"
     },
     "ask": {
       "intro": "Ask in words — I answer and act.",
@@ -945,9 +947,17 @@
       "applied": "Done",
       "proposes": "I suggest:",
       "s1": "What's free tomorrow and for how much?",
-      "s2": "What's the Wi-Fi in 62auc?",
+      "s2": "Who's arriving today?",
       "s3": "How much did I earn this month?"
-    }
+    },
+    "errors": {
+      "invalid": "Some fields are not filled in correctly. Check them and try again.",
+      "forbidden": "Your role can't do this.",
+      "staleStatus": "The booking has changed. Close the card and open it again.",
+      "noPrice": "This flat has no prices. Set them on the web: Properties → Prices.",
+      "assistantOff": "The assistant isn't available right now. Try later or use the tabs."
+    },
+    "retry": "Try again"
   },
   "auth": {
     "forgot": {

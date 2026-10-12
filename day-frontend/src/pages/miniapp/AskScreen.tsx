@@ -18,6 +18,7 @@ import {
 } from '../../api/assistant'
 import { resultFeedback, tapFeedback } from '../../lib/telegram'
 import { ActionButton } from './miniapp-ui'
+import { errorText } from './errors'
 
 interface Entry {
   role: 'user' | 'assistant'
@@ -60,10 +61,10 @@ export default function AskScreen() {
     },
     onError: (error) => {
       resultFeedback('error')
-      const detail = (error as { response?: { data?: { detail?: string } } }).response?.data?.detail
+      const detail = errorText(error, t('miniapp.ask.failed'), t)
       setEntries((current) => [
         ...current,
-        { role: 'assistant', content: detail || t('miniapp.ask.failed') },
+        { role: 'assistant', content: detail },
       ])
       scrollDown()
     },
@@ -82,10 +83,10 @@ export default function AskScreen() {
     },
     onError: (error) => {
       resultFeedback('error')
-      const detail = (error as { response?: { data?: { detail?: string } } }).response?.data?.detail
+      const detail = errorText(error, t('miniapp.ask.failed'), t)
       setEntries((current) => [
         ...current,
-        { role: 'assistant', content: detail || t('miniapp.ask.failed') },
+        { role: 'assistant', content: detail },
       ])
     },
   })

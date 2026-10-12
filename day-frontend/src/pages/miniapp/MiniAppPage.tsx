@@ -33,6 +33,7 @@ import BookSheet from './BookSheet'
 import BookingSheet from './BookingSheet'
 import CleaningSheet from './CleaningSheet'
 import OfferSheet from './OfferSheet'
+import { errorText } from './errors'
 import { addDays, formatDay, formatMoney, formatTime, toISODate } from './format'
 import { ActionButton, Chip, Screen, Section } from './miniapp-ui'
 
@@ -82,10 +83,8 @@ export default function MiniAppPage() {
         storeSession(await telegramMiniAppLogin(getInitData()))
         setAuthState('ready')
       } catch (error) {
-        const detail = (error as { response?: { data?: { detail?: string } } }).response?.data
-          ?.detail
         setAuthState('failed')
-        setAuthError(detail || t('miniapp.authFailed'))
+        setAuthError(errorText(error, t('miniapp.authFailed'), t))
       }
     }
 

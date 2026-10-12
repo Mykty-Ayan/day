@@ -413,19 +413,10 @@ class GanttDataResponse(BaseModel):
 # ---------- Today ----------
 
 
-class TodayBookingItem(BaseModel):
-    id: uuid.UUID
-    guest_name: str
-    property_name: str
-    property_internal_name: str
+class TodayBookingItem(BookingResponse):
+    """A whole booking: the Mini App opens these rows as booking cards (money, guest, flat)."""
+
     property_status: PropertyStatus | None = None
-    check_in: datetime
-    check_out: datetime
-    rental_mode: RentalMode = RentalMode.DAILY
-    status: BookingStatus
-    adults_count: int
-    children_count: int
-    overbooking: bool = False
 
 
 class TodayCheckResponse(BaseModel):
