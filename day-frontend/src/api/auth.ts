@@ -13,6 +13,17 @@ export interface UserResponse {
   company_id: string
   role: string
   is_active: boolean
+  two_factor_enabled: boolean
+  telegram_linked: boolean
+}
+
+/** Tokens, or a challenge when the account asks for a Telegram code too. */
+export interface LoginResponse {
+  access_token: string | null
+  refresh_token: string | null
+  token_type: string
+  two_factor_required: boolean
+  challenge: string | null
 }
 
 export interface LoginInput {
@@ -26,8 +37,18 @@ export interface RegisterInput {
   company_name: string
 }
 
-export async function login(data: LoginInput): Promise<TokenResponse> {
-  const res = await apiClient.post<TokenResponse>('/auth/login', data)
+export async function login(data: LoginInput): Promise<LoginResponse> {
+  const res = await apiClient.post<LoginResponse>('/auth/login', data)
+  return res.data
+}
+
+export async function verifyLogin(challenge: string, code: string): Promise<TokenResponse> {
+  const res = await apiClient.post<TokenResponse>('/auth/login/verify', { challenge, code })
+  return res.data
+}
+
+export async function setTwoFactor(enabled: boolean, password: string): Promise<UserResponse> {
+  const res = await apiClient.post<UserResponse>('/auth/two-factor', { enabled, password })
   return res.data
 }
 

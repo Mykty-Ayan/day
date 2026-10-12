@@ -112,13 +112,15 @@ def test_without_redis_logins_are_not_blocked(redis):
 
 
 class _FailingAuth:
-    async def login(self, email, password):
+    async def authenticate(self, email, password):
         raise ValueError("Invalid email or password")
 
 
 class _OkAuth:
-    async def login(self, email, password):
-        return {"access_token": "a", "refresh_token": "r", "token_type": "bearer"}
+    async def authenticate(self, email, password):
+        from app.domain.auth.entities import User
+
+        return User(email=email)
 
 
 async def _post_login(monkeypatch, throttle, service, email="owner@example.com"):
@@ -158,7 +160,7 @@ class _CountingAuth:
     def __init__(self):
         self.checked = 0
 
-    async def login(self, email, password):
+    async def authenticate(self, email, password):
         self.checked += 1
         await asyncio.sleep(0)  # let the parallel requests interleave
         raise ValueError("Invalid email or password")

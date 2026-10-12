@@ -3,9 +3,11 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.application.auth.auth_service import AuthService
+from app.application.auth.auth_service import AuthService, issue_tokens
 from app.application.auth.password_reset import PasswordResetService, ResetUnavailable
+from app.application.auth.telegram_codes import CodesUnavailable, private_chat_of
 from app.application.auth.telegram_login import TelegramLoginService, TelegramNotLinked, TelegramSessionEnded
+from app.application.auth.two_factor import TwoFactorService
 from app.config import settings
 from app.domain.messaging.value_objects import Channel
 from app.infrastructure.database import get_session
@@ -19,6 +21,8 @@ from app.presentation.api.deps import Principal, get_current_user, get_principal
 from app.presentation.schemas.auth import (
     ChangePasswordRequest,
     LoginRequest,
+    LoginResponse,
+    LoginVerifyRequest,
     LogoutRequest,
     PasswordResetConfirm,
     PasswordResetRequest,
@@ -26,6 +30,7 @@ from app.presentation.schemas.auth import (
     RegisterRequest,
     TelegramMiniAppRequest,
     TokenResponse,
+    TwoFactorRequest,
     UserResponse,
 )
 
@@ -47,7 +52,16 @@ async def register(body: RegisterRequest, session: AsyncSession = Depends(get_se
     return tokens
 
 
-@auth_router.post("/login", response_model=TokenResponse)
+def _two_factor(session: AsyncSession) -> TwoFactorService:
+    return TwoFactorService(
+        SqlUserRepository(session),
+        SqlChannelIdentityRepository(session),
+        get_redis(),
+        get_provider(Channel.TELEGRAM),
+    )
+
+
+@auth_router.post("/login", response_model=LoginResponse)
 async def login(
     body: LoginRequest,
     session: AsyncSession = Depends(get_session),
@@ -62,11 +76,47 @@ async def login(
         )
     svc = _auth_service(session)
     try:
-        tokens = await svc.login(body.email, body.password)
+        user = await svc.authenticate(body.email, body.password)
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(e))
     throttle.succeeded(body.email)
-    return tokens
+    if not user.two_factor_enabled:
+        return issue_tokens(user)
+    try:
+        challenge = await _two_factor(session).start(user)
+    except CodesUnavailable:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Sign-in codes are unavailable")
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    return LoginResponse(two_factor_required=True, challenge=challenge)
+
+
+@auth_router.post("/login/verify", response_model=TokenResponse)
+async def verify_login(body: LoginVerifyRequest, session: AsyncSession = Depends(get_session)):
+    """The second step: the code from Telegram for the challenge the password earned."""
+    try:
+        return await _two_factor(session).verify(body.challenge, body.code)
+    except CodesUnavailable:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Sign-in codes are unavailable")
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
+
+@auth_router.post("/two-factor", response_model=UserResponse)
+async def set_two_factor(
+    body: TwoFactorRequest,
+    principal: Principal = Depends(get_principal),
+    session: AsyncSession = Depends(get_session),
+):
+    """Turn the Telegram code at sign-in on or off; both directions take the password."""
+    if principal.user_id is None:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="An API key has no sign-in")
+    try:
+        user = await _two_factor(session).set_enabled(principal.user_id, body.password, body.enabled)
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    await session.commit()
+    return await _user_response(user, session)
 
 
 @auth_router.post("/refresh", response_model=TokenResponse)
@@ -180,10 +230,16 @@ async def me(user: dict = Depends(get_current_user), session: AsyncSession = Dep
     db_user = await svc.get_current_user(uuid.UUID(user["sub"]))
     if not db_user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+    return await _user_response(db_user, session)
+
+
+async def _user_response(user, session: AsyncSession) -> UserResponse:
     return UserResponse(
-        id=db_user.id,
-        email=db_user.email,
-        company_id=db_user.company_id,
-        role=db_user.role,
-        is_active=db_user.is_active,
+        id=user.id,
+        email=user.email,
+        company_id=user.company_id,
+        role=user.role,
+        is_active=user.is_active,
+        two_factor_enabled=user.two_factor_enabled,
+        telegram_linked=await private_chat_of(SqlChannelIdentityRepository(session), user) is not None,
     )

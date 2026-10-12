@@ -930,6 +930,20 @@
       "tooMany": "Too many attempts, wait a minute",
       "unavailable": "Reset is unavailable right now, try later",
       "failed": "Something went wrong, try again"
+    },
+    "twoFactor": {
+      "title": "Code from Telegram",
+      "hint": "We sent a code to your Telegram chat with the Day bot",
+      "signIn": "Sign in",
+      "cardTitle": "Sign-in code from Telegram",
+      "cardOn": "On: after the password we ask for a code from Telegram",
+      "cardOff": "Off: the password alone signs in",
+      "needTelegram": "Link Telegram first: Settings → Team",
+      "password": "Password to confirm",
+      "enable": "Turn on",
+      "disable": "Turn off",
+      "saved": "Saved",
+      "wrongPassword": "Wrong password"
     }
   }
 }
