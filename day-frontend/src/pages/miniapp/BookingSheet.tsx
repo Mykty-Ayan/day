@@ -120,6 +120,11 @@ export default function BookingSheet({
 
   return (
     <Sheet open title={booking.guest_name || booking.property_name} onClose={onClose}>
+      {booking.overbooking && (
+        <p role="alert" className="rounded-xl bg-red-600 px-3 py-2 text-xs font-semibold text-white">
+          {t('bookings.overbooking.detail')}
+        </p>
+      )}
       <div className="tg-surface rounded-xl px-3 py-3">
         <p className="text-sm font-semibold">{booking.property_name}</p>
         <p className="tg-hint text-xs">

@@ -163,6 +163,8 @@ class BookingFeedItem(BaseModel):
     children_count: int
     external_id: str | None = None
     expires_at: datetime | None = None
+    # An OTA booking on nights already taken; see BookingResponse.
+    overbooking: bool = False
     created_at: datetime
     updated_at: datetime
 
@@ -401,6 +403,7 @@ class TodayBookingItem(BaseModel):
     status: BookingStatus
     adults_count: int
     children_count: int
+    overbooking: bool = False
 
 
 class TodayCheckResponse(BaseModel):
