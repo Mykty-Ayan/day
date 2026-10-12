@@ -955,7 +955,8 @@
       "keepAmount": "How much to keep",
       "reason": "Reason",
       "reasonPlaceholder": "Broken mirror",
-      "cancel": "Cancel"
+      "cancel": "Cancel",
+      "alreadyTaken": "A deposit is already taken; the list is updated"
     },
     "ask": {
       "intro": "Ask in words — I answer and act.",
