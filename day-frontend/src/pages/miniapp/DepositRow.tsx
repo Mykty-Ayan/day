@@ -61,7 +61,11 @@ export default function DepositRow({
       setAmount('')
       refresh()
     },
-    onError,
+    onError: (error) => {
+      // A lost answer may hide a deposit already made: reread before another "Take".
+      queryClient.invalidateQueries({ queryKey: ['miniapp', 'deposits', bookingId] })
+      onError(error)
+    },
   })
 
   const act = useMutation({
