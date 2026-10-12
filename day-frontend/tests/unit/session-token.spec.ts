@@ -7,7 +7,7 @@
  */
 
 import { expect, test } from '@playwright/test'
-import { companyFromToken, replayableIn } from '../../src/lib/token'
+import { companyFromToken, replayableIn, sendableFor } from '../../src/lib/token'
 
 function token(claims: Record<string, unknown>): string {
   return `h.${btoa(JSON.stringify(claims)).replace(/=+$/, '')}.s`
@@ -33,4 +33,13 @@ test('a request is not sent again under another company', () => {
 
 test('a request made with no session may go under any', () => {
   expect(replayableIn(undefined, B)).toBe(true)
+})
+
+test('a request made for one company goes out only with that company\'s token', () => {
+  // Another window signed in to another company between the check and the send.
+  expect(sendableFor('c-a', B)).toBe(false)
+  expect(sendableFor('c-a', A2)).toBe(true)
+  expect(sendableFor('c-a', null)).toBe(false)
+  // A request that names no company goes with any token, as before.
+  expect(sendableFor(undefined, B)).toBe(true)
 })
