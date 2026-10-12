@@ -35,7 +35,7 @@ import OfferSheet from './OfferSheet'
 import SellScreen from './SellScreen'
 import UnitSheet from './UnitSheet'
 import type { SellRange } from './sell'
-import { linkedBookingId } from './card-state'
+import { cardRead, linkedBookingId } from './card-state'
 import { errorText } from './errors'
 import { addDays, formatDay, formatMoney, formatTime, toISODate } from './format'
 import { ActionButton, Chip, Screen, Section } from './miniapp-ui'
@@ -103,8 +103,8 @@ export default function MiniAppPage() {
   })
 
   const linked = useQuery({
-    queryKey: ['miniapp', 'booking', linkedId],
-    queryFn: () => getBooking(linkedId!),
+    // The card's own read: the same cache entry, cancelled the same way.
+    ...cardRead(['miniapp', 'booking', linkedId], (signal) => getBooking(linkedId!, signal)),
     enabled: enabled && Boolean(linkedId),
     retry: false,
   })
