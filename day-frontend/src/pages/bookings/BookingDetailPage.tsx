@@ -213,6 +213,11 @@ export default function BookingDetailPage() {
               </h1>
               <BookingStatusBadge status={booking.status} />
             </div>
+            {booking.overbooking && (
+              <p role="alert" className="mt-2 rounded-lg bg-red-50 px-3 py-2 text-xs font-semibold text-red-700">
+                {t('bookings.overbooking.detail')}
+              </p>
+            )}
             <p className="text-sm text-gray-500">
               {booking.guest_name} &middot; {formatDate(booking.check_in, i18n.language)} <ArrowRight className="w-3 h-3 inline text-gray-400" /> {formatDate(booking.check_out, i18n.language)}
             </p>

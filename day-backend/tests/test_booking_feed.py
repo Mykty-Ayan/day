@@ -289,6 +289,48 @@ async def test_an_item_carries_what_the_crm_matches_on(feed_api):
     assert item["paid_amount"] == "5000.00"
 
 
+async def test_an_item_says_when_it_landed_on_nights_already_taken(feed_api):
+    clash = _booking(NOW - timedelta(minutes=6), overbooking=True)
+    plain = _booking(NOW - timedelta(minutes=5))
+    feed_api([clash, plain])
+
+    items = (await _get("/api/v1/bookings/feed", _principal(Permission.BOOKINGS_READ))).json()["items"]
+
+    # The CRM sees an OTA clash as a plain "confirmed" without this flag.
+    assert [i["overbooking"] for i in items] == [True, False]
+
+
+async def test_today_says_which_arrival_landed_on_nights_already_taken(monkeypatch):
+    from app.domain.property.entities import Property
+    from app.presentation.api import deps
+    from app.presentation.api.v1 import bookings
+
+    class _Range:
+        def __init__(self, rows):
+            self._rows = rows
+
+        async def list_by_company_date_range(self, company_id, start, end):
+            return [b for b in self._rows if b.company_id == company_id]
+
+    guest = Guest(company_id=COMPANY_ID, name="Guest")
+    prop = Property(company_id=COMPANY_ID, name="Т13", internal_name="t13")
+    arrivals = [
+        _booking(NOW, guest_id=guest.id, property_id=prop.id, overbooking=True),
+        _booking(NOW, guest_id=guest.id, property_id=prop.id),
+    ]
+    repos = {"booking": _Range(arrivals), "guest": _ById([guest]), "property": _ById([prop])}
+    monkeypatch.setattr(bookings, "_repos", lambda session: repos)
+    app.dependency_overrides[deps.get_session] = lambda: _Session()
+    try:
+        response = await _get("/api/v1/bookings/today", _principal(Permission.BOOKINGS_READ), date="2026-11-01")
+    finally:
+        app.dependency_overrides.pop(deps.get_session, None)
+
+    assert response.status_code == 200
+    # The Mini App opens a booking from "Arrivals" and must warn before check-in.
+    assert [i["overbooking"] for i in response.json()["check_ins"]] == [True, False]
+
+
 async def test_a_phone_we_cannot_normalise_gives_null(feed_api):
     guest = Guest(company_id=COMPANY_ID, name="Guest", phone="+44 20 7946 0958")
     row = _booking(NOW - timedelta(minutes=5), guest_id=guest.id)

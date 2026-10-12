@@ -146,10 +146,19 @@ export default function GanttAgendaView({ rows, rangeStart, rangeEnd }: Props) {
                         search: { from: 'gantt' } as Record<string, string>,
                       })
                     }
-                    className="w-full rounded-lg border border-gray-200 bg-gray-50 p-3 text-left transition-colors hover:bg-gray-100"
+                    className={`w-full rounded-lg border border-gray-200 bg-gray-50 p-3 text-left transition-colors hover:bg-gray-100 ${
+                      booking.overbooking ? 'outline outline-2 outline-red-600 outline-offset-1' : ''
+                    }`}
                   >
                     <div className="flex flex-wrap items-center justify-between gap-2">
-                      <p className="text-sm font-semibold text-gray-900">{booking.guest_name}</p>
+                      <p className="text-sm font-semibold text-gray-900">
+                        {booking.overbooking && (
+                          <span className="mr-1.5 inline-flex rounded bg-red-600 px-1.5 py-0.5 text-[10px] font-bold text-white">
+                            {t('bookings.overbooking.short')}
+                          </span>
+                        )}
+                        {booking.guest_name}
+                      </p>
                       <span
                         className={`inline-flex rounded-md border px-2 py-0.5 text-[10px] font-semibold ${bookingStatusClass[booking.status]}`}
                       >

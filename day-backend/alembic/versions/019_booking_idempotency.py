@@ -36,6 +36,9 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    # The code before this revision has no "crm" source and fails to read a
+    # booking that carries it, so a rollback must not leave any behind.
+    op.execute("UPDATE bookings SET source = 'other' WHERE source = 'crm'")
     op.drop_index("uq_bookings_company_idempotency_key", table_name="bookings")
     op.drop_column("bookings", "idempotency_hash")
     op.drop_column("bookings", "idempotency_key")

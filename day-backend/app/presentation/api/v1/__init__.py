@@ -9,6 +9,7 @@ from app.presentation.api.v1.channels import channel_router
 from app.presentation.api.v1.channex import channex_router
 from app.presentation.api.v1.cleaning import checklist_router, cleaning_router, rating_router
 from app.presentation.api.v1.health import router as health_router
+from app.presentation.api.v1.ical import ical_router
 from app.presentation.api.v1.leads import blacklist_router, lead_router
 from app.presentation.api.v1.properties import amenity_router
 from app.presentation.api.v1.properties import router as properties_router
@@ -40,3 +41,4 @@ api_v1_router.include_router(channel_router)
 api_v1_router.include_router(channex_router)
 api_v1_router.include_router(assistant_router)
 api_v1_router.include_router(webhook_router)
+api_v1_router.include_router(ical_router)

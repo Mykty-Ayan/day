@@ -183,6 +183,7 @@ def _to_booking_response(
         property_internal_name=property_internal_name,
         external_id=b.external_id,
         expires_at=b.expires_at.replace(tzinfo=timezone.utc) if b.expires_at else None,
+        overbooking=b.overbooking,
         created_at=b.created_at,
         updated_at=b.updated_at,
     )
@@ -445,6 +446,7 @@ async def booking_feed(
                 children_count=b.children_count,
                 external_id=b.external_id,
                 expires_at=b.expires_at.replace(tzinfo=timezone.utc) if b.expires_at else None,
+                overbooking=b.overbooking,
                 created_at=b.created_at.replace(tzinfo=timezone.utc),
                 updated_at=b.updated_at.replace(tzinfo=timezone.utc),
             )
@@ -501,6 +503,7 @@ async def get_today(
             status=b.status,
             adults_count=b.adults_count,
             children_count=b.children_count,
+            overbooking=b.overbooking,
         )
         # check_in/check_out are datetimes; compare on their calendar date.
         check_in_date = b.check_in.date() if b.check_in is not None else None
@@ -1205,6 +1208,7 @@ def _build_gantt_response(result) -> GanttDataResponse:
                         adults_count=b.adults_count,
                         children_count=b.children_count,
                         total_price=b.total_price,
+                        overbooking=b.overbooking,
                     )
                     for b in p.bookings
                 ],
