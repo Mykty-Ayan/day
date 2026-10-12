@@ -14,6 +14,7 @@ import {
   Pencil,
   Copy,
   CalendarSync,
+  ImagePlus,
 } from 'lucide-react'
 import { useParams, Link, useNavigate } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
@@ -30,6 +31,7 @@ import {
   useDeleteDiscountRule,
   usePropertyAuditLog,
   useCloneProperty,
+  useUploadPhotos,
 } from '../../hooks/useProperties'
 import { getCalendarLink, getPricing } from '../../api/properties'
 import { useCurrentUser } from '../../hooks/useAuth'
@@ -71,6 +73,20 @@ export default function PropertyDetailPage() {
   const { propertyId } = useParams({ strict: false }) as { propertyId: string }
   const navigate = useNavigate()
   const { data: property, isLoading } = useProperty(propertyId)
+  const uploadPhotos = useUploadPhotos(propertyId)
+
+  function addPhotos(event: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(event.target.files ?? [])
+    event.target.value = ''
+    if (files.length === 0) return
+    const startAt = Math.max(-1, ...(property?.photos ?? []).map((photo) => photo.sort_order)) + 1
+    uploadPhotos.mutate({ files, startAt }, {
+      onSuccess: (failed) =>
+        failed > 0
+          ? showToast('error', t('properties.photosNotAdded', { count: failed }))
+          : showToast('success', t('properties.photosAdded', { count: files.length })),
+    })
+  }
   const { data: allProperties } = useAllProperties()
   const changeStatus = useChangePropertyStatus(propertyId)
   const updatePropertyMut = useUpdateProperty(propertyId)
@@ -238,9 +254,21 @@ export default function PropertyDetailPage() {
         </div>
 
         {/* Photo gallery */}
-        {property.photos.length > 0 && (
-          <div className="mb-6">
-            <div className="flex gap-2 overflow-x-auto pb-2">
+        <div className="mb-6">
+          <div className="flex gap-2 overflow-x-auto pb-2">
+            <label className="shrink-0 w-48 h-32 rounded-xl border border-dashed border-gray-300 flex flex-col items-center justify-center gap-1 text-xs font-semibold text-gray-600 cursor-pointer hover:bg-gray-50">
+              <ImagePlus className="w-5 h-5" />
+              {uploadPhotos.isPending ? t('properties.photosUploading') : t('properties.addPhotos')}
+              <input
+                id="add-photos"
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                multiple
+                className="hidden"
+                disabled={uploadPhotos.isPending}
+                onChange={addPhotos}
+              />
+            </label>
               {property.photos.map((photo) => (
                 <div
                   key={photo.id}
@@ -255,9 +283,8 @@ export default function PropertyDetailPage() {
                   />
                 </div>
               ))}
-            </div>
           </div>
-        )}
+        </div>
 
         <CalendarLinkCard propertyId={propertyId} />
 

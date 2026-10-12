@@ -3,7 +3,6 @@
 import uuid
 
 import pytest
-from botocore.exceptions import ClientError
 
 from app.config import settings
 from app.domain.auth.value_objects import UserRole
@@ -71,36 +70,24 @@ async def test_an_oversized_file_is_refused(uploads, monkeypatch):
 
 
 class _Bucket:
-    def __init__(self, error: str | None = None):
-        self.calls = []
-        self._error = error
+    def __init__(self):
+        self.policies = []
 
     def put_bucket_policy(self, **kwargs):
-        self.calls.append("put")
-
-    def delete_bucket_policy(self, **kwargs):
-        self.calls.append("delete")
-        if self._error:
-            raise ClientError({"Error": {"Code": self._error}}, "DeleteBucketPolicy")
+        self.policies.append(kwargs)
 
 
-def test_a_private_bucket_drops_a_public_policy_left_from_before(monkeypatch):
-    monkeypatch.setattr(settings, "S3_PUBLIC_READ", False)
+def _readable(bucket) -> list[str]:
+    import json
+
+    return json.loads(bucket.policies[-1]["Policy"])["Statement"][0]["Resource"]
+
+
+def test_the_bucket_shows_only_listing_photos():
+    # The policy replaces one left by an earlier deploy that opened everything.
     bucket = _Bucket()
     s3.apply_read_policy(bucket)
-    assert bucket.calls == ["delete"]
-
-
-def test_a_bucket_without_a_policy_is_already_private(monkeypatch):
-    monkeypatch.setattr(settings, "S3_PUBLIC_READ", False)
-    s3.apply_read_policy(_Bucket(error="NoSuchBucketPolicy"))
-
-
-def test_public_read_is_still_available_when_asked_for(monkeypatch):
-    monkeypatch.setattr(settings, "S3_PUBLIC_READ", True)
-    bucket = _Bucket()
-    s3.apply_read_policy(bucket)
-    assert bucket.calls == ["put"]
+    assert _readable(bucket) == [f"arn:aws:s3:::{settings.S3_BUCKET}/properties/*"]
 
 
 @pytest.mark.asyncio
