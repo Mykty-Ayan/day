@@ -18,7 +18,8 @@ from app.infrastructure.security import calendar_token
 
 ical_router = APIRouter(prefix="/calendar", tags=["calendar"])
 
-_HORIZON_DAYS = 540  # the platforms read up to 18 months ahead
+# Airbnb imports up to two years ahead; a booking past the feed's end could be sold again.
+_HORIZON_DAYS = 3 * 366
 
 
 def _repos(session: AsyncSession):
@@ -32,7 +33,8 @@ async def property_calendar(
     session: AsyncSession = Depends(get_session),
 ):
     # The same answer for a wrong token and a missing flat: the link is the key.
-    if not hmac.compare_digest(token, calendar_token(property_id)):
+    # As bytes: compare_digest refuses a str with non-ASCII characters (a 500, not a 404).
+    if not hmac.compare_digest(token.encode(), calendar_token(property_id).encode()):
         raise HTTPException(status_code=404, detail="Not found")
     properties, bookings = _repos(session)
     prop = await properties.get_by_id(property_id)

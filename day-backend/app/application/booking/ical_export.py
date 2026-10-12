@@ -28,13 +28,20 @@ def blocked_nights(bookings: list[Booking], check_in_hour: int, check_out_hour: 
     for booking in bookings:
         if booking.status in _FREE:
             continue
+        touched = False
         day = booking.check_in.date() - timedelta(days=1)
         while datetime.combine(day, time(check_in_hour)) < booking.check_out:
             night_start = datetime.combine(day, time(check_in_hour))
             night_end = datetime.combine(day + timedelta(days=1), time(check_out_hour))
             if booking.check_in < night_end and booking.check_out > night_start:
                 nights.add(day)
+                touched = True
             day += timedelta(days=1)
+        if not touched:
+            # Inside the turnover gap (say 12:00–14:00) it touches no night, but a
+            # stay running through that day would clash. A feed only says "night
+            # taken", so take the evening's night: safe, at worst one night unsold.
+            nights.add(booking.check_in.date())
 
     ranges: list[tuple[date, date]] = []
     for night in sorted(nights):

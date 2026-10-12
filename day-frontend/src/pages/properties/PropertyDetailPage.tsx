@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { useQueries } from '@tanstack/react-query'
+import { useQueries, useQuery } from '@tanstack/react-query'
 import { motion } from 'framer-motion'
 import {
   ArrowLeft,
@@ -508,24 +508,28 @@ export default function PropertyDetailPage() {
 function CalendarLinkCard({ propertyId }: { propertyId: string }) {
   const { t } = useTranslation()
   const { data: user } = useCurrentUser()
-  const [busy, setBusy] = useState(false)
-  if (!user || user.role === 'cleaner') return null
+  const allowed = Boolean(user) && user?.role !== 'cleaner'
+  // Fetched up front: Safari refuses a clipboard write that follows an await
+  // inside the click, so the click must have the link already.
+  const link = useQuery({
+    queryKey: ['properties', propertyId, 'calendar-link'],
+    queryFn: () => getCalendarLink(propertyId),
+    enabled: allowed,
+    staleTime: Infinity,
+  })
+  if (!allowed) return null
 
-  async function copyLink() {
-    setBusy(true)
-    try {
-      const url = await getCalendarLink(propertyId)
-      await navigator.clipboard.writeText(url)
-      showToast('success', t('properties.calendar.copied'))
-    } catch {
-      showToast('error', t('properties.calendar.failed'))
-    } finally {
-      setBusy(false)
-    }
+  function copyLink() {
+    if (!link.data) return
+    navigator.clipboard.writeText(link.data).then(
+      () => showToast('success', t('properties.calendar.copied')),
+      // The link stays on screen to copy by hand.
+      () => showToast('error', t('properties.calendar.copyFailed')),
+    )
   }
 
   return (
-    <div className="mb-6 bg-white border border-gray-200 rounded-xl p-5 shadow-sm flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+    <div className="mb-6 bg-white border border-gray-200 rounded-xl p-5 shadow-sm flex flex-col gap-3">
       <div className="flex items-start gap-2 min-w-0">
         <CalendarSync className="w-4 h-4 mt-0.5 shrink-0 text-gray-500" />
         <div className="min-w-0">
@@ -533,9 +537,23 @@ function CalendarLinkCard({ propertyId }: { propertyId: string }) {
           <p className="text-xs text-gray-500">{t('properties.calendar.hint')}</p>
         </div>
       </div>
-      <Button type="button" onClick={copyLink} disabled={busy}>
-        {t('properties.calendar.copy')}
-      </Button>
+      {link.isError ? (
+        <p className="text-xs text-red-600">{t('properties.calendar.failed')}</p>
+      ) : (
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <input
+            type="text"
+            readOnly
+            value={link.data ?? ''}
+            onFocus={(e) => e.currentTarget.select()}
+            aria-label={t('properties.calendar.title')}
+            className="min-w-0 flex-1 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 font-mono text-xs text-gray-700"
+          />
+          <Button type="button" onClick={copyLink} disabled={!link.data}>
+            {t('properties.calendar.copy')}
+          </Button>
+        </div>
+      )}
     </div>
   )
 }
