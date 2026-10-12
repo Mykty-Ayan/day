@@ -16,6 +16,7 @@ import {
   confirmPayment,
   getBooking,
   updateBooking,
+  voidPaymentKey,
 } from '../../api/bookings'
 import { getProperty } from '../../api/properties'
 import type { Booking, BookingPayment, BookingStatus, PaymentMethod } from '../../types/booking'
@@ -23,12 +24,15 @@ import { confirmAction, copyText, openWhatsApp, resultFeedback } from '../../lib
 import {
   canCancel,
   extendedCheckOut,
+  latestCall,
   loadAttempt,
   afterFailure,
+  nextCall,
   phoneDigits,
   sameAttempt,
   saveAttempt,
   settlement,
+  storedAttempt,
   type MoneyAttempt,
 } from './booking-card'
 import { cardRead, readyToAct } from './card-state'
@@ -141,11 +145,20 @@ export default function BookingSheet({
     return opened ? sameAttempt(loadAttempt(attemptStorage(), opened.id), attempt) : false
   }
 
-  // The attempt whose history was asked for after it was made: only then may it be discarded.
-  const [checkedFor, setCheckedFor] = useState<string | null>(null)
-  const [checkingHistory, setCheckingHistory] = useState(false)
-  const attemptId = (attempt: MoneyAttempt) =>
-    attempt.kind === 'payment' ? attempt.key : `receive:${attempt.paymentId}`
+  // Whether a failed send may change the attempt: only the latest send of the one
+  // on the phone. An earlier send's late refusal says nothing about a lost retry.
+  function failedLatest(attempt: MoneyAttempt): MoneyAttempt | null {
+    const stored = opened ? storedAttempt(attemptStorage(), opened.id) : null
+    return latestCall(stored, attempt) ? stored : null
+  }
+
+  // The attempt is settled: gone from the phone unless another one took its place.
+  function settled(attempt: MoneyAttempt) {
+    if (isCurrent(attempt)) setUnsettled(null)
+    else setUnsettledState(opened ? loadAttempt(attemptStorage(), opened.id) : null)
+  }
+
+  const [checking, setChecking] = useState(false)
 
   function fail(mutationError: unknown) {
     resultFeedback('error')
@@ -181,9 +194,10 @@ export default function BookingSheet({
       done(false)
     },
     onError: (mutationError, attempt) => {
-      if (!isCurrent(attempt)) return
+      const stored = failedLatest(attempt)
+      if (!stored) return
       // Kept (it was saved before sending) unless the server clearly refused it.
-      setUnsettled(afterFailure(attempt, mutationError))
+      setUnsettled(afterFailure(stored, mutationError))
       fail(mutationError)
     },
   })
@@ -197,8 +211,9 @@ export default function BookingSheet({
       done(false)
     },
     onError: (mutationError, attempt) => {
-      if (!isCurrent(attempt)) return
-      setUnsettled(afterFailure(attempt, mutationError))
+      const stored = failedLatest(attempt)
+      if (!stored) return
+      setUnsettled(afterFailure(stored, mutationError))
       fail(mutationError)
     },
   })
@@ -247,50 +262,65 @@ export default function BookingSheet({
     if (await confirmAction(t('miniapp.booking.cancelAsk'))) setStatus.mutate('cancelled')
   }
 
+  // Each send is numbered and kept before it goes out: closing the card
+  // mid-request must not lose the key, and a late failure of an earlier send
+  // must not undo a later one.
+  function send(attempt: MoneyAttempt) {
+    const call = nextCall(attempt)
+    if (!setUnsettled(call)) {
+      // A first send that cannot be kept is not sent at all.
+      if (!attempt.call) setUnsettled(null)
+      resultFeedback('error')
+      setError(t('miniapp.booking.notKept'))
+      return
+    }
+    if (call.kind === 'payment') pay.mutate(call)
+    else receive.mutate(call)
+  }
+
   async function askPay() {
     const methodLabel = t(`miniapp.methods.${method}`)
     if (await confirmAction(t('miniapp.booking.payAsk', { amount: money(amountValue), method: methodLabel }))) {
-      // Saved before it is sent: closing the card mid-request must not lose the key.
-      const attempt: PaymentAttempt = { kind: 'payment', amount: amountValue, method, key: newKey() }
-      if (!setUnsettled(attempt)) {
-        setUnsettled(null)
-        resultFeedback('error')
-        setError(t('miniapp.booking.notKept'))
-        return
-      }
-      pay.mutate(attempt)
+      send({ kind: 'payment', amount: amountValue, method, key: newKey() } satisfies PaymentAttempt)
     }
   }
 
-  async function checkHistory(attempt: MoneyAttempt) {
-    // Asked now, after the attempt: a payment that was recorded shows in it. The
-    // history read when the card opened may predate the payment itself.
-    setCheckingHistory(true)
+  // Settles an attempt whose answer was lost, on the server. For a payment the
+  // key is voided under its lock: either it recorded the payment, or it never
+  // will, even if the first send is still on its way. Confirming a payment
+  // twice is harmless, so for "received" a fresh read is enough.
+  async function checkAttempt(attempt: MoneyAttempt) {
+    setChecking(true)
     try {
+      if (attempt.kind === 'payment') {
+        const outcome = await voidPaymentKey(booking!.id, attempt.key)
+        settled(attempt)
+        if (!outcome.voided) {
+          // Recorded: the amount still in the field must not be paid again.
+          setAmount('')
+          return done(false)
+        }
+        // Never recorded: the amount stays in the field to be entered again.
+        setError(t('miniapp.booking.notRecorded', { amount: money(attempt.amount) }))
+        refresh()
+        return
+      }
       const detail = await getBooking(booking!.id)
       queryClient.setQueryData(['miniapp', 'booking', booking!.id], detail)
-      setCheckedFor(attemptId(attempt))
+      settled(attempt)
+      const payment = detail.payments.find((item) => item.id === attempt.paymentId)
+      if (payment?.status === 'completed') return done(false)
+      setError(t('miniapp.booking.notReceived', { amount: money(attempt.amount) }))
     } catch (checkError) {
       fail(checkError)
     } finally {
-      setCheckingHistory(false)
+      setChecking(false)
     }
-  }
-
-  async function askDiscard(attempt: MoneyAttempt) {
-    if (await confirmAction(t('miniapp.booking.discardAsk', { amount: money(attempt.amount) }))) setUnsettled(null)
   }
 
   async function askReceive(payment: BookingPayment) {
     if (await confirmAction(t('miniapp.booking.receivedAsk', { amount: money(payment.amount) }))) {
-      const attempt: ReceiveAttempt = { kind: 'receive', paymentId: payment.id, amount: payment.amount }
-      if (!setUnsettled(attempt)) {
-        setUnsettled(null)
-        resultFeedback('error')
-        setError(t('miniapp.booking.notKept'))
-        return
-      }
-      receive.mutate(attempt)
+      send({ kind: 'receive', paymentId: payment.id, amount: payment.amount } satisfies ReceiveAttempt)
     }
   }
 
@@ -399,27 +429,18 @@ export default function BookingSheet({
               </p>
               <ActionButton
                 tone="primary"
-                disabled={settling || pay.isPending || receive.isPending}
-                onClick={() => (unsettled.kind === 'payment' ? pay.mutate(unsettled) : receive.mutate(unsettled))}
+                disabled={settling || checking || pay.isPending || receive.isPending}
+                onClick={() => send(unsettled)}
               >
                 <Wallet className="h-4 w-4" />
                 {t('miniapp.booking.retryPayment', { amount: money(unsettled.amount) })}
               </ActionButton>
-              {checkedFor === attemptId(unsettled) ? (
-                <ActionButton
-                  disabled={settling || pay.isPending || receive.isPending}
-                  onClick={() => askDiscard(unsettled)}
-                >
-                  {t('miniapp.booking.discardAttempt')}
-                </ActionButton>
-              ) : (
-                <ActionButton
-                  disabled={checkingHistory || pay.isPending || receive.isPending}
-                  onClick={() => checkHistory(unsettled)}
-                >
-                  {checkingHistory ? t('miniapp.loading') : t('miniapp.booking.checkHistory')}
-                </ActionButton>
-              )}
+              <ActionButton
+                disabled={checking || pay.isPending || receive.isPending}
+                onClick={() => checkAttempt(unsettled)}
+              >
+                {checking ? t('miniapp.loading') : t('miniapp.booking.checkAttempt')}
+              </ActionButton>
             </div>
           )}
 

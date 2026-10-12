@@ -54,6 +54,15 @@ export async function createBooking(data: BookingCreateInput, idempotencyKey?: s
   return res.data
 }
 
+/** Settle a create whose answer was lost: the booking its key made, or the key
+ *  is closed (`voided`) and a late request with it makes nothing. */
+export async function voidBookingKey(idempotencyKey: string): Promise<{ voided: boolean; booking: Booking | null }> {
+  const res = await apiClient.post('/bookings/idempotency-key/void', null, {
+    headers: { 'Idempotency-Key': idempotencyKey },
+  })
+  return res.data
+}
+
 export async function updateBooking(
   id: string,
   data: BookingUpdateInput,
@@ -100,6 +109,18 @@ export async function addPayment(
 ): Promise<BookingPayment> {
   const res = await apiClient.post(`/bookings/${bookingId}/payments`, data, {
     headers: idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : undefined,
+  })
+  return res.data
+}
+
+/** Settle a payment whose answer was lost: the payment its key recorded, or the
+ *  key is closed (`voided`) and a late request with it records nothing. */
+export async function voidPaymentKey(
+  bookingId: string,
+  idempotencyKey: string,
+): Promise<{ voided: boolean; payment: BookingPayment | null }> {
+  const res = await apiClient.post(`/bookings/${bookingId}/payments/idempotency-key/void`, null, {
+    headers: { 'Idempotency-Key': idempotencyKey },
   })
   return res.data
 }

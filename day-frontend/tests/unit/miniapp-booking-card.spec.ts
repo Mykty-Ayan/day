@@ -9,12 +9,15 @@ import {
   afterFailure,
   canCancel,
   extendedCheckOut,
+  latestCall,
   loadAttempt,
+  nextCall,
   paymentMaybeRecorded,
   phoneDigits,
   sameAttempt,
   saveAttempt,
   settlement,
+  storedAttempt,
   type MoneyAttempt,
 } from '../../src/pages/miniapp/booking-card'
 import type { BookingPayment } from '../../src/types/booking'
@@ -24,6 +27,13 @@ test.describe('phoneDigits', () => {
     expect(phoneDigits('8 (701) 111-22-33')).toBe('77011112233')
     expect(phoneDigits('+7 701 111 22 33')).toBe('77011112233')
     expect(phoneDigits('701 111 22 33')).toBe('77011112233')
+  })
+
+  test('a number written with its own "+" keeps its country code', () => {
+    // Eleven digits starting with 8, like a Kazakh "8 701…", but Hong Kong and Vietnam.
+    expect(phoneDigits('+852 9123 4567')).toBe('85291234567')
+    expect(phoneDigits('+84 90 123 4567')).toBe('84901234567')
+    expect(phoneDigits(' +7 701 111 22 33')).toBe('77011112233')
   })
 
   test('anything else is passed through as digits, and nothing gives nothing', () => {
@@ -129,6 +139,26 @@ test.describe('which attempt an answer belongs to', () => {
   })
 })
 
+test.describe('a late answer to an earlier send of the same attempt', () => {
+  const attempt: MoneyAttempt = { kind: 'payment', amount: 20000, method: 'cash', key: 'k-1' }
+
+  test('each send is numbered', () => {
+    expect(nextCall(attempt).call).toBe(1)
+    expect(nextCall(nextCall(attempt)).call).toBe(2)
+  })
+
+  test('only the latest send of the attempt on the phone may change it', () => {
+    const first = nextCall(attempt)
+    const retry = nextCall({ ...first, uncertain: true })
+    expect(latestCall(first, first)).toBe(true)
+    // The card was reopened and the retry went out: the first send's late 429
+    // must not drop the retry, whose answer was lost too.
+    expect(latestCall(retry, first)).toBe(false)
+    expect(latestCall(null, first)).toBe(false)
+    expect(latestCall(nextCall({ ...attempt, key: 'k-2' }), first)).toBe(false)
+  })
+})
+
 test.describe('an unsettled money attempt outlives the card', () => {
   function memory() {
     const data = new Map<string, string>()
@@ -150,6 +180,14 @@ test.describe('an unsettled money attempt outlives the card', () => {
 
     saveAttempt(storage, 'b-1', null)
     expect(loadAttempt(storage, 'b-1')).toBeNull()
+  })
+
+  test('as kept, it says what the last send knew, to judge the failure of that send', () => {
+    const storage = memory()
+    const attempt: MoneyAttempt = { kind: 'payment', amount: 20000, method: 'cash', key: 'k-1', call: 1 }
+    saveAttempt(storage, 'b-1', attempt)
+    expect(storedAttempt(storage, 'b-1')).toEqual(attempt)
+    expect(storedAttempt(storage, 'b-2')).toBeNull()
   })
 
   test('broken or blocked storage never breaks the card', () => {
