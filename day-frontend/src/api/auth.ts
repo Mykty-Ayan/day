@@ -41,6 +41,20 @@ export async function refreshToken(refresh_token: string): Promise<TokenResponse
   return res.data
 }
 
+/** The answer is the same whether or not the account exists. */
+export async function requestPasswordReset(email: string): Promise<void> {
+  await apiClient.post('/auth/password-reset/request', { email })
+}
+
+export async function confirmPasswordReset(email: string, code: string, newPassword: string): Promise<TokenResponse> {
+  const res = await apiClient.post<TokenResponse>('/auth/password-reset/confirm', {
+    email,
+    code,
+    new_password: newPassword,
+  })
+  return res.data
+}
+
 /** Ends the user's other sessions; the tokens that come back keep this one. */
 export async function changePassword(currentPassword: string, newPassword: string): Promise<TokenResponse> {
   const res = await apiClient.post<TokenResponse>('/auth/change-password', {
