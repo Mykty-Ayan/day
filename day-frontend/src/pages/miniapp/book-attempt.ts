@@ -1,7 +1,7 @@
 /** One press of "Book", and what is left of it when the answer is lost. */
 
 import type { BookingCreateInput } from '../../types/booking'
-import { loadStored, saveStored, type AttemptStore } from './booking-card'
+import { loadStored, saveStored, withAttemptLock, type AttemptLocks, type AttemptStore } from './booking-card'
 
 /** The form as it was at the press, under one Idempotency-Key. */
 export interface BookingAttempt {
@@ -50,10 +50,22 @@ export function latestBookingCall(stored: BookingAttempt | null, failed: Booking
 
 export type BookingStart = 'sent' | 'checkFailed' | 'declined' | 'closed' | 'busy' | 'notKept'
 
+/** Runs a read and a write of the company's attempt as one step. The windows of
+ *  the app share the phone's storage, so without a shared lock two of them could
+ *  both find no attempt and each book the guest into another flat. */
+export function withBookingLock<T>(
+  company: string,
+  run: () => T | PromiseLike<T>,
+  locks?: AttemptLocks,
+): Promise<T> {
+  // Undefined falls back to the browser's Web Locks, as in withAttemptLock.
+  return withAttemptLock(key(company), run, locks)
+}
+
 /** The steps after the press. The blacklist is asked for the phone as it was
  *  pressed (the server does not ask it); a sheet closed meanwhile books nothing;
- *  a booking another window started meanwhile is not overwritten; the attempt
- *  is kept on the phone before it is sent. */
+ *  the attempt is kept on the phone before it is sent, and only if no other
+ *  window kept one meanwhile (claim does both under the lock). */
 export async function startBooking(
   attempt: BookingAttempt,
   steps: {
@@ -61,10 +73,8 @@ export async function startBooking(
     check: (digits: string) => Promise<{ warned: boolean }>
     confirmWarned: () => Promise<boolean>
     isOpen: () => boolean
-    keep: (attempt: BookingAttempt) => boolean
+    claim: (attempt: BookingAttempt) => Promise<'kept' | 'busy' | 'notKept' | 'closed'>
     send: (attempt: BookingAttempt) => void
-    /** The attempt already on the phone, if another window kept one. */
-    busy: () => BookingAttempt | null
   },
 ): Promise<BookingStart> {
   if (steps.digits.length >= 3) {
@@ -78,8 +88,8 @@ export async function startBooking(
     if (check.warned && !(await steps.confirmWarned())) return 'declined'
   }
   if (!steps.isOpen()) return 'closed'
-  if (steps.busy()) return 'busy'
-  if (!steps.keep(attempt)) return 'notKept'
+  const claimed = await steps.claim(attempt)
+  if (claimed !== 'kept') return claimed
   steps.send(attempt)
   return 'sent'
 }

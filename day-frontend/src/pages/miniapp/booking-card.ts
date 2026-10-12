@@ -92,6 +92,40 @@ export type AttemptStore = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>
 
 const attemptKey = (bookingId: string) => `day.miniapp.money.${bookingId}`
 
+/** The part of the Web Locks API used here. */
+export interface AttemptLocks {
+  request<T>(name: string, run: () => T | PromiseLike<T>): Promise<T>
+}
+
+function webLocks(): AttemptLocks | undefined {
+  try {
+    return (navigator as Navigator & { locks?: AttemptLocks }).locks
+  } catch {
+    return undefined
+  }
+}
+
+/** Runs a read and a write of an attempt kept on the phone as one step. The
+ *  windows of the app share that storage, so without a shared lock two of them
+ *  could both find no attempt and each send the money under its own key.
+ *  Without Web Locks (an old webview) it runs unlocked, as one window always did. */
+export function withAttemptLock<T>(
+  name: string,
+  run: () => T | PromiseLike<T>,
+  locks: AttemptLocks | undefined = webLocks(),
+): Promise<T> {
+  return locks ? locks.request(name, run) : Promise.resolve().then(run)
+}
+
+/** The lock of one booking's money attempt. */
+export function withMoneyLock<T>(
+  bookingId: string,
+  run: () => T | PromiseLike<T>,
+  locks: AttemptLocks | undefined = webLocks(),
+): Promise<T> {
+  return withAttemptLock(attemptKey(bookingId), run, locks)
+}
+
 export function loadStored<T>(storage: AttemptStore | undefined, key: string): T | null {
   try {
     const raw = storage?.getItem(key)

@@ -13,6 +13,7 @@ import {
   saveBookingAttempt,
   startBooking,
   storedBookingAttempt,
+  withBookingLock,
   type BookingAttempt,
 } from '../../src/pages/miniapp/book-attempt'
 import { nextCall } from '../../src/pages/miniapp/booking-card'
@@ -44,12 +45,11 @@ function steps(overrides: Partial<Parameters<typeof startBooking>[1]> = {}) {
       check: async () => ({ warned: false }),
       confirmWarned: async () => true,
       isOpen: () => true,
-      keep: (attempt: BookingAttempt) => {
+      claim: async (attempt: BookingAttempt) => {
         kept.push(attempt)
-        return true
+        return 'kept' as const
       },
       send: (attempt: BookingAttempt) => void sent.push(attempt),
-      busy: () => null,
       ...overrides,
     },
   }
@@ -97,15 +97,36 @@ test('a warned guest is booked only on the operator’s yes', async () => {
 
 test('a booking started meanwhile in another window is not overwritten', async () => {
   const other = { ...ATTEMPT, key: 'k-other', uncertain: true }
-  const run = steps({ busy: () => other })
+  const run = steps({ claim: async () => (other ? 'busy' : 'kept') })
 
   expect(await startBooking(ATTEMPT, run.steps)).toBe('busy')
-  expect(run.kept).toEqual([])
   expect(run.sent).toEqual([])
 })
 
+test('the windows of the app take turns on the attempt, one lock per company', async () => {
+  const asked: string[] = []
+  let held = false
+  const locks = {
+    request: async <T,>(name: string, run: () => T | PromiseLike<T>): Promise<T> => {
+      asked.push(name)
+      expect(held).toBe(false)
+      held = true
+      try {
+        return await run()
+      } finally {
+        held = false
+      }
+    },
+  }
+
+  expect(await withBookingLock('c-1', () => 'read and kept', locks)).toBe('read and kept')
+  expect(asked).toEqual(['day.miniapp.booking.c-1'])
+  // Without Web Locks (an old webview) it still runs.
+  expect(await withBookingLock('c-1', () => 'alone', undefined)).toBe('alone')
+})
+
 test('nothing is sent if the phone would not keep the attempt', async () => {
-  const run = steps({ keep: () => false })
+  const run = steps({ claim: async () => 'notKept' as const })
 
   expect(await startBooking(ATTEMPT, run.steps)).toBe('notKept')
   expect(run.sent).toEqual([])
