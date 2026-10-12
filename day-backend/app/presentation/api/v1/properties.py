@@ -26,6 +26,7 @@ from app.application.property.update_property import (
     UpdatePropertyInput,
     UpdatePropertyService,
 )
+from app.config import settings
 from app.domain.auth.permissions import Permission
 from app.domain.property.entities import DiscountRule, PropertyCosts, SeasonalPrice
 from app.domain.property.value_objects import FactAudience, FactSource, PropertyStatus
@@ -41,6 +42,7 @@ from app.infrastructure.repositories.property import (
     SqlPropertyRepository,
     SqlSeasonalPriceRepository,
 )
+from app.infrastructure.security import calendar_token
 from app.presentation.api.deps import Principal, get_company_id, get_principal, get_user_id, require
 from app.presentation.schemas.property import (
     AmenityCreate,
@@ -255,6 +257,23 @@ async def get_property(
         pricing=PricingConfigResponse.model_validate(detail.pricing, from_attributes=True) if detail.pricing else None,
         facts=[PropertyFactResponse.model_validate(f, from_attributes=True) for f in facts],
     )
+
+
+@router.get(
+    "/{property_id}/calendar-link",
+    dependencies=[Depends(require(Permission.PROPERTIES_WRITE))],
+)
+async def calendar_link(
+    property_id: uuid.UUID,
+    session: AsyncSession = Depends(get_session),
+    company_id: uuid.UUID = Depends(get_company_id),
+):
+    """The iCal link to paste into Airbnb and Booking.com, so they see bookings taken in Day."""
+    prop = await _repos(session)["property"].get_by_id(property_id)
+    if prop is None or prop.company_id != company_id:
+        raise HTTPException(status_code=404, detail="Property not found")
+    base = settings.PUBLIC_BASE_URL.rstrip("/")
+    return {"url": f"{base}/api/v1/calendar/{property_id}.ics?token={calendar_token(property_id)}"}
 
 
 # ---------- Knowledge base ----------

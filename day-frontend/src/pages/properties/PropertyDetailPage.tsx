@@ -13,6 +13,7 @@ import {
   Archive,
   Pencil,
   Copy,
+  CalendarSync,
 } from 'lucide-react'
 import { useParams, Link, useNavigate } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
@@ -30,7 +31,8 @@ import {
   usePropertyAuditLog,
   useCloneProperty,
 } from '../../hooks/useProperties'
-import { getPricing } from '../../api/properties'
+import { getCalendarLink, getPricing } from '../../api/properties'
+import { useCurrentUser } from '../../hooks/useAuth'
 import type { PropertyStatus, PricingInput, SeasonalPrice } from '../../types/property'
 import type { RentalMode } from '../../types/booking'
 import PricingForm, { type SeasonalSuggestion } from '../../components/property/PricingForm'
@@ -257,6 +259,8 @@ export default function PropertyDetailPage() {
           </div>
         )}
 
+        <CalendarLinkCard propertyId={propertyId} />
+
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Left column - Details */}
           <div className="lg:col-span-2 space-y-6">
@@ -453,6 +457,42 @@ export default function PropertyDetailPage() {
         onCancel={() => setShowCloneConfirm(false)}
         loading={clonePropertyMut.isPending}
       />
+    </div>
+  )
+}
+
+/** Until Channex is live, iCal is how Airbnb and Booking.com learn about bookings taken in Day. */
+function CalendarLinkCard({ propertyId }: { propertyId: string }) {
+  const { t } = useTranslation()
+  const { data: user } = useCurrentUser()
+  const [busy, setBusy] = useState(false)
+  if (!user || user.role === 'cleaner') return null
+
+  async function copyLink() {
+    setBusy(true)
+    try {
+      const url = await getCalendarLink(propertyId)
+      await navigator.clipboard.writeText(url)
+      showToast('success', t('properties.calendar.copied'))
+    } catch {
+      showToast('error', t('properties.calendar.failed'))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div className="mb-6 bg-white border border-gray-200 rounded-xl p-5 shadow-sm flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex items-start gap-2 min-w-0">
+        <CalendarSync className="w-4 h-4 mt-0.5 shrink-0 text-gray-500" />
+        <div className="min-w-0">
+          <h2 className="text-sm font-bold text-gray-900">{t('properties.calendar.title')}</h2>
+          <p className="text-xs text-gray-500">{t('properties.calendar.hint')}</p>
+        </div>
+      </div>
+      <Button type="button" onClick={copyLink} disabled={busy}>
+        {t('properties.calendar.copy')}
+      </Button>
     </div>
   )
 }
