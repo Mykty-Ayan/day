@@ -6,6 +6,9 @@ const apiClient = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
+  // On a phone a hung request would leave "Загрузка…" forever; the web keeps no
+  // limit for long uploads.
+  ...(isInsideTelegram() ? { timeout: 20_000 } : {}),
 })
 
 /** Which session the stored tokens belong to. Signing in, signing out and a

@@ -6,7 +6,7 @@
  * changing something, a card that states what will happen and waits.
  */
 
-import { useRef, useState } from 'react'
+import { useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { ArrowUp, Check, Sparkles } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
@@ -39,10 +39,14 @@ export default function AskScreen() {
   const queryClient = useQueryClient()
   const [entries, setEntries] = useState<Entry[]>([])
   const [draft, setDraft] = useState('')
-  const bottom = useRef<HTMLDivElement>(null)
 
   function scrollDown() {
-    window.setTimeout(() => bottom.current?.scrollIntoView({ behavior: 'smooth' }), 50)
+    // Only this document: scrollIntoView also scrolled Telegram's frame around the
+    // app, pushing the tab bar out of reach with no way back.
+    window.setTimeout(
+      () => window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'smooth' }),
+      50,
+    )
   }
 
   const ask = useMutation({
@@ -155,7 +159,6 @@ export default function AskScreen() {
           </div>
         ))}
         {ask.isPending && <p className="tg-hint text-sm">{t('miniapp.ask.thinking')}</p>}
-        <div ref={bottom} />
       </div>
 
       <form

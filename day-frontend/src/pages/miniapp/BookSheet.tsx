@@ -15,6 +15,7 @@ import { resultFeedback } from '../../lib/telegram'
 import { errorText } from './errors'
 import { formatMoney } from './format'
 import { ActionButton, Field, Sheet } from './miniapp-ui'
+import { useClosingConfirmation } from './useClosingConfirmation'
 
 export default function BookSheet({
   unit,
@@ -32,6 +33,7 @@ export default function BookSheet({
   const [name, setName] = useState('')
   const [phone, setPhone] = useState('')
   const [error, setError] = useState('')
+  useClosingConfirmation(Boolean(unit) && Boolean(name.trim() || phone.trim()))
 
   // The form resets by being remounted: the parent keys this component on the
   // unit, so picking another flat starts from a clean sheet without an effect

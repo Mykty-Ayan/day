@@ -17,6 +17,7 @@ import DepositRow from './DepositRow'
 import { errorText } from './errors'
 import { buildCheckInMessage } from './messages'
 import { ActionButton, Field, Sheet } from './miniapp-ui'
+import { useClosingConfirmation } from './useClosingConfirmation'
 
 /** The single legal step forward from each status.
  *
@@ -44,6 +45,7 @@ export default function BookingSheet({
   const [amount, setAmount] = useState('')
   const [error, setError] = useState('')
   const [copied, setCopied] = useState(false)
+  useClosingConfirmation(Boolean(opened) && amount.trim() !== '')
 
   // A row from a list is a snapshot: a payment confirms a pending booking, a
   // status change moves it. The card works on the booking as the server has it.

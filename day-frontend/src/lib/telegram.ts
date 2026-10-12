@@ -16,6 +16,7 @@ interface TelegramWebAppUser {
 }
 
 interface TelegramWebApp {
+  version?: string
   initData: string
   initDataUnsafe?: { user?: TelegramWebAppUser }
   colorScheme: 'light' | 'dark'
@@ -28,6 +29,17 @@ interface TelegramWebApp {
   HapticFeedback?: {
     impactOccurred: (style: 'light' | 'medium' | 'heavy') => void
     notificationOccurred?: (type: 'error' | 'success' | 'warning') => void
+  }
+  isVersionAtLeast?: (version: string) => boolean
+  /** Bot API 7.7. */
+  disableVerticalSwipes?: () => void
+  enableClosingConfirmation?: () => void
+  disableClosingConfirmation?: () => void
+  BackButton?: {
+    show: () => void
+    hide: () => void
+    onClick: (callback: () => void) => void
+    offClick: (callback: () => void) => void
   }
 }
 
@@ -51,6 +63,28 @@ export function initTelegram(): void {
   if (!app) return
   app.ready()
   app.expand()
+  // A swipe down otherwise minimises the app in the middle of a form or a list.
+  if (app.isVersionAtLeast?.('7.7')) app.disableVerticalSwipes?.()
+}
+
+/** Telegram's own back arrow (and Android's back gesture) for a screen on top of
+ *  the tabs. Returns the cleanup that removes exactly this handler. */
+export function showBackButton(onBack: () => void): () => void {
+  const button = getWebApp()?.BackButton
+  if (!button) return () => {}
+  button.onClick(onBack)
+  button.show()
+  return () => {
+    button.offClick(onBack)
+    button.hide()
+  }
+}
+
+/** Ask before closing while something typed would be lost. */
+export function setClosingConfirmation(on: boolean): void {
+  const app = getWebApp()
+  if (on) app?.enableClosingConfirmation?.()
+  else app?.disableClosingConfirmation?.()
 }
 
 export function getInitData(): string {
