@@ -900,7 +900,8 @@
       "floor": "floor {{value}}",
       "messageDates": "Check-in {{from}}, check-out {{to}}.",
       "confirm": "Confirm",
-      "complete": "Complete"
+      "complete": "Complete",
+      "stale": "Couldn't refresh the booking. Actions wait until it loads."
     },
     "cleaning": {
       "title": "Cleaning",
