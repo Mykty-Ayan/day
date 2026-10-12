@@ -1,5 +1,31 @@
 # Changelog
 
+## 0.3.0 — 2026-10-12
+
+Security catches up with the market, and an apartment gets the fields Airbnb and Booking ask for: capacity, bathrooms, its own check-in hours, how guests get in, a real amenity catalogue, and a calendar the platforms can read. Migrations 025–030 run on start. No environment variable has to change; `S3_PUBLIC_READ` is no longer read and can go.
+
+### Added
+- Change your own password in Settings; other devices are signed out (#87)
+- Reset a forgotten password with a code sent to the linked Telegram chat (#88)
+- Optional two-factor sign-in with a code from Telegram (#91)
+- Maximum guests and bathrooms on an apartment; availability skips a flat too small for the party (#90)
+- An apartment's own check-in and check-out hours and how the guest gets in; bookings, availability, Channex and iCal use them (#94)
+- Amenity catalogue of 70 items in the groups Airbnb and Booking use; tenants pick from it and can no longer add to the shared list (#95)
+- iCal link per apartment for Airbnb and Booking: taken nights only, no guest data (#92)
+- A booking from a channel that landed on nights already taken is flagged in the chart, the agenda, the booking card, the Mini App, `GET /bookings/today` and the CRM feed (#93)
+
+### Changed
+- Sign-out, a role change and a new password end every session of that user (#86)
+- Booking files (passports, contracts) are private and served to signed-in users only; only listing photos open by link (#83)
+- The Wi-Fi password and guest-only facts are shown only to roles that hand them to guests; the audit log keeps `***` instead of the password (#84)
+
+### Fixed
+- Security headers on every page and API response, `nginx -t` in the build (#81)
+- Password guessing is braked per account and per real client address behind the proxy (#82)
+- Webhook secrets are compared in constant time (#85)
+- Property photos upload from the web; HEIC is refused with a clear message (#89)
+- `/openapi.json` reports the real version
+
 ## 0.2.0 — 2026-10-11
 
 Day becomes the system of record for the CRM (aidyn_crm): an integration can read every booking change, create a booking that a retry cannot double, hold dates and record a payment. Migrations 018–024 run on start.
