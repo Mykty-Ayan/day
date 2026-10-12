@@ -28,6 +28,10 @@ class Permission:
     # Narrower than properties:write, which also changes prices: what an
     # integration such as the CRM needs to add to an apartment's knowledge base.
     PROPERTY_FACTS_WRITE = "property_facts:write"
+    # What only a guest with a stay should hear — the Wi-Fi password and the
+    # guest-only facts (door codes, lockbox). properties:read alone (a cleaner,
+    # a read-only key) gets the apartment without them.
+    PROPERTY_SECRETS_READ = "property_secrets:read"
 
     BOOKINGS_READ = "bookings:read"
     BOOKINGS_WRITE = "bookings:write"
@@ -61,6 +65,7 @@ _MANAGER_PERMISSIONS: frozenset[str] = frozenset(
         Permission.PROPERTIES_READ,
         Permission.PROPERTIES_WRITE,
         Permission.PROPERTY_FACTS_WRITE,
+        Permission.PROPERTY_SECRETS_READ,
         Permission.BOOKINGS_READ,
         Permission.BOOKINGS_WRITE,
         Permission.CLEANING_READ,

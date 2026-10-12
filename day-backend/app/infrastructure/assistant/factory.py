@@ -43,6 +43,8 @@ def build_assistant_tools(
     company_id: uuid.UUID,
     user_id: uuid.UUID | None = None,
     today: date | None = None,
+    *,
+    sees_secrets: bool = False,
 ):
     bookings = SqlBookingRepository(session)
     guests = SqlGuestRepository(session)
@@ -133,6 +135,7 @@ def build_assistant_tools(
         cleaning_service=_create_cleaning,
         metrics_service=_Metrics(),
         today=today,
+        sees_secrets=sees_secrets,
     )
     return build_tools(context)
 
