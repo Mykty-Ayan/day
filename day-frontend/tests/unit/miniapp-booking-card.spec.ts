@@ -6,6 +6,7 @@
 
 import { expect, test } from '@playwright/test'
 import {
+  afterFailure,
   canCancel,
   extendedCheckOut,
   loadAttempt,
@@ -93,6 +94,25 @@ test.describe('a payment call that failed', () => {
   })
 })
 
+test.describe('what a failure leaves of the attempt', () => {
+  const attempt: MoneyAttempt = { kind: 'payment', amount: 20000, method: 'cash', key: 'k-1' }
+
+  test('a lost answer keeps it, marked as possibly recorded', () => {
+    expect(afterFailure(attempt, { response: { status: 504 } })).toEqual({ ...attempt, uncertain: true })
+  })
+
+  test('a refusal of the first call drops it: nothing was recorded', () => {
+    expect(afterFailure(attempt, { response: { status: 422 } })).toBeNull()
+  })
+
+  test('once possibly recorded, a refused retry proves nothing about the first call', () => {
+    const lost = { ...attempt, uncertain: true }
+    // The rate limiter answers before the key is even looked up.
+    expect(afterFailure(lost, { response: { status: 429 } })).toEqual(lost)
+    expect(afterFailure(lost, { response: { status: 422 } })).toEqual(lost)
+  })
+})
+
 test.describe('an unsettled money attempt outlives the card', () => {
   function memory() {
     const data = new Map<string, string>()
@@ -128,5 +148,14 @@ test.describe('an unsettled money attempt outlives the card', () => {
     expect(loadAttempt(broken, 'b-1')).toBeNull()
     expect(() => saveAttempt(broken, 'b-1', null)).not.toThrow()
     expect(loadAttempt(undefined, 'b-1')).toBeNull()
+  })
+
+  test('says when the attempt could not be kept, so the money is not sent unkept', () => {
+    const full = { ...memory(), setItem: () => { throw new Error('QuotaExceededError') } }
+    const attempt: MoneyAttempt = { kind: 'payment', amount: 20000, method: 'cash', key: 'k-1' }
+
+    expect(saveAttempt(full, 'b-1', attempt)).toBe(false)
+    expect(saveAttempt(undefined, 'b-1', attempt)).toBe(false)
+    expect(saveAttempt(memory(), 'b-1', attempt)).toBe(true)
   })
 })
