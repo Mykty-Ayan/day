@@ -34,6 +34,8 @@ def _generate_code() -> str:
 class LinkResult:
     identity: ChannelIdentity
     company_id: uuid.UUID
+    # The company the chat was taken from, when re-linking moved it.
+    previous_company_id: uuid.UUID | None = None
 
 
 class StrandsTwoFactor(ValueError):
@@ -101,6 +103,11 @@ class LinkChannelService:
             raise ValueError("This code has expired or was already used")
 
         existing = await self._identities.get_by_external_id(channel, external_id)
+        moved_from = (
+            existing.company_id
+            if existing is not None and existing.is_active and existing.company_id != code.company_id
+            else None
+        )
         if existing is not None and existing.user_id != code.created_by:
             await self.guard_two_factor(existing)
         if existing is not None:
@@ -124,7 +131,7 @@ class LinkChannelService:
 
         code.used_at = now
         await self._codes.update(code)
-        return LinkResult(identity=identity, company_id=code.company_id)
+        return LinkResult(identity=identity, company_id=code.company_id, previous_company_id=moved_from)
 
     async def unlink(self, channel: Channel, external_id: str) -> None:
         identity = await self._identities.get_by_external_id(channel, external_id)
