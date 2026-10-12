@@ -860,7 +860,8 @@
       "nothingFree": "Бұл күндерге бос орын жоқ",
       "hint": "Дайын мәтінмен WhatsApp ашылады — жіберу ғана қалады.",
       "messageHead": "{{range}} бос:",
-      "messageTail": "Кіру 14:00-ден, шығу 12:00-ге дейін.",
+      "messageTail": "Кіру уақыты: {{checkIn}}, шығу уақыты: {{checkOut}}.",
+      "hours": "кіру {{checkIn}}, шығу {{checkOut}}",
       "forNights": "{{count}} түнге",
       "rooms": "{{count}} бөлме"
     },

@@ -73,6 +73,9 @@ class UpdateBookingService:
                 changes.append((field_name, str(old_val), str(new_val)))
 
         dates_changed = False
+        # The web form sends the saved dates and mode back with any edit; only
+        # a value that differs from these is new and gets the flat's hours.
+        saved_in, saved_out, saved_mode = booking.check_in, booking.check_out, booking.rental_mode
         # A price the operator typed in by hand is their number and survives a
         # date change; one the system worked out should follow the new dates.
         price_was_system_set = booking.total_price == booking.calculated_price
@@ -130,8 +133,8 @@ class UpdateBookingService:
         # Re-check overlaps if dates changed
         if dates_changed and booking.check_in and booking.check_out:
             # A daily boundary given as a bare date takes the flat's hours, else
-            # the default (14:00 / 12:00). Only a boundary that came in, or a new
-            # mode, is normalised: a saved midnight is a real hour, not "no time".
+            # the default (14:00 / 12:00). Only a changed boundary, or a new mode,
+            # is normalised: a saved midnight is a real hour, not "no time".
             prop = await self._property_repo.get_by_id(booking.property_id)
             check_in, check_out = apply_default_times(
                 booking.check_in,
@@ -140,9 +143,10 @@ class UpdateBookingService:
                 check_in_hour=prop.check_in_hour if prop else None,
                 check_out_hour=prop.check_out_hour if prop else None,
             )
-            if inp.check_in is not _UNSET or inp.rental_mode is not _UNSET:
+            mode_changed = booking.rental_mode != saved_mode
+            if booking.check_in != saved_in or mode_changed:
                 booking.check_in = check_in
-            if inp.check_out is not _UNSET or inp.rental_mode is not _UNSET:
+            if booking.check_out != saved_out or mode_changed:
                 booking.check_out = check_out
             if booking.check_out <= booking.check_in:
                 raise ValueError("Check-out must be after check-in")

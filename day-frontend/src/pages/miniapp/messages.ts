@@ -34,7 +34,14 @@ export function buildOfferMessage(
   const dateFormat = new Intl.DateTimeFormat(language, { day: 'numeric', month: 'long' })
   const range = `${dateFormat.format(checkIn)} — ${dateFormat.format(checkOut)}`
 
-  const lines = items.map((item) => {
+  // Each flat has its own hours; one line at the end when they agree.
+  const hours = items.map((item) => ({
+    checkIn: item.check_in?.slice(11, 16) || '14:00',
+    checkOut: item.check_out?.slice(11, 16) || '12:00',
+  }))
+  const sameHours = hours.every((h) => h.checkIn === hours[0]?.checkIn && h.checkOut === hours[0]?.checkOut)
+
+  const lines = items.map((item, index) => {
     const price =
       item.total_price !== null
         ? ` — ${formatMoney(item.total_price, language)} ₸${
@@ -42,15 +49,15 @@ export function buildOfferMessage(
           }`
         : ''
     const rooms = item.rooms ? `, ${t('miniapp.offer.rooms', { count: item.rooms })}` : ''
-    return `• ${item.name}${rooms}${price}`
+    const ownHours = sameHours ? '' : ` (${t('miniapp.offer.hours', hours[index])})`
+    return `• ${item.name}${rooms}${price}${ownHours}`
   })
 
   return [
     t('miniapp.offer.messageHead', { range }),
     '',
     ...lines,
-    '',
-    t('miniapp.offer.messageTail'),
+    ...(sameHours && hours.length ? ['', t('miniapp.offer.messageTail', hours[0])] : []),
   ].join('\n')
 }
 

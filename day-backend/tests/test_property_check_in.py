@@ -134,7 +134,8 @@ async def test_changing_the_party_leaves_saved_times_alone():
 
 
 class _CompanyRange:
-    """Bookings of a company that overlap a date range, as the SQL repository returns them."""
+    """Bookings of a company that overlap a date range, as the SQL repository returns them:
+    the dates compare as midnight."""
 
     def __init__(self, rows):
         self._rows = rows
@@ -142,7 +143,9 @@ class _CompanyRange:
     async def list_by_company_date_range(self, company_id, start_date, end_date):
         return [
             b for b in self._rows
-            if b.company_id == company_id and b.check_in.date() <= end_date and b.check_out.date() >= start_date
+            if b.company_id == company_id
+            and b.check_in < datetime.combine(end_date, datetime.min.time())
+            and b.check_out > datetime.combine(start_date, datetime.min.time())
         ]
 
 
@@ -211,3 +214,54 @@ async def test_an_ota_stay_takes_the_flats_hours_and_is_not_a_false_overbooking(
         _revision(revision_id="rev-2", status="modified", arrival_date="2026-09-02", departure_date="2026-09-05")
     )
     assert (ota.check_in, ota.check_out) == (datetime(2026, 9, 2, 16), datetime(2026, 9, 5, 15))
+
+
+async def test_a_stay_that_starts_on_the_last_day_still_blocks_a_late_check_out():
+    from app.application.booking.check_availability import CheckAvailabilityService
+    from app.domain.booking.entities import Booking
+    from app.domain.booking.value_objects import BookingStatus
+    from tests.test_booking_services import COMPANY_ID, _build_price_calculator
+
+    flat, properties, _, _ = await _flat_with_hours(16, 15)
+    # Taken before the flat moved to 16/15: arrives 3 Nov at 14:00.
+    next_guest = Booking(company_id=COMPANY_ID, property_id=flat.id, check_in=datetime(2026, 11, 3, 14),
+                         check_out=datetime(2026, 11, 5, 12), status=BookingStatus.CONFIRMED)
+    svc = CheckAvailabilityService(properties, _CompanyRange([next_guest]), _build_price_calculator())
+
+    # 1–3 Nov at this flat ends at 15:00 on the 3rd, after that guest arrives.
+    assert await svc.execute(COMPANY_ID, date(2026, 11, 1), date(2026, 11, 3), with_prices=False) == []
+
+
+async def test_availability_says_each_flats_own_hours():
+    from app.application.booking.check_availability import CheckAvailabilityService
+    from tests.test_booking_services import COMPANY_ID, _build_price_calculator
+
+    flat, properties, _, _ = await _flat_with_hours(16, 10)
+    svc = CheckAvailabilityService(properties, _CompanyRange([]), _build_price_calculator())
+
+    (found,) = await svc.execute(COMPANY_ID, date(2026, 11, 1), date(2026, 11, 3), with_prices=False)
+
+    # The offer text tells the guest these, not a company-wide 14:00/12:00.
+    assert (found.check_in, found.check_out) == (datetime(2026, 11, 1, 16), datetime(2026, 11, 3, 10))
+
+
+async def test_resending_saved_dates_with_an_edit_moves_nothing():
+    from app.application.booking.update_booking import UpdateBookingInput
+    from app.domain.booking.entities import Booking
+    from app.domain.booking.value_objects import RentalMode
+    from tests.test_booking_services import COMPANY_ID
+
+    flat, _, bookings, svc = await _flat_with_hours(0, 0)
+    stay = await bookings.create(
+        Booking(company_id=COMPANY_ID, property_id=flat.id, check_in=datetime(2026, 11, 1),
+                check_out=datetime(2026, 11, 3))
+    )
+    flat.check_in_hour, flat.check_out_hour = 14, 12
+
+    # The web form sends the saved dates and mode back with a note.
+    updated = await svc.execute(
+        UpdateBookingInput(booking_id=stay.id, company_id=COMPANY_ID, check_in=datetime(2026, 11, 1),
+                           check_out=datetime(2026, 11, 3), rental_mode=RentalMode.DAILY.value, notes="Поздний заезд")
+    )
+
+    assert (updated.check_in, updated.check_out) == (datetime(2026, 11, 1), datetime(2026, 11, 3))

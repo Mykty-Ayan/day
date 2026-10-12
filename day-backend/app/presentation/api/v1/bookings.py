@@ -714,6 +714,8 @@ async def get_availability(
                 bathrooms=item.property.bathrooms,
                 total_price=item.total_price,
                 price_error=item.price_error,
+                check_in=item.check_in,
+                check_out=item.check_out,
                 photos=[
                     AvailablePhotoResponse(url=p.url, caption=p.caption, is_cover=p.is_cover, sort_order=p.sort_order)
                     for p in sorted(flat_photos, key=lambda p: (not p.is_cover, p.sort_order))
