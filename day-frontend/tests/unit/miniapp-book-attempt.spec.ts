@@ -8,13 +8,14 @@
 import { expect, test } from '@playwright/test'
 import {
   companyFromToken,
-  findMade,
+  latestBookingCall,
   loadBookingAttempt,
   saveBookingAttempt,
   startBooking,
+  storedBookingAttempt,
   type BookingAttempt,
 } from '../../src/pages/miniapp/book-attempt'
-import type { Booking } from '../../src/types/booking'
+import { nextCall } from '../../src/pages/miniapp/booking-card'
 
 const ATTEMPT: BookingAttempt = {
   unit: '89auc',
@@ -134,25 +135,24 @@ test('the company comes from the session token', () => {
   expect(companyFromToken(null)).toBeNull()
 })
 
-test.describe('was the booking made after all', () => {
-  const made = (overrides: Partial<Booking>) =>
-    ({
-      id: 'b-1',
-      property_id: 'p-1',
-      guest_phone: '+77010000000',
-      guest_name: 'Ерлан',
-      check_in: '2026-10-12T14:00:00',
-      status: 'pending',
-      ...overrides,
-    }) as Booking
-
-  test('the same flat, night and phone: it was', () => {
-    expect(findMade(ATTEMPT, [made({})])?.id).toBe('b-1')
+test.describe('a late answer to an earlier send of the same booking', () => {
+  test('only the latest send of the attempt on the phone may change it', () => {
+    const first = nextCall(ATTEMPT)
+    const retry = nextCall({ ...first, uncertain: true })
+    expect(first.call).toBe(1)
+    expect(latestBookingCall(first, first)).toBe(true)
+    // The sheet was reopened and the retry went out: the first send's late 429
+    // must not drop the retry, whose answer was lost too.
+    expect(latestBookingCall(retry, first)).toBe(false)
+    expect(latestBookingCall(null, first)).toBe(false)
+    expect(latestBookingCall(nextCall({ ...ATTEMPT, key: 'k-2' }), first)).toBe(false)
   })
 
-  test('another guest or a cancelled one is not it', () => {
-    expect(findMade(ATTEMPT, [made({ guest_phone: '+77019999999' })])).toBeNull()
-    expect(findMade(ATTEMPT, [made({ status: 'cancelled' })])).toBeNull()
-    expect(findMade(ATTEMPT, [made({ check_in: '2026-10-13T14:00:00' })])).toBeNull()
+  test('as kept, it says what the last send knew', () => {
+    const storage = memory()
+    const sent = nextCall(ATTEMPT)
+    saveBookingAttempt(storage, 'c-1', sent)
+    expect(storedBookingAttempt(storage, 'c-1')).toEqual(sent)
+    expect(storedBookingAttempt(storage, 'c-2')).toBeNull()
   })
 })

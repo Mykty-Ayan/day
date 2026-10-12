@@ -17,6 +17,7 @@ const KNOWN: ReadonlyArray<readonly [string, string]> = [
   ['insufficient permissions', 'miniapp.errors.forbidden'],
   ['cannot transition from', 'miniapp.errors.staleStatus'],
   ['no pricing configuration', 'miniapp.errors.noPrice'],
+  ['already has an open deposit', 'miniapp.deposit.alreadyTaken'],
   ['assistant is not configured', 'miniapp.errors.assistantOff'],
   ['model returned', 'miniapp.errors.assistantOff'],
 ]
