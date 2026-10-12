@@ -318,7 +318,7 @@ async def test_today_says_which_arrival_landed_on_nights_already_taken(monkeypat
         _booking(NOW, guest_id=guest.id, property_id=prop.id, overbooking=True),
         _booking(NOW, guest_id=guest.id, property_id=prop.id),
     ]
-    repos = {"booking": _Range(arrivals), "guest": _ById([guest]), "property": _ById([prop])}
+    repos = {"booking": _Range(arrivals), "guest": _ById([guest]), "property": _ById([prop]), "payment": _Payments({})}
     monkeypatch.setattr(bookings, "_repos", lambda session: repos)
     app.dependency_overrides[deps.get_session] = lambda: _Session()
     try:

@@ -488,22 +488,20 @@ async def get_today(
     check_outs = []
     in_house = []
 
+    paid = await repos["payment"].sum_paid_by_bookings([b.id for b in all_bookings])
     for b in all_bookings:
         guest = await repos["guest"].get_by_id(b.guest_id)
         prop = await repos["property"].get_by_id(b.property_id)
         item = TodayBookingItem(
-            id=b.id,
-            guest_name=guest.name if guest else "Unknown",
-            property_name=prop.name if prop else "",
-            property_internal_name=prop.internal_name if prop else "",
+            **_to_booking_response(
+                b,
+                guest_name=guest.name if guest else None,
+                guest_phone=guest.phone if guest else None,
+                property_name=prop.name if prop else None,
+                property_internal_name=prop.internal_name if prop else None,
+                paid_amount=paid.get(b.id),
+            ).model_dump(),
             property_status=prop.status if prop else None,
-            check_in=b.check_in,
-            check_out=b.check_out,
-            rental_mode=b.rental_mode,
-            status=b.status,
-            adults_count=b.adults_count,
-            children_count=b.children_count,
-            overbooking=b.overbooking,
         )
         # check_in/check_out are datetimes; compare on their calendar date.
         check_in_date = b.check_in.date() if b.check_in is not None else None
@@ -513,7 +511,12 @@ async def get_today(
             and b.status in {BookingStatus.PENDING, BookingStatus.CONFIRMED}
         ):
             check_ins.append(item)
-        if check_out_date == today and b.status == BookingStatus.CHECKED_IN:
+        # A guest who has already left stays here: their flat still needs a cleaning.
+        if check_out_date == today and b.status in {
+            BookingStatus.CONFIRMED,
+            BookingStatus.CHECKED_IN,
+            BookingStatus.CHECKED_OUT,
+        }:
             check_outs.append(item)
         if (
             b.status == BookingStatus.CHECKED_IN

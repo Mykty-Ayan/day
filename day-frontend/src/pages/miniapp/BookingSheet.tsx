@@ -8,12 +8,13 @@ import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { BedDouble, CheckCircle2, Copy, LogIn, LogOut, Send, Wallet } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
-import { addPayment, changeBookingStatus, listPayments, updateBooking } from '../../api/bookings'
+import { addPayment, changeBookingStatus, getBooking, listPayments, updateBooking } from '../../api/bookings'
 import { getProperty } from '../../api/properties'
 import type { Booking, BookingStatus } from '../../types/booking'
 import { copyText, openWhatsApp, resultFeedback } from '../../lib/telegram'
 import { addDays, formatDay, formatMoney, toISODate } from './format'
 import DepositRow from './DepositRow'
+import { errorText } from './errors'
 import { buildCheckInMessage } from './messages'
 import { ActionButton, Field, Sheet } from './miniapp-ui'
 
@@ -32,7 +33,7 @@ const NEXT_STEP: Partial<
 }
 
 export default function BookingSheet({
-  booking,
+  booking: opened,
   onClose,
 }: {
   booking: Booking | null
@@ -43,6 +44,15 @@ export default function BookingSheet({
   const [amount, setAmount] = useState('')
   const [error, setError] = useState('')
   const [copied, setCopied] = useState(false)
+
+  // A row from a list is a snapshot: a payment confirms a pending booking, a
+  // status change moves it. The card works on the booking as the server has it.
+  const fresh = useQuery({
+    queryKey: ['miniapp', 'booking', opened?.id],
+    queryFn: async () => (await getBooking(opened!.id)).booking,
+    enabled: Boolean(opened),
+  })
+  const booking = fresh.data ?? opened
 
   const property = useQuery({
     queryKey: ['miniapp', 'property', booking?.property_id],
@@ -69,9 +79,7 @@ export default function BookingSheet({
 
   function fail(mutationError: unknown) {
     resultFeedback('error')
-    const detail = (mutationError as { response?: { data?: { detail?: string } } }).response?.data
-      ?.detail
-    setError(detail || t('miniapp.loadFailed'))
+    setError(errorText(mutationError, t('miniapp.loadFailed'), t))
   }
 
   const extend = useMutation({
@@ -82,6 +90,7 @@ export default function BookingSheet({
     },
     onSuccess: () => {
       resultFeedback('success')
+      setError('')
       refresh()
       onClose()
     },
@@ -92,6 +101,7 @@ export default function BookingSheet({
     mutationFn: (status: BookingStatus) => changeBookingStatus(booking!.id, status),
     onSuccess: () => {
       resultFeedback('success')
+      setError('')
       refresh()
       onClose()
     },
@@ -107,6 +117,7 @@ export default function BookingSheet({
       }),
     onSuccess: () => {
       resultFeedback('success')
+      setError('')
       setAmount('')
       queryClient.invalidateQueries({ queryKey: ['miniapp', 'payments', booking?.id] })
       refresh()

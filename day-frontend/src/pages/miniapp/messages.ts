@@ -8,7 +8,7 @@
 
 import type { AvailableProperty } from '../../api/miniapp'
 import type { Booking } from '../../types/booking'
-import { formatDay, formatMoney } from './format'
+import { formatDay, formatMoney, intlLocale } from './format'
 
 export type Translate = (key: string, options?: Record<string, unknown>) => string
 
@@ -31,7 +31,7 @@ export function buildOfferMessage(
   language: string,
   t: Translate,
 ): string {
-  const dateFormat = new Intl.DateTimeFormat(language, { day: 'numeric', month: 'long' })
+  const dateFormat = new Intl.DateTimeFormat(intlLocale(language), { day: 'numeric', month: 'long' })
   const range = `${dateFormat.format(checkIn)} — ${dateFormat.format(checkOut)}`
 
   // Each flat has its own hours; one line at the end when they agree.
