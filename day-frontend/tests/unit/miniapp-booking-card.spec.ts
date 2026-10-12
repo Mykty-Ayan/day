@@ -14,6 +14,7 @@ import {
   nextCall,
   paymentMaybeRecorded,
   phoneDigits,
+  receiveOutcome,
   sameAttempt,
   saveAttempt,
   settlement,
@@ -156,6 +157,24 @@ test.describe('a late answer to an earlier send of the same attempt', () => {
     expect(latestCall(retry, first)).toBe(false)
     expect(latestCall(null, first)).toBe(false)
     expect(latestCall(nextCall({ ...attempt, key: 'k-2' }), first)).toBe(false)
+  })
+})
+
+test.describe('what a fresh read says of a "received" whose answer was lost', () => {
+  const payment = (status: BookingPayment['status']) => ({ id: 'p-1', status }) as BookingPayment
+
+  test('completed: settled', () => {
+    expect(receiveOutcome(payment('completed'))).toBe('received')
+  })
+
+  test('still pending: the confirm may yet land, so only a retry may follow', () => {
+    // Unblocking here let "Balance" record the money again before the late confirm.
+    expect(receiveOutcome(payment('pending'))).toBe('waiting')
+  })
+
+  test('failed or gone: it can never be confirmed', () => {
+    expect(receiveOutcome(payment('failed'))).toBe('gone')
+    expect(receiveOutcome(undefined)).toBe('gone')
   })
 })
 

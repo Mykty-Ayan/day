@@ -49,6 +49,7 @@ function steps(overrides: Partial<Parameters<typeof startBooking>[1]> = {}) {
         return true
       },
       send: (attempt: BookingAttempt) => void sent.push(attempt),
+      busy: () => null,
       ...overrides,
     },
   }
@@ -91,6 +92,15 @@ test('a warned guest is booked only on the operator’s yes', async () => {
   const run = steps({ check: async () => ({ warned: true }), confirmWarned: async () => false })
 
   expect(await startBooking(ATTEMPT, run.steps)).toBe('declined')
+  expect(run.sent).toEqual([])
+})
+
+test('a booking started meanwhile in another window is not overwritten', async () => {
+  const other = { ...ATTEMPT, key: 'k-other', uncertain: true }
+  const run = steps({ busy: () => other })
+
+  expect(await startBooking(ATTEMPT, run.steps)).toBe('busy')
+  expect(run.kept).toEqual([])
   expect(run.sent).toEqual([])
 })
 
