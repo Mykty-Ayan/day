@@ -1,11 +1,12 @@
 import { motion } from 'framer-motion'
 import { useState } from 'react'
-import { Globe, Check, ChevronRight, Users, KeyRound } from 'lucide-react'
+import { Globe, Check, ChevronRight, Users, KeyRound, ShieldCheck } from 'lucide-react'
 import { Link } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 import { showToast } from '../../components/ui/Toast'
 import { useCurrentUser } from '../../hooks/useAuth'
-import { changePassword } from '../../api/auth'
+import { changePassword, setTwoFactor } from '../../api/auth'
+import { useQueryClient } from '@tanstack/react-query'
 import { sessionGeneration, storeSession } from '../../api/client'
 import Button from '../../components/ui/Button'
 
@@ -74,6 +75,7 @@ export default function SettingsPage() {
         </div>
 
         <PasswordCard />
+        <TwoFactorCard />
 
         {/* Team and service keys live behind their own page — owner only. */}
         {currentUser?.role === 'owner' && (
@@ -164,6 +166,75 @@ function PasswordCard() {
       <Button type="submit" disabled={saving}>
         {t('settings.password.save')}
       </Button>
+    </form>
+  )
+}
+
+function TwoFactorCard() {
+  const { t } = useTranslation()
+  const queryClient = useQueryClient()
+  const { data: user } = useCurrentUser()
+  const [password, setPassword] = useState('')
+  const [error, setError] = useState('')
+  const [saving, setSaving] = useState(false)
+  if (!user) return null
+
+  const enabled = user.two_factor_enabled
+  async function toggle(event: React.FormEvent) {
+    event.preventDefault()
+    setError('')
+    setSaving(true)
+    try {
+      await setTwoFactor(!enabled, password)
+      setPassword('')
+      await queryClient.invalidateQueries({ queryKey: ['auth-user'] })
+      showToast('success', t('auth.twoFactor.saved'))
+    } catch (err) {
+      const detail = (err as { response?: { data?: { detail?: unknown } } }).response?.data?.detail
+      setError(detail === 'Password is wrong' ? t('auth.twoFactor.wrongPassword') : t('settings.password.failed'))
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const blocked = !enabled && !user.telegram_linked
+  return (
+    <form onSubmit={toggle} className="mt-4 bg-white border border-gray-200 rounded-xl p-5 shadow-sm space-y-3">
+      <div className="flex items-center gap-2">
+        <ShieldCheck className="w-4 h-4 text-gray-500" />
+        <div>
+          <h2 className="text-sm font-bold text-gray-900">{t('auth.twoFactor.cardTitle')}</h2>
+          <p className="text-xs text-gray-500">
+            {enabled ? t('auth.twoFactor.cardOn') : t('auth.twoFactor.cardOff')}
+          </p>
+        </div>
+      </div>
+      {blocked ? (
+        <p className="text-xs text-gray-600">{t('auth.twoFactor.needTelegram')}</p>
+      ) : (
+        <>
+          <label className="block text-xs font-semibold text-gray-700">
+            {t('auth.twoFactor.password')}
+            <input
+              id="two-factor-password"
+              type="password"
+              autoComplete="current-password"
+              required
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:border-black focus:outline-none"
+            />
+          </label>
+          {error && (
+            <p role="alert" className="text-xs text-red-600">
+              {error}
+            </p>
+          )}
+          <Button type="submit" disabled={saving}>
+            {enabled ? t('auth.twoFactor.disable') : t('auth.twoFactor.enable')}
+          </Button>
+        </>
+      )}
     </form>
   )
 }

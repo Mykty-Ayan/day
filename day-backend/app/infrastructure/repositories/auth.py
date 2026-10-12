@@ -25,6 +25,7 @@ def _model_to_user(m: UserModel) -> User:
         created_at=m.created_at,
         token_version=m.token_version or 0,
         tokens_revoked_at=m.tokens_revoked_at,
+        two_factor_enabled=bool(m.two_factor_enabled),
     )
 
 
@@ -71,6 +72,7 @@ class SqlUserRepository(UserRepository):
             phone=user.phone,
             is_active=user.is_active,
             token_version=user.token_version,
+            two_factor_enabled=user.two_factor_enabled,
         )
         self._session.add(model)
         await self._session.flush()
@@ -87,6 +89,7 @@ class SqlUserRepository(UserRepository):
         model.full_name = user.full_name
         model.phone = user.phone
         model.is_active = user.is_active
+        model.two_factor_enabled = user.two_factor_enabled
         # token_version is left alone: writing back a value read earlier would
         # undo a sign-out that happened in between.
         await self._session.flush()

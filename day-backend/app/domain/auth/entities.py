@@ -29,6 +29,8 @@ class User:
     # sign-out, a role change, deactivation, a new password.
     token_version: int = 0
     tokens_revoked_at: datetime | None = None  # UTC, when token_version last went up
+    # Sign-in asks for a code from the user's own Telegram chat after the password.
+    two_factor_enabled: bool = False
 
 
 @dataclass

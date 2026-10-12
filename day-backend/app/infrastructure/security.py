@@ -70,6 +70,13 @@ def create_refresh_token(sub: uuid.UUID, company_id: uuid.UUID, role: str, token
     return jwt.encode(payload, settings.JWT_SECRET, algorithm=settings.JWT_ALGORITHM)
 
 
+def create_challenge_token(sub: uuid.UUID, token_version: int) -> str:
+    """Proof that the password was right, waiting for the second factor. Not a session."""
+    expire = datetime.now(timezone.utc) + timedelta(minutes=10)
+    payload = {"sub": str(sub), "type": "2fa", "tv": token_version, "exp": expire}
+    return jwt.encode(payload, settings.JWT_SECRET, algorithm=settings.JWT_ALGORITHM)
+
+
 def decode_token(token: str) -> dict | None:
     try:
         return jwt.decode(token, settings.JWT_SECRET, algorithms=[settings.JWT_ALGORITHM])

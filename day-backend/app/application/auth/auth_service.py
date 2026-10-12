@@ -54,14 +54,17 @@ class AuthService:
 
         return issue_tokens(user)
 
-    async def login(self, email: str, password: str) -> dict:
+    async def authenticate(self, email: str, password: str) -> User:
+        """The user the password belongs to; tokens are the caller's call (a second factor may follow)."""
         user = await self._user_repo.get_by_email(email)
         if not user or not verify_password(password, user.hashed_password):
             raise ValueError("Invalid email or password")
         if not user.is_active:
             raise ValueError("Account is disabled")
+        return user
 
-        return issue_tokens(user)
+    async def login(self, email: str, password: str) -> dict:
+        return issue_tokens(await self.authenticate(email, password))
 
     async def refresh(self, refresh_token: str) -> dict:
         payload = decode_token(refresh_token)

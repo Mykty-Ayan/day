@@ -29,6 +29,7 @@ class UserModel(Base):
     created_at: Mapped[datetime] = mapped_column(default=datetime.utcnow)
     token_version: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     tokens_revoked_at: Mapped[datetime | None] = mapped_column(nullable=True)
+    two_factor_enabled: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
 
 
 class ApiKeyModel(Base):

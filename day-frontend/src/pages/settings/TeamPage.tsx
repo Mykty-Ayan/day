@@ -430,7 +430,18 @@ export default function TeamPage() {
                     </div>
                     <button
                       type="button"
-                      onClick={() => disconnectChannel.mutate(channel.id)}
+                      onClick={() =>
+                        disconnectChannel.mutate(channel.id, {
+                          // 409: this chat receives someone's sign-in codes.
+                          onError: (error) =>
+                            showToast(
+                              'error',
+                              (error as { response?: { status?: number } }).response?.status === 409
+                                ? t('channels.strandsTwoFactor')
+                                : t('channels.disconnectFailed'),
+                            ),
+                        })
+                      }
                       className="min-h-[44px] rounded-lg px-3 text-xs font-bold text-red-600 transition-colors hover:bg-red-50"
                     >
                       {t('channels.disconnect')}
