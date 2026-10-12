@@ -21,3 +21,10 @@ class IdempotencyKeyReusedError(ValueError):
 
 class IdempotencyKeyTakenError(Exception):
     """Another request with the same Idempotency-Key committed first."""
+
+
+class DepositAlreadyOpenError(ValueError):
+    """A deposit was asked for only if none is open, and one is (not returned yet)."""
+
+    def __init__(self) -> None:
+        super().__init__("Booking already has an open deposit")
