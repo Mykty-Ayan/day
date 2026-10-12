@@ -97,6 +97,7 @@ class FakePropertyRepository(PropertyRepository):
 class FakeBookingRepository(BookingRepository):
     def __init__(self) -> None:
         self._bookings: dict[uuid.UUID, Booking] = {}
+        self._voided: set[tuple[uuid.UUID, str]] = set()
 
     async def create(self, booking: Booking) -> Booking:
         self._bookings[booking.id] = booking
@@ -127,6 +128,12 @@ class FakeBookingRepository(BookingRepository):
             (b for b in self._bookings.values() if b.company_id == company_id and b.idempotency_key == key),
             None,
         )
+
+    async def void_idempotency_key(self, company_id, key):
+        self._voided.add((company_id, key))
+
+    async def idempotency_key_voided(self, company_id, key):
+        return (company_id, key) in self._voided
 
     async def get_by_property_and_dates(self, property_id, check_in, check_out, *, exclude_id=None) -> list[Booking]:
         result = []
@@ -252,6 +259,7 @@ class FakeBookingAuditLogRepository(BookingAuditLogRepository):
 class FakeBookingPaymentRepository(BookingPaymentRepository):
     def __init__(self) -> None:
         self._payments: dict[uuid.UUID, BookingPayment] = {}
+        self._voided: set[tuple[uuid.UUID, str]] = set()
 
     async def create(self, payment: BookingPayment) -> BookingPayment:
         self._payments[payment.id] = payment
@@ -271,6 +279,12 @@ class FakeBookingPaymentRepository(BookingPaymentRepository):
             (p for p in self._payments.values() if p.booking_id == booking_id and p.idempotency_key == key),
             None,
         )
+
+    async def void_idempotency_key(self, company_id, booking_id, key):
+        self._voided.add((booking_id, key))
+
+    async def idempotency_key_voided(self, booking_id, key):
+        return (booking_id, key) in self._voided
 
     async def update(self, payment: BookingPayment) -> BookingPayment:
         self._payments[payment.id] = payment

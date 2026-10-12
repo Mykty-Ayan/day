@@ -233,6 +233,20 @@ class PaymentResponse(BaseModel):
     created_at: datetime | None = None
 
 
+class BookingKeyVoidResponse(BaseModel):
+    """What came of a create sent with an Idempotency-Key: its booking, or the key is now closed."""
+
+    voided: bool
+    booking: BookingResponse | None = None
+
+
+class PaymentKeyVoidResponse(BaseModel):
+    """What came of a payment sent with an Idempotency-Key: its payment, or the key is now closed."""
+
+    voided: bool
+    payment: PaymentResponse | None = None
+
+
 # ---------- Deposit ----------
 
 

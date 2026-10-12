@@ -141,6 +141,24 @@ class BookingPaymentModel(Base):
     booking: Mapped["BookingModel"] = relationship(back_populates="payments")
 
 
+class VoidedIdempotencyKeyModel(Base):
+    """An Idempotency-Key whose client gave up on it: a late request with it makes nothing.
+
+    A booking key is per company (booking_id empty), a payment key per booking,
+    as on the records themselves. Unique for each (migration 032).
+    """
+
+    __tablename__ = "voided_idempotency_keys"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    company_id: Mapped[uuid.UUID] = mapped_column(index=True)
+    booking_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("bookings.id", ondelete="CASCADE"), nullable=True
+    )
+    key: Mapped[str] = mapped_column(String(255))
+    voided_at: Mapped[datetime] = mapped_column(default=datetime.utcnow)
+
+
 class BookingDepositModel(Base):
     __tablename__ = "booking_deposits"
 

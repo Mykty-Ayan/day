@@ -41,6 +41,7 @@ from app.domain.booking.exceptions import (
     DepositAlreadyOpenError,
     IdempotencyKeyReusedError,
     IdempotencyKeyTakenError,
+    IdempotencyKeyVoidedError,
 )
 from app.domain.booking.value_objects import BookingSource, BookingStatus, PaymentStatus, RentalMode
 from app.domain.messaging.value_objects import NotificationEvent
@@ -83,6 +84,7 @@ from app.presentation.schemas.booking import (
     BookingFeedItem,
     BookingFeedResponse,
     BookingFileResponse,
+    BookingKeyVoidResponse,
     BookingListResponse,
     BookingMove,
     BookingResponse,
@@ -97,6 +99,7 @@ from app.presentation.schemas.booking import (
     GuestListResponse,
     GuestResponse,
     PaymentCreate,
+    PaymentKeyVoidResponse,
     PaymentResponse,
     PriceCalculateRequest,
     PriceCalculateResponse,
@@ -278,6 +281,8 @@ async def create_booking(
             booking = await svc.replay(company_id, idempotency_key, request_hash)
         except IdempotencyKeyReusedError as e:
             raise HTTPException(status_code=422, detail=str(e))
+        except IdempotencyKeyVoidedError as e:
+            raise HTTPException(status_code=409, detail=str(e))
         if booking is None:
             return None
         response.status_code = 200
@@ -322,6 +327,38 @@ async def create_booking(
     except ValueError as e:
         await session.rollback()
         raise HTTPException(status_code=400, detail=str(e))
+
+
+@booking_router.post(
+    "/idempotency-key/void",
+    response_model=BookingKeyVoidResponse,
+    dependencies=[Depends(require(Permission.BOOKINGS_WRITE))],
+)
+async def void_booking_key(
+    key: str = Header(alias="Idempotency-Key", min_length=1, max_length=255),
+    session: AsyncSession = Depends(get_session),
+    company_id: uuid.UUID = Depends(get_company_id),
+):
+    """Settle a create whose answer was lost; the key goes in the same header as on POST /bookings.
+
+    Answers with the booking the Idempotency-Key made, or closes the key: a
+    request with it still on its way then gets 409 and makes nothing. Waits for
+    a request with the key that is running. Only after `voided: true` may the
+    client book the same stay under a new key.
+    """
+    repos = _repos(session)
+    svc = CreateBookingService(
+        repos["booking"],
+        repos["guest"],
+        repos["property"],
+        repos["audit"],
+        _price_calculator(repos),
+    )
+    booking = await svc.void(company_id, key)
+    await session.commit()
+    if booking is not None:
+        return BookingKeyVoidResponse(voided=False, booking=_to_booking_response(booking))
+    return BookingKeyVoidResponse(voided=True)
 
 
 @booking_router.get("", response_model=BookingListResponse, dependencies=[Depends(require(Permission.BOOKINGS_READ))])
@@ -803,6 +840,8 @@ async def add_payment(
             payment = await svc.replay_payment(booking_id, company_id, idempotency_key, request_hash)
         except IdempotencyKeyReusedError as e:
             raise HTTPException(status_code=422, detail=str(e))
+        except IdempotencyKeyVoidedError as e:
+            raise HTTPException(status_code=409, detail=str(e))
         except ValueError as e:
             raise HTTPException(status_code=400, detail=str(e))
         if payment is None:
@@ -837,6 +876,30 @@ async def add_payment(
     except ValueError as e:
         await session.rollback()
         raise HTTPException(status_code=400, detail=str(e))
+
+
+@booking_router.post(
+    "/{booking_id:uuid}/payments/idempotency-key/void",
+    response_model=PaymentKeyVoidResponse,
+    dependencies=[Depends(require(Permission.BOOKINGS_WRITE))],
+)
+async def void_payment_key(
+    booking_id: uuid.UUID,
+    key: str = Header(alias="Idempotency-Key", min_length=1, max_length=255),
+    session: AsyncSession = Depends(get_session),
+    company_id: uuid.UUID = Depends(get_company_id),
+):
+    """Settle a payment whose answer was lost, as POST /bookings/idempotency-key/void."""
+    repos = _repos(session)
+    svc = ManagePaymentsService(repos["booking"], repos["payment"], repos["audit"])
+    try:
+        payment = await svc.void_payment_key(booking_id, company_id, key)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    await session.commit()
+    if payment is None:
+        return PaymentKeyVoidResponse(voided=True)
+    return PaymentKeyVoidResponse(voided=False, payment=PaymentResponse.model_validate(payment, from_attributes=True))
 
 
 @booking_router.post(
