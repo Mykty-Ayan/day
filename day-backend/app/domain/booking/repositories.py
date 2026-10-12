@@ -72,6 +72,13 @@ class BookingRepository(abc.ABC):
     async def get_by_idempotency_key(self, company_id: uuid.UUID, key: str) -> Booking | None: ...
 
     @abc.abstractmethod
+    async def void_idempotency_key(self, company_id: uuid.UUID, key: str) -> None:
+        """Close a key that made no booking. Call under lock_idempotency_key."""
+
+    @abc.abstractmethod
+    async def idempotency_key_voided(self, company_id: uuid.UUID, key: str) -> bool: ...
+
+    @abc.abstractmethod
     async def get_by_property_and_dates(
         self,
         property_id: uuid.UUID,
@@ -183,6 +190,13 @@ class BookingPaymentRepository(abc.ABC):
 
     @abc.abstractmethod
     async def get_by_idempotency_key(self, booking_id: uuid.UUID, key: str) -> BookingPayment | None: ...
+
+    @abc.abstractmethod
+    async def void_idempotency_key(self, company_id: uuid.UUID, booking_id: uuid.UUID, key: str) -> None:
+        """Close a key that recorded no payment. Call under lock_idempotency_key."""
+
+    @abc.abstractmethod
+    async def idempotency_key_voided(self, booking_id: uuid.UUID, key: str) -> bool: ...
 
     @abc.abstractmethod
     async def update(self, payment: BookingPayment) -> BookingPayment: ...

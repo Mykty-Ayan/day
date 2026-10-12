@@ -21,3 +21,10 @@ class IdempotencyKeyReusedError(ValueError):
 
 class IdempotencyKeyTakenError(Exception):
     """Another request with the same Idempotency-Key committed first."""
+
+
+class IdempotencyKeyVoidedError(ValueError):
+    """The client gave up on an Idempotency-Key it got no answer for; a late request with it makes nothing."""
+
+    def __init__(self) -> None:
+        super().__init__("Idempotency-Key was voided")
