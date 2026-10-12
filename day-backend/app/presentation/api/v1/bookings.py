@@ -10,7 +10,7 @@ from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 from urllib.parse import quote, urlparse
 
-from fastapi import APIRouter, Depends, File, Header, HTTPException, Path, Query, UploadFile
+from fastapi import APIRouter, Depends, File, Header, HTTPException, Query, UploadFile
 from fastapi.responses import Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -329,16 +329,16 @@ async def create_booking(
 
 
 @booking_router.post(
-    "/idempotency-keys/{key}/void",
+    "/idempotency-key/void",
     response_model=BookingKeyVoidResponse,
     dependencies=[Depends(require(Permission.BOOKINGS_WRITE))],
 )
 async def void_booking_key(
-    key: str = Path(min_length=1, max_length=255),
+    key: str = Header(alias="Idempotency-Key", min_length=1, max_length=255),
     session: AsyncSession = Depends(get_session),
     company_id: uuid.UUID = Depends(get_company_id),
 ):
-    """Settle a create whose answer was lost.
+    """Settle a create whose answer was lost; the key goes in the same header as on POST /bookings.
 
     Answers with the booking the Idempotency-Key made, or closes the key: a
     request with it still on its way then gets 409 and makes nothing. Waits for
@@ -878,17 +878,17 @@ async def add_payment(
 
 
 @booking_router.post(
-    "/{booking_id:uuid}/payments/idempotency-keys/{key}/void",
+    "/{booking_id:uuid}/payments/idempotency-key/void",
     response_model=PaymentKeyVoidResponse,
     dependencies=[Depends(require(Permission.BOOKINGS_WRITE))],
 )
 async def void_payment_key(
     booking_id: uuid.UUID,
-    key: str = Path(min_length=1, max_length=255),
+    key: str = Header(alias="Idempotency-Key", min_length=1, max_length=255),
     session: AsyncSession = Depends(get_session),
     company_id: uuid.UUID = Depends(get_company_id),
 ):
-    """Settle a payment whose answer was lost, as POST /bookings/idempotency-keys/{key}/void."""
+    """Settle a payment whose answer was lost, as POST /bookings/idempotency-key/void."""
     repos = _repos(session)
     svc = ManagePaymentsService(repos["booking"], repos["payment"], repos["audit"])
     try:

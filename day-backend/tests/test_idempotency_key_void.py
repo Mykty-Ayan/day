@@ -92,13 +92,17 @@ async def test_a_payment_key_of_another_company_booking_cannot_be_voided():
 
 # ---------- HTTP against PostgreSQL ----------
 
-VOID_BOOKING = "/api/v1/bookings/idempotency-keys/{}/void"
+VOID_BOOKING = "/api/v1/bookings/idempotency-key/void"
+
+
+def _key(key: str) -> dict:
+    return {"Idempotency-Key": key}
 
 
 @pytest.mark.integration
 async def test_a_booking_sent_after_its_key_was_voided_is_refused(crm):  # noqa: F811
     client, prop = crm
-    voided = await client.post(VOID_BOOKING.format("lost-1"))
+    voided = await client.post(VOID_BOOKING, headers=_key("lost-1"))
     late = await client.post("/api/v1/bookings", json=_body(prop), headers={"Idempotency-Key": "lost-1"})
 
     assert voided.status_code == 200, voided.text
@@ -112,7 +116,7 @@ async def test_a_booking_sent_after_its_key_was_voided_is_refused(crm):  # noqa:
 async def test_voiding_the_key_of_a_made_booking_returns_it(crm):  # noqa: F811
     client, prop = crm
     made = await client.post("/api/v1/bookings", json=_body(prop), headers={"Idempotency-Key": "made-1"})
-    voided = await client.post(VOID_BOOKING.format("made-1"))
+    voided = await client.post(VOID_BOOKING, headers=_key("made-1"))
 
     assert made.status_code == 201, made.text
     assert voided.status_code == 200, voided.text
@@ -132,7 +136,7 @@ async def test_a_booking_and_a_void_at_once_never_both_win(crm):  # noqa: F811
                            check_out=f"2026-11-{11 + 2 * attempt}T12:00:00"),
                 headers={"Idempotency-Key": key},
             ),
-            client.post(VOID_BOOKING.format(key)),
+            client.post(VOID_BOOKING, headers=_key(key)),
         )
         assert voided.status_code == 200, voided.text
         if voided.json()["voided"]:
@@ -143,9 +147,21 @@ async def test_a_booking_and_a_void_at_once_never_both_win(crm):  # noqa: F811
 
 
 @pytest.mark.integration
-async def test_an_over_long_key_cannot_be_voided(crm):  # noqa: F811
+async def test_an_over_long_or_missing_key_cannot_be_voided(crm):  # noqa: F811
     client, _ = crm
-    assert (await client.post(VOID_BOOKING.format("k" * 256))).status_code == 422
+    assert (await client.post(VOID_BOOKING, headers=_key("k" * 256))).status_code == 422
+    assert (await client.post(VOID_BOOKING)).status_code == 422
+
+
+@pytest.mark.integration
+async def test_any_key_a_create_takes_can_be_voided(crm):  # noqa: F811
+    client, prop = crm
+    key = "crm/deal-42 #1?x=%2F"
+    voided = await client.post(VOID_BOOKING, headers=_key(key))
+    late = await client.post("/api/v1/bookings", json=_body(prop), headers=_key(key))
+
+    assert voided.json() == {"voided": True, "booking": None}
+    assert late.status_code == 409
 
 
 @pytest.mark.integration
@@ -154,7 +170,7 @@ async def test_a_payment_sent_after_its_key_was_voided_is_refused(crm):  # noqa:
     booking_id = (await client.post("/api/v1/bookings", json=_body(prop))).json()["id"]
     path = f"/api/v1/bookings/{booking_id}/payments"
 
-    voided = await client.post(f"{path}/idempotency-keys/pay-lost/void")
+    voided = await client.post(f"{path}/idempotency-key/void", headers=_key("pay-lost"))
     late = await client.post(path, json={"amount": "20000", "method": "cash"}, headers={"Idempotency-Key": "pay-lost"})
 
     assert voided.status_code == 200, voided.text
@@ -171,7 +187,7 @@ async def test_voiding_the_key_of_a_recorded_payment_returns_it(crm):  # noqa: F
     path = f"/api/v1/bookings/{booking_id}/payments"
     paid = await client.post(path, json={"amount": "20000", "method": "cash"}, headers={"Idempotency-Key": "pay-1"})
 
-    voided = await client.post(f"{path}/idempotency-keys/pay-1/void")
+    voided = await client.post(f"{path}/idempotency-key/void", headers=_key("pay-1"))
 
     assert voided.status_code == 200, voided.text
     assert voided.json()["voided"] is False
@@ -187,7 +203,7 @@ async def test_a_payment_and_a_void_at_once_never_both_win(crm):  # noqa: F811
         key = f"pay-race-{attempt}"
         sent, voided = await asyncio.gather(
             client.post(path, json={"amount": "1000", "method": "cash"}, headers={"Idempotency-Key": key}),
-            client.post(f"{path}/idempotency-keys/{key}/void"),
+            client.post(f"{path}/idempotency-key/void", headers=_key(key)),
         )
         assert voided.status_code == 200, voided.text
         if voided.json()["voided"]:
@@ -200,5 +216,5 @@ async def test_a_payment_and_a_void_at_once_never_both_win(crm):  # noqa: F811
 @pytest.mark.integration
 async def test_a_payment_key_of_an_unknown_booking_is_a_404(crm):  # noqa: F811
     client, _ = crm
-    response = await client.post(f"/api/v1/bookings/{uuid.uuid4()}/payments/idempotency-keys/k1/void")
+    response = await client.post(f"/api/v1/bookings/{uuid.uuid4()}/payments/idempotency-key/void", headers=_key("k1"))
     assert response.status_code == 404
