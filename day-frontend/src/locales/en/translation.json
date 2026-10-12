@@ -236,7 +236,10 @@
       "wifiName": "Wi-Fi network",
       "wifiNamePlaceholder": "Home 28",
       "wifiPassword": "Wi-Fi password",
-      "wifiPasswordPlaceholder": "Network password"
+      "wifiPasswordPlaceholder": "Network password",
+      "maxGuests": "Max guests",
+      "maxGuestsHint": "How many people may stay: Airbnb and Booking get this number",
+      "bathrooms": "Bathrooms"
     },
     "validation": {
       "nameRequired": "Name is required",
@@ -803,7 +806,9 @@
     "disconnect": "Disconnect",
     "codeFailed": "Could not issue a code",
     "whatsappConnected": "WhatsApp channel connected",
-    "whatsappFailed": "Could not connect the channel"
+    "whatsappFailed": "Could not connect the channel",
+    "strandsTwoFactor": "This chat receives sign-in codes. Turn off the Telegram sign-in code in Settings first",
+    "disconnectFailed": "Could not disconnect the chat"
   },
   "miniapp": {
     "loading": "Loading…",
@@ -939,6 +944,20 @@
       "tooMany": "Too many attempts, wait a minute",
       "unavailable": "Reset is unavailable right now, try later",
       "failed": "Something went wrong, try again"
+    },
+    "twoFactor": {
+      "title": "Code from Telegram",
+      "hint": "We sent a code to your Telegram chat with the Day bot",
+      "signIn": "Sign in",
+      "cardTitle": "Sign-in code from Telegram",
+      "cardOn": "On: after the password we ask for a code from Telegram",
+      "cardOff": "Off: the password alone signs in",
+      "needTelegram": "Link Telegram first: Settings → Team",
+      "password": "Password to confirm",
+      "enable": "Turn on",
+      "disable": "Turn off",
+      "saved": "Saved",
+      "wrongPassword": "Wrong password"
     }
   }
 }

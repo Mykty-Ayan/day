@@ -236,7 +236,10 @@
       "wifiName": "Wi-Fi сеть",
       "wifiNamePlaceholder": "Home 28",
       "wifiPassword": "Пароль Wi-Fi",
-      "wifiPasswordPlaceholder": "Пароль от сети"
+      "wifiPasswordPlaceholder": "Пароль от сети",
+      "maxGuests": "Макс. гостей",
+      "maxGuestsHint": "Сколько человек может жить: это число получают Airbnb и Booking",
+      "bathrooms": "Ванные комнаты"
     },
     "validation": {
       "nameRequired": "Название обязательно",
@@ -803,7 +806,9 @@
     "disconnect": "Отключить",
     "codeFailed": "Не удалось выдать код",
     "whatsappConnected": "WhatsApp-канал подключён",
-    "whatsappFailed": "Не удалось подключить канал"
+    "whatsappFailed": "Не удалось подключить канал",
+    "strandsTwoFactor": "Сюда приходят коды для входа. Сначала выключите «Вход с кодом из Telegram» в настройках",
+    "disconnectFailed": "Не удалось отключить чат"
   },
   "miniapp": {
     "loading": "Загрузка…",
@@ -939,6 +944,20 @@
       "tooMany": "Слишком много попыток, подождите минуту",
       "unavailable": "Сброс сейчас недоступен, попробуйте позже",
       "failed": "Не получилось, попробуйте ещё раз"
+    },
+    "twoFactor": {
+      "title": "Код из Telegram",
+      "hint": "Мы отправили код в ваш Telegram-чат с ботом Day",
+      "signIn": "Войти",
+      "cardTitle": "Вход с кодом из Telegram",
+      "cardOn": "Включён: после пароля мы спрашиваем код из Telegram",
+      "cardOff": "Выключен: вход только по паролю",
+      "needTelegram": "Сначала привяжите Telegram: «Настройки → Команда»",
+      "password": "Пароль для подтверждения",
+      "enable": "Включить",
+      "disable": "Выключить",
+      "saved": "Сохранено",
+      "wrongPassword": "Неверный пароль"
     }
   }
 }

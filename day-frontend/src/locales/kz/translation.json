@@ -236,7 +236,10 @@
       "wifiName": "Wi-Fi желісі",
       "wifiNamePlaceholder": "Home 28",
       "wifiPassword": "Wi-Fi құпиясөзі",
-      "wifiPasswordPlaceholder": "Желі құпиясөзі"
+      "wifiPasswordPlaceholder": "Желі құпиясөзі",
+      "maxGuests": "Ең көп қонақ",
+      "maxGuestsHint": "Қанша адам тұра алады: бұл санды Airbnb пен Booking алады",
+      "bathrooms": "Жуынатын бөлмелер"
     },
     "validation": {
       "nameRequired": "Атауы міндетті",
@@ -803,7 +806,9 @@
     "disconnect": "Ажырату",
     "codeFailed": "Код беру мүмкін болмады",
     "whatsappConnected": "WhatsApp арнасы қосылды",
-    "whatsappFailed": "Арнаны қосу мүмкін болмады"
+    "whatsappFailed": "Арнаны қосу мүмкін болмады",
+    "strandsTwoFactor": "Бұл чатқа кіру кодтары келеді. Алдымен баптаулардағы «Telegram кодымен кіру» дегенді өшіріңіз",
+    "disconnectFailed": "Чатты ажырату мүмкін болмады"
   },
   "miniapp": {
     "loading": "Жүктелуде…",
@@ -939,6 +944,20 @@
       "tooMany": "Әрекет тым көп, бір минут күтіңіз",
       "unavailable": "Қазір қалпына келтіру мүмкін емес, кейінірек көріңіз",
       "failed": "Болмады, қайталап көріңіз"
+    },
+    "twoFactor": {
+      "title": "Telegram-дағы код",
+      "hint": "Кодты Day ботымен Telegram-чатыңызға жібердік",
+      "signIn": "Кіру",
+      "cardTitle": "Telegram кодымен кіру",
+      "cardOn": "Қосулы: құпиясөзден кейін Telegram-дағы кодты сұраймыз",
+      "cardOff": "Өшірулі: тек құпиясөзбен кіру",
+      "needTelegram": "Алдымен Telegram-ды байлаңыз: «Баптаулар → Команда»",
+      "password": "Растау үшін құпиясөз",
+      "enable": "Қосу",
+      "disable": "Өшіру",
+      "saved": "Сақталды",
+      "wrongPassword": "Құпиясөз қате"
     }
   }
 }

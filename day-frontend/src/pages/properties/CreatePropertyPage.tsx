@@ -39,6 +39,8 @@ interface FormData {
   details: {
     rooms: string
     beds: string
+    max_guests: string
+    bathrooms: string
     area_living: string
     area_total: string
   }
@@ -66,7 +68,7 @@ interface FormData {
 const initialForm: FormData = {
   basic: { name: '', internal_name: '', type: 'apartment', description: '', source_url: '' },
   address: { address_full: '', apartment_number: '', entrance: '', block: '', floor: '', latitude: '', longitude: '' },
-  details: { rooms: '', beds: '', area_living: '', area_total: '' },
+  details: { rooms: '', beds: '', max_guests: '', bathrooms: '', area_living: '', area_total: '' },
   rental_mode: 'daily',
   pricing: { base_price: '', hourly_price: '', weekend_markup: '', default_deposit: '', extra_adult_price: '', extra_child_price: '', base_guests: '' },
   photos: [],
@@ -149,6 +151,8 @@ export default function CreatePropertyPage() {
       longitude: form.address.longitude ? parseFloat(form.address.longitude) : undefined,
       rooms: form.details.rooms ? parseInt(form.details.rooms) : undefined,
       beds: form.details.beds ? parseInt(form.details.beds) : undefined,
+      max_guests: form.details.max_guests ? parseInt(form.details.max_guests) : undefined,
+      bathrooms: form.details.bathrooms ? parseInt(form.details.bathrooms) : undefined,
       area_living: form.details.area_living ? parseFloat(form.details.area_living) : undefined,
       area_total: form.details.area_total ? parseFloat(form.details.area_total) : undefined,
       check_in_instructions: form.rules.check_in_instructions || undefined,

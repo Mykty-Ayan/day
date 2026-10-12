@@ -76,6 +76,7 @@ def build_link_service(session: AsyncSession) -> LinkChannelService:
     return LinkChannelService(
         SqlChannelLinkCodeRepository(session),
         SqlChannelIdentityRepository(session),
+        SqlUserRepository(session),
     )
 
 

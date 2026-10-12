@@ -34,6 +34,8 @@ interface FormData {
   details: {
     rooms: string
     beds: string
+    max_guests: string
+    bathrooms: string
     area_living: string
     area_total: string
   }
@@ -67,6 +69,8 @@ function propertyToForm(property: Property): FormData {
     details: {
       rooms: property.rooms != null ? String(property.rooms) : '',
       beds: property.beds != null ? String(property.beds) : '',
+      max_guests: property.max_guests != null ? String(property.max_guests) : '',
+      bathrooms: property.bathrooms != null ? String(property.bathrooms) : '',
       area_living: property.area_living != null ? String(property.area_living) : '',
       area_total: property.area_total != null ? String(property.area_total) : '',
     },
@@ -148,6 +152,9 @@ function EditPropertyForm({ property, propertyId }: { property: Property; proper
       longitude: form.address.longitude ? parseFloat(form.address.longitude) : undefined,
       rooms: form.details.rooms ? parseInt(form.details.rooms) : undefined,
       beds: form.details.beds ? parseInt(form.details.beds) : undefined,
+      // null, not undefined: a cleared field must reach the server as cleared.
+      max_guests: form.details.max_guests ? parseInt(form.details.max_guests) : null,
+      bathrooms: form.details.bathrooms ? parseInt(form.details.bathrooms) : null,
       area_living: form.details.area_living ? parseFloat(form.details.area_living) : undefined,
       area_total: form.details.area_total ? parseFloat(form.details.area_total) : undefined,
       check_in_instructions: form.rules.check_in_instructions || undefined,

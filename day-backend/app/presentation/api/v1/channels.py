@@ -13,6 +13,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.application.messaging.link_channel import StrandsTwoFactor
 from app.config import settings
 from app.domain.auth.permissions import Permission
 from app.domain.messaging.entities import ChannelIdentity
@@ -152,6 +153,10 @@ async def disconnect_channel(
     if identity is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Channel not found")
 
+    try:
+        await build_link_service(session).guard_two_factor(identity)
+    except StrandsTwoFactor as e:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
     identity.is_active = False
     updated = await repo.update(identity)
     await session.commit()

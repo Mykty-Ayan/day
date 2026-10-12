@@ -710,6 +710,8 @@ async def get_availability(
                 rental_mode=item.property.rental_mode,
                 rooms=item.property.rooms,
                 beds=item.property.beds,
+                max_guests=item.property.max_guests,
+                bathrooms=item.property.bathrooms,
                 total_price=item.total_price,
                 price_error=item.price_error,
                 photos=[

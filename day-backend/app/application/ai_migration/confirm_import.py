@@ -21,6 +21,15 @@ class ConfirmImportInput:
     changed_by: uuid.UUID | None = None
 
 
+def _capacity(value) -> int | None:
+    """An imported count kept only when it is a sane whole number (1–50), as the form demands."""
+    try:
+        number = int(value)
+    except (TypeError, ValueError):
+        return None
+    return number if 1 <= number <= 50 else None
+
+
 class ConfirmImportService:
     def __init__(
         self,
@@ -86,6 +95,8 @@ class ConfirmImportService:
             floor=data.get("floor"),
             rooms=data.get("rooms"),
             beds=data.get("beds"),
+            max_guests=_capacity(data.get("max_guests")),
+            bathrooms=_capacity(data.get("bathrooms")),
             area_living=data.get("area_living"),
             area_total=data.get("area_total"),
             check_in_instructions=data.get("check_in_instructions"),
