@@ -58,3 +58,60 @@ async def test_a_short_new_password_is_refused():
 def test_guessing_the_current_password_gets_the_tight_limit():
     request = Request({"type": "http", "method": "POST", "path": "/api/v1/auth/change-password", "headers": []})
     assert _limit_for(request)[0] == "auth"
+
+
+@pytest.mark.integration
+async def test_two_changes_at_once_leave_one_winner():
+    # Both used to pass the check against the old password; the loser's
+    # session then kept working with the winner's password in place.
+    import asyncio
+    import uuid
+
+    from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+    from sqlalchemy.pool import NullPool
+
+    from app.config import settings
+    from app.infrastructure.models.auth import CompanyModel, UserModel
+    from app.infrastructure.repositories.auth import SqlUserRepository
+
+    engine = create_async_engine(settings.DATABASE_URL, poolclass=NullPool)
+    maker = async_sessionmaker(engine, expire_on_commit=False)
+    company_id, user_id = uuid.uuid4(), uuid.uuid4()
+    async with maker() as s:
+        s.add(CompanyModel(id=company_id, name="Race"))
+        await s.flush()
+        s.add(
+            UserModel(
+                id=user_id,
+                email=f"race-{user_id.hex[:8]}@example.com",
+                company_id=company_id,
+                role="owner",
+                hashed_password=hash_password("old-pass-1"),
+            )
+        )
+        await s.commit()
+
+    async def change(new: str):
+        async with maker() as s:
+            try:
+                await AuthService(SqlUserRepository(s), None).change_password(user_id, "old-pass-1", new)
+                await s.commit()
+                return new
+            except ValueError:
+                await s.rollback()
+                return None
+
+    try:
+        results = await asyncio.gather(change("first-pass-1"), change("second-pass-2"))
+        winners = [r for r in results if r]
+        assert len(winners) == 1
+        async with maker() as s:
+            stored = await SqlUserRepository(s).get_by_id(user_id)
+        assert verify_password(winners[0], stored.hashed_password)
+        assert stored.token_version == 1
+    finally:
+        async with maker() as s:
+            await s.execute(UserModel.__table__.delete().where(UserModel.id == user_id))
+            await s.execute(CompanyModel.__table__.delete().where(CompanyModel.id == company_id))
+            await s.commit()
+        await engine.dispose()

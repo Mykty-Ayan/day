@@ -77,7 +77,9 @@ class AuthService:
 
     async def change_password(self, user_id: uuid.UUID, current_password: str, new_password: str) -> dict:
         """Set a new password, end every other session, keep this one going."""
-        user = await self._user_repo.get_by_id(user_id)
+        # Locked: a second change racing this one waits, then finds the
+        # current password already replaced and is refused.
+        user = await self._user_repo.get_for_update(user_id)
         if user is None or not user.is_active:
             raise ValueError("User not found")
         if not verify_password(current_password, user.hashed_password):
@@ -85,8 +87,8 @@ class AuthService:
         if len(new_password) < MIN_PASSWORD_LENGTH:
             raise ValueError(f"Password must be at least {MIN_PASSWORD_LENGTH} characters")
         user.hashed_password = hash_password(new_password)
-        user.token_version += 1
-        user = await self._user_repo.update(user)
+        await self._user_repo.update(user)
+        user = await self._user_repo.bump_token_version(user_id)
         return issue_tokens(user)
 
     async def logout_by_refresh_token(self, refresh_token: str) -> None:
