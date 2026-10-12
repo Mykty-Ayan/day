@@ -13,6 +13,8 @@ import {
   Archive,
   Pencil,
   Copy,
+  Users,
+  Bath,
 } from 'lucide-react'
 import { useParams, Link, useNavigate } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
@@ -289,6 +291,20 @@ export default function PropertyDetailPage() {
                     <p className="text-sm font-semibold text-gray-900">
                       {property.beds ?? '-'}
                     </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Users className="w-4 h-4 text-gray-400" />
+                  <div>
+                    <p className="text-xs text-gray-500">{t('properties.form.maxGuests')}</p>
+                    <p className="text-sm font-semibold text-gray-900">{property.max_guests ?? '-'}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Bath className="w-4 h-4 text-gray-400" />
+                  <div>
+                    <p className="text-xs text-gray-500">{t('properties.form.bathrooms')}</p>
+                    <p className="text-sm font-semibold text-gray-900">{property.bathrooms ?? '-'}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">

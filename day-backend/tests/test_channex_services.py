@@ -301,6 +301,19 @@ class TestOnboardListing:
         room_call = next(c for c in gateway.calls if c[0] == "create_room_type")
         assert room_call[1]["occ_adults"] == 4
 
+    async def test_occupancy_comes_from_max_guests_not_beds(self):
+        # Two beds sleep four: the bed count was sent as the guest limit.
+        gateway = FakeGateway()
+        service = OnboardListingService(
+            FakeConnectionRepository(),
+            FakeListingRepository(),
+            FakePropertyRepository([_property(beds=2, max_guests=4)]),
+            gateway,
+        )
+        await service.execute(OnboardListingInput(company_id=COMPANY_ID, property_id=PROPERTY_ID, city="Almaty"))
+        room_call = next(c for c in gateway.calls if c[0] == "create_room_type")
+        assert room_call[1]["occ_adults"] == 4
+
     async def test_is_idempotent_per_property(self):
         connections = FakeConnectionRepository()
         listings = FakeListingRepository()

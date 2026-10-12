@@ -27,6 +27,8 @@ class CreatePropertyInput:
     floor: int | None = None
     rooms: int | None = None
     beds: int | None = None
+    max_guests: int | None = None
+    bathrooms: int | None = None
     area_living: float | None = None
     area_total: float | None = None
     check_in_instructions: str | None = None
@@ -75,6 +77,8 @@ class CreatePropertyService:
             floor=inp.floor,
             rooms=inp.rooms,
             beds=inp.beds,
+            max_guests=inp.max_guests,
+            bathrooms=inp.bathrooms,
             area_living=inp.area_living,
             area_total=inp.area_total,
             check_in_instructions=inp.check_in_instructions,

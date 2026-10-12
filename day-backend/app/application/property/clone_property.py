@@ -76,6 +76,8 @@ class ClonePropertyService:
             floor=source.floor,
             rooms=source.rooms,
             beds=source.beds,
+            max_guests=source.max_guests,
+            bathrooms=source.bathrooms,
             area_living=source.area_living,
             area_total=source.area_total,
             check_in_instructions=source.check_in_instructions,

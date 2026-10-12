@@ -64,7 +64,9 @@ class OnboardListingService:
                 ChannexConnection(company_id=inp.company_id, channex_group_id=group_id)
             )
 
-        adults = max(prop.beds or 2, 1)
+        # The guest limit, when the owner gave it; the bed count was the old
+        # stand-in and undercounts any flat with a double bed.
+        adults = max(prop.max_guests or prop.beds or 2, 1)
         listing = ChannexListing(
             company_id=inp.company_id,
             property_id=inp.property_id,

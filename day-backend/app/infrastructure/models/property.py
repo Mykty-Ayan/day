@@ -42,6 +42,8 @@ class PropertyModel(Base):
     # Details
     rooms: Mapped[int | None] = mapped_column(Integer, nullable=True)
     beds: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    max_guests: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    bathrooms: Mapped[int | None] = mapped_column(Integer, nullable=True)
     area_living: Mapped[float | None] = mapped_column(Float, nullable=True)
     area_total: Mapped[float | None] = mapped_column(Float, nullable=True)
 

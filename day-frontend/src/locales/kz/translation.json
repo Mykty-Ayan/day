@@ -236,7 +236,10 @@
       "wifiName": "Wi-Fi желісі",
       "wifiNamePlaceholder": "Home 28",
       "wifiPassword": "Wi-Fi құпиясөзі",
-      "wifiPasswordPlaceholder": "Желі құпиясөзі"
+      "wifiPasswordPlaceholder": "Желі құпиясөзі",
+      "maxGuests": "Ең көп қонақ",
+      "maxGuestsHint": "Қанша адам тұра алады: бұл санды Airbnb пен Booking алады",
+      "bathrooms": "Жуынатын бөлмелер"
     },
     "validation": {
       "nameRequired": "Атауы міндетті",
