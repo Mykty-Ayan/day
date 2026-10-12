@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from datetime import date, datetime
 from decimal import Decimal
 
-from app.application.booking.create_booking import apply_default_times
+from app.application.booking.create_booking import apply_default_times, settle_boundary
 from app.domain.booking.entities import Booking, Guest
 from app.domain.booking.repositories import BookingRepository, GuestRepository
 from app.domain.booking.value_objects import BookingStatus, RentalMode
@@ -191,9 +191,10 @@ class ProcessBookingEventService:
         )
 
     async def _apply_revision_fields(self, booking: Booking, attrs: dict) -> None:
+        # A boundary whose date the OTA did not move keeps its saved time.
         check_in, check_out = await self._stay_times(booking.property_id, attrs)
-        booking.check_in = check_in
-        booking.check_out = check_out
+        booking.check_in = settle_boundary(date.fromisoformat(attrs["arrival_date"]), check_in, booking.check_in)
+        booking.check_out = settle_boundary(date.fromisoformat(attrs["departure_date"]), check_out, booking.check_out)
         amount = attrs.get("amount")
         if amount is not None:
             booking.total_price = Decimal(str(amount))

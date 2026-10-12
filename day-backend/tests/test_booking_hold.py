@@ -295,3 +295,135 @@ async def test_a_hold_through_the_api(crm):  # noqa: F811  (the imported fixture
     )
     assert past.status_code == 400
     assert past.json()["detail"] == "expires_at must be in the future"
+
+
+@pytest.mark.integration
+async def test_a_paid_hold_is_never_swept():
+    # Two concurrent writes can put a confirmed booking back to pending with
+    # its old expires_at (the later one rewrites the row it read earlier).
+    # Money already arrived, so the sweep must leave it alone.
+    from app.infrastructure.models.booking import BookingPaymentModel
+    from app.infrastructure.repositories.booking import SqlBookingRepository
+
+    async with _maker() as maker:
+        async with maker() as setup:
+            company, prop, guest = await _flat(setup)
+            hold = await SqlBookingRepository(setup).create(
+                Booking(
+                    company_id=company, property_id=prop, guest_id=guest,
+                    check_in=datetime(2026, 11, 1, 14), check_out=datetime(2026, 11, 3, 12),
+                    status=BookingStatus.PENDING, expires_at=NOW - timedelta(minutes=1),
+                )
+            )
+            setup.add(
+                BookingPaymentModel(booking_id=hold.id, amount=1000, type="payment", method="cash", status="completed")
+            )
+            await setup.commit()
+        try:
+            async with maker() as s:
+                expired = await SqlBookingRepository(s).list_expired_holds(NOW, limit=1000)
+                assert hold.id not in {b.id for b in expired}
+                await s.rollback()
+        finally:
+            await _cleanup(maker, company)
+
+
+@pytest.mark.integration
+async def test_a_payment_moves_the_booking_up_the_feed():
+    # The CRM learns paid_amount from the feed, which orders by
+    # bookings.updated_at; a payment that leaves the status alone must still
+    # move the booking past the CRM's cursor.
+    from decimal import Decimal
+
+    from app.application.booking.manage_payments import ManagePaymentsService
+    from app.domain.booking.value_objects import PaymentMethod, PaymentType
+    from app.infrastructure.repositories.booking import (
+        SqlBookingAuditLogRepository,
+        SqlBookingPaymentRepository,
+        SqlBookingRepository,
+    )
+
+    async with _maker() as maker:
+        async with maker() as setup:
+            company, prop, guest = await _flat(setup)
+            booking = await SqlBookingRepository(setup).create(
+                Booking(
+                    company_id=company, property_id=prop, guest_id=guest,
+                    check_in=datetime(2026, 11, 1, 14), check_out=datetime(2026, 11, 3, 12),
+                    status=BookingStatus.CONFIRMED,
+                )
+            )
+            await setup.commit()
+        try:
+            before = booking.updated_at
+            async with maker() as s:
+                payments = ManagePaymentsService(
+                    SqlBookingRepository(s), SqlBookingPaymentRepository(s), SqlBookingAuditLogRepository(s)
+                )
+                await payments.add_payment(
+                    booking.id, company, Decimal("5000"), PaymentType.PAYMENT, PaymentMethod.CASH
+                )
+                await s.commit()
+            async with maker() as s:
+                after = (await SqlBookingRepository(s).get_by_id(booking.id)).updated_at
+            assert after > before
+        finally:
+            await _cleanup(maker, company)
+
+
+@pytest.mark.integration
+async def test_two_payments_at_once_both_land_and_confirm_once():
+    # Both requests used to read the booking as pending; the second then
+    # confirmed it again from a stale copy (or failed and lost its payment).
+    import asyncio
+    from decimal import Decimal
+
+    from app.application.booking.manage_payments import ManagePaymentsService
+    from app.domain.booking.value_objects import PaymentMethod, PaymentType
+    from app.infrastructure.models.booking import BookingAuditLogModel
+    from app.infrastructure.repositories.booking import (
+        SqlBookingAuditLogRepository,
+        SqlBookingPaymentRepository,
+        SqlBookingRepository,
+    )
+
+    async with _maker() as maker:
+        async with maker() as setup:
+            company, prop, guest = await _flat(setup)
+            booking = await SqlBookingRepository(setup).create(
+                Booking(
+                    company_id=company, property_id=prop, guest_id=guest,
+                    check_in=datetime(2026, 11, 1, 14), check_out=datetime(2026, 11, 3, 12),
+                    status=BookingStatus.PENDING,
+                )
+            )
+            await setup.commit()
+
+        async def pay(amount: str) -> None:
+            async with maker() as s:
+                payments = ManagePaymentsService(
+                    SqlBookingRepository(s), SqlBookingPaymentRepository(s), SqlBookingAuditLogRepository(s)
+                )
+                await payments.add_payment(
+                    booking.id, company, Decimal(amount), PaymentType.PAYMENT, PaymentMethod.CASH
+                )
+                await s.commit()
+
+        try:
+            await asyncio.gather(pay("1000"), pay("2000"))
+            async with maker() as s:
+                current = await SqlBookingRepository(s).get_by_id(booking.id)
+                landed = await SqlBookingPaymentRepository(s).list_by_booking(booking.id)
+                status_changes = (
+                    await s.scalars(
+                        select(BookingAuditLogModel).where(
+                            BookingAuditLogModel.booking_id == booking.id,
+                            BookingAuditLogModel.field_name == "status",
+                        )
+                    )
+                ).all()
+            assert current.status == BookingStatus.CONFIRMED
+            assert len(landed) == 2
+            assert len(status_changes) == 1
+        finally:
+            await _cleanup(maker, company)

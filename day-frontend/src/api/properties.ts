@@ -284,3 +284,9 @@ export async function assignTags(
 ): Promise<void> {
   await apiClient.put(`/properties/${propertyId}/tags`, { tag_ids: tagIds })
 }
+
+/** The iCal link to paste into Airbnb and Booking.com (owners and managers only). */
+export async function getCalendarLink(propertyId: string): Promise<string> {
+  const res = await apiClient.get<{ url: string }>(`/properties/${propertyId}/calendar-link`)
+  return res.data.url
+}

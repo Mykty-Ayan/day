@@ -128,6 +128,9 @@ class BookingResponse(BaseModel):
     external_id: str | None = None
     # UTC, with its zone.
     expires_at: datetime | None = None
+    # An OTA booking that landed on nights already taken: kept, not dropped,
+    # and shown so someone moves or cancels one of the two.
+    overbooking: bool = False
     created_at: datetime | None = None
     updated_at: datetime | None = None
 
@@ -160,6 +163,8 @@ class BookingFeedItem(BaseModel):
     children_count: int
     external_id: str | None = None
     expires_at: datetime | None = None
+    # An OTA booking on nights already taken; see BookingResponse.
+    overbooking: bool = False
     created_at: datetime
     updated_at: datetime
 
@@ -372,6 +377,7 @@ class GanttBookingResponse(BaseModel):
     adults_count: int
     children_count: int
     total_price: float
+    overbooking: bool = False
 
 
 class GanttPropertyResponse(BaseModel):
@@ -402,6 +408,7 @@ class TodayBookingItem(BaseModel):
     status: BookingStatus
     adults_count: int
     children_count: int
+    overbooking: bool = False
 
 
 class TodayCheckResponse(BaseModel):

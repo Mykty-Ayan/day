@@ -828,7 +828,7 @@ export default function GanttChart({
                     <button
                       key={booking.id}
                       type="button"
-                      aria-label={`${booking.guest_name}, ${formatBookingDateRangeShort(booking.check_in, booking.check_out, shortMonthNames)}`}
+                      aria-label={`${booking.overbooking ? `${t('bookings.overbooking.short')}: ` : ''}${booking.guest_name}, ${formatBookingDateRangeShort(booking.check_in, booking.check_out, shortMonthNames)}`}
                       draggable
                       onDragStart={(e) => handleDragStart(e, booking, row.property.id)}
                       onDragEnd={handleDragEnd}
@@ -857,7 +857,9 @@ export default function GanttChart({
                         // Hourly / sub-day bookings render as a distinct pill so they
                         // read differently from multi-night bars at min width.
                         isHourlyBooking(booking) ? 'rounded-full ring-1 ring-white/70' : 'rounded-lg'
-                      } ${getStatusBarStyle(booking.status)}`}
+                      } ${getStatusBarStyle(booking.status)} ${
+                        booking.overbooking ? 'outline outline-2 outline-red-600 outline-offset-1' : ''
+                      }`}
                       style={{
                         left: pos.left,
                         width: pos.width,
@@ -888,6 +890,11 @@ export default function GanttChart({
                             <circle cx="12" cy="12" r="9" />
                             <path d="M12 7v5l3 2" />
                           </svg>
+                        )}
+                        {booking.overbooking && (
+                          <span className="mr-1 shrink-0 rounded bg-red-600 px-1 text-[9px] font-bold text-white">
+                            !
+                          </span>
                         )}
                         <span className="text-[11px] font-semibold text-white truncate">
                           {booking.guest_name}

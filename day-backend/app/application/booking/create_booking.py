@@ -60,6 +60,27 @@ def apply_default_times(
     )
 
 
+def settle_boundary(
+    given: date | datetime, normalised: datetime, saved: datetime | None
+) -> datetime:
+    """What to store for one boundary of an edited daily booking.
+
+    Calendars (the web form, an OTA) send bare dates, so a midnight on the saved
+    boundary's own day means "that day, as it was", not a new time — even after
+    the flat's hours changed. A boundary on a new day takes the hours.
+    """
+    if saved is None:
+        return normalised
+    if given == saved:
+        return saved
+    if isinstance(given, datetime):
+        bare = (given.hour, given.minute, given.second, given.microsecond) == (0, 0, 0, 0)
+        day = given.date()
+    else:
+        bare, day = True, given
+    return saved if bare and day == saved.date() else normalised
+
+
 # A property's rental_mode describes what it allows; a booking's rental_mode
 # must be a subset. ``both`` allows either concrete mode, ``daily``/``hourly``
 # allow only themselves.

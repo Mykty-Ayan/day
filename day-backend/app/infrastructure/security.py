@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import hmac
 import secrets
 import uuid
 from datetime import datetime, timedelta, timezone
@@ -68,6 +69,12 @@ def create_refresh_token(sub: uuid.UUID, company_id: uuid.UUID, role: str, token
         "exp": expire,
     }
     return jwt.encode(payload, settings.JWT_SECRET, algorithm=settings.JWT_ALGORITHM)
+
+
+def calendar_token(property_id: uuid.UUID) -> str:
+    """The secret part of a flat's iCal link. Derived, not stored: the platforms
+    poll the same link for years, and it only ever reveals which nights are taken."""
+    return hmac.new(settings.JWT_SECRET.encode(), f"ical:{property_id}".encode(), hashlib.sha256).hexdigest()[:32]
 
 
 def create_challenge_token(sub: uuid.UUID, token_version: int) -> str:

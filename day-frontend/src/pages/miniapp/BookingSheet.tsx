@@ -56,10 +56,11 @@ export default function BookingSheet({
     enabled: Boolean(booking),
   })
 
-  const paid = (payments.data ?? []).reduce(
-    (sum, payment) => sum + (payment.type === 'refund' ? -payment.amount : payment.amount),
-    0,
-  )
+  // Only money that arrived: a pending payment (the CRM records one before the
+  // transfer lands) must not hide the debt.
+  const paid = (payments.data ?? [])
+    .filter((payment) => payment.status === 'completed')
+    .reduce((sum, payment) => sum + (payment.type === 'refund' ? -payment.amount : payment.amount), 0)
   const due = Math.max(0, (booking?.total_price ?? 0) - paid)
 
   function refresh() {
@@ -120,6 +121,11 @@ export default function BookingSheet({
 
   return (
     <Sheet open title={booking.guest_name || booking.property_name} onClose={onClose}>
+      {booking.overbooking && (
+        <p role="alert" className="rounded-xl bg-red-600 px-3 py-2 text-xs font-semibold text-white">
+          {t('bookings.overbooking.detail')}
+        </p>
+      )}
       <div className="tg-surface rounded-xl px-3 py-3">
         <p className="text-sm font-semibold">{booking.property_name}</p>
         <p className="tg-hint text-xs">

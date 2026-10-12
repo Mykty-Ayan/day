@@ -279,6 +279,14 @@
       "building_staff": "Building staff",
       "host_greets": "We meet you",
       "other": "Other"
+    },
+    "calendar": {
+      "title": "Calendar for Airbnb and Booking",
+      "hint": "Paste the link into calendar sync on Airbnb and Booking: bookings made in Day close those dates there. The link shows taken nights only",
+      "copy": "Copy link",
+      "copied": "Link copied",
+      "failed": "Could not get the link",
+      "copyFailed": "Could not copy: select the link and copy it by hand"
     }
   },
   "bookings": {
@@ -434,7 +442,11 @@
     "date": "Date",
     "startTime": "Start time",
     "endTime": "End time",
-    "selectTime": "Select time"
+    "selectTime": "Select time",
+    "overbooking": {
+      "short": "Overbooking",
+      "detail": "Overbooking: this booking came from a platform for nights already taken. Move or cancel one of the two bookings."
+    }
   },
   "today": {
     "title": "Today",
