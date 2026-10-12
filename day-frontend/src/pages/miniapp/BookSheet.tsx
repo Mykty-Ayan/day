@@ -96,10 +96,16 @@ export default function BookSheet({
       onBooked(created)
     },
     onError: (mutationError) => {
-      // A refusal means nothing was made; otherwise only the same request may follow.
-      if (!paymentMaybeRecorded(mutationError)) setAttempt(null)
       resultFeedback('error')
-      setError(errorText(mutationError, t('miniapp.book.failed'), t))
+      // A refusal means nothing was made; otherwise only the same request may follow.
+      if (!paymentMaybeRecorded(mutationError)) {
+        setAttempt(null)
+        setError(errorText(mutationError, t('miniapp.book.failed'), t))
+        return
+      }
+      // The booking may exist already: the lists must show it before anyone books this guest again.
+      queryClient.invalidateQueries({ queryKey: ['miniapp'] })
+      setError(t('miniapp.book.maybeMade'))
     },
   })
 
@@ -171,6 +177,7 @@ export default function BookSheet({
         label={t('miniapp.book.guestPhone')}
         value={phone}
         onChange={setPhone}
+        disabled={Boolean(attempt)}
         type="tel"
         inputMode="tel"
         placeholder="+7 701 000 00 00"
@@ -193,6 +200,7 @@ export default function BookSheet({
         label={t('miniapp.book.guestName')}
         value={name}
         onChange={setName}
+        disabled={Boolean(attempt)}
         placeholder={guest?.name || t('miniapp.book.namePlaceholder')}
       />
 
@@ -204,14 +212,20 @@ export default function BookSheet({
               key={value}
               label={t(`bookings.sources.${value}`)}
               active={source === value}
-              onClick={() => setSource(value)}
+              onClick={() => !attempt && setSource(value)}
             />
           ))}
         </div>
       </div>
 
       <label className="tg-surface flex items-start gap-3 rounded-xl px-3 py-3 text-sm">
-        <input type="checkbox" checked={hold} onChange={(event) => setHold(event.target.checked)} className="mt-1" />
+        <input
+          type="checkbox"
+          checked={hold}
+          disabled={Boolean(attempt)}
+          onChange={(event) => setHold(event.target.checked)}
+          className="mt-1"
+        />
         <span>
           {t('miniapp.book.hold', { count: HOLD_HOURS })}
           <span className="tg-hint block text-xs">{t('miniapp.book.holdHint', { count: HOLD_HOURS })}</span>
