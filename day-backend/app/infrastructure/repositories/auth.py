@@ -3,7 +3,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 
-from sqlalchemy import select, update
+from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.domain.auth.entities import ApiKey, Company, User
@@ -104,10 +104,16 @@ class SqlUserRepository(UserRepository):
         return _model_to_user(model) if model else None
 
     async def bump_token_version(self, user_id: uuid.UUID) -> User:
+        now = datetime.utcnow()
         await self._session.execute(
             update(UserModel)
             .where(UserModel.id == user_id)
-            .values(token_version=UserModel.token_version + 1, tokens_revoked_at=datetime.utcnow())
+            # GREATEST: a bump that waited for the row lock computed its time
+            # before a newer bump committed, and must not move the mark back.
+            .values(
+                token_version=UserModel.token_version + 1,
+                tokens_revoked_at=func.greatest(func.coalesce(UserModel.tokens_revoked_at, now), now),
+            )
         )
         model = await self._session.get(UserModel, user_id, populate_existing=True)
         if model is None:

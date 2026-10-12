@@ -11,9 +11,10 @@ from app.infrastructure.login_throttle import LoginThrottle, get_login_throttle
 from app.infrastructure.repositories.auth import SqlCompanyRepository, SqlUserRepository
 from app.infrastructure.repositories.messaging import SqlChannelIdentityRepository
 from app.infrastructure.telegram_init_data import InitDataError, verify_init_data
-from app.presentation.api.deps import Principal, get_current_user, get_principal
+from app.presentation.api.deps import get_current_user
 from app.presentation.schemas.auth import (
     LoginRequest,
+    LogoutRequest,
     RefreshRequest,
     RegisterRequest,
     TelegramMiniAppRequest,
@@ -96,15 +97,14 @@ async def telegram_miniapp_login(
 
 
 @auth_router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
-async def logout(principal: Principal = Depends(get_principal), session: AsyncSession = Depends(get_session)):
+async def logout(body: LogoutRequest, session: AsyncSession = Depends(get_session)):
     """Sign out everywhere: every access and refresh token of this user stops working.
 
-    One version per user, so this also ends the Mini App's session; it signs
-    itself in again from Telegram on the next open.
+    Identified by the refresh token, so it works after the access token has
+    expired. One version per user, so this also ends the Mini App's session;
+    it signs in again from a fresh open in Telegram.
     """
-    if principal.user_id is None:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="An API key has no session")
-    await _auth_service(session).logout_everywhere(principal.user_id)
+    await _auth_service(session).logout_by_refresh_token(body.refresh_token)
     await session.commit()
 
 

@@ -81,7 +81,8 @@ async def test_logout_ends_the_access_and_the_refresh_token(api):
     tokens, email = await _register(api)
     assert (await api.get("/api/v1/auth/me", headers=_bearer(tokens["access_token"]))).status_code == 200
 
-    assert (await api.post("/api/v1/auth/logout", headers=_bearer(tokens["access_token"]))).status_code == 204
+    # By the refresh token alone: the access token may have expired by then.
+    assert (await api.post("/api/v1/auth/logout", json={"refresh_token": tokens["refresh_token"]})).status_code == 204
 
     assert (await api.get("/api/v1/auth/me", headers=_bearer(tokens["access_token"]))).status_code == 401
     refreshed = await api.post("/api/v1/auth/refresh", json={"refresh_token": tokens["refresh_token"]})
@@ -158,7 +159,7 @@ async def test_an_edit_racing_a_sign_out_cannot_bring_the_old_tokens_back(api):
     async def sign_out():
         await asyncio.sleep(0.01)
         async with maker() as s:
-            await AuthService(SqlUserRepository(s), None).logout_everywhere(user_id)
+            await AuthService(SqlUserRepository(s), None).logout_by_refresh_token(tokens["refresh_token"])
             await s.commit()
 
     try:
@@ -169,3 +170,11 @@ async def test_an_edit_racing_a_sign_out_cannot_bring_the_old_tokens_back(api):
         assert (await api.get("/api/v1/auth/me", headers=_bearer(tokens["access_token"]))).status_code == 401
     finally:
         await engine.dispose()
+
+
+@pytest.mark.integration
+async def test_a_stale_or_broken_refresh_token_signs_nobody_out(api):
+    tokens, _ = await _register(api)
+    assert (await api.post("/api/v1/auth/logout", json={"refresh_token": "not-a-token"})).status_code == 204
+    assert (await api.post("/api/v1/auth/logout", json={"refresh_token": tokens["access_token"]})).status_code == 204
+    assert (await api.get("/api/v1/auth/me", headers=_bearer(tokens["access_token"]))).status_code == 200

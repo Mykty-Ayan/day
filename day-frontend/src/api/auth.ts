@@ -42,15 +42,13 @@ export async function refreshToken(refresh_token: string): Promise<TokenResponse
 }
 
 /** Ends every session of the user on the server, not just this tab's.
- *  Sent around the interceptors with the token captured before the local
- *  sign-out, and never awaited: no network must keep the user signed in. */
-export function logout(accessToken: string | null): void {
-  if (!accessToken) return
+ *  Identified by the refresh token captured before the local sign-out, so it
+ *  works after the access token has expired; sent around the interceptors
+ *  and never awaited — no network must keep the user signed in. */
+export function logout(refreshToken: string | null): void {
+  if (!refreshToken) return
   axios
-    .post(`${apiClient.defaults.baseURL}/auth/logout`, null, {
-      headers: { Authorization: `Bearer ${accessToken}` },
-      timeout: 5000,
-    })
+    .post(`${apiClient.defaults.baseURL}/auth/logout`, { refresh_token: refreshToken }, { timeout: 5000 })
     .catch(() => undefined)
 }
 

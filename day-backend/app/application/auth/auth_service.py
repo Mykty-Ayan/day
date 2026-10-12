@@ -74,10 +74,16 @@ class AuthService:
 
         return issue_tokens(user)
 
-    async def logout_everywhere(self, user_id: uuid.UUID) -> None:
-        if await self._user_repo.get_by_id(user_id) is None:
+    async def logout_by_refresh_token(self, refresh_token: str) -> None:
+        """Sign the user out everywhere. Quietly does nothing for a token that is
+        invalid or already revoked: there is no session left to end."""
+        payload = decode_token(refresh_token)
+        if not payload or payload.get("type") != "refresh":
             return
-        await self._user_repo.bump_token_version(user_id)
+        user = await self._user_repo.get_by_id(uuid.UUID(payload["sub"]))
+        if user is None or not token_is_current(payload, user):
+            return
+        await self._user_repo.bump_token_version(user.id)
 
     async def get_current_user(self, user_id: uuid.UUID) -> User | None:
         return await self._user_repo.get_by_id(user_id)
