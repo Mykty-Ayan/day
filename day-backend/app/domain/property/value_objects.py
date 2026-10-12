@@ -43,6 +43,17 @@ class AuditAction(str, enum.Enum):
     CLONE = "clone"
 
 
+class CheckInMethod(str, enum.Enum):
+    """How the guest gets in — the choices Airbnb and Booking.com offer."""
+
+    LOCKBOX = "lockbox"
+    KEYPAD = "keypad"
+    SMART_LOCK = "smart_lock"
+    BUILDING_STAFF = "building_staff"
+    HOST_GREETS = "host_greets"
+    OTHER = "other"
+
+
 class FactAudience(str, enum.Enum):
     """Who may hear a fact about an apartment."""
 

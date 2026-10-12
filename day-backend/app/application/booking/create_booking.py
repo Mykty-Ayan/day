@@ -42,8 +42,11 @@ def apply_default_times(
     check_in: date | datetime | None,
     check_out: date | datetime | None,
     rental_mode: RentalMode,
+    *,
+    check_in_hour: int | None = None,
+    check_out_hour: int | None = None,
 ) -> tuple[datetime | None, datetime | None]:
-    """Normalize daily-booking boundaries to carry default check-in/out times."""
+    """Normalize daily-booking boundaries to carry check-in/out times: the flat's own, else the default."""
     if rental_mode != RentalMode.DAILY:
         return (
             check_in if check_in is None or isinstance(check_in, datetime)
@@ -52,9 +55,30 @@ def apply_default_times(
             else datetime.combine(check_out, time()),
         )
     return (
-        _coerce_default_time(check_in, settings.DEFAULT_CHECK_IN_HOUR),
-        _coerce_default_time(check_out, settings.DEFAULT_CHECK_OUT_HOUR),
+        _coerce_default_time(check_in, settings.DEFAULT_CHECK_IN_HOUR if check_in_hour is None else check_in_hour),
+        _coerce_default_time(check_out, settings.DEFAULT_CHECK_OUT_HOUR if check_out_hour is None else check_out_hour),
     )
+
+
+def settle_boundary(
+    given: date | datetime, normalised: datetime, saved: datetime | None
+) -> datetime:
+    """What to store for one boundary of an edited daily booking.
+
+    Calendars (the web form, an OTA) send bare dates, so a midnight on the saved
+    boundary's own day means "that day, as it was", not a new time — even after
+    the flat's hours changed. A boundary on a new day takes the hours.
+    """
+    if saved is None:
+        return normalised
+    if given == saved:
+        return saved
+    if isinstance(given, datetime):
+        bare = (given.hour, given.minute, given.second, given.microsecond) == (0, 0, 0, 0)
+        day = given.date()
+    else:
+        bare, day = True, given
+    return saved if bare and day == saved.date() else normalised
 
 
 # A property's rental_mode describes what it allows; a booking's rental_mode
@@ -159,7 +183,11 @@ class CreateBookingService:
         # explicit times, so a sub-day range is legal as long as check-out is
         # still strictly after check-in.
         check_in, check_out = apply_default_times(
-            inp.check_in, inp.check_out, inp.rental_mode
+            inp.check_in,
+            inp.check_out,
+            inp.rental_mode,
+            check_in_hour=prop.check_in_hour,
+            check_out_hour=prop.check_out_hour,
         )
         if check_out <= check_in:
             raise ValueError("Check-out must be after check-in")

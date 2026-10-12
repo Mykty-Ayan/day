@@ -78,21 +78,24 @@ class _Properties:
 class _Bookings:
     asked: list = []
 
+    def __init__(self, rows=None):
+        self._rows = rows or [_booking(datetime(2026, 11, 1, 14), datetime(2026, 11, 3, 12))]
+
     async def get_by_property_and_dates(self, property_id, start, end, *, exclude_id=None):
         _Bookings.asked.append((start, end))
-        return [_booking(datetime(2026, 11, 1, 14), datetime(2026, 11, 3, 12))]
+        return self._rows
 
 
-async def _get(monkeypatch, token: str):
+async def _get(monkeypatch, token: str, *, hours=(None, None), rows=None):
     from httpx import ASGITransport, AsyncClient
 
+    from app.domain.property.entities import Property
     from app.infrastructure.database import get_session
     from app.main import app
     from app.presentation.api.v1 import ical
 
-    monkeypatch.setattr(
-        ical, "_repos", lambda session: (_Properties(type("P", (), {"id": PROPERTY_ID})()), _Bookings())
-    )
+    flat = Property(id=PROPERTY_ID, check_in_hour=hours[0], check_out_hour=hours[1])
+    monkeypatch.setattr(ical, "_repos", lambda session: (_Properties(flat), _Bookings(rows)))
     app.dependency_overrides[get_session] = lambda: None
     try:
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
@@ -182,3 +185,16 @@ def test_the_link_token_stays_out_of_the_logs():
     )
     assert _RedactAccessLog().filter(record)
     assert "0123abcd" not in record.getMessage()
+
+
+@pytest.mark.asyncio
+async def test_the_feed_counts_nights_by_the_flats_own_hours(monkeypatch):
+    from app.infrastructure.security import calendar_token
+
+    # 11:00–15:00 touches both neighbouring nights at 14/12, neither at 16/10.
+    midday = [_booking(datetime(2026, 11, 5, 11), datetime(2026, 11, 5, 15))]
+    default = await _get(monkeypatch, calendar_token(PROPERTY_ID), rows=midday)
+    own = await _get(monkeypatch, calendar_token(PROPERTY_ID), hours=(16, 10), rows=midday)
+
+    assert "DTSTART;VALUE=DATE:20261104" in default.text
+    assert "DTSTART;VALUE=DATE:20261105" in own.text and "20261104" not in own.text

@@ -239,7 +239,13 @@
       "wifiPasswordPlaceholder": "Желі құпиясөзі",
       "maxGuests": "Ең көп қонақ",
       "maxGuestsHint": "Қанша адам тұра алады: бұл санды Airbnb пен Booking алады",
-      "bathrooms": "Жуынатын бөлмелер"
+      "bathrooms": "Жуынатын бөлмелер",
+      "checkInFrom": "Кіру уақыты",
+      "checkOutUntil": "Шығу уақыты",
+      "checkInMethod": "Қонақ қалай кіреді",
+      "defaultHour": "Компаниядағыдай ({{hour}})",
+      "notSet": "Көрсетілмеген",
+      "turnoverHours": "Шығу кіруден кеш болмауы керек, әйтпесе қатар броньдар қиылысады"
     },
     "validation": {
       "nameRequired": "Атауы міндетті",
@@ -266,6 +272,14 @@
     "photosUploading": "Жүктелуде…",
     "photosAdded": "Фото қосылды: {{count}}",
     "photosNotAdded": "Жүктелмеді: {{count}}. JPEG, PNG немесе WebP, 20 МБ-қа дейін болуы керек",
+    "checkInMethod": {
+      "lockbox": "Кілт қорабы",
+      "keypad": "Кодты құлып",
+      "smart_lock": "Ақылды құлып",
+      "building_staff": "Ғимарат қызметкерлері",
+      "host_greets": "Өзіміз қарсы аламыз",
+      "other": "Басқа"
+    },
     "calendar": {
       "title": "Airbnb пен Booking үшін күнтізбе",
       "hint": "Сілтемені Airbnb пен Booking-тегі «Күнтізбені синхрондау» бөліміне қойыңыз: Day-дағы броньдар ол жерде күндерді жабады. Сілтеме тек бос емес түндерді көрсетеді",
@@ -858,7 +872,8 @@
       "nothingFree": "Бұл күндерге бос орын жоқ",
       "hint": "Дайын мәтінмен WhatsApp ашылады — жіберу ғана қалады.",
       "messageHead": "{{range}} бос:",
-      "messageTail": "Кіру 14:00-ден, шығу 12:00-ге дейін.",
+      "messageTail": "Кіру уақыты: {{checkIn}}, шығу уақыты: {{checkOut}}.",
+      "hours": "кіру {{checkIn}}, шығу {{checkOut}}",
       "forNights": "{{count}} түнге",
       "rooms": "{{count}} бөлме"
     },

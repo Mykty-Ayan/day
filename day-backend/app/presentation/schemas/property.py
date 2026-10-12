@@ -10,6 +10,7 @@ from app.domain.booking.value_objects import RentalMode
 from app.domain.property.value_objects import (
     AmenityCategory,
     AuditAction,
+    CheckInMethod,
     FactAudience,
     FactSource,
     PropertyStatus,
@@ -19,7 +20,18 @@ from app.domain.property.value_objects import (
 # ---------- Property ----------
 
 
-class PropertyCreate(BaseModel):
+class _TurnoverHours(BaseModel):
+    @model_validator(mode="after")
+    def _check_out_before_check_in(self):
+        # Check-out after check-in would make back-to-back stays overlap, and
+        # the database refuses overlapping stays.
+        out, into = getattr(self, "check_out_hour", None), getattr(self, "check_in_hour", None)
+        if out is not None and into is not None and out > into:
+            raise ValueError("Check-out hour must not be later than the check-in hour")
+        return self
+
+
+class PropertyCreate(_TurnoverHours):
     name: str = Field(..., min_length=1, max_length=255)
     internal_name: str = Field(..., min_length=1, max_length=255)
     type: PropertyType
@@ -37,6 +49,9 @@ class PropertyCreate(BaseModel):
     beds: int | None = None
     max_guests: int | None = Field(default=None, ge=1, le=50)
     bathrooms: int | None = Field(default=None, ge=1, le=50)
+    check_in_hour: int | None = Field(default=None, ge=0, le=23)
+    check_out_hour: int | None = Field(default=None, ge=0, le=23)
+    check_in_method: CheckInMethod | None = None
     area_living: float | None = None
     area_total: float | None = None
     check_in_instructions: str | None = None
@@ -46,7 +61,7 @@ class PropertyCreate(BaseModel):
     wifi_password: str | None = Field(default=None, max_length=255)
 
 
-class PropertyUpdate(BaseModel):
+class PropertyUpdate(_TurnoverHours):
     name: str | None = None
     internal_name: str | None = None
     type: PropertyType | None = None
@@ -64,6 +79,9 @@ class PropertyUpdate(BaseModel):
     beds: int | None = None
     max_guests: int | None = Field(default=None, ge=1, le=50)
     bathrooms: int | None = Field(default=None, ge=1, le=50)
+    check_in_hour: int | None = Field(default=None, ge=0, le=23)
+    check_out_hour: int | None = Field(default=None, ge=0, le=23)
+    check_in_method: CheckInMethod | None = None
     area_living: float | None = None
     area_total: float | None = None
     check_in_instructions: str | None = None
@@ -96,6 +114,9 @@ class PropertyResponse(BaseModel):
     beds: int | None = None
     max_guests: int | None = None
     bathrooms: int | None = None
+    check_in_hour: int | None = None
+    check_out_hour: int | None = None
+    check_in_method: CheckInMethod | None = None
     area_living: float | None = None
     area_total: float | None = None
     check_in_instructions: str | None = None

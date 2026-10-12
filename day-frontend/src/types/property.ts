@@ -83,6 +83,9 @@ export interface Property {
   beds: number
   max_guests: number | null
   bathrooms: number | null
+  check_in_hour: number | null
+  check_out_hour: number | null
+  check_in_method: CheckInMethod | null
   area_living: number | null
   area_total: number | null
   check_in_instructions: string
@@ -115,6 +118,9 @@ export interface PropertyCreateInput {
   beds?: number
   max_guests?: number | null
   bathrooms?: number | null
+  check_in_hour?: number | null
+  check_out_hour?: number | null
+  check_in_method?: CheckInMethod | null
   area_living?: number | null
   area_total?: number | null
   check_in_instructions?: string
@@ -188,3 +194,6 @@ export interface TagCreateInput {
   name: string
   color: string
 }
+
+/** How the guest gets in — the choices Airbnb and Booking.com offer. */
+export type CheckInMethod = 'lockbox' | 'keypad' | 'smart_lock' | 'building_staff' | 'host_greets' | 'other'

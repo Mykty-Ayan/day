@@ -3,10 +3,19 @@ from __future__ import annotations
 import uuid
 from dataclasses import dataclass
 
+from app.config import settings
 from app.domain.booking.value_objects import RentalMode
 from app.domain.property.entities import Property, PropertyAuditLog
 from app.domain.property.repositories import PropertyAuditLogRepository, PropertyRepository
-from app.domain.property.value_objects import AuditAction, PropertyStatus, PropertyType
+from app.domain.property.value_objects import AuditAction, CheckInMethod, PropertyStatus, PropertyType
+
+
+def check_turnover_hours(check_in_hour: int | None, check_out_hour: int | None) -> None:
+    """Refuse hours under which back-to-back stays overlap; an empty hour is the company default."""
+    into = settings.DEFAULT_CHECK_IN_HOUR if check_in_hour is None else check_in_hour
+    out = settings.DEFAULT_CHECK_OUT_HOUR if check_out_hour is None else check_out_hour
+    if out > into:
+        raise ValueError("Check-out hour must not be later than the check-in hour")
 
 
 @dataclass
@@ -29,6 +38,9 @@ class CreatePropertyInput:
     beds: int | None = None
     max_guests: int | None = None
     bathrooms: int | None = None
+    check_in_hour: int | None = None
+    check_out_hour: int | None = None
+    check_in_method: CheckInMethod | None = None
     area_living: float | None = None
     area_total: float | None = None
     check_in_instructions: str | None = None
@@ -51,6 +63,7 @@ class CreatePropertyService:
         self._audit_repo = audit_repo
 
     async def execute(self, inp: CreatePropertyInput) -> Property:
+        check_turnover_hours(inp.check_in_hour, inp.check_out_hour)
         if await self._property_repo.exists_internal_name(
             inp.company_id, inp.internal_name
         ):
@@ -79,6 +92,9 @@ class CreatePropertyService:
             beds=inp.beds,
             max_guests=inp.max_guests,
             bathrooms=inp.bathrooms,
+            check_in_hour=inp.check_in_hour,
+            check_out_hour=inp.check_out_hour,
+            check_in_method=inp.check_in_method,
             area_living=inp.area_living,
             area_total=inp.area_total,
             check_in_instructions=inp.check_in_instructions,

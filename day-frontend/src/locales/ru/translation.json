@@ -239,7 +239,13 @@
       "wifiPasswordPlaceholder": "Пароль от сети",
       "maxGuests": "Макс. гостей",
       "maxGuestsHint": "Сколько человек может жить: это число получают Airbnb и Booking",
-      "bathrooms": "Ванные комнаты"
+      "bathrooms": "Ванные комнаты",
+      "checkInFrom": "Заезд с",
+      "checkOutUntil": "Выезд до",
+      "checkInMethod": "Как гость заходит",
+      "defaultHour": "Как у компании ({{hour}})",
+      "notSet": "Не указано",
+      "turnoverHours": "Выезд не может быть позже заезда: иначе соседние брони пересекутся"
     },
     "validation": {
       "nameRequired": "Название обязательно",
@@ -266,6 +272,14 @@
     "photosUploading": "Загружаем…",
     "photosAdded": "Фото добавлены: {{count}}",
     "photosNotAdded": "Не загрузились: {{count}}. Это должны быть JPEG, PNG или WebP до 20 МБ",
+    "checkInMethod": {
+      "lockbox": "Ключница",
+      "keypad": "Кодовый замок",
+      "smart_lock": "Умный замок",
+      "building_staff": "Персонал здания",
+      "host_greets": "Встречаем лично",
+      "other": "Другое"
+    },
     "calendar": {
       "title": "Календарь для Airbnb и Booking",
       "hint": "Вставьте ссылку в «Синхронизация календарей» на Airbnb и Booking: брони из Day закроют там даты. Ссылка показывает только занятые ночи",
@@ -858,7 +872,8 @@
       "nothingFree": "На эти даты всё занято",
       "hint": "Откроется ваш WhatsApp с готовым текстом — останется нажать «отправить».",
       "messageHead": "Свободно {{range}}:",
-      "messageTail": "Заезд с 14:00, выезд до 12:00.",
+      "messageTail": "Заезд с {{checkIn}}, выезд до {{checkOut}}.",
+      "hours": "заезд с {{checkIn}}, выезд до {{checkOut}}",
       "forNights": "за {{count}} ноч.",
       "rooms": "{{count}}-комн."
     },

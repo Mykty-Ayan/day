@@ -59,6 +59,9 @@ class _Properties:
                 wifi_name="Home 62",
                 wifi_password="1234554321",
                 check_in_instructions=None,
+                check_in_hour=None,
+                check_out_hour=None,
+                check_in_method=None,
             )
         ]
 

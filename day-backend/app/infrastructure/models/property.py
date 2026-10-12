@@ -44,6 +44,9 @@ class PropertyModel(Base):
     beds: Mapped[int | None] = mapped_column(Integer, nullable=True)
     max_guests: Mapped[int | None] = mapped_column(Integer, nullable=True)
     bathrooms: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    check_in_hour: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    check_out_hour: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    check_in_method: Mapped[str | None] = mapped_column(String(30), nullable=True)
     area_living: Mapped[float | None] = mapped_column(Float, nullable=True)
     area_total: Mapped[float | None] = mapped_column(Float, nullable=True)
 

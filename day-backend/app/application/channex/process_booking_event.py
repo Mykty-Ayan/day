@@ -2,10 +2,10 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 
-from app.application.booking.create_booking import apply_default_times
+from app.application.booking.create_booking import apply_default_times, settle_boundary
 from app.domain.booking.entities import Booking, Guest
 from app.domain.booking.repositories import BookingRepository, GuestRepository
 from app.domain.booking.value_objects import BookingStatus, RentalMode
@@ -19,6 +19,7 @@ from app.domain.channex.value_objects import (
     ChannexBookingStatus,
     booking_source_for_ota,
 )
+from app.domain.property.repositories import PropertyRepository
 
 logger = logging.getLogger(__name__)
 
@@ -46,12 +47,14 @@ class ProcessBookingEventService:
         booking_repo: BookingRepository,
         guest_repo: GuestRepository,
         gateway: ChannexGateway,
+        property_repo: PropertyRepository,
     ) -> None:
         self._listings = listing_repo
         self._events = event_repo
         self._bookings = booking_repo
         self._guests = guest_repo
         self._gateway = gateway
+        self._properties = property_repo
 
     async def execute(self, revision: dict) -> ProcessBookingEventResult:
         attrs = revision.get("attributes", revision)
@@ -99,7 +102,7 @@ class ProcessBookingEventService:
                 await self._bookings.update(booking)
             event.booking_id = booking.id if booking is not None else None
         elif booking is not None:
-            self._apply_revision_fields(booking, attrs)
+            await self._apply_revision_fields(booking, attrs)
             # New dates may land on nights Day already sold; the OTA has
             # confirmed them anyway, so the clash is flagged, not refused.
             booking.overbooking = bool(
@@ -144,11 +147,7 @@ class ProcessBookingEventService:
                 )
             )
 
-        check_in, check_out = apply_default_times(
-            date.fromisoformat(attrs["arrival_date"]),
-            date.fromisoformat(attrs["departure_date"]),
-            RentalMode.DAILY,
-        )
+        check_in, check_out = await self._stay_times(property_id, attrs)
         occupancy = _occupancy(attrs)
         amount = Decimal(str(attrs.get("amount") or "0"))
 
@@ -180,14 +179,22 @@ class ProcessBookingEventService:
             )
         )
 
-    def _apply_revision_fields(self, booking: Booking, attrs: dict) -> None:
-        check_in, check_out = apply_default_times(
+    async def _stay_times(self, property_id, attrs: dict) -> tuple[datetime, datetime]:
+        """An OTA stay is dates only; it takes the flat's own hours, else the default."""
+        prop = await self._properties.get_by_id(property_id)
+        return apply_default_times(
             date.fromisoformat(attrs["arrival_date"]),
             date.fromisoformat(attrs["departure_date"]),
             RentalMode.DAILY,
+            check_in_hour=prop.check_in_hour if prop else None,
+            check_out_hour=prop.check_out_hour if prop else None,
         )
-        booking.check_in = check_in
-        booking.check_out = check_out
+
+    async def _apply_revision_fields(self, booking: Booking, attrs: dict) -> None:
+        # A boundary whose date the OTA did not move keeps its saved time.
+        check_in, check_out = await self._stay_times(booking.property_id, attrs)
+        booking.check_in = settle_boundary(date.fromisoformat(attrs["arrival_date"]), check_in, booking.check_in)
+        booking.check_out = settle_boundary(date.fromisoformat(attrs["departure_date"]), check_out, booking.check_out)
         amount = attrs.get("amount")
         if amount is not None:
             booking.total_price = Decimal(str(amount))

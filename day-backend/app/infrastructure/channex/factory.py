@@ -51,6 +51,7 @@ def build_push_ari_service(session: AsyncSession) -> PushAriService:
         booking_repo=SqlBookingRepository(session),
         pricing_repo=SqlPricingConfigRepository(session),
         gateway=get_gateway(),
+        property_repo=SqlPropertyRepository(session),
     )
 
 
@@ -61,4 +62,5 @@ def build_booking_event_service(session: AsyncSession) -> ProcessBookingEventSer
         booking_repo=SqlBookingRepository(session),
         guest_repo=SqlGuestRepository(session),
         gateway=get_gateway(),
+        property_repo=SqlPropertyRepository(session),
     )

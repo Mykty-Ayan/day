@@ -379,9 +379,27 @@ export default function PropertyDetailPage() {
             )}
 
             {/* Rules */}
-            {(property.check_in_instructions || property.check_out_instructions || property.house_rules) && (
+            {(property.check_in_instructions ||
+              property.check_out_instructions ||
+              property.house_rules ||
+              property.check_in_hour != null ||
+              property.check_out_hour != null ||
+              property.check_in_method) && (
               <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm space-y-4">
                 <h2 className="text-sm font-bold text-gray-900">{t('properties.rules')}</h2>
+                {(property.check_in_hour != null || property.check_out_hour != null || property.check_in_method) && (
+                  <p className="text-sm text-gray-700">
+                    {[
+                      property.check_in_hour != null &&
+                        `${t('properties.form.checkInFrom')} ${String(property.check_in_hour).padStart(2, '0')}:00`,
+                      property.check_out_hour != null &&
+                        `${t('properties.form.checkOutUntil')} ${String(property.check_out_hour).padStart(2, '0')}:00`,
+                      property.check_in_method && t(`properties.checkInMethod.${property.check_in_method}`),
+                    ]
+                      .filter(Boolean)
+                      .join(' · ')}
+                  </p>
+                )}
                 {property.check_in_instructions && (
                   <div>
                     <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">

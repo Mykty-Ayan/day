@@ -333,6 +333,9 @@ class AvailablePropertyResponse(BaseModel):
     # Set when the unit is free but has no pricing configured, so the caller can
     # tell "costs nothing" apart from "cannot be quoted".
     price_error: str | None = None
+    # The stay as this flat books it: its own check-in and check-out hours.
+    check_in: datetime | None = None
+    check_out: datetime | None = None
     # Cover first, then in the host's order: one answer is enough to offer a flat.
     photos: list[AvailablePhotoResponse] = []
 

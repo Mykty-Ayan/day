@@ -15,6 +15,7 @@ else is free.
 from __future__ import annotations
 
 import uuid
+from datetime import datetime
 from decimal import Decimal
 
 import pytest
@@ -33,7 +34,9 @@ def flat(name: str, rooms: int | None, total: Decimal | None, block: str | None 
         rooms=rooms,
         block=block,
     )
-    return AvailableProperty(property=prop, total_price=total)
+    return AvailableProperty(
+        property=prop, total_price=total, check_in=datetime(2026, 11, 1, 14), check_out=datetime(2026, 11, 3, 12)
+    )
 
 
 def request(**kwargs) -> ParsedMessage:
