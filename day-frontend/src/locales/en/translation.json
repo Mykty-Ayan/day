@@ -921,7 +921,8 @@
       "unsettledReceive": "No answer to confirming {{amount}}. Retry: the money won't count twice.",
       "notKept": "The phone would not keep the payment attempt, so it is not sent: a dropped connection could double it. Free some space or record the payment on the web.",
       "discardAttempt": "Not in the history — discard",
-      "discardAsk": "Check the payment history above. If {{amount}} is not there, the attempt can be discarded. Discard?"
+      "discardAsk": "The payment history above was just reread from the server. If {{amount}} is not in it, the attempt can be discarded. Discard?",
+      "checkHistory": "Check the payment history"
     },
     "cleaning": {
       "title": "Cleaning",
