@@ -957,7 +957,9 @@
       "noPrice": "This flat has no prices. Set them on the web: Properties → Prices.",
       "assistantOff": "The assistant isn't available right now. Try later or use the tabs."
     },
-    "retry": "Try again"
+    "retry": "Try again",
+    "crashed": "Something went wrong. Restart the panel — anything typed will be lost.",
+    "reload": "Restart"
   },
   "auth": {
     "forgot": {

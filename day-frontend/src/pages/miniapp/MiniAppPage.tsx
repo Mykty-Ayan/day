@@ -60,6 +60,7 @@ export default function MiniAppPage() {
   const [period, setPeriod] = useState<Period>('tonight')
   const [authState, setAuthState] = useState<'pending' | 'ready' | 'failed'>('pending')
   const [authError, setAuthError] = useState('')
+  const [attempt, setAttempt] = useState(0)
 
   const [offerOpen, setOfferOpen] = useState(false)
   const [booking, setBooking] = useState<Booking | null>(null)
@@ -89,7 +90,7 @@ export default function MiniAppPage() {
     }
 
     authenticate()
-  }, [t])
+  }, [t, attempt])
 
   const enabled = authState === 'ready'
 
@@ -138,6 +139,18 @@ export default function MiniAppPage() {
         <KeyRound className="mb-3 h-8 w-8 opacity-40" />
         <p className="text-sm">{authError}</p>
         <p className="tg-hint mt-2 text-xs">{t('miniapp.connectHint')}</p>
+        {isInsideTelegram() && (
+          <div className="mt-4 w-full max-w-xs">
+            <ActionButton
+              onClick={() => {
+                setAuthState('pending')
+                setAttempt((value) => value + 1)
+              }}
+            >
+              {t('miniapp.retry')}
+            </ActionButton>
+          </div>
+        )}
       </Screen>
     )
   }

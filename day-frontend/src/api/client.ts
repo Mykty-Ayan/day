@@ -6,6 +6,9 @@ const apiClient = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
+  // On a phone a hung request would leave "Загрузка…" forever; the web keeps no
+  // limit for long uploads.
+  ...(isInsideTelegram() ? { timeout: 20_000 } : {}),
 })
 
 /** Which session the stored tokens belong to. Signing in, signing out and a
@@ -38,7 +41,7 @@ async function reauthenticateFromTelegram(): Promise<string | null> {
     const res = await axios.post(
       `${apiClient.defaults.baseURL}/auth/telegram-miniapp`,
       { init_data: getInitData() },
-      { headers: { 'Content-Type': 'application/json' } },
+      { headers: { 'Content-Type': 'application/json' }, timeout: apiClient.defaults.timeout },
     )
     storeSession(res.data)
     return res.data.access_token
@@ -117,7 +120,8 @@ apiClient.interceptors.response.use(
         const res = await axios.post(
           `${apiClient.defaults.baseURL}/auth/refresh`,
           { refresh_token: refreshTokenValue },
-          { headers: { 'Content-Type': 'application/json' } },
+          // Same limit as every other call: a hung refresh would hold the whole queue.
+          { headers: { 'Content-Type': 'application/json' }, timeout: apiClient.defaults.timeout },
         )
         if (generation !== startedIn) return dropForStaleSession(error)
         const { access_token, refresh_token } = res.data
