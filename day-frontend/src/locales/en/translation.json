@@ -1046,7 +1046,17 @@
       }
     },
     "linkedFailed": "Couldn't open the booking from the notice.",
-    "tapToHide": "Tap to hide"
+    "tapToHide": "Tap to hide",
+    "cleaner": {
+      "title": "My cleanings",
+      "today": "Today",
+      "tomorrow": "Tomorrow",
+      "noDate": "No date",
+      "none": "No cleanings yet. They show here once a manager assigns them.",
+      "start": "Start cleaning",
+      "done": "Done",
+      "doneAsk": "Is {{unit}} clean?"
+    }
   },
   "auth": {
     "forgot": {

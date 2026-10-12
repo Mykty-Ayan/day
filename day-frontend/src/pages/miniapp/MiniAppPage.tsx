@@ -22,6 +22,7 @@ import {
 import { useTranslation } from 'react-i18next'
 import { getBooking, getTodayChecks, listBookings } from '../../api/bookings'
 import { storeSession } from '../../api/client'
+import { roleFromToken } from '../../lib/token'
 import { telegramMiniAppLogin, type AvailableProperty } from '../../api/miniapp'
 import { listAllProperties } from '../../api/properties'
 import { copyText, getInitData, initTelegram, isInsideTelegram, tapFeedback } from '../../lib/telegram'
@@ -30,6 +31,7 @@ import type { Property } from '../../types/property'
 import AskScreen from './AskScreen'
 import BookSheet from './BookSheet'
 import BookingSheet from './BookingSheet'
+import CleanerScreen from './CleanerScreen'
 import CleaningSheet from './CleaningSheet'
 import OfferSheet from './OfferSheet'
 import SellScreen from './SellScreen'
@@ -49,6 +51,8 @@ export default function MiniAppPage() {
   const [authState, setAuthState] = useState<'pending' | 'ready' | 'failed'>('pending')
   const [authError, setAuthError] = useState('')
   const [attempt, setAttempt] = useState(0)
+  // A cleaner's chat gets their own cleanings, never bookings or money.
+  const [role, setRole] = useState<string | null>(null)
 
   const [offerOpen, setOfferOpen] = useState(false)
   const [booking, setBooking] = useState<Booking | null>(null)
@@ -72,7 +76,9 @@ export default function MiniAppPage() {
         return
       }
       try {
-        storeSession(await telegramMiniAppLogin(getInitData()))
+        const session = await telegramMiniAppLogin(getInitData())
+        storeSession(session)
+        setRole(roleFromToken(session.access_token))
         setAuthState('ready')
       } catch (error) {
         setAuthState('failed')
@@ -83,7 +89,8 @@ export default function MiniAppPage() {
     authenticate()
   }, [t, attempt])
 
-  const enabled = authState === 'ready'
+  // The booking screens' reads; a cleaner would only get 403s from them.
+  const enabled = authState === 'ready' && role !== 'cleaner'
 
   const todayQuery = useQuery({
     queryKey: ['miniapp', 'today'],
@@ -145,6 +152,8 @@ export default function MiniAppPage() {
       </Screen>
     )
   }
+
+  if (role === 'cleaner') return <CleanerScreen />
 
   // An archived flat is not sold or cleaned any more; it only clutters the list.
   const workingUnits = (unitsQuery.data?.items ?? []).filter((property) => property.status !== 'archived')
