@@ -66,7 +66,7 @@ export default function DepositRow({
       refresh()
     },
     onError: (error) => {
-      // Saved or not, the list must be read again before the row offers anything.
+      // A lost answer may hide a deposit already made: reread before another "Take".
       queryClient.invalidateQueries({ queryKey: ['miniapp', 'deposits', bookingId] })
       onError(error)
     },

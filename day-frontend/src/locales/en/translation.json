@@ -901,7 +901,29 @@
       "messageDates": "Check-in {{from}}, check-out {{to}}.",
       "confirm": "Confirm",
       "complete": "Complete",
-      "stale": "Couldn't refresh the booking. Actions wait until it loads."
+      "extendHour": "+1 hour",
+      "extendAsk": "Extend until {{until}}?",
+      "extendManual": "Extend until {{until}}? This booking's price was set by hand — the total won't change, so the extra time will be free.",
+      "extendPrice": "Extend until {{until}}? The total becomes {{total}}.",
+      "cancel": "Cancel booking",
+      "cancelAsk": "Cancel this booking? The dates become free; this can't be undone.",
+      "payAsk": "Record a payment of {{amount}} ({{method}})?",
+      "recordAmount": "Record {{amount}}",
+      "rest": "Balance",
+      "waiting": "Waiting for",
+      "received": "Received",
+      "receivedAsk": "Has {{amount}} arrived?",
+      "money": "Payment",
+      "call": "Call",
+      "stale": "Couldn't refresh the booking. Actions wait until it loads.",
+      "unsettled": "No answer to the payment of {{amount}} — it may already be recorded. Retry: it will not be recorded twice.",
+      "retryPayment": "Retry the payment of {{amount}}",
+      "unsettledReceive": "No answer to confirming {{amount}}. Retry: the money won't count twice.",
+      "notKept": "The phone would not keep the payment attempt, so it is not sent: a dropped connection could double it. Free some space or record the payment on the web.",
+      "checkAttempt": "Check on the server",
+      "notRecorded": "The {{amount}} payment was not recorded and never will be. If the money came, enter it again.",
+      "notReceived": "Confirming {{amount}} has not landed yet. Press retry: the money will not count twice.",
+      "receiveGone": "The {{amount}} payment no longer waits for confirmation; the attempt is cleared."
     },
     "cleaning": {
       "title": "Cleaning",
@@ -959,7 +981,12 @@
     },
     "retry": "Try again",
     "crashed": "Something went wrong. Restart the panel — anything typed will be lost.",
-    "reload": "Restart"
+    "reload": "Restart",
+    "methods": {
+      "transfer": "Kaspi / transfer",
+      "cash": "Cash",
+      "card": "Card"
+    }
   },
   "auth": {
     "forgot": {
