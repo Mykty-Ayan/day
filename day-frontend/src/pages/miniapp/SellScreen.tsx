@@ -68,7 +68,7 @@ export default function SellScreen({
   const [hours, setHours] = useState(2)
   const [guests, setGuests] = useState(2)
 
-  let range: SellRange
+  let range: SellRange | null
   let caption: string
   if (mode === 'daily') {
     const [from, to] = periodRange(period, today, customDate, nights)
@@ -78,17 +78,20 @@ export default function SellScreen({
       count: nightsBetween(from, to),
     })}`
   } else {
-    range = { ...hourlyRange(hourDate, start || '12:00', hours), rentalMode: 'hourly', guests }
-    caption = `${formatDay(range.checkIn, lang)} ${formatTime(range.checkIn, lang)}–${formatTime(range.checkOut, lang)} · ${t(
-      'miniapp.sell.hoursShort',
-      { count: hours },
-    )}`
+    const slot = hourlyRange(hourDate, start, hours)
+    range = slot ? { ...slot, rentalMode: 'hourly', guests } : null
+    caption = range
+      ? `${formatDay(range.checkIn, lang)} ${formatTime(range.checkIn, lang)}–${formatTime(range.checkOut, lang)} · ${t(
+          'miniapp.sell.hoursShort',
+          { count: hours },
+        )}`
+      : t('miniapp.sell.pickSlot')
   }
 
   const availability = useQuery({
-    queryKey: ['miniapp', 'availability', range.rentalMode, range.checkIn, range.checkOut, guests],
-    queryFn: () => getAvailability(range.checkIn, range.checkOut, { adults: guests, rentalMode: range.rentalMode }),
-    enabled,
+    queryKey: ['miniapp', 'availability', range?.rentalMode, range?.checkIn, range?.checkOut, guests],
+    queryFn: () => getAvailability(range!.checkIn, range!.checkOut, { adults: guests, rentalMode: range!.rentalMode }),
+    enabled: enabled && range !== null,
   })
 
   return (
@@ -145,7 +148,7 @@ export default function SellScreen({
       {availability.isLoading && <p className="tg-hint text-sm">{t('miniapp.loading')}</p>}
       {availability.isError && <p className="text-sm">{t('miniapp.loadFailed')}</p>}
 
-      {availability.data && (
+      {availability.data && range && (
         <Section
           icon={<DoorOpen className="h-4 w-4" />}
           title={t('miniapp.freeProperties')}

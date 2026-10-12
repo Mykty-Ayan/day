@@ -892,7 +892,9 @@
       "source": "Source",
       "hold": "Hold for {{count}} h",
       "holdHint": "The booking cancels itself unless it's confirmed within {{count}} h.",
-      "warnedAsk": "This number is on colleagues' blacklist. Book anyway?"
+      "warnedAsk": "This number is on colleagues' blacklist. Book anyway?",
+      "checkFailed": "Couldn't check the number against the blacklist. Try again.",
+      "retry": "Retry the booking"
     },
     "booking": {
       "due": "Outstanding",
@@ -926,7 +928,8 @@
       "stale": "Couldn't refresh the booking. Actions wait until it loads.",
       "unsettled": "No answer to the payment of {{amount}} — it may already be recorded. Retry: it will not be recorded twice.",
       "retryPayment": "Retry the payment of {{amount}}",
-      "howIn": "Getting in: {{method}}."
+      "howIn": "Getting in: {{method}}.",
+      "unsettledReceive": "No answer to confirming {{amount}}. Retry: the money won't count twice."
     },
     "cleaning": {
       "title": "Cleaning",
@@ -998,7 +1001,8 @@
       "start": "Start",
       "hours": "Hours",
       "guests": "Guests",
-      "hoursShort": "{{count}} h"
+      "hoursShort": "{{count}} h",
+      "pickSlot": "Pick a date and a start time"
     },
     "unit": {
       "address": "Address",

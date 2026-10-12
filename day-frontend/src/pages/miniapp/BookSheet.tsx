@@ -6,7 +6,7 @@
  * of guests come from "Sell"; the price is quoted for exactly that.
  */
 
-import { useRef, useState } from 'react'
+import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { CalendarCheck, ShieldAlert } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
@@ -14,7 +14,8 @@ import { calculatePrice, createBooking, listGuests } from '../../api/bookings'
 import { checkBlacklist, type AvailableProperty } from '../../api/miniapp'
 import { phoneDigits } from '../../lib/phone'
 import { confirmAction, resultFeedback } from '../../lib/telegram'
-import type { Booking, BookingSource } from '../../types/booking'
+import type { Booking, BookingCreateInput, BookingSource } from '../../types/booking'
+import { paymentMaybeRecorded } from './booking-card'
 import { errorText } from './errors'
 import { formatDay, formatMoney, formatTime } from './format'
 import { ActionButton, Chip, Field, Sheet } from './miniapp-ui'
@@ -43,8 +44,10 @@ export default function BookSheet({
   const [source, setSource] = useState<BookingSource>('direct')
   const [hold, setHold] = useState(false)
   const [error, setError] = useState('')
-  // A retry after a timeout returns the booking already made instead of a second one.
-  const bookingKey = useRef(crypto.randomUUID())
+  // The first press freezes the request, hold time included: a retry after a
+  // lost answer must send the same body under the same key, or the server
+  // refuses it and the booking already made is never shown.
+  const [attempt, setAttempt] = useState<{ body: BookingCreateInput; key: string } | null>(null)
   useClosingConfirmation(Boolean(unit) && Boolean(name.trim() || phone.trim()))
 
   const open = Boolean(unit && range)
@@ -85,28 +88,16 @@ export default function BookSheet({
   const guestName = name.trim() || guest?.name || ''
 
   const book = useMutation({
-    mutationFn: () =>
-      createBooking(
-        {
-          property_id: unit!.property_id,
-          guest_name: guestName,
-          guest_phone: phone.trim(),
-          check_in: range!.checkIn,
-          check_out: range!.checkOut,
-          rental_mode: range!.rentalMode,
-          source,
-          adults_count: range!.guests,
-          children_count: 0,
-          expires_at: hold ? new Date(Date.now() + HOLD_HOURS * 3_600_000).toISOString() : undefined,
-        },
-        bookingKey.current,
-      ),
+    mutationFn: (frozen: { body: BookingCreateInput; key: string }) => createBooking(frozen.body, frozen.key),
     onSuccess: (created) => {
+      setAttempt(null)
       resultFeedback('success')
       queryClient.invalidateQueries({ queryKey: ['miniapp'] })
       onBooked(created)
     },
     onError: (mutationError) => {
+      // A refusal means nothing was made; otherwise only the same request may follow.
+      if (!paymentMaybeRecorded(mutationError)) setAttempt(null)
       resultFeedback('error')
       setError(errorText(mutationError, t('miniapp.book.failed'), t))
     },
@@ -114,8 +105,44 @@ export default function BookSheet({
 
   async function askBook() {
     setError('')
-    if (warning.data?.warned && !(await confirmAction(t('miniapp.book.warnedAsk')))) return
-    book.mutate()
+    if (attempt) {
+      book.mutate(attempt)
+      return
+    }
+    // The answer for this very number, not whatever the field held a moment ago:
+    // the server does not check the blacklist itself.
+    if (digits.length >= 3) {
+      let check: { warned: boolean }
+      try {
+        check = await queryClient.fetchQuery({
+          queryKey: ['miniapp', 'blacklist', digits],
+          queryFn: () => checkBlacklist(digits),
+          staleTime: 60_000,
+        })
+      } catch {
+        resultFeedback('error')
+        setError(t('miniapp.book.checkFailed'))
+        return
+      }
+      if (check.warned && !(await confirmAction(t('miniapp.book.warnedAsk')))) return
+    }
+    const frozen = {
+      body: {
+        property_id: unit!.property_id,
+        guest_name: guestName,
+        guest_phone: phone.trim(),
+        check_in: range!.checkIn,
+        check_out: range!.checkOut,
+        rental_mode: range!.rentalMode,
+        source,
+        adults_count: range!.guests,
+        children_count: 0,
+        expires_at: hold ? new Date(Date.now() + HOLD_HOURS * 3_600_000).toISOString() : undefined,
+      },
+      key: crypto.randomUUID(),
+    }
+    setAttempt(frozen)
+    book.mutate(frozen)
   }
 
   if (!unit || !range) return null
@@ -199,7 +226,7 @@ export default function BookSheet({
 
       <ActionButton tone="primary" disabled={!guestName || book.isPending} onClick={askBook}>
         <CalendarCheck className="h-4 w-4" />
-        {book.isPending ? t('miniapp.book.saving') : t('miniapp.book.confirm')}
+        {book.isPending ? t('miniapp.book.saving') : attempt ? t('miniapp.book.retry') : t('miniapp.book.confirm')}
       </ActionButton>
     </Sheet>
   )

@@ -57,3 +57,9 @@ test.describe('hours', () => {
     })
   })
 })
+
+test('an empty or broken date gives no slot instead of crashing the app', () => {
+  expect(hourlyRange('', '12:00', 2)).toBeNull()
+  expect(hourlyRange('not-a-date', '12:00', 2)).toBeNull()
+  expect(hourlyRange('2026-10-12', '', 2)).toBeNull()
+})
