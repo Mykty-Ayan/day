@@ -115,7 +115,7 @@ export default function MiniAppPage() {
   const availabilityQuery = useQuery({
     queryKey: ['miniapp', 'availability', period],
     queryFn: () =>
-      getAvailability(`${toISODate(checkIn)}T14:00:00`, `${toISODate(checkOut)}T12:00:00`),
+      getAvailability(toISODate(checkIn), toISODate(checkOut)),
     enabled: enabled && tab === 'sell',
   })
 
@@ -353,8 +353,9 @@ export default function MiniAppPage() {
       <BookSheet
         key={unitToBook?.property_id ?? 'none'}
         unit={unitToBook}
-        checkIn={`${toISODate(checkIn)}T14:00:00`}
-        checkOut={`${toISODate(checkOut)}T12:00:00`}
+        // Dates only: the server gives a daily stay the flat's own hours.
+        checkIn={toISODate(checkIn)}
+        checkOut={toISODate(checkOut)}
         onClose={() => setUnitToBook(null)}
       />
     </div>

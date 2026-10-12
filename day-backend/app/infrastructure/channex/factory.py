@@ -61,4 +61,5 @@ def build_booking_event_service(session: AsyncSession) -> ProcessBookingEventSer
         booking_repo=SqlBookingRepository(session),
         guest_repo=SqlGuestRepository(session),
         gateway=get_gateway(),
+        property_repo=SqlPropertyRepository(session),
     )
