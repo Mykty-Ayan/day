@@ -116,6 +116,7 @@ export function Field({
   type = 'text',
   inputMode,
   min,
+  disabled,
 }: {
   label: string
   value: string
@@ -124,6 +125,7 @@ export function Field({
   type?: string
   inputMode?: 'text' | 'tel' | 'numeric' | 'decimal'
   min?: string
+  disabled?: boolean
 }) {
   return (
     <label className="block">
@@ -133,9 +135,10 @@ export function Field({
         inputMode={inputMode}
         value={value}
         min={min}
+        disabled={disabled}
         placeholder={placeholder}
         onChange={(event) => onChange(event.target.value)}
-        className="tg-surface min-h-[44px] w-full rounded-xl px-3 text-sm outline-none"
+        className="tg-surface min-h-[44px] w-full rounded-xl px-3 text-sm outline-none disabled:opacity-60"
       />
     </label>
   )
