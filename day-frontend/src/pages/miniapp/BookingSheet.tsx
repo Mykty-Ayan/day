@@ -34,6 +34,7 @@ import {
   saveAttempt,
   settlement,
   storedAttempt,
+  withMoneyLock,
   type MoneyAttempt,
 } from './booking-card'
 import { cardRead, readyToAct } from './card-state'
@@ -161,10 +162,18 @@ export default function BookingSheet({
     return latestCall(stored, attempt) ? stored : null
   }
 
+  // Every read and write of the money attempt runs under a lock the app's windows
+  // share: two windows must not each start a payment, or overwrite the other's.
+  function underLock<T>(run: () => T): Promise<T> {
+    return withMoneyLock(opened?.id ?? '', run)
+  }
+
   // The attempt is settled: gone from the phone unless another one took its place.
-  function settled(attempt: MoneyAttempt) {
-    if (isCurrent(attempt)) setUnsettled(null)
-    else setUnsettledState(opened ? loadAttempt(attemptStorage(), opened.id) : null)
+  function settled(attempt: MoneyAttempt): Promise<void> {
+    return underLock(() => {
+      if (isCurrent(attempt)) setUnsettled(null)
+      else setUnsettledState(opened ? loadAttempt(attemptStorage(), opened.id) : null)
+    })
   }
 
   const [checking, setChecking] = useState(false)
@@ -178,7 +187,8 @@ export default function BookingSheet({
     resultFeedback('success')
     setError('')
     refresh()
-    if (close) onClose()
+    // A closed card's late answer must not close the card open now.
+    if (close && alive.current) onClose()
   }
 
   const extend = useMutation({
@@ -196,35 +206,39 @@ export default function BookingSheet({
   const pay = useMutation({
     mutationFn: (attempt: PaymentAttempt) =>
       addPayment(booking!.id, { amount: attempt.amount, type: 'payment', method: attempt.method }, attempt.key),
-    onSuccess: (_, attempt) => {
-      if (!isCurrent(attempt)) return refresh()
-      setUnsettled(null)
-      setAmount('')
-      done(false)
-    },
-    onError: (mutationError, attempt) => {
-      const stored = failedLatest(attempt)
-      if (!stored) return
-      // Kept (it was saved before sending) unless the server clearly refused it.
-      setUnsettled(afterFailure(stored, mutationError))
-      fail(mutationError)
-    },
+    onSuccess: (_, attempt) =>
+      void underLock(() => {
+        if (!isCurrent(attempt)) return refresh()
+        setUnsettled(null)
+        setAmount('')
+        done(false)
+      }),
+    onError: (mutationError, attempt) =>
+      void underLock(() => {
+        const stored = failedLatest(attempt)
+        if (!stored) return
+        // Kept (it was saved before sending) unless the server clearly refused it.
+        setUnsettled(afterFailure(stored, mutationError))
+        fail(mutationError)
+      }),
   })
 
   const receive = useMutation({
     // Confirming twice is harmless on the server, so a retry is always safe.
     mutationFn: (attempt: ReceiveAttempt) => confirmPayment(booking!.id, attempt.paymentId),
-    onSuccess: (_, attempt) => {
-      if (!isCurrent(attempt)) return refresh()
-      setUnsettled(null)
-      done(false)
-    },
-    onError: (mutationError, attempt) => {
-      const stored = failedLatest(attempt)
-      if (!stored) return
-      setUnsettled(afterFailure(stored, mutationError))
-      fail(mutationError)
-    },
+    onSuccess: (_, attempt) =>
+      void underLock(() => {
+        if (!isCurrent(attempt)) return refresh()
+        setUnsettled(null)
+        done(false)
+      }),
+    onError: (mutationError, attempt) =>
+      void underLock(() => {
+        const stored = failedLatest(attempt)
+        if (!stored) return
+        setUnsettled(afterFailure(stored, mutationError))
+        fail(mutationError)
+      }),
   })
 
   // Money moves one step at a time: until a payment lands and the list is reread,
@@ -264,21 +278,35 @@ export default function BookingSheet({
         // No quote is no reason to refuse; the question just says less.
       }
     }
-    if (await confirmAction(message)) extend.mutate(target)
+    // Closed while the price was asked: the question must not appear over another card.
+    if (!alive.current) return
+    if ((await confirmAction(message)) && alive.current) extend.mutate(target)
   }
 
   async function askCancel() {
-    if (await confirmAction(t('miniapp.booking.cancelAsk'))) setStatus.mutate('cancelled')
+    if ((await confirmAction(t('miniapp.booking.cancelAsk'))) && alive.current) setStatus.mutate('cancelled')
   }
 
-  // Each send is numbered and kept before it goes out: closing the card
-  // mid-request must not lose the key, and a late failure of an earlier send
-  // must not undo a later one.
-  function send(attempt: MoneyAttempt) {
-    const call = nextCall(attempt)
-    if (!setUnsettled(call)) {
+  // Each send is numbered and kept before it goes out, under the lock: closing
+  // the card mid-request must not lose the key, a late failure of an earlier
+  // send must not undo a later one, and another window's attempt is never
+  // overwritten — a first send finds none, a retry finds its own.
+  async function send(attempt: MoneyAttempt) {
+    const call = await underLock(() => {
+      const stored = opened ? storedAttempt(attemptStorage(), opened.id) : null
+      if (attempt.call ? !sameAttempt(stored, attempt) : stored !== null) {
+        // Settled or started in another window: show what is on the phone now.
+        setUnsettledState(opened ? loadAttempt(attemptStorage(), opened.id) : null)
+        return 'other' as const
+      }
+      const next = nextCall(stored ? { ...stored, uncertain: stored.uncertain || attempt.uncertain } : attempt)
+      if (setUnsettled(next)) return next
       // A first send that cannot be kept is not sent at all.
-      if (!attempt.call) setUnsettled(null)
+      if (!attempt.call) setUnsettledState(null)
+      return 'notKept' as const
+    })
+    if (call === 'other') return resultFeedback('error')
+    if (call === 'notKept') {
       resultFeedback('error')
       setError(t('miniapp.booking.notKept'))
       return
@@ -290,6 +318,7 @@ export default function BookingSheet({
   async function askPay() {
     const methodLabel = t(`miniapp.methods.${method}`)
     if (await confirmAction(t('miniapp.booking.payAsk', { amount: money(amountValue), method: methodLabel }))) {
+      if (!alive.current) return
       send({ kind: 'payment', amount: amountValue, method, key: newKey() } satisfies PaymentAttempt)
     }
   }
@@ -303,7 +332,7 @@ export default function BookingSheet({
     try {
       if (attempt.kind === 'payment') {
         const outcome = await voidPaymentKey(booking!.id, attempt.key)
-        settled(attempt)
+        await settled(attempt)
         if (!outcome.voided) {
           // Recorded: the amount still in the field must not be paid again.
           setAmount('')
@@ -323,7 +352,7 @@ export default function BookingSheet({
       const outcome = receiveOutcome(read.data.payments.find((item) => item.id === attempt.paymentId))
       // Still pending: the lost confirm may land yet, so only a retry may follow.
       if (outcome === 'waiting') return setError(t('miniapp.booking.notReceived', { amount: money(attempt.amount) }))
-      settled(attempt)
+      await settled(attempt)
       if (outcome === 'received') return done(false)
       setError(t('miniapp.booking.receiveGone', { amount: money(attempt.amount) }))
     } catch (checkError) {
@@ -335,6 +364,7 @@ export default function BookingSheet({
 
   async function askReceive(payment: BookingPayment) {
     if (await confirmAction(t('miniapp.booking.receivedAsk', { amount: money(payment.amount) }))) {
+      if (!alive.current) return
       send({ kind: 'receive', paymentId: payment.id, amount: payment.amount } satisfies ReceiveAttempt)
     }
   }
