@@ -133,4 +133,6 @@ def build_dispatcher(session: AsyncSession) -> NotificationDispatcher:
         SqlOutboundNotificationRepository(session),
         _PROVIDERS,
         mini_app_url=f"{settings.PUBLIC_APP_URL.rstrip('/')}/tma",
+        identity_repo=SqlChannelIdentityRepository(session),
+        user_repo=SqlUserRepository(session),
     )

@@ -14,9 +14,10 @@ import uuid
 from datetime import datetime
 from decimal import Decimal, InvalidOperation
 
+from app.domain.auth.entities import User
 from app.domain.auth.permissions import Permission, permissions_for_role
 from app.domain.auth.repositories import UserRepository
-from app.domain.messaging.entities import OutboundNotification
+from app.domain.messaging.entities import ChannelIdentity, OutboundNotification
 from app.domain.messaging.repositories import (
     ChannelIdentityRepository,
     OutboundNotificationRepository,
@@ -39,6 +40,11 @@ def _money(value: str) -> str:
         return value
     shown = f"{amount:,.0f}" if amount == amount.to_integral_value() else f"{amount:,.2f}"
     return f"{shown.replace(',', ' ')} ₸"
+
+
+def reads_bookings(user: User | None) -> bool:
+    """Every notice and every bot answer is about bookings or guests: a cleaner gets none of it."""
+    return user is not None and user.is_active and Permission.BOOKINGS_READ in permissions_for_role(user.role)
 
 
 def render(event: NotificationEvent, payload: dict) -> str:
@@ -125,18 +131,8 @@ class NotificationService:
         """
         identities = await self._identities.list_by_company(company_id, channel=channel)
         if self._users is not None:
-            # Every notice is about bookings or guests: a cleaner's chat gets none of it.
             users = await self._users.get_many([i.user_id for i in identities if i.user_id is not None])
-            identities = [
-                i
-                for i in identities
-                if i.user_id is None
-                or (
-                    (user := users.get(i.user_id)) is not None
-                    and user.is_active
-                    and Permission.BOOKINGS_READ in permissions_for_role(user.role)
-                )
-            ]
+            identities = [i for i in identities if i.user_id is None or reads_bookings(users.get(i.user_id))]
         queued = []
         for identity in identities:
             queued.append(
@@ -161,10 +157,29 @@ class NotificationDispatcher:
         notification_repo: OutboundNotificationRepository,
         providers: dict[Channel, MessageProvider],
         mini_app_url: str | None = None,
+        identity_repo: ChannelIdentityRepository | None = None,
+        user_repo: UserRepository | None = None,
     ) -> None:
         self._notifications = notification_repo
         self._providers = providers
         self._mini_app_url = mini_app_url
+        self._identities = identity_repo
+        self._users = user_repo
+
+    async def _still_allowed(self, notification: OutboundNotification) -> bool:
+        """The chat was checked when the notice was queued; by the time it goes out
+        (a retry can be half an hour later) it may be a cleaner's, another
+        company's, or switched off."""
+        if self._identities is None:
+            return True
+        identity: ChannelIdentity | None = await self._identities.get_by_external_id(
+            notification.channel, notification.target
+        )
+        if identity is None or not identity.is_active or identity.company_id != notification.company_id:
+            return False
+        if identity.user_id is None or self._users is None:
+            return True
+        return reads_bookings(await self._users.get_by_id(identity.user_id))
 
     def _buttons(self, notification: OutboundNotification) -> list[AppButton] | None:
         """"Open the booking" under a booking notice, where Telegram can show it.
@@ -191,6 +206,11 @@ class NotificationDispatcher:
             provider = self._providers.get(notification.channel)
             if provider is None:
                 notification.schedule_retry(f"No provider for {notification.channel.value}", now)
+                await self._notifications.update(notification)
+                continue
+
+            if not await self._still_allowed(notification):
+                notification.drop("The chat may no longer read this")
                 await self._notifications.update(notification)
                 continue
 

@@ -17,8 +17,8 @@ from datetime import date, timedelta
 from app.application.booking.check_availability import CheckAvailabilityService
 from app.application.messaging.date_parsing import format_date, parse_range
 from app.application.messaging.link_channel import LinkChannelService, StrandsTwoFactor
+from app.application.messaging.notifications import reads_bookings
 from app.domain.assistant.value_objects import AssistantUnavailable
-from app.domain.auth.permissions import Permission, permissions_for_role
 from app.domain.auth.repositories import CompanyRepository, UserRepository
 from app.domain.booking.repositories import BookingRepository, GuestRepository
 from app.domain.booking.value_objects import BookingStatus
@@ -137,8 +137,10 @@ class HostBotService:
     async def _reads_bookings(self, identity: ChannelIdentity) -> bool:
         if self._users is None or identity.user_id is None:
             return True
-        user = await self._users.get_by_id(identity.user_id)
-        return user is not None and user.is_active and Permission.BOOKINGS_READ in permissions_for_role(user.role)
+        return reads_bookings(await self._users.get_by_id(identity.user_id))
+
+    async def _help_for(self, identity: ChannelIdentity) -> str:
+        return _HELP if await self._reads_bookings(identity) else _STAFF
 
     async def _ask_assistant(
         self,
@@ -179,7 +181,7 @@ class HostBotService:
     ) -> BotReply:
         if not code:
             if identity is not None and identity.is_active:
-                return BotReply(f"Чат уже подключён.\n\n{_HELP}")
+                return BotReply(f"Чат уже подключён.\n\n{await self._help_for(identity)}")
             return BotReply(_NOT_LINKED)
 
         try:
@@ -191,7 +193,8 @@ class HostBotService:
             )
         except ValueError as exc:
             return BotReply(f"{exc}. Сгенерируйте новый код в приложении.")
-        return BotReply(f"{await self._linked_text(linked.company_id, linked.previous_company_id)}\n\n{_HELP}")
+        linked_text = await self._linked_text(linked.company_id, linked.previous_company_id)
+        return BotReply(f"{linked_text}\n\n{await self._help_for(linked.identity)}")
 
     async def _linked_text(self, company_id: uuid.UUID, previous_company_id: uuid.UUID | None) -> str:
         """Say which company the chat now answers for, and which one lost it."""

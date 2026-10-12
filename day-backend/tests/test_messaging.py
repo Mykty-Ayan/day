@@ -893,3 +893,68 @@ class TestTeamMembersInTelegram:
         reply = await bot.handle(identity, "777", text, today=TODAY)
 
         assert "уборки" in reply.text.lower()
+
+    @pytest.mark.asyncio
+    async def test_a_cleaner_linking_the_chat_is_told_where_the_cleanings_are(self):
+        codes, identities = FakeLinkCodeRepository(), FakeIdentityRepository()
+        link = LinkChannelService(codes, identities, StubUsers([OWNER, CLEANER]))
+        code = await link.issue_code_for_member(COMPANY_ID, CLEANER.id)
+        bot = HostBotService(link, StubAvailability([]), None, None, None, user_repo=StubUsers([OWNER, CLEANER]))
+
+        reply = await bot.handle(None, "777", f"/start {code.code}")
+
+        assert "уборки" in reply.text.lower()
+        assert "/bookings" not in reply.text
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "now_linked",
+        [
+            ChannelIdentity(company_id=COMPANY_ID, channel=Channel.TELEGRAM, external_id="1", user_id=CLEANER.id),
+            ChannelIdentity(company_id=OTHER_COMPANY_ID, channel=Channel.TELEGRAM, external_id="1", user_id=OWNER_ID),
+            ChannelIdentity(
+                company_id=COMPANY_ID, channel=Channel.TELEGRAM, external_id="1", user_id=OWNER_ID, is_active=False
+            ),
+        ],
+    )
+    async def test_a_queued_notice_is_dropped_if_the_chat_changed_hands_before_it_went(self, now_linked):
+        # Queued for the owner's chat; by the time it goes out the chat is a cleaner's,
+        # another company's, or switched off.
+        repo = FakeNotificationRepository()
+        await repo.save(
+            OutboundNotification(
+                company_id=COMPANY_ID,
+                channel=Channel.TELEGRAM,
+                target="1",
+                event=NotificationEvent.BOOKING_CREATED,
+                payload={"guest_name": "Ann", "total_price": "25000"},
+            )
+        )
+        provider = FakeProvider()
+        dispatcher = NotificationDispatcher(
+            repo,
+            {Channel.TELEGRAM: provider},
+            identity_repo=FakeIdentityRepository([now_linked]),
+            user_repo=StubUsers([OWNER, CLEANER]),
+        )
+
+        assert await dispatcher.dispatch_due() == 0
+        assert provider.sent == []
+        assert repo.items[0].status == NotificationStatus.FAILED
+
+    @pytest.mark.asyncio
+    async def test_a_queued_notice_still_goes_to_the_owner(self):
+        repo = FakeNotificationRepository()
+        await repo.save(
+            OutboundNotification(company_id=COMPANY_ID, channel=Channel.TELEGRAM, target="1", payload={})
+        )
+        provider = FakeProvider()
+        owner_chat = ChannelIdentity(company_id=COMPANY_ID, channel=Channel.TELEGRAM, external_id="1", user_id=OWNER_ID)
+        dispatcher = NotificationDispatcher(
+            repo,
+            {Channel.TELEGRAM: provider},
+            identity_repo=FakeIdentityRepository([owner_chat]),
+            user_repo=StubUsers([OWNER]),
+        )
+
+        assert await dispatcher.dispatch_due() == 1
