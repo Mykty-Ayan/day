@@ -9,6 +9,8 @@ export interface AvailableProperty {
   rental_mode: RentalMode
   rooms: number | null
   beds: number | null
+  max_guests: number | null
+  bathrooms: number | null
   total_price: number | null
   /** Set when the unit is free but has no pricing configured. */
   price_error: string | null

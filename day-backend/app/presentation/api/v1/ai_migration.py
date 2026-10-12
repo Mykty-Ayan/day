@@ -128,6 +128,8 @@ def _to_property_response(p) -> PropertyResponse:
         floor=p.floor,
         rooms=p.rooms,
         beds=p.beds,
+        max_guests=p.max_guests,
+        bathrooms=p.bathrooms,
         area_living=p.area_living,
         area_total=p.area_total,
         check_in_instructions=p.check_in_instructions,

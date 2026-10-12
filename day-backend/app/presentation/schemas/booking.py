@@ -322,6 +322,8 @@ class AvailablePropertyResponse(BaseModel):
     rental_mode: RentalMode
     rooms: int | None = None
     beds: int | None = None
+    max_guests: int | None = None
+    bathrooms: int | None = None
     total_price: Decimal | None = None
     # Set when the unit is free but has no pricing configured, so the caller can
     # tell "costs nothing" apart from "cannot be quoted".
