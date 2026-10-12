@@ -17,9 +17,10 @@ logger = logging.getLogger(__name__)
 # Rate limits per minute
 _GET_LIMIT = 100
 _MUTATE_LIMIT = 30
-# Login, register, token refresh: the only routes that take a password.
+# The two routes that take a password. Token refresh and the Mini App sign-in
+# stay on the ordinary limit: a 429 there drops a live session.
 _AUTH_LIMIT = 10
-_AUTH_PREFIX = "/api/v1/auth/"
+_PASSWORD_ROUTES = ("/api/v1/auth/login", "/api/v1/auth/register")
 
 # Paths excluded from rate limiting
 _EXCLUDED_PATHS = {"/api/v1/health", "/health"}
@@ -48,10 +49,10 @@ def _bucket_owner(request: Request) -> str:
     other user. Anonymous calls fall back to the client address, which uvicorn
     takes from X-Forwarded-For (FORWARDED_ALLOW_IPS in the Dockerfile).
 
-    Auth routes always count by address: they need no credential, so keying
-    them on a header let a guesser buy a fresh bucket per attempt.
+    Login and register always count by address: they need no credential, so
+    keying them on a header let a guesser buy a fresh bucket per attempt.
     """
-    if not request.url.path.startswith(_AUTH_PREFIX):
+    if request.url.path not in _PASSWORD_ROUTES:
         for header in ("x-api-key", "authorization"):
             value = request.headers.get(header)
             if value:
@@ -61,7 +62,7 @@ def _bucket_owner(request: Request) -> str:
 
 def _limit_for(request: Request) -> tuple[str, int]:
     """The bucket name and per-minute limit for this request."""
-    if request.url.path.startswith(_AUTH_PREFIX):
+    if request.url.path in _PASSWORD_ROUTES:
         return "auth", _AUTH_LIMIT
     if request.method.upper() == "GET":
         return "get", _GET_LIMIT

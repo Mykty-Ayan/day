@@ -45,7 +45,7 @@ async def login(
     session: AsyncSession = Depends(get_session),
     throttle: LoginThrottle = Depends(get_login_throttle),
 ):
-    wait = throttle.retry_after(body.email)
+    wait = throttle.attempt(body.email)
     if wait:
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
@@ -56,7 +56,6 @@ async def login(
     try:
         tokens = await svc.login(body.email, body.password)
     except ValueError as e:
-        throttle.failed(body.email)
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(e))
     throttle.succeeded(body.email)
     return tokens
