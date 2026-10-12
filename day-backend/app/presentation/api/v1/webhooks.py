@@ -64,7 +64,7 @@ async def _conversation_for(
     channel: Channel,
 ) -> Conversation:
     conversations = SqlConversationRepository(session)
-    existing = await conversations.get_by_identity(identity_id)
+    existing = await conversations.get_by_identity(identity_id, company_id)
     if existing is not None:
         return existing
     return await conversations.save(

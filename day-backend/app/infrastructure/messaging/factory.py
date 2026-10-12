@@ -23,7 +23,7 @@ from app.domain.messaging.value_objects import Channel
 from app.infrastructure.assistant.factory import build_assistant_tools
 from app.infrastructure.assistant.openrouter import OpenRouterAssistantGateway
 from app.infrastructure.messaging.providers import TelegramProvider, WhapiProvider
-from app.infrastructure.repositories.auth import SqlUserRepository
+from app.infrastructure.repositories.auth import SqlCompanyRepository, SqlUserRepository
 from app.infrastructure.repositories.booking import (
     SqlBookingAuditLogRepository,
     SqlBookingRepository,
@@ -104,6 +104,7 @@ def build_host_bot(session: AsyncSession) -> HostBotService:
         SqlPropertyRepository(session),
         SqlGuestRepository(session),
         assistant_for=assistant_for,
+        company_repo=SqlCompanyRepository(session),
     )
 
 

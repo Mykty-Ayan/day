@@ -168,8 +168,10 @@ class SqlConversationRepository(ConversationRepository):
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
 
-    async def get_by_identity(self, identity_id: uuid.UUID) -> Conversation | None:
-        stmt = select(ConversationModel).where(ConversationModel.identity_id == identity_id)
+    async def get_by_identity(self, identity_id: uuid.UUID, company_id: uuid.UUID) -> Conversation | None:
+        stmt = select(ConversationModel).where(
+            ConversationModel.identity_id == identity_id, ConversationModel.company_id == company_id
+        )
         result = await self._session.scalar(stmt)
         return _to_conversation(result) if result else None
 

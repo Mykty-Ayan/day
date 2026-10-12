@@ -36,7 +36,8 @@ class ChannelIdentityRepository(abc.ABC):
 
 class ConversationRepository(abc.ABC):
     @abc.abstractmethod
-    async def get_by_identity(self, identity_id: uuid.UUID) -> Conversation | None: ...
+    async def get_by_identity(self, identity_id: uuid.UUID, company_id: uuid.UUID) -> Conversation | None:
+        """The chat's thread in this company; a chat moved to another company has a separate one."""
 
     @abc.abstractmethod
     async def save(self, conversation: Conversation) -> Conversation: ...

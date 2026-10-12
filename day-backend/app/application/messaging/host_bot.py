@@ -7,6 +7,7 @@ surface, not a conversation.
 
 from __future__ import annotations
 
+import html
 import logging
 import uuid
 from collections.abc import Awaitable, Callable
@@ -17,6 +18,7 @@ from app.application.booking.check_availability import CheckAvailabilityService
 from app.application.messaging.date_parsing import format_date, parse_range
 from app.application.messaging.link_channel import LinkChannelService, StrandsTwoFactor
 from app.domain.assistant.value_objects import AssistantUnavailable
+from app.domain.auth.repositories import CompanyRepository
 from app.domain.booking.repositories import BookingRepository, GuestRepository
 from app.domain.booking.value_objects import BookingStatus
 from app.domain.messaging.entities import ChannelIdentity
@@ -67,6 +69,8 @@ class HostBotService:
         # question — or None when no model is configured, which leaves the bot
         # exactly as it was.
         assistant_for: Callable[[ChannelIdentity], Awaitable[object | None]] | None = None,
+        # Names the company in the /start answer; without it the answer stays generic.
+        company_repo: CompanyRepository | None = None,
     ) -> None:
         self._link = link_service
         self._availability = availability
@@ -74,6 +78,7 @@ class HostBotService:
         self._properties = property_repo
         self._guests = guest_repo
         self._assistant_for = assistant_for
+        self._companies = company_repo
 
     async def handle(
         self,
@@ -160,7 +165,7 @@ class HostBotService:
             return BotReply(_NOT_LINKED)
 
         try:
-            await self._link.redeem(code, Channel.TELEGRAM, external_id, display_name)
+            linked = await self._link.redeem(code, Channel.TELEGRAM, external_id, display_name)
         except StrandsTwoFactor:
             return BotReply(
                 "Этот чат получает коды для входа другого аккаунта Day. "
@@ -168,7 +173,25 @@ class HostBotService:
             )
         except ValueError as exc:
             return BotReply(f"{exc}. Сгенерируйте новый код в приложении.")
-        return BotReply(f"Готово, чат подключён к компании.\n\n{_HELP}")
+        return BotReply(f"{await self._linked_text(linked.company_id, linked.previous_company_id)}\n\n{_HELP}")
+
+    async def _linked_text(self, company_id: uuid.UUID, previous_company_id: uuid.UUID | None) -> str:
+        """Say which company the chat now answers for, and which one lost it."""
+        name = await self._company_name(company_id)
+        if name is None:
+            return "Готово, чат подключён к компании."
+        text = f"Готово, чат подключён к компании «{name}»."
+        previous = await self._company_name(previous_company_id) if previous_company_id else None
+        if previous is not None:
+            text += f" От «{previous}» он отключён."
+        return text
+
+    async def _company_name(self, company_id: uuid.UUID) -> str | None:
+        if self._companies is None:
+            return None
+        company = await self._companies.get_by_id(company_id)
+        # Replies go out as Telegram HTML.
+        return html.escape(company.name) if company and company.name else None
 
     async def _free(self, company_id: uuid.UUID, argument: str, today: date) -> BotReply:
         date_range = parse_range(argument, today)
