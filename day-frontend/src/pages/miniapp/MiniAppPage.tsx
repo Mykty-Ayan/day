@@ -83,6 +83,7 @@ export default function MiniAppPage() {
         storeSession(await telegramMiniAppLogin(getInitData()))
         setAuthState('ready')
       } catch (error) {
+        setAuthState('failed')
         setAuthError(errorText(error, t('miniapp.authFailed'), t))
       }
     }
