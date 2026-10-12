@@ -265,7 +265,15 @@
     "addPhotos": "Add photos",
     "photosUploading": "Uploading…",
     "photosAdded": "Photos added: {{count}}",
-    "photosNotAdded": "{{count}} did not upload. Use JPEG, PNG or WebP up to 20 MB"
+    "photosNotAdded": "{{count}} did not upload. Use JPEG, PNG or WebP up to 20 MB",
+    "calendar": {
+      "title": "Calendar for Airbnb and Booking",
+      "hint": "Paste the link into calendar sync on Airbnb and Booking: bookings made in Day close those dates there. The link shows taken nights only",
+      "copy": "Copy link",
+      "copied": "Link copied",
+      "failed": "Could not get the link",
+      "copyFailed": "Could not copy: select the link and copy it by hand"
+    }
   },
   "bookings": {
     "title": "Bookings",

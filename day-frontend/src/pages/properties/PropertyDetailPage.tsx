@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { useQueries } from '@tanstack/react-query'
+import { useQueries, useQuery } from '@tanstack/react-query'
 import { motion } from 'framer-motion'
 import {
   ArrowLeft,
@@ -13,6 +13,7 @@ import {
   Archive,
   Pencil,
   Copy,
+  CalendarSync,
   Users,
   Bath,
   ImagePlus,
@@ -34,7 +35,8 @@ import {
   useCloneProperty,
   useUploadPhotos,
 } from '../../hooks/useProperties'
-import { getPricing } from '../../api/properties'
+import { getCalendarLink, getPricing } from '../../api/properties'
+import { useCurrentUser } from '../../hooks/useAuth'
 import type { PropertyStatus, PricingInput, SeasonalPrice } from '../../types/property'
 import type { RentalMode } from '../../types/booking'
 import PricingForm, { type SeasonalSuggestion } from '../../components/property/PricingForm'
@@ -286,6 +288,8 @@ export default function PropertyDetailPage() {
           </div>
         </div>
 
+        <CalendarLinkCard propertyId={propertyId} />
+
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Left column - Details */}
           <div className="lg:col-span-2 space-y-6">
@@ -496,6 +500,60 @@ export default function PropertyDetailPage() {
         onCancel={() => setShowCloneConfirm(false)}
         loading={clonePropertyMut.isPending}
       />
+    </div>
+  )
+}
+
+/** Until Channex is live, iCal is how Airbnb and Booking.com learn about bookings taken in Day. */
+function CalendarLinkCard({ propertyId }: { propertyId: string }) {
+  const { t } = useTranslation()
+  const { data: user } = useCurrentUser()
+  const allowed = Boolean(user) && user?.role !== 'cleaner'
+  // Fetched up front: Safari refuses a clipboard write that follows an await
+  // inside the click, so the click must have the link already.
+  const link = useQuery({
+    queryKey: ['properties', propertyId, 'calendar-link'],
+    queryFn: () => getCalendarLink(propertyId),
+    enabled: allowed,
+    staleTime: Infinity,
+  })
+  if (!allowed) return null
+
+  function copyLink() {
+    if (!link.data) return
+    navigator.clipboard.writeText(link.data).then(
+      () => showToast('success', t('properties.calendar.copied')),
+      // The link stays on screen to copy by hand.
+      () => showToast('error', t('properties.calendar.copyFailed')),
+    )
+  }
+
+  return (
+    <div className="mb-6 bg-white border border-gray-200 rounded-xl p-5 shadow-sm flex flex-col gap-3">
+      <div className="flex items-start gap-2 min-w-0">
+        <CalendarSync className="w-4 h-4 mt-0.5 shrink-0 text-gray-500" />
+        <div className="min-w-0">
+          <h2 className="text-sm font-bold text-gray-900">{t('properties.calendar.title')}</h2>
+          <p className="text-xs text-gray-500">{t('properties.calendar.hint')}</p>
+        </div>
+      </div>
+      {link.isError ? (
+        <p className="text-xs text-red-600">{t('properties.calendar.failed')}</p>
+      ) : (
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <input
+            type="text"
+            readOnly
+            value={link.data ?? ''}
+            onFocus={(e) => e.currentTarget.select()}
+            aria-label={t('properties.calendar.title')}
+            className="min-w-0 flex-1 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 font-mono text-xs text-gray-700"
+          />
+          <Button type="button" onClick={copyLink} disabled={!link.data}>
+            {t('properties.calendar.copy')}
+          </Button>
+        </div>
+      )}
     </div>
   )
 }
