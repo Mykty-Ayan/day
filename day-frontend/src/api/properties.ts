@@ -102,15 +102,17 @@ export async function uploadPhoto(
   })
 }
 
-/** Uploads in order; resolves to how many failed. */
+/** Uploads in order, numbered from `startAt` so a batch lands after the photos
+ *  already there; resolves to how many failed. */
 export async function uploadPhotos(
   propertyId: string,
   photos: { file: File; isCover?: boolean }[],
+  startAt = 0,
 ): Promise<number> {
   let failed = 0
   for (const [index, photo] of photos.entries()) {
     try {
-      await uploadPhoto(propertyId, photo.file, { sortOrder: index, isCover: photo.isCover })
+      await uploadPhoto(propertyId, photo.file, { sortOrder: startAt + index, isCover: photo.isCover })
     } catch {
       failed += 1
     }

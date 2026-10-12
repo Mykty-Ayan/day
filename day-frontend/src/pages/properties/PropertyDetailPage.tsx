@@ -77,7 +77,8 @@ export default function PropertyDetailPage() {
     const files = Array.from(event.target.files ?? [])
     event.target.value = ''
     if (files.length === 0) return
-    uploadPhotos.mutate(files, {
+    const startAt = Math.max(-1, ...(property?.photos ?? []).map((photo) => photo.sort_order)) + 1
+    uploadPhotos.mutate({ files, startAt }, {
       onSuccess: (failed) =>
         failed > 0
           ? showToast('error', t('properties.photosNotAdded', { count: failed }))
@@ -259,7 +260,7 @@ export default function PropertyDetailPage() {
               <input
                 id="add-photos"
                 type="file"
-                accept="image/jpeg,image/png,image/webp,image/heic"
+                accept="image/jpeg,image/png,image/webp"
                 multiple
                 className="hidden"
                 disabled={uploadPhotos.isPending}

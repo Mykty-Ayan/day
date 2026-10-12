@@ -465,8 +465,9 @@ def _sniff_photo(head: bytes) -> str | None:
         return "image/png"
     if head[:4] == b"RIFF" and head[8:12] == b"WEBP":
         return "image/webp"
-    if head[4:8] == b"ftyp" and head[8:12] in {b"heic", b"heix", b"mif1", b"msf1", b"heim", b"heis"}:
-        return "image/heic"
+    # No HEIC: Chrome and Firefox cannot show it, and the listing page, OTAs
+    # and guests open these files as they are. An iPhone sends JPEG when the
+    # picker does not offer HEIC.
     return None
 
 
@@ -493,7 +494,7 @@ async def upload_photo(
     file.file.seek(0)
     content_type = _sniff_photo(head)
     if content_type is None:
-        raise HTTPException(status_code=415, detail="Only JPEG, PNG, WebP or HEIC photos")
+        raise HTTPException(status_code=415, detail="Only JPEG, PNG or WebP photos")
     size = file.size
     if size is None:
         file.file.seek(0, 2)

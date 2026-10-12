@@ -262,7 +262,7 @@
     "addPhotos": "Фото қосу",
     "photosUploading": "Жүктелуде…",
     "photosAdded": "Фото қосылды: {{count}}",
-    "photosNotAdded": "Жүктелмеді: {{count}}. JPEG, PNG, WebP немесе HEIC, 20 МБ-қа дейін болуы керек"
+    "photosNotAdded": "Жүктелмеді: {{count}}. JPEG, PNG немесе WebP, 20 МБ-қа дейін болуы керек"
   },
   "bookings": {
     "title": "Броньдар",

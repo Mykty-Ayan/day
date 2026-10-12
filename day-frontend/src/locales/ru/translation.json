@@ -262,7 +262,7 @@
     "addPhotos": "Добавить фото",
     "photosUploading": "Загружаем…",
     "photosAdded": "Фото добавлены: {{count}}",
-    "photosNotAdded": "Не загрузились: {{count}}. Это должны быть JPEG, PNG, WebP или HEIC до 20 МБ"
+    "photosNotAdded": "Не загрузились: {{count}}. Это должны быть JPEG, PNG или WebP до 20 МБ"
   },
   "bookings": {
     "title": "Бронирования",

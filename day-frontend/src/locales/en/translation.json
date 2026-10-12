@@ -262,7 +262,7 @@
     "addPhotos": "Add photos",
     "photosUploading": "Uploading…",
     "photosAdded": "Photos added: {{count}}",
-    "photosNotAdded": "{{count}} did not upload. Use JPEG, PNG, WebP or HEIC up to 20 MB"
+    "photosNotAdded": "{{count}} did not upload. Use JPEG, PNG or WebP up to 20 MB"
   },
   "bookings": {
     "title": "Bookings",

@@ -137,7 +137,7 @@ async def upload_booking_file(
     return build_public_url(key)
 
 
-_PHOTO_EXTENSIONS = {"image/jpeg": ".jpg", "image/png": ".png", "image/webp": ".webp", "image/heic": ".heic"}
+_PHOTO_EXTENSIONS = {"image/jpeg": ".jpg", "image/png": ".png", "image/webp": ".webp"}
 
 
 async def upload_property_photo(*, property_id: uuid.UUID, file_obj, content_type: str) -> str:

@@ -76,7 +76,13 @@ async def test_a_photo_file_becomes_a_listing_photo(stored):
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
     "content",
-    [b"%PDF-1.4 contract", b"<svg xmlns='http://www.w3.org/2000/svg'/>", b"<html><script>x()</script>", b""],
+    [
+        b"%PDF-1.4 contract",
+        b"<svg xmlns='http://www.w3.org/2000/svg'/>",
+        b"<html><script>x()</script>",
+        b"",
+        b"\x00\x00\x00\x18ftypheic" + b"\x00" * 32,  # HEIC: browsers cannot show it
+    ],
 )
 async def test_only_photo_bytes_are_taken_whatever_the_label_says(stored, content):
     # Labelled image/jpeg by the client; the bytes say otherwise.
@@ -91,7 +97,6 @@ async def test_only_photo_bytes_are_taken_whatever_the_label_says(stored, conten
     [
         (b"\x89PNG\r\n\x1a\n" + b"\x00" * 32, "image/png"),
         (b"RIFF\x00\x00\x00\x00WEBPVP8 " + b"\x00" * 32, "image/webp"),
-        (b"\x00\x00\x00\x18ftypheic" + b"\x00" * 32, "image/heic"),
     ],
 )
 async def test_the_stored_type_comes_from_the_bytes(stored, content, stored_as):
