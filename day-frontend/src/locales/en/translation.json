@@ -897,9 +897,10 @@
       "retry": "Retry the booking",
       "maybeMade": "No answer — the booking may already exist. Tap \"Retry booking\": it won't be doubled. Fields stay as sent until the answer comes.",
       "pending": "Booking {{unit}} for \"{{guest}}\" is unsettled: no answer came. No new booking starts, so the guest is not booked twice.",
-      "discard": "Not in the list — discard",
-      "discardAsk": "Check \"Upcoming\" on the Today tab. If {{unit}} for \"{{guest}}\" is not there, the attempt can be discarded. Discard?",
-      "notKept": "The phone would not keep the booking attempt, so it is not sent: a dropped connection could book the guest twice. Free some space or book on the web."
+      "discard": "No booking — discard",
+      "discardAsk": "There is no booking of {{unit}} for \"{{guest}}\" on these dates on the server — checked just now. Discard the attempt?",
+      "notKept": "The phone would not keep the booking attempt, so it is not sent: a dropped connection could book the guest twice. Free some space or book on the web.",
+      "search": "Check whether the booking was made"
     },
     "booking": {
       "due": "Outstanding",

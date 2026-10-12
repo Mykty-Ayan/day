@@ -7,11 +7,14 @@
 
 import { expect, test } from '@playwright/test'
 import {
+  companyFromToken,
+  findMade,
   loadBookingAttempt,
   saveBookingAttempt,
   startBooking,
   type BookingAttempt,
 } from '../../src/pages/miniapp/book-attempt'
+import type { Booking } from '../../src/types/booking'
 
 const ATTEMPT: BookingAttempt = {
   unit: '89auc',
@@ -97,16 +100,59 @@ test('nothing is sent if the phone would not keep the attempt', async () => {
   expect(run.sent).toEqual([])
 })
 
-test('an unsettled booking outlives the sheet', () => {
+function memory() {
   const data = new Map<string, string>()
-  const storage = {
+  return {
     getItem: (key: string) => data.get(key) ?? null,
     setItem: (key: string, value: string) => void data.set(key, value),
     removeItem: (key: string) => void data.delete(key),
   }
+}
 
-  expect(saveBookingAttempt(storage, ATTEMPT)).toBe(true)
-  expect(loadBookingAttempt(storage)).toEqual(ATTEMPT)
-  expect(saveBookingAttempt(storage, null)).toBe(true)
-  expect(loadBookingAttempt(storage)).toBeNull()
+test('an unsettled booking outlives the sheet, and counts as possibly made', () => {
+  const storage = memory()
+
+  expect(saveBookingAttempt(storage, 'c-1', ATTEMPT)).toBe(true)
+  // Found again after the app was closed mid-request: its first answer may never have been seen.
+  expect(loadBookingAttempt(storage, 'c-1')).toEqual({ ...ATTEMPT, uncertain: true })
+  expect(saveBookingAttempt(storage, 'c-1', null)).toBe(true)
+  expect(loadBookingAttempt(storage, 'c-1')).toBeNull()
+})
+
+test('one company never sees, retries or discards another company’s attempt', () => {
+  const storage = memory()
+  saveBookingAttempt(storage, 'c-1', ATTEMPT)
+
+  // The chat was relinked to another company since.
+  expect(loadBookingAttempt(storage, 'c-2')).toBeNull()
+})
+
+test('the company comes from the session token', () => {
+  const payload = btoa(JSON.stringify({ sub: 'u-1', company_id: 'c-1' })).replace(/=+$/, '')
+  expect(companyFromToken(`h.${payload}.s`)).toBe('c-1')
+  expect(companyFromToken('broken')).toBeNull()
+  expect(companyFromToken(null)).toBeNull()
+})
+
+test.describe('was the booking made after all', () => {
+  const made = (overrides: Partial<Booking>) =>
+    ({
+      id: 'b-1',
+      property_id: 'p-1',
+      guest_phone: '+77010000000',
+      guest_name: 'Ерлан',
+      check_in: '2026-10-12T14:00:00',
+      status: 'pending',
+      ...overrides,
+    }) as Booking
+
+  test('the same flat, night and phone: it was', () => {
+    expect(findMade(ATTEMPT, [made({})])?.id).toBe('b-1')
+  })
+
+  test('another guest or a cancelled one is not it', () => {
+    expect(findMade(ATTEMPT, [made({ guest_phone: '+77019999999' })])).toBeNull()
+    expect(findMade(ATTEMPT, [made({ status: 'cancelled' })])).toBeNull()
+    expect(findMade(ATTEMPT, [made({ check_in: '2026-10-13T14:00:00' })])).toBeNull()
+  })
 })
