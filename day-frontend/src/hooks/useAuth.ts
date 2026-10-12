@@ -19,9 +19,11 @@ export function useLogin() {
   const navigate = useNavigate()
   return useMutation({
     mutationFn: (data: LoginInput) => login(data),
-    onSuccess: (tokens) => {
+    onSuccess: async (tokens) => {
+      // A new account must not see what the previous one left in the cache.
+      await queryClient.cancelQueries()
+      queryClient.clear()
       storeSession(tokens)
-      queryClient.invalidateQueries({ queryKey: [AUTH_USER_KEY] })
       navigate({ to: '/bookings/today' })
     },
   })
@@ -32,9 +34,11 @@ export function useRegister() {
   const navigate = useNavigate()
   return useMutation({
     mutationFn: (data: RegisterInput) => register(data),
-    onSuccess: (tokens) => {
+    onSuccess: async (tokens) => {
+      // A new account must not see what the previous one left in the cache.
+      await queryClient.cancelQueries()
+      queryClient.clear()
       storeSession(tokens)
-      queryClient.invalidateQueries({ queryKey: [AUTH_USER_KEY] })
       navigate({ to: '/bookings/today' })
     },
   })

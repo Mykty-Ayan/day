@@ -4,10 +4,14 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.application.auth.auth_service import AuthService
+from app.application.auth.password_reset import PasswordResetService, ResetUnavailable
 from app.application.auth.telegram_login import TelegramLoginService, TelegramNotLinked, TelegramSessionEnded
 from app.config import settings
+from app.domain.messaging.value_objects import Channel
 from app.infrastructure.database import get_session
 from app.infrastructure.login_throttle import LoginThrottle, get_login_throttle
+from app.infrastructure.messaging.factory import get_provider
+from app.infrastructure.redis_client import get_redis
 from app.infrastructure.repositories.auth import SqlCompanyRepository, SqlUserRepository
 from app.infrastructure.repositories.messaging import SqlChannelIdentityRepository
 from app.infrastructure.telegram_init_data import InitDataError, verify_init_data
@@ -16,6 +20,8 @@ from app.presentation.schemas.auth import (
     ChangePasswordRequest,
     LoginRequest,
     LogoutRequest,
+    PasswordResetConfirm,
+    PasswordResetRequest,
     RefreshRequest,
     RegisterRequest,
     TelegramMiniAppRequest,
@@ -113,6 +119,44 @@ async def change_password(
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     await session.commit()
+    return tokens
+
+
+def _reset_service(session: AsyncSession) -> PasswordResetService:
+    return PasswordResetService(
+        SqlUserRepository(session),
+        SqlChannelIdentityRepository(session),
+        get_redis(),
+        get_provider(Channel.TELEGRAM),
+    )
+
+
+@auth_router.post("/password-reset/request", status_code=status.HTTP_202_ACCEPTED)
+async def request_password_reset(body: PasswordResetRequest, session: AsyncSession = Depends(get_session)):
+    """Send a reset code to the user's linked Telegram chat. The answer is the same either way."""
+    try:
+        await _reset_service(session).request(body.email)
+    except ResetUnavailable:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Password reset is unavailable")
+    return {"detail": "If the account has Telegram connected, a code was sent there"}
+
+
+@auth_router.post("/password-reset/confirm", response_model=TokenResponse)
+async def confirm_password_reset(
+    body: PasswordResetConfirm,
+    session: AsyncSession = Depends(get_session),
+    throttle: LoginThrottle = Depends(get_login_throttle),
+):
+    try:
+        tokens = await _reset_service(session).confirm(body.email, body.code, body.new_password)
+    except ResetUnavailable:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Password reset is unavailable")
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    await session.commit()
+    # A lock left by someone guessing the old password must not keep the
+    # rightful owner out after they proved who they are.
+    throttle.succeeded(body.email)
     return tokens
 
 

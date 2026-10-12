@@ -2,10 +2,12 @@ import { useState } from 'react'
 import { Link } from '@tanstack/react-router'
 import { motion } from 'framer-motion'
 import { LogIn } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import Button from '../components/ui/Button'
 import { useLogin } from '../hooks/useAuth'
 
 export default function LoginPage() {
+  const { t } = useTranslation()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const loginMutation = useLogin()
@@ -60,6 +62,12 @@ export default function LoginPage() {
             {loginMutation.isPending ? 'Signing in...' : 'Sign in'}
           </Button>
         </form>
+
+        <p className="text-xs text-center mt-3">
+          <Link to="/forgot-password" className="text-gray-500 hover:underline">
+            {t('auth.forgot.link')}
+          </Link>
+        </p>
 
         <p className="text-xs text-gray-500 mt-4 text-center">
           Don't have an account?{' '}

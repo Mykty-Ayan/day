@@ -914,5 +914,22 @@
       "s2": "What's the Wi-Fi in 62auc?",
       "s3": "How much did I earn this month?"
     }
+  },
+  "auth": {
+    "forgot": {
+      "link": "Forgot your password?",
+      "title": "Reset password",
+      "emailHint": "We send a code to the Telegram chat linked to the account in Settings → Team",
+      "codeHint": "If the account has Telegram linked, the code is there. It works for 10 minutes",
+      "sendCode": "Get a code",
+      "code": "Code from Telegram",
+      "reset": "Change password and sign in",
+      "again": "Send the code again",
+      "backToLogin": "Back to sign in",
+      "wrongCode": "The code is wrong or expired",
+      "tooMany": "Too many attempts, wait a minute",
+      "unavailable": "Reset is unavailable right now, try later",
+      "failed": "Something went wrong, try again"
+    }
   }
 }
