@@ -373,6 +373,7 @@ export default function BookingSheet({
         bookingId={booking.id}
         suggestedAmount={property.data?.pricing?.default_deposit || booking.total_price}
         onError={fail}
+        locked={settling}
       />
 
       <pre className="tg-surface max-h-40 overflow-y-auto whitespace-pre-wrap rounded-xl p-3 text-xs">
