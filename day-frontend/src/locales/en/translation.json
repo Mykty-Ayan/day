@@ -860,7 +860,8 @@
       "nothingFree": "Nothing free on those dates",
       "hint": "Opens your WhatsApp with the message ready — just hit send.",
       "messageHead": "Free {{range}}:",
-      "messageTail": "Check-in from 14:00, check-out by 12:00.",
+      "messageTail": "Check-in from {{checkIn}}, check-out by {{checkOut}}.",
+      "hours": "check-in from {{checkIn}}, check-out by {{checkOut}}",
       "forNights": "for {{count}} night(s)",
       "rooms": "{{count}} bed(s)"
     },

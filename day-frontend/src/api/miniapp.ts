@@ -14,6 +14,9 @@ export interface AvailableProperty {
   total_price: number | null
   /** Set when the unit is free but has no pricing configured. */
   price_error: string | null
+  /** The stay as this flat books it, with its own check-in and check-out hours. */
+  check_in?: string | null
+  check_out?: string | null
 }
 
 export interface Availability {

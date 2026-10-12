@@ -9,7 +9,7 @@ from __future__ import annotations
 import uuid
 from collections import defaultdict
 from dataclasses import dataclass
-from datetime import date, datetime, time
+from datetime import date, datetime, time, timedelta
 from decimal import Decimal
 
 from app.application.booking.create_booking import apply_default_times
@@ -37,6 +37,9 @@ _PROPERTY_PAGE_SIZE = 200
 class AvailableProperty:
     property: Property
     total_price: Decimal | None
+    # The stay as this flat books it: its own check-in and check-out hours.
+    check_in: datetime
+    check_out: datetime
     # Pricing is optional per property; a unit with no configuration is still
     # free, we just cannot quote it.
     price_error: str | None = None
@@ -93,9 +96,12 @@ class CheckAvailabilityService:
             raise ValueError("Check-out must be after check-in")
 
         properties = await self._all_properties(company_id)
-        # Hours never move a stay off its dates, so the default stay's dates
-        # cover every flat's.
-        bookings = await self._bookings.list_by_company_date_range(company_id, start.date(), end.date())
+        # The repository compares with midnight of end_date, and a flat's own
+        # check-out can run past a booking that starts later that day; a day
+        # wider catches it, and the exact check below decides.
+        bookings = await self._bookings.list_by_company_date_range(
+            company_id, start.date(), end.date() + timedelta(days=1)
+        )
 
         taken: dict[uuid.UUID, list] = defaultdict(list)
         for booking in bookings:
@@ -129,7 +135,11 @@ class CheckAvailabilityService:
                 except ValueError as exc:
                     error = str(exc)
 
-            results.append(AvailableProperty(property=prop, total_price=total, price_error=error))
+            results.append(
+                AvailableProperty(
+                    property=prop, total_price=total, check_in=start, check_out=end, price_error=error
+                )
+            )
 
         results.sort(key=lambda item: (item.total_price is None, item.total_price or 0))
         return results
