@@ -1,4 +1,4 @@
-function claim(token: string | null | undefined, name: 'company_id' | 'role'): string | null {
+function claim(token: string | null | undefined, name: 'sub' | 'company_id' | 'role'): string | null {
   try {
     const part = token?.split('.')[1]
     if (!part) return null
@@ -19,6 +19,19 @@ export function companyFromToken(token: string | null | undefined): string | nul
  *  Rights are the server's; a wrong guess here only shows a screen that answers 403. */
 export function roleFromToken(token: string | null | undefined): string | null {
   return claim(token, 'role')
+}
+
+/** Who a session is: user, company and role. A refresh keeps it; a chat relinked
+ *  to another user or company and signed in again changes it. */
+export function sessionIdentity(token: string | null | undefined): string | null {
+  const sub = claim(token, 'sub')
+  return sub ? `${sub}|${claim(token, 'company_id')}|${claim(token, 'role')}` : null
+}
+
+/** Whether the session became someone else's. Signed out or not yet signed in
+ *  is not a change: there is nothing on screen to mix up. */
+export function identityChanged(before: string | null, now: string | null): boolean {
+  return before !== null && now !== null && before !== now
 }
 
 /** Whether a request made for `expected` company may go out with `token`. One

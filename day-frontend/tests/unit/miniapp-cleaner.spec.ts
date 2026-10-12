@@ -4,8 +4,9 @@
  */
 
 import { expect, test } from '@playwright/test'
-import { roleFromToken } from '../../src/lib/token'
-import { myCleaningDays, nextCleaningStep } from '../../src/pages/miniapp/cleaner'
+import { identityChanged, roleFromToken, sessionIdentity } from '../../src/lib/token'
+import { localDay, myCleaningDays, nextCleaningStep } from '../../src/pages/miniapp/cleaner'
+import { toISODate } from '../../src/pages/miniapp/format'
 import type { CleaningTask } from '../../src/types/cleaning'
 
 const task = (overrides: Partial<CleaningTask>) =>
@@ -30,6 +31,42 @@ test('a task moves one step: start, then done; nothing after', () => {
   expect(nextCleaningStep('in_progress')).toBe('done')
   expect(nextCleaningStep('done')).toBeNull()
   expect(nextCleaningStep('verified')).toBeNull()
+})
+
+const token = (claims: Record<string, unknown>) => `h.${btoa(JSON.stringify(claims)).replace(/=+$/, '')}.s`
+
+test('a session is told apart by its user, company and role', () => {
+  const manager = sessionIdentity(token({ sub: 'u-1', company_id: 'c-a', role: 'manager' }))
+  const cleaner = sessionIdentity(token({ sub: 'u-2', company_id: 'c-b', role: 'cleaner' }))
+  const refreshed = sessionIdentity(token({ sub: 'u-1', company_id: 'c-a', role: 'manager', iat: 2 }))
+  // The chat was relinked to a cleaner of another company and signed in again by itself.
+  expect(identityChanged(manager, cleaner)).toBe(true)
+  expect(identityChanged(manager, refreshed)).toBe(false)
+  // Signed out, or not signed in yet: nothing to compare.
+  expect(identityChanged(manager, null)).toBe(false)
+  expect(identityChanged(null, cleaner)).toBe(false)
+})
+
+test('a completion time from the server (UTC, no zone) is read as the local day', () => {
+  expect(localDay('2026-10-12T19:50:44.582635')).toBe(toISODate(new Date(Date.UTC(2026, 9, 12, 19, 50, 44))))
+  expect(localDay('2026-10-12T19:50:44Z')).toBe(toISODate(new Date(Date.UTC(2026, 9, 12, 19, 50, 44))))
+})
+
+test('finished today means finished today, whatever day it was planned for', () => {
+  const sameDay = (value: string) => value.slice(0, 10)
+  const days = myCleaningDays(
+    [
+      task({ id: 'planned-yesterday-done-today', scheduled_date: '2026-10-12', status: 'done', completed_at: '2026-10-13T08:00:00' }),
+      task({ id: 'planned-today-done-yesterday', status: 'done', completed_at: '2026-10-12T21:00:00' }),
+      task({ id: 'done-no-time', status: 'done', completed_at: null }),
+    ],
+    '2026-10-13',
+    sameDay,
+  )
+  expect(days.map((day) => [day.date, day.tasks.map((item) => item.id)])).toEqual([
+    ['2026-10-12', ['planned-yesterday-done-today']],
+    ['2026-10-13', ['done-no-time']],
+  ])
 })
 
 test('the day shows what is still to do and what was finished today, by day and hour', () => {

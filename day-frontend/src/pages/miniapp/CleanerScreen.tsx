@@ -11,15 +11,17 @@ import { useTranslation } from 'react-i18next'
 import { changeCleaningTaskStatus, listCleaningTasks } from '../../api/cleaning'
 import { confirmAction, resultFeedback } from '../../lib/telegram'
 import { companyFromToken } from '../../lib/token'
-import type { CleaningStatus, CleaningTask, CleaningType } from '../../types/cleaning'
+import type { CleaningStatus, CleaningTask, CleaningTaskFilters, CleaningType } from '../../types/cleaning'
 import { myCleaningDays, nextCleaningStep } from './cleaner'
 import { errorText } from './errors'
 import { addDays, formatDay, toISODate } from './format'
 import { ActionButton, Section } from './miniapp-ui'
 
-// What was left over the last days still shows; a week ahead is enough to plan.
-const BACK_DAYS = 3
+// What was left over the last two weeks still shows; a week ahead is enough to plan.
+const BACK_DAYS = 14
 const AHEAD_DAYS = 7
+// Every page of the range, up to a thousand tasks: far more than one cleaner has.
+const MAX_PAGES = 10
 
 const TYPE_LABEL: Record<CleaningType, string> = {
   post_checkout: 'cleaning.types.postCheckout',
@@ -37,6 +39,15 @@ const STATUS_LABEL: Record<CleaningStatus, string> = {
 
 const unitName = (task: CleaningTask) => task.property_internal_name || task.property_name || '—'
 
+async function allTasks(filters: CleaningTaskFilters): Promise<CleaningTask[]> {
+  const first = await listCleaningTasks({ ...filters, page: 1, per_page: 100 })
+  const items = [...first.items]
+  for (let page = 2; page <= Math.min(first.pages, MAX_PAGES); page += 1) {
+    items.push(...(await listCleaningTasks({ ...filters, page, per_page: 100 })).items)
+  }
+  return items
+}
+
 export default function CleanerScreen() {
   const { t, i18n } = useTranslation()
   const lang = i18n.language
@@ -51,11 +62,7 @@ export default function CleanerScreen() {
   const tasks = useQuery({
     queryKey: listKey,
     queryFn: () =>
-      listCleaningTasks({
-        date_from: toISODate(addDays(now, -BACK_DAYS)),
-        date_to: toISODate(addDays(now, AHEAD_DAYS)),
-        per_page: 100,
-      }),
+      allTasks({ date_from: toISODate(addDays(now, -BACK_DAYS)), date_to: toISODate(addDays(now, AHEAD_DAYS)) }),
   })
 
   const step = useMutation({
@@ -90,7 +97,7 @@ export default function CleanerScreen() {
         : date === tomorrow
           ? t('miniapp.cleaner.tomorrow')
           : formatDay(`${date}T12:00:00`, lang)
-  const days = myCleaningDays(tasks.data?.items ?? [], today)
+  const days = myCleaningDays(tasks.data ?? [], today)
 
   return (
     <div className="tg-root min-h-screen pb-6">

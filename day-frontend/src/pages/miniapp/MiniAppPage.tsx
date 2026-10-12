@@ -6,7 +6,7 @@
  * a tap target that ends in an action — the previous version could only be read.
  */
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import {
   Building2,
@@ -21,8 +21,8 @@ import {
 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { getBooking, getTodayChecks, listBookings } from '../../api/bookings'
-import { storeSession } from '../../api/client'
-import { roleFromToken } from '../../lib/token'
+import { onSessionStored, storeSession } from '../../api/client'
+import { identityChanged, roleFromToken, sessionIdentity } from '../../lib/token'
 import { telegramMiniAppLogin, type AvailableProperty } from '../../api/miniapp'
 import { listAllProperties } from '../../api/properties'
 import { copyText, getInitData, initTelegram, isInsideTelegram, tapFeedback } from '../../lib/telegram'
@@ -53,6 +53,19 @@ export default function MiniAppPage() {
   const [attempt, setAttempt] = useState(0)
   // A cleaner's chat gets their own cleanings, never bookings or money.
   const [role, setRole] = useState<string | null>(null)
+  // Who the screen was built for. The app signs itself in again when a session
+  // cannot be refreshed; if the chat was relinked meanwhile, that is another
+  // user, company or role, and nothing on screen or in the cache belongs to it.
+  const shownFor = useRef<string | null>(null)
+  useEffect(
+    () =>
+      onSessionStored(() => {
+        if (identityChanged(shownFor.current, sessionIdentity(localStorage.getItem('access_token')))) {
+          window.location.reload()
+        }
+      }),
+    [],
+  )
 
   const [offerOpen, setOfferOpen] = useState(false)
   const [booking, setBooking] = useState<Booking | null>(null)
@@ -77,6 +90,7 @@ export default function MiniAppPage() {
       }
       try {
         const session = await telegramMiniAppLogin(getInitData())
+        shownFor.current = sessionIdentity(session.access_token)
         storeSession(session)
         setRole(roleFromToken(session.access_token))
         setAuthState('ready')
