@@ -1,10 +1,11 @@
 /** Whether the booking card may act: only on a booking read from the server
- *  after the card opened. Cached or failed reads show, but do not act. */
+ *  after the card opened. Cached or failed reads show, but do not act; nor does
+ *  a reread that is out or paused for the network ("idle" is neither). */
 export function readyToAct(
-  read: { isSuccess: boolean; isFetching: boolean; dataUpdatedAt: number },
+  read: { isSuccess: boolean; fetchStatus: 'fetching' | 'paused' | 'idle'; dataUpdatedAt: number },
   openedAt: number,
 ): boolean {
-  return read.isSuccess && !read.isFetching && read.dataUpdatedAt >= openedAt
+  return read.isSuccess && read.fetchStatus === 'idle' && read.dataUpdatedAt >= openedAt
 }
 
 /** Query options for a read the card acts on. Read again on every open, and
