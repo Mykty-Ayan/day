@@ -59,33 +59,42 @@ export type MoneyAttempt = (
  *  call proves nothing was recorded. Once an answer was lost, a refused retry
  *  (a rate limit, an expired session) says nothing about the first call: the
  *  attempt stays until a retry succeeds or the operator checks the history. */
-export function afterFailure<T extends MoneyAttempt>(attempt: T, error: unknown): T | null {
+export function afterFailure<T extends { uncertain?: boolean }>(attempt: T, error: unknown): T | null {
   if (paymentMaybeRecorded(error)) return { ...attempt, uncertain: true }
   return attempt.uncertain ? attempt : null
 }
 
-type AttemptStore = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>
+export type AttemptStore = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>
 
 const attemptKey = (bookingId: string) => `day.miniapp.money.${bookingId}`
 
-export function loadAttempt(storage: AttemptStore | undefined, bookingId: string): MoneyAttempt | null {
+export function loadStored<T>(storage: AttemptStore | undefined, key: string): T | null {
   try {
-    const raw = storage?.getItem(attemptKey(bookingId))
-    return raw ? (JSON.parse(raw) as MoneyAttempt) : null
+    const raw = storage?.getItem(key)
+    return raw ? (JSON.parse(raw) as T) : null
   } catch {
     return null
   }
 }
 
-/** Whether the attempt is kept on the phone. Money is not sent unkept: closing
- *  the card mid-request would lose the key, and the next try would double it. */
-export function saveAttempt(storage: AttemptStore | undefined, bookingId: string, attempt: MoneyAttempt | null): boolean {
+/** Whether the value is kept on the phone (or removed, for null). */
+export function saveStored(storage: AttemptStore | undefined, key: string, value: unknown): boolean {
   if (!storage) return false
   try {
-    if (attempt) storage.setItem(attemptKey(bookingId), JSON.stringify(attempt))
-    else storage.removeItem(attemptKey(bookingId))
+    if (value === null) storage.removeItem(key)
+    else storage.setItem(key, JSON.stringify(value))
     return true
   } catch {
     return false
   }
+}
+
+export function loadAttempt(storage: AttemptStore | undefined, bookingId: string): MoneyAttempt | null {
+  return loadStored<MoneyAttempt>(storage, attemptKey(bookingId))
+}
+
+/** Whether the attempt is kept on the phone. Money is not sent unkept: closing
+ *  the card mid-request would lose the key, and the next try would double it. */
+export function saveAttempt(storage: AttemptStore | undefined, bookingId: string, attempt: MoneyAttempt | null): boolean {
+  return saveStored(storage, attemptKey(bookingId), attempt)
 }

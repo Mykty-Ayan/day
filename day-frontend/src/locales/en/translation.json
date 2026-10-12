@@ -895,7 +895,11 @@
       "warnedAsk": "This number is on colleagues' blacklist. Book anyway?",
       "checkFailed": "Couldn't check the number against the blacklist. Try again.",
       "retry": "Retry the booking",
-      "maybeMade": "No answer — the booking may already exist. Tap \"Retry booking\": it won't be doubled. Fields stay as sent until the answer comes."
+      "maybeMade": "No answer — the booking may already exist. Tap \"Retry booking\": it won't be doubled. Fields stay as sent until the answer comes.",
+      "pending": "Booking {{unit}} for \"{{guest}}\" is unsettled: no answer came. No new booking starts, so the guest is not booked twice.",
+      "discard": "Not in the list — discard",
+      "discardAsk": "Check \"Upcoming\" on the Today tab. If {{unit}} for \"{{guest}}\" is not there, the attempt can be discarded. Discard?",
+      "notKept": "The phone would not keep the booking attempt, so it is not sent: a dropped connection could book the guest twice. Free some space or book on the web."
     },
     "booking": {
       "due": "Outstanding",
