@@ -11,7 +11,6 @@ import { useQuery } from '@tanstack/react-query'
 import {
   Building2,
   CalendarCheck,
-  DoorOpen,
   KeyRound,
   LogIn,
   LogOut,
@@ -23,7 +22,7 @@ import {
 import { useTranslation } from 'react-i18next'
 import { getTodayChecks, listBookings } from '../../api/bookings'
 import { storeSession } from '../../api/client'
-import { getAvailability, telegramMiniAppLogin, type AvailableProperty } from '../../api/miniapp'
+import { telegramMiniAppLogin, type AvailableProperty } from '../../api/miniapp'
 import { listAllProperties } from '../../api/properties'
 import { copyText, getInitData, initTelegram, isInsideTelegram, tapFeedback } from '../../lib/telegram'
 import type { Booking } from '../../types/booking'
@@ -33,38 +32,25 @@ import BookSheet from './BookSheet'
 import BookingSheet from './BookingSheet'
 import CleaningSheet from './CleaningSheet'
 import OfferSheet from './OfferSheet'
+import SellScreen from './SellScreen'
+import type { SellRange } from './sell'
 import { errorText } from './errors'
 import { addDays, formatDay, formatMoney, formatTime, toISODate } from './format'
 import { ActionButton, Chip, Screen, Section } from './miniapp-ui'
 
 type Tab = 'today' | 'sell' | 'units' | 'ask'
-type Period = 'tonight' | 'tomorrow' | 'weekend'
-
 const UPCOMING_DAYS = 14
-
-function weekendRange(today: Date): [Date, Date] {
-  const daysUntilFriday = (5 - today.getDay() + 7) % 7
-  const friday = addDays(today, daysUntilFriday)
-  return [friday, addDays(friday, 2)]
-}
-
-function periodRange(period: Period, today: Date): [Date, Date] {
-  if (period === 'tomorrow') return [addDays(today, 1), addDays(today, 2)]
-  if (period === 'weekend') return weekendRange(today)
-  return [today, addDays(today, 1)]
-}
 
 export default function MiniAppPage() {
   const { t, i18n } = useTranslation()
   const [tab, setTab] = useState<Tab>('today')
-  const [period, setPeriod] = useState<Period>('tonight')
   const [authState, setAuthState] = useState<'pending' | 'ready' | 'failed'>('pending')
   const [authError, setAuthError] = useState('')
   const [attempt, setAttempt] = useState(0)
 
   const [offerOpen, setOfferOpen] = useState(false)
   const [booking, setBooking] = useState<Booking | null>(null)
-  const [unitToBook, setUnitToBook] = useState<AvailableProperty | null>(null)
+  const [toBook, setToBook] = useState<{ unit: AvailableProperty; range: SellRange } | null>(null)
   const [cleaningFor, setCleaningFor] = useState<Booking | null>(null)
 
   const today = useMemo(() => new Date(), [])
@@ -109,14 +95,6 @@ export default function MiniAppPage() {
         per_page: 50,
       }),
     enabled: enabled && tab === 'today',
-  })
-
-  const [checkIn, checkOut] = periodRange(period, today)
-  const availabilityQuery = useQuery({
-    queryKey: ['miniapp', 'availability', period],
-    queryFn: () =>
-      getAvailability(toISODate(checkIn), toISODate(checkOut)),
-    enabled: enabled && tab === 'sell',
   })
 
   const unitsQuery = useQuery({
@@ -272,69 +250,12 @@ export default function MiniAppPage() {
         )}
 
         {tab === 'sell' && (
-          <>
-            <div className="flex gap-1">
-              <Chip
-                label={t('miniapp.periods.tonight')}
-                active={period === 'tonight'}
-                onClick={() => setPeriod('tonight')}
-              />
-              <Chip
-                label={t('miniapp.periods.tomorrow')}
-                active={period === 'tomorrow'}
-                onClick={() => setPeriod('tomorrow')}
-              />
-              <Chip
-                label={t('miniapp.periods.weekend')}
-                active={period === 'weekend'}
-                onClick={() => setPeriod('weekend')}
-              />
-            </div>
-
-            <p className="tg-hint text-xs">
-              {formatDay(checkIn.toISOString(), i18n.language)} —{' '}
-              {formatDay(checkOut.toISOString(), i18n.language)}
-            </p>
-
-            <ActionButton onClick={() => setOfferOpen(true)}>
-              <Send className="h-4 w-4" />
-              {t('miniapp.offer.title')}
-            </ActionButton>
-
-            {availabilityQuery.isLoading && <p className="tg-hint text-sm">{t('miniapp.loading')}</p>}
-            {availabilityQuery.isError && <p className="text-sm">{t('miniapp.loadFailed')}</p>}
-
-            {availabilityQuery.data && (
-              <Section
-                icon={<DoorOpen className="h-4 w-4" />}
-                title={t('miniapp.freeProperties')}
-                count={availabilityQuery.data.items.length}
-                emptyLabel={t('miniapp.offer.nothingFree')}
-              >
-                {availabilityQuery.data.items.map((item) => (
-                  <button
-                    key={item.property_id}
-                    type="button"
-                    onClick={() => {
-                      tapFeedback()
-                      setUnitToBook(item)
-                    }}
-                    className="flex min-h-[52px] w-full items-center gap-3 px-3 py-2.5 text-left"
-                  >
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate text-sm font-semibold">{item.name}</span>
-                      <span className="tg-hint block truncate text-xs">{item.internal_name}</span>
-                    </span>
-                    <span className="shrink-0 text-xs font-bold">
-                      {item.total_price !== null
-                        ? `${formatMoney(item.total_price, i18n.language)} ₸`
-                        : t('miniapp.noPrice')}
-                    </span>
-                  </button>
-                ))}
-              </Section>
-            )}
-          </>
+          <SellScreen
+            enabled={enabled}
+            today={today}
+            onOffer={() => setOfferOpen(true)}
+            onPick={(unit, range) => setToBook({ unit, range })}
+          />
         )}
 
         {tab === 'units' && (
@@ -363,12 +284,15 @@ export default function MiniAppPage() {
       <BookingSheet key={booking?.id ?? 'none'} booking={booking} onClose={() => setBooking(null)} />
       <CleaningSheet key={cleaningFor?.id ?? 'none'} booking={cleaningFor} onClose={() => setCleaningFor(null)} />
       <BookSheet
-        key={unitToBook?.property_id ?? 'none'}
-        unit={unitToBook}
-        // Dates only: the server gives a daily stay the flat's own hours.
-        checkIn={toISODate(checkIn)}
-        checkOut={toISODate(checkOut)}
-        onClose={() => setUnitToBook(null)}
+        key={toBook ? `${toBook.unit.property_id}-${toBook.range.checkIn}-${toBook.range.checkOut}` : 'none'}
+        unit={toBook?.unit ?? null}
+        range={toBook?.range ?? null}
+        onClose={() => setToBook(null)}
+        onBooked={(created) => {
+          // Straight to the new booking: the prepayment is the next thing to take.
+          setToBook(null)
+          setBooking(created)
+        }}
       />
     </div>
   )

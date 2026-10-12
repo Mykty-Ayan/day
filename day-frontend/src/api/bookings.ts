@@ -46,8 +46,11 @@ export async function getBooking(id: string): Promise<BookingDetail> {
   return res.data
 }
 
-export async function createBooking(data: BookingCreateInput): Promise<Booking> {
-  const res = await apiClient.post('/bookings', data)
+export async function createBooking(data: BookingCreateInput, idempotencyKey?: string): Promise<Booking> {
+  // The same key on a retry returns the booking already made instead of a second one.
+  const res = await apiClient.post('/bookings', data, {
+    headers: idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : undefined,
+  })
   return res.data
 }
 

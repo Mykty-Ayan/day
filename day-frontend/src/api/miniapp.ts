@@ -41,9 +41,21 @@ export const MINIAPP_ADULTS = 2
 export async function getAvailability(
   checkIn: string,
   checkOut: string,
+  options: { adults?: number; rentalMode?: RentalMode } = {},
 ): Promise<Availability> {
   const res = await apiClient.get<Availability>('/bookings/availability', {
-    params: { check_in: checkIn, check_out: checkOut, adults_count: MINIAPP_ADULTS },
+    params: {
+      check_in: checkIn,
+      check_out: checkOut,
+      adults_count: options.adults ?? MINIAPP_ADULTS,
+      rental_mode: options.rentalMode ?? 'daily',
+    },
   })
+  return res.data
+}
+
+/** A warning from colleagues' groups about this number, for the operator only. */
+export async function checkBlacklist(phone: string): Promise<{ warned: boolean; message: string }> {
+  const res = await apiClient.get('/blacklist/check', { params: { phone } })
   return res.data
 }

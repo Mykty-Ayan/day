@@ -854,7 +854,8 @@
     "periods": {
       "tonight": "Tonight",
       "tomorrow": "Tomorrow",
-      "weekend": "Weekend"
+      "weekend": "Weekend",
+      "custom": "Dates"
     },
     "flats": "Units",
     "wifi": "Wi-Fi",
@@ -884,7 +885,14 @@
       "confirm": "Book",
       "saving": "Saving…",
       "failed": "Could not book",
-      "nights": "{{count}} night(s)"
+      "nights": "{{count}} night(s)",
+      "guests": "guests: {{count}}",
+      "known": "Returning guest: {{name}}. The booking goes under this name.",
+      "namePlaceholder": "Guest's name",
+      "source": "Source",
+      "hold": "Hold for {{count}} h",
+      "holdHint": "The booking cancels itself unless it's confirmed within {{count}} h.",
+      "warnedAsk": "This number is on colleagues' blacklist. Book anyway?"
     },
     "booking": {
       "due": "Outstanding",
@@ -976,6 +984,17 @@
       "transfer": "Kaspi / transfer",
       "cash": "Cash",
       "card": "Card"
+    },
+    "sell": {
+      "daily": "Nights",
+      "hourly": "Hours",
+      "from": "From",
+      "nights": "Nights",
+      "date": "Date",
+      "start": "Start",
+      "hours": "Hours",
+      "guests": "Guests",
+      "hoursShort": "{{count}} h"
     }
   },
   "auth": {
