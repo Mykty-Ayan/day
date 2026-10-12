@@ -205,7 +205,8 @@ class BookingListResponse(BaseModel):
 
 
 class PaymentCreate(BaseModel):
-    amount: Decimal = Field(..., gt=0)
+    # The column is Numeric(12, 2): a larger figure fails in the database as a 500.
+    amount: Decimal = Field(..., gt=0, le=Decimal("9999999999.99"))
     type: PaymentType = PaymentType.PAYMENT
     method: PaymentMethod = PaymentMethod.CASH
     note: str | None = None
