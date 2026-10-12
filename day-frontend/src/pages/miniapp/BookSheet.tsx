@@ -10,12 +10,19 @@ import { useEffect, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { CalendarCheck, ShieldAlert } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
-import { calculatePrice, createBooking, listGuests } from '../../api/bookings'
+import { calculatePrice, createBooking, listBookings, listGuests } from '../../api/bookings'
 import { checkBlacklist, type AvailableProperty } from '../../api/miniapp'
 import { phoneDigits } from '../../lib/phone'
 import { confirmAction, resultFeedback } from '../../lib/telegram'
 import type { Booking, BookingSource } from '../../types/booking'
-import { loadBookingAttempt, saveBookingAttempt, startBooking, type BookingAttempt } from './book-attempt'
+import {
+  companyFromToken,
+  findMade,
+  loadBookingAttempt,
+  saveBookingAttempt,
+  startBooking,
+  type BookingAttempt,
+} from './book-attempt'
 import { afterFailure } from './booking-card'
 import { errorText } from './errors'
 import { formatDay, formatMoney, formatTime } from './format'
@@ -56,12 +63,23 @@ export default function BookSheet({
   // A booking sent but not answered, kept on the phone: closing the sheet must
   // not let the guest be booked into a second flat. A retry sends the same body
   // under the same key; until then no other booking starts, whichever flat.
-  const [pending, setPendingState] = useState<BookingAttempt | null>(() => loadBookingAttempt(phoneStorage()))
+  const [company] = useState(() => companyFromToken(phoneStorage()?.getItem('access_token') ?? null) ?? 'unknown')
+  const [pending, setPendingState] = useState<BookingAttempt | null>(() =>
+    loadBookingAttempt(phoneStorage(), company),
+  )
   function setPending(next: BookingAttempt | null): boolean {
-    const kept = saveBookingAttempt(phoneStorage(), next)
+    const kept = saveBookingAttempt(phoneStorage(), company, next)
     setPendingState(next)
     return kept
   }
+  // Whether an answer is about the attempt on the phone now. A late answer to an
+  // earlier one (the sheet was closed and reopened meanwhile) must not settle a newer one.
+  function isCurrent(sent: BookingAttempt): boolean {
+    return loadBookingAttempt(phoneStorage(), company)?.key === sent.key
+  }
+  // The attempt the flat's bookings were searched for after it was made: only then may it be discarded.
+  const [checkedFor, setCheckedFor] = useState<string | null>(null)
+  const [searching, setSearching] = useState(false)
   // From the press until the request is out (the blacklist check takes a moment).
   const [checking, setChecking] = useState(false)
   const pressed = useRef(false)
@@ -113,13 +131,15 @@ export default function BookSheet({
 
   const book = useMutation({
     mutationFn: (sent: BookingAttempt) => createBooking(sent.body, sent.key),
-    onSuccess: (created) => {
+    onSuccess: (created, sent) => {
+      queryClient.invalidateQueries({ queryKey: ['miniapp'] })
+      if (!isCurrent(sent)) return
       setPending(null)
       resultFeedback('success')
-      queryClient.invalidateQueries({ queryKey: ['miniapp'] })
       onBooked(created)
     },
     onError: (mutationError, sent) => {
+      if (!isCurrent(sent)) return
       resultFeedback('error')
       // A refusal of the first call means nothing was made; otherwise only the same request may follow.
       const left = afterFailure(sent, mutationError)
@@ -182,6 +202,36 @@ export default function BookSheet({
     }
   }
 
+  async function searchMade(stale: BookingAttempt) {
+    // Asked now, after the attempt, for this flat and these dates — not the
+    // "Upcoming" list, which stops at two weeks and fifty rows.
+    setSearching(true)
+    try {
+      const day = stale.body.check_in.slice(0, 10)
+      const found = await listBookings({
+        property_id: stale.body.property_id,
+        date_from: day,
+        date_to: day,
+        per_page: 100,
+      })
+      const made = findMade(stale, found.items)
+      if (made) {
+        if (isCurrent(stale)) setPending(null)
+        setError('')
+        queryClient.invalidateQueries({ queryKey: ['miniapp'] })
+        resultFeedback('success')
+        onBooked(made)
+        return
+      }
+      setCheckedFor(stale.key)
+    } catch (searchError) {
+      resultFeedback('error')
+      setError(errorText(searchError, t('miniapp.loadFailed'), t))
+    } finally {
+      if (alive.current) setSearching(false)
+    }
+  }
+
   async function askDiscard(stale: BookingAttempt) {
     const ask = t('miniapp.book.discardAsk', { unit: stale.unit, guest: stale.body.guest_name })
     if (await confirmAction(ask)) {
@@ -210,9 +260,15 @@ export default function BookSheet({
             <CalendarCheck className="h-4 w-4" />
             {book.isPending ? t('miniapp.book.saving') : t('miniapp.book.retry')}
           </ActionButton>
-          <ActionButton disabled={book.isPending} onClick={() => askDiscard(pending)}>
-            {t('miniapp.book.discard')}
-          </ActionButton>
+          {checkedFor === pending.key ? (
+            <ActionButton disabled={book.isPending} onClick={() => askDiscard(pending)}>
+              {t('miniapp.book.discard')}
+            </ActionButton>
+          ) : (
+            <ActionButton disabled={book.isPending || searching} onClick={() => searchMade(pending)}>
+              {searching ? t('miniapp.loading') : t('miniapp.book.search')}
+            </ActionButton>
+          )}
         </div>
       )}
 
