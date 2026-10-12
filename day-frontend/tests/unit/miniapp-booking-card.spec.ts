@@ -12,6 +12,7 @@ import {
   loadAttempt,
   paymentMaybeRecorded,
   phoneDigits,
+  sameAttempt,
   saveAttempt,
   settlement,
   type MoneyAttempt,
@@ -113,6 +114,21 @@ test.describe('what a failure leaves of the attempt', () => {
   })
 })
 
+test.describe('which attempt an answer belongs to', () => {
+  const a: MoneyAttempt = { kind: 'payment', amount: 20000, method: 'cash', key: 'k-a' }
+  const b: MoneyAttempt = { kind: 'payment', amount: 5000, method: 'cash', key: 'k-b' }
+
+  test('the same key, whatever was learned about it since', () => {
+    expect(sameAttempt({ ...a, uncertain: true }, a)).toBe(true)
+  })
+
+  test('a late answer to A is not about B', () => {
+    expect(sameAttempt(b, a)).toBe(false)
+    expect(sameAttempt(null, a)).toBe(false)
+    expect(sameAttempt({ kind: 'receive', paymentId: 'p-1', amount: 20000 }, a)).toBe(false)
+  })
+})
+
 test.describe('an unsettled money attempt outlives the card', () => {
   function memory() {
     const data = new Map<string, string>()
@@ -128,7 +144,8 @@ test.describe('an unsettled money attempt outlives the card', () => {
     const attempt: MoneyAttempt = { kind: 'payment', amount: 20000, method: 'cash', key: 'k-1' }
 
     saveAttempt(storage, 'b-1', attempt)
-    expect(loadAttempt(storage, 'b-1')).toEqual(attempt)
+    // Found again after the app was closed mid-request: its first answer may never have been seen.
+    expect(loadAttempt(storage, 'b-1')).toEqual({ ...attempt, uncertain: true })
     expect(loadAttempt(storage, 'b-2')).toBeNull()
 
     saveAttempt(storage, 'b-1', null)

@@ -1,6 +1,7 @@
 /** One press of "Book", and what is left of it when the answer is lost. */
 
-import type { BookingCreateInput } from '../../types/booking'
+import { phoneDigits } from '../../lib/phone'
+import type { Booking, BookingCreateInput } from '../../types/booking'
 import { loadStored, saveStored, type AttemptStore } from './booking-card'
 
 /** The form as it was at the press, under one Idempotency-Key. */
@@ -13,15 +14,51 @@ export interface BookingAttempt {
   uncertain?: boolean
 }
 
-// One per phone: until it is settled, no other booking starts, whichever flat.
-const KEY = 'day.miniapp.booking'
+// One per company on a phone: until it is settled, no other booking starts,
+// whichever flat. Per company, because a chat can be relinked to another one.
+const key = (company: string) => `day.miniapp.booking.${company}`
 
-export function loadBookingAttempt(storage: AttemptStore | undefined): BookingAttempt | null {
-  return loadStored<BookingAttempt>(storage, KEY)
+/** The company of the signed-in session, read from the access token. */
+export function companyFromToken(token: string | null): string | null {
+  try {
+    const part = token?.split('.')[1]
+    if (!part) return null
+    const payload = JSON.parse(atob(part.replace(/-/g, '+').replace(/_/g, '/'))) as { company_id?: unknown }
+    return typeof payload.company_id === 'string' ? payload.company_id : null
+  } catch {
+    return null
+  }
 }
 
-export function saveBookingAttempt(storage: AttemptStore | undefined, attempt: BookingAttempt | null): boolean {
-  return saveStored(storage, KEY, attempt)
+/** The attempt found on the phone. Its first answer may never have been seen (the
+ *  app was closed mid-request), so it counts as possibly made. */
+export function loadBookingAttempt(storage: AttemptStore | undefined, company: string): BookingAttempt | null {
+  const stored = loadStored<BookingAttempt>(storage, key(company))
+  return stored ? { ...stored, uncertain: true } : null
+}
+
+export function saveBookingAttempt(
+  storage: AttemptStore | undefined,
+  company: string,
+  attempt: BookingAttempt | null,
+): boolean {
+  return saveStored(storage, key(company), attempt)
+}
+
+/** The booking this attempt made, among the flat's bookings on those dates, if
+ *  it was made: the same night (or start) and the same guest. */
+export function findMade(attempt: BookingAttempt, bookings: Booking[]): Booking | null {
+  const day = attempt.body.check_in.slice(0, 10)
+  const phone = phoneDigits(attempt.body.guest_phone)
+  return (
+    bookings.find(
+      (booking) =>
+        booking.status !== 'cancelled' &&
+        booking.property_id === attempt.body.property_id &&
+        booking.check_in.slice(0, 10) === day &&
+        (phone ? phoneDigits(booking.guest_phone) === phone : booking.guest_name === attempt.body.guest_name),
+    ) ?? null
+  )
 }
 
 export type BookingStart = 'sent' | 'checkFailed' | 'declined' | 'closed' | 'notKept'
