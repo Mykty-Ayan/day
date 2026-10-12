@@ -6,7 +6,7 @@
  * a tap target that ends in an action — the previous version could only be read.
  */
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import {
   Building2,
@@ -21,7 +21,8 @@ import {
 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { getBooking, getTodayChecks, listBookings } from '../../api/bookings'
-import { storeSession } from '../../api/client'
+import { onSessionStored, storeSession } from '../../api/client'
+import { onIdentityChange, roleFromToken, sessionIdentity } from '../../lib/token'
 import { telegramMiniAppLogin, type AvailableProperty } from '../../api/miniapp'
 import { listAllProperties } from '../../api/properties'
 import { copyText, getInitData, initTelegram, isInsideTelegram, tapFeedback } from '../../lib/telegram'
@@ -30,6 +31,7 @@ import type { Property } from '../../types/property'
 import AskScreen from './AskScreen'
 import BookSheet from './BookSheet'
 import BookingSheet from './BookingSheet'
+import CleanerScreen from './CleanerScreen'
 import CleaningSheet from './CleaningSheet'
 import OfferSheet from './OfferSheet'
 import SellScreen from './SellScreen'
@@ -49,6 +51,28 @@ export default function MiniAppPage() {
   const [authState, setAuthState] = useState<'pending' | 'ready' | 'failed'>('pending')
   const [authError, setAuthError] = useState('')
   const [attempt, setAttempt] = useState(0)
+  // A cleaner's chat gets their own cleanings, never bookings or money.
+  const [role, setRole] = useState<string | null>(null)
+  // Who the screen was built for. The app signs itself in again when a session
+  // cannot be refreshed; if the chat was relinked meanwhile, that is another
+  // user, company or role, and nothing on screen or in the cache belongs to it.
+  const shownFor = useRef<string | null>(null)
+  // Another window signed in to another account: this one stops until a person
+  // chooses to continue here (reloading by itself would ping-pong with that window).
+  const [paused, setPaused] = useState(false)
+  useEffect(
+    () =>
+      onSessionStored((fromOtherWindow) => {
+        const action = onIdentityChange(
+          shownFor.current,
+          sessionIdentity(localStorage.getItem('access_token')),
+          fromOtherWindow,
+        )
+        if (action === 'reload') window.location.reload()
+        if (action === 'pause') setPaused(true)
+      }),
+    [],
+  )
 
   const [offerOpen, setOfferOpen] = useState(false)
   const [booking, setBooking] = useState<Booking | null>(null)
@@ -72,7 +96,10 @@ export default function MiniAppPage() {
         return
       }
       try {
-        storeSession(await telegramMiniAppLogin(getInitData()))
+        const session = await telegramMiniAppLogin(getInitData())
+        shownFor.current = sessionIdentity(session.access_token)
+        storeSession(session)
+        setRole(roleFromToken(session.access_token))
         setAuthState('ready')
       } catch (error) {
         setAuthState('failed')
@@ -83,7 +110,8 @@ export default function MiniAppPage() {
     authenticate()
   }, [t, attempt])
 
-  const enabled = authState === 'ready'
+  // The booking screens' reads; a cleaner would only get 403s from them.
+  const enabled = authState === 'ready' && role !== 'cleaner' && !paused
 
   const todayQuery = useQuery({
     queryKey: ['miniapp', 'today'],
@@ -145,6 +173,28 @@ export default function MiniAppPage() {
       </Screen>
     )
   }
+
+  if (paused) {
+    return (
+      <Screen>
+        <KeyRound className="mb-3 h-8 w-8 opacity-40" />
+        <p className="text-sm">{t('miniapp.otherSession')}</p>
+        <div className="mt-4 w-full max-w-xs">
+          <ActionButton
+            tone="primary"
+            // A fresh page signs this window in again (the other window pauses then)
+            // and drops whatever the other account's session left in memory; the
+            // chat may even have been relinked meanwhile.
+            onClick={() => window.location.reload()}
+          >
+            {t('miniapp.continueHere')}
+          </ActionButton>
+        </div>
+      </Screen>
+    )
+  }
+
+  if (role === 'cleaner') return <CleanerScreen />
 
   // An archived flat is not sold or cleaned any more; it only clutters the list.
   const workingUnits = (unitsQuery.data?.items ?? []).filter((property) => property.status !== 'archived')

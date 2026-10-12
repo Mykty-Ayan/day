@@ -38,10 +38,28 @@ export function sessionGeneration(): number {
   return generation
 }
 
+const SESSION_STORED = 'day:session-stored'
+
 export function storeSession(tokens: { access_token: string; refresh_token: string }): void {
   generation += 1
   localStorage.setItem('access_token', tokens.access_token)
   localStorage.setItem('refresh_token', tokens.refresh_token)
+  window.dispatchEvent(new Event(SESSION_STORED))
+}
+
+/** Calls back whenever a new session is stored: here (a sign-in, also the
+ *  automatic one through Telegram) or by another window of the app. */
+export function onSessionStored(listener: (fromOtherWindow: boolean) => void): () => void {
+  const here = () => listener(false)
+  const fromOtherWindow = (event: StorageEvent) => {
+    if (event.key === 'access_token') listener(true)
+  }
+  window.addEventListener(SESSION_STORED, here)
+  window.addEventListener('storage', fromOtherWindow)
+  return () => {
+    window.removeEventListener(SESSION_STORED, here)
+    window.removeEventListener('storage', fromOtherWindow)
+  }
 }
 
 export function clearSession(): void {
