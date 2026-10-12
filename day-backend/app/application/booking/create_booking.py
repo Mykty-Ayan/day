@@ -7,7 +7,11 @@ from datetime import date, datetime, time
 from app.application.booking.price_calculator import PriceCalculatorService
 from app.config import settings
 from app.domain.booking.entities import Booking, BookingAuditLog, Guest
-from app.domain.booking.exceptions import BookingOverlapError, IdempotencyKeyReusedError
+from app.domain.booking.exceptions import (
+    BookingOverlapError,
+    IdempotencyKeyReusedError,
+    IdempotencyKeyVoidedError,
+)
 from app.domain.booking.repositories import (
     BookingAuditLogRepository,
     BookingRepository,
@@ -159,6 +163,20 @@ class CreateBookingService:
         booking = await self._booking_repo.get_by_idempotency_key(company_id, key)
         if booking is not None and booking.idempotency_hash != request_hash:
             raise IdempotencyKeyReusedError()
+        if booking is None and await self._booking_repo.idempotency_key_voided(company_id, key):
+            raise IdempotencyKeyVoidedError()
+        return booking
+
+    async def void(self, company_id: uuid.UUID, key: str) -> Booking | None:
+        """Settle a create whose answer was lost: the booking it made, or None.
+
+        None closes the key: a request with it still on its way is refused when
+        it lands. The key's lock makes this wait for a request already running.
+        """
+        await self._booking_repo.lock_idempotency_key(company_id, key)
+        booking = await self._booking_repo.get_by_idempotency_key(company_id, key)
+        if booking is None:
+            await self._booking_repo.void_idempotency_key(company_id, key)
         return booking
 
     async def execute(self, inp: CreateBookingInput) -> Booking:
