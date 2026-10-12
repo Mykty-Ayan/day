@@ -183,6 +183,7 @@ def _to_booking_response(
         property_internal_name=property_internal_name,
         external_id=b.external_id,
         expires_at=b.expires_at.replace(tzinfo=timezone.utc) if b.expires_at else None,
+        overbooking=b.overbooking,
         created_at=b.created_at,
         updated_at=b.updated_at,
     )
@@ -1201,6 +1202,7 @@ def _build_gantt_response(result) -> GanttDataResponse:
                         adults_count=b.adults_count,
                         children_count=b.children_count,
                         total_price=b.total_price,
+                        overbooking=b.overbooking,
                     )
                     for b in p.bookings
                 ],

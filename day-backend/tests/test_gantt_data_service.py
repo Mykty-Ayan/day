@@ -108,3 +108,53 @@ async def test_gantt_returns_active_and_paused_properties_only():
     assert statuses[active_property.id] == "active"
     assert statuses[paused_property.id] == "paused"
     assert new_property.id not in statuses
+
+
+@pytest.mark.asyncio
+async def test_gantt_shows_which_bookings_clash():
+    # A booking an OTA sent onto nights already taken is flagged, not dropped;
+    # the grid must say so, or nobody notices two guests for one flat.
+    company_id = uuid.uuid4()
+    flat = Property(
+        id=uuid.uuid4(),
+        company_id=company_id,
+        name="P",
+        internal_name="p",
+        type=PropertyType.APARTMENT,
+        status=PropertyStatus.ACTIVE,
+    )
+    clash = Booking(
+        id=uuid.uuid4(),
+        company_id=company_id,
+        property_id=flat.id,
+        guest_id=uuid.uuid4(),
+        check_in=date(2026, 2, 10),
+        check_out=date(2026, 2, 12),
+        source=BookingSource.AIRBNB,
+        status=BookingStatus.CONFIRMED,
+        total_price=Decimal("1"),
+        overbooking=True,
+    )
+    property_repo, booking_repo, guest_repo = AsyncMock(), AsyncMock(), AsyncMock()
+    property_repo.list_by_company.return_value = [flat]
+    booking_repo.list_by_property_date_range.return_value = [clash]
+    guest_repo.get_by_id.return_value = None
+
+    result = await GetGanttDataService(property_repo, booking_repo, guest_repo).execute(  # type: ignore[arg-type]
+        company_id, date(2026, 2, 1), date(2026, 2, 28)
+    )
+    assert result.properties[0].bookings[0].overbooking is True
+
+
+def test_the_booking_answer_carries_the_clash_flag():
+    from app.presentation.api.v1.bookings import _to_booking_response
+
+    booking = Booking(
+        company_id=uuid.uuid4(),
+        property_id=uuid.uuid4(),
+        guest_id=uuid.uuid4(),
+        check_in=date(2026, 2, 10),
+        check_out=date(2026, 2, 12),
+        overbooking=True,
+    )
+    assert _to_booking_response(booking).overbooking is True
