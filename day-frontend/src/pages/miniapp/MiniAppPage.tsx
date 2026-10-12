@@ -20,7 +20,7 @@ import {
   Wifi,
 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
-import { getTodayChecks, listBookings } from '../../api/bookings'
+import { getBooking, getTodayChecks, listBookings } from '../../api/bookings'
 import { storeSession } from '../../api/client'
 import { telegramMiniAppLogin, type AvailableProperty } from '../../api/miniapp'
 import { listAllProperties } from '../../api/properties'
@@ -35,6 +35,7 @@ import OfferSheet from './OfferSheet'
 import SellScreen from './SellScreen'
 import UnitSheet from './UnitSheet'
 import type { SellRange } from './sell'
+import { cardRead, linkedBookingId } from './card-state'
 import { errorText } from './errors'
 import { addDays, formatDay, formatMoney, formatTime, toISODate } from './format'
 import { ActionButton, Chip, Screen, Section } from './miniapp-ui'
@@ -54,6 +55,8 @@ export default function MiniAppPage() {
   const [toBook, setToBook] = useState<{ unit: AvailableProperty; range: SellRange } | null>(null)
   const [cleaningFor, setCleaningFor] = useState<Booking | null>(null)
   const [unitId, setUnitId] = useState<string | null>(null)
+  // A bot notice's "Open booking" button lands here with ?booking=<id>.
+  const [linkedId, setLinkedId] = useState(() => linkedBookingId(window.location.search))
 
   const today = useMemo(() => new Date(), [])
 
@@ -98,6 +101,14 @@ export default function MiniAppPage() {
       }),
     enabled: enabled && tab === 'today',
   })
+
+  const linked = useQuery({
+    // The card's own read: the same cache entry, cancelled the same way.
+    ...cardRead(['miniapp', 'booking', linkedId], (signal) => getBooking(linkedId!, signal)),
+    enabled: enabled && Boolean(linkedId),
+    retry: false,
+  })
+  const opened = booking ?? (linkedId ? (linked.data?.booking ?? null) : null)
 
   const unitsQuery = useQuery({
     queryKey: ['miniapp', 'units'],
@@ -160,6 +171,18 @@ export default function MiniAppPage() {
       <main className="space-y-4 p-3">
         {tab === 'today' && (
           <>
+            {linkedId && linked.isError && (
+              <button
+                type="button"
+                role="alert"
+                onClick={() => setLinkedId(null)}
+                className="tg-surface w-full rounded-xl px-3 py-2 text-left text-sm"
+              >
+                {errorText(linked.error, t('miniapp.linkedFailed'), t)}
+                <span className="tg-hint block text-xs">{t('miniapp.tapToHide')}</span>
+              </button>
+            )}
+
             <MoneyStrip bookings={upcoming} />
 
             <ActionButton tone="primary" onClick={() => setOfferOpen(true)}>
@@ -286,7 +309,14 @@ export default function MiniAppPage() {
       </main>
 
       <OfferSheet key={offerOpen ? 'open' : 'closed'} open={offerOpen} onClose={() => setOfferOpen(false)} />
-      <BookingSheet key={booking?.id ?? 'none'} booking={booking} onClose={() => setBooking(null)} />
+      <BookingSheet
+        key={opened?.id ?? 'none'}
+        booking={opened}
+        onClose={() => {
+          setBooking(null)
+          setLinkedId(null)
+        }}
+      />
       <CleaningSheet key={cleaningFor?.id ?? 'none'} booking={cleaningFor} onClose={() => setCleaningFor(null)} />
       <UnitSheet key={unitId ?? 'none'} unitId={unitId} onClose={() => setUnitId(null)} />
       <BookSheet

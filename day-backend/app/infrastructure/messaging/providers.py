@@ -11,12 +11,18 @@ import logging
 import httpx
 
 from app.config import settings
-from app.domain.messaging.services import SentMessage
+from app.domain.messaging.services import AppButton, SentMessage
 from app.domain.messaging.value_objects import Channel
 
 logger = logging.getLogger(__name__)
 
 _TIMEOUT = httpx.Timeout(10.0, connect=5.0)
+
+
+def _blames_button(error: str) -> bool:
+    # BUTTON_TYPE_INVALID, BUTTON_URL_INVALID, WEBAPP_URL_INVALID and the like.
+    upper = error.upper()
+    return "BUTTON" in upper or "WEBAPP" in upper or "WEB_APP" in upper
 
 
 class ProviderError(RuntimeError):
@@ -35,7 +41,7 @@ class TelegramProvider:
     def is_configured(self) -> bool:
         return bool(self._token)
 
-    async def send_text(self, to: str, text: str) -> SentMessage:
+    async def send_text(self, to: str, text: str, *, buttons: list[AppButton] | None = None) -> SentMessage:
         if not self.is_configured:
             raise ProviderError("TELEGRAM_BOT_TOKEN is not set")
 
@@ -48,8 +54,18 @@ class TelegramProvider:
             "parse_mode": "HTML",
             "disable_web_page_preview": True,
         }
+        if buttons:
+            payload["reply_markup"] = {
+                "inline_keyboard": [[{"text": b.text, "web_app": {"url": b.url}} for b in buttons]]
+            }
         async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
             response = await client.post(url, json=payload)
+            if response.status_code == 400 and buttons and _blames_button(response.text):
+                # The button is a convenience; the notice is the point. Telegram
+                # refuses the whole message over a button it dislikes.
+                logger.warning("Telegram refused the button, sending the text alone: %s", response.text[:200])
+                del payload["reply_markup"]
+                response = await client.post(url, json=payload)
 
         if response.status_code != 200:
             raise ProviderError(f"Telegram returned {response.status_code}: {response.text[:200]}")
@@ -166,7 +182,8 @@ class WhapiProvider:
     def is_configured(self) -> bool:
         return bool(self._token)
 
-    async def send_text(self, to: str, text: str) -> SentMessage:
+    async def send_text(self, to: str, text: str, *, buttons: list[AppButton] | None = None) -> SentMessage:
+        # WhatsApp has no Mini App: buttons are dropped and the text goes alone.
         if not self.is_configured:
             raise ProviderError("WHAPI_TOKEN is not set")
 
@@ -192,10 +209,12 @@ class FakeProvider:
     def __init__(self, channel: Channel = Channel.TELEGRAM, fail_with: str | None = None) -> None:
         self.channel = channel
         self.sent: list[tuple[str, str]] = []
+        self.buttons: list[list[AppButton] | None] = []
         self._fail_with = fail_with
 
-    async def send_text(self, to: str, text: str) -> SentMessage:
+    async def send_text(self, to: str, text: str, *, buttons: list[AppButton] | None = None) -> SentMessage:
         if self._fail_with:
             raise ProviderError(self._fail_with)
         self.sent.append((to, text))
+        self.buttons.append(buttons)
         return SentMessage(provider_message_id=f"fake-{len(self.sent)}")

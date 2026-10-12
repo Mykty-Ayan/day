@@ -8,6 +8,14 @@ export function readyToAct(
   return read.isSuccess && read.fetchStatus === 'idle' && read.dataUpdatedAt >= openedAt
 }
 
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+/** The booking a bot notice's "Open booking" button points at (`?booking=<id>`). */
+export function linkedBookingId(search: string): string | null {
+  const id = new URLSearchParams(search).get('booking')
+  return id && UUID.test(id) ? id : null
+}
+
 /** Query options for a read the card acts on. Read again on every open, and
  *  dropped when the card closes mid-read: otherwise a reopened card adopts the
  *  answer to the earlier request — stamped after it opened, so it passes

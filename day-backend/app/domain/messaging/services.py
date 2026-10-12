@@ -17,9 +17,20 @@ class SentMessage:
     provider_message_id: str
 
 
+@dataclass(frozen=True)
+class AppButton:
+    """A button under a message that opens the Mini App at `url`."""
+
+    text: str
+    url: str
+
+
 class MessageProvider(Protocol):
     channel: Channel
 
-    async def send_text(self, to: str, text: str) -> SentMessage:
-        """Deliver a plain text message. Raises on a provider error."""
+    async def send_text(self, to: str, text: str, *, buttons: list[AppButton] | None = None) -> SentMessage:
+        """Deliver a plain text message. Raises on a provider error.
+
+        A channel without Mini App buttons sends the text alone.
+        """
         ...
