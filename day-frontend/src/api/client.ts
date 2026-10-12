@@ -132,6 +132,9 @@ apiClient.interceptors.response.use(
         localStorage.setItem('access_token', access_token)
         localStorage.setItem('refresh_token', refresh_token)
         processQueue(null, access_token)
+        // The refresh token may already be another company's: a request that was
+        // out under the old one came back 401 after a sign-in through Telegram.
+        if (!replayableIn(originalRequest.headers.Authorization, access_token)) return Promise.reject(error)
         originalRequest.headers.Authorization = `Bearer ${access_token}`
         return apiClient(originalRequest)
       } catch (refreshError) {
