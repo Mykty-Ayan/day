@@ -53,7 +53,7 @@ export default function OfferSheet({ open, onClose }: { open: boolean; onClose: 
   const availability = useQuery({
     queryKey: ['miniapp', 'offer', toISODate(checkIn), toISODate(checkOut)],
     queryFn: () =>
-      getAvailability(`${toISODate(checkIn)}T14:00:00`, `${toISODate(checkOut)}T12:00:00`),
+      getAvailability(toISODate(checkIn), toISODate(checkOut)),
     enabled: open,
   })
 

@@ -7,10 +7,12 @@ the booking context rather than inside a bot.
 from __future__ import annotations
 
 import uuid
+from collections import defaultdict
 from dataclasses import dataclass
 from datetime import date, datetime, time
 from decimal import Decimal
 
+from app.application.booking.create_booking import apply_default_times
 from app.application.booking.price_calculator import PriceCalculatorService
 from app.config import settings
 from app.domain.booking.repositories import BookingRepository
@@ -46,6 +48,24 @@ def _as_datetime(value: date | datetime, hour: int) -> datetime:
     return datetime.combine(value, time(hour=hour))
 
 
+def _stay(
+    check_in: date | datetime, check_out: date | datetime, rental_mode: RentalMode, prop: Property | None
+) -> tuple[datetime, datetime]:
+    """The asked stay as this flat would book it: a daily date takes the flat's own hours."""
+    if rental_mode == RentalMode.DAILY:
+        return apply_default_times(  # type: ignore[return-value]
+            check_in,
+            check_out,
+            rental_mode,
+            check_in_hour=prop.check_in_hour if prop else None,
+            check_out_hour=prop.check_out_hour if prop else None,
+        )
+    return (
+        _as_datetime(check_in, settings.DEFAULT_CHECK_IN_HOUR),
+        _as_datetime(check_out, settings.DEFAULT_CHECK_OUT_HOUR),
+    )
+
+
 class CheckAvailabilityService:
     def __init__(
         self,
@@ -68,26 +88,28 @@ class CheckAvailabilityService:
         rental_mode: RentalMode = RentalMode.DAILY,
         with_prices: bool = True,
     ) -> list[AvailableProperty]:
-        start = _as_datetime(check_in, settings.DEFAULT_CHECK_IN_HOUR)
-        end = _as_datetime(check_out, settings.DEFAULT_CHECK_OUT_HOUR)
+        start, end = _stay(check_in, check_out, rental_mode, None)
         if end <= start:
             raise ValueError("Check-out must be after check-in")
 
         properties = await self._all_properties(company_id)
+        # Hours never move a stay off its dates, so the default stay's dates
+        # cover every flat's.
         bookings = await self._bookings.list_by_company_date_range(company_id, start.date(), end.date())
 
-        occupied: set[uuid.UUID] = set()
+        taken: dict[uuid.UUID, list] = defaultdict(list)
         for booking in bookings:
-            if booking.status not in _BLOCKING_STATUSES:
-                continue
-            # Half-open interval: a checkout at noon and a check-in at 14:00 on
-            # the same day do not collide.
-            if booking.check_in < end and booking.check_out > start:
-                occupied.add(booking.property_id)
+            if booking.status in _BLOCKING_STATUSES:
+                taken[booking.property_id].append(booking)
 
         results: list[AvailableProperty] = []
         for prop in properties:
-            if prop.status != PropertyStatus.ACTIVE or prop.id in occupied:
+            if prop.status != PropertyStatus.ACTIVE:
+                continue
+            start, end = _stay(check_in, check_out, rental_mode, prop)
+            # Half-open interval: a checkout at noon and a check-in at 14:00 on
+            # the same day do not collide.
+            if any(b.check_in < end and b.check_out > start for b in taken[prop.id]):
                 continue
             if rental_mode == RentalMode.HOURLY and prop.rental_mode == RentalMode.DAILY:
                 continue

@@ -433,7 +433,7 @@ class TestPushAri:
             )
 
 
-def _event_service(listings=None, events=None, bookings=None, guests=None, gateway=None):
+def _event_service(listings=None, events=None, bookings=None, guests=None, gateway=None, properties=()):
     listings = listings or FakeListingRepository()
     return (
         ProcessBookingEventService(
@@ -442,6 +442,7 @@ def _event_service(listings=None, events=None, bookings=None, guests=None, gatew
             bookings or FakeBookingRepository(),
             guests or FakeGuestRepository(),
             gateway or FakeGateway(),
+            FakePropertyRepository(properties),
         ),
         listings,
     )

@@ -37,3 +37,177 @@ def test_the_check_in_methods_are_the_ones_guests_know():
         "lockbox", "keypad", "smart_lock", "building_staff", "host_greets", "other"
     }
 
+
+# ---------- the flat's hours everywhere a daily stay gets its times ----------
+
+
+async def test_a_patch_of_one_hour_is_checked_against_the_saved_other():
+    from app.application.property.update_property import UpdatePropertyInput
+    from tests.test_property_services import COMPANY_ID, TestUpdatePropertyService
+
+    _, _, svc, prop = await TestUpdatePropertyService()._setup()
+    prop.check_in_hour, prop.check_out_hour = 15, 11
+
+    # 10:00 in, 11:00 out: the next guest arrives before the last one leaves.
+    with pytest.raises(ValueError, match="Check-out hour"):
+        await svc.execute(UpdatePropertyInput(property_id=prop.id, company_id=COMPANY_ID, check_in_hour=10))
+    assert prop.check_in_hour == 15
+
+
+async def test_one_hour_on_create_is_checked_against_the_default_other():
+    from app.application.property.create_property import CreatePropertyInput, CreatePropertyService
+    from app.domain.property.value_objects import PropertyType
+    from tests.test_booking_services import FakePropertyRepository
+    from tests.test_property_services import COMPANY_ID, FakePropertyAuditLogRepository
+
+    svc = CreatePropertyService(FakePropertyRepository(), FakePropertyAuditLogRepository())
+    # 10:00 in against the default 12:00 out.
+    with pytest.raises(ValueError, match="Check-out hour"):
+        await svc.execute(
+            CreatePropertyInput(
+                company_id=COMPANY_ID, name="Т", internal_name="t", type=PropertyType.APARTMENT, check_in_hour=10
+            )
+        )
+
+
+async def _flat_with_hours(check_in_hour, check_out_hour):
+    from decimal import Decimal
+
+    from app.application.booking.update_booking import UpdateBookingService
+    from tests.test_booking_services import (
+        FakeBookingAuditLogRepository,
+        FakeBookingRepository,
+        FakePricingConfigRepository,
+        FakePropertyRepository,
+        _build_price_calculator,
+        _make_pricing_config,
+        _make_property,
+    )
+
+    flat = _make_property()
+    flat.check_in_hour, flat.check_out_hour = check_in_hour, check_out_hour
+    properties = FakePropertyRepository()
+    await properties.save(flat)
+    pricing = FakePricingConfigRepository()
+    await pricing.save(_make_pricing_config(flat.id, Decimal("100")))
+    bookings = FakeBookingRepository()
+    svc = UpdateBookingService(
+        bookings, properties, FakeBookingAuditLogRepository(), _build_price_calculator(pricing_repo=pricing)
+    )
+    return flat, properties, bookings, svc
+
+
+async def test_moving_a_stay_keeps_the_flats_hours():
+    from app.application.booking.update_booking import UpdateBookingInput
+    from app.domain.booking.entities import Booking
+    from tests.test_booking_services import COMPANY_ID
+
+    flat, _, bookings, svc = await _flat_with_hours(16, 10)
+    stay = await bookings.create(
+        Booking(company_id=COMPANY_ID, property_id=flat.id, check_in=datetime(2026, 11, 1, 16),
+                check_out=datetime(2026, 11, 3, 10))
+    )
+
+    moved = await svc.execute(
+        UpdateBookingInput(booking_id=stay.id, company_id=COMPANY_ID, check_in=datetime(2026, 11, 5),
+                           check_out=datetime(2026, 11, 7))
+    )
+
+    assert (moved.check_in, moved.check_out) == (datetime(2026, 11, 5, 16), datetime(2026, 11, 7, 10))
+
+
+async def test_changing_the_party_leaves_saved_times_alone():
+    from app.application.booking.update_booking import UpdateBookingInput
+    from app.domain.booking.entities import Booking
+    from tests.test_booking_services import COMPANY_ID
+
+    # Midnight is a legal hour of the flat; it must not read as "no time given".
+    flat, _, bookings, svc = await _flat_with_hours(0, 0)
+    stay = await bookings.create(
+        Booking(company_id=COMPANY_ID, property_id=flat.id, check_in=datetime(2026, 11, 1),
+                check_out=datetime(2026, 11, 3))
+    )
+
+    updated = await svc.execute(UpdateBookingInput(booking_id=stay.id, company_id=COMPANY_ID, adults_count=2))
+
+    assert (updated.check_in, updated.check_out) == (datetime(2026, 11, 1), datetime(2026, 11, 3))
+
+
+class _CompanyRange:
+    """Bookings of a company that overlap a date range, as the SQL repository returns them."""
+
+    def __init__(self, rows):
+        self._rows = rows
+
+    async def list_by_company_date_range(self, company_id, start_date, end_date):
+        return [
+            b for b in self._rows
+            if b.company_id == company_id and b.check_in.date() <= end_date and b.check_out.date() >= start_date
+        ]
+
+
+async def test_a_flat_free_from_its_own_check_in_hour_is_offered():
+    from app.application.booking.check_availability import CheckAvailabilityService
+    from app.domain.booking.entities import Booking
+    from app.domain.booking.value_objects import BookingStatus
+    from tests.test_booking_services import COMPANY_ID, _build_price_calculator
+
+    flat, properties, _, _ = await _flat_with_hours(16, 15)
+    # The last guest leaves at 15:00; this flat takes the next one at 16:00.
+    leaving = Booking(company_id=COMPANY_ID, property_id=flat.id, check_in=datetime(2026, 10, 30, 16),
+                      check_out=datetime(2026, 11, 1, 15), status=BookingStatus.CONFIRMED)
+    svc = CheckAvailabilityService(properties, _CompanyRange([leaving]), _build_price_calculator())
+
+    for check_in, check_out in [(date(2026, 11, 1), date(2026, 11, 2)), (datetime(2026, 11, 1), datetime(2026, 11, 2))]:
+        found = await svc.execute(COMPANY_ID, check_in, check_out, with_prices=False)
+        assert [item.property.id for item in found] == [flat.id]
+
+
+async def test_a_flat_still_occupied_at_its_check_in_hour_is_not_offered():
+    from app.application.booking.check_availability import CheckAvailabilityService
+    from app.domain.booking.entities import Booking
+    from app.domain.booking.value_objects import BookingStatus
+    from tests.test_booking_services import COMPANY_ID, _build_price_calculator
+
+    flat, properties, _, _ = await _flat_with_hours(12, 12)
+    leaving = Booking(company_id=COMPANY_ID, property_id=flat.id, check_in=datetime(2026, 10, 30, 12),
+                      check_out=datetime(2026, 11, 1, 13), status=BookingStatus.CONFIRMED)
+    svc = CheckAvailabilityService(properties, _CompanyRange([leaving]), _build_price_calculator())
+
+    assert await svc.execute(COMPANY_ID, date(2026, 11, 1), date(2026, 11, 2), with_prices=False) == []
+
+
+async def test_an_ota_stay_takes_the_flats_hours_and_is_not_a_false_overbooking():
+    from app.domain.booking.entities import Booking
+    from app.domain.booking.value_objects import BookingStatus
+    from tests.test_booking_services import _make_property
+    from tests.test_channex_services import (
+        COMPANY_ID,
+        PROPERTY_ID,
+        FakeBookingRepository,
+        FakeListingRepository,
+        _active_listing,
+        _event_service,
+        _revision,
+    )
+
+    flat = _make_property(company_id=COMPANY_ID)
+    flat.id, flat.check_in_hour, flat.check_out_hour = PROPERTY_ID, 16, 15
+    listings = FakeListingRepository()
+    await listings.create(_active_listing())
+    bookings = FakeBookingRepository()
+    await bookings.create(
+        Booking(company_id=COMPANY_ID, property_id=PROPERTY_ID, check_in=datetime(2026, 8, 30, 16),
+                check_out=datetime(2026, 9, 1, 15), status=BookingStatus.CONFIRMED)
+    )
+    service, _ = _event_service(listings, bookings=bookings, properties=[flat])
+
+    await service.execute(_revision())  # 1–4 Sep
+    ota = next(b for b in bookings.items.values() if b.notes)
+    assert (ota.check_in, ota.check_out) == (datetime(2026, 9, 1, 16), datetime(2026, 9, 4, 15))
+    assert ota.overbooking is False
+
+    await service.execute(
+        _revision(revision_id="rev-2", status="modified", arrival_date="2026-09-02", departure_date="2026-09-05")
+    )
+    assert (ota.check_in, ota.check_out) == (datetime(2026, 9, 2, 16), datetime(2026, 9, 5, 15))

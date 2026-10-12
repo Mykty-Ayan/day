@@ -129,11 +129,21 @@ class UpdateBookingService:
 
         # Re-check overlaps if dates changed
         if dates_changed and booking.check_in and booking.check_out:
-            # Daily bookings default their clock times (14:00 / 12:00) so the
-            # stored datetime is a superset of the incoming date.
-            booking.check_in, booking.check_out = apply_default_times(
-                booking.check_in, booking.check_out, booking.rental_mode
+            # A daily boundary given as a bare date takes the flat's hours, else
+            # the default (14:00 / 12:00). Only a boundary that came in, or a new
+            # mode, is normalised: a saved midnight is a real hour, not "no time".
+            prop = await self._property_repo.get_by_id(booking.property_id)
+            check_in, check_out = apply_default_times(
+                booking.check_in,
+                booking.check_out,
+                booking.rental_mode,
+                check_in_hour=prop.check_in_hour if prop else None,
+                check_out_hour=prop.check_out_hour if prop else None,
             )
+            if inp.check_in is not _UNSET or inp.rental_mode is not _UNSET:
+                booking.check_in = check_in
+            if inp.check_out is not _UNSET or inp.rental_mode is not _UNSET:
+                booking.check_out = check_out
             if booking.check_out <= booking.check_in:
                 raise ValueError("Check-out must be after check-in")
             overlapping = await self._booking_repo.get_by_property_and_dates(

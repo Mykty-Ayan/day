@@ -4,6 +4,7 @@ import enum
 import uuid
 from dataclasses import dataclass
 
+from app.application.property.create_property import check_turnover_hours
 from app.domain.property.entities import Property, PropertyAuditLog
 from app.domain.property.repositories import PropertyAuditLogRepository, PropertyRepository
 from app.domain.property.value_objects import AuditAction, PropertyStatus
@@ -79,6 +80,12 @@ class UpdatePropertyService:
             raise ValueError("Property not found")
         if prop.status == PropertyStatus.ARCHIVED:
             raise ValueError("Cannot update an archived property")
+
+        # One hour in a PATCH is checked against the other as saved.
+        check_turnover_hours(
+            prop.check_in_hour if inp.check_in_hour is _UNSET else inp.check_in_hour,  # type: ignore[arg-type]
+            prop.check_out_hour if inp.check_out_hour is _UNSET else inp.check_out_hour,  # type: ignore[arg-type]
+        )
 
         # Check unique internal_name if changed
         new_internal = getattr(inp, "internal_name", _UNSET)
