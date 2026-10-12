@@ -900,7 +900,21 @@
       "floor": "floor {{value}}",
       "messageDates": "Check-in {{from}}, check-out {{to}}.",
       "confirm": "Confirm",
-      "complete": "Complete"
+      "complete": "Complete",
+      "extendHour": "+1 hour",
+      "extendAsk": "Extend until {{until}}?",
+      "extendManual": "Extend until {{until}}? This booking's price was set by hand — the total won't change, so the extra time will be free.",
+      "extendPrice": "Extend until {{until}}? The total becomes {{total}}.",
+      "cancel": "Cancel booking",
+      "cancelAsk": "Cancel this booking? The dates become free; this can't be undone.",
+      "payAsk": "Record a payment of {{amount}} ({{method}})?",
+      "recordAmount": "Record {{amount}}",
+      "rest": "Balance",
+      "waiting": "Waiting for",
+      "received": "Received",
+      "receivedAsk": "Has {{amount}} arrived?",
+      "money": "Payment",
+      "call": "Call"
     },
     "cleaning": {
       "title": "Cleaning",
@@ -957,7 +971,12 @@
     },
     "retry": "Try again",
     "crashed": "Something went wrong. Restart the panel — anything typed will be lost.",
-    "reload": "Restart"
+    "reload": "Restart",
+    "methods": {
+      "transfer": "Kaspi / transfer",
+      "cash": "Cash",
+      "card": "Card"
+    }
   },
   "auth": {
     "forgot": {

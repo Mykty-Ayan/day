@@ -6,6 +6,8 @@
  * can be opened for debugging.
  */
 
+import { phoneDigits } from './phone'
+
 interface TelegramWebAppUser {
   id: number
   first_name?: string
@@ -31,6 +33,8 @@ interface TelegramWebApp {
     notificationOccurred?: (type: 'error' | 'success' | 'warning') => void
   }
   isVersionAtLeast?: (version: string) => boolean
+  /** Bot API 6.2. */
+  showConfirm?: (message: string, callback: (confirmed: boolean) => void) => void
   /** Bot API 7.7. */
   disableVerticalSwipes?: () => void
   enableClosingConfirmation?: () => void
@@ -80,6 +84,16 @@ export function showBackButton(onBack: () => void): () => void {
   }
 }
 
+/** Telegram's own yes/no dialog for money and anything that cannot be undone;
+ *  the browser's confirm outside Telegram. */
+export function confirmAction(message: string): Promise<boolean> {
+  const app = getWebApp()
+  if (app?.showConfirm && app.isVersionAtLeast?.('6.2')) {
+    return new Promise((resolve) => app.showConfirm!(message, resolve))
+  }
+  return Promise.resolve(window.confirm(message))
+}
+
 /** Ask before closing while something typed would be lost. */
 export function setClosingConfirmation(on: boolean): void {
   const app = getWebApp()
@@ -114,7 +128,7 @@ export function openExternal(url: string): void {
  *  Sending from their number is the point — a server-side blast from an
  *  unfamiliar sender is what gets an account limited. */
 export function openWhatsApp(phone: string, text: string): void {
-  const digits = phone.replace(/\D/g, '')
+  const digits = phoneDigits(phone)
   const base = digits ? `https://wa.me/${digits}` : 'https://wa.me/'
   openExternal(`${base}?text=${encodeURIComponent(text)}`)
 }

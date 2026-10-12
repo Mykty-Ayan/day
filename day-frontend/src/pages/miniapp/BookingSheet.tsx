@@ -1,22 +1,32 @@
 /**
  * Everything an operator does to a live booking, one thumb at a time:
- * check the guest in or out, take an extra night, record a payment, and hand
- * the guest the address and Wi-Fi without retyping any of it.
+ * check the guest in or out, extend, take money, and hand the guest the address
+ * and Wi-Fi without retyping any of it. Money and anything that cannot be
+ * undone go through a confirmation first.
  */
 
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { BedDouble, CheckCircle2, Copy, LogIn, LogOut, Send, Wallet } from 'lucide-react'
+import { BedDouble, CheckCircle2, Copy, LogIn, LogOut, Phone, Send, Wallet, XCircle } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
-import { addPayment, changeBookingStatus, getBooking, listPayments, updateBooking } from '../../api/bookings'
+import {
+  addPayment,
+  calculatePrice,
+  changeBookingStatus,
+  confirmPayment,
+  getBooking,
+  listPayments,
+  updateBooking,
+} from '../../api/bookings'
 import { getProperty } from '../../api/properties'
-import type { Booking, BookingStatus } from '../../types/booking'
-import { copyText, openWhatsApp, resultFeedback } from '../../lib/telegram'
-import { addDays, formatDay, formatMoney, toISODate } from './format'
+import type { Booking, BookingPayment, BookingStatus, PaymentMethod } from '../../types/booking'
+import { confirmAction, copyText, openWhatsApp, resultFeedback } from '../../lib/telegram'
+import { canCancel, extendedCheckOut, phoneDigits, settlement } from './booking-card'
+import { formatDay, formatMoney, formatTime } from './format'
 import DepositRow from './DepositRow'
 import { errorText } from './errors'
 import { buildCheckInMessage } from './messages'
-import { ActionButton, Field, Sheet } from './miniapp-ui'
+import { ActionButton, Chip, Field, Sheet } from './miniapp-ui'
 import { useClosingConfirmation } from './useClosingConfirmation'
 
 /** The single legal step forward from each status.
@@ -33,6 +43,21 @@ const NEXT_STEP: Partial<
   checked_out: { status: 'completed', labelKey: 'miniapp.booking.complete', Icon: CheckCircle2 },
 }
 
+const STATUS_KEY: Record<BookingStatus, string> = {
+  pending: 'common.pending',
+  confirmed: 'common.confirmed',
+  checked_in: 'common.checkedIn',
+  checked_out: 'common.checkedOut',
+  completed: 'common.completed',
+  cancelled: 'common.cancelled',
+}
+
+const METHODS: PaymentMethod[] = ['transfer', 'cash', 'card']
+
+function newKey(): string {
+  return crypto.randomUUID()
+}
+
 export default function BookingSheet({
   booking: opened,
   onClose,
@@ -41,10 +66,15 @@ export default function BookingSheet({
   onClose: () => void
 }) {
   const { t, i18n } = useTranslation()
+  const lang = i18n.language
   const queryClient = useQueryClient()
   const [amount, setAmount] = useState('')
+  const [method, setMethod] = useState<PaymentMethod>('transfer')
   const [error, setError] = useState('')
   const [copied, setCopied] = useState(false)
+  // One key per payment the operator means to record: a retry after a timeout
+  // reuses it and the server records the money once.
+  const paymentKey = useRef(newKey())
   useClosingConfirmation(Boolean(opened) && amount.trim() !== '')
 
   // A row from a list is a snapshot: a payment confirms a pending booking, a
@@ -73,12 +103,8 @@ export default function BookingSheet({
     enabled: Boolean(booking),
   })
 
-  // Only money that arrived: a pending payment (the CRM records one before the
-  // transfer lands) must not hide the debt.
-  const paid = (payments.data ?? [])
-    .filter((payment) => payment.status === 'completed')
-    .reduce((sum, payment) => sum + (payment.type === 'refund' ? -payment.amount : payment.amount), 0)
-  const due = Math.max(0, (booking?.total_price ?? 0) - paid)
+  const { due, waiting } = settlement(booking?.total_price ?? 0, payments.data ?? [])
+  const received = (payments.data ?? []).filter((payment) => payment.status === 'completed')
 
   function refresh() {
     queryClient.invalidateQueries({ queryKey: ['miniapp'] })
@@ -89,87 +115,146 @@ export default function BookingSheet({
     setError(errorText(mutationError, t('miniapp.loadFailed'), t))
   }
 
+  function done(close: boolean) {
+    resultFeedback('success')
+    setError('')
+    refresh()
+    if (close) onClose()
+  }
+
   const extend = useMutation({
-    mutationFn: () => {
-      const nextCheckOut = addDays(new Date(booking!.check_out), 1)
-      const time = booking!.check_out.slice(11, 19) || '12:00:00'
-      return updateBooking(booking!.id, { check_out: `${toISODate(nextCheckOut)}T${time}` })
-    },
-    onSuccess: () => {
-      resultFeedback('success')
-      setError('')
-      refresh()
-      onClose()
-    },
+    mutationFn: (checkOut: string) => updateBooking(booking!.id, { check_out: checkOut }),
+    onSuccess: () => done(true),
     onError: fail,
   })
 
   const setStatus = useMutation({
     mutationFn: (status: BookingStatus) => changeBookingStatus(booking!.id, status),
-    onSuccess: () => {
-      resultFeedback('success')
-      setError('')
-      refresh()
-      onClose()
-    },
+    onSuccess: () => done(true),
     onError: fail,
   })
 
   const pay = useMutation({
     mutationFn: () =>
-      addPayment(booking!.id, {
-        amount: Number(amount || due),
-        type: 'payment',
-        method: 'transfer',
-      }),
+      addPayment(booking!.id, { amount: Number(amount), type: 'payment', method }, paymentKey.current),
     onSuccess: () => {
-      resultFeedback('success')
-      setError('')
+      paymentKey.current = newKey()
       setAmount('')
-      queryClient.invalidateQueries({ queryKey: ['miniapp', 'payments', booking?.id] })
-      refresh()
+      done(false)
     },
+    onError: fail,
+  })
+
+  const receive = useMutation({
+    mutationFn: (payment: BookingPayment) => confirmPayment(booking!.id, payment.id),
+    onSuccess: () => done(false),
     onError: fail,
   })
 
   if (!booking) return null
 
   const next = NEXT_STEP[booking.status]
-  const checkInText = buildCheckInMessage(booking, property.data, i18n.language, t)
+  const target = extendedCheckOut(booking)
+  const hourly = booking.rental_mode === 'hourly'
+  const digits = phoneDigits(booking.guest_phone)
+  const amountValue = Number(amount)
+  const checkInText = buildCheckInMessage(booking, property.data, lang, t)
+  const money = (value: number) => `${formatMoney(value, lang)} ₸`
+  const when = (value: string) => `${formatDay(value, lang)} ${formatTime(value, lang)}`
+
+  async function askExtend() {
+    if (!target || !booking) return
+    // The new total first: a night added to a hand-set price is a free night.
+    let message = t('miniapp.booking.extendAsk', { until: when(target) })
+    if (booking.total_price !== booking.calculated_price) {
+      message = t('miniapp.booking.extendManual', { until: when(target) })
+    } else {
+      try {
+        const quote = await calculatePrice({
+          property_id: booking.property_id,
+          check_in: booking.check_in,
+          check_out: target,
+          adults_count: booking.adults_count,
+          children_count: booking.children_count,
+          rental_mode: booking.rental_mode,
+        })
+        message = t('miniapp.booking.extendPrice', { until: when(target), total: money(quote.total) })
+      } catch {
+        // No quote is no reason to refuse; the question just says less.
+      }
+    }
+    if (await confirmAction(message)) extend.mutate(target)
+  }
+
+  async function askCancel() {
+    if (await confirmAction(t('miniapp.booking.cancelAsk'))) setStatus.mutate('cancelled')
+  }
+
+  async function askPay() {
+    const methodLabel = t(`miniapp.methods.${method}`)
+    if (await confirmAction(t('miniapp.booking.payAsk', { amount: money(amountValue), method: methodLabel }))) {
+      pay.mutate()
+    }
+  }
+
+  async function askReceive(payment: BookingPayment) {
+    if (await confirmAction(t('miniapp.booking.receivedAsk', { amount: money(payment.amount) }))) {
+      receive.mutate(payment)
+    }
+  }
 
   return (
-    <Sheet open title={booking.guest_name || booking.property_name} onClose={onClose}>
+    <Sheet open title={booking.guest_name || booking.property_name || ''} onClose={onClose}>
       {booking.overbooking && (
         <p role="alert" className="rounded-xl bg-red-600 px-3 py-2 text-xs font-semibold text-white">
           {t('bookings.overbooking.detail')}
         </p>
       )}
+
       <div className="tg-surface rounded-xl px-3 py-3">
-        <p className="text-sm font-semibold">{booking.property_name}</p>
-        <p className="tg-hint text-xs">
-          {formatDay(booking.check_in, i18n.language)} → {formatDay(booking.check_out, i18n.language)}
-          {booking.guest_phone ? ` · ${booking.guest_phone}` : ''}
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-sm font-semibold">{booking.property_name}</p>
+          <span className="tg-root rounded-md px-2 py-0.5 text-[11px] font-bold">{t(STATUS_KEY[booking.status])}</span>
+        </div>
+        <p className="tg-hint mt-1 text-xs">
+          {when(booking.check_in)} → {when(booking.check_out)}
         </p>
+        {booking.guest_phone && (
+          <div className="mt-2 flex items-center gap-2 text-sm">
+            <span className="flex-1">{booking.guest_phone}</span>
+            {digits && (
+              <a
+                href={`tel:+${digits}`}
+                aria-label={t('miniapp.booking.call')}
+                className="tg-root flex h-9 w-9 items-center justify-center rounded-full"
+              >
+                <Phone className="h-4 w-4" />
+              </a>
+            )}
+          </div>
+        )}
         <p className="mt-2 flex items-baseline justify-between text-sm">
           <span className="tg-hint">{t('miniapp.booking.due')}</span>
           <span className="font-bold">
-            {formatMoney(due, i18n.language)} ₸
-            <span className="tg-hint font-normal">
-              {' '}
-              / {formatMoney(booking.total_price, i18n.language)}
-            </span>
+            {money(due)}
+            <span className="tg-hint font-normal"> / {money(booking.total_price)}</span>
           </span>
         </p>
       </div>
 
-      {error && <p className="text-sm font-semibold">{error}</p>}
+      {error && (
+        <p role="alert" className="text-sm font-semibold">
+          {error}
+        </p>
+      )}
 
       <div className="grid grid-cols-2 gap-2">
-        <ActionButton disabled={settling || extend.isPending} onClick={() => extend.mutate()}>
-          <BedDouble className="h-4 w-4" />
-          {t('miniapp.booking.extend')}
-        </ActionButton>
-
+        {target && (
+          <ActionButton disabled={settling || extend.isPending} onClick={askExtend}>
+            <BedDouble className="h-4 w-4" />
+            {t(hourly ? 'miniapp.booking.extendHour' : 'miniapp.booking.extend')}
+          </ActionButton>
+        )}
         {next && (
           <ActionButton disabled={settling || setStatus.isPending} onClick={() => setStatus.mutate(next.status)}>
             <next.Icon className="h-4 w-4" />
@@ -178,34 +263,91 @@ export default function BookingSheet({
         )}
       </div>
 
-      {due > 0 && (
-        <div className="grid grid-cols-[1fr_auto] items-end gap-2">
-          <Field
-            label={t('miniapp.booking.payment')}
-            value={amount}
-            onChange={setAmount}
-            type="number"
-            inputMode="numeric"
-            placeholder={String(due)}
-          />
-          <ActionButton tone="primary" disabled={settling || pay.isPending} onClick={() => pay.mutate()}>
-            <Wallet className="h-4 w-4" />
-            {t('miniapp.booking.record')}
-          </ActionButton>
+      {(due > 0 || waiting.length > 0 || received.length > 0) && (
+        <div className="tg-surface space-y-3 rounded-xl p-3">
+          <p className="text-sm font-semibold">{t('miniapp.booking.money')}</p>
+
+          {received.map((payment) => (
+            <p key={payment.id} className="flex justify-between text-xs">
+              <span className="tg-hint">
+                {formatDay(payment.paid_at || payment.created_at, lang)} · {t(`miniapp.methods.${payment.method}`)}
+              </span>
+              <span>{money(payment.type === 'refund' ? -payment.amount : payment.amount)}</span>
+            </p>
+          ))}
+
+          {waiting.map((payment) => (
+            <div key={payment.id} className="flex items-center justify-between gap-2 text-xs">
+              <span>
+                {t('miniapp.booking.waiting')}: {money(payment.amount)}
+              </span>
+              <button
+                type="button"
+                disabled={settling || receive.isPending}
+                onClick={() => askReceive(payment)}
+                className="tg-active rounded-lg px-3 py-2 text-xs font-bold disabled:opacity-40"
+              >
+                {t('miniapp.booking.received')}
+              </button>
+            </div>
+          ))}
+
+          {due > 0 && (
+            <>
+              <div className="flex gap-1">
+                {METHODS.map((value) => (
+                  <Chip
+                    key={value}
+                    label={t(`miniapp.methods.${value}`)}
+                    active={method === value}
+                    onClick={() => setMethod(value)}
+                  />
+                ))}
+              </div>
+              <div className="grid grid-cols-[1fr_auto] items-end gap-2">
+                <Field
+                  label={t('miniapp.booking.payment')}
+                  value={amount}
+                  onChange={setAmount}
+                  type="number"
+                  inputMode="numeric"
+                  placeholder={String(due)}
+                />
+                <button
+                  type="button"
+                  onClick={() => setAmount(String(due))}
+                  className="tg-root min-h-[44px] rounded-xl px-3 text-xs font-bold"
+                >
+                  {t('miniapp.booking.rest')}
+                </button>
+              </div>
+              <ActionButton
+                tone="primary"
+                disabled={settling || pay.isPending || !(amountValue > 0)}
+                onClick={askPay}
+              >
+                <Wallet className="h-4 w-4" />
+                {amountValue > 0
+                  ? t('miniapp.booking.recordAmount', { amount: money(amountValue) })
+                  : t('miniapp.booking.record')}
+              </ActionButton>
+            </>
+          )}
         </div>
       )}
 
-      <DepositRow bookingId={booking.id} suggestedAmount={booking.total_price} onError={fail} />
+      <DepositRow
+        bookingId={booking.id}
+        suggestedAmount={property.data?.pricing?.default_deposit || booking.total_price}
+        onError={fail}
+      />
 
       <pre className="tg-surface max-h-40 overflow-y-auto whitespace-pre-wrap rounded-xl p-3 text-xs">
         {checkInText}
       </pre>
 
       <div className="grid grid-cols-[1fr_auto] gap-2">
-        <ActionButton
-          tone="primary"
-          onClick={() => openWhatsApp(booking.guest_phone ?? '', checkInText)}
-        >
+        <ActionButton tone="primary" onClick={() => openWhatsApp(booking.guest_phone ?? '', checkInText)}>
           <Send className="h-4 w-4" />
           {t('miniapp.booking.sendGuest')}
         </ActionButton>
@@ -220,6 +362,13 @@ export default function BookingSheet({
           {copied ? t('miniapp.copied') : t('miniapp.offer.copy')}
         </ActionButton>
       </div>
+
+      {canCancel(booking.status) && (
+        <ActionButton disabled={settling || setStatus.isPending} onClick={askCancel}>
+          <XCircle className="h-4 w-4" />
+          {t('miniapp.booking.cancel')}
+        </ActionButton>
+      )}
     </Sheet>
   )
 }
