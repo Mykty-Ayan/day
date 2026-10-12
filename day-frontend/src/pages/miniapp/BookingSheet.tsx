@@ -200,7 +200,7 @@ export default function BookingSheet({
   const hourly = booking.rental_mode === 'hourly'
   const digits = phoneDigits(booking.guest_phone)
   const amountValue = Number(amount)
-  const checkInText = buildCheckInMessage(booking, property.data, lang, t)
+  const checkInText = buildCheckInMessage(booking, property.data, lang, t, !settling)
   const money = (value: number) => `${formatMoney(value, lang)} ₸`
   const when = (value: string) => `${formatDay(value, lang)} ${formatTime(value, lang)}`
 
@@ -421,11 +421,16 @@ export default function BookingSheet({
       </pre>
 
       <div className="grid grid-cols-[1fr_auto] gap-2">
-        <ActionButton tone="primary" onClick={() => openWhatsApp(booking.guest_phone ?? '', checkInText)}>
+        <ActionButton
+          tone="primary"
+          disabled={settling}
+          onClick={() => openWhatsApp(booking.guest_phone ?? '', checkInText)}
+        >
           <Send className="h-4 w-4" />
           {t('miniapp.booking.sendGuest')}
         </ActionButton>
         <ActionButton
+          disabled={settling}
           onClick={async () => {
             const ok = await copyText(checkInText)
             setCopied(ok)
