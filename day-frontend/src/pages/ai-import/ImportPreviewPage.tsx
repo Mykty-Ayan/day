@@ -61,6 +61,8 @@ function normalizeMappedProperty(
     address_full: asNullableString(getValue(source, 'address_full')),
     rooms: asNullableNumber(getValue(source, 'rooms')),
     beds: asNullableNumber(getValue(source, 'beds')),
+    max_guests: asNullableNumber(getValue(source, 'max_guests')),
+    bathrooms: asNullableNumber(getValue(source, 'bathrooms')),
     area_total: asNullableNumber(getValue(source, 'area_total')),
     area_living: asNullableNumber(getValue(source, 'area_living')),
     floor: asNullableNumber(getValue(source, 'floor')),

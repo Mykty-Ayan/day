@@ -31,12 +31,16 @@ export async function telegramMiniAppLogin(initData: string): Promise<TokenRespo
   return res.data
 }
 
+/** The party the Mini App quotes and books for: free flats are looked up for
+ *  the same number, so a flat too small for it is not offered. */
+export const MINIAPP_ADULTS = 2
+
 export async function getAvailability(
   checkIn: string,
   checkOut: string,
 ): Promise<Availability> {
   const res = await apiClient.get<Availability>('/bookings/availability', {
-    params: { check_in: checkIn, check_out: checkOut },
+    params: { check_in: checkIn, check_out: checkOut, adults_count: MINIAPP_ADULTS },
   })
   return res.data
 }
