@@ -1,7 +1,7 @@
 /** One press of "Book", and what is left of it when the answer is lost. */
 
 import type { BookingCreateInput } from '../../types/booking'
-import { loadStored, saveStored, type AttemptStore } from './booking-card'
+import { loadStored, saveStored, withAttemptLock, type AttemptLocks, type AttemptStore } from './booking-card'
 
 /** The form as it was at the press, under one Idempotency-Key. */
 export interface BookingAttempt {
@@ -50,29 +50,16 @@ export function latestBookingCall(stored: BookingAttempt | null, failed: Booking
 
 export type BookingStart = 'sent' | 'checkFailed' | 'declined' | 'closed' | 'busy' | 'notKept'
 
-/** The part of the Web Locks API used here. */
-export interface AttemptLocks {
-  request<T>(name: string, run: () => T | PromiseLike<T>): Promise<T>
-}
-
-function webLocks(): AttemptLocks | undefined {
-  try {
-    return (navigator as Navigator & { locks?: AttemptLocks }).locks
-  } catch {
-    return undefined
-  }
-}
-
 /** Runs a read and a write of the company's attempt as one step. The windows of
  *  the app share the phone's storage, so without a shared lock two of them could
- *  both find no attempt and each book the guest into another flat. Without Web
- *  Locks (an old webview) it runs unlocked, as one window always did. */
+ *  both find no attempt and each book the guest into another flat. */
 export function withBookingLock<T>(
   company: string,
   run: () => T | PromiseLike<T>,
-  locks: AttemptLocks | undefined = webLocks(),
+  locks?: AttemptLocks,
 ): Promise<T> {
-  return locks ? locks.request(key(company), run) : Promise.resolve().then(run)
+  // Undefined falls back to the browser's Web Locks, as in withAttemptLock.
+  return withAttemptLock(key(company), run, locks)
 }
 
 /** The steps after the press. The blacklist is asked for the phone as it was
