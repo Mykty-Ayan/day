@@ -900,7 +900,8 @@
       "floor": "floor {{value}}",
       "messageDates": "Check-in {{from}}, check-out {{to}}.",
       "confirm": "Confirm",
-      "complete": "Complete"
+      "complete": "Complete",
+      "stale": "Couldn't refresh the booking. Actions wait until it loads."
     },
     "cleaning": {
       "title": "Cleaning",
@@ -954,7 +955,8 @@
       "staleStatus": "The booking has changed. Close the card and open it again.",
       "noPrice": "This flat has no prices. Set them on the web: Properties → Prices.",
       "assistantOff": "The assistant isn't available right now. Try later or use the tabs."
-    }
+    },
+    "retry": "Try again"
   },
   "auth": {
     "forgot": {

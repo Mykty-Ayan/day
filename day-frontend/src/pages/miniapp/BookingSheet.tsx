@@ -8,11 +8,12 @@ import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { BedDouble, CheckCircle2, Copy, LogIn, LogOut, Send, Wallet } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
-import { addPayment, changeBookingStatus, getBooking, listPayments, updateBooking } from '../../api/bookings'
+import { addPayment, changeBookingStatus, getBooking, updateBooking } from '../../api/bookings'
 import { getProperty } from '../../api/properties'
 import type { Booking, BookingStatus } from '../../types/booking'
 import { copyText, openWhatsApp, resultFeedback } from '../../lib/telegram'
 import { addDays, formatDay, formatMoney, toISODate } from './format'
+import { readyToAct } from './card-state'
 import DepositRow from './DepositRow'
 import { errorText } from './errors'
 import { buildCheckInMessage } from './messages'
@@ -45,19 +46,22 @@ export default function BookingSheet({
   const [error, setError] = useState('')
   const [copied, setCopied] = useState(false)
 
+  const [openedAt] = useState(() => Date.now())
+
   // A row from a list is a snapshot: a payment confirms a pending booking, a
-  // status change moves it. The card works on the booking as the server has it.
+  // status change moves it. The card works on the booking — and its payments —
+  // as one fresh answer from the server.
   const fresh = useQuery({
     queryKey: ['miniapp', 'booking', opened?.id],
-    queryFn: async () => (await getBooking(opened!.id)).booking,
+    queryFn: () => getBooking(opened!.id),
     enabled: Boolean(opened),
     // Someone else (the CRM, the web) may have moved it since the last look.
     staleTime: 0,
     refetchOnMount: 'always',
   })
-  const booking = fresh.data ?? opened
-  // Acting on an old status sends a transition the server refuses.
-  const settling = fresh.isFetching
+  const booking = fresh.data?.booking ?? opened
+  // Acting on a booking read before this card opened sends old dates or statuses.
+  const settling = !readyToAct(fresh, openedAt)
 
   const property = useQuery({
     queryKey: ['miniapp', 'property', booking?.property_id],
@@ -65,15 +69,9 @@ export default function BookingSheet({
     enabled: Boolean(booking),
   })
 
-  const payments = useQuery({
-    queryKey: ['miniapp', 'payments', booking?.id],
-    queryFn: () => listPayments(booking!.id),
-    enabled: Boolean(booking),
-  })
-
   // Only money that arrived: a pending payment (the CRM records one before the
   // transfer lands) must not hide the debt.
-  const paid = (payments.data ?? [])
+  const paid = (fresh.data?.payments ?? [])
     .filter((payment) => payment.status === 'completed')
     .reduce((sum, payment) => sum + (payment.type === 'refund' ? -payment.amount : payment.amount), 0)
   const due = Math.max(0, (booking?.total_price ?? 0) - paid)
@@ -124,7 +122,6 @@ export default function BookingSheet({
       resultFeedback('success')
       setError('')
       setAmount('')
-      queryClient.invalidateQueries({ queryKey: ['miniapp', 'payments', booking?.id] })
       refresh()
     },
     onError: fail,
@@ -161,6 +158,13 @@ export default function BookingSheet({
       </div>
 
       {error && <p className="text-sm font-semibold">{error}</p>}
+
+      {fresh.isError && !fresh.isFetching && (
+        <div className="grid grid-cols-[1fr_auto] items-center gap-2">
+          <p className="text-sm">{t('miniapp.booking.stale')}</p>
+          <ActionButton onClick={() => fresh.refetch()}>{t('miniapp.retry')}</ActionButton>
+        </div>
+      )}
 
       <div className="grid grid-cols-2 gap-2">
         <ActionButton disabled={settling || extend.isPending} onClick={() => extend.mutate()}>
