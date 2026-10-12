@@ -13,7 +13,7 @@ import { useTranslation } from 'react-i18next'
 import { createDeposit, depositAction, listDeposits } from '../../api/bookings'
 import type { BookingDeposit } from '../../types/booking'
 import { resultFeedback } from '../../lib/telegram'
-import { readyToAct } from './card-state'
+import { cardRead, readyToAct } from './card-state'
 import { formatMoney } from './format'
 import { ActionButton, Field } from './miniapp-ui'
 
@@ -42,11 +42,8 @@ export default function DepositRow({
   // phone must show, or "Take deposit" takes a second one.
   const [openedAt] = useState(() => Date.now())
   const deposits = useQuery({
-    queryKey: ['miniapp', 'deposits', bookingId],
-    queryFn: () => listDeposits(bookingId),
+    ...cardRead(['miniapp', 'deposits', bookingId], (signal) => listDeposits(bookingId, signal)),
     enabled: Boolean(bookingId),
-    staleTime: 0,
-    refetchOnMount: 'always',
   })
   const blocked = locked || !readyToAct(deposits, openedAt)
 
