@@ -22,6 +22,7 @@ import {
   saveBookingAttempt,
   startBooking,
   storedBookingAttempt,
+  withBookingLock,
   type BookingAttempt,
 } from './book-attempt'
 import { afterFailure, nextCall } from './booking-card'
@@ -141,30 +142,34 @@ export default function BookSheet({
 
   const book = useMutation({
     mutationFn: (sent: BookingAttempt) => createBooking(sent.body, sent.key),
+    // Every read and write of the attempt below runs under the windows' shared lock.
     onSuccess: (created, sent) => {
       queryClient.invalidateQueries({ queryKey: ['miniapp'] })
-      if (!isCurrent(sent)) return
-      setPending(null)
-      resultFeedback('success')
-      onBooked(created)
+      void withBookingLock(company, () => {
+        if (!isCurrent(sent)) return
+        setPending(null)
+        resultFeedback('success')
+        onBooked(created)
+      })
     },
-    onError: (mutationError, sent) => {
-      // Only the latest send of the attempt on the phone: an earlier send's late
-      // refusal says nothing about a retry whose answer was lost.
-      const stored = storedBookingAttempt(phoneStorage(), company)
-      if (!latestBookingCall(stored, sent)) return
-      resultFeedback('error')
-      // A refusal of the first call means nothing was made; otherwise only the same request may follow.
-      const left = afterFailure(stored, mutationError)
-      setPending(left)
-      if (!left) {
-        setError(errorText(mutationError, t('miniapp.book.failed'), t))
-        return
-      }
-      // The booking may exist already: the lists must show it before anyone books this guest again.
-      queryClient.invalidateQueries({ queryKey: ['miniapp'] })
-      setError(t('miniapp.book.maybeMade'))
-    },
+    onError: (mutationError, sent) =>
+      void withBookingLock(company, () => {
+        // Only the latest send of the attempt on the phone: an earlier send's late
+        // refusal says nothing about a retry whose answer was lost.
+        const stored = storedBookingAttempt(phoneStorage(), company)
+        if (!latestBookingCall(stored, sent)) return
+        resultFeedback('error')
+        // A refusal of the first call means nothing was made; otherwise only the same request may follow.
+        const left = afterFailure(stored, mutationError)
+        setPending(left)
+        if (!left) {
+          setError(errorText(mutationError, t('miniapp.book.failed'), t))
+          return
+        }
+        // The booking may exist already: the lists must show it before anyone books this guest again.
+        queryClient.invalidateQueries({ queryKey: ['miniapp'] })
+        setError(t('miniapp.book.maybeMade'))
+      }),
   })
 
   async function askBook() {
@@ -203,9 +208,16 @@ export default function BookSheet({
           }),
         confirmWarned: () => confirmAction(t('miniapp.book.warnedAsk')),
         isOpen: () => alive.current,
-        keep: setPending,
+        // Kept only if no other window kept one meanwhile, as one step under the lock.
+        claim: (kept) =>
+          withBookingLock(company, () => {
+            if (!alive.current) return 'closed' as const
+            if (loadBookingAttempt(phoneStorage(), company)) return 'busy' as const
+            if (!saveBookingAttempt(phoneStorage(), company, kept)) return 'notKept' as const
+            setPendingState(kept)
+            return 'kept' as const
+          }),
         send: (kept) => book.mutate(kept),
-        busy: () => loadBookingAttempt(phoneStorage(), company),
       })
       if (outcome === 'busy') {
         // Another window booked meanwhile: its attempt is settled first.
@@ -214,7 +226,6 @@ export default function BookSheet({
         return
       }
       if (outcome === 'checkFailed' || outcome === 'notKept') {
-        if (outcome === 'notKept') setPending(null)
         resultFeedback('error')
         setError(t(outcome === 'checkFailed' ? 'miniapp.book.checkFailed' : 'miniapp.book.notKept'))
       }
@@ -225,15 +236,24 @@ export default function BookSheet({
   }
 
   // A retry is the same body under the same key, numbered and kept before it goes out.
-  function retry(stale: BookingAttempt) {
+  async function retry(stale: BookingAttempt) {
     if (!sameSession()) return setError(t('miniapp.book.otherCompany'))
-    const call = nextCall(stale)
-    if (!setPending(call)) {
+    const call = await withBookingLock(company, () => {
+      const stored = storedBookingAttempt(phoneStorage(), company)
+      // Another window settled it or started another: show what is on the phone now.
+      if (stored?.key !== stale.key) {
+        setPendingState(loadBookingAttempt(phoneStorage(), company))
+        return null
+      }
+      const next = nextCall({ ...stored, uncertain: stored.uncertain || stale.uncertain })
+      return setPending(next) ? next : 'notKept'
+    })
+    if (call === 'notKept') {
       resultFeedback('error')
       setError(t('miniapp.book.notKept'))
       return
     }
-    book.mutate(call)
+    if (call) book.mutate(call)
   }
 
   // Settles an attempt whose answer was lost, on the server: the key is voided
@@ -244,9 +264,11 @@ export default function BookSheet({
     setVerifying(true)
     try {
       const outcome = await voidBookingKey(stale.key)
-      // Settled: gone from the phone, unless an earlier sheet already cleared it.
-      if (isCurrent(stale)) setPending(null)
-      else setPendingState(loadBookingAttempt(phoneStorage(), company))
+      // Settled: gone from the phone, unless another sheet or window already cleared it.
+      await withBookingLock(company, () => {
+        if (isCurrent(stale)) setPending(null)
+        else setPendingState(loadBookingAttempt(phoneStorage(), company))
+      })
       queryClient.invalidateQueries({ queryKey: ['miniapp'] })
       if (outcome.booking) {
         setError('')
