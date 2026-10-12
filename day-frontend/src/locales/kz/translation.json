@@ -258,7 +258,11 @@
       "namePlaceholder": "Тег атауы",
       "color": "Тег түсі"
     },
-    "photosFailed": "Нысан құрылды, бірақ {{count}} фото жүктелмеді. Оларды нысан бетінде қосыңыз"
+    "photosFailed": "Нысан құрылды, бірақ {{count}} фото жүктелмеді. Оларды нысан бетінде қосыңыз",
+    "addPhotos": "Фото қосу",
+    "photosUploading": "Жүктелуде…",
+    "photosAdded": "Фото қосылды: {{count}}",
+    "photosNotAdded": "Жүктелмеді: {{count}}. JPEG, PNG, WebP немесе HEIC, 20 МБ-қа дейін болуы керек"
   },
   "bookings": {
     "title": "Броньдар",

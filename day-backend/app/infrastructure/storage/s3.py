@@ -50,11 +50,11 @@ def apply_read_policy(client) -> None:
 
     Listing photos (properties/…) are public by nature: guests, OTAs and the
     CRM open them by link. Everything else — booking files, guests'
-    documents — is served only through the API, unless S3_PUBLIC_READ opens
-    the whole bucket. Applying the policy replaces one left by an earlier
-    deploy, so a bucket made public before closes again.
+    documents — is served only through the API, with no switch to open it.
+    Applying the policy replaces one left by an earlier deploy, so a bucket
+    made public before closes again.
     """
-    readable = "*" if settings.S3_PUBLIC_READ else f"{PROPERTY_PHOTOS_PREFIX}*"
+    readable = f"{PROPERTY_PHOTOS_PREFIX}*"
     policy = {
         "Version": "2012-10-17",
         "Statement": [

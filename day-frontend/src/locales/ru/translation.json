@@ -258,7 +258,11 @@
       "namePlaceholder": "Название тега",
       "color": "Цвет тега"
     },
-    "photosFailed": "Объект создан, но фото не загрузились: {{count}}. Добавьте их на странице объекта"
+    "photosFailed": "Объект создан, но фото не загрузились: {{count}}. Добавьте их на странице объекта",
+    "addPhotos": "Добавить фото",
+    "photosUploading": "Загружаем…",
+    "photosAdded": "Фото добавлены: {{count}}",
+    "photosNotAdded": "Не загрузились: {{count}}. Это должны быть JPEG, PNG, WebP или HEIC до 20 МБ"
   },
   "bookings": {
     "title": "Бронирования",

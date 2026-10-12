@@ -51,7 +51,10 @@ def stored(monkeypatch):
     app.dependency_overrides.pop(deps.get_session, None)
 
 
-async def _upload(content_type="image/jpeg", content=b"\xff\xd8 photo", **form) -> int:
+JPEG = b"\xff\xd8\xff\xe0" + b"\x00" * 64
+
+
+async def _upload(content_type="image/jpeg", content=JPEG, **form) -> int:
     return await _request(
         "POST",
         f"/api/v1/properties/{uuid.uuid4()}/photos/upload",
@@ -71,18 +74,37 @@ async def test_a_photo_file_becomes_a_listing_photo(stored):
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("content_type", ["application/pdf", "image/svg+xml", "text/html"])
-async def test_only_photos_are_taken(stored, content_type):
+@pytest.mark.parametrize(
+    "content",
+    [b"%PDF-1.4 contract", b"<svg xmlns='http://www.w3.org/2000/svg'/>", b"<html><script>x()</script>", b""],
+)
+async def test_only_photo_bytes_are_taken_whatever_the_label_says(stored, content):
+    # Labelled image/jpeg by the client; the bytes say otherwise.
     sent, photos = stored()
-    assert await _upload(content_type=content_type) == 415
+    assert await _upload(content_type="image/jpeg", content=content) == 415
     assert sent == [] and photos.saved == []
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("content", "stored_as"),
+    [
+        (b"\x89PNG\r\n\x1a\n" + b"\x00" * 32, "image/png"),
+        (b"RIFF\x00\x00\x00\x00WEBPVP8 " + b"\x00" * 32, "image/webp"),
+        (b"\x00\x00\x00\x18ftypheic" + b"\x00" * 32, "image/heic"),
+    ],
+)
+async def test_the_stored_type_comes_from_the_bytes(stored, content, stored_as):
+    sent, _ = stored()
+    assert await _upload(content_type="application/octet-stream", content=content) == 201
+    assert sent[0]["content_type"] == stored_as
 
 
 @pytest.mark.asyncio
 async def test_an_oversized_photo_is_refused(stored, monkeypatch):
     sent, _ = stored()
     monkeypatch.setattr(settings, "S3_MAX_UPLOAD_BYTES", 10)
-    assert await _upload(content=b"x" * 11) == 413
+    assert await _upload(content=JPEG) == 413  # a real photo, just too big
     assert sent == []
 
 

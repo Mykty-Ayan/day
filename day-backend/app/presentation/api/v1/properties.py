@@ -456,7 +456,18 @@ async def add_photo(
         raise HTTPException(status_code=400, detail=str(e))
 
 
-_PHOTO_TYPES = {"image/jpeg", "image/png", "image/webp", "image/heic"}
+def _sniff_photo(head: bytes) -> str | None:
+    """The photo format the bytes actually hold. The declared Content-Type is
+    the client's word; the file lands in a public bucket, so the bytes decide."""
+    if head.startswith(b"\xff\xd8\xff"):
+        return "image/jpeg"
+    if head.startswith(b"\x89PNG\r\n\x1a\n"):
+        return "image/png"
+    if head[:4] == b"RIFF" and head[8:12] == b"WEBP":
+        return "image/webp"
+    if head[4:8] == b"ftyp" and head[8:12] in {b"heic", b"heix", b"mif1", b"msf1", b"heim", b"heis"}:
+        return "image/heic"
+    return None
 
 
 @router.post(
@@ -478,8 +489,10 @@ async def upload_photo(
     prop = await repos["property"].get_by_id(property_id)
     if prop is None or prop.company_id != company_id:
         raise HTTPException(status_code=404, detail="Property not found")
-    content_type = (file.content_type or "").split(";")[0].strip().lower()
-    if content_type not in _PHOTO_TYPES:
+    head = file.file.read(16)
+    file.file.seek(0)
+    content_type = _sniff_photo(head)
+    if content_type is None:
         raise HTTPException(status_code=415, detail="Only JPEG, PNG, WebP or HEIC photos")
     size = file.size
     if size is None:

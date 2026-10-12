@@ -83,19 +83,11 @@ def _readable(bucket) -> list[str]:
     return json.loads(bucket.policies[-1]["Policy"])["Statement"][0]["Resource"]
 
 
-def test_a_private_bucket_shows_only_listing_photos(monkeypatch):
+def test_the_bucket_shows_only_listing_photos():
     # The policy replaces one left by an earlier deploy that opened everything.
-    monkeypatch.setattr(settings, "S3_PUBLIC_READ", False)
     bucket = _Bucket()
     s3.apply_read_policy(bucket)
     assert _readable(bucket) == [f"arn:aws:s3:::{settings.S3_BUCKET}/properties/*"]
-
-
-def test_public_read_is_still_available_when_asked_for(monkeypatch):
-    monkeypatch.setattr(settings, "S3_PUBLIC_READ", True)
-    bucket = _Bucket()
-    s3.apply_read_policy(bucket)
-    assert _readable(bucket) == [f"arn:aws:s3:::{settings.S3_BUCKET}/*"]
 
 
 @pytest.mark.asyncio
