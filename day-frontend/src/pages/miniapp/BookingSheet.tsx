@@ -53,8 +53,13 @@ export default function BookingSheet({
     queryKey: ['miniapp', 'booking', opened?.id],
     queryFn: async () => (await getBooking(opened!.id)).booking,
     enabled: Boolean(opened),
+    // Someone else (the CRM, the web) may have moved it since the last look.
+    staleTime: 0,
+    refetchOnMount: 'always',
   })
   const booking = fresh.data ?? opened
+  // Acting on an old status sends a transition the server refuses.
+  const settling = fresh.isFetching
 
   const property = useQuery({
     queryKey: ['miniapp', 'property', booking?.property_id],
@@ -160,13 +165,13 @@ export default function BookingSheet({
       {error && <p className="text-sm font-semibold">{error}</p>}
 
       <div className="grid grid-cols-2 gap-2">
-        <ActionButton disabled={extend.isPending} onClick={() => extend.mutate()}>
+        <ActionButton disabled={settling || extend.isPending} onClick={() => extend.mutate()}>
           <BedDouble className="h-4 w-4" />
           {t('miniapp.booking.extend')}
         </ActionButton>
 
         {next && (
-          <ActionButton disabled={setStatus.isPending} onClick={() => setStatus.mutate(next.status)}>
+          <ActionButton disabled={settling || setStatus.isPending} onClick={() => setStatus.mutate(next.status)}>
             <next.Icon className="h-4 w-4" />
             {t(next.labelKey)}
           </ActionButton>
@@ -183,7 +188,7 @@ export default function BookingSheet({
             inputMode="numeric"
             placeholder={String(due)}
           />
-          <ActionButton tone="primary" disabled={pay.isPending} onClick={() => pay.mutate()}>
+          <ActionButton tone="primary" disabled={settling || pay.isPending} onClick={() => pay.mutate()}>
             <Wallet className="h-4 w-4" />
             {t('miniapp.booking.record')}
           </ActionButton>
