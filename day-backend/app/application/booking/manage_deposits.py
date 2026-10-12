@@ -4,6 +4,7 @@ import uuid
 from decimal import Decimal
 
 from app.domain.booking.entities import BookingDeposit
+from app.domain.booking.exceptions import DepositAlreadyOpenError
 from app.domain.booking.repositories import (
     BookingDepositRepository,
     BookingRepository,
@@ -25,12 +26,26 @@ class ManageDepositsService:
         booking_id: uuid.UUID,
         company_id: uuid.UUID,
         amount: Decimal,
+        *,
+        unless_open: bool = False,
     ) -> BookingDeposit:
-        booking = await self._booking_repo.get_by_id(booking_id)
+        """unless_open: refuse while another deposit of the booking is not returned.
+
+        Checked under the booking's row lock, so two presses at once (or a press
+        after a lost answer) take one deposit.
+        """
+        if unless_open:
+            booking = await self._booking_repo.get_for_update(booking_id)
+        else:
+            booking = await self._booking_repo.get_by_id(booking_id)
         if booking is None:
             raise ValueError("Booking not found")
         if booking.company_id != company_id:
             raise ValueError("Booking does not belong to company")
+        if unless_open and any(
+            d.status != DepositStatus.RETURNED for d in await self._deposit_repo.get_by_booking(booking_id)
+        ):
+            raise DepositAlreadyOpenError()
 
         return await self._deposit_repo.create(
             BookingDeposit(
