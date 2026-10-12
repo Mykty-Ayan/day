@@ -920,9 +920,9 @@
       "retryPayment": "Retry the payment of {{amount}}",
       "unsettledReceive": "No answer to confirming {{amount}}. Retry: the money won't count twice.",
       "notKept": "The phone would not keep the payment attempt, so it is not sent: a dropped connection could double it. Free some space or record the payment on the web.",
-      "discardAttempt": "Not in the history — discard",
-      "discardAsk": "The payment history above was just reread from the server. If {{amount}} is not in it, the attempt can be discarded. Discard?",
-      "checkHistory": "Check the payment history"
+      "checkAttempt": "Check on the server",
+      "notRecorded": "The {{amount}} payment was not recorded and never will be. If the money came, enter it again.",
+      "notReceived": "Confirming {{amount}} did not go through. If the money came, press “Received” again."
     },
     "cleaning": {
       "title": "Cleaning",
