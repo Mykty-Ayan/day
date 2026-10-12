@@ -10,7 +10,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { CalendarCheck } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { calculatePrice, createBooking } from '../../api/bookings'
-import type { AvailableProperty } from '../../api/miniapp'
+import { MINIAPP_ADULTS, type AvailableProperty } from '../../api/miniapp'
 import { resultFeedback } from '../../lib/telegram'
 import { formatMoney } from './format'
 import { ActionButton, Field, Sheet } from './miniapp-ui'
@@ -42,7 +42,7 @@ export default function BookSheet({
         property_id: unit!.property_id,
         check_in: checkIn,
         check_out: checkOut,
-        adults_count: 2,
+        adults_count: MINIAPP_ADULTS,
         children_count: 0,
       }),
     enabled: Boolean(unit),
@@ -57,7 +57,7 @@ export default function BookSheet({
         check_in: checkIn,
         check_out: checkOut,
         source: 'direct',
-        adults_count: 2,
+        adults_count: MINIAPP_ADULTS,
         children_count: 0,
       }),
     onSuccess: () => {

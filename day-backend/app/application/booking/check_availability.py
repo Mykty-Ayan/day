@@ -93,6 +93,9 @@ class CheckAvailabilityService:
                 continue
             if rental_mode == RentalMode.DAILY and prop.rental_mode == RentalMode.HOURLY:
                 continue
+            # Too small for the party. An unknown capacity stays on offer.
+            if prop.max_guests is not None and adults_count + children_count > prop.max_guests:
+                continue
 
             total, error = None, None
             if with_prices:

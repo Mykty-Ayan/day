@@ -152,8 +152,9 @@ function EditPropertyForm({ property, propertyId }: { property: Property; proper
       longitude: form.address.longitude ? parseFloat(form.address.longitude) : undefined,
       rooms: form.details.rooms ? parseInt(form.details.rooms) : undefined,
       beds: form.details.beds ? parseInt(form.details.beds) : undefined,
-      max_guests: form.details.max_guests ? parseInt(form.details.max_guests) : undefined,
-      bathrooms: form.details.bathrooms ? parseInt(form.details.bathrooms) : undefined,
+      // null, not undefined: a cleared field must reach the server as cleared.
+      max_guests: form.details.max_guests ? parseInt(form.details.max_guests) : null,
+      bathrooms: form.details.bathrooms ? parseInt(form.details.bathrooms) : null,
       area_living: form.details.area_living ? parseFloat(form.details.area_living) : undefined,
       area_total: form.details.area_total ? parseFloat(form.details.area_total) : undefined,
       check_in_instructions: form.rules.check_in_instructions || undefined,
