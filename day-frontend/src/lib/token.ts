@@ -21,6 +21,12 @@ export function roleFromToken(token: string | null | undefined): string | null {
   return claim(token, 'role')
 }
 
+/** Whether a request made for `expected` company may go out with `token`. One
+ *  that names no company goes with any token. */
+export function sendableFor(expected: string | undefined, token: string | null): boolean {
+  return expected === undefined || companyFromToken(token) === expected
+}
+
 /** Whether a request sent with `authorization` may be sent again under `token`.
  *  Only within its company: a chat relinked meanwhile signs in to another one,
  *  and a booking, a payment or a voided key must not land there. */

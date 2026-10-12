@@ -11,6 +11,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { CalendarCheck, ShieldAlert } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { calculatePrice, createBooking, listGuests, voidBookingKey } from '../../api/bookings'
+import { SessionChangedError } from '../../api/client'
 import { checkBlacklist, type AvailableProperty } from '../../api/miniapp'
 import { phoneDigits } from '../../lib/phone'
 import { confirmAction, resultFeedback } from '../../lib/telegram'
@@ -77,6 +78,9 @@ export default function BookSheet({
   // Whether the session is still this company's. A chat relinked meanwhile signs
   // in to another one: asking the server then would answer for that company, and
   // "not made there" would drop a booking that may exist here.
+  // The company every write of this sheet is pinned to: the client refuses to
+  // send it under another company's token (SessionChangedError).
+  const pinned = company === 'unknown' ? undefined : company
   function sameSession(): boolean {
     return companyFromToken(phoneStorage()?.getItem('access_token') ?? null) === company
   }
@@ -141,7 +145,7 @@ export default function BookSheet({
   const guestName = name.trim() || guest?.name || ''
 
   const book = useMutation({
-    mutationFn: (sent: BookingAttempt) => createBooking(sent.body, sent.key),
+    mutationFn: (sent: BookingAttempt) => createBooking(sent.body, sent.key, pinned),
     // Every read and write of the attempt below runs under the windows' shared lock.
     onSuccess: (created, sent) => {
       queryClient.invalidateQueries({ queryKey: ['miniapp'] })
@@ -152,7 +156,9 @@ export default function BookSheet({
         onBooked(created)
       })
     },
-    onError: (mutationError, sent) =>
+    onError: (mutationError, sent) => {
+      // Not sent at all: the session is another company's. The attempt stays as it was.
+      if (mutationError instanceof SessionChangedError) return setError(t('miniapp.book.otherCompany'))
       void withBookingLock(company, () => {
         // Only the latest send of the attempt on the phone: an earlier send's late
         // refusal says nothing about a retry whose answer was lost.
@@ -169,7 +175,8 @@ export default function BookSheet({
         // The booking may exist already: the lists must show it before anyone books this guest again.
         queryClient.invalidateQueries({ queryKey: ['miniapp'] })
         setError(t('miniapp.book.maybeMade'))
-      }),
+      })
+    },
   })
 
   async function askBook() {
@@ -263,7 +270,7 @@ export default function BookSheet({
     if (!sameSession()) return setError(t('miniapp.book.otherCompany'))
     setVerifying(true)
     try {
-      const outcome = await voidBookingKey(stale.key)
+      const outcome = await voidBookingKey(stale.key, pinned)
       // Settled: gone from the phone, unless another sheet or window already cleared it.
       await withBookingLock(company, () => {
         if (isCurrent(stale)) setPending(null)
@@ -279,6 +286,7 @@ export default function BookSheet({
       setError(t('miniapp.book.notMade', { unit: stale.unit, guest: stale.body.guest_name }))
     } catch (checkError) {
       resultFeedback('error')
+      if (checkError instanceof SessionChangedError) return setError(t('miniapp.book.otherCompany'))
       setError(errorText(checkError, t('miniapp.loadFailed'), t))
     } finally {
       if (alive.current) setVerifying(false)
