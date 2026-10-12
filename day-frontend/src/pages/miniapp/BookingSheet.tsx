@@ -20,7 +20,16 @@ import {
 import { getProperty } from '../../api/properties'
 import type { Booking, BookingPayment, BookingStatus, PaymentMethod } from '../../types/booking'
 import { confirmAction, copyText, openWhatsApp, resultFeedback } from '../../lib/telegram'
-import { canCancel, extendedCheckOut, paymentMaybeRecorded, phoneDigits, settlement } from './booking-card'
+import {
+  canCancel,
+  extendedCheckOut,
+  loadAttempt,
+  paymentMaybeRecorded,
+  phoneDigits,
+  saveAttempt,
+  settlement,
+  type MoneyAttempt,
+} from './booking-card'
 import { readyToAct } from './card-state'
 import { formatDay, formatMoney, formatTime } from './format'
 import DepositRow from './DepositRow'
@@ -54,12 +63,16 @@ const STATUS_KEY: Record<BookingStatus, string> = {
 
 const METHODS: PaymentMethod[] = ['transfer', 'cash', 'card']
 
-/** One payment the operator means to record. The key goes with it on every
- *  retry, so the server records the money once. */
-interface PaymentAttempt {
-  amount: number
-  method: PaymentMethod
-  key: string
+type PaymentAttempt = Extract<MoneyAttempt, { kind: 'payment' }>
+type ReceiveAttempt = Extract<MoneyAttempt, { kind: 'receive' }>
+
+/** localStorage when the browser allows it; the attempt then outlives the card. */
+function attemptStorage(): Storage | undefined {
+  try {
+    return window.localStorage
+  } catch {
+    return undefined
+  }
 }
 
 function newKey(): string {
@@ -83,7 +96,14 @@ export default function BookingSheet({
   const [openedAt] = useState(() => Date.now())
   // A payment whose answer never came: it may be recorded already. Until it is
   // settled by a retry with the same key, no other payment is started.
-  const [unsettled, setUnsettled] = useState<PaymentAttempt | null>(null)
+  // Restored when the card opens: it may have been closed while the call was out.
+  const [unsettled, setUnsettledState] = useState<MoneyAttempt | null>(() =>
+    opened ? loadAttempt(attemptStorage(), opened.id) : null,
+  )
+  function setUnsettled(attempt: MoneyAttempt | null) {
+    if (opened) saveAttempt(attemptStorage(), opened.id, attempt)
+    setUnsettledState(attempt)
+  }
   useClosingConfirmation(Boolean(opened) && amount.trim() !== '')
 
   // A row from a list is a snapshot: a payment confirms a pending booking, a
@@ -148,21 +168,30 @@ export default function BookingSheet({
       setAmount('')
       done(false)
     },
-    onError: (mutationError, attempt) => {
-      setUnsettled(paymentMaybeRecorded(mutationError) ? attempt : null)
+    onError: (mutationError) => {
+      // Kept (it was saved before sending) unless the server clearly refused it.
+      if (!paymentMaybeRecorded(mutationError)) setUnsettled(null)
       fail(mutationError)
     },
   })
 
   const receive = useMutation({
-    mutationFn: (payment: BookingPayment) => confirmPayment(booking!.id, payment.id),
-    onSuccess: () => done(false),
-    onError: fail,
+    // Confirming twice is harmless on the server, so a retry is always safe.
+    mutationFn: (attempt: ReceiveAttempt) => confirmPayment(booking!.id, attempt.paymentId),
+    onSuccess: () => {
+      setUnsettled(null)
+      done(false)
+    },
+    onError: (mutationError) => {
+      if (!paymentMaybeRecorded(mutationError)) setUnsettled(null)
+      fail(mutationError)
+    },
   })
 
   // Money moves one step at a time: until a payment lands and the list is reread,
-  // "Balance" and the buttons would work from the old figures.
-  const moneyBusy = settling || pay.isPending || receive.isPending
+  // or while an earlier attempt has no known outcome, "Balance" and every money
+  // button would work from the old figures.
+  const moneyBusy = settling || pay.isPending || receive.isPending || unsettled !== null
 
   if (!booking) return null
 
@@ -206,13 +235,18 @@ export default function BookingSheet({
   async function askPay() {
     const methodLabel = t(`miniapp.methods.${method}`)
     if (await confirmAction(t('miniapp.booking.payAsk', { amount: money(amountValue), method: methodLabel }))) {
-      pay.mutate({ amount: amountValue, method, key: newKey() })
+      // Saved before it is sent: closing the card mid-request must not lose the key.
+      const attempt: PaymentAttempt = { kind: 'payment', amount: amountValue, method, key: newKey() }
+      setUnsettled(attempt)
+      pay.mutate(attempt)
     }
   }
 
   async function askReceive(payment: BookingPayment) {
     if (await confirmAction(t('miniapp.booking.receivedAsk', { amount: money(payment.amount) }))) {
-      receive.mutate(payment)
+      const attempt: ReceiveAttempt = { kind: 'receive', paymentId: payment.id, amount: payment.amount }
+      setUnsettled(attempt)
+      receive.mutate(attempt)
     }
   }
 
@@ -315,9 +349,15 @@ export default function BookingSheet({
           {unsettled && (
             <div className="space-y-2">
               <p className="text-xs">
-                {t('miniapp.booking.unsettled', { amount: money(unsettled.amount) })}
+                {t(unsettled.kind === 'payment' ? 'miniapp.booking.unsettled' : 'miniapp.booking.unsettledReceive', {
+                  amount: money(unsettled.amount),
+                })}
               </p>
-              <ActionButton tone="primary" disabled={moneyBusy} onClick={() => pay.mutate(unsettled)}>
+              <ActionButton
+                tone="primary"
+                disabled={settling || pay.isPending || receive.isPending}
+                onClick={() => (unsettled.kind === 'payment' ? pay.mutate(unsettled) : receive.mutate(unsettled))}
+              >
                 <Wallet className="h-4 w-4" />
                 {t('miniapp.booking.retryPayment', { amount: money(unsettled.amount) })}
               </ActionButton>
@@ -373,6 +413,7 @@ export default function BookingSheet({
         bookingId={booking.id}
         suggestedAmount={property.data?.pricing?.default_deposit || booking.total_price}
         onError={fail}
+        locked={moneyBusy}
       />
 
       <pre className="tg-surface max-h-40 overflow-y-auto whitespace-pre-wrap rounded-xl p-3 text-xs">
