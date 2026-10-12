@@ -56,6 +56,7 @@ from app.infrastructure.models.booking import (
     BookingPaymentModel,
     GroupBookingModel,
     GuestModel,
+    VoidedIdempotencyKeyModel,
 )
 
 # ---------- helpers ----------
@@ -422,6 +423,22 @@ class SqlBookingRepository(BookingRepository):
         )
         return _model_to_booking(result) if result else None
 
+    async def void_idempotency_key(self, company_id: uuid.UUID, key: str) -> None:
+        # Under the key's lock nothing else voids or uses it, so checking first is enough.
+        if not await self.idempotency_key_voided(company_id, key):
+            self._session.add(VoidedIdempotencyKeyModel(company_id=company_id, booking_id=None, key=key))
+            await self._session.flush()
+
+    async def idempotency_key_voided(self, company_id: uuid.UUID, key: str) -> bool:
+        found = await self._session.scalar(
+            select(VoidedIdempotencyKeyModel.id).where(
+                VoidedIdempotencyKeyModel.company_id == company_id,
+                VoidedIdempotencyKeyModel.booking_id.is_(None),
+                VoidedIdempotencyKeyModel.key == key,
+            )
+        )
+        return found is not None
+
     async def get_by_property_and_dates(
         self,
         property_id: uuid.UUID,
@@ -721,6 +738,21 @@ class SqlBookingPaymentRepository(BookingPaymentRepository):
             )
         )
         return _model_to_payment(result) if result else None
+
+    async def void_idempotency_key(self, company_id: uuid.UUID, booking_id: uuid.UUID, key: str) -> None:
+        # Same reason as SqlBookingRepository.void_idempotency_key.
+        if not await self.idempotency_key_voided(booking_id, key):
+            self._session.add(VoidedIdempotencyKeyModel(company_id=company_id, booking_id=booking_id, key=key))
+            await self._session.flush()
+
+    async def idempotency_key_voided(self, booking_id: uuid.UUID, key: str) -> bool:
+        found = await self._session.scalar(
+            select(VoidedIdempotencyKeyModel.id).where(
+                VoidedIdempotencyKeyModel.booking_id == booking_id,
+                VoidedIdempotencyKeyModel.key == key,
+            )
+        )
+        return found is not None
 
     async def update(self, payment: BookingPayment) -> BookingPayment:
         await self._session.execute(
