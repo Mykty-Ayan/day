@@ -19,17 +19,7 @@ export interface BookingAttempt {
 // whichever flat. Per company, because a chat can be relinked to another one.
 const key = (company: string) => `day.miniapp.booking.${company}`
 
-/** The company of the signed-in session, read from the access token. */
-export function companyFromToken(token: string | null): string | null {
-  try {
-    const part = token?.split('.')[1]
-    if (!part) return null
-    const payload = JSON.parse(atob(part.replace(/-/g, '+').replace(/_/g, '/'))) as { company_id?: unknown }
-    return typeof payload.company_id === 'string' ? payload.company_id : null
-  } catch {
-    return null
-  }
-}
+export { companyFromToken } from '../../lib/token'
 
 /** The attempt found on the phone. Its first answer may never have been seen (the
  *  app was closed mid-request), so it counts as possibly made. */
@@ -58,11 +48,12 @@ export function latestBookingCall(stored: BookingAttempt | null, failed: Booking
   return stored?.key === failed.key && stored.call === failed.call
 }
 
-export type BookingStart = 'sent' | 'checkFailed' | 'declined' | 'closed' | 'notKept'
+export type BookingStart = 'sent' | 'checkFailed' | 'declined' | 'closed' | 'busy' | 'notKept'
 
 /** The steps after the press. The blacklist is asked for the phone as it was
  *  pressed (the server does not ask it); a sheet closed meanwhile books nothing;
- *  the attempt is kept on the phone before it is sent. */
+ *  a booking another window started meanwhile is not overwritten; the attempt
+ *  is kept on the phone before it is sent. */
 export async function startBooking(
   attempt: BookingAttempt,
   steps: {
@@ -72,6 +63,8 @@ export async function startBooking(
     isOpen: () => boolean
     keep: (attempt: BookingAttempt) => boolean
     send: (attempt: BookingAttempt) => void
+    /** The attempt already on the phone, if another window kept one. */
+    busy: () => BookingAttempt | null
   },
 ): Promise<BookingStart> {
   if (steps.digits.length >= 3) {
@@ -85,6 +78,7 @@ export async function startBooking(
     if (check.warned && !(await steps.confirmWarned())) return 'declined'
   }
   if (!steps.isOpen()) return 'closed'
+  if (steps.busy()) return 'busy'
   if (!steps.keep(attempt)) return 'notKept'
   steps.send(attempt)
   return 'sent'
