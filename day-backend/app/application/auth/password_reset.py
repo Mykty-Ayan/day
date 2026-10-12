@@ -111,8 +111,8 @@ class PasswordResetService:
             raise ResetUnavailable() from error
 
         user.hashed_password = hash_password(new_password)
-        user.token_version += 1  # whoever knew the old password is signed out
-        user = await self._users.update(user)
+        await self._users.update(user)
+        user = await self._users.bump_token_version(user.id)  # whoever knew the old password is signed out
         return issue_tokens(user)
 
     async def _chat_of(self, user: User) -> str | None:
