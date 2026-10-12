@@ -87,6 +87,23 @@ class LinkChannelService:
         )
         return await self._codes.save(code)
 
+    async def issue_code_for_member(
+        self,
+        company_id: uuid.UUID,
+        member_id: uuid.UUID,
+        channel: Channel = Channel.TELEGRAM,
+        now: datetime | None = None,
+    ) -> ChannelLinkCode:
+        """A code that links a chat as a team member, not as the owner issuing it.
+
+        A cleaner has no reason to open the web app; the owner hands them this
+        code instead. The chat then acts with the member's own rights.
+        """
+        member = await self._users.get_by_id(member_id) if self._users is not None else None
+        if member is None or member.company_id != company_id or not member.is_active:
+            raise LookupError("User not found")
+        return await self.issue_code(company_id, member.id, channel, now)
+
     async def redeem(
         self,
         code_value: str,

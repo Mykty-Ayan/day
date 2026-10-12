@@ -17,6 +17,8 @@ from app.application.messaging.notifications import (
 )
 from app.domain.assistant.gateway import ChatMessage
 from app.domain.assistant.value_objects import AssistantReply, AssistantUnavailable, PendingAction
+from app.domain.auth.entities import User
+from app.domain.auth.value_objects import UserRole
 from app.domain.booking.entities import Booking
 from app.domain.booking.value_objects import BookingStatus
 from app.domain.messaging.entities import (
@@ -808,3 +810,151 @@ class TestGuestBot:
         assert reply.handoff is True
         assert reply.booking_id is None
         assert conversation.state == ConversationState.HANDED_TO_HUMAN
+
+
+# ---------- team members in Telegram ----------
+
+
+class StubUsers:
+    """Only what the messaging services ask of the user repository."""
+
+    def __init__(self, users):
+        self.users = {u.id: u for u in users}
+
+    async def get_by_id(self, user_id):
+        return self.users.get(user_id)
+
+    async def get_many(self, user_ids):
+        return {i: self.users[i] for i in user_ids if i in self.users}
+
+
+OWNER = User(id=OWNER_ID, company_id=COMPANY_ID, email="owner@day.kz", role=UserRole.OWNER)
+CLEANER = User(company_id=COMPANY_ID, email="aigul@day.kz", role=UserRole.CLEANER)
+STRANGER = User(company_id=OTHER_COMPANY_ID, email="x@other.kz", role=UserRole.CLEANER)
+
+
+class TestTeamMembersInTelegram:
+    @pytest.mark.asyncio
+    async def test_owner_issues_a_code_that_links_the_chat_as_the_member(self):
+        codes, identities = FakeLinkCodeRepository(), FakeIdentityRepository()
+        svc = LinkChannelService(codes, identities, StubUsers([OWNER, CLEANER]))
+
+        code = await svc.issue_code_for_member(COMPANY_ID, CLEANER.id)
+        result = await svc.redeem(code.code, Channel.TELEGRAM, "777")
+
+        # The Mini App then signs in as the cleaner, with the cleaner's rights.
+        assert result.identity.user_id == CLEANER.id
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("member", [STRANGER, User(company_id=COMPANY_ID, email="gone@day.kz", is_active=False)])
+    async def test_no_code_for_someone_outside_the_team(self, member):
+        svc = LinkChannelService(FakeLinkCodeRepository(), FakeIdentityRepository(), StubUsers([member]))
+
+        with pytest.raises(LookupError):
+            await svc.issue_code_for_member(COMPANY_ID, member.id)
+
+    @pytest.mark.asyncio
+    async def test_booking_news_skips_a_cleaners_chat(self):
+        identities = FakeIdentityRepository(
+            [
+                ChannelIdentity(company_id=COMPANY_ID, channel=Channel.TELEGRAM, external_id="1", user_id=OWNER_ID),
+                ChannelIdentity(company_id=COMPANY_ID, channel=Channel.TELEGRAM, external_id="2", user_id=CLEANER.id),
+            ]
+        )
+        svc = NotificationService(FakeNotificationRepository(), identities, StubUsers([OWNER, CLEANER]))
+
+        queued = await svc.notify_company(COMPANY_ID, NotificationEvent.BOOKING_CREATED, {})
+
+        assert [n.target for n in queued] == ["1"]
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("text", ["/today", "/bookings", "/free", "/help", "кто заезжает сегодня?"])
+    async def test_a_cleaners_chat_gets_no_bookings_and_no_assistant(self, text):
+        class Untouchable:
+            async def list_by_company_date_range(self, *args):
+                raise AssertionError("a cleaner must not read bookings")
+
+        async def assistant_for(identity):
+            raise AssertionError("a cleaner must not reach the assistant")
+
+        bot = HostBotService(
+            LinkChannelService(FakeLinkCodeRepository(), FakeIdentityRepository()),
+            StubAvailability([]),
+            Untouchable(),
+            None,
+            None,
+            assistant_for=assistant_for,
+            user_repo=StubUsers([CLEANER]),
+        )
+        identity = ChannelIdentity(
+            company_id=COMPANY_ID, channel=Channel.TELEGRAM, external_id="777", user_id=CLEANER.id
+        )
+
+        reply = await bot.handle(identity, "777", text, today=TODAY)
+
+        assert "уборки" in reply.text.lower()
+
+    @pytest.mark.asyncio
+    async def test_a_cleaner_linking_the_chat_is_told_where_the_cleanings_are(self):
+        codes, identities = FakeLinkCodeRepository(), FakeIdentityRepository()
+        link = LinkChannelService(codes, identities, StubUsers([OWNER, CLEANER]))
+        code = await link.issue_code_for_member(COMPANY_ID, CLEANER.id)
+        bot = HostBotService(link, StubAvailability([]), None, None, None, user_repo=StubUsers([OWNER, CLEANER]))
+
+        reply = await bot.handle(None, "777", f"/start {code.code}")
+
+        assert "уборки" in reply.text.lower()
+        assert "/bookings" not in reply.text
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "now_linked",
+        [
+            ChannelIdentity(company_id=COMPANY_ID, channel=Channel.TELEGRAM, external_id="1", user_id=CLEANER.id),
+            ChannelIdentity(company_id=OTHER_COMPANY_ID, channel=Channel.TELEGRAM, external_id="1", user_id=OWNER_ID),
+            ChannelIdentity(
+                company_id=COMPANY_ID, channel=Channel.TELEGRAM, external_id="1", user_id=OWNER_ID, is_active=False
+            ),
+        ],
+    )
+    async def test_a_queued_notice_is_dropped_if_the_chat_changed_hands_before_it_went(self, now_linked):
+        # Queued for the owner's chat; by the time it goes out the chat is a cleaner's,
+        # another company's, or switched off.
+        repo = FakeNotificationRepository()
+        await repo.save(
+            OutboundNotification(
+                company_id=COMPANY_ID,
+                channel=Channel.TELEGRAM,
+                target="1",
+                event=NotificationEvent.BOOKING_CREATED,
+                payload={"guest_name": "Ann", "total_price": "25000"},
+            )
+        )
+        provider = FakeProvider()
+        dispatcher = NotificationDispatcher(
+            repo,
+            {Channel.TELEGRAM: provider},
+            identity_repo=FakeIdentityRepository([now_linked]),
+            user_repo=StubUsers([OWNER, CLEANER]),
+        )
+
+        assert await dispatcher.dispatch_due() == 0
+        assert provider.sent == []
+        assert repo.items[0].status == NotificationStatus.FAILED
+
+    @pytest.mark.asyncio
+    async def test_a_queued_notice_still_goes_to_the_owner(self):
+        repo = FakeNotificationRepository()
+        await repo.save(
+            OutboundNotification(company_id=COMPANY_ID, channel=Channel.TELEGRAM, target="1", payload={})
+        )
+        provider = FakeProvider()
+        owner_chat = ChannelIdentity(company_id=COMPANY_ID, channel=Channel.TELEGRAM, external_id="1", user_id=OWNER_ID)
+        dispatcher = NotificationDispatcher(
+            repo,
+            {Channel.TELEGRAM: provider},
+            identity_repo=FakeIdentityRepository([owner_chat]),
+            user_repo=StubUsers([OWNER]),
+        )
+
+        assert await dispatcher.dispatch_due() == 1

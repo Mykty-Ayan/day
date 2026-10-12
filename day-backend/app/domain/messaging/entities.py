@@ -97,6 +97,12 @@ class OutboundNotification:
         self.status = NotificationStatus.PENDING
         self.next_attempt_at = now + timedelta(minutes=2 ** (self.attempts - 1))
 
+    def drop(self, reason: str) -> None:
+        """Never send it: the chat is no longer one that may read it."""
+        self.status = NotificationStatus.FAILED
+        self.next_attempt_at = None
+        self.last_error = reason[:500]
+
     def mark_sent(self, now: datetime | None = None) -> None:
         self.status = NotificationStatus.SENT
         self.sent_at = now or datetime.utcnow()

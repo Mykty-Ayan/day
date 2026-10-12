@@ -28,6 +28,11 @@ channel_router = APIRouter(prefix="/channels", tags=["channels"])
 CHANNEL_BINDING_PREFIX = "channel:"
 
 
+class LinkCodeRequest(BaseModel):
+    # A team member to link instead of the caller: the chat then acts as them.
+    user_id: uuid.UUID | None = None
+
+
 class LinkCodeResponse(BaseModel):
     code: str
     expires_at: str | None
@@ -77,6 +82,7 @@ async def list_channels(
     dependencies=[Depends(require(Permission.API_KEYS_MANAGE))],
 )
 async def create_telegram_link_code(
+    body: LinkCodeRequest | None = None,
     company_id: uuid.UUID = Depends(get_company_id),
     user_id: uuid.UUID = Depends(get_user_id),
     session: AsyncSession = Depends(get_session),
@@ -87,7 +93,14 @@ async def create_telegram_link_code(
             detail="Telegram bot is not configured on the server",
         )
 
-    code = await build_link_service(session).issue_code(company_id, user_id)
+    service = build_link_service(session)
+    if body is not None and body.user_id is not None and body.user_id != user_id:
+        try:
+            code = await service.issue_code_for_member(company_id, body.user_id)
+        except LookupError:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+    else:
+        code = await service.issue_code(company_id, user_id)
     await session.commit()
     return LinkCodeResponse(
         code=code.code,

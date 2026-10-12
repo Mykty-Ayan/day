@@ -17,8 +17,9 @@ from datetime import date, timedelta
 from app.application.booking.check_availability import CheckAvailabilityService
 from app.application.messaging.date_parsing import format_date, parse_range
 from app.application.messaging.link_channel import LinkChannelService, StrandsTwoFactor
+from app.application.messaging.notifications import reads_bookings
 from app.domain.assistant.value_objects import AssistantUnavailable
-from app.domain.auth.repositories import CompanyRepository
+from app.domain.auth.repositories import CompanyRepository, UserRepository
 from app.domain.booking.repositories import BookingRepository, GuestRepository
 from app.domain.booking.value_objects import BookingStatus
 from app.domain.messaging.entities import ChannelIdentity
@@ -37,6 +38,12 @@ _NOT_LINKED = """Этот чат не привязан к компании.
 
 Откройте в приложении «Настройки → Команда и API-ключи», нажмите
 «Подключить Telegram» и отправьте сюда полученный код."""
+
+# A cleaner's chat: their tasks live in the Mini App, and bookings are not theirs to read.
+_STAFF = """Ваши уборки — в кнопке «Day» внизу чата: там список на сегодня и вперёд.
+
+Брони, свободные квартиры и ассистент доступны владельцу и менеджерам.
+Чтобы отключить чат: /stop"""
 
 _MAX_LISTED = 15
 # Telegram refuses anything past 4096 characters; an assistant answer that long
@@ -71,6 +78,8 @@ class HostBotService:
         assistant_for: Callable[[ChannelIdentity], Awaitable[object | None]] | None = None,
         # Names the company in the /start answer; without it the answer stays generic.
         company_repo: CompanyRepository | None = None,
+        # Tells a cleaner's chat from an operator's; without it every linked chat is an operator's.
+        user_repo: UserRepository | None = None,
     ) -> None:
         self._link = link_service
         self._availability = availability
@@ -79,6 +88,7 @@ class HostBotService:
         self._guests = guest_repo
         self._assistant_for = assistant_for
         self._companies = company_repo
+        self._users = user_repo
 
     async def handle(
         self,
@@ -100,8 +110,6 @@ class HostBotService:
         if identity is None or not identity.is_active:
             return BotReply(_NOT_LINKED)
 
-        if command in {"help", "menu"}:
-            return BotReply(_HELP)
         if command == "stop":
             try:
                 await self._link.unlink(Channel.TELEGRAM, external_id)
@@ -111,6 +119,10 @@ class HostBotService:
                     "Сначала выключите «Вход с кодом из Telegram» в настройках, потом отправьте /stop."
                 )
             return BotReply("Чат отключён. Чтобы подключить снова, отправьте /start и код.")
+        if not await self._reads_bookings(identity):
+            return BotReply(_STAFF)
+        if command in {"help", "menu"}:
+            return BotReply(_HELP)
         if command == "free":
             return await self._free(identity.company_id, argument, today)
         if command == "today":
@@ -121,6 +133,14 @@ class HostBotService:
         # Not a command. The operator wrote a sentence, and the assistant can
         # answer the same questions the Mini App answers.
         return await self._ask_assistant(identity, text.strip(), today, history)
+
+    async def _reads_bookings(self, identity: ChannelIdentity) -> bool:
+        if self._users is None or identity.user_id is None:
+            return True
+        return reads_bookings(await self._users.get_by_id(identity.user_id))
+
+    async def _help_for(self, identity: ChannelIdentity) -> str:
+        return _HELP if await self._reads_bookings(identity) else _STAFF
 
     async def _ask_assistant(
         self,
@@ -161,7 +181,7 @@ class HostBotService:
     ) -> BotReply:
         if not code:
             if identity is not None and identity.is_active:
-                return BotReply(f"Чат уже подключён.\n\n{_HELP}")
+                return BotReply(f"Чат уже подключён.\n\n{await self._help_for(identity)}")
             return BotReply(_NOT_LINKED)
 
         try:
@@ -173,7 +193,8 @@ class HostBotService:
             )
         except ValueError as exc:
             return BotReply(f"{exc}. Сгенерируйте новый код в приложении.")
-        return BotReply(f"{await self._linked_text(linked.company_id, linked.previous_company_id)}\n\n{_HELP}")
+        linked_text = await self._linked_text(linked.company_id, linked.previous_company_id)
+        return BotReply(f"{linked_text}\n\n{await self._help_for(linked.identity)}")
 
     async def _linked_text(self, company_id: uuid.UUID, previous_company_id: uuid.UUID | None) -> str:
         """Say which company the chat now answers for, and which one lost it."""
