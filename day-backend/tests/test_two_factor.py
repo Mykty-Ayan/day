@@ -175,3 +175,62 @@ async def test_sign_in_with_a_telegram_code_through_the_api(monkeypatch):
     finally:
         app.dependency_overrides.pop(get_session, None)
         await engine.dispose()
+
+
+# ---------- the chat a two-factor sign-in depends on ----------
+
+
+def _linked(two_factor: bool, extra_chat: str | None = None):
+    from app.application.messaging.link_channel import LinkChannelService
+    from tests.test_messaging import FakeLinkCodeRepository
+
+    user = User(company_id=COMPANY_ID, email="owner@example.com", role=UserRole.OWNER)
+    user.two_factor_enabled = two_factor
+    chats = [ChannelIdentity(company_id=COMPANY_ID, channel=Channel.TELEGRAM, external_id="489615644", user_id=user.id)]
+    if extra_chat:
+        chats.append(
+            ChannelIdentity(company_id=COMPANY_ID, channel=Channel.TELEGRAM, external_id=extra_chat, user_id=user.id)
+        )
+    identities = FakeIdentityRepository(chats)
+    link = LinkChannelService(FakeLinkCodeRepository(), identities, FakeUserRepository([user]))
+    return link, identities, user
+
+
+@pytest.mark.asyncio
+async def test_the_last_chat_of_a_two_factor_user_cannot_be_unlinked():
+    from app.application.messaging.link_channel import StrandsTwoFactor
+
+    link, identities, _ = _linked(two_factor=True)
+    with pytest.raises(StrandsTwoFactor):
+        await link.unlink(Channel.TELEGRAM, "489615644")
+    assert identities.identities[0].is_active is True
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(("two_factor", "extra_chat"), [(False, None), (True, "555")])
+async def test_a_chat_unlinks_when_sign_in_does_not_depend_on_it(two_factor, extra_chat):
+    link, identities, _ = _linked(two_factor=two_factor, extra_chat=extra_chat)
+    await link.unlink(Channel.TELEGRAM, "489615644")
+    assert identities.identities[0].is_active is False
+
+
+@pytest.mark.asyncio
+async def test_the_last_chat_of_a_two_factor_user_cannot_be_moved_to_someone_else():
+    import uuid as _uuid
+    from datetime import datetime, timedelta
+
+    from app.application.messaging.link_channel import StrandsTwoFactor
+    from app.domain.messaging.entities import ChannelLinkCode
+
+    link, identities, _ = _linked(two_factor=True)
+    code = ChannelLinkCode(
+        company_id=_uuid.uuid4(),
+        code="ABC123",
+        channel=Channel.TELEGRAM,
+        created_by=_uuid.uuid4(),
+        expires_at=datetime.utcnow() + timedelta(minutes=10),
+    )
+    await link._codes.save(code)
+    with pytest.raises(StrandsTwoFactor):
+        await link.redeem("ABC123", Channel.TELEGRAM, "489615644")
+    assert identities.identities[0].company_id == COMPANY_ID

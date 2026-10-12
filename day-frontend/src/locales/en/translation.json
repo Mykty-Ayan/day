@@ -794,7 +794,9 @@
     "disconnect": "Disconnect",
     "codeFailed": "Could not issue a code",
     "whatsappConnected": "WhatsApp channel connected",
-    "whatsappFailed": "Could not connect the channel"
+    "whatsappFailed": "Could not connect the channel",
+    "strandsTwoFactor": "This chat receives sign-in codes. Turn off the Telegram sign-in code in Settings first",
+    "disconnectFailed": "Could not disconnect the chat"
   },
   "miniapp": {
     "loading": "Loading…",

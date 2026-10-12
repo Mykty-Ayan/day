@@ -794,7 +794,9 @@
     "disconnect": "Отключить",
     "codeFailed": "Не удалось выдать код",
     "whatsappConnected": "WhatsApp-канал подключён",
-    "whatsappFailed": "Не удалось подключить канал"
+    "whatsappFailed": "Не удалось подключить канал",
+    "strandsTwoFactor": "Сюда приходят коды для входа. Сначала выключите «Вход с кодом из Telegram» в настройках",
+    "disconnectFailed": "Не удалось отключить чат"
   },
   "miniapp": {
     "loading": "Загрузка…",

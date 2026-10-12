@@ -794,7 +794,9 @@
     "disconnect": "Ажырату",
     "codeFailed": "Код беру мүмкін болмады",
     "whatsappConnected": "WhatsApp арнасы қосылды",
-    "whatsappFailed": "Арнаны қосу мүмкін болмады"
+    "whatsappFailed": "Арнаны қосу мүмкін болмады",
+    "strandsTwoFactor": "Бұл чатқа кіру кодтары келеді. Алдымен баптаулардағы «Telegram кодымен кіру» дегенді өшіріңіз",
+    "disconnectFailed": "Чатты ажырату мүмкін болмады"
   },
   "miniapp": {
     "loading": "Жүктелуде…",

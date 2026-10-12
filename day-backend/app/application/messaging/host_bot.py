@@ -15,7 +15,7 @@ from datetime import date, timedelta
 
 from app.application.booking.check_availability import CheckAvailabilityService
 from app.application.messaging.date_parsing import format_date, parse_range
-from app.application.messaging.link_channel import LinkChannelService
+from app.application.messaging.link_channel import LinkChannelService, StrandsTwoFactor
 from app.domain.assistant.value_objects import AssistantUnavailable
 from app.domain.booking.repositories import BookingRepository, GuestRepository
 from app.domain.booking.value_objects import BookingStatus
@@ -98,7 +98,13 @@ class HostBotService:
         if command in {"help", "menu"}:
             return BotReply(_HELP)
         if command == "stop":
-            await self._link.unlink(Channel.TELEGRAM, external_id)
+            try:
+                await self._link.unlink(Channel.TELEGRAM, external_id)
+            except StrandsTwoFactor:
+                return BotReply(
+                    "Не отключаю: сюда приходят коды для входа в Day. "
+                    "Сначала выключите «Вход с кодом из Telegram» в настройках, потом отправьте /stop."
+                )
             return BotReply("Чат отключён. Чтобы подключить снова, отправьте /start и код.")
         if command == "free":
             return await self._free(identity.company_id, argument, today)
@@ -155,6 +161,11 @@ class HostBotService:
 
         try:
             await self._link.redeem(code, Channel.TELEGRAM, external_id, display_name)
+        except StrandsTwoFactor:
+            return BotReply(
+                "Этот чат получает коды для входа другого аккаунта Day. "
+                "Пусть его владелец сначала выключит «Вход с кодом из Telegram» в настройках."
+            )
         except ValueError as exc:
             return BotReply(f"{exc}. Сгенерируйте новый код в приложении.")
         return BotReply(f"Готово, чат подключён к компании.\n\n{_HELP}")
