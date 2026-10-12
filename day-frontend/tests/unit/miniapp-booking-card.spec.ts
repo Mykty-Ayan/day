@@ -19,6 +19,7 @@ import {
   saveAttempt,
   settlement,
   storedAttempt,
+  withMoneyLock,
   type MoneyAttempt,
 } from '../../src/pages/miniapp/booking-card'
 import type { BookingPayment } from '../../src/types/booking'
@@ -176,6 +177,28 @@ test.describe('what a fresh read says of a "received" whose answer was lost', ()
     expect(receiveOutcome(payment('failed'))).toBe('gone')
     expect(receiveOutcome(undefined)).toBe('gone')
   })
+})
+
+test('the windows of the app take turns on a booking\'s money attempt', async () => {
+  const asked: string[] = []
+  let held = false
+  const locks = {
+    request: async <T,>(name: string, run: () => T | PromiseLike<T>): Promise<T> => {
+      asked.push(name)
+      expect(held).toBe(false)
+      held = true
+      try {
+        return await run()
+      } finally {
+        held = false
+      }
+    },
+  }
+
+  expect(await withMoneyLock('b-1', () => 'read and kept', locks)).toBe('read and kept')
+  expect(asked).toEqual(['day.miniapp.money.b-1'])
+  // Without Web Locks (an old webview) it still runs.
+  expect(await withMoneyLock('b-1', () => 'alone', undefined)).toBe('alone')
 })
 
 test.describe('an unsettled money attempt outlives the card', () => {
