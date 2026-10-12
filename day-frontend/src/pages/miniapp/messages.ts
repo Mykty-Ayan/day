@@ -114,11 +114,16 @@ export function buildCheckInMessage(
     ),
   )
 
-  if (property?.check_in_method) {
+  // "Other" tells the guest nothing; the instructions below say the rest.
+  if (property?.check_in_method && property.check_in_method !== 'other') {
     lines.push('', t('miniapp.booking.howIn', { method: t(`properties.checkInMethod.${property.check_in_method}`) }))
   }
   if (property?.check_in_instructions) lines.push('', property.check_in_instructions.trim())
-  const forGuest = (property?.facts ?? []).filter((fact) => fact.audience === 'guest').map((fact) => fact.text.trim())
+  // Guest-only notes hold the lockbox code: a guest who has not confirmed or paid does not get it yet.
+  const confirmed = booking.status === 'confirmed' || booking.status === 'checked_in'
+  const forGuest = confirmed
+    ? (property?.facts ?? []).filter((fact) => fact.audience === 'guest').map((fact) => fact.text.trim())
+    : []
   if (forGuest.length > 0) lines.push('', ...forGuest)
 
   // A missing greeting would otherwise leave the text starting with a blank line.
