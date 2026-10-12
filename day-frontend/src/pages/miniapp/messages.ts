@@ -77,6 +77,8 @@ export function buildCheckInMessage(
   property: PropertyBrief | undefined,
   language: string,
   t: Translate,
+  /** The status was reread from the server since the card opened. */
+  statusFresh = true,
 ): string {
   const lines: string[] = []
 
@@ -119,8 +121,9 @@ export function buildCheckInMessage(
     lines.push('', t('miniapp.booking.howIn', { method: t(`properties.checkInMethod.${property.check_in_method}`) }))
   }
   if (property?.check_in_instructions) lines.push('', property.check_in_instructions.trim())
-  // Guest-only notes hold the lockbox code: a guest who has not confirmed or paid does not get it yet.
-  const confirmed = booking.status === 'confirmed' || booking.status === 'checked_in'
+  // Guest-only notes hold the lockbox code: a guest who has not confirmed or paid does not get it yet,
+  // and a cached "confirmed" may be a booking the CRM has since cancelled.
+  const confirmed = statusFresh && (booking.status === 'confirmed' || booking.status === 'checked_in')
   const forGuest = confirmed
     ? (property?.facts ?? []).filter((fact) => fact.audience === 'guest').map((fact) => fact.text.trim())
     : []

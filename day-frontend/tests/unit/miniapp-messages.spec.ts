@@ -254,6 +254,14 @@ test.describe('buildCheckInMessage', () => {
     expect(plain(buildCheckInMessage(booking({ status: 'checked_in' }), flat, 'ru', t))).toContain('4815')
   })
 
+  test('no guest-only notes on a status not yet reread: the CRM may have cancelled it', () => {
+    const flat = { ...FLAT, facts: [{ text: 'Код ключницы 4815', audience: 'guest' as const }] }
+
+    const message = buildCheckInMessage(booking({ status: 'confirmed' }), flat, 'ru', t, false)
+
+    expect(plain(message)).not.toContain('4815')
+  })
+
   test('says nothing about the way in when it is just "other"', () => {
     const message = buildCheckInMessage(booking(), { ...FLAT, check_in_method: 'other' }, 'ru', t)
 
