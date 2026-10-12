@@ -17,6 +17,9 @@ logger = logging.getLogger(__name__)
 # Rate limits per minute
 _GET_LIMIT = 100
 _MUTATE_LIMIT = 30
+# Login, register, token refresh: the only routes that take a password.
+_AUTH_LIMIT = 10
+_AUTH_PREFIX = "/api/v1/auth/"
 
 # Paths excluded from rate limiting
 _EXCLUDED_PATHS = {"/api/v1/health", "/health"}
@@ -42,14 +45,27 @@ def _bucket_owner(request: Request) -> str:
     The limiter runs before auth, so the company is not known yet. The caller's
     own credential is the closest stable identity: one key or one login token
     gets one bucket, and a busy integration cannot use up the limit of every
-    other user. Anonymous calls (login, register) fall back to the client
-    address; behind a proxy that is the proxy, so they share one bucket.
+    other user. Anonymous calls fall back to the client address, which uvicorn
+    takes from X-Forwarded-For (FORWARDED_ALLOW_IPS in the Dockerfile).
+
+    Auth routes always count by address: they need no credential, so keying
+    them on a header let a guesser buy a fresh bucket per attempt.
     """
-    for header in ("x-api-key", "authorization"):
-        value = request.headers.get(header)
-        if value:
-            return f"{header}:{hashlib.sha256(value.encode()).hexdigest()[:16]}"
+    if not request.url.path.startswith(_AUTH_PREFIX):
+        for header in ("x-api-key", "authorization"):
+            value = request.headers.get(header)
+            if value:
+                return f"{header}:{hashlib.sha256(value.encode()).hexdigest()[:16]}"
     return f"ip:{request.client.host if request.client else 'unknown'}"
+
+
+def _limit_for(request: Request) -> tuple[str, int]:
+    """The bucket name and per-minute limit for this request."""
+    if request.url.path.startswith(_AUTH_PREFIX):
+        return "auth", _AUTH_LIMIT
+    if request.method.upper() == "GET":
+        return "get", _GET_LIMIT
+    return "mutate", _MUTATE_LIMIT
 
 
 class RateLimitMiddleware(BaseHTTPMiddleware):
@@ -82,15 +98,8 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             # Graceful fallback: no rate limiting if Redis unavailable
             return await call_next(request)
 
-        # Determine rate limit based on method
-        method = request.method.upper()
-        if method == "GET":
-            limit = _GET_LIMIT
-        else:
-            limit = _MUTATE_LIMIT
-
         owner = _bucket_owner(request)
-        bucket = "get" if method == "GET" else "mutate"
+        bucket, limit = _limit_for(request)
         window = 60  # 1 minute window
 
         now = int(time.time())

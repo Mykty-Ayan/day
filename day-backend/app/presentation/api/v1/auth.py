@@ -7,6 +7,7 @@ from app.application.auth.auth_service import AuthService
 from app.application.auth.telegram_login import TelegramLoginService, TelegramNotLinked
 from app.config import settings
 from app.infrastructure.database import get_session
+from app.infrastructure.login_throttle import LoginThrottle, get_login_throttle
 from app.infrastructure.repositories.auth import SqlCompanyRepository, SqlUserRepository
 from app.infrastructure.repositories.messaging import SqlChannelIdentityRepository
 from app.infrastructure.telegram_init_data import InitDataError, verify_init_data
@@ -39,12 +40,25 @@ async def register(body: RegisterRequest, session: AsyncSession = Depends(get_se
 
 
 @auth_router.post("/login", response_model=TokenResponse)
-async def login(body: LoginRequest, session: AsyncSession = Depends(get_session)):
+async def login(
+    body: LoginRequest,
+    session: AsyncSession = Depends(get_session),
+    throttle: LoginThrottle = Depends(get_login_throttle),
+):
+    wait = throttle.retry_after(body.email)
+    if wait:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Too many failed login attempts. Try again later.",
+            headers={"Retry-After": str(wait)},
+        )
     svc = _auth_service(session)
     try:
         tokens = await svc.login(body.email, body.password)
     except ValueError as e:
+        throttle.failed(body.email)
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(e))
+    throttle.succeeded(body.email)
     return tokens
 
 
