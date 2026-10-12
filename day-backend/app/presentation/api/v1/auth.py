@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.application.auth.auth_service import AuthService
-from app.application.auth.telegram_login import TelegramLoginService, TelegramNotLinked
+from app.application.auth.telegram_login import TelegramLoginService, TelegramNotLinked, TelegramSessionEnded
 from app.config import settings
 from app.infrastructure.database import get_session
 from app.infrastructure.login_throttle import LoginThrottle, get_login_throttle
@@ -89,6 +89,8 @@ async def telegram_miniapp_login(
     svc = TelegramLoginService(SqlChannelIdentityRepository(session), SqlUserRepository(session))
     try:
         return await svc.issue_tokens(telegram_user)
+    except TelegramSessionEnded as e:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(e))
     except TelegramNotLinked as e:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
 

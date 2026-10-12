@@ -24,6 +24,7 @@ def _model_to_user(m: UserModel) -> User:
         is_active=m.is_active,
         created_at=m.created_at,
         token_version=m.token_version or 0,
+        tokens_revoked_at=m.tokens_revoked_at,
     )
 
 
@@ -86,9 +87,31 @@ class SqlUserRepository(UserRepository):
         model.full_name = user.full_name
         model.phone = user.phone
         model.is_active = user.is_active
-        model.token_version = user.token_version
+        # token_version is left alone: writing back a value read earlier would
+        # undo a sign-out that happened in between.
         await self._session.flush()
         await self._session.refresh(model)
+        return _model_to_user(model)
+
+    async def get_for_update(self, user_id: uuid.UUID) -> User | None:
+        stmt = (
+            select(UserModel)
+            .where(UserModel.id == user_id)
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
+        model = await self._session.scalar(stmt)
+        return _model_to_user(model) if model else None
+
+    async def bump_token_version(self, user_id: uuid.UUID) -> User:
+        await self._session.execute(
+            update(UserModel)
+            .where(UserModel.id == user_id)
+            .values(token_version=UserModel.token_version + 1, tokens_revoked_at=datetime.utcnow())
+        )
+        model = await self._session.get(UserModel, user_id, populate_existing=True)
+        if model is None:
+            raise ValueError("User not found")
         return _model_to_user(model)
 
     async def list_by_company(

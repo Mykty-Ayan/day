@@ -75,11 +75,9 @@ class AuthService:
         return issue_tokens(user)
 
     async def logout_everywhere(self, user_id: uuid.UUID) -> None:
-        user = await self._user_repo.get_by_id(user_id)
-        if user is None:
+        if await self._user_repo.get_by_id(user_id) is None:
             return
-        user.token_version += 1
-        await self._user_repo.update(user)
+        await self._user_repo.bump_token_version(user_id)
 
     async def get_current_user(self, user_id: uuid.UUID) -> User | None:
         return await self._user_repo.get_by_id(user_id)

@@ -1,3 +1,4 @@
+import axios from 'axios'
 import apiClient from './client'
 
 export interface TokenResponse {
@@ -40,9 +41,17 @@ export async function refreshToken(refresh_token: string): Promise<TokenResponse
   return res.data
 }
 
-/** Ends every session of the user on the server, not just this tab's. */
-export async function logout(): Promise<void> {
-  await apiClient.post('/auth/logout')
+/** Ends every session of the user on the server, not just this tab's.
+ *  Sent around the interceptors with the token captured before the local
+ *  sign-out, and never awaited: no network must keep the user signed in. */
+export function logout(accessToken: string | null): void {
+  if (!accessToken) return
+  axios
+    .post(`${apiClient.defaults.baseURL}/auth/logout`, null, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+      timeout: 5000,
+    })
+    .catch(() => undefined)
 }
 
 export async function getMe(): Promise<UserResponse> {

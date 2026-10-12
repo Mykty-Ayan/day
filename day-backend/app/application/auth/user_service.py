@@ -70,7 +70,9 @@ class UserManagementService:
         password: str | None = None,
         acting_user_id: uuid.UUID | None = None,
     ) -> User:
-        user = await self._get_own(user_id, company_id)
+        # Locked: two edits of one user (or an edit and a sign-out) run one
+        # after the other instead of writing back each other's old copy.
+        user = await self._get_own(user_id, company_id, lock=True)
         access_changed = False
 
         if role is not None and role != user.role:
@@ -91,11 +93,12 @@ class UserManagementService:
             user.hashed_password = hash_password(password)
             access_changed = True
 
+        updated = await self._repo.update(user)
         # Tokens issued before carry the old role, or the trust of the old
         # password: every open session of this user ends.
         if access_changed:
-            user.token_version += 1
-        return await self._repo.update(user)
+            updated = await self._repo.bump_token_version(user.id)
+        return updated
 
     async def deactivate(
         self,
@@ -110,8 +113,8 @@ class UserManagementService:
             acting_user_id=acting_user_id,
         )
 
-    async def _get_own(self, user_id: uuid.UUID, company_id: uuid.UUID) -> User:
-        user = await self._repo.get_by_id(user_id)
+    async def _get_own(self, user_id: uuid.UUID, company_id: uuid.UUID, *, lock: bool = False) -> User:
+        user = await (self._repo.get_for_update(user_id) if lock else self._repo.get_by_id(user_id))
         if user is None or user.company_id != company_id:
             raise ValueError("User not found")
         return user

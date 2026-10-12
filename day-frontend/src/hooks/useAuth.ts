@@ -44,10 +44,9 @@ export function useRegister() {
 export function useLogout() {
   const queryClient = useQueryClient()
   const navigate = useNavigate()
-  return async () => {
-    // Best effort: an expired session or no network must not keep the user
-    // signed in on this device.
-    await logout().catch(() => undefined)
+  return () => {
+    // Local sign-out first; the server is told in the background.
+    logout(localStorage.getItem('access_token'))
     localStorage.removeItem('access_token')
     localStorage.removeItem('refresh_token')
     queryClient.clear()

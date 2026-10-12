@@ -24,7 +24,12 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     op.add_column("users", sa.Column("token_version", sa.Integer(), nullable=False, server_default="0"))
+    # When the version last went up. The Mini App signs in from a Telegram
+    # blob valid for a day, which has a date but no version: a blob older than
+    # this moment is from before the sign-out and is refused.
+    op.add_column("users", sa.Column("tokens_revoked_at", sa.DateTime(), nullable=True))
 
 
 def downgrade() -> None:
+    op.drop_column("users", "tokens_revoked_at")
     op.drop_column("users", "token_version")

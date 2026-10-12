@@ -43,6 +43,18 @@ apiClient.interceptors.request.use((config) => {
   return config
 })
 
+/** The refresh that just finished belonged to a session replaced meanwhile. */
+function retryWithCurrentSession(originalRequest: { headers: Record<string, string> }, outcome: unknown) {
+  const current = localStorage.getItem('access_token')
+  if (!current) {
+    processQueue(outcome, null)
+    return Promise.reject(outcome)
+  }
+  processQueue(null, current)
+  originalRequest.headers.Authorization = `Bearer ${current}`
+  return apiClient(originalRequest)
+}
+
 let isRefreshing = false
 let failedQueue: { resolve: (token: string) => void; reject: (err: unknown) => void }[] = []
 
@@ -91,6 +103,11 @@ apiClient.interceptors.response.use(
           { refresh_token: refreshTokenValue },
           { headers: { 'Content-Type': 'application/json' } },
         )
+        // A newer session was stored while this refresh ran (a password
+        // change, a fresh sign-in, a sign-out): its tokens win.
+        if (localStorage.getItem('refresh_token') !== refreshTokenValue) {
+          return retryWithCurrentSession(originalRequest, res)
+        }
         const { access_token, refresh_token } = res.data
         localStorage.setItem('access_token', access_token)
         localStorage.setItem('refresh_token', refresh_token)
@@ -98,6 +115,9 @@ apiClient.interceptors.response.use(
         originalRequest.headers.Authorization = `Bearer ${access_token}`
         return apiClient(originalRequest)
       } catch (refreshError) {
+        if (localStorage.getItem('refresh_token') !== refreshTokenValue) {
+          return retryWithCurrentSession(originalRequest, refreshError)
+        }
         const reissued = await reauthenticateFromTelegram()
         if (reissued) {
           processQueue(null, reissued)

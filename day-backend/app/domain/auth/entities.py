@@ -28,6 +28,7 @@ class User:
     # Carried in every token as "tv". Raising it ends all the user's sessions:
     # sign-out, a role change, deactivation, a new password.
     token_version: int = 0
+    tokens_revoked_at: datetime | None = None  # UTC, when token_version last went up
 
 
 @dataclass

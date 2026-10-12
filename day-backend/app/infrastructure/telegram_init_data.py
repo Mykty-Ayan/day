@@ -28,6 +28,7 @@ class TelegramUser:
     first_name: str = ""
     last_name: str = ""
     username: str = ""
+    auth_date: int = 0  # when Telegram signed the blob, Unix seconds
 
     @property
     def display_name(self) -> str:
@@ -76,4 +77,5 @@ def verify_init_data(init_data: str, bot_token: str, max_age_seconds: int = 8640
         first_name=raw_user.get("first_name", ""),
         last_name=raw_user.get("last_name", ""),
         username=raw_user.get("username", ""),
+        auth_date=auth_date,
     )
