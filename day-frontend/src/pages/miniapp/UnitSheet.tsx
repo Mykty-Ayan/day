@@ -10,6 +10,7 @@ import { CalendarSync, Copy, Wifi } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { getCalendarLink, getProperty } from '../../api/properties'
 import { copyText, tapFeedback } from '../../lib/telegram'
+import { cardRead, readyToAct } from './card-state'
 import { formatMoney } from './format'
 import { ActionButton, Sheet } from './miniapp-ui'
 
@@ -31,12 +32,16 @@ function Block({ title, children }: { title: string; children: React.ReactNode }
 export default function UnitSheet({ unitId, onClose }: { unitId: string | null; onClose: () => void }) {
   const { t, i18n } = useTranslation()
   const [copied, setCopied] = useState<'wifi' | 'link' | null>(null)
+  const [openedAt] = useState(() => Date.now())
 
+  // Read on every open and dropped when the sheet closes. The Wi-Fi password and
+  // guest-only facts depend on the caller's rights: they show only from a read
+  // made since the sheet opened, never from a cached one.
   const detail = useQuery({
-    queryKey: ['miniapp', 'property', unitId],
-    queryFn: () => getProperty(unitId!),
+    ...cardRead(['miniapp', 'property', unitId], (signal) => getProperty(unitId!, signal)),
     enabled: Boolean(unitId),
   })
+  const secretsShown = readyToAct(detail, openedAt)
   // Fetched up front: Telegram on iOS refuses a clipboard write after an await.
   const link = useQuery({
     queryKey: ['miniapp', 'calendar-link', unitId],
@@ -55,6 +60,7 @@ export default function UnitSheet({ unitId, onClose }: { unitId: string | null; 
 
   if (!unitId) return null
   const flat = detail.data
+  const facts = (flat?.facts ?? []).filter((fact) => secretsShown || fact.audience !== 'guest')
   const money = (value: number) => `${formatMoney(value, i18n.language)} ₸`
 
   return (
@@ -96,19 +102,21 @@ export default function UnitSheet({ unitId, onClose }: { unitId: string | null; 
 
           <button
             type="button"
-            disabled={!flat.wifi_name}
+            disabled={!secretsShown || !flat.wifi_name}
             onClick={() => copy('wifi', [flat.wifi_name, flat.wifi_password].filter(Boolean).join(' / '))}
             className="tg-surface flex min-h-[44px] w-full items-center gap-2 rounded-xl px-3 text-left text-sm disabled:opacity-60"
           >
             <Wifi className="h-4 w-4 shrink-0" />
             <span className="flex-1 truncate">
-              {flat.wifi_name
-                ? `${flat.wifi_name}${flat.wifi_password ? ` / ${flat.wifi_password}` : ''}`
-                : t('miniapp.noWifi')}
+              {!secretsShown
+                ? t('miniapp.loading')
+                : flat.wifi_name
+                  ? `${flat.wifi_name}${flat.wifi_password ? ` / ${flat.wifi_password}` : ''}`
+                  : t('miniapp.noWifi')}
             </span>
             {copied === 'wifi' && <span className="tg-hint text-xs">{t('miniapp.copied')}</span>}
           </button>
-          {flat.wifi_name && !flat.wifi_password && (
+          {secretsShown && flat.wifi_name && !flat.wifi_password && (
             <p className="tg-hint text-xs">{t('miniapp.unit.wifiNoPassword')}</p>
           )}
 
@@ -129,9 +137,9 @@ export default function UnitSheet({ unitId, onClose }: { unitId: string | null; 
             </Block>
           )}
 
-          {(flat.facts ?? []).length > 0 && (
+          {facts.length > 0 && (
             <Block title={t('miniapp.unit.facts')}>
-              {flat.facts!.map((fact) => (
+              {facts.map((fact) => (
                 <p key={fact.id} className="flex gap-2 text-sm">
                   <span className="tg-root shrink-0 rounded px-1.5 text-[10px] font-bold uppercase">
                     {t(fact.audience === 'guest' ? 'miniapp.unit.forGuest' : 'miniapp.unit.forAll')}
