@@ -206,7 +206,7 @@ class HostBotService:
         lines = [header, ""]
         for item in available[:_MAX_LISTED]:
             price = f" — {item.total_price:.0f}" if item.total_price is not None else ""
-            lines.append(f"• {item.property.name}{price}")
+            lines.append(f"• {html.escape(item.property.name)}{price}")
         if len(available) > _MAX_LISTED:
             lines.append(f"…и ещё {len(available) - _MAX_LISTED}")
         return BotReply("\n".join(lines))

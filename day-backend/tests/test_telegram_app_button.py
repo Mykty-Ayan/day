@@ -89,3 +89,13 @@ async def test_plain_text_has_no_keyboard(monkeypatch):
     await TelegramProvider(token="t").send_text("555", "Привет")
 
     assert "reply_markup" not in calls[0]
+
+
+@pytest.mark.asyncio
+async def test_other_refusals_are_not_blamed_on_the_button(monkeypatch):
+    calls = _stub(monkeypatch, StubResponse(400, {"ok": False, "description": "Bad Request: chat not found"}))
+
+    with pytest.raises(providers.ProviderError):
+        await TelegramProvider(token="t").send_text("555", "Новая бронь", buttons=[BUTTON])
+
+    assert len(calls) == 1

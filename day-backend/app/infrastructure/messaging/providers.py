@@ -19,6 +19,12 @@ logger = logging.getLogger(__name__)
 _TIMEOUT = httpx.Timeout(10.0, connect=5.0)
 
 
+def _blames_button(error: str) -> bool:
+    # BUTTON_TYPE_INVALID, BUTTON_URL_INVALID, WEBAPP_URL_INVALID and the like.
+    upper = error.upper()
+    return "BUTTON" in upper or "WEBAPP" in upper or "WEB_APP" in upper
+
+
 class ProviderError(RuntimeError):
     """A message could not be delivered. Callers retry through the outbox."""
 
@@ -54,7 +60,7 @@ class TelegramProvider:
             }
         async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
             response = await client.post(url, json=payload)
-            if response.status_code == 400 and buttons:
+            if response.status_code == 400 and buttons and _blames_button(response.text):
                 # The button is a convenience; the notice is the point. Telegram
                 # refuses the whole message over a button it dislikes.
                 logger.warning("Telegram refused the button, sending the text alone: %s", response.text[:200])

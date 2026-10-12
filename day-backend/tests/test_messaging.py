@@ -592,6 +592,15 @@ class TestHostBot:
         assert (check_in, check_out) == (date(2026, 8, 12), date(2026, 8, 15))
 
     @pytest.mark.asyncio
+    async def test_free_escapes_flat_names(self):
+        availability = StubAvailability([StubOption("Loft <2> & co", None)])
+        identity = ChannelIdentity(company_id=COMPANY_ID, channel=Channel.TELEGRAM, external_id="555")
+
+        reply = await _host_bot(availability).handle(identity, "555", "/free", today=TODAY)
+
+        assert "Loft &lt;2&gt; &amp; co" in reply.text
+
+    @pytest.mark.asyncio
     async def test_free_without_dates_uses_tonight(self):
         availability = StubAvailability([])
         identity = ChannelIdentity(company_id=COMPANY_ID, channel=Channel.TELEGRAM, external_id="555")
