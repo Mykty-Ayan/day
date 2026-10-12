@@ -10,20 +10,21 @@ import { useEffect, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { CalendarCheck, ShieldAlert } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
-import { calculatePrice, createBooking, listBookings, listGuests } from '../../api/bookings'
+import { calculatePrice, createBooking, listGuests, voidBookingKey } from '../../api/bookings'
 import { checkBlacklist, type AvailableProperty } from '../../api/miniapp'
 import { phoneDigits } from '../../lib/phone'
 import { confirmAction, resultFeedback } from '../../lib/telegram'
 import type { Booking, BookingSource } from '../../types/booking'
 import {
   companyFromToken,
-  findMade,
+  latestBookingCall,
   loadBookingAttempt,
   saveBookingAttempt,
   startBooking,
+  storedBookingAttempt,
   type BookingAttempt,
 } from './book-attempt'
-import { afterFailure } from './booking-card'
+import { afterFailure, nextCall } from './booking-card'
 import { errorText } from './errors'
 import { formatDay, formatMoney, formatTime } from './format'
 import { ActionButton, Chip, Field, Sheet } from './miniapp-ui'
@@ -77,9 +78,8 @@ export default function BookSheet({
   function isCurrent(sent: BookingAttempt): boolean {
     return loadBookingAttempt(phoneStorage(), company)?.key === sent.key
   }
-  // The attempt the flat's bookings were searched for after it was made: only then may it be discarded.
-  const [checkedFor, setCheckedFor] = useState<string | null>(null)
-  const [searching, setSearching] = useState(false)
+  // An attempt whose answer was lost, being settled on the server.
+  const [verifying, setVerifying] = useState(false)
   // From the press until the request is out (the blacklist check takes a moment).
   const [checking, setChecking] = useState(false)
   const pressed = useRef(false)
@@ -97,13 +97,14 @@ export default function BookSheet({
   const lookup = open && digits.length >= 11
 
   const known = useQuery({
-    queryKey: ['miniapp', 'guest', digits],
+    // Per company: a chat relinked to another one must not see this one's guests.
+    queryKey: ['miniapp', 'guest', company, digits],
     queryFn: () => listGuests({ phone: digits }),
     enabled: lookup,
     staleTime: 60_000,
   })
   const warning = useQuery({
-    queryKey: ['miniapp', 'blacklist', digits],
+    queryKey: ['miniapp', 'blacklist', company, digits],
     queryFn: () => checkBlacklist(digits),
     enabled: lookup,
     staleTime: 60_000,
@@ -139,10 +140,13 @@ export default function BookSheet({
       onBooked(created)
     },
     onError: (mutationError, sent) => {
-      if (!isCurrent(sent)) return
+      // Only the latest send of the attempt on the phone: an earlier send's late
+      // refusal says nothing about a retry whose answer was lost.
+      const stored = storedBookingAttempt(phoneStorage(), company)
+      if (!latestBookingCall(stored, sent)) return
       resultFeedback('error')
       // A refusal of the first call means nothing was made; otherwise only the same request may follow.
-      const left = afterFailure(sent, mutationError)
+      const left = afterFailure(stored, mutationError)
       setPending(left)
       if (!left) {
         setError(errorText(mutationError, t('miniapp.book.failed'), t))
@@ -164,6 +168,7 @@ export default function BookSheet({
     const attempt: BookingAttempt = {
       unit: unit!.name,
       key: crypto.randomUUID(),
+      call: 1,
       body: {
         property_id: unit!.property_id,
         guest_name: guestName,
@@ -182,7 +187,7 @@ export default function BookSheet({
         digits,
         check: (number) =>
           queryClient.fetchQuery({
-            queryKey: ['miniapp', 'blacklist', number],
+            queryKey: ['miniapp', 'blacklist', company, number],
             queryFn: () => checkBlacklist(number),
             staleTime: 60_000,
           }),
@@ -202,41 +207,40 @@ export default function BookSheet({
     }
   }
 
-  async function searchMade(stale: BookingAttempt) {
-    // Asked now, after the attempt, for this flat and these dates — not the
-    // "Upcoming" list, which stops at two weeks and fifty rows.
-    setSearching(true)
-    try {
-      const day = stale.body.check_in.slice(0, 10)
-      const found = await listBookings({
-        property_id: stale.body.property_id,
-        date_from: day,
-        date_to: day,
-        per_page: 100,
-      })
-      const made = findMade(stale, found.items)
-      if (made) {
-        if (isCurrent(stale)) setPending(null)
-        setError('')
-        queryClient.invalidateQueries({ queryKey: ['miniapp'] })
-        resultFeedback('success')
-        onBooked(made)
-        return
-      }
-      setCheckedFor(stale.key)
-    } catch (searchError) {
+  // A retry is the same body under the same key, numbered and kept before it goes out.
+  function retry(stale: BookingAttempt) {
+    const call = nextCall(stale)
+    if (!setPending(call)) {
       resultFeedback('error')
-      setError(errorText(searchError, t('miniapp.loadFailed'), t))
-    } finally {
-      if (alive.current) setSearching(false)
+      setError(t('miniapp.book.notKept'))
+      return
     }
+    book.mutate(call)
   }
 
-  async function askDiscard(stale: BookingAttempt) {
-    const ask = t('miniapp.book.discardAsk', { unit: stale.unit, guest: stale.body.guest_name })
-    if (await confirmAction(ask)) {
-      setPending(null)
-      setError('')
+  // Settles an attempt whose answer was lost, on the server: the key is voided
+  // under its lock, so either it made the booking, or it never will, even if
+  // the first send is still on its way. No list search, no guess.
+  async function checkAttempt(stale: BookingAttempt) {
+    setVerifying(true)
+    try {
+      const outcome = await voidBookingKey(stale.key)
+      // Settled: gone from the phone, unless an earlier sheet already cleared it.
+      if (isCurrent(stale)) setPending(null)
+      else setPendingState(loadBookingAttempt(phoneStorage(), company))
+      queryClient.invalidateQueries({ queryKey: ['miniapp'] })
+      if (outcome.booking) {
+        setError('')
+        resultFeedback('success')
+        onBooked(outcome.booking)
+        return
+      }
+      setError(t('miniapp.book.notMade', { unit: stale.unit, guest: stale.body.guest_name }))
+    } catch (checkError) {
+      resultFeedback('error')
+      setError(errorText(checkError, t('miniapp.loadFailed'), t))
+    } finally {
+      if (alive.current) setVerifying(false)
     }
   }
 
@@ -256,19 +260,13 @@ export default function BookSheet({
       {pending && (
         <div role="alert" className="tg-surface space-y-2 rounded-xl px-3 py-3">
           <p className="text-sm">{t('miniapp.book.pending', { unit: pending.unit, guest: pending.body.guest_name })}</p>
-          <ActionButton tone="primary" disabled={book.isPending} onClick={() => book.mutate(pending)}>
+          <ActionButton tone="primary" disabled={book.isPending || verifying} onClick={() => retry(pending)}>
             <CalendarCheck className="h-4 w-4" />
             {book.isPending ? t('miniapp.book.saving') : t('miniapp.book.retry')}
           </ActionButton>
-          {checkedFor === pending.key ? (
-            <ActionButton disabled={book.isPending} onClick={() => askDiscard(pending)}>
-              {t('miniapp.book.discard')}
-            </ActionButton>
-          ) : (
-            <ActionButton disabled={book.isPending || searching} onClick={() => searchMade(pending)}>
-              {searching ? t('miniapp.loading') : t('miniapp.book.search')}
-            </ActionButton>
-          )}
+          <ActionButton disabled={book.isPending || verifying} onClick={() => checkAttempt(pending)}>
+            {verifying ? t('miniapp.loading') : t('miniapp.book.check')}
+          </ActionButton>
         </div>
       )}
 

@@ -897,10 +897,9 @@
       "retry": "Retry the booking",
       "maybeMade": "No answer — the booking may already exist. Tap \"Retry booking\": it won't be doubled. Fields stay as sent until the answer comes.",
       "pending": "Booking {{unit}} for \"{{guest}}\" is unsettled: no answer came. No new booking starts, so the guest is not booked twice.",
-      "discard": "No booking — discard",
-      "discardAsk": "There is no booking of {{unit}} for \"{{guest}}\" on these dates on the server — checked just now. Discard the attempt?",
       "notKept": "The phone would not keep the booking attempt, so it is not sent: a dropped connection could book the guest twice. Free some space or book on the web.",
-      "search": "Check whether the booking was made"
+      "check": "Check on the server",
+      "notMade": "The {{unit}} booking for “{{guest}}” was not made and never will be. You can book again."
     },
     "booking": {
       "due": "Outstanding",
@@ -937,9 +936,9 @@
       "howIn": "Getting in: {{method}}.",
       "unsettledReceive": "No answer to confirming {{amount}}. Retry: the money won't count twice.",
       "notKept": "The phone would not keep the payment attempt, so it is not sent: a dropped connection could double it. Free some space or record the payment on the web.",
-      "discardAttempt": "Not in the history — discard",
-      "discardAsk": "The payment history above was just reread from the server. If {{amount}} is not in it, the attempt can be discarded. Discard?",
-      "checkHistory": "Check the payment history"
+      "checkAttempt": "Check on the server",
+      "notRecorded": "The {{amount}} payment was not recorded and never will be. If the money came, enter it again.",
+      "notReceived": "Confirming {{amount}} did not go through. If the money came, press “Received” again."
     },
     "cleaning": {
       "title": "Cleaning",
@@ -972,7 +971,8 @@
       "keepAmount": "How much to keep",
       "reason": "Reason",
       "reasonPlaceholder": "Broken mirror",
-      "cancel": "Cancel"
+      "cancel": "Cancel",
+      "alreadyTaken": "A deposit is already taken; the list is updated"
     },
     "ask": {
       "intro": "Ask in words — I answer and act.",

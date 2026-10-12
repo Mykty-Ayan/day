@@ -53,6 +53,20 @@ export type MoneyAttempt = (
 ) & {
   /** An earlier call got no clear answer: the money may be recorded already. */
   uncertain?: boolean
+  /** The number of the latest send: a late answer to an earlier one is told apart. */
+  call?: number
+}
+
+/** The attempt as it goes out once more. */
+export function nextCall<T extends { call?: number }>(attempt: T): T {
+  return { ...attempt, call: (attempt.call ?? 0) + 1 }
+}
+
+/** Whether a failed send is the latest one of the attempt kept on the phone. Only
+ *  then may its failure change the attempt: a late refusal of the first send
+ *  must not drop a retry whose answer was lost. */
+export function latestCall(stored: MoneyAttempt | null, failed: MoneyAttempt): stored is MoneyAttempt {
+  return sameAttempt(stored, failed) && stored?.call === failed.call
 }
 
 /** What is left of an attempt after its call failed. A refusal of the first
@@ -94,6 +108,11 @@ export function saveStored(storage: AttemptStore | undefined, key: string, value
 export function loadAttempt(storage: AttemptStore | undefined, bookingId: string): MoneyAttempt | null {
   const stored = loadStored<MoneyAttempt>(storage, attemptKey(bookingId))
   return stored ? { ...stored, uncertain: true } : null
+}
+
+/** The attempt exactly as the last send kept it, to judge that send's failure. */
+export function storedAttempt(storage: AttemptStore | undefined, bookingId: string): MoneyAttempt | null {
+  return loadStored<MoneyAttempt>(storage, attemptKey(bookingId))
 }
 
 /** Whether an answer belongs to this attempt: a late answer to an earlier one

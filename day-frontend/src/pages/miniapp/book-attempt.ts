@@ -1,7 +1,6 @@
 /** One press of "Book", and what is left of it when the answer is lost. */
 
-import { phoneDigits } from '../../lib/phone'
-import type { Booking, BookingCreateInput } from '../../types/booking'
+import type { BookingCreateInput } from '../../types/booking'
 import { loadStored, saveStored, type AttemptStore } from './booking-card'
 
 /** The form as it was at the press, under one Idempotency-Key. */
@@ -12,6 +11,8 @@ export interface BookingAttempt {
   unit: string
   /** An earlier call got no clear answer: the booking may exist already. */
   uncertain?: boolean
+  /** The number of the latest send: a late answer to an earlier one is told apart. */
+  call?: number
 }
 
 // One per company on a phone: until it is settled, no other booking starts,
@@ -45,20 +46,16 @@ export function saveBookingAttempt(
   return saveStored(storage, key(company), attempt)
 }
 
-/** The booking this attempt made, among the flat's bookings on those dates, if
- *  it was made: the same night (or start) and the same guest. */
-export function findMade(attempt: BookingAttempt, bookings: Booking[]): Booking | null {
-  const day = attempt.body.check_in.slice(0, 10)
-  const phone = phoneDigits(attempt.body.guest_phone)
-  return (
-    bookings.find(
-      (booking) =>
-        booking.status !== 'cancelled' &&
-        booking.property_id === attempt.body.property_id &&
-        booking.check_in.slice(0, 10) === day &&
-        (phone ? phoneDigits(booking.guest_phone) === phone : booking.guest_name === attempt.body.guest_name),
-    ) ?? null
-  )
+/** The attempt exactly as the last send kept it, to judge that send's failure. */
+export function storedBookingAttempt(storage: AttemptStore | undefined, company: string): BookingAttempt | null {
+  return loadStored<BookingAttempt>(storage, key(company))
+}
+
+/** Whether a failed send is the latest one of the attempt kept on the phone. Only
+ *  then may its failure change the attempt: a late refusal of the first send
+ *  must not drop a retry whose answer was lost. */
+export function latestBookingCall(stored: BookingAttempt | null, failed: BookingAttempt): stored is BookingAttempt {
+  return stored?.key === failed.key && stored.call === failed.call
 }
 
 export type BookingStart = 'sent' | 'checkFailed' | 'declined' | 'closed' | 'notKept'
