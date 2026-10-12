@@ -892,7 +892,9 @@
       "source": "Source",
       "hold": "Hold for {{count}} h",
       "holdHint": "The booking cancels itself unless it's confirmed within {{count}} h.",
-      "warnedAsk": "This number is on colleagues' blacklist. Book anyway?"
+      "warnedAsk": "This number is on colleagues' blacklist. Book anyway?",
+      "checkFailed": "Couldn't check the number against the blacklist. Try again.",
+      "retry": "Retry the booking"
     },
     "booking": {
       "due": "Outstanding",
@@ -998,7 +1000,8 @@
       "start": "Start",
       "hours": "Hours",
       "guests": "Guests",
-      "hoursShort": "{{count}} h"
+      "hoursShort": "{{count}} h",
+      "pickSlot": "Pick a date and a start time"
     }
   },
   "auth": {

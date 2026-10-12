@@ -30,11 +30,18 @@ export function nightsBetween(from: Date, to: Date): number {
   return Math.round((end - start) / 86_400_000)
 }
 
-/** A slot of whole hours from a start time; local wall-clock strings. */
-export function hourlyRange(date: string, start: string, hours: number): { checkIn: string; checkOut: string } {
+/** A slot of whole hours from a start time; local wall-clock strings. Null while
+ *  the date or the time is empty or broken — a cleared field, not a crash. */
+export function hourlyRange(
+  date: string,
+  start: string,
+  hours: number,
+): { checkIn: string; checkOut: string } | null {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !/^\d{2}:\d{2}$/.test(start)) return null
   const [year, month, dayOfMonth] = date.split('-').map(Number)
   const [hour, minute] = start.split(':').map(Number)
   const from = new Date(Date.UTC(year, month - 1, dayOfMonth, hour, minute))
+  if (Number.isNaN(from.getTime())) return null
   const to = new Date(from.getTime() + hours * 3_600_000)
   return { checkIn: from.toISOString().slice(0, 19), checkOut: to.toISOString().slice(0, 19) }
 }
