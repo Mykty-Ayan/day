@@ -3,12 +3,15 @@ import { Link, useNavigate } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 import { KeyRound } from 'lucide-react'
 import Button from '../components/ui/Button'
+import { useQueryClient } from '@tanstack/react-query'
 import { confirmPasswordReset, requestPasswordReset } from '../api/auth'
+import { storeSession } from '../api/client'
 
 /** The code goes to the Telegram chat linked in the app: Day sends no e-mail. */
 export default function ForgotPasswordPage() {
   const { t } = useTranslation()
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
   const [step, setStep] = useState<'email' | 'code'>('email')
   const [email, setEmail] = useState('')
   const [code, setCode] = useState('')
@@ -20,8 +23,10 @@ export default function ForgotPasswordPage() {
     const response = (err as { response?: { status?: number; data?: { detail?: string } } }).response
     if (response?.status === 503) return t('auth.forgot.unavailable')
     if (response?.status === 429) return t('auth.forgot.tooMany')
-    if (response?.data?.detail === 'The code is wrong or expired') return t('auth.forgot.wrongCode')
-    return response?.data?.detail || t('auth.forgot.failed')
+    const detail = response?.data?.detail
+    if (detail === 'The code is wrong or expired') return t('auth.forgot.wrongCode')
+    // A validation error carries a list, not a sentence.
+    return typeof detail === 'string' ? detail : t('auth.forgot.failed')
   }
 
   async function sendCode(event: React.FormEvent) {
@@ -45,8 +50,10 @@ export default function ForgotPasswordPage() {
     setBusy(true)
     try {
       const tokens = await confirmPasswordReset(email, code, password)
-      localStorage.setItem('access_token', tokens.access_token)
-      localStorage.setItem('refresh_token', tokens.refresh_token)
+      // Whatever an earlier session left in the cache belongs to someone else.
+      await queryClient.cancelQueries()
+      queryClient.clear()
+      storeSession(tokens)
       navigate({ to: '/bookings/today' })
     } catch (err) {
       setError(reason(err))

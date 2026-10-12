@@ -222,3 +222,35 @@ async def test_without_redis_every_email_gets_unavailable(email):
 def test_reset_routes_get_the_tight_limit(path):
     request = Request({"type": "http", "method": "POST", "path": path, "headers": []})
     assert _limit_for(request)[0] == "auth"
+
+
+@pytest.mark.asyncio
+async def test_a_code_dies_with_the_sessions_it_was_sent_for():
+    # Someone in the chat got a code; the owner then changed the password.
+    svc, users, telegram, user, background, _ = _setup()
+    await _request(svc, background)
+    code = _code(telegram)
+    await users.bump_token_version(user.id)
+    with pytest.raises(ValueError, match="wrong or expired"):
+        await svc.confirm("owner@example.com", code, "remembered-2")
+
+
+@pytest.mark.asyncio
+async def test_a_code_dies_when_its_chat_is_unlinked():
+    svc, _, telegram, user, background, _ = _setup()
+    await _request(svc, background)
+    code = _code(telegram)
+    svc._identities.identities[0].is_active = False
+    with pytest.raises(ValueError, match="wrong or expired"):
+        await svc.confirm("owner@example.com", code, "remembered-2")
+
+
+@pytest.mark.asyncio
+async def test_an_account_disabled_after_the_code_stays_disabled():
+    svc, users, telegram, user, background, _ = _setup()
+    await _request(svc, background)
+    code = _code(telegram)
+    users.users[user.id].is_active = False
+    with pytest.raises(ValueError, match="wrong or expired"):
+        await svc.confirm("owner@example.com", code, "remembered-2")
+    assert users.users[user.id].is_active is False

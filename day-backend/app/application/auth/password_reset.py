@@ -71,8 +71,10 @@ def _cooldown_key(user_id: uuid.UUID) -> str:
     return f"pwreset:cooldown:{user_id}"
 
 
-def _digest(user_id: uuid.UUID, code: str) -> str:
-    return hashlib.sha256(f"{user_id}:{code}".encode()).hexdigest()
+def _digest(user_id: uuid.UUID, code: str, version: int, chat: str) -> str:
+    # Bound to the session version and the chat it went to: a password change,
+    # a sign-out or unlinking that chat voids every code already sent.
+    return hashlib.sha256(f"{user_id}:{version}:{chat}:{code}".encode()).hexdigest()
 
 
 def _is_private_chat(external_id: str) -> bool:
@@ -114,19 +116,27 @@ class PasswordResetService:
         chat = await self._private_chat_of(user)
         if chat is None:
             return
-        self._spawn(self._send_code(user.id, chat))
+        self._spawn(self._send_code(user.id, user.token_version, chat))
 
-    async def _send_code(self, user_id: uuid.UUID, chat: str) -> None:
+    def _store_code(self, user_id: uuid.UUID, version: int, chat: str) -> str | None:
+        if not self._redis.set(_cooldown_key(user_id), "1", nx=True, ex=RESEND_AFTER_SECONDS):
+            return None  # a code went out less than a minute ago
+        code = f"{secrets.randbelow(10**6):06d}"
+        key = _code_key(user_id)
+        pipe = self._redis.pipeline()  # the code never exists without its expiry
+        pipe.delete(key)
+        pipe.hset(key, mapping={"digest": _digest(user_id, code, version, chat), "attempts": 0})
+        pipe.expire(key, CODE_TTL_SECONDS)
+        pipe.execute()
+        return code
+
+    async def _send_code(self, user_id: uuid.UUID, version: int, chat: str) -> None:
         try:
-            if not self._redis.set(_cooldown_key(user_id), "1", nx=True, ex=RESEND_AFTER_SECONDS):
-                return  # a code went out less than a minute ago
-            code = f"{secrets.randbelow(10**6):06d}"
-            key = _code_key(user_id)
-            pipe = self._redis.pipeline()  # the code never exists without its expiry
-            pipe.delete(key)
-            pipe.hset(key, mapping={"digest": _digest(user_id, code), "attempts": 0})
-            pipe.expire(key, CODE_TTL_SECONDS)
-            pipe.execute()
+            # In a thread: the Redis client blocks, and on the event loop it
+            # would hold up the answer for a real account only.
+            code = await asyncio.to_thread(self._store_code, user_id, version, chat)
+            if code is None:
+                return
             await self._telegram.send_text(
                 chat,
                 f"Код для сброса пароля Day: {code}\n"
@@ -142,16 +152,29 @@ class PasswordResetService:
         user = await self._users.get_by_email(email)
         if user is None or not user.is_active:
             raise ValueError(_WRONG)
+        # The digest is rebuilt from today's version and chat; a code from
+        # before a password change or for an unlinked chat no longer matches.
+        chat = await self._private_chat_of(user) or ""
 
         try:
-            verdict = self._redis.eval(
-                CHECK_CODE_SCRIPT, 1, _code_key(user.id), _digest(user.id, code.strip()), MAX_ATTEMPTS
+            verdict = await asyncio.to_thread(
+                self._redis.eval,
+                CHECK_CODE_SCRIPT,
+                1,
+                _code_key(user.id),
+                _digest(user.id, code.strip(), user.token_version, chat),
+                MAX_ATTEMPTS,
             )
         except Exception as error:
             raise ResetUnavailable() from error
         if int(verdict) != 1:
             raise ValueError(_WRONG)
 
+        # Locked and re-read: an owner may have disabled the account or
+        # changed the role meanwhile, and a stale copy would write that back.
+        user = await self._users.get_for_update(user.id)
+        if user is None or not user.is_active:
+            raise ValueError(_WRONG)
         user.hashed_password = hash_password(new_password)
         await self._users.update(user)
         user = await self._users.bump_token_version(user.id)  # whoever knew the old password is signed out
