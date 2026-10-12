@@ -15,7 +15,7 @@ export function useChannels(enabled = true) {
 export function useTelegramLinkCode() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: createTelegramLinkCode,
+    mutationFn: (userId?: string) => createTelegramLinkCode(userId),
     onSuccess: () => qc.invalidateQueries({ queryKey: [CHANNELS_KEY] }),
   })
 }

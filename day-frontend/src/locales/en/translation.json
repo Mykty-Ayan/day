@@ -809,7 +809,9 @@
     "validation": {
       "emailAndPassword": "Email and a password of at least 8 characters are required",
       "nameAndScopes": "A name and at least one scope are required"
-    }
+    },
+    "telegramCode": "Telegram code",
+    "telegramCodeHint": "Send it to the team member. They send it to the Day bot and get Telegram with the “{{role}}” rights, not yours. The code works once, for 30 minutes."
   },
   "channels": {
     "title": "Bots",
