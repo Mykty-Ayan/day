@@ -6,6 +6,7 @@ from decimal import Decimal
 
 from app.application.booking.create_booking import (
     apply_default_times,
+    settle_boundary,
     validate_hold_expiry,
     validate_rental_mode_allowed,
 )
@@ -132,9 +133,8 @@ class UpdateBookingService:
 
         # Re-check overlaps if dates changed
         if dates_changed and booking.check_in and booking.check_out:
-            # A daily boundary given as a bare date takes the flat's hours, else
-            # the default (14:00 / 12:00). Only a changed boundary, or a new mode,
-            # is normalised: a saved midnight is a real hour, not "no time".
+            # A daily boundary on a new day takes the flat's hours, else the
+            # default (14:00 / 12:00); one on its saved day keeps its saved time.
             prop = await self._property_repo.get_by_id(booking.property_id)
             check_in, check_out = apply_default_times(
                 booking.check_in,
@@ -143,11 +143,11 @@ class UpdateBookingService:
                 check_in_hour=prop.check_in_hour if prop else None,
                 check_out_hour=prop.check_out_hour if prop else None,
             )
-            mode_changed = booking.rental_mode != saved_mode
-            if booking.check_in != saved_in or mode_changed:
-                booking.check_in = check_in
-            if booking.check_out != saved_out or mode_changed:
-                booking.check_out = check_out
+            if booking.rental_mode != saved_mode:
+                booking.check_in, booking.check_out = check_in, check_out
+            else:
+                booking.check_in = settle_boundary(booking.check_in, check_in, saved_in)
+                booking.check_out = settle_boundary(booking.check_out, check_out, saved_out)
             if booking.check_out <= booking.check_in:
                 raise ValueError("Check-out must be after check-in")
             overlapping = await self._booking_repo.get_by_property_and_dates(
