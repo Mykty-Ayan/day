@@ -80,10 +80,13 @@ export default function UnitSheet({ unitId, onClose }: { unitId: string | null; 
 
           <Block title={t('miniapp.unit.checkIn')}>
             <p className="text-sm">
-              {t('miniapp.unit.hours', {
-                from: hour(flat.check_in_hour ?? DEFAULT_CHECK_IN),
-                to: hour(flat.check_out_hour ?? DEFAULT_CHECK_OUT),
-              })}
+              {/* An hourly-only flat has no daily hours: the slot itself is the time. */}
+              {flat.rental_mode === 'hourly'
+                ? t('miniapp.unit.hourlyOnly')
+                : t('miniapp.unit.hours', {
+                    from: hour(flat.check_in_hour ?? DEFAULT_CHECK_IN),
+                    to: hour(flat.check_out_hour ?? DEFAULT_CHECK_OUT),
+                  })}
               {flat.check_in_method && ` · ${t(`properties.checkInMethod.${flat.check_in_method}`)}`}
             </p>
             {flat.max_guests != null && (
