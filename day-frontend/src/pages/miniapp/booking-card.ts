@@ -3,7 +3,7 @@
  * tested on their own. Each of these used to be a one-tap action with no check.
  */
 
-import type { Booking, BookingPayment, BookingStatus } from '../../types/booking'
+import type { Booking, BookingPayment, BookingStatus, PaymentMethod } from '../../types/booking'
 
 export { phoneDigits } from '../../lib/phone'
 
@@ -37,8 +37,38 @@ export function settlement(total: number, payments: BookingPayment[]) {
   return { paid, due: Math.max(0, total - paid), waiting }
 }
 
-/** After a failed payment call: with no answer from the server the money may be
- *  recorded already, so the same attempt must be retried, not a new one made. */
+/** After a failed money call: was it perhaps saved anyway? No answer, a proxy
+ *  timeout or a gateway error can all come after the server committed; only a
+ *  refusal (4xx) proves nothing was recorded. */
 export function paymentMaybeRecorded(error: unknown): boolean {
-  return !(error as { response?: unknown } | null)?.response
+  const status = (error as { response?: { status?: number } } | null)?.response?.status
+  return status === undefined || status >= 500 || status === 408
+}
+
+/** A money action whose outcome is not known yet. Kept outside the card so that
+ *  closing it mid-request, or reopening it, still retries with the same key. */
+export type MoneyAttempt =
+  | { kind: 'payment'; amount: number; method: PaymentMethod; key: string }
+  | { kind: 'receive'; paymentId: string; amount: number }
+
+type AttemptStore = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>
+
+const attemptKey = (bookingId: string) => `day.miniapp.money.${bookingId}`
+
+export function loadAttempt(storage: AttemptStore | undefined, bookingId: string): MoneyAttempt | null {
+  try {
+    const raw = storage?.getItem(attemptKey(bookingId))
+    return raw ? (JSON.parse(raw) as MoneyAttempt) : null
+  } catch {
+    return null
+  }
+}
+
+export function saveAttempt(storage: AttemptStore | undefined, bookingId: string, attempt: MoneyAttempt | null): void {
+  try {
+    if (attempt) storage?.setItem(attemptKey(bookingId), JSON.stringify(attempt))
+    else storage?.removeItem(attemptKey(bookingId))
+  } catch {
+    // Storage blocked or full: the attempt still lives in the card while it is open.
+  }
 }

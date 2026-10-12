@@ -8,9 +8,12 @@ import { expect, test } from '@playwright/test'
 import {
   canCancel,
   extendedCheckOut,
+  loadAttempt,
   paymentMaybeRecorded,
   phoneDigits,
+  saveAttempt,
   settlement,
+  type MoneyAttempt,
 } from '../../src/pages/miniapp/booking-card'
 import type { BookingPayment } from '../../src/types/booking'
 
@@ -78,7 +81,52 @@ test.describe('a payment call that failed', () => {
     expect(paymentMaybeRecorded(new Error('timeout of 20000ms exceeded'))).toBe(true)
   })
 
-  test('with an answer from the server nothing was recorded', () => {
+  test('a refusal from the server means nothing was recorded', () => {
     expect(paymentMaybeRecorded({ response: { status: 422, data: { detail: [] } } })).toBe(false)
+    expect(paymentMaybeRecorded({ response: { status: 409 } })).toBe(false)
+  })
+
+  test('a gateway error or a proxy timeout may come after the payment was saved', () => {
+    expect(paymentMaybeRecorded({ response: { status: 502 } })).toBe(true)
+    expect(paymentMaybeRecorded({ response: { status: 504 } })).toBe(true)
+    expect(paymentMaybeRecorded({ response: { status: 408 } })).toBe(true)
+  })
+})
+
+test.describe('an unsettled money attempt outlives the card', () => {
+  function memory() {
+    const data = new Map<string, string>()
+    return {
+      getItem: (key: string) => data.get(key) ?? null,
+      setItem: (key: string, value: string) => void data.set(key, value),
+      removeItem: (key: string) => void data.delete(key),
+    }
+  }
+
+  test('saved before sending, found again when the card reopens, gone once settled', () => {
+    const storage = memory()
+    const attempt: MoneyAttempt = { kind: 'payment', amount: 20000, method: 'cash', key: 'k-1' }
+
+    saveAttempt(storage, 'b-1', attempt)
+    expect(loadAttempt(storage, 'b-1')).toEqual(attempt)
+    expect(loadAttempt(storage, 'b-2')).toBeNull()
+
+    saveAttempt(storage, 'b-1', null)
+    expect(loadAttempt(storage, 'b-1')).toBeNull()
+  })
+
+  test('broken or blocked storage never breaks the card', () => {
+    const broken = {
+      getItem: () => '{not json',
+      setItem: () => {
+        throw new Error('quota')
+      },
+      removeItem: () => {
+        throw new Error('blocked')
+      },
+    }
+    expect(loadAttempt(broken, 'b-1')).toBeNull()
+    expect(() => saveAttempt(broken, 'b-1', null)).not.toThrow()
+    expect(loadAttempt(undefined, 'b-1')).toBeNull()
   })
 })
