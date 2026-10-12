@@ -105,6 +105,7 @@ def build_host_bot(session: AsyncSession) -> HostBotService:
         SqlGuestRepository(session),
         assistant_for=assistant_for,
         company_repo=SqlCompanyRepository(session),
+        user_repo=SqlUserRepository(session),
     )
 
 
@@ -123,6 +124,7 @@ def build_notification_service(session: AsyncSession) -> NotificationService:
     return NotificationService(
         SqlOutboundNotificationRepository(session),
         SqlChannelIdentityRepository(session),
+        SqlUserRepository(session),
     )
 
 

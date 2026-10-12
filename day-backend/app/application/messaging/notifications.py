@@ -14,6 +14,8 @@ import uuid
 from datetime import datetime
 from decimal import Decimal, InvalidOperation
 
+from app.domain.auth.permissions import Permission, permissions_for_role
+from app.domain.auth.repositories import UserRepository
 from app.domain.messaging.entities import OutboundNotification
 from app.domain.messaging.repositories import (
     ChannelIdentityRepository,
@@ -103,9 +105,11 @@ class NotificationService:
         self,
         notification_repo: OutboundNotificationRepository,
         identity_repo: ChannelIdentityRepository,
+        user_repo: UserRepository | None = None,
     ) -> None:
         self._notifications = notification_repo
         self._identities = identity_repo
+        self._users = user_repo
 
     async def notify_company(
         self,
@@ -120,6 +124,19 @@ class NotificationService:
         just means nobody has connected the bot yet.
         """
         identities = await self._identities.list_by_company(company_id, channel=channel)
+        if self._users is not None:
+            # Every notice is about bookings or guests: a cleaner's chat gets none of it.
+            users = await self._users.get_many([i.user_id for i in identities if i.user_id is not None])
+            identities = [
+                i
+                for i in identities
+                if i.user_id is None
+                or (
+                    (user := users.get(i.user_id)) is not None
+                    and user.is_active
+                    and Permission.BOOKINGS_READ in permissions_for_role(user.role)
+                )
+            ]
         queued = []
         for identity in identities:
             queued.append(
