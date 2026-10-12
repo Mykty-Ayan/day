@@ -41,8 +41,8 @@ export async function listBookings(
   return res.data
 }
 
-export async function getBooking(id: string): Promise<BookingDetail> {
-  const res = await apiClient.get(`/bookings/${id}`)
+export async function getBooking(id: string, signal?: AbortSignal): Promise<BookingDetail> {
+  const res = await apiClient.get(`/bookings/${id}`, { signal })
   return res.data
 }
 
@@ -111,8 +111,8 @@ export async function confirmPayment(bookingId: string, paymentId: string): Prom
 
 // --- Deposits ---
 
-export async function listDeposits(bookingId: string): Promise<BookingDeposit[]> {
-  const res = await apiClient.get(`/bookings/${bookingId}/deposits`)
+export async function listDeposits(bookingId: string, signal?: AbortSignal): Promise<BookingDeposit[]> {
+  const res = await apiClient.get(`/bookings/${bookingId}/deposits`, { signal })
   return res.data
 }
 
