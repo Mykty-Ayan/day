@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next'
 import { showToast } from '../../components/ui/Toast'
 import { useCurrentUser } from '../../hooks/useAuth'
 import { changePassword } from '../../api/auth'
+import { sessionGeneration, storeSession } from '../../api/client'
 import Button from '../../components/ui/Button'
 
 const LANGUAGES = [
@@ -111,10 +112,13 @@ function PasswordCard() {
     if (next.length < MIN_PASSWORD_LENGTH) return setError(t('settings.password.tooShort'))
     if (next !== repeat) return setError(t('settings.password.mismatch'))
     setSaving(true)
+    const startedIn = sessionGeneration()
     try {
       const tokens = await changePassword(current, next)
-      localStorage.setItem('access_token', tokens.access_token)
-      localStorage.setItem('refresh_token', tokens.refresh_token)
+      // Signed out (or into another account) while this was on its way:
+      // the answer must not bring the old account back.
+      if (sessionGeneration() !== startedIn) return
+      storeSession(tokens)
       setCurrent('')
       setNext('')
       setRepeat('')

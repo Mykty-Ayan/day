@@ -11,7 +11,7 @@ from app.infrastructure.login_throttle import LoginThrottle, get_login_throttle
 from app.infrastructure.repositories.auth import SqlCompanyRepository, SqlUserRepository
 from app.infrastructure.repositories.messaging import SqlChannelIdentityRepository
 from app.infrastructure.telegram_init_data import InitDataError, verify_init_data
-from app.presentation.api.deps import get_current_user
+from app.presentation.api.deps import Principal, get_current_user, get_principal
 from app.presentation.schemas.auth import (
     ChangePasswordRequest,
     LoginRequest,
