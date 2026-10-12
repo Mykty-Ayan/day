@@ -222,8 +222,12 @@ class ToolContext:
         cleaning_service,
         metrics_service,
         today: date | None = None,
+        sees_secrets: bool = False,
     ) -> None:
         self._company_id = company_id
+        # Whether the person behind the conversation may hear the Wi-Fi
+        # password (property_secrets:read). Off unless the caller says so.
+        self._sees_secrets = sees_secrets
         self._availability = availability_service
         self._bookings = booking_repo
         self._guests = guest_repo
@@ -297,7 +301,7 @@ class ToolContext:
             "floor": found.floor,
             "apartment": found.apartment_number,
             "wifi_name": found.wifi_name,
-            "wifi_password": found.wifi_password,
+            "wifi_password": found.wifi_password if self._sees_secrets else None,
             "check_in_instructions": found.check_in_instructions,
         }
 

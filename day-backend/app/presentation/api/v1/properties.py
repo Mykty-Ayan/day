@@ -101,7 +101,7 @@ def _visible_facts(facts: list, *, sees_secrets: bool) -> list:
     return [f for f in facts if f.audience != FactAudience.GUEST]
 
 
-def _to_property_response(p, photos: list | None = None, *, sees_secrets: bool = True) -> PropertyResponse:
+def _to_property_response(p, photos: list | None = None, *, sees_secrets: bool) -> PropertyResponse:
     return PropertyResponse(
         id=p.id,
         company_id=p.company_id,
@@ -148,6 +148,7 @@ async def create_property(
     session: AsyncSession = Depends(get_session),
     company_id: uuid.UUID = Depends(get_company_id),
     user_id: uuid.UUID | None = Depends(get_user_id),
+    principal: Principal = Depends(get_principal),
 ):
     repos = _repos(session)
     svc = CreatePropertyService(repos["property"], repos["audit"])
@@ -181,7 +182,7 @@ async def create_property(
             )
         )
         await session.commit()
-        return _to_property_response(result)
+        return _to_property_response(result, sees_secrets=_sees_secrets(principal))
     except ValueError as e:
         await session.rollback()
         status_code = 409 if "already exists" in str(e).lower() else 400
@@ -339,6 +340,7 @@ async def update_property(
     session: AsyncSession = Depends(get_session),
     company_id: uuid.UUID = Depends(get_company_id),
     user_id: uuid.UUID | None = Depends(get_user_id),
+    principal: Principal = Depends(get_principal),
 ):
     repos = _repos(session)
     svc = UpdatePropertyService(repos["property"], repos["audit"])
@@ -352,7 +354,7 @@ async def update_property(
     try:
         result = await svc.execute(inp)
         await session.commit()
-        return _to_property_response(result)
+        return _to_property_response(result, sees_secrets=_sees_secrets(principal))
     except ValueError as e:
         await session.rollback()
         raise HTTPException(status_code=400, detail=str(e))
@@ -369,13 +371,14 @@ async def change_property_status(
     session: AsyncSession = Depends(get_session),
     company_id: uuid.UUID = Depends(get_company_id),
     user_id: uuid.UUID | None = Depends(get_user_id),
+    principal: Principal = Depends(get_principal),
 ):
     repos = _repos(session)
     svc = ChangePropertyStatusService(repos["property"], repos["audit"])
     try:
         result = await svc.execute(property_id, company_id, body.target_status, changed_by=user_id)
         await session.commit()
-        return _to_property_response(result)
+        return _to_property_response(result, sees_secrets=_sees_secrets(principal))
     except ValueError as e:
         await session.rollback()
         raise HTTPException(status_code=400, detail=str(e))
@@ -395,6 +398,7 @@ async def clone_property(
     session: AsyncSession = Depends(get_session),
     company_id: uuid.UUID = Depends(get_company_id),
     user_id: uuid.UUID | None = Depends(get_user_id),
+    principal: Principal = Depends(get_principal),
 ):
     from app.application.property.clone_property import ClonePropertyService
 
@@ -411,7 +415,7 @@ async def clone_property(
     try:
         result = await svc.execute(property_id, company_id, changed_by=user_id)
         await session.commit()
-        return _to_property_response(result)
+        return _to_property_response(result, sees_secrets=_sees_secrets(principal))
     except ValueError as e:
         await session.rollback()
         raise HTTPException(status_code=404, detail=str(e))
