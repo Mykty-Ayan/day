@@ -929,7 +929,10 @@
       "stale": "Couldn't refresh the booking. Actions wait until it loads.",
       "unsettled": "No answer to the payment of {{amount}} — it may already be recorded. Retry: it will not be recorded twice.",
       "retryPayment": "Retry the payment of {{amount}}",
-      "unsettledReceive": "No answer to confirming {{amount}}. Retry: the money won't count twice."
+      "unsettledReceive": "No answer to confirming {{amount}}. Retry: the money won't count twice.",
+      "notKept": "The phone would not keep the payment attempt, so it is not sent: a dropped connection could double it. Free some space or record the payment on the web.",
+      "discardAttempt": "Not in the history — discard",
+      "discardAsk": "Check the payment history above. If {{amount}} is not there, the attempt can be discarded. Discard?"
     },
     "cleaning": {
       "title": "Cleaning",
