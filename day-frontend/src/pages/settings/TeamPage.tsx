@@ -88,6 +88,8 @@ export default function TeamPage() {
   const [keyToRevoke, setKeyToRevoke] = useState<{ id: string; name: string } | null>(null)
 
   const [telegramCode, setTelegramCode] = useState<string | null>(null)
+  // A code for one member: their chat is linked with their own rights.
+  const [memberCode, setMemberCode] = useState<{ userId: string; code: string } | null>(null)
   const [whatsappChannelId, setWhatsappChannelId] = useState('')
 
   const sortedTeam = useMemo(
@@ -156,8 +158,18 @@ export default function TeamPage() {
 
   async function requestCode() {
     try {
-      const issued = await requestTelegramCode.mutateAsync()
+      const issued = await requestTelegramCode.mutateAsync(undefined)
       setTelegramCode(issued.code)
+    } catch (error) {
+      const detail = (error as { response?: { data?: { detail?: string } } }).response?.data?.detail
+      showToast('error', detail || t('channels.codeFailed'))
+    }
+  }
+
+  async function requestMemberCode(member: TeamMember) {
+    try {
+      const issued = await requestTelegramCode.mutateAsync(member.id)
+      setMemberCode({ userId: member.id, code: issued.code })
     } catch (error) {
       const detail = (error as { response?: { data?: { detail?: string } } }).response?.data?.detail
       showToast('error', detail || t('channels.codeFailed'))
@@ -303,7 +315,8 @@ export default function TeamPage() {
             <ul className="divide-y divide-gray-100">
               {sortedTeam.map((member) => (
                 <li key={member.id} className="flex flex-wrap items-center gap-3 py-3">
-                  <div className="min-w-0 flex-1">
+                  {/* Room for the name: on a phone the buttons wrap below it instead. */}
+                  <div className="min-w-[10rem] flex-1">
                     <p className="truncate text-sm font-semibold text-gray-900">
                       {member.full_name || member.email}
                     </p>
@@ -312,6 +325,17 @@ export default function TeamPage() {
                   <span className={`rounded-md px-2 py-1 text-[11px] font-bold ${ROLE_TONE[member.role]}`}>
                     {t(`team.roles.${member.role}`)}
                   </span>
+                  {member.is_active && member.role !== 'owner' && (
+                    <button
+                      type="button"
+                      onClick={() => requestMemberCode(member)}
+                      disabled={requestTelegramCode.isPending}
+                      className="flex min-h-[44px] items-center gap-1.5 rounded-lg px-3 text-xs font-bold text-gray-600 transition-colors hover:bg-gray-100 disabled:opacity-40"
+                    >
+                      <Send className="h-3.5 w-3.5" />
+                      {t('team.telegramCode')}
+                    </button>
+                  )}
                   {member.is_active ? (
                     member.role !== 'owner' && (
                       <button
@@ -332,6 +356,22 @@ export default function TeamPage() {
                     >
                       {t('team.reactivate')}
                     </button>
+                  )}
+                  {memberCode?.userId === member.id && (
+                    <div className="basis-full rounded-lg border border-gray-200 bg-gray-50 p-3">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <code className="flex-1 text-base font-bold tracking-widest text-gray-900">
+                          /start {memberCode.code}
+                        </code>
+                        <Button variant="secondary" onClick={() => copyKey(`/start ${memberCode.code}`)}>
+                          <Copy className="h-4 w-4" />
+                          {t('team.copy')}
+                        </Button>
+                      </div>
+                      <p className="mt-2 text-xs text-gray-500">
+                        {t('team.telegramCodeHint', { role: t(`team.roles.${member.role}`) })}
+                      </p>
+                    </div>
                   )}
                 </li>
               ))}

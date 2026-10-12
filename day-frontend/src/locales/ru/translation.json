@@ -809,7 +809,9 @@
     "validation": {
       "emailAndPassword": "Нужен email и пароль минимум из 8 символов",
       "nameAndScopes": "Нужно название и хотя бы одно право"
-    }
+    },
+    "telegramCode": "Код для Telegram",
+    "telegramCodeHint": "Перешлите сотруднику. Он отправляет это боту Day и входит в Telegram с правами «{{role}}», не с вашими. Код одноразовый и действует 30 минут."
   },
   "channels": {
     "title": "Боты",
