@@ -246,3 +246,10 @@ async def test_anonymous_requests_are_rejected(method, path):
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         response = await client.request(method, path)
     assert response.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_no_company_can_write_the_shared_amenity_catalogue():
+    # The catalogue is one list for every company; it comes with the product.
+    status = await _request("POST", "/api/v1/amenities", _user_principal(UserRole.OWNER), json={"name": "x"})
+    assert status == 405

@@ -143,13 +143,6 @@ export async function listAmenities(): Promise<Amenity[]> {
   return res.data
 }
 
-export async function createAmenity(
-  data: Pick<Amenity, 'name' | 'category' | 'icon'>,
-): Promise<Amenity> {
-  const res = await apiClient.post('/amenities', data)
-  return res.data
-}
-
 export async function linkAmenities(
   propertyId: string,
   amenityIds: string[],
