@@ -197,7 +197,7 @@ export default function BookingSheet({
         </div>
       )}
 
-      <DepositRow bookingId={booking.id} suggestedAmount={booking.total_price} onError={fail} />
+      <DepositRow bookingId={booking.id} suggestedAmount={booking.total_price} onError={fail} locked={settling} />
 
       <pre className="tg-surface max-h-40 overflow-y-auto whitespace-pre-wrap rounded-xl p-3 text-xs">
         {checkInText}

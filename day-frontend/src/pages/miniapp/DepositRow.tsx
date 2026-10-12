@@ -20,10 +20,13 @@ export default function DepositRow({
   bookingId,
   suggestedAmount,
   onError,
+  locked = false,
 }: {
   bookingId: string
   suggestedAmount: number
   onError: (error: unknown) => void
+  /** The card has not reread the booking yet: no money moves on old figures. */
+  locked?: boolean
 }) {
   const { t, i18n } = useTranslation()
   const queryClient = useQueryClient()
@@ -95,7 +98,7 @@ export default function DepositRow({
           inputMode="numeric"
           placeholder={String(suggestedAmount)}
         />
-        <ActionButton disabled={take.isPending} onClick={() => take.mutate()}>
+        <ActionButton disabled={locked || take.isPending} onClick={() => take.mutate()}>
           <ShieldCheck className="h-4 w-4" />
           {t('miniapp.deposit.take')}
         </ActionButton>
@@ -124,7 +127,7 @@ export default function DepositRow({
           {deposit.status === 'pending' && (
             <div className="mt-2">
               <ActionButton
-                disabled={act.isPending}
+                disabled={locked || act.isPending}
                 onClick={() => act.mutate({ deposit, action: 'pay' })}
               >
                 <Wallet className="h-4 w-4" />
@@ -135,13 +138,14 @@ export default function DepositRow({
           {deposit.status === 'paid' && holdingFor !== deposit.id && (
             <div className="mt-2 grid grid-cols-2 gap-2">
               <ActionButton
-                disabled={act.isPending}
+                disabled={locked || act.isPending}
                 onClick={() => act.mutate({ deposit, action: 'return' })}
               >
                 <Undo2 className="h-4 w-4" />
                 {t('miniapp.deposit.give_back')}
               </ActionButton>
               <ActionButton
+                disabled={locked}
                 onClick={() => {
                   setHoldingFor(deposit.id)
                   setHeldAmount(String(deposit.amount))
@@ -176,7 +180,7 @@ export default function DepositRow({
                 </ActionButton>
                 <ActionButton
                   tone="primary"
-                  disabled={hold.isPending || Number(heldAmount) <= 0}
+                  disabled={locked || hold.isPending || Number(heldAmount) <= 0}
                   onClick={() => hold.mutate(deposit)}
                 >
                   <HandCoins className="h-4 w-4" />
