@@ -73,6 +73,15 @@ export default function BookSheet({
     setPendingState(next)
     return kept
   }
+  // Whether the session is still this company's. A chat relinked meanwhile signs
+  // in to another one: asking the server then would answer for that company, and
+  // "not made there" would drop a booking that may exist here.
+  function sameSession(): boolean {
+    return companyFromToken(phoneStorage()?.getItem('access_token') ?? null) === company
+  }
+  function inThisCompany<T>(read: () => Promise<T>): () => Promise<T> {
+    return () => (sameSession() ? read() : Promise.reject(new Error('The session is another company now')))
+  }
   // Whether an answer is about the attempt on the phone now. A late answer to an
   // earlier one (the sheet was closed and reopened meanwhile) must not settle a newer one.
   function isCurrent(sent: BookingAttempt): boolean {
@@ -99,13 +108,13 @@ export default function BookSheet({
   const known = useQuery({
     // Per company: a chat relinked to another one must not see this one's guests.
     queryKey: ['miniapp', 'guest', company, digits],
-    queryFn: () => listGuests({ phone: digits }),
+    queryFn: inThisCompany(() => listGuests({ phone: digits })),
     enabled: lookup,
     staleTime: 60_000,
   })
   const warning = useQuery({
     queryKey: ['miniapp', 'blacklist', company, digits],
-    queryFn: () => checkBlacklist(digits),
+    queryFn: inThisCompany(() => checkBlacklist(digits)),
     enabled: lookup,
     staleTime: 60_000,
   })
@@ -161,6 +170,7 @@ export default function BookSheet({
   async function askBook() {
     // A second tap before the first one's check returns must not book twice.
     if (pressed.current || pending) return
+    if (!sameSession()) return setError(t('miniapp.book.otherCompany'))
     pressed.current = true
     setChecking(true)
     setError('')
@@ -188,14 +198,21 @@ export default function BookSheet({
         check: (number) =>
           queryClient.fetchQuery({
             queryKey: ['miniapp', 'blacklist', company, number],
-            queryFn: () => checkBlacklist(number),
+            queryFn: inThisCompany(() => checkBlacklist(number)),
             staleTime: 60_000,
           }),
         confirmWarned: () => confirmAction(t('miniapp.book.warnedAsk')),
         isOpen: () => alive.current,
         keep: setPending,
         send: (kept) => book.mutate(kept),
+        busy: () => loadBookingAttempt(phoneStorage(), company),
       })
+      if (outcome === 'busy') {
+        // Another window booked meanwhile: its attempt is settled first.
+        setPendingState(loadBookingAttempt(phoneStorage(), company))
+        resultFeedback('error')
+        return
+      }
       if (outcome === 'checkFailed' || outcome === 'notKept') {
         if (outcome === 'notKept') setPending(null)
         resultFeedback('error')
@@ -209,6 +226,7 @@ export default function BookSheet({
 
   // A retry is the same body under the same key, numbered and kept before it goes out.
   function retry(stale: BookingAttempt) {
+    if (!sameSession()) return setError(t('miniapp.book.otherCompany'))
     const call = nextCall(stale)
     if (!setPending(call)) {
       resultFeedback('error')
@@ -222,6 +240,7 @@ export default function BookSheet({
   // under its lock, so either it made the booking, or it never will, even if
   // the first send is still on its way. No list search, no guess.
   async function checkAttempt(stale: BookingAttempt) {
+    if (!sameSession()) return setError(t('miniapp.book.otherCompany'))
     setVerifying(true)
     try {
       const outcome = await voidBookingKey(stale.key)
