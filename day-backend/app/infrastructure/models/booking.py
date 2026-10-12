@@ -2,6 +2,7 @@ import uuid
 from datetime import datetime
 
 from sqlalchemy import (
+    Boolean,
     DateTime,
     ForeignKey,
     Integer,
@@ -78,6 +79,15 @@ class BookingModel(Base):
     adults_count: Mapped[int] = mapped_column(Integer, default=1)
     children_count: Mapped[int] = mapped_column(Integer, default=0)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Exempts the row from the bookings_no_overlap exclusion constraint
+    # (migration 018): no two active, unflagged stays of one property may share
+    # a moment of [check_in, check_out).
+    overbooking: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
+    external_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    # Unique per company where set (uq_bookings_company_idempotency_key, migration 019).
+    idempotency_key: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    idempotency_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     created_at: Mapped[datetime] = mapped_column(default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(
         default=datetime.utcnow, onupdate=datetime.utcnow
@@ -122,6 +132,10 @@ class BookingPaymentModel(Base):
     status: Mapped[str] = mapped_column(String(50), default="pending")
     note: Mapped[str | None] = mapped_column(Text, nullable=True)
     paid_at: Mapped[datetime | None] = mapped_column(nullable=True)
+    external_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    # Unique per booking where set (uq_booking_payments_booking_idempotency_key, migration 022).
+    idempotency_key: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    idempotency_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
     created_at: Mapped[datetime] = mapped_column(default=datetime.utcnow)
 
     booking: Mapped["BookingModel"] = relationship(back_populates="payments")

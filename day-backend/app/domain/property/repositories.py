@@ -11,6 +11,7 @@ from app.domain.property.entities import (
     Property,
     PropertyAuditLog,
     PropertyCosts,
+    PropertyFact,
     PropertyPhoto,
     PropertyTag,
     SeasonalPrice,
@@ -63,6 +64,9 @@ class PropertyPhotoRepository(abc.ABC):
 
     @abc.abstractmethod
     async def reorder(self, property_id: uuid.UUID, photo_ids: list[uuid.UUID]) -> None: ...
+
+    @abc.abstractmethod
+    async def set_caption(self, photo_id: uuid.UUID, caption: str | None) -> None: ...
 
 
 class AmenityRepository(abc.ABC):
@@ -178,3 +182,21 @@ class PropertyTagRepository(abc.ABC):
 
     @abc.abstractmethod
     async def get_property_ids_by_tag(self, tag_id: uuid.UUID) -> list[uuid.UUID]: ...
+
+
+class PropertyFactRepository(abc.ABC):
+    @abc.abstractmethod
+    async def list_by_property(self, property_id: uuid.UUID) -> list[PropertyFact]:
+        """Oldest first."""
+
+    @abc.abstractmethod
+    async def find_by_text(self, property_id: uuid.UUID, text: str) -> PropertyFact | None: ...
+
+    @abc.abstractmethod
+    async def get_by_id(self, fact_id: uuid.UUID) -> PropertyFact | None: ...
+
+    @abc.abstractmethod
+    async def create(self, fact: PropertyFact) -> PropertyFact: ...
+
+    @abc.abstractmethod
+    async def delete(self, fact_id: uuid.UUID) -> None: ...

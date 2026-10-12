@@ -23,6 +23,7 @@ from app.domain.booking.entities import (
     BookingPayment,
     Guest,
 )
+from app.domain.booking.exceptions import BookingOverlapError
 from app.domain.booking.repositories import (
     BookingAuditLogRepository,
     BookingCommentRepository,
@@ -104,6 +105,29 @@ class FakeBookingRepository(BookingRepository):
     async def get_by_id(self, booking_id: uuid.UUID) -> Booking | None:
         return self._bookings.get(booking_id)
 
+    async def lock_idempotency_key(self, company_id, key):
+        pass
+
+    async def get_for_update(self, booking_id):
+        return self._bookings.get(booking_id)
+
+    async def touch(self, booking_id):
+        self.touched = [*getattr(self, "touched", []), booking_id]
+
+    async def list_expired_holds(self, now, *, limit):
+        rows = [
+            b
+            for b in self._bookings.values()
+            if b.status == BookingStatus.PENDING and b.expires_at is not None and b.expires_at <= now
+        ]
+        return rows[:limit]
+
+    async def get_by_idempotency_key(self, company_id, key):
+        return next(
+            (b for b in self._bookings.values() if b.company_id == company_id and b.idempotency_key == key),
+            None,
+        )
+
     async def get_by_property_and_dates(self, property_id, check_in, check_out, *, exclude_id=None) -> list[Booking]:
         result = []
         for b in self._bookings.values():
@@ -166,6 +190,14 @@ class FakeBookingRepository(BookingRepository):
             and b.check_out > start_date
         ]
 
+    async def list_changed(self, company_id, *, after, until, limit):
+        rows = [
+            b
+            for b in self._bookings.values()
+            if b.company_id == company_id and (b.updated_at, b.id) > after and b.updated_at <= until
+        ]
+        return sorted(rows, key=lambda b: (b.updated_at, b.id))[:limit]
+
     async def update(self, booking: Booking) -> Booking:
         self._bookings[booking.id] = booking
         return booking
@@ -194,6 +226,9 @@ class FakeGuestRepository(GuestRepository):
             for g in self._guests.values()
             if g.company_id == company_id and (query.lower() in g.name.lower() or (g.phone and query in g.phone))
         ]
+
+    async def list_by_phone(self, company_id, phone):
+        return [g for g in self._guests.values() if g.company_id == company_id and g.phone == phone]
 
     async def find_by_phone(self, company_id: uuid.UUID, phone: str) -> Guest | None:
         for g in self._guests.values():
@@ -228,11 +263,24 @@ class FakeBookingPaymentRepository(BookingPaymentRepository):
     async def get_by_id(self, payment_id: uuid.UUID) -> BookingPayment | None:
         return self._payments.get(payment_id)
 
+    async def lock_idempotency_key(self, booking_id, key):
+        pass
+
+    async def get_by_idempotency_key(self, booking_id, key):
+        return next(
+            (p for p in self._payments.values() if p.booking_id == booking_id and p.idempotency_key == key),
+            None,
+        )
+
+    async def update(self, payment: BookingPayment) -> BookingPayment:
+        self._payments[payment.id] = payment
+        return payment
+
     async def sum_paid_by_bookings(self, booking_ids) -> dict[uuid.UUID, Decimal]:
         totals: dict[uuid.UUID, Decimal] = {}
         wanted = set(booking_ids)
         for payment in self._payments.values():
-            if payment.booking_id not in wanted:
+            if payment.booking_id not in wanted or payment.status != PaymentStatus.COMPLETED:
                 continue
             signed = -payment.amount if payment.type == PaymentType.REFUND else payment.amount
             totals[payment.booking_id] = totals.get(payment.booking_id, Decimal("0")) + signed
@@ -713,7 +761,7 @@ class TestCreateBookingService:
         existing = _make_booking(prop.id, check_in=date(2025, 6, 1), check_out=date(2025, 6, 5))
         await booking_repo.create(existing)
 
-        with pytest.raises(ValueError, match="overlaps"):
+        with pytest.raises(BookingOverlapError, match="overlaps"):
             await svc.execute(
                 CreateBookingInput(
                     company_id=COMPANY_ID,
@@ -1040,13 +1088,29 @@ class TestUpdateBookingService:
             )
 
     @pytest.mark.asyncio
+    async def test_moving_dates_off_a_clash_clears_the_overbooking_flag(self):
+        booking_repo, _, svc, booking, _ = await self._setup()
+        booking.overbooking = True
+
+        result = await svc.execute(
+            UpdateBookingInput(
+                booking_id=booking.id,
+                company_id=COMPANY_ID,
+                check_in=date(2025, 7, 1),
+                check_out=date(2025, 7, 3),
+            )
+        )
+
+        assert result.overbooking is False
+
+    @pytest.mark.asyncio
     async def test_overlap_check_on_date_change(self):
         booking_repo, _, svc, booking, prop_id = await self._setup()
         # Add another booking that would overlap
         other = _make_booking(prop_id, check_in=date(2025, 6, 10), check_out=date(2025, 6, 15))
         await booking_repo.create(other)
 
-        with pytest.raises(ValueError, match="overlaps"):
+        with pytest.raises(BookingOverlapError, match="overlaps"):
             await svc.execute(
                 UpdateBookingInput(
                     booking_id=booking.id,
@@ -1324,6 +1388,15 @@ class TestMoveBookingService:
         assert logs[0].changed_by == USER_ID
 
     @pytest.mark.asyncio
+    async def test_move_to_free_nights_clears_the_overbooking_flag(self):
+        _, _, _, svc, booking, _, prop_b = await self._setup()
+        booking.overbooking = True
+
+        result = await svc.execute(booking.id, COMPANY_ID, prop_b.id)
+
+        assert result.overbooking is False
+
+    @pytest.mark.asyncio
     async def test_move_overlap_on_target_raises(self):
         booking_repo, _, _, svc, booking, _, prop_b = await self._setup()
         # Create conflicting booking on prop_b
@@ -1334,7 +1407,7 @@ class TestMoveBookingService:
         )
         await booking_repo.create(conflicting)
 
-        with pytest.raises(ValueError, match="overlaps"):
+        with pytest.raises(BookingOverlapError, match="overlaps"):
             await svc.execute(booking.id, COMPANY_ID, prop_b.id)
 
     @pytest.mark.asyncio
@@ -1482,7 +1555,7 @@ class TestHourlyBookingServices:
         )
 
         # Overlapping window (12:00-14:00 vs 10:00-13:00) is rejected.
-        with pytest.raises(ValueError, match="overlaps"):
+        with pytest.raises(BookingOverlapError, match="overlaps"):
             await svc.execute(
                 CreateBookingInput(
                     company_id=COMPANY_ID,
@@ -1520,7 +1593,7 @@ class TestManagePaymentsService:
         prop_id = uuid.uuid4()
         booking = _make_booking(prop_id)
         await booking_repo.create(booking)
-        svc = ManagePaymentsService(booking_repo, payment_repo)
+        svc = ManagePaymentsService(booking_repo, payment_repo, FakeBookingAuditLogRepository())
         return booking_repo, payment_repo, svc, booking
 
     @pytest.mark.asyncio

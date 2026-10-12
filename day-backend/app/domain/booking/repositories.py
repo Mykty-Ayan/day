@@ -3,7 +3,7 @@ from __future__ import annotations
 import abc
 import uuid
 from collections.abc import Sequence
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 
 from app.domain.booking.entities import (
@@ -48,6 +48,10 @@ class GuestRepository(abc.ABC):
     ) -> list[Guest]: ...
 
     @abc.abstractmethod
+    async def list_by_phone(self, company_id: uuid.UUID, phone: str) -> list[Guest]:
+        """Guests whose phone is this number however either was written, oldest first."""
+
+    @abc.abstractmethod
     async def find_by_phone(
         self, company_id: uuid.UUID, phone: str
     ) -> Guest | None: ...
@@ -59,6 +63,13 @@ class BookingRepository(abc.ABC):
 
     @abc.abstractmethod
     async def get_by_id(self, booking_id: uuid.UUID) -> Booking | None: ...
+
+    @abc.abstractmethod
+    async def lock_idempotency_key(self, company_id: uuid.UUID, key: str) -> None:
+        """Serialize requests carrying one Idempotency-Key until the transaction ends."""
+
+    @abc.abstractmethod
+    async def get_by_idempotency_key(self, company_id: uuid.UUID, key: str) -> Booking | None: ...
 
     @abc.abstractmethod
     async def get_by_property_and_dates(
@@ -117,7 +128,30 @@ class BookingRepository(abc.ABC):
     ) -> list[Booking]: ...
 
     @abc.abstractmethod
+    async def list_changed(
+        self,
+        company_id: uuid.UUID,
+        *,
+        after: tuple[datetime, uuid.UUID],
+        until: datetime,
+        limit: int,
+    ) -> list[Booking]:
+        """Bookings with (updated_at, id) > after and updated_at <= until, in that order."""
+
+    @abc.abstractmethod
+    async def list_expired_holds(self, now: datetime, *, limit: int) -> list[Booking]:
+        """Pending bookings of every company whose expires_at <= now, locked for the caller."""
+
+    @abc.abstractmethod
     async def update(self, booking: Booking) -> Booking: ...
+
+    @abc.abstractmethod
+    async def get_for_update(self, booking_id: uuid.UUID) -> Booking | None:
+        """The current booking, locked until the transaction ends."""
+
+    @abc.abstractmethod
+    async def touch(self, booking_id: uuid.UUID) -> None:
+        """Mark the booking changed (moves it up the feed) without rewriting it."""
 
 
 class GroupBookingRepository(abc.ABC):
@@ -142,6 +176,16 @@ class BookingPaymentRepository(abc.ABC):
 
     @abc.abstractmethod
     async def get_by_id(self, payment_id: uuid.UUID) -> BookingPayment | None: ...
+
+    @abc.abstractmethod
+    async def lock_idempotency_key(self, booking_id: uuid.UUID, key: str) -> None:
+        """Serialize requests carrying one Idempotency-Key until the transaction ends."""
+
+    @abc.abstractmethod
+    async def get_by_idempotency_key(self, booking_id: uuid.UUID, key: str) -> BookingPayment | None: ...
+
+    @abc.abstractmethod
+    async def update(self, payment: BookingPayment) -> BookingPayment: ...
 
     @abc.abstractmethod
     async def sum_paid_by_bookings(self, booking_ids: Sequence[uuid.UUID]) -> dict[uuid.UUID, Decimal]:

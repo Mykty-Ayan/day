@@ -3,9 +3,11 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 from decimal import Decimal
+from typing import Literal
 
-from pydantic import AliasChoices, BaseModel, ConfigDict, Field
+from pydantic import AliasChoices, AwareDatetime, BaseModel, ConfigDict, Field, computed_field, field_serializer
 
+from app.application.leads.check_guest import normalise_phone
 from app.domain.booking.value_objects import (
     BookingAuditAction,
     BookingSource,
@@ -40,6 +42,12 @@ class GuestResponse(BaseModel):
     created_at: datetime | None = None
     updated_at: datetime | None = None
 
+    @computed_field
+    @property
+    def phone_e164(self) -> str | None:
+        """Digits of +7XXXXXXXXXX without the plus; null for other numbers."""
+        return normalise_phone(self.phone).lstrip("+") or None
+
 
 class GuestListResponse(BaseModel):
     items: list[GuestResponse]
@@ -64,6 +72,12 @@ class BookingCreate(BaseModel):
     children_count: int = Field(default=0, ge=0)
     gantt_color: str = "#3B82F6"
     notes: str | None = None
+    # The id of this booking in the system that asks for it, e.g. a CRM deal.
+    external_id: str | None = Field(default=None, max_length=255)
+    # Makes the booking a hold that Day cancels at this moment unless it is
+    # confirmed first. Must carry its zone: a hold set at night for "09:00"
+    # means the company's morning, not UTC's.
+    expires_at: AwareDatetime | None = None
 
 
 class BookingUpdate(BaseModel):
@@ -77,6 +91,8 @@ class BookingUpdate(BaseModel):
     children_count: int | None = None
     total_price: Decimal | None = None
     notes: str | None = None
+    # Extends a hold, or releases it with null. Pending bookings only.
+    expires_at: AwareDatetime | None = None
 
 
 class BookingResponse(BaseModel):
@@ -109,8 +125,56 @@ class BookingResponse(BaseModel):
     guest_phone: str | None = None
     property_name: str | None = None
     property_internal_name: str | None = None
+    external_id: str | None = None
+    # UTC, with its zone.
+    expires_at: datetime | None = None
     created_at: datetime | None = None
     updated_at: datetime | None = None
+
+
+class BookingFeedItem(BaseModel):
+    """One change in GET /bookings/feed.
+
+    Written for integrations rather than the Day front end: instants carry
+    their zone and money is a decimal string, so nothing is left to guess.
+    check_in/check_out stay local times of the company, as everywhere in Day.
+    """
+
+    id: uuid.UUID
+    property_id: uuid.UUID
+    property_name: str | None = None
+    guest_id: uuid.UUID
+    guest_name: str | None = None
+    guest_phone: str | None = None
+    # Digits of +7XXXXXXXXXX without the plus, null when the phone is not one
+    # Day can normalise. A WhatsApp id is the same digits.
+    guest_phone_e164: str | None = None
+    check_in: datetime
+    check_out: datetime
+    rental_mode: RentalMode
+    status: BookingStatus
+    source: BookingSource
+    total_price: Decimal
+    paid_amount: Decimal
+    adults_count: int
+    children_count: int
+    external_id: str | None = None
+    expires_at: datetime | None = None
+    created_at: datetime
+    updated_at: datetime
+
+    @field_serializer("total_price", "paid_amount")
+    def _money(self, value: Decimal) -> str:
+        return format(value.quantize(Decimal("0.01")), "f")
+
+
+class BookingFeedResponse(BaseModel):
+    items: list[BookingFeedItem]
+    next_cursor: str
+    has_more: bool
+    currency: str
+    # IANA zone the items' check_in/check_out are local to.
+    time_zone: str
 
 
 class BookingStatusChange(BaseModel):
@@ -140,6 +204,10 @@ class PaymentCreate(BaseModel):
     type: PaymentType = PaymentType.PAYMENT
     method: PaymentMethod = PaymentMethod.CASH
     note: str | None = None
+    # pending: promised (a transfer still to check); confirm it when it lands.
+    status: Literal["pending", "completed"] = "completed"
+    # The id of this payment in the system that records it (CRM, bank).
+    external_id: str | None = Field(default=None, max_length=255)
 
 
 class PaymentResponse(BaseModel):
@@ -156,6 +224,7 @@ class PaymentResponse(BaseModel):
     status: PaymentStatus
     note: str | None = None
     paid_at: datetime | None = None
+    external_id: str | None = None
     created_at: datetime | None = None
 
 
@@ -237,6 +306,13 @@ class PriceCalculateRequest(BaseModel):
     children_count: int = Field(default=0, ge=0)
 
 
+class AvailablePhotoResponse(BaseModel):
+    url: str
+    caption: str | None = None
+    is_cover: bool
+    sort_order: int
+
+
 class AvailablePropertyResponse(BaseModel):
     model_config = ConfigDict(json_encoders={Decimal: float})
 
@@ -250,6 +326,8 @@ class AvailablePropertyResponse(BaseModel):
     # Set when the unit is free but has no pricing configured, so the caller can
     # tell "costs nothing" apart from "cannot be quoted".
     price_error: str | None = None
+    # Cover first, then in the host's order: one answer is enough to offer a flat.
+    photos: list[AvailablePhotoResponse] = []
 
 
 class AvailabilityResponse(BaseModel):

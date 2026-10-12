@@ -92,10 +92,6 @@
     "errorLoading": "We couldn't load this data. Please try again.",
     "logout": "Log out"
   },
-  "home": {
-    "subtitle": "Booking & calendar management",
-    "getStarted": "Get Started"
-  },
   "properties": {
     "title": "Properties",
     "addProperty": "Add Property",
@@ -186,6 +182,7 @@
     "form": {
       "publicName": "Public Name",
       "internalName": "Internal Name",
+      "bedsHint": "A bed or a sofa bed counts as 1",
       "type": "Type",
       "description": "Description",
       "sourceUrl": "Source URL",
@@ -321,7 +318,8 @@
         "pending": "Pending",
         "completed": "Completed",
         "failed": "Failed"
-      }
+      },
+      "confirm": "Confirm"
     },
     "deposits": {
       "createDeposit": "Create Deposit",
@@ -385,7 +383,8 @@
       "direct": "Direct",
       "booking": "Booking.com",
       "airbnb": "Airbnb",
-      "other": "Other"
+      "other": "Other",
+      "crm": "CRM"
     },
     "adultsCount": "{{count}} adult",
     "adultsCount_other": "{{count}} adults",

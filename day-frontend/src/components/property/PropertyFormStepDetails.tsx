@@ -45,6 +45,7 @@ export default function PropertyFormStepDetails({ data, onChange }: Props) {
             step={1}
             placeholder="3"
           />
+          <p className="mt-1.5 text-xs text-gray-400">{t('properties.form.bedsHint')}</p>
         </div>
       </div>
 

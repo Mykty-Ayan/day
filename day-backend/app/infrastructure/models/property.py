@@ -83,6 +83,7 @@ class PropertyPhotoModel(Base):
     url: Mapped[str] = mapped_column(String(1024))
     sort_order: Mapped[int] = mapped_column(Integer, default=0)
     is_cover: Mapped[bool] = mapped_column(Boolean, default=False)
+    caption: Mapped[str | None] = mapped_column(String(500), nullable=True)
     created_at: Mapped[datetime] = mapped_column(default=datetime.utcnow)
 
     property: Mapped["PropertyModel"] = relationship(back_populates="photos")
@@ -222,3 +223,15 @@ class PropertyTagAssociationModel(Base):
 
     property: Mapped["PropertyModel"] = relationship()
     tag: Mapped["PropertyTagModel"] = relationship(back_populates="property_links")
+
+
+class PropertyFactModel(Base):
+    __tablename__ = "property_facts"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    company_id: Mapped[uuid.UUID] = mapped_column(index=True)
+    property_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("properties.id", ondelete="CASCADE"), index=True)
+    text: Mapped[str] = mapped_column(Text)
+    audience: Mapped[str] = mapped_column(String(20), default="guest")
+    source: Mapped[str] = mapped_column(String(20), default="user")
+    created_at: Mapped[datetime] = mapped_column(default=datetime.utcnow)

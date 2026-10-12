@@ -121,10 +121,25 @@ class FakeBookingRepository(BookingRepository):
     async def get_by_id(self, booking_id):
         return self.items.get(booking_id)
 
+    async def lock_idempotency_key(self, company_id, key):
+        pass
+
+    async def list_expired_holds(self, now, *, limit):
+        return []
+
+    async def get_for_update(self, booking_id):
+        return self.items.get(booking_id)
+
+    async def touch(self, booking_id):
+        pass
+
+    async def get_by_idempotency_key(self, company_id, key):
+        return None
+
     async def get_by_property_and_dates(self, property_id, check_in, check_out, *, exclude_id=None):
         result = []
         for b in self.items.values():
-            if b.property_id != property_id or b.status == BookingStatus.CANCELLED:
+            if b.property_id != property_id or b.status == BookingStatus.CANCELLED or b.id == exclude_id:
                 continue
             if b.check_in < check_out and check_in < b.check_out:
                 result.append(b)
@@ -146,6 +161,9 @@ class FakeBookingRepository(BookingRepository):
 
     async def list_by_company_date_range(self, company_id, start_date, end_date):
         return [b for b in self.items.values() if b.company_id == company_id]
+
+    async def list_changed(self, company_id, *, after, until, limit):
+        return []
 
     async def update(self, booking):
         self.items[booking.id] = booking
@@ -171,6 +189,9 @@ class FakeGuestRepository(GuestRepository):
 
     async def search_by_name_or_phone(self, company_id, query):
         return []
+
+    async def list_by_phone(self, company_id, phone):
+        return [g for g in self.items.values() if g.company_id == company_id and g.phone == phone]
 
     async def find_by_phone(self, company_id, phone):
         return next(
@@ -544,3 +565,40 @@ class TestProcessBookingEvent:
         assert result.applied
         created = [b for b in bookings.items.values() if b.notes]
         assert any("OVERBOOKING" in (b.notes or "") for b in created)
+        # The flag exempts it from the database's no-overlap constraint, so the
+        # OTA's confirmed stay is recorded instead of failing on insert.
+        assert [b.overbooking for b in created] == [True]
+
+    async def test_a_booking_without_overlap_is_not_flagged(self):
+        listings = FakeListingRepository()
+        await listings.create(_active_listing())
+        bookings = FakeBookingRepository()
+        service, _ = _event_service(listings, bookings=bookings)
+
+        await service.execute(_revision())
+
+        assert [b.overbooking for b in bookings.items.values()] == [False]
+
+    async def test_a_modification_into_taken_dates_is_flagged(self):
+        listings = FakeListingRepository()
+        await listings.create(_active_listing())
+        bookings = FakeBookingRepository()
+        service, _ = _event_service(listings, bookings=bookings)
+        await service.execute(_revision())  # 1–4 Sep
+        await bookings.create(
+            Booking(
+                company_id=COMPANY_ID,
+                property_id=PROPERTY_ID,
+                check_in=datetime(2026, 9, 10, 14),
+                check_out=datetime(2026, 9, 12, 12),
+                status=BookingStatus.CONFIRMED,
+            )
+        )
+
+        await service.execute(
+            _revision(revision_id="rev-2", status="modified", arrival_date="2026-09-09", departure_date="2026-09-11")
+        )
+
+        ota = next(b for b in bookings.items.values() if b.notes)
+        assert ota.check_in == datetime(2026, 9, 9, 14)
+        assert ota.overbooking is True

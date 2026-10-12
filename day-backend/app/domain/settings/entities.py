@@ -13,5 +13,7 @@ class CompanySettings:
     company_id: uuid.UUID = field(default_factory=uuid.uuid4)
     default_currency: Currency = Currency.KZT
     default_language: Language = Language.RU
+    # IANA name of the clock that check-in and check-out times are local to.
+    time_zone: str = "Asia/Almaty"
     created_at: datetime | None = None
     updated_at: datetime | None = None

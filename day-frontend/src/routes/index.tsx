@@ -1,6 +1,9 @@
-import { createFileRoute } from '@tanstack/react-router'
-import HomePage from '../pages/HomePage'
+import { createFileRoute, redirect } from '@tanstack/react-router'
 
+// The root has no page of its own: a signed-in user lands on today's
+// check-ins/check-outs, the screen they open first every morning.
 export const Route = createFileRoute('/')({
-  component: HomePage,
+  beforeLoad: () => {
+    throw redirect({ to: '/bookings/today' })
+  },
 })

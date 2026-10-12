@@ -16,6 +16,7 @@ from app.domain.property.entities import (
     Property,
     PropertyAuditLog,
     PropertyCosts,
+    PropertyFact,
     PropertyPhoto,
     SeasonalPrice,
 )
@@ -25,6 +26,7 @@ from app.domain.property.repositories import (
     PricingConfigRepository,
     PropertyAuditLogRepository,
     PropertyCostsRepository,
+    PropertyFactRepository,
     PropertyPhotoRepository,
     PropertyRepository,
     SeasonalPriceRepository,
@@ -32,6 +34,8 @@ from app.domain.property.repositories import (
 from app.domain.property.value_objects import (
     AmenityCategory,
     AuditAction,
+    FactAudience,
+    FactSource,
     PropertyStatus,
     PropertyType,
 )
@@ -42,6 +46,7 @@ from app.infrastructure.models.property import (
     PropertyAmenityModel,
     PropertyAuditLogModel,
     PropertyCostsModel,
+    PropertyFactModel,
     PropertyModel,
     PropertyPhotoModel,
     SeasonalPriceModel,
@@ -118,6 +123,7 @@ def _model_to_photo(m: PropertyPhotoModel) -> PropertyPhoto:
         url=m.url,
         sort_order=m.sort_order,
         is_cover=m.is_cover,
+        caption=m.caption,
         created_at=m.created_at,
     )
 
@@ -301,6 +307,7 @@ class SqlPropertyPhotoRepository(PropertyPhotoRepository):
             url=photo.url,
             sort_order=photo.sort_order,
             is_cover=photo.is_cover,
+            caption=photo.caption,
         )
         self._session.add(model)
         await self._session.flush()
@@ -310,6 +317,12 @@ class SqlPropertyPhotoRepository(PropertyPhotoRepository):
     async def delete(self, photo_id: uuid.UUID) -> None:
         stmt = delete(PropertyPhotoModel).where(PropertyPhotoModel.id == photo_id)
         await self._session.execute(stmt)
+        await self._session.flush()
+
+    async def set_caption(self, photo_id: uuid.UUID, caption: str | None) -> None:
+        await self._session.execute(
+            update(PropertyPhotoModel).where(PropertyPhotoModel.id == photo_id).values(caption=caption)
+        )
         await self._session.flush()
 
     async def reorder(self, property_id: uuid.UUID, photo_ids: list[uuid.UUID]) -> None:
@@ -676,3 +689,58 @@ class SqlPropertyTagRepository:
         stmt = select(PropertyTagAssociationModel.property_id).where(PropertyTagAssociationModel.tag_id == tag_id)
         result = await self._session.scalars(stmt)
         return list(result.all())
+
+
+def _model_to_fact(m: PropertyFactModel) -> PropertyFact:
+    return PropertyFact(
+        id=m.id,
+        company_id=m.company_id,
+        property_id=m.property_id,
+        text=m.text,
+        audience=FactAudience(m.audience),
+        source=FactSource(m.source),
+        created_at=m.created_at,
+    )
+
+
+class SqlPropertyFactRepository(PropertyFactRepository):
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+
+    async def list_by_property(self, property_id: uuid.UUID) -> list[PropertyFact]:
+        result = await self._session.scalars(
+            select(PropertyFactModel)
+            .where(PropertyFactModel.property_id == property_id)
+            .order_by(PropertyFactModel.created_at, PropertyFactModel.id)
+        )
+        return [_model_to_fact(m) for m in result.all()]
+
+    async def find_by_text(self, property_id: uuid.UUID, text: str) -> PropertyFact | None:
+        result = await self._session.scalar(
+            select(PropertyFactModel).where(
+                PropertyFactModel.property_id == property_id, PropertyFactModel.text == text
+            )
+        )
+        return _model_to_fact(result) if result else None
+
+    async def get_by_id(self, fact_id: uuid.UUID) -> PropertyFact | None:
+        result = await self._session.get(PropertyFactModel, fact_id)
+        return _model_to_fact(result) if result else None
+
+    async def create(self, fact: PropertyFact) -> PropertyFact:
+        model = PropertyFactModel(
+            id=fact.id,
+            company_id=fact.company_id,
+            property_id=fact.property_id,
+            text=fact.text,
+            audience=fact.audience.value,
+            source=fact.source.value,
+        )
+        self._session.add(model)
+        await self._session.flush()
+        await self._session.refresh(model)
+        return _model_to_fact(model)
+
+    async def delete(self, fact_id: uuid.UUID) -> None:
+        await self._session.execute(delete(PropertyFactModel).where(PropertyFactModel.id == fact_id))
+        await self._session.flush()

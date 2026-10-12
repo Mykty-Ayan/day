@@ -9,6 +9,8 @@ from app.domain.booking.value_objects import RentalMode
 from app.domain.property.value_objects import (
     AmenityCategory,
     AuditAction,
+    FactAudience,
+    FactSource,
     PropertyStatus,
     PropertyType,
 )
@@ -69,6 +71,8 @@ class PropertyPhoto:
     url: str = ""
     sort_order: int = 0
     is_cover: bool = False
+    # What the picture shows ("entrance from the yard"), for whoever sends it on.
+    caption: str | None = None
     created_at: datetime | None = None
 
 
@@ -182,4 +186,17 @@ class PropertyAuditLog:
     old_value: str | None = None
     new_value: str | None = None
     action: AuditAction = AuditAction.CREATE
+    created_at: datetime | None = None
+
+
+@dataclass
+class PropertyFact:
+    """One note in an apartment's knowledge base."""
+
+    id: uuid.UUID = field(default_factory=uuid.uuid4)
+    company_id: uuid.UUID = field(default_factory=uuid.uuid4)
+    property_id: uuid.UUID = field(default_factory=uuid.uuid4)
+    text: str = ""
+    audience: FactAudience = FactAudience.GUEST
+    source: FactSource = FactSource.USER
     created_at: datetime | None = None

@@ -25,6 +25,9 @@ class Permission:
 
     PROPERTIES_READ = "properties:read"
     PROPERTIES_WRITE = "properties:write"
+    # Narrower than properties:write, which also changes prices: what an
+    # integration such as the CRM needs to add to an apartment's knowledge base.
+    PROPERTY_FACTS_WRITE = "property_facts:write"
 
     BOOKINGS_READ = "bookings:read"
     BOOKINGS_WRITE = "bookings:write"
@@ -57,6 +60,7 @@ _MANAGER_PERMISSIONS: frozenset[str] = frozenset(
     {
         Permission.PROPERTIES_READ,
         Permission.PROPERTIES_WRITE,
+        Permission.PROPERTY_FACTS_WRITE,
         Permission.BOOKINGS_READ,
         Permission.BOOKINGS_WRITE,
         Permission.CLEANING_READ,

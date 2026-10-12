@@ -1,12 +1,14 @@
 from __future__ import annotations
 
+import contextlib
 import re
 import uuid
 from collections.abc import Sequence
 from datetime import date, datetime
 from decimal import Decimal
 
-from sqlalchemy import case, delete, func, select, update
+from sqlalchemy import and_, case, delete, func, select, text, tuple_, update
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.domain.booking.entities import (
@@ -20,6 +22,7 @@ from app.domain.booking.entities import (
     GroupBooking,
     Guest,
 )
+from app.domain.booking.exceptions import BookingOverlapError, IdempotencyKeyTakenError
 from app.domain.booking.repositories import (
     BookingAuditLogRepository,
     BookingCommentRepository,
@@ -90,6 +93,11 @@ def _model_to_booking(m: BookingModel) -> Booking:
         adults_count=m.adults_count,
         children_count=m.children_count,
         notes=m.notes,
+        overbooking=m.overbooking,
+        external_id=m.external_id,
+        idempotency_key=m.idempotency_key,
+        idempotency_hash=m.idempotency_hash,
+        expires_at=m.expires_at,
         created_at=m.created_at,
         updated_at=m.updated_at,
     )
@@ -118,6 +126,9 @@ def _model_to_payment(m: BookingPaymentModel) -> BookingPayment:
         status=PaymentStatus(m.status),
         note=m.note,
         paid_at=m.paid_at,
+        external_id=m.external_id,
+        idempotency_key=m.idempotency_key,
+        idempotency_hash=m.idempotency_hash,
         created_at=m.created_at,
     )
 
@@ -181,6 +192,31 @@ def _model_to_audit(m: BookingAuditLogModel) -> BookingAuditLog:
     )
 
 
+_EXCLUSION_VIOLATION = "23P01"
+_UNIQUE_VIOLATION = "23505"
+_IDEMPOTENCY_INDEXES = {"uq_bookings_company_idempotency_key", "uq_booking_payments_booking_idempotency_key"}
+
+
+@contextlib.asynccontextmanager
+async def _guarded_write(session: AsyncSession):
+    """Turn the database's refusals of a booking write into domain errors.
+
+    The write runs in a savepoint, so a refusal rolls back only that write and
+    the caller's transaction stays usable for its answer.
+    """
+    try:
+        async with session.begin_nested():
+            yield
+    except IntegrityError as exc:
+        state = getattr(exc.orig, "sqlstate", None)
+        if state == _EXCLUSION_VIOLATION:
+            raise BookingOverlapError() from exc
+        constraint = getattr(exc.orig.__cause__, "constraint_name", None)
+        if state == _UNIQUE_VIOLATION and constraint in _IDEMPOTENCY_INDEXES:
+            raise IdempotencyKeyTakenError() from exc
+        raise
+
+
 def _digits_only(value: str) -> str:
     return re.sub(r"\D+", "", value)
 
@@ -191,6 +227,30 @@ def _phone_digits_expr():
     for ch in ("+", "-", "(", ")", " ", "."):
         expr = func.replace(expr, ch, "")
     return expr
+
+
+def phone_key(raw: str) -> str:
+    """The digits a phone is matched on: 8…/+7…/10 digits become one Kazakh number.
+
+    Twin of _phone_key_expr; change both together. A foreign number keeps its
+    digits as typed. normalise_phone (leads) gives the same key for +7 numbers.
+    """
+    digits = _digits_only(raw)
+    if len(digits) == 11 and digits.startswith("8"):
+        return "7" + digits[1:]
+    if len(digits) == 10:
+        return "7" + digits
+    return digits
+
+
+def _phone_key_expr():
+    """phone_key computed in SQL over the stored, free-form guests.phone."""
+    digits = func.regexp_replace(func.coalesce(GuestModel.phone, ""), r"\D", "", "g")
+    return case(
+        (and_(func.length(digits) == 11, func.left(digits, 1) == "8"), func.concat("7", func.substr(digits, 2))),
+        (func.length(digits) == 10, func.concat("7", digits)),
+        else_=digits,
+    )
 
 
 def _guest_search_clause(search: str):
@@ -271,15 +331,26 @@ class SqlGuestRepository(GuestRepository):
         result = await self._session.scalars(stmt)
         return [_model_to_guest(m) for m in result.all()]
 
+    async def list_by_phone(self, company_id: uuid.UUID, phone: str) -> list[Guest]:
+        # Computed over the company's guests (company_id index); add a stored,
+        # indexed key column if a company grows past tens of thousands of guests.
+        key = phone_key(phone)
+        if not key:
+            return []
+        stmt = (
+            select(GuestModel)
+            .where(GuestModel.company_id == company_id, _phone_key_expr() == key)
+            .order_by(GuestModel.created_at, GuestModel.id)
+        )
+        result = await self._session.scalars(stmt)
+        return [_model_to_guest(m) for m in result.all()]
+
     async def find_by_phone(
         self, company_id: uuid.UUID, phone: str
     ) -> Guest | None:
-        stmt = select(GuestModel).where(
-            GuestModel.company_id == company_id,
-            GuestModel.phone == phone,
-        )
-        result = await self._session.scalar(stmt)
-        return _model_to_guest(result) if result else None
+        # Earlier bookings may have left duplicates of one guest; the oldest wins.
+        guests = await self.list_by_phone(company_id, phone)
+        return guests[0] if guests else None
 
 
 class SqlBookingRepository(BookingRepository):
@@ -305,14 +376,50 @@ class SqlBookingRepository(BookingRepository):
             adults_count=booking.adults_count,
             children_count=booking.children_count,
             notes=booking.notes,
+            overbooking=booking.overbooking,
+            external_id=booking.external_id,
+            idempotency_key=booking.idempotency_key,
+            idempotency_hash=booking.idempotency_hash,
+            expires_at=booking.expires_at,
         )
-        self._session.add(model)
-        await self._session.flush()
+        async with _guarded_write(self._session):
+            self._session.add(model)
+            await self._session.flush()
         await self._session.refresh(model)
         return _model_to_booking(model)
 
     async def get_by_id(self, booking_id: uuid.UUID) -> Booking | None:
         result = await self._session.get(BookingModel, booking_id)
+        return _model_to_booking(result) if result else None
+
+    async def get_for_update(self, booking_id: uuid.UUID) -> Booking | None:
+        # populate_existing: the row may already sit in this session from an
+        # earlier read; the locked read must replace it, not return it stale.
+        stmt = (
+            select(BookingModel)
+            .where(BookingModel.id == booking_id)
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
+        result = await self._session.scalar(stmt)
+        return _model_to_booking(result) if result else None
+
+    async def lock_idempotency_key(self, company_id: uuid.UUID, key: str) -> None:
+        # Held until the transaction ends. A second request with the same key
+        # waits here, then finds the first one's booking instead of racing it
+        # into the constraints (where the two can deadlock).
+        await self._session.execute(
+            text("SELECT pg_advisory_xact_lock(hashtextextended(:k, 0))"),
+            {"k": f"booking-idempotency:{company_id}:{key}"},
+        )
+
+    async def get_by_idempotency_key(self, company_id: uuid.UUID, key: str) -> Booking | None:
+        result = await self._session.scalar(
+            select(BookingModel).where(
+                BookingModel.company_id == company_id,
+                BookingModel.idempotency_key == key,
+            )
+        )
         return _model_to_booking(result) if result else None
 
     async def get_by_property_and_dates(
@@ -446,6 +553,62 @@ class SqlBookingRepository(BookingRepository):
         result = await self._session.scalars(stmt)
         return [_model_to_booking(m) for m in result.all()]
 
+    async def list_changed(
+        self,
+        company_id: uuid.UUID,
+        *,
+        after: tuple[datetime, uuid.UUID],
+        until: datetime,
+        limit: int,
+    ) -> list[Booking]:
+        # Served by the company_id index plus a sort. Fine for hundreds of
+        # bookings per company; add an index on (company_id, updated_at, id)
+        # when a company grows past tens of thousands.
+        stmt = (
+            select(BookingModel)
+            .where(
+                BookingModel.company_id == company_id,
+                tuple_(BookingModel.updated_at, BookingModel.id) > tuple_(*after),
+                BookingModel.updated_at <= until,
+            )
+            .order_by(BookingModel.updated_at, BookingModel.id)
+            .limit(limit)
+        )
+        result = await self._session.scalars(stmt)
+        return [_model_to_booking(m) for m in result.all()]
+
+    async def list_expired_holds(self, now: datetime, *, limit: int) -> list[Booking]:
+        # A system sweep across every company: each hold is cancelled within
+        # its own company, and nothing here is shown to a caller. Rows stay
+        # locked until the sweep commits; SKIP LOCKED lets several API
+        # instances sweep at once without taking the same hold twice.
+        # A hold with money on it is never swept: a write racing the payment
+        # can put a paid booking back to pending, and cancelling it would
+        # release nights the guest has paid for.
+        paid = (
+            select(BookingPaymentModel.id)
+            .where(
+                BookingPaymentModel.booking_id == BookingModel.id,
+                BookingPaymentModel.type == PaymentType.PAYMENT.value,
+                BookingPaymentModel.status == PaymentStatus.COMPLETED.value,
+            )
+            .exists()
+        )
+        stmt = (
+            select(BookingModel)
+            .where(
+                BookingModel.status == BookingStatus.PENDING.value,
+                BookingModel.expires_at.is_not(None),
+                BookingModel.expires_at <= now,
+                ~paid,
+            )
+            .order_by(BookingModel.expires_at)
+            .limit(limit)
+            .with_for_update(skip_locked=True)
+        )
+        result = await self._session.scalars(stmt)
+        return [_model_to_booking(m) for m in result.all()]
+
     async def update(self, booking: Booking) -> Booking:
         stmt = (
             update(BookingModel)
@@ -466,13 +629,21 @@ class SqlBookingRepository(BookingRepository):
                 adults_count=booking.adults_count,
                 children_count=booking.children_count,
                 notes=booking.notes,
+                overbooking=booking.overbooking,
+                expires_at=booking.expires_at,
                 updated_at=datetime.utcnow(),
             )
         )
-        await self._session.execute(stmt)
+        async with _guarded_write(self._session):
+            await self._session.execute(stmt)
         await self._session.flush()
         result = await self._session.get(BookingModel, booking.id)
         return _model_to_booking(result)  # type: ignore[arg-type]
+
+    async def touch(self, booking_id: uuid.UUID) -> None:
+        await self._session.execute(
+            update(BookingModel).where(BookingModel.id == booking_id).values(updated_at=datetime.utcnow())
+        )
 
 
 class SqlGroupBookingRepository(GroupBookingRepository):
@@ -525,11 +696,41 @@ class SqlBookingPaymentRepository(BookingPaymentRepository):
             status=payment.status.value,
             note=payment.note,
             paid_at=payment.paid_at,
+            external_id=payment.external_id,
+            idempotency_key=payment.idempotency_key,
+            idempotency_hash=payment.idempotency_hash,
         )
-        self._session.add(model)
-        await self._session.flush()
+        async with _guarded_write(self._session):
+            self._session.add(model)
+            await self._session.flush()
         await self._session.refresh(model)
         return _model_to_payment(model)
+
+    async def lock_idempotency_key(self, booking_id: uuid.UUID, key: str) -> None:
+        # Same reason as SqlBookingRepository.lock_idempotency_key.
+        await self._session.execute(
+            text("SELECT pg_advisory_xact_lock(hashtextextended(:k, 0))"),
+            {"k": f"payment-idempotency:{booking_id}:{key}"},
+        )
+
+    async def get_by_idempotency_key(self, booking_id: uuid.UUID, key: str) -> BookingPayment | None:
+        result = await self._session.scalar(
+            select(BookingPaymentModel).where(
+                BookingPaymentModel.booking_id == booking_id,
+                BookingPaymentModel.idempotency_key == key,
+            )
+        )
+        return _model_to_payment(result) if result else None
+
+    async def update(self, payment: BookingPayment) -> BookingPayment:
+        await self._session.execute(
+            update(BookingPaymentModel)
+            .where(BookingPaymentModel.id == payment.id)
+            .values(status=payment.status.value, paid_at=payment.paid_at)
+        )
+        await self._session.flush()
+        result = await self._session.get(BookingPaymentModel, payment.id, populate_existing=True)
+        return _model_to_payment(result)  # type: ignore[arg-type]
 
     async def list_by_booking(self, booking_id: uuid.UUID) -> list[BookingPayment]:
         stmt = (
@@ -555,7 +756,11 @@ class SqlBookingPaymentRepository(BookingPaymentRepository):
         )
         stmt = (
             select(BookingPaymentModel.booking_id, func.coalesce(func.sum(signed), 0))
-            .where(BookingPaymentModel.booking_id.in_(booking_ids))
+            .where(
+                BookingPaymentModel.booking_id.in_(booking_ids),
+                # A pending payment is money promised, not received.
+                BookingPaymentModel.status == PaymentStatus.COMPLETED.value,
+            )
             .group_by(BookingPaymentModel.booking_id)
         )
         rows = await self._session.execute(stmt)

@@ -2,16 +2,19 @@
 
 from __future__ import annotations
 
+import hashlib
+import json
 import re
 import uuid
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 from urllib.parse import quote, urlparse
 
-from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
+from fastapi import APIRouter, Depends, File, Header, HTTPException, Query, UploadFile
 from fastapi.responses import Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.application.booking.booking_feed import BookingFeedService, FeedPosition
 from app.application.booking.change_booking_status import ChangeBookingStatusService
 from app.application.booking.check_availability import CheckAvailabilityService
 from app.application.booking.create_booking import (
@@ -29,13 +32,20 @@ from app.application.booking.update_booking import (
     UpdateBookingInput,
     UpdateBookingService,
 )
+from app.application.leads.check_guest import normalise_phone
 from app.config import settings
 from app.domain.auth.permissions import Permission
 from app.domain.booking.entities import BookingComment, BookingFile
-from app.domain.booking.value_objects import BookingSource, BookingStatus, RentalMode
+from app.domain.booking.exceptions import (
+    BookingOverlapError,
+    IdempotencyKeyReusedError,
+    IdempotencyKeyTakenError,
+)
+from app.domain.booking.value_objects import BookingSource, BookingStatus, PaymentStatus, RentalMode
 from app.domain.messaging.value_objects import NotificationEvent
+from app.domain.settings.entities import CompanySettings
 from app.infrastructure.database import get_session
-from app.infrastructure.messaging.factory import build_notification_service
+from app.infrastructure.messaging.booking_notice import notify_booking
 from app.infrastructure.repositories.booking import (
     SqlBookingAuditLogRepository,
     SqlBookingCommentRepository,
@@ -49,9 +59,11 @@ from app.infrastructure.repositories.booking import (
 from app.infrastructure.repositories.property import (
     SqlDiscountRuleRepository,
     SqlPricingConfigRepository,
+    SqlPropertyPhotoRepository,
     SqlPropertyRepository,
     SqlSeasonalPriceRepository,
 )
+from app.infrastructure.repositories.settings import SqlCompanySettingsRepository
 from app.infrastructure.storage.s3 import (
     FileTooLargeError,
     download_booking_file,
@@ -60,12 +72,15 @@ from app.infrastructure.storage.s3 import (
 from app.presentation.api.deps import get_company_id, get_user_id, require
 from app.presentation.schemas.booking import (
     AvailabilityResponse,
+    AvailablePhotoResponse,
     AvailablePropertyResponse,
     BookingAuditLogResponse,
     BookingCommentCreate,
     BookingCommentResponse,
     BookingCreate,
     BookingDetailResponse,
+    BookingFeedItem,
+    BookingFeedResponse,
     BookingFileResponse,
     BookingListResponse,
     BookingMove,
@@ -110,7 +125,25 @@ def _repos(session: AsyncSession):
         "pricing": SqlPricingConfigRepository(session),
         "seasonal": SqlSeasonalPriceRepository(session),
         "discount": SqlDiscountRuleRepository(session),
+        "settings": SqlCompanySettingsRepository(session),
+        "photo": SqlPropertyPhotoRepository(session),
     }
+
+
+def _utcnow() -> datetime:
+    return datetime.utcnow()
+
+
+def _naive_utc(value: datetime) -> datetime:
+    """Day stores instants as naive UTC; a naive input is taken to be UTC."""
+    if value.tzinfo is None:
+        return value
+    return value.astimezone(timezone.utc).replace(tzinfo=None)
+
+
+def _request_hash(body) -> str:
+    """What an Idempotency-Key retry must repeat: the body, defaults filled in."""
+    return hashlib.sha256(json.dumps(body.model_dump(mode="json"), sort_keys=True).encode()).hexdigest()
 
 
 def _price_calculator(repos):
@@ -148,6 +181,8 @@ def _to_booking_response(
         guest_phone=guest_phone,
         property_name=property_name,
         property_internal_name=property_internal_name,
+        external_id=b.external_id,
+        expires_at=b.expires_at.replace(tzinfo=timezone.utc) if b.expires_at else None,
         created_at=b.created_at,
         updated_at=b.updated_at,
     )
@@ -201,26 +236,7 @@ async def _notify_booking(
     booking,
     repos: dict,
 ) -> None:
-    """Queue a host notification in the same transaction as the change itself.
-
-    A company with no bot connected queues nothing, so this is a no-op until
-    someone links a chat.
-    """
-    prop = await repos["property"].get_by_id(booking.property_id)
-    guest = await repos["guest"].get_by_id(booking.guest_id) if booking.guest_id else None
-    await build_notification_service(session).notify_company(
-        company_id,
-        event,
-        {
-            "property_name": prop.name if prop else "—",
-            "guest_name": guest.name if guest else "—",
-            "check_in": booking.check_in.strftime("%d.%m.%Y %H:%M"),
-            "check_out": booking.check_out.strftime("%d.%m.%Y %H:%M"),
-            "total_price": str(booking.total_price) if booking.total_price is not None else None,
-            "source": booking.source.value,
-            "booking_id": str(booking.id),
-        },
-    )
+    await notify_booking(session, company_id, event, booking, repos["property"], repos["guest"])
 
 
 @booking_router.post(
@@ -231,10 +247,18 @@ async def _notify_booking(
 )
 async def create_booking(
     body: BookingCreate,
+    response: Response,
+    idempotency_key: str | None = Header(default=None, alias="Idempotency-Key", min_length=1, max_length=255),
     session: AsyncSession = Depends(get_session),
     company_id: uuid.UUID = Depends(get_company_id),
     user_id: uuid.UUID | None = Depends(get_user_id),
 ):
+    """Create a pending booking.
+
+    With an `Idempotency-Key` header a retry of the same request answers 200
+    with the booking the first one made (header `Idempotent-Replayed: true`),
+    and the same key with a different body answers 422.
+    """
     repos = _repos(session)
     svc = CreateBookingService(
         repos["booking"],
@@ -243,6 +267,23 @@ async def create_booking(
         repos["audit"],
         _price_calculator(repos),
     )
+    request_hash = _request_hash(body) if idempotency_key else None
+
+    async def replayed() -> BookingResponse | None:
+        if not idempotency_key:
+            return None
+        try:
+            booking = await svc.replay(company_id, idempotency_key, request_hash)
+        except IdempotencyKeyReusedError as e:
+            raise HTTPException(status_code=422, detail=str(e))
+        if booking is None:
+            return None
+        response.status_code = 200
+        response.headers["Idempotent-Replayed"] = "true"
+        return _to_booking_response(booking)
+
+    if (answer := await replayed()) is not None:
+        return answer
     try:
         result = await svc.execute(
             CreateBookingInput(
@@ -260,11 +301,22 @@ async def create_booking(
                 gantt_color=body.gantt_color,
                 notes=body.notes,
                 changed_by=user_id,
+                external_id=body.external_id,
+                idempotency_key=idempotency_key,
+                idempotency_hash=request_hash,
+                expires_at=_naive_utc(body.expires_at) if body.expires_at else None,
             )
         )
         await _notify_booking(session, company_id, NotificationEvent.BOOKING_CREATED, result, repos)
         await session.commit()
         return _to_booking_response(result)
+    except (BookingOverlapError, IdempotencyKeyTakenError) as e:
+        await session.rollback()
+        # A request with the same key may have committed while this one ran;
+        # then this one is its retry and gets the same answer.
+        if (answer := await replayed()) is not None:
+            return answer
+        raise HTTPException(status_code=409, detail=str(e) or "Conflict")
     except ValueError as e:
         await session.rollback()
         raise HTTPException(status_code=400, detail=str(e))
@@ -323,6 +375,87 @@ async def list_bookings(
         page=page,
         per_page=per_page,
         pages=pages,
+    )
+
+
+@booking_router.get(
+    "/feed",
+    response_model=BookingFeedResponse,
+    dependencies=[Depends(require(Permission.BOOKINGS_READ))],
+)
+async def booking_feed(
+    updated_since: datetime | None = None,
+    cursor: str | None = None,
+    limit: int = Query(default=100, ge=1, le=200),
+    session: AsyncSession = Depends(get_session),
+    company_id: uuid.UUID = Depends(get_company_id),
+):
+    """Every change to the company's bookings, oldest first, cancelled ones included.
+
+    Start with `updated_since` (or nothing, for the whole history), then pass
+    back `next_cursor` from each answer. A booking appears again every time it
+    changes. Changes show up about 30 s after they happen.
+    """
+    if updated_since is not None and cursor is not None:
+        raise HTTPException(status_code=400, detail="Pass updated_since or cursor, not both")
+    after = None
+    if cursor is not None:
+        try:
+            after = FeedPosition.decode(cursor)
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+    elif updated_since is not None:
+        after = FeedPosition.since(_naive_utc(updated_since))
+
+    repos = _repos(session)
+    page = await BookingFeedService(repos["booking"]).execute(
+        company_id, after=after, limit=limit, now=_utcnow()
+    )
+
+    company_settings = await repos["settings"].get_by_company(company_id) or CompanySettings()
+    paid = await repos["payment"].sum_paid_by_bookings([b.id for b in page.items])
+    # A page usually holds a few properties and guests many times over.
+    guests: dict = {}
+    props: dict = {}
+    items = []
+    for b in page.items:
+        if b.guest_id not in guests:
+            guests[b.guest_id] = await repos["guest"].get_by_id(b.guest_id)
+        if b.property_id not in props:
+            props[b.property_id] = await repos["property"].get_by_id(b.property_id)
+        guest, prop = guests[b.guest_id], props[b.property_id]
+        phone = guest.phone if guest else None
+        items.append(
+            BookingFeedItem(
+                id=b.id,
+                property_id=b.property_id,
+                property_name=prop.name if prop else None,
+                guest_id=b.guest_id,
+                guest_name=guest.name if guest else None,
+                guest_phone=phone,
+                guest_phone_e164=normalise_phone(phone).lstrip("+") or None,
+                check_in=b.check_in,
+                check_out=b.check_out,
+                rental_mode=b.rental_mode,
+                status=b.status,
+                source=b.source,
+                total_price=b.total_price,
+                paid_amount=paid.get(b.id, Decimal("0")),
+                adults_count=b.adults_count,
+                children_count=b.children_count,
+                external_id=b.external_id,
+                expires_at=b.expires_at.replace(tzinfo=timezone.utc) if b.expires_at else None,
+                created_at=b.created_at.replace(tzinfo=timezone.utc),
+                updated_at=b.updated_at.replace(tzinfo=timezone.utc),
+            )
+        )
+
+    return BookingFeedResponse(
+        items=items,
+        next_cursor=page.next_position.encode(),
+        has_more=page.has_more,
+        currency=company_settings.default_currency.value,
+        time_zone=company_settings.time_zone,
     )
 
 
@@ -458,12 +591,17 @@ async def update_booking(
     provided = body.model_dump(exclude_unset=True)
     inp = UpdateBookingInput(booking_id=booking_id, company_id=company_id, changed_by=user_id)
     for field_name, value in provided.items():
+        if field_name == "expires_at" and value is not None:
+            value = _naive_utc(value)
         setattr(inp, field_name, value)
 
     try:
         result = await svc.execute(inp)
         await session.commit()
         return _to_booking_response(result)
+    except BookingOverlapError as e:
+        await session.rollback()
+        raise HTTPException(status_code=409, detail=str(e))
     except ValueError as e:
         await session.rollback()
         raise HTTPException(status_code=400, detail=str(e))
@@ -514,6 +652,9 @@ async def move_booking(
         result = await svc.execute(booking_id, company_id, body.target_property_id, changed_by=user_id)
         await session.commit()
         return _to_booking_response(result)
+    except BookingOverlapError as e:
+        await session.rollback()
+        raise HTTPException(status_code=409, detail=str(e))
     except ValueError as e:
         await session.rollback()
         raise HTTPException(status_code=400, detail=str(e))
@@ -555,6 +696,8 @@ async def get_availability(
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
+    # One query per free flat, one after another: a session runs one statement at a time.
+    photos = [await repos["photo"].list_by_property(item.property.id) for item in available]
     return AvailabilityResponse(
         check_in=check_in,
         check_out=check_out,
@@ -569,8 +712,12 @@ async def get_availability(
                 beds=item.property.beds,
                 total_price=item.total_price,
                 price_error=item.price_error,
+                photos=[
+                    AvailablePhotoResponse(url=p.url, caption=p.caption, is_cover=p.is_cover, sort_order=p.sort_order)
+                    for p in sorted(flat_photos, key=lambda p: (not p.is_cover, p.sort_order))
+                ],
             )
-            for item in available
+            for item, flat_photos in zip(available, photos)
         ],
     )
 
@@ -586,6 +733,9 @@ async def calculate_price(
     company_id: uuid.UUID = Depends(get_company_id),
 ):
     repos = _repos(session)
+    prop = await repos["property"].get_by_id(body.property_id)
+    if prop is None or prop.company_id != company_id:
+        raise HTTPException(status_code=404, detail="Property not found")
     calc = _price_calculator(repos)
     try:
         result = await calc.calculate(
@@ -623,11 +773,38 @@ async def calculate_price(
 async def add_payment(
     booking_id: uuid.UUID,
     body: PaymentCreate,
+    response: Response,
+    idempotency_key: str | None = Header(default=None, alias="Idempotency-Key", min_length=1, max_length=255),
     session: AsyncSession = Depends(get_session),
     company_id: uuid.UUID = Depends(get_company_id),
+    user_id: uuid.UUID | None = Depends(get_user_id),
 ):
+    """Record money for a booking. A completed payment confirms a pending booking.
+
+    Idempotency-Key works as on POST /bookings: a retry answers 200 with the
+    first payment (Idempotent-Replayed: true), another body with the key is 422.
+    """
     repos = _repos(session)
-    svc = ManagePaymentsService(repos["booking"], repos["payment"])
+    svc = ManagePaymentsService(repos["booking"], repos["payment"], repos["audit"])
+    request_hash = _request_hash(body) if idempotency_key else None
+
+    async def replayed() -> PaymentResponse | None:
+        if not idempotency_key:
+            return None
+        try:
+            payment = await svc.replay_payment(booking_id, company_id, idempotency_key, request_hash)
+        except IdempotencyKeyReusedError as e:
+            raise HTTPException(status_code=422, detail=str(e))
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+        if payment is None:
+            return None
+        response.status_code = 200
+        response.headers["Idempotent-Replayed"] = "true"
+        return PaymentResponse.model_validate(payment, from_attributes=True)
+
+    if (answer := await replayed()) is not None:
+        return answer
     try:
         result = await svc.add_payment(
             booking_id,
@@ -636,12 +813,47 @@ async def add_payment(
             body.type,
             body.method,
             body.note,
+            status=PaymentStatus(body.status),
+            external_id=body.external_id,
+            idempotency_key=idempotency_key,
+            idempotency_hash=request_hash,
+            changed_by=user_id,
         )
+        await session.commit()
+        return PaymentResponse.model_validate(result, from_attributes=True)
+    except IdempotencyKeyTakenError:
+        await session.rollback()
+        if (answer := await replayed()) is not None:
+            return answer
+        raise HTTPException(status_code=409, detail="Conflict")
+    except ValueError as e:
+        await session.rollback()
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@booking_router.post(
+    "/{booking_id:uuid}/payments/{payment_id:uuid}/confirm",
+    response_model=PaymentResponse,
+    dependencies=[Depends(require(Permission.BOOKINGS_WRITE))],
+)
+async def confirm_payment(
+    booking_id: uuid.UUID,
+    payment_id: uuid.UUID,
+    session: AsyncSession = Depends(get_session),
+    company_id: uuid.UUID = Depends(get_company_id),
+    user_id: uuid.UUID | None = Depends(get_user_id),
+):
+    """The money of a pending payment arrived; a pending booking becomes confirmed."""
+    repos = _repos(session)
+    svc = ManagePaymentsService(repos["booking"], repos["payment"], repos["audit"])
+    try:
+        result = await svc.confirm_payment(booking_id, payment_id, company_id, changed_by=user_id)
         await session.commit()
         return PaymentResponse.model_validate(result, from_attributes=True)
     except ValueError as e:
         await session.rollback()
-        raise HTTPException(status_code=400, detail=str(e))
+        status = 404 if str(e) in ("Booking not found", "Payment not found") else 400
+        raise HTTPException(status_code=status, detail=str(e))
 
 
 @booking_router.get(
@@ -655,7 +867,7 @@ async def list_payments(
     company_id: uuid.UUID = Depends(get_company_id),
 ):
     repos = _repos(session)
-    svc = ManagePaymentsService(repos["booking"], repos["payment"])
+    svc = ManagePaymentsService(repos["booking"], repos["payment"], repos["audit"])
     try:
         result = await svc.list_payments(booking_id, company_id)
         return [PaymentResponse.model_validate(p, from_attributes=True) for p in result]
@@ -692,6 +904,7 @@ async def create_deposit(
 @booking_router.post(
     "/{booking_id:uuid}/deposits/{deposit_id}/action",
     response_model=DepositResponse,
+    dependencies=[Depends(require(Permission.BOOKINGS_WRITE))],
 )
 async def deposit_action(
     booking_id: uuid.UUID,
@@ -850,6 +1063,9 @@ async def delete_file(
     booking = await repos["booking"].get_by_id(booking_id)
     if booking is None or booking.company_id != company_id:
         raise HTTPException(status_code=404, detail="Booking not found")
+    file_rec = await repos["file"].get_by_id(file_id)
+    if file_rec is None or file_rec.booking_id != booking_id:
+        raise HTTPException(status_code=404, detail="File not found")
     await repos["file"].delete(file_id)
     await session.commit()
 
@@ -988,10 +1204,19 @@ async def list_guests(
     offset: int = Query(default=0, ge=0),
     limit: int = Query(default=50, ge=1, le=100),
     search: str | None = None,
+    phone: str | None = Query(default=None, description="Exact match: 8…, +7… and 7… are one number"),
     session: AsyncSession = Depends(get_session),
     company_id: uuid.UUID = Depends(get_company_id),
 ):
     repos = _repos(session)
+    if phone is not None:
+        found = await repos["guest"].list_by_phone(company_id, phone)
+        return GuestListResponse(
+            items=[GuestResponse.model_validate(g, from_attributes=True) for g in found[offset : offset + limit]],
+            total=len(found),
+            offset=offset,
+            limit=limit,
+        )
     guests = await repos["guest"].get_by_company(
         company_id,
         offset=offset,

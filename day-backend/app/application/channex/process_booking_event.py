@@ -100,6 +100,13 @@ class ProcessBookingEventService:
             event.booking_id = booking.id if booking is not None else None
         elif booking is not None:
             self._apply_revision_fields(booking, attrs)
+            # New dates may land on nights Day already sold; the OTA has
+            # confirmed them anyway, so the clash is flagged, not refused.
+            booking.overbooking = bool(
+                await self._bookings.get_by_property_and_dates(
+                    booking.property_id, booking.check_in, booking.check_out, exclude_id=booking.id
+                )
+            )
             await self._bookings.update(booking)
             event.booking_id = booking.id
         else:
@@ -169,6 +176,7 @@ class ProcessBookingEventService:
                 adults_count=occupancy[0],
                 children_count=occupancy[1],
                 notes=notes,
+                overbooking=bool(overlapping),
             )
         )
 

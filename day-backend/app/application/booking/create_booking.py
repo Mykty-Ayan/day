@@ -7,6 +7,7 @@ from datetime import date, datetime, time
 from app.application.booking.price_calculator import PriceCalculatorService
 from app.config import settings
 from app.domain.booking.entities import Booking, BookingAuditLog, Guest
+from app.domain.booking.exceptions import BookingOverlapError, IdempotencyKeyReusedError
 from app.domain.booking.repositories import (
     BookingAuditLogRepository,
     BookingRepository,
@@ -97,6 +98,16 @@ class CreateBookingInput:
     gantt_color: str = "#3B82F6"
     notes: str | None = None
     changed_by: uuid.UUID | None = None
+    external_id: str | None = None
+    idempotency_key: str | None = None
+    idempotency_hash: str | None = None
+    # Naive UTC. Makes the booking a hold that lapses at this moment.
+    expires_at: datetime | None = None
+
+
+def validate_hold_expiry(expires_at: datetime | None) -> None:
+    if expires_at is not None and expires_at <= datetime.utcnow():
+        raise ValueError("expires_at must be in the future")
 
 
 class CreateBookingService:
@@ -114,6 +125,18 @@ class CreateBookingService:
         self._audit_repo = audit_repo
         self._price_calculator = price_calculator
 
+    async def replay(self, company_id: uuid.UUID, key: str, request_hash: str) -> Booking | None:
+        """The booking an earlier request with this Idempotency-Key created, if any.
+
+        Takes a lock on the key first, so call it in the transaction that will
+        create the booking.
+        """
+        await self._booking_repo.lock_idempotency_key(company_id, key)
+        booking = await self._booking_repo.get_by_idempotency_key(company_id, key)
+        if booking is not None and booking.idempotency_hash != request_hash:
+            raise IdempotencyKeyReusedError()
+        return booking
+
     async def execute(self, inp: CreateBookingInput) -> Booking:
         # Validate property exists and is active
         prop = await self._property_repo.get_by_id(inp.property_id)
@@ -129,6 +152,7 @@ class CreateBookingService:
 
         if inp.check_in is None or inp.check_out is None:
             raise ValueError("Check-in and check-out dates are required")
+        validate_hold_expiry(inp.expires_at)
 
         # Daily bookings default their clock times (14:00 / 12:00) so the stored
         # datetime is a superset of the incoming date. Hourly bookings keep their
@@ -145,7 +169,7 @@ class CreateBookingService:
             inp.property_id, check_in, check_out
         )
         if overlapping:
-            raise ValueError("Date range overlaps with existing booking")
+            raise BookingOverlapError()
 
         # Auto-create or find guest
         guest = None
@@ -188,6 +212,10 @@ class CreateBookingService:
                 adults_count=inp.adults_count,
                 children_count=inp.children_count,
                 notes=inp.notes,
+                external_id=inp.external_id,
+                idempotency_key=inp.idempotency_key,
+                idempotency_hash=inp.idempotency_hash,
+                expires_at=inp.expires_at,
             )
         )
 

@@ -66,6 +66,19 @@ class Booking:
     adults_count: int = 1
     children_count: int = 0
     notes: str | None = None
+    # An OTA stay Day had to accept on top of another one: the OTA has already
+    # confirmed it to the guest. Such a booking is exempt from the database's
+    # no-overlap constraint, and the host has to resolve the clash.
+    overbooking: bool = False
+    # The id of this booking in the system that asked for it (a CRM deal).
+    external_id: str | None = None
+    # The Idempotency-Key of the create request and a hash of its body, so a
+    # retry gets this booking back and a reused key with another body is caught.
+    idempotency_key: str | None = None
+    idempotency_hash: str | None = None
+    # A pending booking with this set is a hold: a background sweep cancels it
+    # once this moment (naive UTC) passes unless someone confirms it first.
+    expires_at: datetime | None = None
     created_at: datetime | None = None
     updated_at: datetime | None = None
 
@@ -75,6 +88,10 @@ class Booking:
                 f"Cannot transition from {self.status.value} to {new_status.value}"
             )
         self.status = new_status
+        # A confirmed stay holds its nights for good. A cancelled hold keeps
+        # its expiry, which says why it went.
+        if new_status == BookingStatus.CONFIRMED:
+            self.expires_at = None
 
 
 @dataclass
@@ -87,6 +104,11 @@ class BookingPayment:
     status: PaymentStatus = PaymentStatus.PENDING
     note: str | None = None
     paid_at: datetime | None = None
+    # The id of this payment in the system that recorded it (CRM, bank).
+    external_id: str | None = None
+    # As on Booking: the create request's Idempotency-Key and body hash.
+    idempotency_key: str | None = None
+    idempotency_hash: str | None = None
     created_at: datetime | None = None
 
 
