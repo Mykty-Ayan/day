@@ -41,6 +41,15 @@ export async function refreshToken(refresh_token: string): Promise<TokenResponse
   return res.data
 }
 
+/** Ends the user's other sessions; the tokens that come back keep this one. */
+export async function changePassword(currentPassword: string, newPassword: string): Promise<TokenResponse> {
+  const res = await apiClient.post<TokenResponse>('/auth/change-password', {
+    current_password: currentPassword,
+    new_password: newPassword,
+  })
+  return res.data
+}
+
 /** Ends every session of the user on the server, not just this tab's.
  *  Identified by the refresh token captured before the local sign-out, so it
  *  works after the access token has expired; sent around the interceptors

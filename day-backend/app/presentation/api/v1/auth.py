@@ -13,6 +13,7 @@ from app.infrastructure.repositories.messaging import SqlChannelIdentityReposito
 from app.infrastructure.telegram_init_data import InitDataError, verify_init_data
 from app.presentation.api.deps import get_current_user
 from app.presentation.schemas.auth import (
+    ChangePasswordRequest,
     LoginRequest,
     LogoutRequest,
     RefreshRequest,
@@ -94,6 +95,25 @@ async def telegram_miniapp_login(
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(e))
     except TelegramNotLinked as e:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
+
+
+@auth_router.post("/change-password", response_model=TokenResponse)
+async def change_password(
+    body: ChangePasswordRequest,
+    principal: Principal = Depends(get_principal),
+    session: AsyncSession = Depends(get_session),
+):
+    """New tokens come back: every other session ends, this device stays signed in."""
+    if principal.user_id is None:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="An API key has no password")
+    try:
+        tokens = await _auth_service(session).change_password(
+            principal.user_id, body.current_password, body.new_password
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    await session.commit()
+    return tokens
 
 
 @auth_router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
