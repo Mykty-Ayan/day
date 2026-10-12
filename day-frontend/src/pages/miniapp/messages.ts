@@ -77,10 +77,14 @@ export function buildCheckInMessage(
   property: PropertyBrief | undefined,
   language: string,
   t: Translate,
-  /** The status was reread from the server since the card opened. */
+  /** The booking and the flat were just read from the server. */
   statusFresh = true,
 ): string {
   const lines: string[] = []
+  // The Wi-Fi password and the guest-only notes (the lockbox code) go only to a
+  // confirmed stay, and only from a fresh read: a cached "confirmed" may be a
+  // booking the CRM has since cancelled, a cached flat an old password.
+  const confirmed = statusFresh && (booking.status === 'confirmed' || booking.status === 'checked_in')
 
   // A booking taken over the phone often has no name yet, and greeting nobody
   // reads as ", добро пожаловать!".
@@ -101,7 +105,7 @@ export function buildCheckInMessage(
   if (address) lines.push('', address)
 
   if (property?.wifi_name) {
-    const password = property.wifi_password ? ` / ${property.wifi_password}` : ''
+    const password = confirmed && property.wifi_password ? ` / ${property.wifi_password}` : ''
     lines.push('', `Wi-Fi: ${property.wifi_name}${password}`)
   }
 
@@ -121,9 +125,6 @@ export function buildCheckInMessage(
     lines.push('', t('miniapp.booking.howIn', { method: t(`properties.checkInMethod.${property.check_in_method}`) }))
   }
   if (property?.check_in_instructions) lines.push('', property.check_in_instructions.trim())
-  // Guest-only notes hold the lockbox code: a guest who has not confirmed or paid does not get it yet,
-  // and a cached "confirmed" may be a booking the CRM has since cancelled.
-  const confirmed = statusFresh && (booking.status === 'confirmed' || booking.status === 'checked_in')
   const forGuest = confirmed
     ? (property?.facts ?? []).filter((fact) => fact.audience === 'guest').map((fact) => fact.text.trim())
     : []
