@@ -143,7 +143,8 @@ class UpdateBookingService:
                 check_in_hour=prop.check_in_hour if prop else None,
                 check_out_hour=prop.check_out_hour if prop else None,
             )
-            if booking.rental_mode != saved_mode:
+            if booking.rental_mode != saved_mode or booking.rental_mode != RentalMode.DAILY:
+                # An hourly boundary is an explicit time, midnight included.
                 booking.check_in, booking.check_out = check_in, check_out
             else:
                 booking.check_in = settle_boundary(booking.check_in, check_in, saved_in)

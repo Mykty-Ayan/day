@@ -5,12 +5,13 @@ from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from decimal import Decimal
 
+from app.application.booking.ical_export import blocked_nights
+from app.config import settings
 from app.domain.booking.repositories import BookingRepository
-from app.domain.booking.value_objects import BookingStatus
 from app.domain.channex.gateway import ChannexGateway
 from app.domain.channex.repositories import ChannexListingRepository
 from app.domain.channex.value_objects import ListingSyncState
-from app.domain.property.repositories import PricingConfigRepository
+from app.domain.property.repositories import PricingConfigRepository, PropertyRepository
 
 
 @dataclass
@@ -44,11 +45,13 @@ class PushAriService:
         booking_repo: BookingRepository,
         pricing_repo: PricingConfigRepository,
         gateway: ChannexGateway,
+        property_repo: PropertyRepository,
     ) -> None:
         self._listings = listing_repo
         self._bookings = booking_repo
         self._pricing = pricing_repo
         self._gateway = gateway
+        self._properties = property_repo
 
     async def execute(self, inp: PushAriInput) -> PushAriResult:
         listing = await self._listings.get_by_property(inp.property_id)
@@ -66,19 +69,23 @@ class PushAriService:
                 raise ValueError("No rate given and property has no base price")
             rate = config.base_price
 
+        # The last night runs into date_to until the flat's check-out hour, so
+        # a booking that starts on date_to can still take it.
         bookings = await self._bookings.list_by_property_date_range(
-            inp.property_id, inp.date_from, inp.date_to, company_id=inp.company_id
+            inp.property_id, inp.date_from, inp.date_to + timedelta(days=1), company_id=inp.company_id
         )
-        blocked: set[date] = set()
-        for booking in bookings:
-            if booking.status == BookingStatus.CANCELLED:
-                continue
-            night = _as_date(booking.check_in)
-            last = _as_date(booking.check_out)
-            while night < last:
-                if inp.date_from <= night < inp.date_to:
-                    blocked.add(night)
-                night += timedelta(days=1)
+        # Nights by the flat's own hours, as the iCal feed counts them.
+        prop = await self._properties.get_by_id(inp.property_id)
+        blocked = {
+            night
+            for start, end in blocked_nights(
+                bookings,
+                settings.DEFAULT_CHECK_IN_HOUR if prop is None or prop.check_in_hour is None else prop.check_in_hour,
+                settings.DEFAULT_CHECK_OUT_HOUR if prop is None or prop.check_out_hour is None else prop.check_out_hour,
+            )
+            for night in _days(start, end)
+            if inp.date_from <= night < inp.date_to
+        }
 
         # Channex treats date_to as inclusive; our input range is check-out
         # style [date_from, date_to), hence the one-day trim.
@@ -109,10 +116,8 @@ class PushAriService:
         return PushAriResult(days_pushed=days, blocked_dates=sorted(blocked))
 
 
-def _as_date(value: datetime | date | None) -> date:
-    if value is None:
-        raise ValueError("Booking has no dates")
-    return value.date() if isinstance(value, datetime) else value
+def _days(start: date, end: date) -> list[date]:
+    return [start + timedelta(days=i) for i in range((end - start).days)]
 
 
 def _runs(

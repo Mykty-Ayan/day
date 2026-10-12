@@ -385,6 +385,7 @@ class TestPushAri:
             bookings,
             FakePricingRepository(PricingConfig(base_price=Decimal("45000"))),
             gateway,
+            FakePropertyRepository([]),
         )
 
         result = await service.execute(
@@ -410,7 +411,8 @@ class TestPushAri:
 
     async def test_requires_onboarded_listing(self):
         service = PushAriService(
-            FakeListingRepository(), FakeBookingRepository(), FakePricingRepository(), FakeGateway()
+            FakeListingRepository(), FakeBookingRepository(), FakePricingRepository(), FakeGateway(),
+            FakePropertyRepository([]),
         )
         with pytest.raises(ValueError):
             await service.execute(
@@ -426,7 +428,8 @@ class TestPushAri:
         listings = FakeListingRepository()
         await listings.create(_active_listing())
         service = PushAriService(
-            listings, FakeBookingRepository(), FakePricingRepository(None), FakeGateway()
+            listings, FakeBookingRepository(), FakePricingRepository(None), FakeGateway(),
+            FakePropertyRepository([]),
         )
         with pytest.raises(ValueError):
             await service.execute(

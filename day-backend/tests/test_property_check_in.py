@@ -326,3 +326,67 @@ async def test_an_ota_change_of_price_only_moves_no_time():
     ota = next(b for b in bookings.items.values() if b.notes)
     assert (ota.check_in, ota.check_out) == (datetime(2026, 9, 1, 14), datetime(2026, 9, 4, 12))
     assert ota.overbooking is False
+
+
+async def test_an_hourly_booking_takes_the_time_it_is_given():
+    from app.application.booking.update_booking import UpdateBookingInput
+    from app.domain.booking.entities import Booking
+    from app.domain.booking.value_objects import RentalMode
+    from tests.test_booking_services import COMPANY_ID
+
+    flat, _, bookings, svc = await _flat_with_hours(None, None)
+    flat.rental_mode = RentalMode.HOURLY
+    stay = await bookings.create(
+        Booking(company_id=COMPANY_ID, property_id=flat.id, check_in=datetime(2026, 11, 1, 2),
+                check_out=datetime(2026, 11, 1, 4), rental_mode=RentalMode.HOURLY)
+    )
+
+    # Midnight is a real start for an hourly booking, not "same day as before".
+    moved = await svc.execute(
+        UpdateBookingInput(booking_id=stay.id, company_id=COMPANY_ID, check_in=datetime(2026, 11, 1))
+    )
+
+    assert (moved.check_in, moved.check_out) == (datetime(2026, 11, 1), datetime(2026, 11, 1, 4))
+
+
+async def test_channex_availability_counts_nights_by_the_flats_hours():
+    from decimal import Decimal
+
+    from app.application.channex.push_ari import PushAriInput, PushAriService
+    from app.domain.booking.entities import Booking
+    from app.domain.booking.value_objects import BookingStatus
+    from app.domain.property.entities import PricingConfig
+    from tests.test_booking_services import _make_property
+    from tests.test_channex_services import (
+        COMPANY_ID,
+        PROPERTY_ID,
+        FakeBookingRepository,
+        FakeGateway,
+        FakeListingRepository,
+        FakePricingRepository,
+        FakePropertyRepository,
+        _active_listing,
+    )
+
+    flat = _make_property(company_id=COMPANY_ID)
+    flat.id, flat.check_in_hour, flat.check_out_hour = PROPERTY_ID, 10, 10
+    listings = FakeListingRepository()
+    await listings.create(_active_listing())
+    bookings = FakeBookingRepository()
+    # Taken at 14/12; the flat now turns over at 10:00.
+    await bookings.create(
+        Booking(company_id=COMPANY_ID, property_id=PROPERTY_ID, check_in=datetime(2026, 11, 1, 14),
+                check_out=datetime(2026, 11, 3, 12), status=BookingStatus.CONFIRMED)
+    )
+    service = PushAriService(
+        listings, bookings, FakePricingRepository(PricingConfig(base_price=Decimal("25000"))), FakeGateway(),
+        FakePropertyRepository([flat]),
+    )
+
+    result = await service.execute(
+        PushAriInput(company_id=COMPANY_ID, property_id=PROPERTY_ID, date_from=date(2026, 11, 1),
+                     date_to=date(2026, 11, 6))
+    )
+
+    # A guest arriving 3 Nov at 10:00 would meet this one leaving at noon.
+    assert result.blocked_dates == [date(2026, 11, 1), date(2026, 11, 2), date(2026, 11, 3)]
