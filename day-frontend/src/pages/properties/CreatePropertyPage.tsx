@@ -4,7 +4,7 @@ import { ArrowLeft, ArrowRight, Check, Loader2 } from 'lucide-react'
 import { useNavigate } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 import { useCreateProperty } from '../../hooks/useProperties'
-import { createOrUpdatePricing, linkAmenities } from '../../api/properties'
+import { createOrUpdatePricing, linkAmenities, uploadPhotos } from '../../api/properties'
 import type { PropertyType, PropertyCreateInput, PricingInput } from '../../types/property'
 import type { RentalMode } from '../../types/booking'
 import PropertyFormStepBasic from '../../components/property/PropertyFormStepBasic'
@@ -171,8 +171,14 @@ export default function CreatePropertyPage() {
       if (form.amenityIds.length > 0) {
         await linkAmenities(property.id, form.amenityIds)
       }
+      // The photos step used to collect files and drop them on save.
+      const failedPhotos = form.photos.length > 0 ? await uploadPhotos(property.id, form.photos) : 0
 
-      showToast('success', t('properties.propertyCreated'))
+      if (failedPhotos > 0) {
+        showToast('error', t('properties.photosFailed', { count: failedPhotos }))
+      } else {
+        showToast('success', t('properties.propertyCreated'))
+      }
       navigate({ to: '/properties/$propertyId', params: { propertyId: property.id } })
     } catch {
       showToast('error', t('properties.failedCreate'))

@@ -167,7 +167,12 @@ export function useAmenities() {
 export function useUploadPhotos(propertyId: string) {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (files: File[]) => uploadPhotos(propertyId, files),
+    mutationFn: ({ files, startAt }: { files: File[]; startAt: number }) =>
+      uploadPhotos(
+        propertyId,
+        files.map((file) => ({ file })),
+        startAt,
+      ),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: [PROPERTY_KEY, propertyId] })
     },
