@@ -895,7 +895,11 @@
       "warnedAsk": "This number is on colleagues' blacklist. Book anyway?",
       "checkFailed": "Couldn't check the number against the blacklist. Try again.",
       "retry": "Retry the booking",
-      "maybeMade": "No answer — the booking may already exist. Tap \"Retry booking\": it won't be doubled. Fields stay as sent until the answer comes."
+      "maybeMade": "No answer — the booking may already exist. Tap \"Retry booking\": it won't be doubled. Fields stay as sent until the answer comes.",
+      "pending": "Booking {{unit}} for \"{{guest}}\" is unsettled: no answer came. No new booking starts, so the guest is not booked twice.",
+      "discard": "Not in the list — discard",
+      "discardAsk": "Check \"Upcoming\" on the Today tab. If {{unit}} for \"{{guest}}\" is not there, the attempt can be discarded. Discard?",
+      "notKept": "The phone would not keep the booking attempt, so it is not sent: a dropped connection could book the guest twice. Free some space or book on the web."
     },
     "booking": {
       "due": "Outstanding",
@@ -930,7 +934,10 @@
       "unsettled": "No answer to the payment of {{amount}} — it may already be recorded. Retry: it will not be recorded twice.",
       "retryPayment": "Retry the payment of {{amount}}",
       "howIn": "Getting in: {{method}}.",
-      "unsettledReceive": "No answer to confirming {{amount}}. Retry: the money won't count twice."
+      "unsettledReceive": "No answer to confirming {{amount}}. Retry: the money won't count twice.",
+      "notKept": "The phone would not keep the payment attempt, so it is not sent: a dropped connection could double it. Free some space or record the payment on the web.",
+      "discardAttempt": "Not in the history — discard",
+      "discardAsk": "Check the payment history above. If {{amount}} is not there, the attempt can be discarded. Discard?"
     },
     "cleaning": {
       "title": "Cleaning",
