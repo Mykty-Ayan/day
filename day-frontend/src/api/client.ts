@@ -1,5 +1,6 @@
 import axios from 'axios'
 import { getInitData, isInsideTelegram } from '../lib/telegram'
+import { replayableIn } from '../lib/token'
 
 const apiClient = axios.create({
   baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1',
@@ -93,6 +94,8 @@ apiClient.interceptors.response.use(
       if (!refreshTokenValue) {
         const reissued = await reauthenticateFromTelegram()
         if (reissued) {
+          // Signed in again, perhaps to another company (the chat was relinked).
+          if (!replayableIn(originalRequest.headers.Authorization, reissued)) return Promise.reject(error)
           originalRequest._retry = true
           originalRequest.headers.Authorization = `Bearer ${reissued}`
           return apiClient(originalRequest)
@@ -104,6 +107,7 @@ apiClient.interceptors.response.use(
         return new Promise((resolve, reject) => {
           failedQueue.push({
             resolve: (token: string) => {
+              if (!replayableIn(originalRequest.headers.Authorization, token)) return reject(error)
               originalRequest.headers.Authorization = `Bearer ${token}`
               resolve(apiClient(originalRequest))
             },
@@ -134,7 +138,9 @@ apiClient.interceptors.response.use(
         if (generation !== startedIn) return dropForStaleSession(refreshError)
         const reissued = await reauthenticateFromTelegram()
         if (reissued) {
+          // The queue checks each request's company itself.
           processQueue(null, reissued)
+          if (!replayableIn(originalRequest.headers.Authorization, reissued)) return Promise.reject(error)
           originalRequest.headers.Authorization = `Bearer ${reissued}`
           return apiClient(originalRequest)
         }
