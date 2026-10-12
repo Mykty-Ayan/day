@@ -24,7 +24,7 @@ import {
   canCancel,
   extendedCheckOut,
   loadAttempt,
-  paymentMaybeRecorded,
+  afterFailure,
   phoneDigits,
   saveAttempt,
   settlement,
@@ -100,9 +100,10 @@ export default function BookingSheet({
   const [unsettled, setUnsettledState] = useState<MoneyAttempt | null>(() =>
     opened ? loadAttempt(attemptStorage(), opened.id) : null,
   )
-  function setUnsettled(attempt: MoneyAttempt | null) {
-    if (opened) saveAttempt(attemptStorage(), opened.id, attempt)
+  function setUnsettled(attempt: MoneyAttempt | null): boolean {
+    const kept = opened ? saveAttempt(attemptStorage(), opened.id, attempt) : false
     setUnsettledState(attempt)
+    return kept
   }
   useClosingConfirmation(Boolean(opened) && amount.trim() !== '')
 
@@ -168,9 +169,9 @@ export default function BookingSheet({
       setAmount('')
       done(false)
     },
-    onError: (mutationError) => {
+    onError: (mutationError, attempt) => {
       // Kept (it was saved before sending) unless the server clearly refused it.
-      if (!paymentMaybeRecorded(mutationError)) setUnsettled(null)
+      setUnsettled(afterFailure(attempt, mutationError))
       fail(mutationError)
     },
   })
@@ -182,8 +183,8 @@ export default function BookingSheet({
       setUnsettled(null)
       done(false)
     },
-    onError: (mutationError) => {
-      if (!paymentMaybeRecorded(mutationError)) setUnsettled(null)
+    onError: (mutationError, attempt) => {
+      setUnsettled(afterFailure(attempt, mutationError))
       fail(mutationError)
     },
   })
@@ -237,9 +238,19 @@ export default function BookingSheet({
     if (await confirmAction(t('miniapp.booking.payAsk', { amount: money(amountValue), method: methodLabel }))) {
       // Saved before it is sent: closing the card mid-request must not lose the key.
       const attempt: PaymentAttempt = { kind: 'payment', amount: amountValue, method, key: newKey() }
-      setUnsettled(attempt)
+      if (!setUnsettled(attempt)) {
+        setUnsettled(null)
+        resultFeedback('error')
+        setError(t('miniapp.booking.notKept'))
+        return
+      }
       pay.mutate(attempt)
     }
+  }
+
+  async function askDiscard(attempt: MoneyAttempt) {
+    // The history above was reread when the card opened: the operator checks it, not a guess.
+    if (await confirmAction(t('miniapp.booking.discardAsk', { amount: money(attempt.amount) }))) setUnsettled(null)
   }
 
   async function askReceive(payment: BookingPayment) {
@@ -360,6 +371,12 @@ export default function BookingSheet({
               >
                 <Wallet className="h-4 w-4" />
                 {t('miniapp.booking.retryPayment', { amount: money(unsettled.amount) })}
+              </ActionButton>
+              <ActionButton
+                disabled={settling || pay.isPending || receive.isPending}
+                onClick={() => askDiscard(unsettled)}
+              >
+                {t('miniapp.booking.discardAttempt')}
               </ActionButton>
             </div>
           )}

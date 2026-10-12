@@ -47,9 +47,22 @@ export function paymentMaybeRecorded(error: unknown): boolean {
 
 /** A money action whose outcome is not known yet. Kept outside the card so that
  *  closing it mid-request, or reopening it, still retries with the same key. */
-export type MoneyAttempt =
+export type MoneyAttempt = (
   | { kind: 'payment'; amount: number; method: PaymentMethod; key: string }
   | { kind: 'receive'; paymentId: string; amount: number }
+) & {
+  /** An earlier call got no clear answer: the money may be recorded already. */
+  uncertain?: boolean
+}
+
+/** What is left of an attempt after its call failed. A refusal of the first
+ *  call proves nothing was recorded. Once an answer was lost, a refused retry
+ *  (a rate limit, an expired session) says nothing about the first call: the
+ *  attempt stays until a retry succeeds or the operator checks the history. */
+export function afterFailure<T extends MoneyAttempt>(attempt: T, error: unknown): T | null {
+  if (paymentMaybeRecorded(error)) return { ...attempt, uncertain: true }
+  return attempt.uncertain ? attempt : null
+}
 
 type AttemptStore = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>
 
@@ -64,11 +77,15 @@ export function loadAttempt(storage: AttemptStore | undefined, bookingId: string
   }
 }
 
-export function saveAttempt(storage: AttemptStore | undefined, bookingId: string, attempt: MoneyAttempt | null): void {
+/** Whether the attempt is kept on the phone. Money is not sent unkept: closing
+ *  the card mid-request would lose the key, and the next try would double it. */
+export function saveAttempt(storage: AttemptStore | undefined, bookingId: string, attempt: MoneyAttempt | null): boolean {
+  if (!storage) return false
   try {
-    if (attempt) storage?.setItem(attemptKey(bookingId), JSON.stringify(attempt))
-    else storage?.removeItem(attemptKey(bookingId))
+    if (attempt) storage.setItem(attemptKey(bookingId), JSON.stringify(attempt))
+    else storage.removeItem(attemptKey(bookingId))
+    return true
   } catch {
-    // Storage blocked or full: the attempt still lives in the card while it is open.
+    return false
   }
 }
