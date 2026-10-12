@@ -1,5 +1,22 @@
 import axios from 'axios'
 import { getInitData, isInsideTelegram } from '../lib/telegram'
+import { replayableIn, sendableFor } from '../lib/token'
+
+declare module 'axios' {
+  interface AxiosRequestConfig {
+    /** The company the request is made for. Under another company's token it is
+     *  refused with SessionChangedError instead of being sent. */
+    expectedCompany?: string
+  }
+}
+
+/** The session is another company's now (the chat was relinked, or another
+ *  window signed in): the request was not sent. */
+export class SessionChangedError extends Error {
+  constructor() {
+    super('The session is another company now')
+  }
+}
 
 const apiClient = axios.create({
   baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1',
@@ -60,6 +77,9 @@ function giveUp(error: unknown): Promise<never> {
 
 apiClient.interceptors.request.use((config) => {
   const token = localStorage.getItem('access_token')
+  // Checked with the token that goes out: another window may have signed in to
+  // another company after the caller looked.
+  if (!sendableFor(config.expectedCompany, token)) throw new SessionChangedError()
   if (token) {
     config.headers.Authorization = `Bearer ${token}`
   }
@@ -93,6 +113,8 @@ apiClient.interceptors.response.use(
       if (!refreshTokenValue) {
         const reissued = await reauthenticateFromTelegram()
         if (reissued) {
+          // Signed in again, perhaps to another company (the chat was relinked).
+          if (!replayableIn(originalRequest.headers.Authorization, reissued)) return Promise.reject(error)
           originalRequest._retry = true
           originalRequest.headers.Authorization = `Bearer ${reissued}`
           return apiClient(originalRequest)
@@ -104,6 +126,7 @@ apiClient.interceptors.response.use(
         return new Promise((resolve, reject) => {
           failedQueue.push({
             resolve: (token: string) => {
+              if (!replayableIn(originalRequest.headers.Authorization, token)) return reject(error)
               originalRequest.headers.Authorization = `Bearer ${token}`
               resolve(apiClient(originalRequest))
             },
@@ -128,13 +151,18 @@ apiClient.interceptors.response.use(
         localStorage.setItem('access_token', access_token)
         localStorage.setItem('refresh_token', refresh_token)
         processQueue(null, access_token)
+        // The refresh token may already be another company's: a request that was
+        // out under the old one came back 401 after a sign-in through Telegram.
+        if (!replayableIn(originalRequest.headers.Authorization, access_token)) return Promise.reject(error)
         originalRequest.headers.Authorization = `Bearer ${access_token}`
         return apiClient(originalRequest)
       } catch (refreshError) {
         if (generation !== startedIn) return dropForStaleSession(refreshError)
         const reissued = await reauthenticateFromTelegram()
         if (reissued) {
+          // The queue checks each request's company itself.
           processQueue(null, reissued)
+          if (!replayableIn(originalRequest.headers.Authorization, reissued)) return Promise.reject(error)
           originalRequest.headers.Authorization = `Bearer ${reissued}`
           return apiClient(originalRequest)
         }

@@ -58,7 +58,7 @@ export type MoneyAttempt = (
 }
 
 /** The attempt as it goes out once more. */
-export function nextCall<T extends MoneyAttempt>(attempt: T): T {
+export function nextCall<T extends { call?: number }>(attempt: T): T {
   return { ...attempt, call: (attempt.call ?? 0) + 1 }
 }
 

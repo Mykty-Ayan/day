@@ -46,8 +46,30 @@ export async function getBooking(id: string, signal?: AbortSignal): Promise<Book
   return res.data
 }
 
-export async function createBooking(data: BookingCreateInput): Promise<Booking> {
-  const res = await apiClient.post('/bookings', data)
+export async function createBooking(
+  data: BookingCreateInput,
+  idempotencyKey?: string,
+  expectedCompany?: string,
+): Promise<Booking> {
+  // The same key on a retry returns the booking already made instead of a second one.
+  const res = await apiClient.post('/bookings', data, {
+    headers: idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : undefined,
+    expectedCompany,
+  })
+  return res.data
+}
+
+/** Settle a create whose answer was lost: the booking its key made, or the key
+ *  is closed (`voided`) and a late request with it makes nothing. */
+export async function voidBookingKey(
+  idempotencyKey: string,
+  expectedCompany?: string,
+): Promise<{ voided: boolean; booking: Booking | null }> {
+  // A key is per company: asked in another one, "not made" would be about the wrong company.
+  const res = await apiClient.post('/bookings/idempotency-key/void', null, {
+    headers: { 'Idempotency-Key': idempotencyKey },
+    expectedCompany,
+  })
   return res.data
 }
 

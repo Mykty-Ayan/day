@@ -173,6 +173,8 @@ export interface BookingCreateInput {
   children_count: number
   gantt_color?: string
   notes?: string
+  /** A hold: the booking cancels itself at this instant unless confirmed. With its zone. */
+  expires_at?: string
 }
 
 export interface BookingUpdateInput {
@@ -237,6 +239,8 @@ export interface MoveBookingInput {
 
 export interface GuestFilters {
   search?: string
+  /** Exact: 8…, +7… and 7… are one number. */
+  phone?: string
   offset?: number
   limit?: number
 }
