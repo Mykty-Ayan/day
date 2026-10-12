@@ -20,14 +20,14 @@ class FileTooLargeError(Exception):
         super().__init__("File exceeds maximum download size")
 
 
-def _s3_client():
+def _s3_client(**config):
     return boto3.client(
         "s3",
         endpoint_url=settings.S3_ENDPOINT,
         aws_access_key_id=settings.S3_ACCESS_KEY,
         aws_secret_access_key=settings.S3_SECRET_KEY,
         region_name="us-east-1",
-        config=Config(s3={"addressing_style": "path"}),
+        config=Config(s3={"addressing_style": "path"}, **config),
     )
 
 
@@ -74,7 +74,10 @@ def apply_read_policy(client) -> None:
 
 async def sync_read_policy() -> None:
     """Apply the read policy at startup, so a bucket left public is closed without waiting for an upload."""
-    client = _s3_client()
+    # One short attempt: the caller retries with its own pause, and a request
+    # stuck in a worker thread cannot be cancelled — boto's defaults (60 s,
+    # several retries) would hold up the API's shutdown that long.
+    client = _s3_client(connect_timeout=3, read_timeout=5, retries={"total_max_attempts": 1})
     await asyncio.to_thread(_ensure_bucket, client)
     await asyncio.to_thread(apply_read_policy, client)
 

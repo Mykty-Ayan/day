@@ -135,3 +135,20 @@ async def test_the_startup_sync_stops_with_the_api(monkeypatch):
     stop = asyncio.Event()
     stop.set()
     await asyncio.wait_for(main._sync_storage_read_policy(stop), timeout=2)
+
+
+@pytest.mark.asyncio
+async def test_the_startup_sync_uses_one_short_attempt(monkeypatch):
+    # A hung MinIO must not keep the API from stopping: a request in a worker
+    # thread cannot be cancelled, so it has to give up on its own, quickly.
+    seen = {}
+
+    def fake_client(**config):
+        seen.update(config)
+        return _Bucket()
+
+    monkeypatch.setattr(s3, "_s3_client", fake_client)
+    monkeypatch.setattr(s3, "_ensure_bucket", lambda client: None)
+    await s3.sync_read_policy()
+    assert seen["connect_timeout"] <= 5 and seen["read_timeout"] <= 10
+    assert seen["retries"] == {"total_max_attempts": 1}
