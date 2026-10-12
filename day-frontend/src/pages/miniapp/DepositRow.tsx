@@ -7,7 +7,7 @@
  */
 
 import { useState } from 'react'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useIsMutating, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { HandCoins, ShieldCheck, Undo2, Wallet } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { createDeposit, depositAction, listDeposits } from '../../api/bookings'
@@ -45,7 +45,11 @@ export default function DepositRow({
     ...cardRead(['miniapp', 'deposits', bookingId], (signal) => listDeposits(bookingId, signal)),
     enabled: Boolean(bookingId),
   })
-  const blocked = locked || !readyToAct(deposits, openedAt)
+  // A write started by an earlier card (closed before its answer) still counts:
+  // a reread can come back empty before that deposit is committed.
+  const writeKey = ['miniapp', 'deposit-write', bookingId]
+  const writing = useIsMutating({ mutationKey: writeKey }) > 0
+  const blocked = locked || writing || !readyToAct(deposits, openedAt)
 
   function refresh() {
     resultFeedback('success')
@@ -53,6 +57,7 @@ export default function DepositRow({
   }
 
   const take = useMutation({
+    mutationKey: writeKey,
     mutationFn: () => createDeposit(bookingId, { amount: Number(amount || suggestedAmount) }),
     onSuccess: () => {
       setAmount('')
@@ -62,6 +67,7 @@ export default function DepositRow({
   })
 
   const act = useMutation({
+    mutationKey: writeKey,
     mutationFn: ({ deposit, action }: { deposit: BookingDeposit; action: 'pay' | 'return' }) =>
       depositAction(bookingId, deposit.id, { action }),
     onSuccess: refresh,
@@ -69,6 +75,7 @@ export default function DepositRow({
   })
 
   const hold = useMutation({
+    mutationKey: writeKey,
     mutationFn: (deposit: BookingDeposit) => {
       const kept = Number(heldAmount || deposit.amount)
       // Keeping the whole thing is its own action; the partial one refuses an

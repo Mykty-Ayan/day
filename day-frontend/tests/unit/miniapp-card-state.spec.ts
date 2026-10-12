@@ -11,19 +11,24 @@ import { cardRead, readyToAct } from '../../src/pages/miniapp/card-state'
 const OPENED = 1_000
 
 test('a booking read since the card opened can be acted on', () => {
-  expect(readyToAct({ isSuccess: true, isFetching: false, dataUpdatedAt: 1_500 }, OPENED)).toBe(true)
+  expect(readyToAct({ isSuccess: true, fetchStatus: 'idle', dataUpdatedAt: 1_500 }, OPENED)).toBe(true)
 })
 
 test('a cached booking from before the card opened cannot', () => {
-  expect(readyToAct({ isSuccess: true, isFetching: false, dataUpdatedAt: 500 }, OPENED)).toBe(false)
+  expect(readyToAct({ isSuccess: true, fetchStatus: 'idle', dataUpdatedAt: 500 }, OPENED)).toBe(false)
 })
 
 test('nothing while the reread is in flight', () => {
-  expect(readyToAct({ isSuccess: true, isFetching: true, dataUpdatedAt: 1_500 }, OPENED)).toBe(false)
+  expect(readyToAct({ isSuccess: true, fetchStatus: 'fetching', dataUpdatedAt: 1_500 }, OPENED)).toBe(false)
+})
+
+test('nothing while the reread waits for the network', () => {
+  // Offline, TanStack pauses the read: not fetching, yet the data is from before the last write.
+  expect(readyToAct({ isSuccess: true, fetchStatus: 'paused', dataUpdatedAt: 1_500 }, OPENED)).toBe(false)
 })
 
 test('a failed reread keeps the card locked, even with older data shown', () => {
-  expect(readyToAct({ isSuccess: false, isFetching: false, dataUpdatedAt: 500 }, OPENED)).toBe(false)
+  expect(readyToAct({ isSuccess: false, fetchStatus: 'idle', dataUpdatedAt: 500 }, OPENED)).toBe(false)
 })
 
 // Closed mid-read, reopened, the CRM cancelled meanwhile: the reopened card used
@@ -52,4 +57,22 @@ test('a card closed mid-read drops that read; the reopened card reads afresh', a
   const read = second.getCurrentResult()
   expect(read.data).toBe('cancelled')
   expect(readyToAct(read, openedAt)).toBe(true)
+})
+
+// The deposit row locks on any write under its key, from this card or one closed mid-write.
+test('a write from a card closed mid-request still counts for the reopened one', async () => {
+  const client = new QueryClient()
+  const writeKey = ['miniapp', 'deposit-write', 'b-1']
+  let finish: () => void = () => {}
+  const write = client
+    .getMutationCache()
+    .build(client, { mutationKey: writeKey, mutationFn: () => new Promise<void>((resolve) => (finish = resolve)) })
+  const running = write.execute(undefined)
+  await new Promise((resolve) => setTimeout(resolve, 0))
+
+  // The card that started it is gone; the reopened card asks by key alone.
+  expect(client.isMutating({ mutationKey: writeKey })).toBe(1)
+  finish()
+  await running
+  expect(client.isMutating({ mutationKey: writeKey })).toBe(0)
 })
