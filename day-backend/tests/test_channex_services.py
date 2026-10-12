@@ -136,6 +136,12 @@ class FakeBookingRepository(BookingRepository):
     async def get_by_idempotency_key(self, company_id, key):
         return None
 
+    async def void_idempotency_key(self, company_id, key):
+        pass
+
+    async def idempotency_key_voided(self, company_id, key):
+        return False
+
     async def get_by_property_and_dates(self, property_id, check_in, check_out, *, exclude_id=None):
         result = []
         for b in self.items.values():
