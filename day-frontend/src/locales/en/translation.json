@@ -257,7 +257,8 @@
       "create": "Create tag",
       "namePlaceholder": "Tag name",
       "color": "Tag color"
-    }
+    },
+    "photosFailed": "The property is created, but {{count}} photo(s) did not upload. Add them on the property page"
   },
   "bookings": {
     "title": "Bookings",

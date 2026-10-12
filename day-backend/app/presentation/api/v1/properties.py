@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Response, UploadFile, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.application.property.change_status import ChangePropertyStatusService
@@ -26,6 +26,7 @@ from app.application.property.update_property import (
     UpdatePropertyInput,
     UpdatePropertyService,
 )
+from app.config import settings
 from app.domain.auth.permissions import Permission
 from app.domain.property.entities import DiscountRule, PropertyCosts, SeasonalPrice
 from app.domain.property.value_objects import FactAudience, FactSource, PropertyStatus
@@ -41,6 +42,7 @@ from app.infrastructure.repositories.property import (
     SqlPropertyRepository,
     SqlSeasonalPriceRepository,
 )
+from app.infrastructure.storage.s3 import upload_property_photo
 from app.presentation.api.deps import Principal, get_company_id, get_principal, get_user_id, require
 from app.presentation.schemas.property import (
     AmenityCreate,
@@ -452,6 +454,52 @@ async def add_photo(
     except ValueError as e:
         await session.rollback()
         raise HTTPException(status_code=400, detail=str(e))
+
+
+_PHOTO_TYPES = {"image/jpeg", "image/png", "image/webp", "image/heic"}
+
+
+@router.post(
+    "/{property_id}/photos/upload",
+    response_model=PropertyPhotoResponse,
+    status_code=201,
+    dependencies=[Depends(require(Permission.PROPERTIES_WRITE))],
+)
+async def upload_photo(
+    property_id: uuid.UUID,
+    file: UploadFile = File(...),
+    sort_order: int = Form(0),
+    is_cover: bool = Form(False),
+    session: AsyncSession = Depends(get_session),
+    company_id: uuid.UUID = Depends(get_company_id),
+):
+    """A photo from the owner's phone or computer. Linking by URL (imports, the CRM) stays on POST /photos."""
+    repos = _repos(session)
+    prop = await repos["property"].get_by_id(property_id)
+    if prop is None or prop.company_id != company_id:
+        raise HTTPException(status_code=404, detail="Property not found")
+    content_type = (file.content_type or "").split(";")[0].strip().lower()
+    if content_type not in _PHOTO_TYPES:
+        raise HTTPException(status_code=415, detail="Only JPEG, PNG, WebP or HEIC photos")
+    size = file.size
+    if size is None:
+        file.file.seek(0, 2)
+        size = file.file.tell()
+        file.file.seek(0)
+    if size > settings.S3_MAX_UPLOAD_BYTES:
+        raise HTTPException(
+            status_code=413, detail=f"Photo too large (max {settings.S3_MAX_UPLOAD_BYTES // (1024 * 1024)} MB)"
+        )
+
+    try:
+        url = await upload_property_photo(property_id=property_id, file_obj=file.file, content_type=content_type)
+    except Exception:
+        raise HTTPException(status_code=500, detail="Failed to upload photo")
+
+    svc = ManagePhotosService(repos["property"], repos["photo"])
+    result = await svc.add_photo(property_id, company_id, url, sort_order=sort_order, is_cover=is_cover)
+    await session.commit()
+    return PropertyPhotoResponse.model_validate(result, from_attributes=True)
 
 
 @router.patch(

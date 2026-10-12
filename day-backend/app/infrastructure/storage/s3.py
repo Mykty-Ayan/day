@@ -42,21 +42,19 @@ def _ensure_bucket(client) -> None:
         raise
 
 
+PROPERTY_PHOTOS_PREFIX = "properties/"
+
+
 def apply_read_policy(client) -> None:
-    """Make the bucket's anonymous read match S3_PUBLIC_READ, both ways.
+    """Set who may read the bucket without signing in.
 
-    Booking files are guests' documents and are served only through the API,
-    so the bucket is private by default. A bucket made public by an earlier
-    deploy keeps its policy until it is removed, hence the delete.
+    Listing photos (properties/…) are public by nature: guests, OTAs and the
+    CRM open them by link. Everything else — booking files, guests'
+    documents — is served only through the API, unless S3_PUBLIC_READ opens
+    the whole bucket. Applying the policy replaces one left by an earlier
+    deploy, so a bucket made public before closes again.
     """
-    if not settings.S3_PUBLIC_READ:
-        try:
-            client.delete_bucket_policy(Bucket=settings.S3_BUCKET)
-        except ClientError as exc:
-            if exc.response.get("Error", {}).get("Code") not in {"NoSuchBucketPolicy", "NoSuchBucket"}:
-                raise
-        return
-
+    readable = "*" if settings.S3_PUBLIC_READ else f"{PROPERTY_PHOTOS_PREFIX}*"
     policy = {
         "Version": "2012-10-17",
         "Statement": [
@@ -65,7 +63,7 @@ def apply_read_policy(client) -> None:
                 "Effect": "Allow",
                 "Principal": "*",
                 "Action": ["s3:GetObject"],
-                "Resource": [f"arn:aws:s3:::{settings.S3_BUCKET}/*"],
+                "Resource": [f"arn:aws:s3:::{settings.S3_BUCKET}/{readable}"],
             }
         ],
     }
@@ -136,6 +134,25 @@ async def upload_booking_file(
         ExtraArgs=extra,
     )
 
+    return build_public_url(key)
+
+
+_PHOTO_EXTENSIONS = {"image/jpeg": ".jpg", "image/png": ".png", "image/webp": ".webp", "image/heic": ".heic"}
+
+
+async def upload_property_photo(*, property_id: uuid.UUID, file_obj, content_type: str) -> str:
+    """Store a listing photo under the public prefix; returns the URL guests open."""
+    client = _s3_client()
+    await asyncio.to_thread(_ensure_bucket, client)
+    await asyncio.to_thread(apply_read_policy, client)
+    key = f"{PROPERTY_PHOTOS_PREFIX}{property_id}/{uuid.uuid4()}{_PHOTO_EXTENSIONS.get(content_type, '')}"
+    try:
+        file_obj.seek(0)
+    except Exception:
+        pass
+    await asyncio.to_thread(
+        client.upload_fileobj, file_obj, settings.S3_BUCKET, key, ExtraArgs={"ContentType": content_type}
+    )
     return build_public_url(key)
 
 
