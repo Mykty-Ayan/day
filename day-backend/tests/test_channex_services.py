@@ -127,6 +127,9 @@ class FakeBookingRepository(BookingRepository):
     async def list_expired_holds(self, now, *, limit):
         return []
 
+    async def get_for_update(self, booking_id):
+        return self.items.get(booking_id)
+
     async def touch(self, booking_id):
         pass
 

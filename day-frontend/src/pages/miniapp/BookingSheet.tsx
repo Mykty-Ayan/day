@@ -56,10 +56,11 @@ export default function BookingSheet({
     enabled: Boolean(booking),
   })
 
-  const paid = (payments.data ?? []).reduce(
-    (sum, payment) => sum + (payment.type === 'refund' ? -payment.amount : payment.amount),
-    0,
-  )
+  // Only money that arrived: a pending payment (the CRM records one before the
+  // transfer lands) must not hide the debt.
+  const paid = (payments.data ?? [])
+    .filter((payment) => payment.status === 'completed')
+    .reduce((sum, payment) => sum + (payment.type === 'refund' ? -payment.amount : payment.amount), 0)
   const due = Math.max(0, (booking?.total_price ?? 0) - paid)
 
   function refresh() {

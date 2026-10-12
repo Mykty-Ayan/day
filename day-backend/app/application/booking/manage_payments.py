@@ -26,8 +26,14 @@ class ManagePaymentsService:
         self._payment_repo = payment_repo
         self._status = ChangeBookingStatusService(booking_repo, audit_repo)
 
-    async def _own_booking(self, booking_id: uuid.UUID, company_id: uuid.UUID) -> Booking:
-        booking = await self._booking_repo.get_by_id(booking_id)
+    async def _own_booking(self, booking_id: uuid.UUID, company_id: uuid.UUID, *, lock: bool = False) -> Booking:
+        # A payment write locks the booking: two payments for one pending
+        # booking then run one after the other, and the second sees the first
+        # one's confirmation instead of confirming a booking that no longer is pending.
+        if lock:
+            booking = await self._booking_repo.get_for_update(booking_id)
+        else:
+            booking = await self._booking_repo.get_by_id(booking_id)
         if booking is None:
             raise ValueError("Booking not found")
         if booking.company_id != company_id:
@@ -79,7 +85,7 @@ class ManagePaymentsService:
         idempotency_hash: str | None = None,
         changed_by: uuid.UUID | None = None,
     ) -> BookingPayment:
-        booking = await self._own_booking(booking_id, company_id)
+        booking = await self._own_booking(booking_id, company_id, lock=True)
         if status not in (PaymentStatus.PENDING, PaymentStatus.COMPLETED):
             raise ValueError("A payment is recorded as pending or completed")
 
@@ -110,7 +116,7 @@ class ManagePaymentsService:
         changed_by: uuid.UUID | None = None,
     ) -> BookingPayment:
         """The money of a pending payment arrived. Confirming twice is harmless."""
-        booking = await self._own_booking(booking_id, company_id)
+        booking = await self._own_booking(booking_id, company_id, lock=True)
         payment = await self._payment_repo.get_by_id(payment_id)
         if payment is None or payment.booking_id != booking_id:
             raise ValueError("Payment not found")

@@ -108,6 +108,9 @@ class FakeBookingRepository(BookingRepository):
     async def lock_idempotency_key(self, company_id, key):
         pass
 
+    async def get_for_update(self, booking_id):
+        return self._bookings.get(booking_id)
+
     async def touch(self, booking_id):
         self.touched = [*getattr(self, "touched", []), booking_id]
 

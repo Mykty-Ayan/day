@@ -146,6 +146,10 @@ class BookingRepository(abc.ABC):
     async def update(self, booking: Booking) -> Booking: ...
 
     @abc.abstractmethod
+    async def get_for_update(self, booking_id: uuid.UUID) -> Booking | None:
+        """The current booking, locked until the transaction ends."""
+
+    @abc.abstractmethod
     async def touch(self, booking_id: uuid.UUID) -> None:
         """Mark the booking changed (moves it up the feed) without rewriting it."""
 

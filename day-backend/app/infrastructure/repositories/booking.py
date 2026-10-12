@@ -392,6 +392,18 @@ class SqlBookingRepository(BookingRepository):
         result = await self._session.get(BookingModel, booking_id)
         return _model_to_booking(result) if result else None
 
+    async def get_for_update(self, booking_id: uuid.UUID) -> Booking | None:
+        # populate_existing: the row may already sit in this session from an
+        # earlier read; the locked read must replace it, not return it stale.
+        stmt = (
+            select(BookingModel)
+            .where(BookingModel.id == booking_id)
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
+        result = await self._session.scalar(stmt)
+        return _model_to_booking(result) if result else None
+
     async def lock_idempotency_key(self, company_id: uuid.UUID, key: str) -> None:
         # Held until the transaction ends. A second request with the same key
         # waits here, then finds the first one's booking instead of racing it
