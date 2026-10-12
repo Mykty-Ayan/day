@@ -5,7 +5,7 @@
  * undone go through a confirmation first.
  */
 
-import { useRef, useState } from 'react'
+import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { BedDouble, CheckCircle2, Copy, LogIn, LogOut, Phone, Send, Wallet, XCircle } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
@@ -15,13 +15,13 @@ import {
   changeBookingStatus,
   confirmPayment,
   getBooking,
-  listPayments,
   updateBooking,
 } from '../../api/bookings'
 import { getProperty } from '../../api/properties'
 import type { Booking, BookingPayment, BookingStatus, PaymentMethod } from '../../types/booking'
 import { confirmAction, copyText, openWhatsApp, resultFeedback } from '../../lib/telegram'
-import { canCancel, extendedCheckOut, phoneDigits, settlement } from './booking-card'
+import { canCancel, extendedCheckOut, paymentMaybeRecorded, phoneDigits, settlement } from './booking-card'
+import { readyToAct } from './card-state'
 import { formatDay, formatMoney, formatTime } from './format'
 import DepositRow from './DepositRow'
 import { errorText } from './errors'
@@ -54,6 +54,14 @@ const STATUS_KEY: Record<BookingStatus, string> = {
 
 const METHODS: PaymentMethod[] = ['transfer', 'cash', 'card']
 
+/** One payment the operator means to record. The key goes with it on every
+ *  retry, so the server records the money once. */
+interface PaymentAttempt {
+  amount: number
+  method: PaymentMethod
+  key: string
+}
+
 function newKey(): string {
   return crypto.randomUUID()
 }
@@ -72,24 +80,25 @@ export default function BookingSheet({
   const [method, setMethod] = useState<PaymentMethod>('transfer')
   const [error, setError] = useState('')
   const [copied, setCopied] = useState(false)
-  // One key per payment the operator means to record: a retry after a timeout
-  // reuses it and the server records the money once.
-  const paymentKey = useRef(newKey())
+  const [openedAt] = useState(() => Date.now())
+  // A payment whose answer never came: it may be recorded already. Until it is
+  // settled by a retry with the same key, no other payment is started.
+  const [unsettled, setUnsettled] = useState<PaymentAttempt | null>(null)
   useClosingConfirmation(Boolean(opened) && amount.trim() !== '')
 
   // A row from a list is a snapshot: a payment confirms a pending booking, a
   // status change moves it. The card works on the booking as the server has it.
   const fresh = useQuery({
     queryKey: ['miniapp', 'booking', opened?.id],
-    queryFn: async () => (await getBooking(opened!.id)).booking,
+    queryFn: () => getBooking(opened!.id),
     enabled: Boolean(opened),
     // Someone else (the CRM, the web) may have moved it since the last look.
     staleTime: 0,
     refetchOnMount: 'always',
   })
-  const booking = fresh.data ?? opened
-  // Acting on an old status sends a transition the server refuses.
-  const settling = fresh.isFetching
+  const booking = fresh.data?.booking ?? opened
+  // Acting on a booking read before this card opened sends old dates or statuses.
+  const settling = !readyToAct(fresh, openedAt)
 
   const property = useQuery({
     queryKey: ['miniapp', 'property', booking?.property_id],
@@ -97,14 +106,11 @@ export default function BookingSheet({
     enabled: Boolean(booking),
   })
 
-  const payments = useQuery({
-    queryKey: ['miniapp', 'payments', booking?.id],
-    queryFn: () => listPayments(booking!.id),
-    enabled: Boolean(booking),
-  })
-
-  const { due, waiting } = settlement(booking?.total_price ?? 0, payments.data ?? [])
-  const received = (payments.data ?? []).filter((payment) => payment.status === 'completed')
+  // Booking and payments from one answer: a total from one read and payments
+  // from another showed debts that were already paid.
+  const payments = fresh.data?.payments ?? []
+  const { due, waiting } = settlement(booking?.total_price ?? 0, payments)
+  const received = payments.filter((payment) => payment.status === 'completed')
 
   function refresh() {
     queryClient.invalidateQueries({ queryKey: ['miniapp'] })
@@ -135,14 +141,17 @@ export default function BookingSheet({
   })
 
   const pay = useMutation({
-    mutationFn: () =>
-      addPayment(booking!.id, { amount: Number(amount), type: 'payment', method }, paymentKey.current),
+    mutationFn: (attempt: PaymentAttempt) =>
+      addPayment(booking!.id, { amount: attempt.amount, type: 'payment', method: attempt.method }, attempt.key),
     onSuccess: () => {
-      paymentKey.current = newKey()
+      setUnsettled(null)
       setAmount('')
       done(false)
     },
-    onError: fail,
+    onError: (mutationError, attempt) => {
+      setUnsettled(paymentMaybeRecorded(mutationError) ? attempt : null)
+      fail(mutationError)
+    },
   })
 
   const receive = useMutation({
@@ -150,6 +159,10 @@ export default function BookingSheet({
     onSuccess: () => done(false),
     onError: fail,
   })
+
+  // Money moves one step at a time: until a payment lands and the list is reread,
+  // "Balance" and the buttons would work from the old figures.
+  const moneyBusy = settling || pay.isPending || receive.isPending
 
   if (!booking) return null
 
@@ -193,7 +206,7 @@ export default function BookingSheet({
   async function askPay() {
     const methodLabel = t(`miniapp.methods.${method}`)
     if (await confirmAction(t('miniapp.booking.payAsk', { amount: money(amountValue), method: methodLabel }))) {
-      pay.mutate()
+      pay.mutate({ amount: amountValue, method, key: newKey() })
     }
   }
 
@@ -248,6 +261,13 @@ export default function BookingSheet({
         </p>
       )}
 
+      {fresh.isError && !fresh.isFetching && (
+        <div className="grid grid-cols-[1fr_auto] items-center gap-2">
+          <p className="text-sm">{t('miniapp.booking.stale')}</p>
+          <ActionButton onClick={() => fresh.refetch()}>{t('miniapp.retry')}</ActionButton>
+        </div>
+      )}
+
       <div className="grid grid-cols-2 gap-2">
         {target && (
           <ActionButton disabled={settling || extend.isPending} onClick={askExtend}>
@@ -263,7 +283,7 @@ export default function BookingSheet({
         )}
       </div>
 
-      {(due > 0 || waiting.length > 0 || received.length > 0) && (
+      {(due > 0 || waiting.length > 0 || received.length > 0 || unsettled) && (
         <div className="tg-surface space-y-3 rounded-xl p-3">
           <p className="text-sm font-semibold">{t('miniapp.booking.money')}</p>
 
@@ -283,7 +303,7 @@ export default function BookingSheet({
               </span>
               <button
                 type="button"
-                disabled={settling || receive.isPending}
+                disabled={moneyBusy}
                 onClick={() => askReceive(payment)}
                 className="tg-active rounded-lg px-3 py-2 text-xs font-bold disabled:opacity-40"
               >
@@ -292,7 +312,19 @@ export default function BookingSheet({
             </div>
           ))}
 
-          {due > 0 && (
+          {unsettled && (
+            <div className="space-y-2">
+              <p className="text-xs">
+                {t('miniapp.booking.unsettled', { amount: money(unsettled.amount) })}
+              </p>
+              <ActionButton tone="primary" disabled={moneyBusy} onClick={() => pay.mutate(unsettled)}>
+                <Wallet className="h-4 w-4" />
+                {t('miniapp.booking.retryPayment', { amount: money(unsettled.amount) })}
+              </ActionButton>
+            </div>
+          )}
+
+          {due > 0 && !unsettled && (
             <>
               <div className="flex gap-1">
                 {METHODS.map((value) => (
@@ -315,6 +347,7 @@ export default function BookingSheet({
                 />
                 <button
                   type="button"
+                  disabled={moneyBusy}
                   onClick={() => setAmount(String(due))}
                   className="tg-root min-h-[44px] rounded-xl px-3 text-xs font-bold"
                 >
@@ -323,7 +356,7 @@ export default function BookingSheet({
               </div>
               <ActionButton
                 tone="primary"
-                disabled={settling || pay.isPending || !(amountValue > 0)}
+                disabled={moneyBusy || !(amountValue > 0)}
                 onClick={askPay}
               >
                 <Wallet className="h-4 w-4" />

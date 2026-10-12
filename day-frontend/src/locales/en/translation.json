@@ -922,7 +922,10 @@
       "received": "Received",
       "receivedAsk": "Has {{amount}} arrived?",
       "money": "Payment",
-      "call": "Call"
+      "call": "Call",
+      "stale": "Couldn't refresh the booking. Actions wait until it loads.",
+      "unsettled": "No answer to the payment of {{amount}} — it may already be recorded. Retry: it will not be recorded twice.",
+      "retryPayment": "Retry the payment of {{amount}}"
     },
     "cleaning": {
       "title": "Cleaning",

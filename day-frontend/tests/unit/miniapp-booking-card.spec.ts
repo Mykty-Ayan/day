@@ -5,7 +5,13 @@
  */
 
 import { expect, test } from '@playwright/test'
-import { canCancel, extendedCheckOut, phoneDigits, settlement } from '../../src/pages/miniapp/booking-card'
+import {
+  canCancel,
+  extendedCheckOut,
+  paymentMaybeRecorded,
+  phoneDigits,
+  settlement,
+} from '../../src/pages/miniapp/booking-card'
 import type { BookingPayment } from '../../src/types/booking'
 
 test.describe('phoneDigits', () => {
@@ -64,5 +70,15 @@ test.describe('settlement', () => {
 
   test('overpaid is never a negative debt', () => {
     expect(settlement(10000, [payment(12000, 'completed')]).due).toBe(0)
+  })
+})
+
+test.describe('a payment call that failed', () => {
+  test('with no answer the money may be recorded: retry the same attempt', () => {
+    expect(paymentMaybeRecorded(new Error('timeout of 20000ms exceeded'))).toBe(true)
+  })
+
+  test('with an answer from the server nothing was recorded', () => {
+    expect(paymentMaybeRecorded({ response: { status: 422, data: { detail: [] } } })).toBe(false)
   })
 })
