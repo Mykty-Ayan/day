@@ -38,6 +38,7 @@ from app.domain.auth.permissions import Permission
 from app.domain.booking.entities import BookingComment, BookingFile
 from app.domain.booking.exceptions import (
     BookingOverlapError,
+    DepositAlreadyOpenError,
     IdempotencyKeyReusedError,
     IdempotencyKeyTakenError,
     IdempotencyKeyVoidedError,
@@ -963,9 +964,12 @@ async def create_deposit(
     repos = _repos(session)
     svc = ManageDepositsService(repos["booking"], repos["deposit"])
     try:
-        result = await svc.create_deposit(booking_id, company_id, body.amount)
+        result = await svc.create_deposit(booking_id, company_id, body.amount, unless_open=body.unless_open)
         await session.commit()
         return DepositResponse.model_validate(result, from_attributes=True)
+    except DepositAlreadyOpenError as e:
+        await session.rollback()
+        raise HTTPException(status_code=409, detail=str(e))
     except ValueError as e:
         await session.rollback()
         raise HTTPException(status_code=400, detail=str(e))
