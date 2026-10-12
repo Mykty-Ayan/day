@@ -28,7 +28,7 @@ from app.application.property.update_property import (
 )
 from app.domain.auth.permissions import Permission
 from app.domain.property.entities import DiscountRule, PropertyCosts, SeasonalPrice
-from app.domain.property.value_objects import FactSource, PropertyStatus
+from app.domain.property.value_objects import FactAudience, FactSource, PropertyStatus
 from app.infrastructure.database import get_session
 from app.infrastructure.repositories.property import (
     SqlAmenityRepository,
@@ -91,7 +91,17 @@ def _repos(session: AsyncSession):
     }
 
 
-def _to_property_response(p, photos: list | None = None) -> PropertyResponse:
+def _sees_secrets(principal: Principal) -> bool:
+    return Permission.PROPERTY_SECRETS_READ in principal.permissions
+
+
+def _visible_facts(facts: list, *, sees_secrets: bool) -> list:
+    if sees_secrets:
+        return facts
+    return [f for f in facts if f.audience != FactAudience.GUEST]
+
+
+def _to_property_response(p, photos: list | None = None, *, sees_secrets: bool = True) -> PropertyResponse:
     return PropertyResponse(
         id=p.id,
         company_id=p.company_id,
@@ -117,7 +127,7 @@ def _to_property_response(p, photos: list | None = None) -> PropertyResponse:
         check_out_instructions=p.check_out_instructions,
         house_rules=p.house_rules,
         wifi_name=p.wifi_name,
-        wifi_password=p.wifi_password,
+        wifi_password=p.wifi_password if sees_secrets else None,
         photos=[PropertyPhotoResponse.model_validate(photo, from_attributes=True) for photo in (photos or [])],
         created_at=p.created_at,
         updated_at=p.updated_at,
@@ -186,6 +196,7 @@ async def list_properties(
     search: str | None = None,
     session: AsyncSession = Depends(get_session),
     company_id: uuid.UUID = Depends(get_company_id),
+    principal: Principal = Depends(get_principal),
 ):
     repos = _repos(session)
     svc = ListPropertiesService(repos["property"])
@@ -198,7 +209,10 @@ async def list_properties(
     )
     pages = (result.total + per_page - 1) // per_page if result.total > 0 else 1
     return PropertyListResponse(
-        items=[_to_property_response(prop, photos=photos) for prop, photos in zip(result.items, photos_by_property)],
+        items=[
+            _to_property_response(prop, photos=photos, sees_secrets=_sees_secrets(principal))
+            for prop, photos in zip(result.items, photos_by_property)
+        ],
         total=result.total,
         page=page,
         per_page=per_page,
@@ -215,6 +229,7 @@ async def get_property(
     property_id: uuid.UUID,
     session: AsyncSession = Depends(get_session),
     company_id: uuid.UUID = Depends(get_company_id),
+    principal: Principal = Depends(get_principal),
 ):
     repos = _repos(session)
     svc = GetPropertyService(
@@ -230,8 +245,9 @@ async def get_property(
         detail = await svc.execute(property_id, company_id)
     except ValueError:
         raise HTTPException(status_code=404, detail="Property not found")
-    prop = _to_property_response(detail.property, photos=detail.photos)
-    facts = await repos["fact"].list_by_property(property_id)
+    sees_secrets = _sees_secrets(principal)
+    prop = _to_property_response(detail.property, photos=detail.photos, sees_secrets=sees_secrets)
+    facts = _visible_facts(await repos["fact"].list_by_property(property_id), sees_secrets=sees_secrets)
     return PropertyDetailResponse(
         **prop.model_dump(),
         amenities=[AmenityResponse.model_validate(a, from_attributes=True) for a in detail.amenities],
@@ -252,12 +268,14 @@ async def list_facts(
     property_id: uuid.UUID,
     session: AsyncSession = Depends(get_session),
     company_id: uuid.UUID = Depends(get_company_id),
+    principal: Principal = Depends(get_principal),
 ):
     repos = _repos(session)
     try:
         facts = await ManageFactsService(repos["property"], repos["fact"]).list(property_id, company_id)
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
+    facts = _visible_facts(facts, sees_secrets=_sees_secrets(principal))
     return [PropertyFactResponse.model_validate(f, from_attributes=True) for f in facts]
 
 

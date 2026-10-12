@@ -196,6 +196,12 @@ async def test_the_crm_writes_a_fact_and_reads_it_with_the_card(flat):
     assert secret.json()["audience"] == "guest"
     assert created.json()["source"] == "api_key"
 
+    # Without property_secrets:read the door code stays out of the card.
+    card = (await client.get(f"/api/v1/properties/{prop}")).json()
+    assert [(f["text"], f["audience"]) for f in card["facts"]] == [("Парковка во дворе бесплатно", "public")]
+    assert len((await client.get(path)).json()) == 1
+
+    use(Permission.PROPERTIES_READ, Permission.PROPERTY_FACTS_WRITE, Permission.PROPERTY_SECRETS_READ)
     card = (await client.get(f"/api/v1/properties/{prop}")).json()
     assert [(f["text"], f["audience"]) for f in card["facts"]] == [
         ("Парковка во дворе бесплатно", "public"),

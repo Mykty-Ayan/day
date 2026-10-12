@@ -52,6 +52,9 @@ _UPDATABLE_FIELDS = {
 }
 
 
+_SECRET_FIELDS = {"wifi_password"}
+
+
 class UpdatePropertyService:
     def __init__(
         self,
@@ -96,6 +99,11 @@ class UpdatePropertyService:
             )
             if new_val_str != old_val_str:
                 setattr(prop, field_name, new_val)
+                if field_name in _SECRET_FIELDS:
+                    # Who changed it and when is the useful part; the value
+                    # would hand the password to everyone who reads history.
+                    old_val_str = "***" if old_val_str is not None else None
+                    new_val_str = "***" if new_val_str is not None else None
                 await self._audit_repo.save(
                     PropertyAuditLog(
                         property_id=prop.id,
