@@ -6,7 +6,7 @@
 
 import { expect, test } from '@playwright/test'
 import { QueryClient, QueryObserver } from '@tanstack/react-query'
-import { cardRead, readyToAct } from '../../src/pages/miniapp/card-state'
+import { cardRead, readyToAct, secretsFresh } from '../../src/pages/miniapp/card-state'
 
 const OPENED = 1_000
 
@@ -75,4 +75,21 @@ test('a write from a card closed mid-request still counts for the reopened one',
   finish()
   await running
   expect(client.isMutating({ mutationKey: writeKey })).toBe(0)
+})
+
+test.describe('the lockbox code goes only with a read made just now', () => {
+  const read = (dataUpdatedAt: number) => ({ isSuccess: true, fetchStatus: 'idle' as const, dataUpdatedAt })
+
+  test('a read from the last seconds carries it', () => {
+    expect(secretsFresh(read(20_000), OPENED, 30_000)).toBe(true)
+  })
+
+  test('an older read does not: the CRM may have cancelled the stay since', () => {
+    expect(secretsFresh(read(10_000), OPENED, 30_000)).toBe(false)
+  })
+
+  test('nor a read the card may not act on', () => {
+    expect(secretsFresh({ ...read(29_000), fetchStatus: 'fetching' }, OPENED, 30_000)).toBe(false)
+    expect(secretsFresh(read(500), OPENED, 1_000)).toBe(false)
+  })
 })

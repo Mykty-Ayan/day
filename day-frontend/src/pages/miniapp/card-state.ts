@@ -21,3 +21,19 @@ export function cardRead<T>(queryKey: readonly unknown[], load: (signal: AbortSi
     refetchOnMount: 'always' as const,
   }
 }
+
+/** How old a read may be for the guest text to carry the lockbox code. The
+ *  open card rereads more often than that, so the code normally stays. */
+export const SECRETS_MAX_AGE_MS = 15_000
+
+/** Whether a read may hand out what only a confirmed guest gets: one the card
+ *  may act on, made in the last seconds — the CRM may cancel a stay while the
+ *  card stays open. */
+export function secretsFresh(
+  read: Parameters<typeof readyToAct>[0],
+  openedAt: number,
+  now: number,
+  maxAgeMs = SECRETS_MAX_AGE_MS,
+): boolean {
+  return readyToAct(read, openedAt) && now - read.dataUpdatedAt < maxAgeMs
+}
