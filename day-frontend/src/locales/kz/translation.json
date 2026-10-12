@@ -239,7 +239,13 @@
       "wifiPasswordPlaceholder": "Желі құпиясөзі",
       "maxGuests": "Ең көп қонақ",
       "maxGuestsHint": "Қанша адам тұра алады: бұл санды Airbnb пен Booking алады",
-      "bathrooms": "Жуынатын бөлмелер"
+      "bathrooms": "Жуынатын бөлмелер",
+      "checkInFrom": "Кіру уақыты",
+      "checkOutUntil": "Шығу уақыты",
+      "checkInMethod": "Қонақ қалай кіреді",
+      "defaultHour": "Компаниядағыдай ({{hour}})",
+      "notSet": "Көрсетілмеген",
+      "turnoverHours": "Шығу кіруден кеш болмауы керек, әйтпесе қатар броньдар қиылысады"
     },
     "validation": {
       "nameRequired": "Атауы міндетті",
@@ -265,7 +271,15 @@
     "addPhotos": "Фото қосу",
     "photosUploading": "Жүктелуде…",
     "photosAdded": "Фото қосылды: {{count}}",
-    "photosNotAdded": "Жүктелмеді: {{count}}. JPEG, PNG немесе WebP, 20 МБ-қа дейін болуы керек"
+    "photosNotAdded": "Жүктелмеді: {{count}}. JPEG, PNG немесе WebP, 20 МБ-қа дейін болуы керек",
+    "checkInMethod": {
+      "lockbox": "Кілт қорабы",
+      "keypad": "Кодты құлып",
+      "smart_lock": "Ақылды құлып",
+      "building_staff": "Ғимарат қызметкерлері",
+      "host_greets": "Өзіміз қарсы аламыз",
+      "other": "Басқа"
+    }
   },
   "bookings": {
     "title": "Броньдар",

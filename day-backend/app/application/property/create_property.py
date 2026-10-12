@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from app.domain.booking.value_objects import RentalMode
 from app.domain.property.entities import Property, PropertyAuditLog
 from app.domain.property.repositories import PropertyAuditLogRepository, PropertyRepository
-from app.domain.property.value_objects import AuditAction, PropertyStatus, PropertyType
+from app.domain.property.value_objects import AuditAction, CheckInMethod, PropertyStatus, PropertyType
 
 
 @dataclass
@@ -29,6 +29,9 @@ class CreatePropertyInput:
     beds: int | None = None
     max_guests: int | None = None
     bathrooms: int | None = None
+    check_in_hour: int | None = None
+    check_out_hour: int | None = None
+    check_in_method: CheckInMethod | None = None
     area_living: float | None = None
     area_total: float | None = None
     check_in_instructions: str | None = None
@@ -79,6 +82,9 @@ class CreatePropertyService:
             beds=inp.beds,
             max_guests=inp.max_guests,
             bathrooms=inp.bathrooms,
+            check_in_hour=inp.check_in_hour,
+            check_out_hour=inp.check_out_hour,
+            check_in_method=inp.check_in_method,
             area_living=inp.area_living,
             area_total=inp.area_total,
             check_in_instructions=inp.check_in_instructions,

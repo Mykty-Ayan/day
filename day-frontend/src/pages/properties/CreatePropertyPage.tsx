@@ -5,7 +5,7 @@ import { useNavigate } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 import { useCreateProperty } from '../../hooks/useProperties'
 import { createOrUpdatePricing, linkAmenities, uploadPhotos } from '../../api/properties'
-import type { PropertyType, PropertyCreateInput, PricingInput } from '../../types/property'
+import type { CheckInMethod, PropertyType, PropertyCreateInput, PricingInput } from '../../types/property'
 import type { RentalMode } from '../../types/booking'
 import PropertyFormStepBasic from '../../components/property/PropertyFormStepBasic'
 import PropertyFormStepAddress from '../../components/property/PropertyFormStepAddress'
@@ -56,6 +56,9 @@ interface FormData {
   }
   photos: PhotoEntry[]
   rules: {
+    check_in_hour: string
+    check_out_hour: string
+    check_in_method: string
     check_in_instructions: string
     check_out_instructions: string
     house_rules: string
@@ -72,7 +75,16 @@ const initialForm: FormData = {
   rental_mode: 'daily',
   pricing: { base_price: '', hourly_price: '', weekend_markup: '', default_deposit: '', extra_adult_price: '', extra_child_price: '', base_guests: '' },
   photos: [],
-  rules: { check_in_instructions: '', check_out_instructions: '', house_rules: '', wifi_name: '', wifi_password: '' },
+  rules: {
+    check_in_hour: '',
+    check_out_hour: '',
+    check_in_method: '',
+    check_in_instructions: '',
+    check_out_instructions: '',
+    house_rules: '',
+    wifi_name: '',
+    wifi_password: '',
+  },
   amenityIds: [],
 }
 
@@ -155,6 +167,9 @@ export default function CreatePropertyPage() {
       bathrooms: form.details.bathrooms ? parseInt(form.details.bathrooms) : undefined,
       area_living: form.details.area_living ? parseFloat(form.details.area_living) : undefined,
       area_total: form.details.area_total ? parseFloat(form.details.area_total) : undefined,
+      check_in_hour: form.rules.check_in_hour !== '' ? parseInt(form.rules.check_in_hour) : undefined,
+      check_out_hour: form.rules.check_out_hour !== '' ? parseInt(form.rules.check_out_hour) : undefined,
+      check_in_method: form.rules.check_in_method ? (form.rules.check_in_method as CheckInMethod) : undefined,
       check_in_instructions: form.rules.check_in_instructions || undefined,
       check_out_instructions: form.rules.check_out_instructions || undefined,
       house_rules: form.rules.house_rules || undefined,

@@ -1,11 +1,12 @@
 from __future__ import annotations
 
+import enum
 import uuid
 from dataclasses import dataclass
 
 from app.domain.property.entities import Property, PropertyAuditLog
 from app.domain.property.repositories import PropertyAuditLogRepository, PropertyRepository
-from app.domain.property.value_objects import AuditAction, PropertyStatus, PropertyType
+from app.domain.property.value_objects import AuditAction, PropertyStatus
 
 # Sentinel for "not provided"
 _UNSET = object()
@@ -32,6 +33,9 @@ class UpdatePropertyInput:
     beds: object = _UNSET
     max_guests: object = _UNSET
     bathrooms: object = _UNSET
+    check_in_hour: object = _UNSET
+    check_out_hour: object = _UNSET
+    check_in_method: object = _UNSET
     area_living: object = _UNSET
     area_total: object = _UNSET
     check_in_instructions: object = _UNSET
@@ -48,6 +52,7 @@ _UPDATABLE_FIELDS = {
     "name", "internal_name", "type", "rental_mode", "description", "source_url",
     "latitude", "longitude", "address_full", "apartment_number",
     "entrance", "block", "floor", "rooms", "beds", "max_guests", "bathrooms",
+    "check_in_hour", "check_out_hour", "check_in_method",
     "area_living", "area_total",
     "check_in_instructions", "check_out_instructions", "house_rules",
     "wifi_name", "wifi_password",
@@ -91,12 +96,12 @@ class UpdatePropertyService:
             if new_val is _UNSET:
                 continue
             old_val = getattr(prop, field_name)
-            # Convert enums for comparison
-            if isinstance(new_val, PropertyType):
+            # Any enum compares and audits by its value ("lockbox", not "CheckInMethod.LOCKBOX").
+            if isinstance(new_val, enum.Enum):
                 new_val_str = new_val.value
             else:
                 new_val_str = str(new_val) if new_val is not None else None
-            old_val_str = old_val.value if isinstance(old_val, PropertyType) else (
+            old_val_str = old_val.value if isinstance(old_val, enum.Enum) else (
                 str(old_val) if old_val is not None else None
             )
             if new_val_str != old_val_str:
