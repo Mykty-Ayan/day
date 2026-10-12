@@ -36,3 +36,9 @@ export function settlement(total: number, payments: BookingPayment[]) {
   const waiting = payments.filter((payment) => payment.status === 'pending' && payment.type !== 'refund')
   return { paid, due: Math.max(0, total - paid), waiting }
 }
+
+/** After a failed payment call: with no answer from the server the money may be
+ *  recorded already, so the same attempt must be retried, not a new one made. */
+export function paymentMaybeRecorded(error: unknown): boolean {
+  return !(error as { response?: unknown } | null)?.response
+}
