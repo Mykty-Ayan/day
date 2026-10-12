@@ -56,14 +56,20 @@ export default function DepositRow({
     queryClient.invalidateQueries({ queryKey: ['miniapp', 'deposits', bookingId] })
   }
 
+  // The server takes it only while no deposit is open: a press after a lost
+  // answer, or from a second phone, gets 409 instead of a second deposit.
   const take = useMutation({
     mutationKey: writeKey,
-    mutationFn: () => createDeposit(bookingId, { amount: Number(amount || suggestedAmount) }),
+    mutationFn: () => createDeposit(bookingId, { amount: Number(amount || suggestedAmount), unless_open: true }),
     onSuccess: () => {
       setAmount('')
       refresh()
     },
-    onError,
+    onError: (error) => {
+      // Saved or not, the list must be read again before the row offers anything.
+      queryClient.invalidateQueries({ queryKey: ['miniapp', 'deposits', bookingId] })
+      onError(error)
+    },
   })
 
   const act = useMutation({

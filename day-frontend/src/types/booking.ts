@@ -206,6 +206,8 @@ export interface PaymentInput {
 
 export interface DepositInput {
   amount: number
+  /** Refused with 409 while the booking has a deposit not returned yet. */
+  unless_open?: boolean
 }
 
 export interface DepositActionInput {

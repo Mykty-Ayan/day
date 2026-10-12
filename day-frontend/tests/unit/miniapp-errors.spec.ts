@@ -32,6 +32,9 @@ test.describe('errorText', () => {
     expect(errorText(failed('Property has no pricing configuration'), 'fallback', t)).toBe(
       '<miniapp.errors.noPrice>',
     )
+    expect(errorText(failed('Booking already has an open deposit'), 'fallback', t)).toBe(
+      '<miniapp.deposit.alreadyTaken>',
+    )
   })
 
   test('an unknown English message falls back instead of reaching the operator', () => {
