@@ -25,6 +25,9 @@ class User:
     phone: str | None = None
     is_active: bool = True
     created_at: datetime | None = None
+    # Carried in every token as "tv". Raising it ends all the user's sessions:
+    # sign-out, a role change, deactivation, a new password.
+    token_version: int = 0
 
 
 @dataclass

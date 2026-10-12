@@ -44,25 +44,27 @@ def verify_password(plain: str, hashed: str) -> bool:
     return bcrypt.checkpw(plain.encode(), hashed.encode())
 
 
-def create_access_token(sub: uuid.UUID, company_id: uuid.UUID, role: str) -> str:
+def create_access_token(sub: uuid.UUID, company_id: uuid.UUID, role: str, token_version: int = 0) -> str:
     expire = datetime.now(timezone.utc) + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     payload = {
         "sub": str(sub),
         "company_id": str(company_id),
         "role": role,
         "type": "access",
+        "tv": token_version,
         "exp": expire,
     }
     return jwt.encode(payload, settings.JWT_SECRET, algorithm=settings.JWT_ALGORITHM)
 
 
-def create_refresh_token(sub: uuid.UUID, company_id: uuid.UUID, role: str) -> str:
+def create_refresh_token(sub: uuid.UUID, company_id: uuid.UUID, role: str, token_version: int = 0) -> str:
     expire = datetime.now(timezone.utc) + timedelta(days=7)
     payload = {
         "sub": str(sub),
         "company_id": str(company_id),
         "role": role,
         "type": "refresh",
+        "tv": token_version,
         "exp": expire,
     }
     return jwt.encode(payload, settings.JWT_SECRET, algorithm=settings.JWT_ALGORITHM)

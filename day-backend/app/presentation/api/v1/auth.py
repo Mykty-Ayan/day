@@ -11,7 +11,7 @@ from app.infrastructure.login_throttle import LoginThrottle, get_login_throttle
 from app.infrastructure.repositories.auth import SqlCompanyRepository, SqlUserRepository
 from app.infrastructure.repositories.messaging import SqlChannelIdentityRepository
 from app.infrastructure.telegram_init_data import InitDataError, verify_init_data
-from app.presentation.api.deps import get_current_user
+from app.presentation.api.deps import Principal, get_current_user, get_principal
 from app.presentation.schemas.auth import (
     LoginRequest,
     RefreshRequest,
@@ -91,6 +91,19 @@ async def telegram_miniapp_login(
         return await svc.issue_tokens(telegram_user)
     except TelegramNotLinked as e:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
+
+
+@auth_router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
+async def logout(principal: Principal = Depends(get_principal), session: AsyncSession = Depends(get_session)):
+    """Sign out everywhere: every access and refresh token of this user stops working.
+
+    One version per user, so this also ends the Mini App's session; it signs
+    itself in again from Telegram on the next open.
+    """
+    if principal.user_id is None:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="An API key has no session")
+    await _auth_service(session).logout_everywhere(principal.user_id)
+    await session.commit()
 
 
 @auth_router.get("/me", response_model=UserResponse)

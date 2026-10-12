@@ -40,6 +40,11 @@ export async function refreshToken(refresh_token: string): Promise<TokenResponse
   return res.data
 }
 
+/** Ends every session of the user on the server, not just this tab's. */
+export async function logout(): Promise<void> {
+  await apiClient.post('/auth/logout')
+}
+
 export async function getMe(): Promise<UserResponse> {
   const res = await apiClient.get<UserResponse>('/auth/me')
   return res.data

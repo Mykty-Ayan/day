@@ -23,6 +23,7 @@ def _model_to_user(m: UserModel) -> User:
         phone=m.phone,
         is_active=m.is_active,
         created_at=m.created_at,
+        token_version=m.token_version or 0,
     )
 
 
@@ -68,6 +69,7 @@ class SqlUserRepository(UserRepository):
             full_name=user.full_name,
             phone=user.phone,
             is_active=user.is_active,
+            token_version=user.token_version,
         )
         self._session.add(model)
         await self._session.flush()
@@ -84,6 +86,7 @@ class SqlUserRepository(UserRepository):
         model.full_name = user.full_name
         model.phone = user.phone
         model.is_active = user.is_active
+        model.token_version = user.token_version
         await self._session.flush()
         await self._session.refresh(model)
         return _model_to_user(model)

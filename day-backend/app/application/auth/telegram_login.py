@@ -8,10 +8,10 @@ nothing.
 
 from __future__ import annotations
 
+from app.application.auth.auth_service import issue_tokens
 from app.domain.auth.repositories import UserRepository
 from app.domain.messaging.repositories import ChannelIdentityRepository
 from app.domain.messaging.value_objects import Channel
-from app.infrastructure.security import create_access_token, create_refresh_token
 from app.infrastructure.telegram_init_data import TelegramUser
 
 
@@ -47,8 +47,4 @@ class TelegramLoginService:
             # rather than hand out a token for the wrong tenant.
             raise TelegramNotLinked("The link is stale, reconnect the chat")
 
-        return {
-            "access_token": create_access_token(user.id, user.company_id, user.role.value),
-            "refresh_token": create_refresh_token(user.id, user.company_id, user.role.value),
-            "token_type": "bearer",
-        }
+        return issue_tokens(user)

@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { login, register, getMe, type LoginInput, type RegisterInput } from '../api/auth'
+import { login, logout, register, getMe, type LoginInput, type RegisterInput } from '../api/auth'
 import { useNavigate } from '@tanstack/react-router'
 
 const AUTH_USER_KEY = 'auth-user'
@@ -44,7 +44,10 @@ export function useRegister() {
 export function useLogout() {
   const queryClient = useQueryClient()
   const navigate = useNavigate()
-  return () => {
+  return async () => {
+    // Best effort: an expired session or no network must not keep the user
+    // signed in on this device.
+    await logout().catch(() => undefined)
     localStorage.removeItem('access_token')
     localStorage.removeItem('refresh_token')
     queryClient.clear()

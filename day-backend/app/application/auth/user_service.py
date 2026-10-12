@@ -71,13 +71,16 @@ class UserManagementService:
         acting_user_id: uuid.UUID | None = None,
     ) -> User:
         user = await self._get_own(user_id, company_id)
+        access_changed = False
 
         if role is not None and role != user.role:
             self._guard_self_demotion(user, acting_user_id, "role")
             user.role = role
+            access_changed = True
         if is_active is not None and is_active != user.is_active:
             self._guard_self_demotion(user, acting_user_id, "active state")
             user.is_active = is_active
+            access_changed = True
         if full_name is not None:
             user.full_name = full_name.strip()
         if phone is not None:
@@ -86,7 +89,12 @@ class UserManagementService:
             if len(password) < MIN_PASSWORD_LENGTH:
                 raise ValueError(f"Password must be at least {MIN_PASSWORD_LENGTH} characters")
             user.hashed_password = hash_password(password)
+            access_changed = True
 
+        # Tokens issued before carry the old role, or the trust of the old
+        # password: every open session of this user ends.
+        if access_changed:
+            user.token_version += 1
         return await self._repo.update(user)
 
     async def deactivate(
