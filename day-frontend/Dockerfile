@@ -17,6 +17,9 @@ FROM nginx:1.27-alpine
 
 COPY --from=build /app/dist /usr/share/nginx/html
 COPY nginx.conf /etc/nginx/conf.d/default.conf
+COPY security-headers.conf /etc/nginx/snippets/security-headers.conf
+# Fail the build, not the deploy, on a config nginx cannot load.
+RUN nginx -t
 
 EXPOSE 80
 

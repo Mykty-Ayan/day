@@ -7,7 +7,9 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.datastructures import MutableHeaders
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
+from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from app.config import settings
 from app.infrastructure.database import engine
@@ -52,6 +54,38 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
         }
         logger.info("%s %s %d %dms", request.method, request.url.path, response.status_code, elapsed_ms, extra=extra)
         return response
+
+
+class SecurityHeadersMiddleware:
+    """Browser hardening headers on every API response, error pages included.
+
+    The API answers with JSON (and Swagger at /docs), so nothing it serves is
+    meant to be framed, sniffed into another type, or leak its URL as a referrer.
+    """
+
+    HEADERS = {
+        "X-Content-Type-Options": "nosniff",
+        "X-Frame-Options": "DENY",
+        "Referrer-Policy": "no-referrer",
+        "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
+    }
+
+    def __init__(self, app: ASGIApp) -> None:
+        self.app = app
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        async def send_with_headers(message: Message) -> None:
+            if message["type"] == "http.response.start":
+                headers = MutableHeaders(scope=message)
+                for name, value in self.HEADERS.items():
+                    headers.setdefault(name, value)
+            await send(message)
+
+        await self.app(scope, receive, send_with_headers)
 
 
 @asynccontextmanager
@@ -122,6 +156,8 @@ def create_app() -> FastAPI:
 
     app.add_middleware(RateLimitMiddleware)
     app.add_middleware(RequestLoggingMiddleware)
+    # Outside the rate limiter, so a 429 carries the headers too.
+    app.add_middleware(SecurityHeadersMiddleware)
 
     # CORS must be the OUTERMOST middleware (added last) so that short-circuit
     # responses — e.g. a 429 from the rate limiter — still carry the
