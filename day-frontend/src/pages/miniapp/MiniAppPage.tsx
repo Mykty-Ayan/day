@@ -22,7 +22,7 @@ import {
 import { useTranslation } from 'react-i18next'
 import { getBooking, getTodayChecks, listBookings } from '../../api/bookings'
 import { onSessionStored, storeSession } from '../../api/client'
-import { identityChanged, roleFromToken, sessionIdentity } from '../../lib/token'
+import { onIdentityChange, roleFromToken, sessionIdentity } from '../../lib/token'
 import { telegramMiniAppLogin, type AvailableProperty } from '../../api/miniapp'
 import { listAllProperties } from '../../api/properties'
 import { copyText, getInitData, initTelegram, isInsideTelegram, tapFeedback } from '../../lib/telegram'
@@ -57,12 +57,19 @@ export default function MiniAppPage() {
   // cannot be refreshed; if the chat was relinked meanwhile, that is another
   // user, company or role, and nothing on screen or in the cache belongs to it.
   const shownFor = useRef<string | null>(null)
+  // Another window signed in to another account: this one stops until a person
+  // chooses to continue here (reloading by itself would ping-pong with that window).
+  const [paused, setPaused] = useState(false)
   useEffect(
     () =>
-      onSessionStored(() => {
-        if (identityChanged(shownFor.current, sessionIdentity(localStorage.getItem('access_token')))) {
-          window.location.reload()
-        }
+      onSessionStored((fromOtherWindow) => {
+        const action = onIdentityChange(
+          shownFor.current,
+          sessionIdentity(localStorage.getItem('access_token')),
+          fromOtherWindow,
+        )
+        if (action === 'reload') window.location.reload()
+        if (action === 'pause') setPaused(true)
       }),
     [],
   )
@@ -163,6 +170,28 @@ export default function MiniAppPage() {
             </ActionButton>
           </div>
         )}
+      </Screen>
+    )
+  }
+
+  if (paused) {
+    return (
+      <Screen>
+        <KeyRound className="mb-3 h-8 w-8 opacity-40" />
+        <p className="text-sm">{t('miniapp.otherSession')}</p>
+        <div className="mt-4 w-full max-w-xs">
+          <ActionButton
+            tone="primary"
+            onClick={() => {
+              // Signing this window in again takes the session back; the other window pauses then.
+              setPaused(false)
+              setAuthState('pending')
+              setAttempt((value) => value + 1)
+            }}
+          >
+            {t('miniapp.continueHere')}
+          </ActionButton>
+        </div>
       </Screen>
     )
   }

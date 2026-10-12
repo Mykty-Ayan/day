@@ -4,7 +4,7 @@
  */
 
 import { expect, test } from '@playwright/test'
-import { identityChanged, roleFromToken, sessionIdentity } from '../../src/lib/token'
+import { identityChanged, onIdentityChange, roleFromToken, sessionIdentity } from '../../src/lib/token'
 import { localDay, myCleaningDays, nextCleaningStep } from '../../src/pages/miniapp/cleaner'
 import { toISODate } from '../../src/pages/miniapp/format'
 import type { CleaningTask } from '../../src/types/cleaning'
@@ -45,6 +45,16 @@ test('a session is told apart by its user, company and role', () => {
   // Signed out, or not signed in yet: nothing to compare.
   expect(identityChanged(manager, null)).toBe(false)
   expect(identityChanged(null, cleaner)).toBe(false)
+})
+
+test('another account in this window reloads; in another window it only pauses this one', () => {
+  // This window signed itself in again and got someone else: build the app afresh for them.
+  expect(onIdentityChange('u-1|c-a|manager', 'u-2|c-b|cleaner', false)).toBe('reload')
+  // Another window signed in to another account: reloading would sign this one back in
+  // and make that window reload in turn, forever. Stop and let a person choose.
+  expect(onIdentityChange('u-1|c-a|manager', 'u-2|c-b|cleaner', true)).toBe('pause')
+  expect(onIdentityChange('u-1|c-a|manager', 'u-1|c-a|manager', true)).toBe('none')
+  expect(onIdentityChange(null, 'u-2|c-b|cleaner', false)).toBe('none')
 })
 
 test('a completion time from the server (UTC, no zone) is read as the local day', () => {

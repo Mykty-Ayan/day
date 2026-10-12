@@ -4,7 +4,7 @@
  * do and what they finished today, by day; one step at a time — start, then done.
  */
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { CheckCircle2, Play, SprayCan } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
@@ -53,11 +53,23 @@ export default function CleanerScreen() {
   const lang = i18n.language
   const queryClient = useQueryClient()
   const [error, setError] = useState('')
-  const [now] = useState(() => new Date())
+  // "Today" moves on when the app comes back after midnight.
+  const [now, setNow] = useState(() => new Date())
   const today = toISODate(now)
+  useEffect(() => {
+    const check = () => {
+      if (document.visibilityState === 'visible' && toISODate(new Date()) !== today) setNow(new Date())
+    }
+    document.addEventListener('visibilitychange', check)
+    window.addEventListener('focus', check)
+    return () => {
+      document.removeEventListener('visibilitychange', check)
+      window.removeEventListener('focus', check)
+    }
+  }, [today])
   // Per company: a chat relinked to another one must not see this one's list.
   const [company] = useState(() => companyFromToken(localStorage.getItem('access_token')))
-  const listKey = ['miniapp', 'my-cleaning', company]
+  const listKey = ['miniapp', 'my-cleaning', company, today]
 
   const tasks = useQuery({
     queryKey: listKey,

@@ -34,6 +34,19 @@ export function identityChanged(before: string | null, now: string | null): bool
   return before !== null && now !== null && before !== now
 }
 
+/** What a page does when a stored session belongs to someone else. Signed in
+ *  again in this window (the chat was relinked): reload, the app is theirs now.
+ *  From another window: only pause — reloading would sign this window back in,
+ *  and that window would reload in turn, forever. */
+export function onIdentityChange(
+  shownFor: string | null,
+  now: string | null,
+  fromOtherWindow: boolean,
+): 'none' | 'reload' | 'pause' {
+  if (!identityChanged(shownFor, now)) return 'none'
+  return fromOtherWindow ? 'pause' : 'reload'
+}
+
 /** Whether a request made for `expected` company may go out with `token`. One
  *  that names no company goes with any token. */
 export function sendableFor(expected: string | undefined, token: string | null): boolean {

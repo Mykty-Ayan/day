@@ -1056,7 +1056,9 @@
       "start": "Start cleaning",
       "done": "Done",
       "doneAsk": "Is {{unit}} clean?"
-    }
+    },
+    "otherSession": "Another window signed in to another Day account. This one has stopped so the two do not mix.",
+    "continueHere": "Continue here"
   },
   "auth": {
     "forgot": {

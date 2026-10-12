@@ -49,14 +49,15 @@ export function storeSession(tokens: { access_token: string; refresh_token: stri
 
 /** Calls back whenever a new session is stored: here (a sign-in, also the
  *  automatic one through Telegram) or by another window of the app. */
-export function onSessionStored(listener: () => void): () => void {
+export function onSessionStored(listener: (fromOtherWindow: boolean) => void): () => void {
+  const here = () => listener(false)
   const fromOtherWindow = (event: StorageEvent) => {
-    if (event.key === 'access_token') listener()
+    if (event.key === 'access_token') listener(true)
   }
-  window.addEventListener(SESSION_STORED, listener)
+  window.addEventListener(SESSION_STORED, here)
   window.addEventListener('storage', fromOtherWindow)
   return () => {
-    window.removeEventListener(SESSION_STORED, listener)
+    window.removeEventListener(SESSION_STORED, here)
     window.removeEventListener('storage', fromOtherWindow)
   }
 }
