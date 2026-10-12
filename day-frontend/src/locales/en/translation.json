@@ -420,7 +420,11 @@
     "date": "Date",
     "startTime": "Start time",
     "endTime": "End time",
-    "selectTime": "Select time"
+    "selectTime": "Select time",
+    "overbooking": {
+      "short": "Overbooking",
+      "detail": "Overbooking: this booking came from a platform for nights already taken. Move or cancel one of the two bookings."
+    }
   },
   "today": {
     "title": "Today",

@@ -33,6 +33,8 @@ export interface Booking {
   status: BookingStatus
   gantt_color: string
   gantt_icon?: string
+  /** An OTA booking on nights already taken; someone has to resolve it. */
+  overbooking?: boolean
   total_price: number
   calculated_price: number
   /** Net received: payments less refunds. Lets a list show who still owes. */
