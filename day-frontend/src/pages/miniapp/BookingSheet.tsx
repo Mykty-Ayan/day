@@ -30,7 +30,7 @@ import {
   settlement,
   type MoneyAttempt,
 } from './booking-card'
-import { readyToAct } from './card-state'
+import { cardRead, readyToAct } from './card-state'
 import { formatDay, formatMoney, formatTime } from './format'
 import DepositRow from './DepositRow'
 import { errorText } from './errors'
@@ -110,12 +110,9 @@ export default function BookingSheet({
   // A row from a list is a snapshot: a payment confirms a pending booking, a
   // status change moves it. The card works on the booking as the server has it.
   const fresh = useQuery({
-    queryKey: ['miniapp', 'booking', opened?.id],
-    queryFn: () => getBooking(opened!.id),
-    enabled: Boolean(opened),
     // Someone else (the CRM, the web) may have moved it since the last look.
-    staleTime: 0,
-    refetchOnMount: 'always',
+    ...cardRead(['miniapp', 'booking', opened?.id], (signal) => getBooking(opened!.id, signal)),
+    enabled: Boolean(opened),
   })
   const booking = fresh.data?.booking ?? opened
   // Acting on a booking read before this card opened sends old dates or statuses.
