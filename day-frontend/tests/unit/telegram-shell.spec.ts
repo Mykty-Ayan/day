@@ -78,3 +78,22 @@ test('outside Telegram everything is a no-op', () => {
   expect(() => showBackButton(() => {})()).not.toThrow()
   expect(() => setClosingConfirmation(true)).not.toThrow()
 })
+
+test('two screens: back closes only the top one, and the arrow stays until both are gone', () => {
+  const { calls, handlers } = fakeTelegram('8.0')
+  const closed: string[] = []
+  const closeBottom = showBackButton(() => closed.push('bottom'))
+  const closeTop = showBackButton(() => closed.push('top'))
+
+  ;[...handlers].forEach((handler) => handler())
+  expect(closed).toEqual(['top'])
+
+  closeTop()
+  expect(calls.at(-1)).not.toBe('back.hide')
+  ;[...handlers].forEach((handler) => handler())
+  expect(closed).toEqual(['top', 'bottom'])
+
+  closeBottom()
+  expect(calls.at(-1)).toBe('back.hide')
+  expect(handlers.size).toBe(0)
+})

@@ -67,16 +67,30 @@ export function initTelegram(): void {
   if (app.isVersionAtLeast?.('7.7')) app.disableVerticalSwipes?.()
 }
 
+// Screens on top of each other: back closes only the top one, and the arrow
+// stays while anything is still open.
+const backStack: Array<() => void> = []
+let backDispatcher: (() => void) | null = null
+
 /** Telegram's own back arrow (and Android's back gesture) for a screen on top of
  *  the tabs. Returns the cleanup that removes exactly this handler. */
 export function showBackButton(onBack: () => void): () => void {
   const button = getWebApp()?.BackButton
   if (!button) return () => {}
-  button.onClick(onBack)
+  if (!backDispatcher) {
+    backDispatcher = () => backStack.at(-1)?.()
+    button.onClick(backDispatcher)
+  }
+  backStack.push(onBack)
   button.show()
   return () => {
-    button.offClick(onBack)
-    button.hide()
+    const index = backStack.lastIndexOf(onBack)
+    if (index >= 0) backStack.splice(index, 1)
+    if (backStack.length === 0 && backDispatcher) {
+      button.offClick(backDispatcher)
+      backDispatcher = null
+      button.hide()
+    }
   }
 }
 

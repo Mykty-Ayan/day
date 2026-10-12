@@ -6,7 +6,7 @@
  * changing something, a card that states what will happen and waits.
  */
 
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { ArrowUp, Check, Sparkles } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
@@ -40,13 +40,25 @@ export default function AskScreen() {
   const [entries, setEntries] = useState<Entry[]>([])
   const [draft, setDraft] = useState('')
 
+  // An answer can arrive after the operator switched tabs; it must not scroll
+  // the tab they are on now.
+  const timer = useRef<number | undefined>(undefined)
+  const mounted = useRef(true)
+  useEffect(() => {
+    mounted.current = true
+    return () => {
+      mounted.current = false
+      window.clearTimeout(timer.current)
+    }
+  }, [])
+
   function scrollDown() {
     // Only this document: scrollIntoView also scrolled Telegram's frame around the
     // app, pushing the tab bar out of reach with no way back.
-    window.setTimeout(
-      () => window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'smooth' }),
-      50,
-    )
+    window.clearTimeout(timer.current)
+    timer.current = window.setTimeout(() => {
+      if (mounted.current) window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'smooth' })
+    }, 50)
   }
 
   const ask = useMutation({
