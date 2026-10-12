@@ -934,6 +934,7 @@
       "stale": "Couldn't refresh the booking. Actions wait until it loads.",
       "unsettled": "No answer to the payment of {{amount}} — it may already be recorded. Retry: it will not be recorded twice.",
       "retryPayment": "Retry the payment of {{amount}}",
+      "howIn": "Getting in: {{method}}.",
       "unsettledReceive": "No answer to confirming {{amount}}. Retry: the money won't count twice.",
       "notKept": "The phone would not keep the payment attempt, so it is not sent: a dropped connection could double it. Free some space or record the payment on the web.",
       "checkAttempt": "Check on the server",
@@ -1014,6 +1015,33 @@
       "guests": "Guests",
       "hoursShort": "{{count}} h",
       "pickSlot": "Pick a date and a start time"
+    },
+    "unit": {
+      "address": "Address",
+      "entrance": "entrance {{value}}",
+      "checkIn": "Check-in",
+      "hours": "Check-in from {{from}} · check-out by {{to}}",
+      "hourlyOnly": "Hourly rental only",
+      "maxGuests": "up to {{count}} guests",
+      "maxGuests_one": "up to {{count}} guest",
+      "wifiNoPassword": "The Wi-Fi password is not set or hidden for your role.",
+      "prices": "Prices",
+      "perNight": "night {{value}}",
+      "perHour": "hour {{value}}",
+      "deposit": "deposit {{value}}",
+      "facts": "What the assistant knows",
+      "forGuest": "guest",
+      "forAll": "all",
+      "amenities": "Amenities",
+      "calendar": "Calendar for Airbnb and Booking",
+      "calendarHint": "Paste the link into the platform's calendar sync — bookings made in Day close those dates there.",
+      "copyLink": "Copy link",
+      "status": {
+        "new": "not active",
+        "paused": "paused",
+        "active": "active",
+        "archived": "archived"
+      }
     }
   },
   "auth": {

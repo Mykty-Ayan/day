@@ -33,6 +33,7 @@ import BookingSheet from './BookingSheet'
 import CleaningSheet from './CleaningSheet'
 import OfferSheet from './OfferSheet'
 import SellScreen from './SellScreen'
+import UnitSheet from './UnitSheet'
 import type { SellRange } from './sell'
 import { errorText } from './errors'
 import { addDays, formatDay, formatMoney, formatTime, toISODate } from './format'
@@ -52,6 +53,7 @@ export default function MiniAppPage() {
   const [booking, setBooking] = useState<Booking | null>(null)
   const [toBook, setToBook] = useState<{ unit: AvailableProperty; range: SellRange } | null>(null)
   const [cleaningFor, setCleaningFor] = useState<Booking | null>(null)
+  const [unitId, setUnitId] = useState<string | null>(null)
 
   const today = useMemo(() => new Date(), [])
 
@@ -132,6 +134,9 @@ export default function MiniAppPage() {
       </Screen>
     )
   }
+
+  // An archived flat is not sold or cleaned any more; it only clutters the list.
+  const workingUnits = (unitsQuery.data?.items ?? []).filter((property) => property.status !== 'archived')
 
   const upcoming = (upcomingQuery.data?.items ?? [])
     .filter((item) => item.status !== 'cancelled')
@@ -266,11 +271,11 @@ export default function MiniAppPage() {
               <Section
                 icon={<Building2 className="h-4 w-4" />}
                 title={t('miniapp.flats')}
-                count={unitsQuery.data.items.length}
+                count={workingUnits.length}
                 emptyLabel={t('miniapp.empty')}
               >
-                {unitsQuery.data.items.map((property) => (
-                  <UnitRow key={property.id} property={property} />
+                {workingUnits.map((property) => (
+                  <UnitRow key={property.id} property={property} onOpen={() => setUnitId(property.id)} />
                 ))}
               </Section>
             )}
@@ -283,6 +288,7 @@ export default function MiniAppPage() {
       <OfferSheet key={offerOpen ? 'open' : 'closed'} open={offerOpen} onClose={() => setOfferOpen(false)} />
       <BookingSheet key={booking?.id ?? 'none'} booking={booking} onClose={() => setBooking(null)} />
       <CleaningSheet key={cleaningFor?.id ?? 'none'} booking={cleaningFor} onClose={() => setCleaningFor(null)} />
+      <UnitSheet key={unitId ?? 'none'} unitId={unitId} onClose={() => setUnitId(null)} />
       <BookSheet
         key={toBook ? `${toBook.unit.property_id}-${toBook.range.checkIn}-${toBook.range.checkOut}` : 'none'}
         unit={toBook?.unit ?? null}
@@ -360,7 +366,7 @@ function BookingRow({
   )
 }
 
-function UnitRow({ property }: { property: Property }) {
+function UnitRow({ property, onOpen }: { property: Property; onOpen: () => void }) {
   const { t } = useTranslation()
   const [copied, setCopied] = useState(false)
 
@@ -374,8 +380,24 @@ function UnitRow({ property }: { property: Property }) {
 
   return (
     <div className="px-3 py-2.5">
-      <p className="truncate text-sm font-semibold">{property.name || property.internal_name}</p>
-      {location && <p className="tg-hint truncate text-xs">{location}</p>}
+      <button
+        type="button"
+        onClick={() => {
+          tapFeedback()
+          onOpen()
+        }}
+        className="block w-full text-left"
+      >
+        <span className="flex items-center gap-2">
+          <span className="truncate text-sm font-semibold">{property.name || property.internal_name}</span>
+          {property.status !== 'active' && (
+            <span className="tg-root shrink-0 rounded px-1.5 text-[10px] font-bold">{t(`miniapp.unit.status.${property.status}`)}</span>
+          )}
+        </span>
+        <span className="tg-hint block truncate text-xs">
+          {[property.internal_name, location].filter(Boolean).join(' · ')}
+        </span>
+      </button>
       <button
         type="button"
         disabled={!credentials}

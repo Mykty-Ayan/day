@@ -28,6 +28,8 @@ const RU: Record<string, string> = {
   'miniapp.booking.flat': 'кв. {{value}}',
   'miniapp.booking.floor': '{{value}} этаж',
   'miniapp.booking.messageDates': 'Заезд {{from}}, выезд {{to}}.',
+  'miniapp.booking.howIn': 'Как зайти: {{method}}.',
+  'properties.checkInMethod.lockbox': 'ключница',
 }
 
 const t: Translate = (key, options) =>
@@ -215,11 +217,65 @@ test.describe('buildCheckInMessage', () => {
         '',
         'Wi-Fi: Zhanargul / 1234554321',
         '',
-        'Заезд 28 авг., выезд 30 авг.',
+        'Заезд 28 авг. 14:00, выезд 30 авг. 12:00.',
         '',
         'Ключи в сейфе у двери, код 1305.',
       ].join('\n'),
     )
+  })
+
+  test('says how to get in and adds what is meant for the guest, not the public notes', () => {
+    const message = buildCheckInMessage(
+      booking(),
+      {
+        ...FLAT,
+        check_in_instructions: '',
+        check_in_method: 'lockbox',
+        facts: [
+          { text: 'Код ключницы 4815', audience: 'guest' },
+          { text: 'Парковка платная', audience: 'public' },
+        ],
+      },
+      'ru',
+      t,
+    )
+
+    expect(plain(message)).toContain('Как зайти: ключница.')
+    expect(plain(message)).toContain('Код ключницы 4815')
+    expect(plain(message)).not.toContain('Парковка')
+  })
+
+  test('keeps the guest-only notes back until the stay is confirmed', () => {
+    const flat = { ...FLAT, facts: [{ text: 'Код ключницы 4815', audience: 'guest' as const }] }
+
+    for (const status of ['pending', 'cancelled'] as const) {
+      expect(plain(buildCheckInMessage(booking({ status }), flat, 'ru', t))).not.toContain('4815')
+    }
+    expect(plain(buildCheckInMessage(booking({ status: 'checked_in' }), flat, 'ru', t))).toContain('4815')
+  })
+
+  test('no guest-only notes on a status not yet reread: the CRM may have cancelled it', () => {
+    const flat = { ...FLAT, facts: [{ text: 'Код ключницы 4815', audience: 'guest' as const }] }
+
+    const message = buildCheckInMessage(booking({ status: 'confirmed' }), flat, 'ru', t, false)
+
+    expect(plain(message)).not.toContain('4815')
+  })
+
+  test('no Wi-Fi password before the stay is confirmed, nor from a read not made just now', () => {
+    for (const status of ['pending', 'cancelled'] as const) {
+      expect(plain(buildCheckInMessage(booking({ status }), FLAT, 'ru', t))).not.toContain('1234554321')
+    }
+    // The flat may still be loading, or its last read failed: an old password must not go out.
+    const stale = buildCheckInMessage(booking({ status: 'confirmed' }), FLAT, 'ru', t, false)
+    expect(plain(stale)).not.toContain('1234554321')
+    expect(plain(stale)).toContain('Wi-Fi: Zhanargul')
+  })
+
+  test('says nothing about the way in when it is just "other"', () => {
+    const message = buildCheckInMessage(booking(), { ...FLAT, check_in_method: 'other' }, 'ru', t)
+
+    expect(plain(message)).not.toContain('Как зайти')
   })
 
   test('drops the Wi-Fi line rather than printing a half of it', () => {
@@ -240,7 +296,7 @@ test.describe('buildCheckInMessage', () => {
     const message = buildCheckInMessage(booking(), undefined, 'ru', t)
 
     expect(plain(message)).toBe(
-      ['Ерлан, добро пожаловать!', '', 'Заезд 28 авг., выезд 30 авг.'].join('\n'),
+      ['Ерлан, добро пожаловать!', '', 'Заезд 28 авг. 14:00, выезд 30 авг. 12:00.'].join('\n'),
     )
     expect(plain(message)).not.toContain('undefined')
     expect(plain(message)).not.toContain('null')

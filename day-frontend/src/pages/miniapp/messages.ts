@@ -8,7 +8,8 @@
 
 import type { AvailableProperty } from '../../api/miniapp'
 import type { Booking } from '../../types/booking'
-import { formatDay, formatMoney, intlLocale } from './format'
+import type { CheckInMethod, PropertyFact } from '../../types/property'
+import { formatDay, formatMoney, formatTime, intlLocale } from './format'
 
 export type Translate = (key: string, options?: Record<string, unknown>) => string
 
@@ -21,6 +22,9 @@ export interface PropertyBrief {
   wifi_name?: string | null
   wifi_password?: string | null
   check_in_instructions?: string | null
+  check_in_method?: CheckInMethod | null
+  /** Only "guest" facts go into this text; "public" ones are for offers. */
+  facts?: Pick<PropertyFact, 'text' | 'audience'>[]
 }
 
 export function buildOfferMessage(
@@ -73,8 +77,14 @@ export function buildCheckInMessage(
   property: PropertyBrief | undefined,
   language: string,
   t: Translate,
+  /** The booking and the flat were just read from the server. */
+  statusFresh = true,
 ): string {
   const lines: string[] = []
+  // The Wi-Fi password and the guest-only notes (the lockbox code) go only to a
+  // confirmed stay, and only from a fresh read: a cached "confirmed" may be a
+  // booking the CRM has since cancelled, a cached flat an old password.
+  const confirmed = statusFresh && (booking.status === 'confirmed' || booking.status === 'checked_in')
 
   // A booking taken over the phone often has no name yet, and greeting nobody
   // reads as ", добро пожаловать!".
@@ -95,7 +105,7 @@ export function buildCheckInMessage(
   if (address) lines.push('', address)
 
   if (property?.wifi_name) {
-    const password = property.wifi_password ? ` / ${property.wifi_password}` : ''
+    const password = confirmed && property.wifi_password ? ` / ${property.wifi_password}` : ''
     lines.push('', `Wi-Fi: ${property.wifi_name}${password}`)
   }
 
@@ -103,13 +113,22 @@ export function buildCheckInMessage(
     '',
     sentence(
       t('miniapp.booking.messageDates', {
-        from: formatDay(booking.check_in, language),
-        to: formatDay(booking.check_out, language),
+        // The flat's own hours are on the booking; the guest needs them more than the day.
+        from: `${formatDay(booking.check_in, language)} ${formatTime(booking.check_in, language)}`,
+        to: `${formatDay(booking.check_out, language)} ${formatTime(booking.check_out, language)}`,
       }),
     ),
   )
 
+  // "Other" tells the guest nothing; the instructions below say the rest.
+  if (property?.check_in_method && property.check_in_method !== 'other') {
+    lines.push('', t('miniapp.booking.howIn', { method: t(`properties.checkInMethod.${property.check_in_method}`) }))
+  }
   if (property?.check_in_instructions) lines.push('', property.check_in_instructions.trim())
+  const forGuest = confirmed
+    ? (property?.facts ?? []).filter((fact) => fact.audience === 'guest').map((fact) => fact.text.trim())
+    : []
+  if (forGuest.length > 0) lines.push('', ...forGuest)
 
   // A missing greeting would otherwise leave the text starting with a blank line.
   return lines.join('\n').trimStart()
