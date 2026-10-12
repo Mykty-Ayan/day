@@ -164,6 +164,20 @@ export async function deleteFile(
   await apiClient.delete(`/bookings/${bookingId}/files/${fileId}`)
 }
 
+/** Files are guests' documents: the bucket is private, so they come through
+ *  the API with the user's token, never by a bare link. */
+export async function downloadFile(bookingId: string, fileId: string, fileName: string): Promise<void> {
+  const res = await apiClient.get<Blob>(`/bookings/${bookingId}/files/${fileId}/download`, {
+    responseType: 'blob',
+  })
+  const url = URL.createObjectURL(res.data)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = fileName
+  link.click()
+  URL.revokeObjectURL(url)
+}
+
 // --- Gantt ---
 
 export async function getGanttData(

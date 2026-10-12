@@ -346,7 +346,10 @@
       "noFiles": "Файлдар жоқ",
       "comments": "Пікірлер",
       "noComments": "Пікірлер жоқ",
-      "addComment": "Пікір қосу..."
+      "addComment": "Пікір қосу...",
+      "download": "Жүктеп алу",
+      "downloadFailed": "Файлды жүктеп алу мүмкін болмады",
+      "uploadFailed": "Файлды жүктеу мүмкін болмады"
     },
     "activityHistory": "Белсенділік тарихы",
     "priceBreakdown": "Баға есебі",

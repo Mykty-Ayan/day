@@ -346,7 +346,10 @@
       "noFiles": "Нет файлов",
       "comments": "Комментарии",
       "noComments": "Нет комментариев",
-      "addComment": "Добавить комментарий..."
+      "addComment": "Добавить комментарий...",
+      "download": "Скачать",
+      "downloadFailed": "Не удалось скачать файл",
+      "uploadFailed": "Не удалось загрузить файл"
     },
     "activityHistory": "История активности",
     "priceBreakdown": "Расчёт стоимости",

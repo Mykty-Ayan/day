@@ -952,6 +952,37 @@ async def list_deposits(
 
 # ---------- Files ----------
 
+# Documents and photos of documents: contracts, IDs, receipts. Anything a
+# browser would render or run (HTML, SVG, scripts) is refused.
+_ALLOWED_FILE_TYPES = {
+    "application/pdf",
+    "image/jpeg",
+    "image/png",
+    "image/webp",
+    "image/heic",
+    "image/heif",
+    "text/plain",
+    "application/msword",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "application/vnd.ms-excel",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+}
+
+
+def _check_upload(file: UploadFile) -> None:
+    content_type = (file.content_type or "").split(";")[0].strip().lower()
+    if content_type not in _ALLOWED_FILE_TYPES:
+        raise HTTPException(status_code=415, detail="Only PDF, images and office documents can be attached")
+    size = file.size
+    if size is None:
+        file.file.seek(0, 2)
+        size = file.file.tell()
+        file.file.seek(0)
+    if size > settings.S3_MAX_UPLOAD_BYTES:
+        raise HTTPException(
+            status_code=413, detail=f"File too large (max {settings.S3_MAX_UPLOAD_BYTES // (1024 * 1024)} MB)"
+        )
+
 
 @booking_router.post(
     "/{booking_id:uuid}/files",
@@ -969,6 +1000,7 @@ async def add_file(
     booking = await repos["booking"].get_by_id(booking_id)
     if booking is None or booking.company_id != company_id:
         raise HTTPException(status_code=404, detail="Booking not found")
+    _check_upload(file)
 
     try:
         file_url = await upload_booking_file(

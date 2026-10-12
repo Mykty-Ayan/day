@@ -1,3 +1,4 @@
+import asyncio
 import json
 import logging
 import re
@@ -88,6 +89,29 @@ class SecurityHeadersMiddleware:
         await self.app(scope, receive, send_with_headers)
 
 
+_STORAGE_RETRY_FIRST_DELAY = 5.0
+_STORAGE_RETRY_MAX_DELAY = 300.0
+
+
+async def _sync_storage_read_policy(stop: asyncio.Event) -> None:
+    """Retry until MinIO answers: giving up would leave a public bucket public."""
+    from app.infrastructure.storage.s3 import sync_read_policy
+
+    delay = _STORAGE_RETRY_FIRST_DELAY
+    while not stop.is_set():
+        try:
+            await sync_read_policy()
+            logger.info("Storage read policy applied (public read: %s)", settings.S3_PUBLIC_READ)
+            return
+        except Exception:
+            logger.exception("Storage read policy could not be applied, retrying in %.0fs", delay)
+        try:
+            await asyncio.wait_for(stop.wait(), timeout=delay)
+        except TimeoutError:
+            pass
+        delay = min(delay * 3, _STORAGE_RETRY_MAX_DELAY)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     import asyncio
@@ -99,6 +123,10 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
     stop = asyncio.Event()
     workers = [asyncio.create_task(notification_worker(stop)), asyncio.create_task(hold_worker(stop))]
+    # A bucket made public by an older deploy stays public until its policy
+    # is removed, and it holds guests' documents. In the background: a slow
+    # or absent MinIO must not hold up the API.
+    workers.append(asyncio.create_task(_sync_storage_read_policy(stop)))
 
     # Telegram only delivers to the URL it was last told about, and that URL
     # changes with the deployment — so it is (re)registered on every boot.
