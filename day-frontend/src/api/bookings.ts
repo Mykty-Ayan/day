@@ -104,6 +104,18 @@ export async function addPayment(
   return res.data
 }
 
+/** Settle a payment whose answer was lost: the payment its key recorded, or the
+ *  key is closed (`voided`) and a late request with it records nothing. */
+export async function voidPaymentKey(
+  bookingId: string,
+  idempotencyKey: string,
+): Promise<{ voided: boolean; payment: BookingPayment | null }> {
+  const res = await apiClient.post(`/bookings/${bookingId}/payments/idempotency-key/void`, null, {
+    headers: { 'Idempotency-Key': idempotencyKey },
+  })
+  return res.data
+}
+
 export async function confirmPayment(bookingId: string, paymentId: string): Promise<BookingPayment> {
   const res = await apiClient.post(`/bookings/${bookingId}/payments/${paymentId}/confirm`)
   return res.data
