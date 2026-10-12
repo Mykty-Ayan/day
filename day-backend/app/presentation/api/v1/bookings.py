@@ -183,6 +183,7 @@ def _to_booking_response(
         property_internal_name=property_internal_name,
         external_id=b.external_id,
         expires_at=b.expires_at.replace(tzinfo=timezone.utc) if b.expires_at else None,
+        overbooking=b.overbooking,
         created_at=b.created_at,
         updated_at=b.updated_at,
     )
@@ -445,6 +446,7 @@ async def booking_feed(
                 children_count=b.children_count,
                 external_id=b.external_id,
                 expires_at=b.expires_at.replace(tzinfo=timezone.utc) if b.expires_at else None,
+                overbooking=b.overbooking,
                 created_at=b.created_at.replace(tzinfo=timezone.utc),
                 updated_at=b.updated_at.replace(tzinfo=timezone.utc),
             )
@@ -501,6 +503,7 @@ async def get_today(
             status=b.status,
             adults_count=b.adults_count,
             children_count=b.children_count,
+            overbooking=b.overbooking,
         )
         # check_in/check_out are datetimes; compare on their calendar date.
         check_in_date = b.check_in.date() if b.check_in is not None else None
@@ -710,8 +713,12 @@ async def get_availability(
                 rental_mode=item.property.rental_mode,
                 rooms=item.property.rooms,
                 beds=item.property.beds,
+                max_guests=item.property.max_guests,
+                bathrooms=item.property.bathrooms,
                 total_price=item.total_price,
                 price_error=item.price_error,
+                check_in=item.check_in,
+                check_out=item.check_out,
                 photos=[
                     AvailablePhotoResponse(url=p.url, caption=p.caption, is_cover=p.is_cover, sort_order=p.sort_order)
                     for p in sorted(flat_photos, key=lambda p: (not p.is_cover, p.sort_order))
@@ -952,6 +959,37 @@ async def list_deposits(
 
 # ---------- Files ----------
 
+# Documents and photos of documents: contracts, IDs, receipts. Anything a
+# browser would render or run (HTML, SVG, scripts) is refused.
+_ALLOWED_FILE_TYPES = {
+    "application/pdf",
+    "image/jpeg",
+    "image/png",
+    "image/webp",
+    "image/heic",
+    "image/heif",
+    "text/plain",
+    "application/msword",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "application/vnd.ms-excel",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+}
+
+
+def _check_upload(file: UploadFile) -> None:
+    content_type = (file.content_type or "").split(";")[0].strip().lower()
+    if content_type not in _ALLOWED_FILE_TYPES:
+        raise HTTPException(status_code=415, detail="Only PDF, images and office documents can be attached")
+    size = file.size
+    if size is None:
+        file.file.seek(0, 2)
+        size = file.file.tell()
+        file.file.seek(0)
+    if size > settings.S3_MAX_UPLOAD_BYTES:
+        raise HTTPException(
+            status_code=413, detail=f"File too large (max {settings.S3_MAX_UPLOAD_BYTES // (1024 * 1024)} MB)"
+        )
+
 
 @booking_router.post(
     "/{booking_id:uuid}/files",
@@ -969,6 +1007,7 @@ async def add_file(
     booking = await repos["booking"].get_by_id(booking_id)
     if booking is None or booking.company_id != company_id:
         raise HTTPException(status_code=404, detail="Booking not found")
+    _check_upload(file)
 
     try:
         file_url = await upload_booking_file(
@@ -1169,6 +1208,7 @@ def _build_gantt_response(result) -> GanttDataResponse:
                         adults_count=b.adults_count,
                         children_count=b.children_count,
                         total_price=b.total_price,
+                        overbooking=b.overbooking,
                     )
                     for b in p.bookings
                 ],

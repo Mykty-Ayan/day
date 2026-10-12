@@ -23,6 +23,7 @@ class GanttBooking:
     adults_count: int
     children_count: int
     total_price: float
+    overbooking: bool = False
 
 
 @dataclass
@@ -103,6 +104,7 @@ class GetGanttDataService:
                         adults_count=b.adults_count,
                         children_count=b.children_count,
                         total_price=float(b.total_price),
+                        overbooking=b.overbooking,
                     )
                 )
 

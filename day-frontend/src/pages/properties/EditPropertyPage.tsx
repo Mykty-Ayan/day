@@ -5,7 +5,7 @@ import { useNavigate, useParams } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 import Spinner from '../../components/ui/Spinner'
 import { useProperty, useUpdateProperty } from '../../hooks/useProperties'
-import type { Property, PropertyType, PropertyUpdateInput } from '../../types/property'
+import type { CheckInMethod, Property, PropertyType, PropertyUpdateInput } from '../../types/property'
 import PropertyFormStepBasic from '../../components/property/PropertyFormStepBasic'
 import PropertyFormStepAddress from '../../components/property/PropertyFormStepAddress'
 import PropertyFormStepDetails from '../../components/property/PropertyFormStepDetails'
@@ -34,10 +34,15 @@ interface FormData {
   details: {
     rooms: string
     beds: string
+    max_guests: string
+    bathrooms: string
     area_living: string
     area_total: string
   }
   rules: {
+    check_in_hour: string
+    check_out_hour: string
+    check_in_method: string
     check_in_instructions: string
     check_out_instructions: string
     house_rules: string
@@ -67,10 +72,15 @@ function propertyToForm(property: Property): FormData {
     details: {
       rooms: property.rooms != null ? String(property.rooms) : '',
       beds: property.beds != null ? String(property.beds) : '',
+      max_guests: property.max_guests != null ? String(property.max_guests) : '',
+      bathrooms: property.bathrooms != null ? String(property.bathrooms) : '',
       area_living: property.area_living != null ? String(property.area_living) : '',
       area_total: property.area_total != null ? String(property.area_total) : '',
     },
     rules: {
+      check_in_hour: property.check_in_hour != null ? String(property.check_in_hour) : '',
+      check_out_hour: property.check_out_hour != null ? String(property.check_out_hour) : '',
+      check_in_method: property.check_in_method || '',
       check_in_instructions: property.check_in_instructions || '',
       check_out_instructions: property.check_out_instructions || '',
       house_rules: property.house_rules || '',
@@ -148,8 +158,14 @@ function EditPropertyForm({ property, propertyId }: { property: Property; proper
       longitude: form.address.longitude ? parseFloat(form.address.longitude) : undefined,
       rooms: form.details.rooms ? parseInt(form.details.rooms) : undefined,
       beds: form.details.beds ? parseInt(form.details.beds) : undefined,
+      // null, not undefined: a cleared field must reach the server as cleared.
+      max_guests: form.details.max_guests ? parseInt(form.details.max_guests) : null,
+      bathrooms: form.details.bathrooms ? parseInt(form.details.bathrooms) : null,
       area_living: form.details.area_living ? parseFloat(form.details.area_living) : undefined,
       area_total: form.details.area_total ? parseFloat(form.details.area_total) : undefined,
+      check_in_hour: form.rules.check_in_hour !== '' ? parseInt(form.rules.check_in_hour) : null,
+      check_out_hour: form.rules.check_out_hour !== '' ? parseInt(form.rules.check_out_hour) : null,
+      check_in_method: form.rules.check_in_method ? (form.rules.check_in_method as CheckInMethod) : null,
       check_in_instructions: form.rules.check_in_instructions || undefined,
       check_out_instructions: form.rules.check_out_instructions || undefined,
       house_rules: form.rules.house_rules || undefined,

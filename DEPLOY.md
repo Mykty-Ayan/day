@@ -47,8 +47,12 @@ In the **Domains** tab, one entry per service:
 | `minio` | `files.<your-domain>` | 9000 |
 
 Enable HTTPS on all three; Dokploy requests the certificates. The `minio` entry
-is what makes uploaded photos load in a browser — it must match
-`S3_PUBLIC_ENDPOINT`.
+must match `S3_PUBLIC_ENDPOINT`.
+
+Only listing photos (`properties/…`) open by link without signing in; the API
+sets that bucket policy on every start. Booking files are guests' documents
+(passports, contracts) and are served to signed-in users only. An old
+`S3_PUBLIC_READ` variable in the environment is no longer read and can go.
 
 Point the DNS A records at the Hetzner box before deploying, or certificate
 issuance fails and you will be debugging the wrong layer.

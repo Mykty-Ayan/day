@@ -14,6 +14,25 @@ class RegisterRequest(BaseModel):
     company_name: str
 
 
+class LogoutRequest(BaseModel):
+    refresh_token: str
+
+
+class PasswordResetRequest(BaseModel):
+    email: EmailStr
+
+
+class PasswordResetConfirm(BaseModel):
+    email: EmailStr
+    code: str
+    new_password: str
+
+
+class ChangePasswordRequest(BaseModel):
+    current_password: str
+    new_password: str
+
+
 class LoginRequest(BaseModel):
     email: EmailStr
     password: str
@@ -34,6 +53,26 @@ class TokenResponse(BaseModel):
     token_type: str = "bearer"
 
 
+class LoginResponse(BaseModel):
+    """Tokens, or — when the user has two-factor sign-in on — a challenge for the code."""
+
+    access_token: str | None = None
+    refresh_token: str | None = None
+    token_type: str = "bearer"
+    two_factor_required: bool = False
+    challenge: str | None = None
+
+
+class LoginVerifyRequest(BaseModel):
+    challenge: str
+    code: str
+
+
+class TwoFactorRequest(BaseModel):
+    enabled: bool
+    password: str
+
+
 class UserResponse(BaseModel):
     id: uuid.UUID
     email: str
@@ -42,6 +81,8 @@ class UserResponse(BaseModel):
     is_active: bool
     full_name: str = ""
     phone: str | None = None
+    two_factor_enabled: bool = False
+    telegram_linked: bool = False
 
 
 class UserCreate(BaseModel):

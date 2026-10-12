@@ -22,6 +22,7 @@ import {
 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { getTodayChecks, listBookings } from '../../api/bookings'
+import { storeSession } from '../../api/client'
 import { getAvailability, telegramMiniAppLogin, type AvailableProperty } from '../../api/miniapp'
 import { listAllProperties } from '../../api/properties'
 import { copyText, getInitData, initTelegram, isInsideTelegram, tapFeedback } from '../../lib/telegram'
@@ -78,9 +79,7 @@ export default function MiniAppPage() {
         return
       }
       try {
-        const tokens = await telegramMiniAppLogin(getInitData())
-        localStorage.setItem('access_token', tokens.access_token)
-        localStorage.setItem('refresh_token', tokens.refresh_token)
+        storeSession(await telegramMiniAppLogin(getInitData()))
         setAuthState('ready')
       } catch (error) {
         const detail = (error as { response?: { data?: { detail?: string } } }).response?.data
@@ -116,7 +115,7 @@ export default function MiniAppPage() {
   const availabilityQuery = useQuery({
     queryKey: ['miniapp', 'availability', period],
     queryFn: () =>
-      getAvailability(`${toISODate(checkIn)}T14:00:00`, `${toISODate(checkOut)}T12:00:00`),
+      getAvailability(toISODate(checkIn), toISODate(checkOut)),
     enabled: enabled && tab === 'sell',
   })
 
@@ -354,8 +353,9 @@ export default function MiniAppPage() {
       <BookSheet
         key={unitToBook?.property_id ?? 'none'}
         unit={unitToBook}
-        checkIn={`${toISODate(checkIn)}T14:00:00`}
-        checkOut={`${toISODate(checkOut)}T12:00:00`}
+        // Dates only: the server gives a daily stay the flat's own hours.
+        checkIn={toISODate(checkIn)}
+        checkOut={toISODate(checkOut)}
         onClose={() => setUnitToBook(null)}
       />
     </div>

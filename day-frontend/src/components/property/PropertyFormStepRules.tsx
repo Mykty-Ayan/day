@@ -1,6 +1,12 @@
 import { useTranslation } from 'react-i18next'
+import type { CheckInMethod } from '../../types/property'
+
+const CHECK_IN_METHODS: CheckInMethod[] = ['lockbox', 'keypad', 'smart_lock', 'building_staff', 'host_greets', 'other']
 
 interface RulesData {
+  check_in_hour: string
+  check_out_hour: string
+  check_in_method: string
   check_in_instructions: string
   check_out_instructions: string
   house_rules: string
@@ -19,8 +25,64 @@ export default function PropertyFormStepRules({ data, onChange }: Props) {
     onChange({ ...data, [key]: value })
   }
 
+  const hours = Array.from({ length: 24 }, (_, hour) => hour)
+  const select =
+    'w-full bg-gray-50 border border-gray-200 rounded-xl p-3 outline-none focus:ring-2 focus:ring-black/10 text-gray-800 text-sm'
   return (
     <div className="space-y-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider">
+          {t('properties.form.checkInFrom')}
+          <select
+            id="check-in-hour"
+            value={data.check_in_hour}
+            onChange={(e) => update('check_in_hour', e.target.value)}
+            className={`mt-1.5 ${select}`}
+          >
+            <option value="">{t('properties.form.defaultHour', { hour: '14:00' })}</option>
+            {hours.map((hour) => (
+              <option key={hour} value={hour}>{`${String(hour).padStart(2, '0')}:00`}</option>
+            ))}
+          </select>
+        </label>
+        <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider">
+          {t('properties.form.checkOutUntil')}
+          <select
+            id="check-out-hour"
+            value={data.check_out_hour}
+            onChange={(e) => update('check_out_hour', e.target.value)}
+            className={`mt-1.5 ${select}`}
+          >
+            <option value="">{t('properties.form.defaultHour', { hour: '12:00' })}</option>
+            {hours.map((hour) => (
+              <option key={hour} value={hour}>{`${String(hour).padStart(2, '0')}:00`}</option>
+            ))}
+          </select>
+        </label>
+        <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider">
+          {t('properties.form.checkInMethod')}
+          <select
+            id="check-in-method"
+            value={data.check_in_method}
+            onChange={(e) => update('check_in_method', e.target.value)}
+            className={`mt-1.5 ${select}`}
+          >
+            <option value="">{t('properties.form.notSet')}</option>
+            {CHECK_IN_METHODS.map((method) => (
+              <option key={method} value={method}>
+                {t(`properties.checkInMethod.${method}`)}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+      {data.check_in_hour !== '' &&
+        data.check_out_hour !== '' &&
+        Number(data.check_out_hour) > Number(data.check_in_hour) && (
+          <p role="alert" className="text-xs text-red-600">
+            {t('properties.form.turnoverHours')}
+          </p>
+        )}
       <div>
         <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">
           {t('properties.form.checkInInstructions')}

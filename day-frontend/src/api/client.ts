@@ -8,6 +8,28 @@ const apiClient = axios.create({
   },
 })
 
+/** Which session the stored tokens belong to. Signing in, signing out and a
+ *  password change start a new one; a refresh continues the same one. Work
+ *  begun in an older session never writes into, or is replayed in, a newer
+ *  one — that could carry one company's request into another's account. */
+let generation = 0
+
+export function sessionGeneration(): number {
+  return generation
+}
+
+export function storeSession(tokens: { access_token: string; refresh_token: string }): void {
+  generation += 1
+  localStorage.setItem('access_token', tokens.access_token)
+  localStorage.setItem('refresh_token', tokens.refresh_token)
+}
+
+export function clearSession(): void {
+  generation += 1
+  localStorage.removeItem('access_token')
+  localStorage.removeItem('refresh_token')
+}
+
 /** Telegram vouches for the user, so the Mini App can always re-sign itself.
  *  Sending it to /login would be a dead end — there is no password behind it. */
 async function reauthenticateFromTelegram(): Promise<string | null> {
@@ -18,8 +40,7 @@ async function reauthenticateFromTelegram(): Promise<string | null> {
       { init_data: getInitData() },
       { headers: { 'Content-Type': 'application/json' } },
     )
-    localStorage.setItem('access_token', res.data.access_token)
-    localStorage.setItem('refresh_token', res.data.refresh_token)
+    storeSession(res.data)
     return res.data.access_token
   } catch {
     return null
@@ -27,8 +48,7 @@ async function reauthenticateFromTelegram(): Promise<string | null> {
 }
 
 function giveUp(error: unknown): Promise<never> {
-  localStorage.removeItem('access_token')
-  localStorage.removeItem('refresh_token')
+  clearSession()
   // Inside Telegram there is nowhere to send them: the page owns its own
   // sign-in and will show why it failed.
   if (!isInsideTelegram()) window.location.href = '/login'
@@ -42,6 +62,13 @@ apiClient.interceptors.request.use((config) => {
   }
   return config
 })
+
+/** The session changed while the refresh ran: the request and everything
+ *  queued behind it are dropped, never replayed with the new session's token. */
+function dropForStaleSession(outcome: unknown): Promise<never> {
+  processQueue(outcome, null)
+  return Promise.reject(outcome)
+}
 
 let isRefreshing = false
 let failedQueue: { resolve: (token: string) => void; reject: (err: unknown) => void }[] = []
@@ -84,6 +111,7 @@ apiClient.interceptors.response.use(
 
       originalRequest._retry = true
       isRefreshing = true
+      const startedIn = generation
 
       try {
         const res = await axios.post(
@@ -91,6 +119,7 @@ apiClient.interceptors.response.use(
           { refresh_token: refreshTokenValue },
           { headers: { 'Content-Type': 'application/json' } },
         )
+        if (generation !== startedIn) return dropForStaleSession(error)
         const { access_token, refresh_token } = res.data
         localStorage.setItem('access_token', access_token)
         localStorage.setItem('refresh_token', refresh_token)
@@ -98,6 +127,7 @@ apiClient.interceptors.response.use(
         originalRequest.headers.Authorization = `Bearer ${access_token}`
         return apiClient(originalRequest)
       } catch (refreshError) {
+        if (generation !== startedIn) return dropForStaleSession(refreshError)
         const reissued = await reauthenticateFromTelegram()
         if (reissued) {
           processQueue(null, reissued)

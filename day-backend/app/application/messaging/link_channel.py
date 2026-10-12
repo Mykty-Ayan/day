@@ -13,6 +13,7 @@ import uuid
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 
+from app.domain.auth.repositories import UserRepository
 from app.domain.messaging.entities import ChannelIdentity, ChannelLinkCode
 from app.domain.messaging.repositories import (
     ChannelIdentityRepository,
@@ -35,14 +36,37 @@ class LinkResult:
     company_id: uuid.UUID
 
 
+class StrandsTwoFactor(ValueError):
+    """Detaching this chat would lock its user out: their sign-in codes come only here."""
+
+    def __init__(self) -> None:
+        super().__init__(
+            "This chat receives your sign-in codes. Turn off the Telegram code in Settings first, then disconnect it."
+        )
+
+
 class LinkChannelService:
     def __init__(
         self,
         link_code_repo: ChannelLinkCodeRepository,
         identity_repo: ChannelIdentityRepository,
+        user_repo: UserRepository | None = None,
     ) -> None:
         self._codes = link_code_repo
         self._identities = identity_repo
+        self._users = user_repo
+
+    async def guard_two_factor(self, identity: ChannelIdentity) -> None:
+        """Refuse to detach the last private chat of a user who signs in with its codes."""
+        if self._users is None or identity.user_id is None or not identity.is_active:
+            return
+        user = await self._users.get_by_id(identity.user_id)
+        if user is None or not user.two_factor_enabled:
+            return
+        chats = await self._identities.list_by_company(identity.company_id, channel=identity.channel)
+        others = [c for c in chats if c.id != identity.id and c.user_id == user.id and c.external_id.isdigit()]
+        if not others:
+            raise StrandsTwoFactor()
 
     async def issue_code(
         self,
@@ -77,6 +101,8 @@ class LinkChannelService:
             raise ValueError("This code has expired or was already used")
 
         existing = await self._identities.get_by_external_id(channel, external_id)
+        if existing is not None and existing.user_id != code.created_by:
+            await self.guard_two_factor(existing)
         if existing is not None:
             # Re-linking an already known chat moves it to the new company
             # rather than creating a second identity for the same external id.
@@ -104,5 +130,6 @@ class LinkChannelService:
         identity = await self._identities.get_by_external_id(channel, external_id)
         if identity is None:
             return
+        await self.guard_two_factor(identity)
         identity.is_active = False
         await self._identities.update(identity)

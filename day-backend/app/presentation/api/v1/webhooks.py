@@ -13,6 +13,7 @@ update for hours; a message we could not handle is logged, not replayed.
 
 from __future__ import annotations
 
+import hmac
 import logging
 import uuid
 
@@ -156,6 +157,12 @@ async def _transcribe_voice(voice: dict) -> str:
         return ""
 
 
+def _secret_matches(given: str | None, expected: str) -> bool:
+    """Constant-time: a plain != returns sooner the earlier the first wrong byte,
+    which lets a prober learn the secret one byte at a time."""
+    return given is not None and hmac.compare_digest(given.encode(), expected.encode())
+
+
 @webhook_router.post("/telegram", include_in_schema=False)
 async def telegram_webhook(
     request: Request,
@@ -164,7 +171,7 @@ async def telegram_webhook(
 ):
     if not settings.TELEGRAM_WEBHOOK_SECRET:
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Bot is not configured")
-    if x_telegram_bot_api_secret_token != settings.TELEGRAM_WEBHOOK_SECRET:
+    if not _secret_matches(x_telegram_bot_api_secret_token, settings.TELEGRAM_WEBHOOK_SECRET):
         # Not the provider. Say nothing useful.
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden")
 
@@ -266,7 +273,7 @@ async def channex_webhook(
     pipeline (idempotent by revision id); ARI echoes are ignored."""
     if not settings.CHANNEX_WEBHOOK_SECRET:
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Channex is not configured")
-    if secret != settings.CHANNEX_WEBHOOK_SECRET:
+    if not _secret_matches(secret, settings.CHANNEX_WEBHOOK_SECRET):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden")
 
     event = await request.json()
@@ -302,7 +309,7 @@ async def whatsapp_webhook(
 ):
     if not settings.WHAPI_WEBHOOK_SECRET:
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Bot is not configured")
-    if secret != settings.WHAPI_WEBHOOK_SECRET:
+    if not _secret_matches(secret, settings.WHAPI_WEBHOOK_SECRET):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden")
 
     payload = await request.json()

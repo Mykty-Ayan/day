@@ -20,7 +20,7 @@ from app.domain.auth.permissions import Permission
 from app.infrastructure.assistant.factory import build_assistant_tools
 from app.infrastructure.assistant.openrouter import OpenRouterAssistantGateway
 from app.infrastructure.database import get_session
-from app.presentation.api.deps import get_company_id, get_user_id, require
+from app.presentation.api.deps import Principal, get_company_id, get_principal, get_user_id, require
 from app.presentation.schemas.assistant import (
     AssistantAskRequest,
     AssistantAskResponse,
@@ -42,8 +42,11 @@ async def ask(
     session: AsyncSession = Depends(get_session),
     company_id: uuid.UUID = Depends(get_company_id),
     user_id: uuid.UUID | None = Depends(get_user_id),
+    principal: Principal = Depends(get_principal),
 ):
-    tools = build_assistant_tools(session, company_id, user_id)
+    tools = build_assistant_tools(
+        session, company_id, user_id, sees_secrets=Permission.PROPERTY_SECRETS_READ in principal.permissions
+    )
     service = AskAssistantService(OpenRouterAssistantGateway(), tools)
 
     try:
@@ -73,8 +76,11 @@ async def confirm(
     session: AsyncSession = Depends(get_session),
     company_id: uuid.UUID = Depends(get_company_id),
     user_id: uuid.UUID | None = Depends(get_user_id),
+    principal: Principal = Depends(get_principal),
 ):
-    tools = build_assistant_tools(session, company_id, user_id)
+    tools = build_assistant_tools(
+        session, company_id, user_id, sees_secrets=Permission.PROPERTY_SECRETS_READ in principal.permissions
+    )
     tool = tools.get(body.tool)
 
     # Only the tools that were proposed as changes may be confirmed. Naming a

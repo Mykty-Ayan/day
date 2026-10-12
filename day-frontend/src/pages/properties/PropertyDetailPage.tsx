@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { useQueries } from '@tanstack/react-query'
+import { useQueries, useQuery } from '@tanstack/react-query'
 import { motion } from 'framer-motion'
 import {
   ArrowLeft,
@@ -13,6 +13,10 @@ import {
   Archive,
   Pencil,
   Copy,
+  CalendarSync,
+  Users,
+  Bath,
+  ImagePlus,
 } from 'lucide-react'
 import { useParams, Link, useNavigate } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
@@ -29,8 +33,10 @@ import {
   useDeleteDiscountRule,
   usePropertyAuditLog,
   useCloneProperty,
+  useUploadPhotos,
 } from '../../hooks/useProperties'
-import { getPricing } from '../../api/properties'
+import { getCalendarLink, getPricing } from '../../api/properties'
+import { useCurrentUser } from '../../hooks/useAuth'
 import type { PropertyStatus, PricingInput, SeasonalPrice } from '../../types/property'
 import type { RentalMode } from '../../types/booking'
 import PricingForm, { type SeasonalSuggestion } from '../../components/property/PricingForm'
@@ -69,6 +75,20 @@ export default function PropertyDetailPage() {
   const { propertyId } = useParams({ strict: false }) as { propertyId: string }
   const navigate = useNavigate()
   const { data: property, isLoading } = useProperty(propertyId)
+  const uploadPhotos = useUploadPhotos(propertyId)
+
+  function addPhotos(event: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(event.target.files ?? [])
+    event.target.value = ''
+    if (files.length === 0) return
+    const startAt = Math.max(-1, ...(property?.photos ?? []).map((photo) => photo.sort_order)) + 1
+    uploadPhotos.mutate({ files, startAt }, {
+      onSuccess: (failed) =>
+        failed > 0
+          ? showToast('error', t('properties.photosNotAdded', { count: failed }))
+          : showToast('success', t('properties.photosAdded', { count: files.length })),
+    })
+  }
   const { data: allProperties } = useAllProperties()
   const changeStatus = useChangePropertyStatus(propertyId)
   const updatePropertyMut = useUpdateProperty(propertyId)
@@ -236,9 +256,21 @@ export default function PropertyDetailPage() {
         </div>
 
         {/* Photo gallery */}
-        {property.photos.length > 0 && (
-          <div className="mb-6">
-            <div className="flex gap-2 overflow-x-auto pb-2">
+        <div className="mb-6">
+          <div className="flex gap-2 overflow-x-auto pb-2">
+            <label className="shrink-0 w-48 h-32 rounded-xl border border-dashed border-gray-300 flex flex-col items-center justify-center gap-1 text-xs font-semibold text-gray-600 cursor-pointer hover:bg-gray-50">
+              <ImagePlus className="w-5 h-5" />
+              {uploadPhotos.isPending ? t('properties.photosUploading') : t('properties.addPhotos')}
+              <input
+                id="add-photos"
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                multiple
+                className="hidden"
+                disabled={uploadPhotos.isPending}
+                onChange={addPhotos}
+              />
+            </label>
               {property.photos.map((photo) => (
                 <div
                   key={photo.id}
@@ -253,9 +285,10 @@ export default function PropertyDetailPage() {
                   />
                 </div>
               ))}
-            </div>
           </div>
-        )}
+        </div>
+
+        <CalendarLinkCard propertyId={propertyId} />
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Left column - Details */}
@@ -289,6 +322,20 @@ export default function PropertyDetailPage() {
                     <p className="text-sm font-semibold text-gray-900">
                       {property.beds ?? '-'}
                     </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Users className="w-4 h-4 text-gray-400" />
+                  <div>
+                    <p className="text-xs text-gray-500">{t('properties.form.maxGuests')}</p>
+                    <p className="text-sm font-semibold text-gray-900">{property.max_guests ?? '-'}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Bath className="w-4 h-4 text-gray-400" />
+                  <div>
+                    <p className="text-xs text-gray-500">{t('properties.form.bathrooms')}</p>
+                    <p className="text-sm font-semibold text-gray-900">{property.bathrooms ?? '-'}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -332,9 +379,27 @@ export default function PropertyDetailPage() {
             )}
 
             {/* Rules */}
-            {(property.check_in_instructions || property.check_out_instructions || property.house_rules) && (
+            {(property.check_in_instructions ||
+              property.check_out_instructions ||
+              property.house_rules ||
+              property.check_in_hour != null ||
+              property.check_out_hour != null ||
+              property.check_in_method) && (
               <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm space-y-4">
                 <h2 className="text-sm font-bold text-gray-900">{t('properties.rules')}</h2>
+                {(property.check_in_hour != null || property.check_out_hour != null || property.check_in_method) && (
+                  <p className="text-sm text-gray-700">
+                    {[
+                      property.check_in_hour != null &&
+                        `${t('properties.form.checkInFrom')} ${String(property.check_in_hour).padStart(2, '0')}:00`,
+                      property.check_out_hour != null &&
+                        `${t('properties.form.checkOutUntil')} ${String(property.check_out_hour).padStart(2, '0')}:00`,
+                      property.check_in_method && t(`properties.checkInMethod.${property.check_in_method}`),
+                    ]
+                      .filter(Boolean)
+                      .join(' · ')}
+                  </p>
+                )}
                 {property.check_in_instructions && (
                   <div>
                     <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">
@@ -453,6 +518,60 @@ export default function PropertyDetailPage() {
         onCancel={() => setShowCloneConfirm(false)}
         loading={clonePropertyMut.isPending}
       />
+    </div>
+  )
+}
+
+/** Until Channex is live, iCal is how Airbnb and Booking.com learn about bookings taken in Day. */
+function CalendarLinkCard({ propertyId }: { propertyId: string }) {
+  const { t } = useTranslation()
+  const { data: user } = useCurrentUser()
+  const allowed = Boolean(user) && user?.role !== 'cleaner'
+  // Fetched up front: Safari refuses a clipboard write that follows an await
+  // inside the click, so the click must have the link already.
+  const link = useQuery({
+    queryKey: ['properties', propertyId, 'calendar-link'],
+    queryFn: () => getCalendarLink(propertyId),
+    enabled: allowed,
+    staleTime: Infinity,
+  })
+  if (!allowed) return null
+
+  function copyLink() {
+    if (!link.data) return
+    navigator.clipboard.writeText(link.data).then(
+      () => showToast('success', t('properties.calendar.copied')),
+      // The link stays on screen to copy by hand.
+      () => showToast('error', t('properties.calendar.copyFailed')),
+    )
+  }
+
+  return (
+    <div className="mb-6 bg-white border border-gray-200 rounded-xl p-5 shadow-sm flex flex-col gap-3">
+      <div className="flex items-start gap-2 min-w-0">
+        <CalendarSync className="w-4 h-4 mt-0.5 shrink-0 text-gray-500" />
+        <div className="min-w-0">
+          <h2 className="text-sm font-bold text-gray-900">{t('properties.calendar.title')}</h2>
+          <p className="text-xs text-gray-500">{t('properties.calendar.hint')}</p>
+        </div>
+      </div>
+      {link.isError ? (
+        <p className="text-xs text-red-600">{t('properties.calendar.failed')}</p>
+      ) : (
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <input
+            type="text"
+            readOnly
+            value={link.data ?? ''}
+            onFocus={(e) => e.currentTarget.select()}
+            aria-label={t('properties.calendar.title')}
+            className="min-w-0 flex-1 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 font-mono text-xs text-gray-700"
+          />
+          <Button type="button" onClick={copyLink} disabled={!link.data}>
+            {t('properties.calendar.copy')}
+          </Button>
+        </div>
+      )}
     </div>
   )
 }

@@ -9,13 +9,13 @@ from __future__ import annotations
 
 import logging
 import uuid
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from datetime import date, timedelta
 
 from app.application.booking.check_availability import CheckAvailabilityService
 from app.application.messaging.date_parsing import format_date, parse_range
-from app.application.messaging.link_channel import LinkChannelService
+from app.application.messaging.link_channel import LinkChannelService, StrandsTwoFactor
 from app.domain.assistant.value_objects import AssistantUnavailable
 from app.domain.booking.repositories import BookingRepository, GuestRepository
 from app.domain.booking.value_objects import BookingStatus
@@ -66,7 +66,7 @@ class HostBotService:
         # Given a company, returns something that can answer a free-text
         # question — or None when no model is configured, which leaves the bot
         # exactly as it was.
-        assistant_for: Callable[[uuid.UUID], object | None] | None = None,
+        assistant_for: Callable[[ChannelIdentity], Awaitable[object | None]] | None = None,
     ) -> None:
         self._link = link_service
         self._availability = availability
@@ -98,7 +98,13 @@ class HostBotService:
         if command in {"help", "menu"}:
             return BotReply(_HELP)
         if command == "stop":
-            await self._link.unlink(Channel.TELEGRAM, external_id)
+            try:
+                await self._link.unlink(Channel.TELEGRAM, external_id)
+            except StrandsTwoFactor:
+                return BotReply(
+                    "Не отключаю: сюда приходят коды для входа в Day. "
+                    "Сначала выключите «Вход с кодом из Telegram» в настройках, потом отправьте /stop."
+                )
             return BotReply("Чат отключён. Чтобы подключить снова, отправьте /start и код.")
         if command == "free":
             return await self._free(identity.company_id, argument, today)
@@ -109,16 +115,18 @@ class HostBotService:
 
         # Not a command. The operator wrote a sentence, and the assistant can
         # answer the same questions the Mini App answers.
-        return await self._ask_assistant(identity.company_id, text.strip(), today, history)
+        return await self._ask_assistant(identity, text.strip(), today, history)
 
     async def _ask_assistant(
         self,
-        company_id: uuid.UUID,
+        identity: ChannelIdentity,
         question: str,
         today: date,
         history: list | None = None,
     ) -> BotReply:
-        assistant = self._assistant_for(company_id) if self._assistant_for else None
+        # The identity, not just the company: what the assistant may say
+        # (the Wi-Fi password) depends on who is linked to this chat.
+        assistant = await self._assistant_for(identity) if self._assistant_for else None
         if assistant is None:
             return BotReply(f"Не понял команду.\n\n{_HELP}")
 
@@ -153,6 +161,11 @@ class HostBotService:
 
         try:
             await self._link.redeem(code, Channel.TELEGRAM, external_id, display_name)
+        except StrandsTwoFactor:
+            return BotReply(
+                "Этот чат получает коды для входа другого аккаунта Day. "
+                "Пусть его владелец сначала выключит «Вход с кодом из Telegram» в настройках."
+            )
         except ValueError as exc:
             return BotReply(f"{exc}. Сгенерируйте новый код в приложении.")
         return BotReply(f"Готово, чат подключён к компании.\n\n{_HELP}")

@@ -6,7 +6,7 @@ import ToastContainer from '../components/ui/Toast'
 import { useCurrentUser, useLogout } from '../hooks/useAuth'
 import { useMediaQuery } from '../hooks/useMediaQuery'
 
-const PUBLIC_ROUTES = ['/login', '/register']
+const PUBLIC_ROUTES = ['/login', '/register', '/forgot-password']
 const CLEANER_ROUTE_PREFIX = '/cleaner'
 // The Mini App authenticates itself from Telegram's signed initData, so it must
 // not be bounced to /login before it has had the chance.

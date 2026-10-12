@@ -4,8 +4,8 @@ import { ArrowLeft, ArrowRight, Check, Loader2 } from 'lucide-react'
 import { useNavigate } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 import { useCreateProperty } from '../../hooks/useProperties'
-import { createOrUpdatePricing, linkAmenities } from '../../api/properties'
-import type { PropertyType, PropertyCreateInput, PricingInput } from '../../types/property'
+import { createOrUpdatePricing, linkAmenities, uploadPhotos } from '../../api/properties'
+import type { CheckInMethod, PropertyType, PropertyCreateInput, PricingInput } from '../../types/property'
 import type { RentalMode } from '../../types/booking'
 import PropertyFormStepBasic from '../../components/property/PropertyFormStepBasic'
 import PropertyFormStepAddress from '../../components/property/PropertyFormStepAddress'
@@ -39,6 +39,8 @@ interface FormData {
   details: {
     rooms: string
     beds: string
+    max_guests: string
+    bathrooms: string
     area_living: string
     area_total: string
   }
@@ -54,6 +56,9 @@ interface FormData {
   }
   photos: PhotoEntry[]
   rules: {
+    check_in_hour: string
+    check_out_hour: string
+    check_in_method: string
     check_in_instructions: string
     check_out_instructions: string
     house_rules: string
@@ -66,11 +71,20 @@ interface FormData {
 const initialForm: FormData = {
   basic: { name: '', internal_name: '', type: 'apartment', description: '', source_url: '' },
   address: { address_full: '', apartment_number: '', entrance: '', block: '', floor: '', latitude: '', longitude: '' },
-  details: { rooms: '', beds: '', area_living: '', area_total: '' },
+  details: { rooms: '', beds: '', max_guests: '', bathrooms: '', area_living: '', area_total: '' },
   rental_mode: 'daily',
   pricing: { base_price: '', hourly_price: '', weekend_markup: '', default_deposit: '', extra_adult_price: '', extra_child_price: '', base_guests: '' },
   photos: [],
-  rules: { check_in_instructions: '', check_out_instructions: '', house_rules: '', wifi_name: '', wifi_password: '' },
+  rules: {
+    check_in_hour: '',
+    check_out_hour: '',
+    check_in_method: '',
+    check_in_instructions: '',
+    check_out_instructions: '',
+    house_rules: '',
+    wifi_name: '',
+    wifi_password: '',
+  },
   amenityIds: [],
 }
 
@@ -149,8 +163,13 @@ export default function CreatePropertyPage() {
       longitude: form.address.longitude ? parseFloat(form.address.longitude) : undefined,
       rooms: form.details.rooms ? parseInt(form.details.rooms) : undefined,
       beds: form.details.beds ? parseInt(form.details.beds) : undefined,
+      max_guests: form.details.max_guests ? parseInt(form.details.max_guests) : undefined,
+      bathrooms: form.details.bathrooms ? parseInt(form.details.bathrooms) : undefined,
       area_living: form.details.area_living ? parseFloat(form.details.area_living) : undefined,
       area_total: form.details.area_total ? parseFloat(form.details.area_total) : undefined,
+      check_in_hour: form.rules.check_in_hour !== '' ? parseInt(form.rules.check_in_hour) : undefined,
+      check_out_hour: form.rules.check_out_hour !== '' ? parseInt(form.rules.check_out_hour) : undefined,
+      check_in_method: form.rules.check_in_method ? (form.rules.check_in_method as CheckInMethod) : undefined,
       check_in_instructions: form.rules.check_in_instructions || undefined,
       check_out_instructions: form.rules.check_out_instructions || undefined,
       house_rules: form.rules.house_rules || undefined,
@@ -167,8 +186,14 @@ export default function CreatePropertyPage() {
       if (form.amenityIds.length > 0) {
         await linkAmenities(property.id, form.amenityIds)
       }
+      // The photos step used to collect files and drop them on save.
+      const failedPhotos = form.photos.length > 0 ? await uploadPhotos(property.id, form.photos) : 0
 
-      showToast('success', t('properties.propertyCreated'))
+      if (failedPhotos > 0) {
+        showToast('error', t('properties.photosFailed', { count: failedPhotos }))
+      } else {
+        showToast('success', t('properties.propertyCreated'))
+      }
       navigate({ to: '/properties/$propertyId', params: { propertyId: property.id } })
     } catch {
       showToast('error', t('properties.failedCreate'))

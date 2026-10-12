@@ -128,6 +128,9 @@ class BookingResponse(BaseModel):
     external_id: str | None = None
     # UTC, with its zone.
     expires_at: datetime | None = None
+    # An OTA booking that landed on nights already taken: kept, not dropped,
+    # and shown so someone moves or cancels one of the two.
+    overbooking: bool = False
     created_at: datetime | None = None
     updated_at: datetime | None = None
 
@@ -160,6 +163,8 @@ class BookingFeedItem(BaseModel):
     children_count: int
     external_id: str | None = None
     expires_at: datetime | None = None
+    # An OTA booking on nights already taken; see BookingResponse.
+    overbooking: bool = False
     created_at: datetime
     updated_at: datetime
 
@@ -322,10 +327,15 @@ class AvailablePropertyResponse(BaseModel):
     rental_mode: RentalMode
     rooms: int | None = None
     beds: int | None = None
+    max_guests: int | None = None
+    bathrooms: int | None = None
     total_price: Decimal | None = None
     # Set when the unit is free but has no pricing configured, so the caller can
     # tell "costs nothing" apart from "cannot be quoted".
     price_error: str | None = None
+    # The stay as this flat books it: its own check-in and check-out hours.
+    check_in: datetime | None = None
+    check_out: datetime | None = None
     # Cover first, then in the host's order: one answer is enough to offer a flat.
     photos: list[AvailablePhotoResponse] = []
 
@@ -367,6 +377,7 @@ class GanttBookingResponse(BaseModel):
     adults_count: int
     children_count: int
     total_price: float
+    overbooking: bool = False
 
 
 class GanttPropertyResponse(BaseModel):
@@ -397,6 +408,7 @@ class TodayBookingItem(BaseModel):
     status: BookingStatus
     adults_count: int
     children_count: int
+    overbooking: bool = False
 
 
 class TodayCheckResponse(BaseModel):

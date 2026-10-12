@@ -236,7 +236,16 @@
       "wifiName": "Wi-Fi network",
       "wifiNamePlaceholder": "Home 28",
       "wifiPassword": "Wi-Fi password",
-      "wifiPasswordPlaceholder": "Network password"
+      "wifiPasswordPlaceholder": "Network password",
+      "maxGuests": "Max guests",
+      "maxGuestsHint": "How many people may stay: Airbnb and Booking get this number",
+      "bathrooms": "Bathrooms",
+      "checkInFrom": "Check-in from",
+      "checkOutUntil": "Check-out until",
+      "checkInMethod": "How guests get in",
+      "defaultHour": "Company default ({{hour}})",
+      "notSet": "Not set",
+      "turnoverHours": "Check-out cannot be later than check-in, or back-to-back stays overlap"
     },
     "validation": {
       "nameRequired": "Name is required",
@@ -257,6 +266,27 @@
       "create": "Create tag",
       "namePlaceholder": "Tag name",
       "color": "Tag color"
+    },
+    "photosFailed": "The property is created, but {{count}} photo(s) did not upload. Add them on the property page",
+    "addPhotos": "Add photos",
+    "photosUploading": "Uploading…",
+    "photosAdded": "Photos added: {{count}}",
+    "photosNotAdded": "{{count}} did not upload. Use JPEG, PNG or WebP up to 20 MB",
+    "checkInMethod": {
+      "lockbox": "Lockbox",
+      "keypad": "Keypad",
+      "smart_lock": "Smart lock",
+      "building_staff": "Building staff",
+      "host_greets": "We meet you",
+      "other": "Other"
+    },
+    "calendar": {
+      "title": "Calendar for Airbnb and Booking",
+      "hint": "Paste the link into calendar sync on Airbnb and Booking: bookings made in Day close those dates there. The link shows taken nights only",
+      "copy": "Copy link",
+      "copied": "Link copied",
+      "failed": "Could not get the link",
+      "copyFailed": "Could not copy: select the link and copy it by hand"
     }
   },
   "bookings": {
@@ -346,7 +376,10 @@
       "noFiles": "No files",
       "comments": "Comments",
       "noComments": "No comments",
-      "addComment": "Add a comment..."
+      "addComment": "Add a comment...",
+      "download": "Download",
+      "downloadFailed": "Could not download the file",
+      "uploadFailed": "Could not upload the file"
     },
     "activityHistory": "Activity History",
     "priceBreakdown": "Price Breakdown",
@@ -409,7 +442,11 @@
     "date": "Date",
     "startTime": "Start time",
     "endTime": "End time",
-    "selectTime": "Select time"
+    "selectTime": "Select time",
+    "overbooking": {
+      "short": "Overbooking",
+      "detail": "Overbooking: this booking came from a platform for nights already taken. Move or cancel one of the two bookings."
+    }
   },
   "today": {
     "title": "Today",
@@ -703,7 +740,20 @@
     "title": "Settings",
     "language": "Language",
     "languageDescription": "Choose the interface language",
-    "saved": "Settings saved"
+    "saved": "Settings saved",
+    "password": {
+      "title": "Password",
+      "description": "Other devices are signed out after the change",
+      "current": "Current password",
+      "new": "New password",
+      "repeat": "Repeat the new password",
+      "save": "Change password",
+      "changed": "Password changed",
+      "tooShort": "At least 8 characters",
+      "mismatch": "The passwords do not match",
+      "wrongCurrent": "The current password is wrong",
+      "failed": "Could not change the password"
+    }
   },
   "team": {
     "title": "Team & API keys",
@@ -775,7 +825,9 @@
     "disconnect": "Disconnect",
     "codeFailed": "Could not issue a code",
     "whatsappConnected": "WhatsApp channel connected",
-    "whatsappFailed": "Could not connect the channel"
+    "whatsappFailed": "Could not connect the channel",
+    "strandsTwoFactor": "This chat receives sign-in codes. Turn off the Telegram sign-in code in Settings first",
+    "disconnectFailed": "Could not disconnect the chat"
   },
   "miniapp": {
     "loading": "Loading…",
@@ -820,7 +872,8 @@
       "nothingFree": "Nothing free on those dates",
       "hint": "Opens your WhatsApp with the message ready — just hit send.",
       "messageHead": "Free {{range}}:",
-      "messageTail": "Check-in from 14:00, check-out by 12:00.",
+      "messageTail": "Check-in from {{checkIn}}, check-out by {{checkOut}}.",
+      "hours": "check-in from {{checkIn}}, check-out by {{checkOut}}",
       "forNights": "for {{count}} night(s)",
       "rooms": "{{count}} bed(s)"
     },
@@ -894,6 +947,37 @@
       "s1": "What's free tomorrow and for how much?",
       "s2": "What's the Wi-Fi in 62auc?",
       "s3": "How much did I earn this month?"
+    }
+  },
+  "auth": {
+    "forgot": {
+      "link": "Forgot your password?",
+      "title": "Reset password",
+      "emailHint": "We send a code to the Telegram chat linked to the account in Settings → Team",
+      "codeHint": "If the account has Telegram linked, the code is there. It works for 10 minutes",
+      "sendCode": "Get a code",
+      "code": "Code from Telegram",
+      "reset": "Change password and sign in",
+      "again": "Send the code again",
+      "backToLogin": "Back to sign in",
+      "wrongCode": "The code is wrong or expired",
+      "tooMany": "Too many attempts, wait a minute",
+      "unavailable": "Reset is unavailable right now, try later",
+      "failed": "Something went wrong, try again"
+    },
+    "twoFactor": {
+      "title": "Code from Telegram",
+      "hint": "We sent a code to your Telegram chat with the Day bot",
+      "signIn": "Sign in",
+      "cardTitle": "Sign-in code from Telegram",
+      "cardOn": "On: after the password we ask for a code from Telegram",
+      "cardOff": "Off: the password alone signs in",
+      "needTelegram": "Link Telegram first: Settings → Team",
+      "password": "Password to confirm",
+      "enable": "Turn on",
+      "disable": "Turn off",
+      "saved": "Saved",
+      "wrongPassword": "Wrong password"
     }
   }
 }

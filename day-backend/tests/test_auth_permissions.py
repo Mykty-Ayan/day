@@ -57,6 +57,17 @@ class FakeUserRepository(UserRepository):
     async def get_many(self, user_ids):
         return {uid: self.users[uid] for uid in user_ids if uid in self.users}
 
+    async def get_for_update(self, user_id):
+        return self.users.get(user_id)
+
+    async def bump_token_version(self, user_id):
+        from datetime import datetime
+
+        user = self.users[user_id]
+        user.token_version += 1
+        user.tokens_revoked_at = datetime.utcnow()
+        return user
+
 
 class FakeApiKeyRepository(ApiKeyRepository):
     def __init__(self) -> None:

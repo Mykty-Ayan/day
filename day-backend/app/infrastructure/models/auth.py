@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import JSON, Boolean, DateTime, ForeignKey, String
+from sqlalchemy import JSON, Boolean, DateTime, ForeignKey, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.infrastructure.database import Base
@@ -27,6 +27,9 @@ class UserModel(Base):
     phone: Mapped[str | None] = mapped_column(String(50), nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(default=datetime.utcnow)
+    token_version: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    tokens_revoked_at: Mapped[datetime | None] = mapped_column(nullable=True)
+    two_factor_enabled: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
 
 
 class ApiKeyModel(Base):

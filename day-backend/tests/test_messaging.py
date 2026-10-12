@@ -356,13 +356,16 @@ class TestNotifications:
 
 
 def _host_bot(availability=None, bookings=None, assistant=None) -> HostBotService:
+    async def assistant_for(identity):
+        return assistant
+
     return HostBotService(
         LinkChannelService(FakeLinkCodeRepository(), FakeIdentityRepository()),
         availability or StubAvailability([]),
         bookings,
         None,
         None,
-        assistant_for=(lambda company_id: assistant) if assistant is not None else None,
+        assistant_for=assistant_for if assistant is not None else None,
     )
 
 

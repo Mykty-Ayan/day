@@ -1,9 +1,14 @@
 import { motion } from 'framer-motion'
-import { Globe, Check, ChevronRight, Users } from 'lucide-react'
+import { useState } from 'react'
+import { Globe, Check, ChevronRight, Users, KeyRound, ShieldCheck } from 'lucide-react'
 import { Link } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 import { showToast } from '../../components/ui/Toast'
 import { useCurrentUser } from '../../hooks/useAuth'
+import { changePassword, setTwoFactor } from '../../api/auth'
+import { useQueryClient } from '@tanstack/react-query'
+import { sessionGeneration, storeSession } from '../../api/client'
+import Button from '../../components/ui/Button'
 
 const LANGUAGES = [
   { code: 'ru', label: 'Русский', flag: 'RU' },
@@ -69,6 +74,9 @@ export default function SettingsPage() {
           </div>
         </div>
 
+        <PasswordCard />
+        <TwoFactorCard />
+
         {/* Team and service keys live behind their own page — owner only. */}
         {currentUser?.role === 'owner' && (
           <Link
@@ -87,5 +95,146 @@ export default function SettingsPage() {
         )}
       </motion.div>
     </div>
+  )
+}
+
+const MIN_PASSWORD_LENGTH = 8
+
+function PasswordCard() {
+  const { t } = useTranslation()
+  const [current, setCurrent] = useState('')
+  const [next, setNext] = useState('')
+  const [repeat, setRepeat] = useState('')
+  const [error, setError] = useState('')
+  const [saving, setSaving] = useState(false)
+
+  async function submit(event: React.FormEvent) {
+    event.preventDefault()
+    setError('')
+    if (next.length < MIN_PASSWORD_LENGTH) return setError(t('settings.password.tooShort'))
+    if (next !== repeat) return setError(t('settings.password.mismatch'))
+    setSaving(true)
+    const startedIn = sessionGeneration()
+    try {
+      const tokens = await changePassword(current, next)
+      // Signed out (or into another account) while this was on its way:
+      // the answer must not bring the old account back.
+      if (sessionGeneration() !== startedIn) return
+      storeSession(tokens)
+      setCurrent('')
+      setNext('')
+      setRepeat('')
+      showToast('success', t('settings.password.changed'))
+    } catch (err) {
+      const detail = (err as { response?: { data?: { detail?: string } } }).response?.data?.detail
+      setError(detail === 'Current password is wrong' ? t('settings.password.wrongCurrent') : detail || t('settings.password.failed'))
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const field = 'w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:border-black focus:outline-none'
+  return (
+    <form onSubmit={submit} className="mt-4 bg-white border border-gray-200 rounded-xl p-5 shadow-sm space-y-3">
+      <div className="flex items-center gap-2">
+        <KeyRound className="w-4 h-4 text-gray-500" />
+        <div>
+          <h2 className="text-sm font-bold text-gray-900">{t('settings.password.title')}</h2>
+          <p className="text-xs text-gray-500">{t('settings.password.description')}</p>
+        </div>
+      </div>
+      <label className="block text-xs font-semibold text-gray-700">
+        {t('settings.password.current')}
+        <input id="current-password" type="password" autoComplete="current-password" required value={current}
+          onChange={(e) => setCurrent(e.target.value)} className={`mt-1 ${field}`} />
+      </label>
+      <label className="block text-xs font-semibold text-gray-700">
+        {t('settings.password.new')}
+        <input id="new-password" type="password" autoComplete="new-password" required value={next}
+          onChange={(e) => setNext(e.target.value)} className={`mt-1 ${field}`} />
+      </label>
+      <label className="block text-xs font-semibold text-gray-700">
+        {t('settings.password.repeat')}
+        <input id="repeat-password" type="password" autoComplete="new-password" required value={repeat}
+          onChange={(e) => setRepeat(e.target.value)} className={`mt-1 ${field}`} />
+      </label>
+      {error && (
+        <p role="alert" className="text-xs text-red-600">
+          {error}
+        </p>
+      )}
+      <Button type="submit" disabled={saving}>
+        {t('settings.password.save')}
+      </Button>
+    </form>
+  )
+}
+
+function TwoFactorCard() {
+  const { t } = useTranslation()
+  const queryClient = useQueryClient()
+  const { data: user } = useCurrentUser()
+  const [password, setPassword] = useState('')
+  const [error, setError] = useState('')
+  const [saving, setSaving] = useState(false)
+  if (!user) return null
+
+  const enabled = user.two_factor_enabled
+  async function toggle(event: React.FormEvent) {
+    event.preventDefault()
+    setError('')
+    setSaving(true)
+    try {
+      await setTwoFactor(!enabled, password)
+      setPassword('')
+      await queryClient.invalidateQueries({ queryKey: ['auth-user'] })
+      showToast('success', t('auth.twoFactor.saved'))
+    } catch (err) {
+      const detail = (err as { response?: { data?: { detail?: unknown } } }).response?.data?.detail
+      setError(detail === 'Password is wrong' ? t('auth.twoFactor.wrongPassword') : t('settings.password.failed'))
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const blocked = !enabled && !user.telegram_linked
+  return (
+    <form onSubmit={toggle} className="mt-4 bg-white border border-gray-200 rounded-xl p-5 shadow-sm space-y-3">
+      <div className="flex items-center gap-2">
+        <ShieldCheck className="w-4 h-4 text-gray-500" />
+        <div>
+          <h2 className="text-sm font-bold text-gray-900">{t('auth.twoFactor.cardTitle')}</h2>
+          <p className="text-xs text-gray-500">
+            {enabled ? t('auth.twoFactor.cardOn') : t('auth.twoFactor.cardOff')}
+          </p>
+        </div>
+      </div>
+      {blocked ? (
+        <p className="text-xs text-gray-600">{t('auth.twoFactor.needTelegram')}</p>
+      ) : (
+        <>
+          <label className="block text-xs font-semibold text-gray-700">
+            {t('auth.twoFactor.password')}
+            <input
+              id="two-factor-password"
+              type="password"
+              autoComplete="current-password"
+              required
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:border-black focus:outline-none"
+            />
+          </label>
+          {error && (
+            <p role="alert" className="text-xs text-red-600">
+              {error}
+            </p>
+          )}
+          <Button type="submit" disabled={saving}>
+            {enabled ? t('auth.twoFactor.disable') : t('auth.twoFactor.enable')}
+          </Button>
+        </>
+      )}
+    </form>
   )
 }

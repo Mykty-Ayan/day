@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Response, UploadFile, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.application.property.change_status import ChangePropertyStatusService
@@ -26,9 +26,10 @@ from app.application.property.update_property import (
     UpdatePropertyInput,
     UpdatePropertyService,
 )
+from app.config import settings
 from app.domain.auth.permissions import Permission
 from app.domain.property.entities import DiscountRule, PropertyCosts, SeasonalPrice
-from app.domain.property.value_objects import FactSource, PropertyStatus
+from app.domain.property.value_objects import FactAudience, FactSource, PropertyStatus
 from app.infrastructure.database import get_session
 from app.infrastructure.repositories.property import (
     SqlAmenityRepository,
@@ -41,9 +42,10 @@ from app.infrastructure.repositories.property import (
     SqlPropertyRepository,
     SqlSeasonalPriceRepository,
 )
+from app.infrastructure.security import calendar_token
+from app.infrastructure.storage.s3 import upload_property_photo
 from app.presentation.api.deps import Principal, get_company_id, get_principal, get_user_id, require
 from app.presentation.schemas.property import (
-    AmenityCreate,
     AmenityResponse,
     DiscountRuleCreate,
     DiscountRuleResponse,
@@ -91,7 +93,17 @@ def _repos(session: AsyncSession):
     }
 
 
-def _to_property_response(p, photos: list | None = None) -> PropertyResponse:
+def _sees_secrets(principal: Principal) -> bool:
+    return Permission.PROPERTY_SECRETS_READ in principal.permissions
+
+
+def _visible_facts(facts: list, *, sees_secrets: bool) -> list:
+    if sees_secrets:
+        return facts
+    return [f for f in facts if f.audience != FactAudience.GUEST]
+
+
+def _to_property_response(p, photos: list | None = None, *, sees_secrets: bool) -> PropertyResponse:
     return PropertyResponse(
         id=p.id,
         company_id=p.company_id,
@@ -111,13 +123,18 @@ def _to_property_response(p, photos: list | None = None) -> PropertyResponse:
         floor=p.floor,
         rooms=p.rooms,
         beds=p.beds,
+        max_guests=p.max_guests,
+        bathrooms=p.bathrooms,
+        check_in_hour=p.check_in_hour,
+        check_out_hour=p.check_out_hour,
+        check_in_method=p.check_in_method,
         area_living=p.area_living,
         area_total=p.area_total,
         check_in_instructions=p.check_in_instructions,
         check_out_instructions=p.check_out_instructions,
         house_rules=p.house_rules,
         wifi_name=p.wifi_name,
-        wifi_password=p.wifi_password,
+        wifi_password=p.wifi_password if sees_secrets else None,
         photos=[PropertyPhotoResponse.model_validate(photo, from_attributes=True) for photo in (photos or [])],
         created_at=p.created_at,
         updated_at=p.updated_at,
@@ -138,6 +155,7 @@ async def create_property(
     session: AsyncSession = Depends(get_session),
     company_id: uuid.UUID = Depends(get_company_id),
     user_id: uuid.UUID | None = Depends(get_user_id),
+    principal: Principal = Depends(get_principal),
 ):
     repos = _repos(session)
     svc = CreatePropertyService(repos["property"], repos["audit"])
@@ -160,6 +178,11 @@ async def create_property(
                 floor=body.floor,
                 rooms=body.rooms,
                 beds=body.beds,
+                max_guests=body.max_guests,
+                bathrooms=body.bathrooms,
+                check_in_hour=body.check_in_hour,
+                check_out_hour=body.check_out_hour,
+                check_in_method=body.check_in_method,
                 area_living=body.area_living,
                 area_total=body.area_total,
                 check_in_instructions=body.check_in_instructions,
@@ -171,7 +194,7 @@ async def create_property(
             )
         )
         await session.commit()
-        return _to_property_response(result)
+        return _to_property_response(result, sees_secrets=_sees_secrets(principal))
     except ValueError as e:
         await session.rollback()
         status_code = 409 if "already exists" in str(e).lower() else 400
@@ -186,6 +209,7 @@ async def list_properties(
     search: str | None = None,
     session: AsyncSession = Depends(get_session),
     company_id: uuid.UUID = Depends(get_company_id),
+    principal: Principal = Depends(get_principal),
 ):
     repos = _repos(session)
     svc = ListPropertiesService(repos["property"])
@@ -198,7 +222,10 @@ async def list_properties(
     )
     pages = (result.total + per_page - 1) // per_page if result.total > 0 else 1
     return PropertyListResponse(
-        items=[_to_property_response(prop, photos=photos) for prop, photos in zip(result.items, photos_by_property)],
+        items=[
+            _to_property_response(prop, photos=photos, sees_secrets=_sees_secrets(principal))
+            for prop, photos in zip(result.items, photos_by_property)
+        ],
         total=result.total,
         page=page,
         per_page=per_page,
@@ -215,6 +242,7 @@ async def get_property(
     property_id: uuid.UUID,
     session: AsyncSession = Depends(get_session),
     company_id: uuid.UUID = Depends(get_company_id),
+    principal: Principal = Depends(get_principal),
 ):
     repos = _repos(session)
     svc = GetPropertyService(
@@ -230,14 +258,32 @@ async def get_property(
         detail = await svc.execute(property_id, company_id)
     except ValueError:
         raise HTTPException(status_code=404, detail="Property not found")
-    prop = _to_property_response(detail.property, photos=detail.photos)
-    facts = await repos["fact"].list_by_property(property_id)
+    sees_secrets = _sees_secrets(principal)
+    prop = _to_property_response(detail.property, photos=detail.photos, sees_secrets=sees_secrets)
+    facts = _visible_facts(await repos["fact"].list_by_property(property_id), sees_secrets=sees_secrets)
     return PropertyDetailResponse(
         **prop.model_dump(),
         amenities=[AmenityResponse.model_validate(a, from_attributes=True) for a in detail.amenities],
         pricing=PricingConfigResponse.model_validate(detail.pricing, from_attributes=True) if detail.pricing else None,
         facts=[PropertyFactResponse.model_validate(f, from_attributes=True) for f in facts],
     )
+
+
+@router.get(
+    "/{property_id}/calendar-link",
+    dependencies=[Depends(require(Permission.PROPERTIES_WRITE))],
+)
+async def calendar_link(
+    property_id: uuid.UUID,
+    session: AsyncSession = Depends(get_session),
+    company_id: uuid.UUID = Depends(get_company_id),
+):
+    """The iCal link to paste into Airbnb and Booking.com, so they see bookings taken in Day."""
+    prop = await _repos(session)["property"].get_by_id(property_id)
+    if prop is None or prop.company_id != company_id:
+        raise HTTPException(status_code=404, detail="Property not found")
+    base = settings.PUBLIC_BASE_URL.rstrip("/")
+    return {"url": f"{base}/api/v1/calendar/{property_id}.ics?token={calendar_token(property_id)}"}
 
 
 # ---------- Knowledge base ----------
@@ -252,12 +298,14 @@ async def list_facts(
     property_id: uuid.UUID,
     session: AsyncSession = Depends(get_session),
     company_id: uuid.UUID = Depends(get_company_id),
+    principal: Principal = Depends(get_principal),
 ):
     repos = _repos(session)
     try:
         facts = await ManageFactsService(repos["property"], repos["fact"]).list(property_id, company_id)
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
+    facts = _visible_facts(facts, sees_secrets=_sees_secrets(principal))
     return [PropertyFactResponse.model_validate(f, from_attributes=True) for f in facts]
 
 
@@ -321,6 +369,7 @@ async def update_property(
     session: AsyncSession = Depends(get_session),
     company_id: uuid.UUID = Depends(get_company_id),
     user_id: uuid.UUID | None = Depends(get_user_id),
+    principal: Principal = Depends(get_principal),
 ):
     repos = _repos(session)
     svc = UpdatePropertyService(repos["property"], repos["audit"])
@@ -334,7 +383,7 @@ async def update_property(
     try:
         result = await svc.execute(inp)
         await session.commit()
-        return _to_property_response(result)
+        return _to_property_response(result, sees_secrets=_sees_secrets(principal))
     except ValueError as e:
         await session.rollback()
         raise HTTPException(status_code=400, detail=str(e))
@@ -351,13 +400,14 @@ async def change_property_status(
     session: AsyncSession = Depends(get_session),
     company_id: uuid.UUID = Depends(get_company_id),
     user_id: uuid.UUID | None = Depends(get_user_id),
+    principal: Principal = Depends(get_principal),
 ):
     repos = _repos(session)
     svc = ChangePropertyStatusService(repos["property"], repos["audit"])
     try:
         result = await svc.execute(property_id, company_id, body.target_status, changed_by=user_id)
         await session.commit()
-        return _to_property_response(result)
+        return _to_property_response(result, sees_secrets=_sees_secrets(principal))
     except ValueError as e:
         await session.rollback()
         raise HTTPException(status_code=400, detail=str(e))
@@ -377,6 +427,7 @@ async def clone_property(
     session: AsyncSession = Depends(get_session),
     company_id: uuid.UUID = Depends(get_company_id),
     user_id: uuid.UUID | None = Depends(get_user_id),
+    principal: Principal = Depends(get_principal),
 ):
     from app.application.property.clone_property import ClonePropertyService
 
@@ -393,7 +444,7 @@ async def clone_property(
     try:
         result = await svc.execute(property_id, company_id, changed_by=user_id)
         await session.commit()
-        return _to_property_response(result)
+        return _to_property_response(result, sees_secrets=_sees_secrets(principal))
     except ValueError as e:
         await session.rollback()
         raise HTTPException(status_code=404, detail=str(e))
@@ -430,6 +481,66 @@ async def add_photo(
     except ValueError as e:
         await session.rollback()
         raise HTTPException(status_code=400, detail=str(e))
+
+
+def _sniff_photo(head: bytes) -> str | None:
+    """The photo format the bytes actually hold. The declared Content-Type is
+    the client's word; the file lands in a public bucket, so the bytes decide."""
+    if head.startswith(b"\xff\xd8\xff"):
+        return "image/jpeg"
+    if head.startswith(b"\x89PNG\r\n\x1a\n"):
+        return "image/png"
+    if head[:4] == b"RIFF" and head[8:12] == b"WEBP":
+        return "image/webp"
+    # No HEIC: Chrome and Firefox cannot show it, and the listing page, OTAs
+    # and guests open these files as they are. An iPhone sends JPEG when the
+    # picker does not offer HEIC.
+    return None
+
+
+@router.post(
+    "/{property_id}/photos/upload",
+    response_model=PropertyPhotoResponse,
+    status_code=201,
+    dependencies=[Depends(require(Permission.PROPERTIES_WRITE))],
+)
+async def upload_photo(
+    property_id: uuid.UUID,
+    file: UploadFile = File(...),
+    sort_order: int = Form(0),
+    is_cover: bool = Form(False),
+    session: AsyncSession = Depends(get_session),
+    company_id: uuid.UUID = Depends(get_company_id),
+):
+    """A photo from the owner's phone or computer. Linking by URL (imports, the CRM) stays on POST /photos."""
+    repos = _repos(session)
+    prop = await repos["property"].get_by_id(property_id)
+    if prop is None or prop.company_id != company_id:
+        raise HTTPException(status_code=404, detail="Property not found")
+    head = file.file.read(16)
+    file.file.seek(0)
+    content_type = _sniff_photo(head)
+    if content_type is None:
+        raise HTTPException(status_code=415, detail="Only JPEG, PNG or WebP photos")
+    size = file.size
+    if size is None:
+        file.file.seek(0, 2)
+        size = file.file.tell()
+        file.file.seek(0)
+    if size > settings.S3_MAX_UPLOAD_BYTES:
+        raise HTTPException(
+            status_code=413, detail=f"Photo too large (max {settings.S3_MAX_UPLOAD_BYTES // (1024 * 1024)} MB)"
+        )
+
+    try:
+        url = await upload_property_photo(property_id=property_id, file_obj=file.file, content_type=content_type)
+    except Exception:
+        raise HTTPException(status_code=500, detail="Failed to upload photo")
+
+    svc = ManagePhotosService(repos["property"], repos["photo"])
+    result = await svc.add_photo(property_id, company_id, url, sort_order=sort_order, is_cover=is_cover)
+    await session.commit()
+    return PropertyPhotoResponse.model_validate(result, from_attributes=True)
 
 
 @router.patch(
@@ -511,23 +622,6 @@ async def list_amenities(session: AsyncSession = Depends(get_session)):
     svc = ManageAmenitiesService(repos["amenity"], repos["property"])
     result = await svc.list_amenities()
     return [AmenityResponse.model_validate(a, from_attributes=True) for a in result]
-
-
-@amenity_router.post(
-    "",
-    response_model=AmenityResponse,
-    status_code=201,
-    dependencies=[Depends(require(Permission.PROPERTIES_WRITE))],
-)
-async def create_amenity(
-    body: AmenityCreate,
-    session: AsyncSession = Depends(get_session),
-):
-    repos = _repos(session)
-    svc = ManageAmenitiesService(repos["amenity"], repos["property"])
-    result = await svc.create_amenity(body.name, body.category, body.icon)
-    await session.commit()
-    return AmenityResponse.model_validate(result, from_attributes=True)
 
 
 @router.post(

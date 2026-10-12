@@ -101,3 +101,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Build backend image
         run: docker build -t day-backend:test day-backend/
+      # Runs `nginx -t` on the served config, so a broken nginx.conf or
+      # security-headers.conf fails here instead of at deploy.
+      - name: Build frontend image
+        run: docker build -t day-frontend:test day-frontend/

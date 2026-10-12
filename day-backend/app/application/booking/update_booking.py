@@ -6,6 +6,7 @@ from decimal import Decimal
 
 from app.application.booking.create_booking import (
     apply_default_times,
+    settle_boundary,
     validate_hold_expiry,
     validate_rental_mode_allowed,
 )
@@ -73,6 +74,9 @@ class UpdateBookingService:
                 changes.append((field_name, str(old_val), str(new_val)))
 
         dates_changed = False
+        # The web form sends the saved dates and mode back with any edit; only
+        # a value that differs from these is new and gets the flat's hours.
+        saved_in, saved_out, saved_mode = booking.check_in, booking.check_out, booking.rental_mode
         # A price the operator typed in by hand is their number and survives a
         # date change; one the system worked out should follow the new dates.
         price_was_system_set = booking.total_price == booking.calculated_price
@@ -129,11 +133,22 @@ class UpdateBookingService:
 
         # Re-check overlaps if dates changed
         if dates_changed and booking.check_in and booking.check_out:
-            # Daily bookings default their clock times (14:00 / 12:00) so the
-            # stored datetime is a superset of the incoming date.
-            booking.check_in, booking.check_out = apply_default_times(
-                booking.check_in, booking.check_out, booking.rental_mode
+            # A daily boundary on a new day takes the flat's hours, else the
+            # default (14:00 / 12:00); one on its saved day keeps its saved time.
+            prop = await self._property_repo.get_by_id(booking.property_id)
+            check_in, check_out = apply_default_times(
+                booking.check_in,
+                booking.check_out,
+                booking.rental_mode,
+                check_in_hour=prop.check_in_hour if prop else None,
+                check_out_hour=prop.check_out_hour if prop else None,
             )
+            if booking.rental_mode != saved_mode or booking.rental_mode != RentalMode.DAILY:
+                # An hourly boundary is an explicit time, midnight included.
+                booking.check_in, booking.check_out = check_in, check_out
+            else:
+                booking.check_in = settle_boundary(booking.check_in, check_in, saved_in)
+                booking.check_out = settle_boundary(booking.check_out, check_out, saved_out)
             if booking.check_out <= booking.check_in:
                 raise ValueError("Check-out must be after check-in")
             overlapping = await self._booking_repo.get_by_property_and_dates(

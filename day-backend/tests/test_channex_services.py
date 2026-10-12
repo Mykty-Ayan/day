@@ -307,6 +307,19 @@ class TestOnboardListing:
         room_call = next(c for c in gateway.calls if c[0] == "create_room_type")
         assert room_call[1]["occ_adults"] == 4
 
+    async def test_occupancy_comes_from_max_guests_not_beds(self):
+        # Two beds sleep four: the bed count was sent as the guest limit.
+        gateway = FakeGateway()
+        service = OnboardListingService(
+            FakeConnectionRepository(),
+            FakeListingRepository(),
+            FakePropertyRepository([_property(beds=2, max_guests=4)]),
+            gateway,
+        )
+        await service.execute(OnboardListingInput(company_id=COMPANY_ID, property_id=PROPERTY_ID, city="Almaty"))
+        room_call = next(c for c in gateway.calls if c[0] == "create_room_type")
+        assert room_call[1]["occ_adults"] == 4
+
     async def test_is_idempotent_per_property(self):
         connections = FakeConnectionRepository()
         listings = FakeListingRepository()
@@ -372,6 +385,7 @@ class TestPushAri:
             bookings,
             FakePricingRepository(PricingConfig(base_price=Decimal("45000"))),
             gateway,
+            FakePropertyRepository([]),
         )
 
         result = await service.execute(
@@ -397,7 +411,8 @@ class TestPushAri:
 
     async def test_requires_onboarded_listing(self):
         service = PushAriService(
-            FakeListingRepository(), FakeBookingRepository(), FakePricingRepository(), FakeGateway()
+            FakeListingRepository(), FakeBookingRepository(), FakePricingRepository(), FakeGateway(),
+            FakePropertyRepository([]),
         )
         with pytest.raises(ValueError):
             await service.execute(
@@ -413,7 +428,8 @@ class TestPushAri:
         listings = FakeListingRepository()
         await listings.create(_active_listing())
         service = PushAriService(
-            listings, FakeBookingRepository(), FakePricingRepository(None), FakeGateway()
+            listings, FakeBookingRepository(), FakePricingRepository(None), FakeGateway(),
+            FakePropertyRepository([]),
         )
         with pytest.raises(ValueError):
             await service.execute(
@@ -426,7 +442,7 @@ class TestPushAri:
             )
 
 
-def _event_service(listings=None, events=None, bookings=None, guests=None, gateway=None):
+def _event_service(listings=None, events=None, bookings=None, guests=None, gateway=None, properties=()):
     listings = listings or FakeListingRepository()
     return (
         ProcessBookingEventService(
@@ -435,6 +451,7 @@ def _event_service(listings=None, events=None, bookings=None, guests=None, gatew
             bookings or FakeBookingRepository(),
             guests or FakeGuestRepository(),
             gateway or FakeGateway(),
+            FakePropertyRepository(properties),
         ),
         listings,
     )

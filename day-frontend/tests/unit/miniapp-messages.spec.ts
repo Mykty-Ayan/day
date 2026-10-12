@@ -19,7 +19,8 @@ import type { Booking } from '../../src/types/booking'
 /** Stands in for i18next: renders the real Russian strings with interpolation. */
 const RU: Record<string, string> = {
   'miniapp.offer.messageHead': 'Свободно {{range}}:',
-  'miniapp.offer.messageTail': 'Заезд с 14:00, выезд до 12:00.',
+  'miniapp.offer.messageTail': 'Заезд с {{checkIn}}, выезд до {{checkOut}}.',
+  'miniapp.offer.hours': 'заезд с {{checkIn}}, выезд до {{checkOut}}',
   'miniapp.offer.forNights': 'за {{count}} ноч.',
   'miniapp.offer.rooms': '{{count}}-комн.',
   'miniapp.booking.messageHead': '{{name}}, добро пожаловать!',
@@ -49,6 +50,8 @@ function unit(overrides: Partial<AvailableProperty> = {}): AvailableProperty {
     rental_mode: 'daily',
     rooms: 1,
     beds: 1,
+    max_guests: null,
+    bathrooms: null,
     total_price: 25000,
     price_error: null,
     ...overrides,
@@ -150,6 +153,39 @@ test.describe('buildOfferMessage', () => {
     expect(plain(message)).toContain('• Auezov City 62, 1-комн.')
     expect(plain(message)).not.toContain('₸')
     expect(plain(message)).not.toContain('null')
+  })
+
+  test("tells the flats' own hours, once when they agree", () => {
+    const at = (checkIn: string, checkOut: string) => ({
+      check_in: `2026-08-28T${checkIn}:00`,
+      check_out: `2026-08-29T${checkOut}:00`,
+    })
+    const same = buildOfferMessage(
+      [unit(at('16:00', '10:00')), unit({ property_id: 'p2', name: 'Meridian 356', ...at('16:00', '10:00') })],
+      new Date('2026-08-28T00:00:00'),
+      new Date('2026-08-29T00:00:00'),
+      1,
+      'ru',
+      t,
+    )
+    expect(plain(same).split('\n').at(-1)).toBe('Заезд с 16:00, выезд до 10:00.')
+
+    const differ = buildOfferMessage(
+      [unit(at('16:00', '15:00')), unit({ property_id: 'p2', name: 'Meridian 356', ...at('14:00', '12:00') })],
+      new Date('2026-08-28T00:00:00'),
+      new Date('2026-08-29T00:00:00'),
+      1,
+      'ru',
+      t,
+    )
+    expect(plain(differ)).toBe(
+      [
+        'Свободно 28 августа — 29 августа:',
+        '',
+        '• Auezov City 62, 1-комн. — 25 000 ₸ (заезд с 16:00, выезд до 15:00)',
+        '• Meridian 356, 1-комн. — 25 000 ₸ (заезд с 14:00, выезд до 12:00)',
+      ].join('\n'),
+    )
   })
 
   test('omits the room count when it is unknown', () => {

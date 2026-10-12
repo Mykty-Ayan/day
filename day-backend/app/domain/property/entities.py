@@ -9,6 +9,7 @@ from app.domain.booking.value_objects import RentalMode
 from app.domain.property.value_objects import (
     AmenityCategory,
     AuditAction,
+    CheckInMethod,
     FactAudience,
     FactSource,
     PropertyStatus,
@@ -42,6 +43,14 @@ class Property:
     # Details
     rooms: int | None = None
     beds: int | None = None
+    # How many may stay (OTAs need it; beds alone is not the answer) and how
+    # many bathrooms there are.
+    max_guests: int | None = None
+    bathrooms: int | None = None
+    # The flat's own hours; empty means the company default (14:00 / 12:00).
+    check_in_hour: int | None = None
+    check_out_hour: int | None = None
+    check_in_method: CheckInMethod | None = None
     area_living: float | None = None
     area_total: float | None = None
 

@@ -17,11 +17,13 @@ from app.application.messaging.host_bot import HostBotService
 from app.application.messaging.link_channel import LinkChannelService
 from app.application.messaging.notifications import NotificationDispatcher, NotificationService
 from app.config import settings
+from app.domain.auth.permissions import Permission, permissions_for_role
 from app.domain.messaging.services import MessageProvider
 from app.domain.messaging.value_objects import Channel
 from app.infrastructure.assistant.factory import build_assistant_tools
 from app.infrastructure.assistant.openrouter import OpenRouterAssistantGateway
 from app.infrastructure.messaging.providers import TelegramProvider, WhapiProvider
+from app.infrastructure.repositories.auth import SqlUserRepository
 from app.infrastructure.repositories.booking import (
     SqlBookingAuditLogRepository,
     SqlBookingRepository,
@@ -74,17 +76,25 @@ def build_link_service(session: AsyncSession) -> LinkChannelService:
     return LinkChannelService(
         SqlChannelLinkCodeRepository(session),
         SqlChannelIdentityRepository(session),
+        SqlUserRepository(session),
     )
 
 
 def build_host_bot(session: AsyncSession) -> HostBotService:
-    def assistant_for(company_id):
+    async def assistant_for(identity):
         # No key, no assistant: the bot keeps answering commands and says it did
         # not understand anything else, exactly as before.
         if not settings.ASSISTANT_API_KEY:
             return None
+        user = await SqlUserRepository(session).get_by_id(identity.user_id) if identity.user_id else None
+        sees_secrets = (
+            user is not None
+            and user.is_active
+            and Permission.PROPERTY_SECRETS_READ in permissions_for_role(user.role)
+        )
         return AskAssistantService(
-            OpenRouterAssistantGateway(), build_assistant_tools(session, company_id)
+            OpenRouterAssistantGateway(),
+            build_assistant_tools(session, identity.company_id, sees_secrets=sees_secrets),
         )
 
     return HostBotService(

@@ -1,6 +1,16 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { login, register, getMe, type LoginInput, type RegisterInput } from '../api/auth'
+import {
+  login,
+  logout,
+  register,
+  getMe,
+  verifyLogin,
+  type LoginInput,
+  type RegisterInput,
+  type TokenResponse,
+} from '../api/auth'
 import { useNavigate } from '@tanstack/react-router'
+import { clearSession, storeSession } from '../api/client'
 
 const AUTH_USER_KEY = 'auth-user'
 
@@ -13,17 +23,36 @@ export function useCurrentUser() {
   })
 }
 
-export function useLogin() {
+function useStartSession() {
   const queryClient = useQueryClient()
   const navigate = useNavigate()
+  return async (tokens: TokenResponse) => {
+    // A new account must not see what the previous one left in the cache.
+    await queryClient.cancelQueries()
+    queryClient.clear()
+    storeSession(tokens)
+    navigate({ to: '/bookings/today' })
+  }
+}
+
+/** With two-factor sign-in on, the answer is a challenge and the page asks for the code. */
+export function useLogin() {
+  const startSession = useStartSession()
   return useMutation({
     mutationFn: (data: LoginInput) => login(data),
-    onSuccess: (tokens) => {
-      localStorage.setItem('access_token', tokens.access_token)
-      localStorage.setItem('refresh_token', tokens.refresh_token)
-      queryClient.invalidateQueries({ queryKey: [AUTH_USER_KEY] })
-      navigate({ to: '/bookings/today' })
+    onSuccess: async (answer) => {
+      if (answer.access_token && answer.refresh_token) {
+        await startSession({ ...answer, access_token: answer.access_token, refresh_token: answer.refresh_token })
+      }
     },
+  })
+}
+
+export function useVerifyLogin() {
+  const startSession = useStartSession()
+  return useMutation({
+    mutationFn: ({ challenge, code }: { challenge: string; code: string }) => verifyLogin(challenge, code),
+    onSuccess: startSession,
   })
 }
 
@@ -32,10 +61,11 @@ export function useRegister() {
   const navigate = useNavigate()
   return useMutation({
     mutationFn: (data: RegisterInput) => register(data),
-    onSuccess: (tokens) => {
-      localStorage.setItem('access_token', tokens.access_token)
-      localStorage.setItem('refresh_token', tokens.refresh_token)
-      queryClient.invalidateQueries({ queryKey: [AUTH_USER_KEY] })
+    onSuccess: async (tokens) => {
+      // A new account must not see what the previous one left in the cache.
+      await queryClient.cancelQueries()
+      queryClient.clear()
+      storeSession(tokens)
       navigate({ to: '/bookings/today' })
     },
   })
@@ -45,8 +75,9 @@ export function useLogout() {
   const queryClient = useQueryClient()
   const navigate = useNavigate()
   return () => {
-    localStorage.removeItem('access_token')
-    localStorage.removeItem('refresh_token')
+    // Local sign-out first; the server is told in the background.
+    logout(localStorage.getItem('refresh_token'))
+    clearSession()
     queryClient.clear()
     navigate({ to: '/login' })
   }

@@ -87,16 +87,37 @@ export async function changePropertyStatus(
 
 // --- Photos ---
 
-export async function uploadPhotos(
+/** One file per request: a failed photo does not take the others down with it. */
+export async function uploadPhoto(
   propertyId: string,
-  files: File[],
-): Promise<Property> {
+  file: File,
+  options: { sortOrder?: number; isCover?: boolean } = {},
+): Promise<void> {
   const formData = new FormData()
-  files.forEach((file) => formData.append('files', file))
-  const res = await apiClient.post(`/properties/${propertyId}/photos`, formData, {
+  formData.append('file', file)
+  formData.append('sort_order', String(options.sortOrder ?? 0))
+  formData.append('is_cover', String(options.isCover ?? false))
+  await apiClient.post(`/properties/${propertyId}/photos/upload`, formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
   })
-  return res.data
+}
+
+/** Uploads in order, numbered from `startAt` so a batch lands after the photos
+ *  already there; resolves to how many failed. */
+export async function uploadPhotos(
+  propertyId: string,
+  photos: { file: File; isCover?: boolean }[],
+  startAt = 0,
+): Promise<number> {
+  let failed = 0
+  for (const [index, photo] of photos.entries()) {
+    try {
+      await uploadPhoto(propertyId, photo.file, { sortOrder: startAt + index, isCover: photo.isCover })
+    } catch {
+      failed += 1
+    }
+  }
+  return failed
 }
 
 export async function deletePhoto(
@@ -119,13 +140,6 @@ export async function reorderPhotos(
 
 export async function listAmenities(): Promise<Amenity[]> {
   const res = await apiClient.get('/amenities')
-  return res.data
-}
-
-export async function createAmenity(
-  data: Pick<Amenity, 'name' | 'category' | 'icon'>,
-): Promise<Amenity> {
-  const res = await apiClient.post('/amenities', data)
   return res.data
 }
 
@@ -269,4 +283,10 @@ export async function assignTags(
   tagIds: string[],
 ): Promise<void> {
   await apiClient.put(`/properties/${propertyId}/tags`, { tag_ids: tagIds })
+}
+
+/** The iCal link to paste into Airbnb and Booking.com (owners and managers only). */
+export async function getCalendarLink(propertyId: string): Promise<string> {
+  const res = await apiClient.get<{ url: string }>(`/properties/${propertyId}/calendar-link`)
+  return res.data.url
 }
