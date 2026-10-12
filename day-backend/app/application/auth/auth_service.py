@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import uuid
 
+from app.application.auth.user_service import MIN_PASSWORD_LENGTH
 from app.domain.auth.entities import Company, User
 from app.domain.auth.repositories import CompanyRepository, UserRepository
 from app.domain.auth.value_objects import UserRole
@@ -72,6 +73,22 @@ class AuthService:
         if not user or not user.is_active or not token_is_current(payload, user):
             raise ValueError("Invalid refresh token")
 
+        return issue_tokens(user)
+
+    async def change_password(self, user_id: uuid.UUID, current_password: str, new_password: str) -> dict:
+        """Set a new password, end every other session, keep this one going."""
+        # Locked: a second change racing this one waits, then finds the
+        # current password already replaced and is refused.
+        user = await self._user_repo.get_for_update(user_id)
+        if user is None or not user.is_active:
+            raise ValueError("User not found")
+        if not verify_password(current_password, user.hashed_password):
+            raise ValueError("Current password is wrong")
+        if len(new_password) < MIN_PASSWORD_LENGTH:
+            raise ValueError(f"Password must be at least {MIN_PASSWORD_LENGTH} characters")
+        user.hashed_password = hash_password(new_password)
+        await self._user_repo.update(user)
+        user = await self._user_repo.bump_token_version(user_id)
         return issue_tokens(user)
 
     async def logout_by_refresh_token(self, refresh_token: str) -> None:

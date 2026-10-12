@@ -17,10 +17,10 @@ logger = logging.getLogger(__name__)
 # Rate limits per minute
 _GET_LIMIT = 100
 _MUTATE_LIMIT = 30
-# The two routes that take a password. Token refresh and the Mini App sign-in
+# The routes that take a password. Token refresh and the Mini App sign-in
 # stay on the ordinary limit: a 429 there drops a live session.
 _AUTH_LIMIT = 10
-_PASSWORD_ROUTES = ("/api/v1/auth/login", "/api/v1/auth/register")
+_PASSWORD_ROUTES = ("/api/v1/auth/login", "/api/v1/auth/register", "/api/v1/auth/change-password")
 
 # Paths excluded from rate limiting
 _EXCLUDED_PATHS = {"/api/v1/health", "/health"}

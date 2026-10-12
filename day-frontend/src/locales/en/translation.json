@@ -706,7 +706,20 @@
     "title": "Settings",
     "language": "Language",
     "languageDescription": "Choose the interface language",
-    "saved": "Settings saved"
+    "saved": "Settings saved",
+    "password": {
+      "title": "Password",
+      "description": "Other devices are signed out after the change",
+      "current": "Current password",
+      "new": "New password",
+      "repeat": "Repeat the new password",
+      "save": "Change password",
+      "changed": "Password changed",
+      "tooShort": "At least 8 characters",
+      "mismatch": "The passwords do not match",
+      "wrongCurrent": "The current password is wrong",
+      "failed": "Could not change the password"
+    }
   },
   "team": {
     "title": "Team & API keys",
