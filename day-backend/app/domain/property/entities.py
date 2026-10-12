@@ -42,6 +42,10 @@ class Property:
     # Details
     rooms: int | None = None
     beds: int | None = None
+    # How many may stay (OTAs need it; beds alone is not the answer) and how
+    # many bathrooms there are.
+    max_guests: int | None = None
+    bathrooms: int | None = None
     area_living: float | None = None
     area_total: float | None = None
 

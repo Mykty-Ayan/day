@@ -49,6 +49,8 @@ function unit(overrides: Partial<AvailableProperty> = {}): AvailableProperty {
     rental_mode: 'daily',
     rooms: 1,
     beds: 1,
+    max_guests: null,
+    bathrooms: null,
     total_price: 25000,
     price_error: null,
     ...overrides,

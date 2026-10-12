@@ -236,7 +236,10 @@
       "wifiName": "Wi-Fi network",
       "wifiNamePlaceholder": "Home 28",
       "wifiPassword": "Wi-Fi password",
-      "wifiPasswordPlaceholder": "Network password"
+      "wifiPasswordPlaceholder": "Network password",
+      "maxGuests": "Max guests",
+      "maxGuestsHint": "How many people may stay: Airbnb and Booking get this number",
+      "bathrooms": "Bathrooms"
     },
     "validation": {
       "nameRequired": "Name is required",

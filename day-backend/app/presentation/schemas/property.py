@@ -35,6 +35,8 @@ class PropertyCreate(BaseModel):
     floor: int | None = None
     rooms: int | None = None
     beds: int | None = None
+    max_guests: int | None = Field(default=None, ge=1, le=50)
+    bathrooms: int | None = Field(default=None, ge=1, le=50)
     area_living: float | None = None
     area_total: float | None = None
     check_in_instructions: str | None = None
@@ -60,6 +62,8 @@ class PropertyUpdate(BaseModel):
     floor: int | None = None
     rooms: int | None = None
     beds: int | None = None
+    max_guests: int | None = Field(default=None, ge=1, le=50)
+    bathrooms: int | None = Field(default=None, ge=1, le=50)
     area_living: float | None = None
     area_total: float | None = None
     check_in_instructions: str | None = None
@@ -90,6 +94,8 @@ class PropertyResponse(BaseModel):
     floor: int | None = None
     rooms: int | None = None
     beds: int | None = None
+    max_guests: int | None = None
+    bathrooms: int | None = None
     area_living: float | None = None
     area_total: float | None = None
     check_in_instructions: str | None = None

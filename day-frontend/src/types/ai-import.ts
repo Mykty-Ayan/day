@@ -12,6 +12,8 @@ export interface MappedPropertyData {
   address_full: string | null
   rooms: number | null
   beds: number | null
+  max_guests: number | null
+  bathrooms: number | null
   area_total: number | null
   area_living: number | null
   floor: number | null

@@ -236,7 +236,10 @@
       "wifiName": "Wi-Fi сеть",
       "wifiNamePlaceholder": "Home 28",
       "wifiPassword": "Пароль Wi-Fi",
-      "wifiPasswordPlaceholder": "Пароль от сети"
+      "wifiPasswordPlaceholder": "Пароль от сети",
+      "maxGuests": "Макс. гостей",
+      "maxGuestsHint": "Сколько человек может жить: это число получают Airbnb и Booking",
+      "bathrooms": "Ванные комнаты"
     },
     "validation": {
       "nameRequired": "Название обязательно",
