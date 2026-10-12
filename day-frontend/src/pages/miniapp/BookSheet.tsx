@@ -6,7 +6,7 @@
  * of guests come from "Sell"; the price is quoted for exactly that.
  */
 
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { CalendarCheck, ShieldAlert } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
@@ -14,8 +14,9 @@ import { calculatePrice, createBooking, listGuests } from '../../api/bookings'
 import { checkBlacklist, type AvailableProperty } from '../../api/miniapp'
 import { phoneDigits } from '../../lib/phone'
 import { confirmAction, resultFeedback } from '../../lib/telegram'
-import type { Booking, BookingCreateInput, BookingSource } from '../../types/booking'
-import { paymentMaybeRecorded } from './booking-card'
+import type { Booking, BookingSource } from '../../types/booking'
+import { loadBookingAttempt, saveBookingAttempt, startBooking, type BookingAttempt } from './book-attempt'
+import { afterFailure } from './booking-card'
 import { errorText } from './errors'
 import { formatDay, formatMoney, formatTime } from './format'
 import { ActionButton, Chip, Field, Sheet } from './miniapp-ui'
@@ -24,6 +25,14 @@ import { useClosingConfirmation } from './useClosingConfirmation'
 
 const SOURCES: BookingSource[] = ['direct', 'airbnb', 'booking', 'other']
 const HOLD_HOURS = 2
+
+function phoneStorage(): Storage | undefined {
+  try {
+    return window.localStorage
+  } catch {
+    return undefined
+  }
+}
 
 export default function BookSheet({
   unit,
@@ -44,10 +53,25 @@ export default function BookSheet({
   const [source, setSource] = useState<BookingSource>('direct')
   const [hold, setHold] = useState(false)
   const [error, setError] = useState('')
-  // The first press freezes the request, hold time included: a retry after a
-  // lost answer must send the same body under the same key, or the server
-  // refuses it and the booking already made is never shown.
-  const [attempt, setAttempt] = useState<{ body: BookingCreateInput; key: string } | null>(null)
+  // A booking sent but not answered, kept on the phone: closing the sheet must
+  // not let the guest be booked into a second flat. A retry sends the same body
+  // under the same key; until then no other booking starts, whichever flat.
+  const [pending, setPendingState] = useState<BookingAttempt | null>(() => loadBookingAttempt(phoneStorage()))
+  function setPending(next: BookingAttempt | null): boolean {
+    const kept = saveBookingAttempt(phoneStorage(), next)
+    setPendingState(next)
+    return kept
+  }
+  // From the press until the request is out (the blacklist check takes a moment).
+  const [checking, setChecking] = useState(false)
+  const pressed = useRef(false)
+  const alive = useRef(true)
+  useEffect(() => {
+    alive.current = true
+    return () => {
+      alive.current = false
+    }
+  }, [])
   useClosingConfirmation(Boolean(unit) && Boolean(name.trim() || phone.trim()))
 
   const open = Boolean(unit && range)
@@ -88,18 +112,19 @@ export default function BookSheet({
   const guestName = name.trim() || guest?.name || ''
 
   const book = useMutation({
-    mutationFn: (frozen: { body: BookingCreateInput; key: string }) => createBooking(frozen.body, frozen.key),
+    mutationFn: (sent: BookingAttempt) => createBooking(sent.body, sent.key),
     onSuccess: (created) => {
-      setAttempt(null)
+      setPending(null)
       resultFeedback('success')
       queryClient.invalidateQueries({ queryKey: ['miniapp'] })
       onBooked(created)
     },
-    onError: (mutationError) => {
+    onError: (mutationError, sent) => {
       resultFeedback('error')
-      // A refusal means nothing was made; otherwise only the same request may follow.
-      if (!paymentMaybeRecorded(mutationError)) {
-        setAttempt(null)
+      // A refusal of the first call means nothing was made; otherwise only the same request may follow.
+      const left = afterFailure(sent, mutationError)
+      setPending(left)
+      if (!left) {
         setError(errorText(mutationError, t('miniapp.book.failed'), t))
         return
       }
@@ -110,29 +135,15 @@ export default function BookSheet({
   })
 
   async function askBook() {
+    // A second tap before the first one's check returns must not book twice.
+    if (pressed.current || pending) return
+    pressed.current = true
+    setChecking(true)
     setError('')
-    if (attempt) {
-      book.mutate(attempt)
-      return
-    }
-    // The answer for this very number, not whatever the field held a moment ago:
-    // the server does not check the blacklist itself.
-    if (digits.length >= 3) {
-      let check: { warned: boolean }
-      try {
-        check = await queryClient.fetchQuery({
-          queryKey: ['miniapp', 'blacklist', digits],
-          queryFn: () => checkBlacklist(digits),
-          staleTime: 60_000,
-        })
-      } catch {
-        resultFeedback('error')
-        setError(t('miniapp.book.checkFailed'))
-        return
-      }
-      if (check.warned && !(await confirmAction(t('miniapp.book.warnedAsk')))) return
-    }
-    const frozen = {
+    // The form as it is now, hold time included; the fields lock until the request is out.
+    const attempt: BookingAttempt = {
+      unit: unit!.name,
+      key: crypto.randomUUID(),
       body: {
         property_id: unit!.property_id,
         guest_name: guestName,
@@ -145,15 +156,46 @@ export default function BookSheet({
         children_count: 0,
         expires_at: hold ? new Date(Date.now() + HOLD_HOURS * 3_600_000).toISOString() : undefined,
       },
-      key: crypto.randomUUID(),
     }
-    setAttempt(frozen)
-    book.mutate(frozen)
+    try {
+      const outcome = await startBooking(attempt, {
+        digits,
+        check: (number) =>
+          queryClient.fetchQuery({
+            queryKey: ['miniapp', 'blacklist', number],
+            queryFn: () => checkBlacklist(number),
+            staleTime: 60_000,
+          }),
+        confirmWarned: () => confirmAction(t('miniapp.book.warnedAsk')),
+        isOpen: () => alive.current,
+        keep: setPending,
+        send: (kept) => book.mutate(kept),
+      })
+      if (outcome === 'checkFailed' || outcome === 'notKept') {
+        if (outcome === 'notKept') setPending(null)
+        resultFeedback('error')
+        setError(t(outcome === 'checkFailed' ? 'miniapp.book.checkFailed' : 'miniapp.book.notKept'))
+      }
+    } finally {
+      pressed.current = false
+      if (alive.current) setChecking(false)
+    }
+  }
+
+  async function askDiscard(stale: BookingAttempt) {
+    const ask = t('miniapp.book.discardAsk', { unit: stale.unit, guest: stale.body.guest_name })
+    if (await confirmAction(ask)) {
+      setPending(null)
+      setError('')
+    }
   }
 
   if (!unit || !range) return null
 
   // The flat's own hours, as availability reports them; the slot itself for hours.
+  // Nothing in the form changes from the press until an answer settles it.
+  const locked = checking || book.isPending || pending !== null
+
   const from = unit.check_in ?? range.checkIn
   const to = unit.check_out ?? range.checkOut
   const when = (value: string) =>
@@ -161,6 +203,19 @@ export default function BookSheet({
 
   return (
     <Sheet open title={unit.name} onClose={onClose}>
+      {pending && (
+        <div role="alert" className="tg-surface space-y-2 rounded-xl px-3 py-3">
+          <p className="text-sm">{t('miniapp.book.pending', { unit: pending.unit, guest: pending.body.guest_name })}</p>
+          <ActionButton tone="primary" disabled={book.isPending} onClick={() => book.mutate(pending)}>
+            <CalendarCheck className="h-4 w-4" />
+            {book.isPending ? t('miniapp.book.saving') : t('miniapp.book.retry')}
+          </ActionButton>
+          <ActionButton disabled={book.isPending} onClick={() => askDiscard(pending)}>
+            {t('miniapp.book.discard')}
+          </ActionButton>
+        </div>
+      )}
+
       <div className="tg-surface rounded-xl px-3 py-3">
         <div className="flex items-baseline justify-between">
           <span className="tg-hint text-xs font-bold uppercase tracking-wide">{t('miniapp.book.total')}</span>
@@ -177,7 +232,7 @@ export default function BookSheet({
         label={t('miniapp.book.guestPhone')}
         value={phone}
         onChange={setPhone}
-        disabled={Boolean(attempt)}
+        disabled={locked}
         type="tel"
         inputMode="tel"
         placeholder="+7 701 000 00 00"
@@ -200,7 +255,7 @@ export default function BookSheet({
         label={t('miniapp.book.guestName')}
         value={name}
         onChange={setName}
-        disabled={Boolean(attempt)}
+        disabled={locked}
         placeholder={guest?.name || t('miniapp.book.namePlaceholder')}
       />
 
@@ -212,7 +267,7 @@ export default function BookSheet({
               key={value}
               label={t(`bookings.sources.${value}`)}
               active={source === value}
-              onClick={() => !attempt && setSource(value)}
+              onClick={() => !locked && setSource(value)}
             />
           ))}
         </div>
@@ -222,7 +277,7 @@ export default function BookSheet({
         <input
           type="checkbox"
           checked={hold}
-          disabled={Boolean(attempt)}
+          disabled={locked}
           onChange={(event) => setHold(event.target.checked)}
           className="mt-1"
         />
@@ -238,10 +293,12 @@ export default function BookSheet({
         </p>
       )}
 
-      <ActionButton tone="primary" disabled={!guestName || book.isPending} onClick={askBook}>
-        <CalendarCheck className="h-4 w-4" />
-        {book.isPending ? t('miniapp.book.saving') : attempt ? t('miniapp.book.retry') : t('miniapp.book.confirm')}
-      </ActionButton>
+      {!pending && (
+        <ActionButton tone="primary" disabled={!guestName || locked} onClick={askBook}>
+          <CalendarCheck className="h-4 w-4" />
+          {locked ? t('miniapp.book.saving') : t('miniapp.book.confirm')}
+        </ActionButton>
+      )}
     </Sheet>
   )
 }
