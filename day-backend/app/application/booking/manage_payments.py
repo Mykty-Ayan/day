@@ -6,7 +6,7 @@ from decimal import Decimal
 
 from app.application.booking.change_booking_status import ChangeBookingStatusService
 from app.domain.booking.entities import Booking, BookingPayment
-from app.domain.booking.exceptions import IdempotencyKeyReusedError
+from app.domain.booking.exceptions import IdempotencyKeyReusedError, IdempotencyKeyVoidedError
 from app.domain.booking.repositories import (
     BookingAuditLogRepository,
     BookingPaymentRepository,
@@ -68,6 +68,20 @@ class ManagePaymentsService:
         payment = await self._payment_repo.get_by_idempotency_key(booking_id, key)
         if payment is not None and payment.idempotency_hash != request_hash:
             raise IdempotencyKeyReusedError()
+        if payment is None and await self._payment_repo.idempotency_key_voided(booking_id, key):
+            raise IdempotencyKeyVoidedError()
+        return payment
+
+    async def void_payment_key(self, booking_id: uuid.UUID, company_id: uuid.UUID, key: str) -> BookingPayment | None:
+        """Settle a payment whose answer was lost: the payment it recorded, or None.
+
+        As CreateBookingService.void: None closes the key for this booking.
+        """
+        await self._own_booking(booking_id, company_id)
+        await self._payment_repo.lock_idempotency_key(booking_id, key)
+        payment = await self._payment_repo.get_by_idempotency_key(booking_id, key)
+        if payment is None:
+            await self._payment_repo.void_idempotency_key(company_id, booking_id, key)
         return payment
 
     async def add_payment(
