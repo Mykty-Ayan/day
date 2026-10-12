@@ -37,7 +37,7 @@ import {
   withMoneyLock,
   type MoneyAttempt,
 } from './booking-card'
-import { cardRead, readyToAct } from './card-state'
+import { cardRead, readyToAct, secretsFresh } from './card-state'
 import { formatDay, formatMoney, formatTime } from './format'
 import DepositRow from './DepositRow'
 import { errorText } from './errors'
@@ -128,14 +128,18 @@ export default function BookingSheet({
     // Someone else (the CRM, the web) may have moved it since the last look.
     ...cardRead(['miniapp', 'booking', opened?.id], (signal) => getBooking(opened!.id, signal)),
     enabled: Boolean(opened),
+    // Kept current while the card is open: the guest text carries the lockbox
+    // code only with a read from the last seconds.
+    refetchInterval: 10_000,
   })
   const booking = fresh.data?.booking ?? opened
   // Acting on a booking read before this card opened sends old dates or statuses.
   const settling = !readyToAct(fresh, openedAt)
 
+  // Read on every open, like the booking: Wi-Fi and guest-only facts depend on
+  // the caller's rights, which may have changed since a cached read.
   const property = useQuery({
-    queryKey: ['miniapp', 'property', booking?.property_id],
-    queryFn: () => getProperty(booking!.property_id),
+    ...cardRead(['miniapp', 'property', booking?.property_id], (signal) => getProperty(booking!.property_id, signal)),
     enabled: Boolean(booking),
   })
 
@@ -253,7 +257,10 @@ export default function BookingSheet({
   const hourly = booking.rental_mode === 'hourly'
   const digits = phoneDigits(booking.guest_phone)
   const amountValue = Number(amount)
-  const checkInText = buildCheckInMessage(booking, property.data, lang, t, !settling)
+  // The lockbox code only with a booking read in the last seconds and the flat
+  // read since the card opened: the CRM may cancel the stay while the card is open.
+  const secretsOk = secretsFresh(fresh, openedAt, Date.now()) && readyToAct(property, openedAt)
+  const checkInText = buildCheckInMessage(booking, property.data, lang, t, secretsOk)
   const money = (value: number) => `${formatMoney(value, lang)} ₸`
   const when = (value: string) => `${formatDay(value, lang)} ${formatTime(value, lang)}`
 
