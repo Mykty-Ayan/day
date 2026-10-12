@@ -14,6 +14,22 @@ from app.infrastructure.security import (
 )
 
 
+def issue_tokens(user: User) -> dict:
+    return {
+        "access_token": create_access_token(user.id, user.company_id, user.role.value, user.token_version),
+        "refresh_token": create_refresh_token(user.id, user.company_id, user.role.value, user.token_version),
+        "token_type": "bearer",
+    }
+
+
+def token_is_current(payload: dict, user: User) -> bool:
+    """A token from before the last sign-out, role change or new password is void.
+
+    Tokens issued before versions existed carry no "tv" and count as 0.
+    """
+    return payload.get("tv", 0) == user.token_version
+
+
 class AuthService:
     def __init__(self, user_repo: UserRepository, company_repo: CompanyRepository) -> None:
         self._user_repo = user_repo
@@ -35,11 +51,7 @@ class AuthService:
         )
         user = await self._user_repo.save(user)
 
-        return {
-            "access_token": create_access_token(user.id, user.company_id, user.role.value),
-            "refresh_token": create_refresh_token(user.id, user.company_id, user.role.value),
-            "token_type": "bearer",
-        }
+        return issue_tokens(user)
 
     async def login(self, email: str, password: str) -> dict:
         user = await self._user_repo.get_by_email(email)
@@ -48,11 +60,7 @@ class AuthService:
         if not user.is_active:
             raise ValueError("Account is disabled")
 
-        return {
-            "access_token": create_access_token(user.id, user.company_id, user.role.value),
-            "refresh_token": create_refresh_token(user.id, user.company_id, user.role.value),
-            "token_type": "bearer",
-        }
+        return issue_tokens(user)
 
     async def refresh(self, refresh_token: str) -> dict:
         payload = decode_token(refresh_token)
@@ -61,14 +69,21 @@ class AuthService:
 
         user_id = uuid.UUID(payload["sub"])
         user = await self._user_repo.get_by_id(user_id)
-        if not user or not user.is_active:
+        if not user or not user.is_active or not token_is_current(payload, user):
             raise ValueError("Invalid refresh token")
 
-        return {
-            "access_token": create_access_token(user.id, user.company_id, user.role.value),
-            "refresh_token": create_refresh_token(user.id, user.company_id, user.role.value),
-            "token_type": "bearer",
-        }
+        return issue_tokens(user)
+
+    async def logout_by_refresh_token(self, refresh_token: str) -> None:
+        """Sign the user out everywhere. Quietly does nothing for a token that is
+        invalid or already revoked: there is no session left to end."""
+        payload = decode_token(refresh_token)
+        if not payload or payload.get("type") != "refresh":
+            return
+        user = await self._user_repo.get_by_id(uuid.UUID(payload["sub"]))
+        if user is None or not token_is_current(payload, user):
+            return
+        await self._user_repo.bump_token_version(user.id)
 
     async def get_current_user(self, user_id: uuid.UUID) -> User | None:
         return await self._user_repo.get_by_id(user_id)

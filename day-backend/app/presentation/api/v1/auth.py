@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.application.auth.auth_service import AuthService
-from app.application.auth.telegram_login import TelegramLoginService, TelegramNotLinked
+from app.application.auth.telegram_login import TelegramLoginService, TelegramNotLinked, TelegramSessionEnded
 from app.config import settings
 from app.infrastructure.database import get_session
 from app.infrastructure.login_throttle import LoginThrottle, get_login_throttle
@@ -14,6 +14,7 @@ from app.infrastructure.telegram_init_data import InitDataError, verify_init_dat
 from app.presentation.api.deps import get_current_user
 from app.presentation.schemas.auth import (
     LoginRequest,
+    LogoutRequest,
     RefreshRequest,
     RegisterRequest,
     TelegramMiniAppRequest,
@@ -89,8 +90,22 @@ async def telegram_miniapp_login(
     svc = TelegramLoginService(SqlChannelIdentityRepository(session), SqlUserRepository(session))
     try:
         return await svc.issue_tokens(telegram_user)
+    except TelegramSessionEnded as e:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(e))
     except TelegramNotLinked as e:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
+
+
+@auth_router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
+async def logout(body: LogoutRequest, session: AsyncSession = Depends(get_session)):
+    """Sign out everywhere: every access and refresh token of this user stops working.
+
+    Identified by the refresh token, so it works after the access token has
+    expired. One version per user, so this also ends the Mini App's session;
+    it signs in again from a fresh open in Telegram.
+    """
+    await _auth_service(session).logout_by_refresh_token(body.refresh_token)
+    await session.commit()
 
 
 @auth_router.get("/me", response_model=UserResponse)

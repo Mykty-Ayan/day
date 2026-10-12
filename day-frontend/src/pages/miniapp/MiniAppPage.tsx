@@ -22,6 +22,7 @@ import {
 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { getTodayChecks, listBookings } from '../../api/bookings'
+import { storeSession } from '../../api/client'
 import { getAvailability, telegramMiniAppLogin, type AvailableProperty } from '../../api/miniapp'
 import { listAllProperties } from '../../api/properties'
 import { copyText, getInitData, initTelegram, isInsideTelegram, tapFeedback } from '../../lib/telegram'
@@ -78,9 +79,7 @@ export default function MiniAppPage() {
         return
       }
       try {
-        const tokens = await telegramMiniAppLogin(getInitData())
-        localStorage.setItem('access_token', tokens.access_token)
-        localStorage.setItem('refresh_token', tokens.refresh_token)
+        storeSession(await telegramMiniAppLogin(getInitData()))
         setAuthState('ready')
       } catch (error) {
         const detail = (error as { response?: { data?: { detail?: string } } }).response?.data

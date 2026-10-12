@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { login, register, getMe, type LoginInput, type RegisterInput } from '../api/auth'
+import { login, logout, register, getMe, type LoginInput, type RegisterInput } from '../api/auth'
 import { useNavigate } from '@tanstack/react-router'
+import { clearSession, storeSession } from '../api/client'
 
 const AUTH_USER_KEY = 'auth-user'
 
@@ -19,8 +20,7 @@ export function useLogin() {
   return useMutation({
     mutationFn: (data: LoginInput) => login(data),
     onSuccess: (tokens) => {
-      localStorage.setItem('access_token', tokens.access_token)
-      localStorage.setItem('refresh_token', tokens.refresh_token)
+      storeSession(tokens)
       queryClient.invalidateQueries({ queryKey: [AUTH_USER_KEY] })
       navigate({ to: '/bookings/today' })
     },
@@ -33,8 +33,7 @@ export function useRegister() {
   return useMutation({
     mutationFn: (data: RegisterInput) => register(data),
     onSuccess: (tokens) => {
-      localStorage.setItem('access_token', tokens.access_token)
-      localStorage.setItem('refresh_token', tokens.refresh_token)
+      storeSession(tokens)
       queryClient.invalidateQueries({ queryKey: [AUTH_USER_KEY] })
       navigate({ to: '/bookings/today' })
     },
@@ -45,8 +44,9 @@ export function useLogout() {
   const queryClient = useQueryClient()
   const navigate = useNavigate()
   return () => {
-    localStorage.removeItem('access_token')
-    localStorage.removeItem('refresh_token')
+    // Local sign-out first; the server is told in the background.
+    logout(localStorage.getItem('refresh_token'))
+    clearSession()
     queryClient.clear()
     navigate({ to: '/login' })
   }

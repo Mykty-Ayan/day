@@ -8,15 +8,21 @@ nothing.
 
 from __future__ import annotations
 
+from datetime import datetime, timezone
+
+from app.application.auth.auth_service import issue_tokens
 from app.domain.auth.repositories import UserRepository
 from app.domain.messaging.repositories import ChannelIdentityRepository
 from app.domain.messaging.value_objects import Channel
-from app.infrastructure.security import create_access_token, create_refresh_token
 from app.infrastructure.telegram_init_data import TelegramUser
 
 
 class TelegramNotLinked(ValueError):
     """The Telegram account has no active link to a company."""
+
+
+class TelegramSessionEnded(ValueError):
+    """The blob was signed before the user's sessions were ended; a fresh open of the app makes a new one."""
 
 
 class TelegramLoginService:
@@ -47,8 +53,9 @@ class TelegramLoginService:
             # rather than hand out a token for the wrong tenant.
             raise TelegramNotLinked("The link is stale, reconnect the chat")
 
-        return {
-            "access_token": create_access_token(user.id, user.company_id, user.role.value),
-            "refresh_token": create_refresh_token(user.id, user.company_id, user.role.value),
-            "token_type": "bearer",
-        }
+        if user.tokens_revoked_at is not None and telegram_user.auth_date:
+            signed_at = datetime.fromtimestamp(telegram_user.auth_date, tz=timezone.utc).replace(tzinfo=None)
+            if signed_at < user.tokens_revoked_at:
+                raise TelegramSessionEnded("The session has ended, reopen the app")
+
+        return issue_tokens(user)

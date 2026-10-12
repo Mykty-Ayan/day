@@ -18,7 +18,16 @@ class UserRepository(abc.ABC):
     async def save(self, user: User) -> User: ...
 
     @abc.abstractmethod
-    async def update(self, user: User) -> User: ...
+    async def update(self, user: User) -> User:
+        """Write the user's fields — never token_version, see bump_token_version."""
+
+    @abc.abstractmethod
+    async def get_for_update(self, user_id: uuid.UUID) -> User | None:
+        """The current user, locked until the transaction ends."""
+
+    @abc.abstractmethod
+    async def bump_token_version(self, user_id: uuid.UUID) -> User:
+        """End every session of the user, atomically; returns the user as stored."""
 
     @abc.abstractmethod
     async def list_by_company(

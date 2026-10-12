@@ -14,6 +14,10 @@ class RegisterRequest(BaseModel):
     company_name: str
 
 
+class LogoutRequest(BaseModel):
+    refresh_token: str
+
+
 class LoginRequest(BaseModel):
     email: EmailStr
     password: str

@@ -20,6 +20,7 @@ from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.application.auth.auth_service import token_is_current
 from app.domain.auth.permissions import permissions_for_role
 from app.domain.auth.value_objects import UserRole
 from app.infrastructure.database import get_session
@@ -72,6 +73,8 @@ async def _principal_from_jwt(token: str, session: AsyncSession) -> Principal | 
     # since it was issued, so account state is re-checked on every request.
     user = await SqlUserRepository(session).get_by_id(user_id)
     if user is None or not user.is_active or user.company_id != company_id:
+        return None
+    if not token_is_current(payload, user):
         return None
 
     return Principal(
