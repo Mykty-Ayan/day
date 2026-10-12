@@ -5,7 +5,7 @@
  * undone go through a confirmation first.
  */
 
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { BedDouble, CheckCircle2, Copy, LogIn, LogOut, Phone, Send, Wallet, XCircle } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
@@ -29,6 +29,7 @@ import {
   afterFailure,
   nextCall,
   phoneDigits,
+  receiveOutcome,
   sameAttempt,
   saveAttempt,
   settlement,
@@ -99,6 +100,14 @@ export default function BookingSheet({
   const [error, setError] = useState('')
   const [copied, setCopied] = useState(false)
   const [openedAt] = useState(() => Date.now())
+  // A check still out when the card closes must not act on what it reads.
+  const alive = useRef(true)
+  useEffect(() => {
+    alive.current = true
+    return () => {
+      alive.current = false
+    }
+  }, [])
   // A payment whose answer never came: it may be recorded already. Until it is
   // settled by a retry with the same key, no other payment is started.
   // Restored when the card opens: it may have been closed while the call was out.
@@ -287,8 +296,8 @@ export default function BookingSheet({
 
   // Settles an attempt whose answer was lost, on the server. For a payment the
   // key is voided under its lock: either it recorded the payment, or it never
-  // will, even if the first send is still on its way. Confirming a payment
-  // twice is harmless, so for "received" a fresh read is enough.
+  // will, even if the first send is still on its way. "Received" has no key:
+  // a fresh read settles it only once the payment shows completed.
   async function checkAttempt(attempt: MoneyAttempt) {
     setChecking(true)
     try {
@@ -305,12 +314,18 @@ export default function BookingSheet({
         refresh()
         return
       }
-      const detail = await getBooking(booking!.id)
-      queryClient.setQueryData(['miniapp', 'booking', booking!.id], detail)
+      // The card's own read: cancelled if the card closes, never a stale answer
+      // written into the cache as fresh.
+      const startedAt = Date.now()
+      const read = await fresh.refetch()
+      if (!alive.current) return
+      if (!read.isSuccess || read.dataUpdatedAt < startedAt) return fail(read.error)
+      const outcome = receiveOutcome(read.data.payments.find((item) => item.id === attempt.paymentId))
+      // Still pending: the lost confirm may land yet, so only a retry may follow.
+      if (outcome === 'waiting') return setError(t('miniapp.booking.notReceived', { amount: money(attempt.amount) }))
       settled(attempt)
-      const payment = detail.payments.find((item) => item.id === attempt.paymentId)
-      if (payment?.status === 'completed') return done(false)
-      setError(t('miniapp.booking.notReceived', { amount: money(attempt.amount) }))
+      if (outcome === 'received') return done(false)
+      setError(t('miniapp.booking.receiveGone', { amount: money(attempt.amount) }))
     } catch (checkError) {
       fail(checkError)
     } finally {
