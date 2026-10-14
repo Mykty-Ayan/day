@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { ArrowLeft, ArrowRight, Check, Loader2 } from 'lucide-react'
 import { useNavigate, useParams } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
+import { isWebLink } from '../../lib/utils'
 import Spinner from '../../components/ui/Spinner'
 import { useProperty, useUpdateProperty } from '../../hooks/useProperties'
 import type { CheckInMethod, Property, PropertyType, PropertyUpdateInput } from '../../types/property'
@@ -21,6 +22,9 @@ interface FormData {
     type: PropertyType
     description: string
     source_url: string
+    map_url: string
+    whatsapp_product_url: string
+    video_url: string
   }
   address: {
     address_full: string
@@ -28,6 +32,8 @@ interface FormData {
     entrance: string
     block: string
     floor: string
+    complex_name: string
+    floors_total: string
     latitude: string
     longitude: string
   }
@@ -59,6 +65,9 @@ function propertyToForm(property: Property): FormData {
       type: property.type || 'apartment',
       description: property.description || '',
       source_url: property.source_url || '',
+      map_url: property.map_url || '',
+      whatsapp_product_url: property.whatsapp_product_url || '',
+      video_url: property.video_url || '',
     },
     address: {
       address_full: property.address_full || '',
@@ -66,6 +75,8 @@ function propertyToForm(property: Property): FormData {
       entrance: property.entrance || '',
       block: property.block || '',
       floor: property.floor != null ? String(property.floor) : '',
+      complex_name: property.complex_name || '',
+      floors_total: property.floors_total != null ? String(property.floors_total) : '',
       latitude: property.latitude != null ? String(property.latitude) : '',
       longitude: property.longitude != null ? String(property.longitude) : '',
     },
@@ -124,6 +135,9 @@ function EditPropertyForm({ property, propertyId }: { property: Property; proper
     if (step === 0) {
       if (!form.basic.name.trim()) newErrors.name = t('properties.validation.nameRequired')
       if (!form.basic.internal_name.trim()) newErrors.internal_name = t('properties.validation.internalNameRequired')
+      for (const key of ['map_url', 'whatsapp_product_url', 'video_url'] as const) {
+        if (form.basic[key].trim() && !isWebLink(form.basic[key])) newErrors[key] = t('properties.validation.webLink')
+      }
     }
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
@@ -149,11 +163,16 @@ function EditPropertyForm({ property, propertyId }: { property: Property; proper
       type: form.basic.type,
       description: form.basic.description || undefined,
       source_url: form.basic.source_url || undefined,
+      map_url: form.basic.map_url.trim() || null,
+      whatsapp_product_url: form.basic.whatsapp_product_url.trim() || null,
+      video_url: form.basic.video_url.trim() || null,
       address_full: form.address.address_full || undefined,
       apartment_number: form.address.apartment_number || undefined,
       entrance: form.address.entrance || undefined,
       block: form.address.block || undefined,
       floor: form.address.floor ? parseInt(form.address.floor) : undefined,
+      complex_name: form.address.complex_name.trim() || null,
+      floors_total: form.address.floors_total ? parseInt(form.address.floors_total) : null,
       latitude: form.address.latitude ? parseFloat(form.address.latitude) : undefined,
       longitude: form.address.longitude ? parseFloat(form.address.longitude) : undefined,
       rooms: form.details.rooms ? parseInt(form.details.rooms) : undefined,

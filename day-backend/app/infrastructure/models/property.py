@@ -38,6 +38,11 @@ class PropertyModel(Base):
     entrance: Mapped[str | None] = mapped_column(String(50), nullable=True)
     block: Mapped[str | None] = mapped_column(String(50), nullable=True)
     floor: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    complex_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    floors_total: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    map_url: Mapped[str | None] = mapped_column(String(1024), nullable=True)
+    whatsapp_product_url: Mapped[str | None] = mapped_column(String(1024), nullable=True)
+    video_url: Mapped[str | None] = mapped_column(String(1024), nullable=True)
 
     # Details
     rooms: Mapped[int | None] = mapped_column(Integer, nullable=True)

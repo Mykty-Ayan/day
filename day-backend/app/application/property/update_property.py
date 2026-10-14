@@ -30,6 +30,11 @@ class UpdatePropertyInput:
     entrance: object = _UNSET
     block: object = _UNSET
     floor: object = _UNSET
+    complex_name: object = _UNSET
+    floors_total: object = _UNSET
+    map_url: object = _UNSET
+    whatsapp_product_url: object = _UNSET
+    video_url: object = _UNSET
     rooms: object = _UNSET
     beds: object = _UNSET
     max_guests: object = _UNSET
@@ -53,6 +58,7 @@ _UPDATABLE_FIELDS = {
     "name", "internal_name", "type", "rental_mode", "description", "source_url",
     "latitude", "longitude", "address_full", "apartment_number",
     "entrance", "block", "floor", "rooms", "beds", "max_guests", "bathrooms",
+    "complex_name", "floors_total", "map_url", "whatsapp_product_url", "video_url",
     "check_in_hour", "check_out_hour", "check_in_method",
     "area_living", "area_total",
     "check_in_instructions", "check_out_instructions", "house_rules",

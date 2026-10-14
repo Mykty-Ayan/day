@@ -17,6 +17,7 @@ import {
   Users,
   Bath,
   ImagePlus,
+  ExternalLink,
 } from 'lucide-react'
 import { useParams, Link, useNavigate } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
@@ -348,19 +349,53 @@ export default function PropertyDetailPage() {
                   </div>
                 </div>
               </div>
-              {property.address_full && (
+              {(property.address_full || property.complex_name) && (
                 <div className="flex items-start gap-2 mt-4 pt-4 border-t border-gray-100">
                   <MapPin className="w-4 h-4 text-gray-400 mt-0.5" />
                   <div>
                     <p className="text-xs text-gray-500">{t('properties.address')}</p>
-                    <p className="text-sm text-gray-900">{property.address_full}</p>
+                    <p className="text-sm text-gray-900">
+                      {[property.complex_name, property.address_full].filter(Boolean).join(', ')}
+                    </p>
                     {(property.apartment_number || property.floor) && (
                       <p className="text-xs text-gray-500 mt-0.5">
                         {property.apartment_number && t('properties.apt', { number: property.apartment_number })}
                         {property.apartment_number && property.floor && ', '}
-                        {property.floor && t('properties.floor', { number: property.floor })}
+                        {property.floor &&
+                          (property.floors_total
+                            ? t('properties.floorOf', { number: property.floor, total: property.floors_total })
+                            : t('properties.floor', { number: property.floor }))}
                       </p>
                     )}
+                  </div>
+                </div>
+              )}
+              {(property.map_url || property.whatsapp_product_url || property.video_url) && (
+                <div className="flex items-start gap-2 mt-4 pt-4 border-t border-gray-100">
+                  <ExternalLink className="w-4 h-4 text-gray-400 mt-0.5" />
+                  <div>
+                    <p className="text-xs text-gray-500">{t('properties.links')}</p>
+                    <div className="flex flex-wrap gap-x-4 gap-y-1">
+                      {(
+                        [
+                          [property.map_url, 'mapUrl'],
+                          [property.whatsapp_product_url, 'whatsappProductUrl'],
+                          [property.video_url, 'videoUrl'],
+                        ] as const
+                      ).map(([url, label]) =>
+                        url ? (
+                          <a
+                            key={label}
+                            href={url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-sm text-blue-600 hover:underline"
+                          >
+                            {t(`properties.form.${label}`)}
+                          </a>
+                        ) : null,
+                      )}
+                    </div>
                   </div>
                 </div>
               )}

@@ -160,6 +160,8 @@
     "address": "Адрес",
     "apt": "Кв. {{number}}",
     "floor": "Этаж {{number}}",
+    "floorOf": "Этаж {{number}} из {{total}}",
+    "links": "Ссылки",
     "pricingSaved": "Цены сохранены",
     "failedSavePricing": "Не удалось сохранить цены",
     "seasonalPriceAdded": "Сезонная цена добавлена",
@@ -218,6 +220,16 @@
       "internalNamePlaceholder": "APT-001-Center",
       "descriptionPlaceholder": "Прекрасный объект в самом сердце города...",
       "sourceUrlPlaceholder": "https://booking.com/...",
+      "complexName": "Жилой комплекс",
+      "complexNamePlaceholder": "ЖК Expo Boulevard",
+      "floorsTotal": "Этажей в доме",
+      "floorsTotalPlaceholder": "9",
+      "mapUrl": "Ссылка на карту",
+      "mapUrlPlaceholder": "https://go.2gis.com/...",
+      "whatsappProductUrl": "Товар в каталоге WhatsApp",
+      "whatsappProductUrlPlaceholder": "https://wa.me/p/...",
+      "videoUrl": "Видеообзор",
+      "videoUrlPlaceholder": "https://www.instagram.com/reel/...",
       "fullAddressPlaceholder": "ул. Абая 10, город, страна",
       "apartmentNumberPlaceholder": "4Б",
       "entrancePlaceholder": "А",
@@ -249,7 +261,8 @@
     },
     "validation": {
       "nameRequired": "Название обязательно",
-      "internalNameRequired": "Внутреннее название обязательно"
+      "internalNameRequired": "Внутреннее название обязательно",
+      "webLink": "Ссылка должна начинаться с https://"
     },
     "amenityCategories": {
       "bathroom": "Ванная",

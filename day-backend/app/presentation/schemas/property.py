@@ -3,8 +3,9 @@ from __future__ import annotations
 import uuid
 from datetime import date, datetime
 from decimal import Decimal
+from typing import Annotated
 
-from pydantic import AliasChoices, BaseModel, ConfigDict, Field, computed_field, model_validator
+from pydantic import AliasChoices, BaseModel, ConfigDict, Field, StringConstraints, computed_field, model_validator
 
 from app.domain.booking.value_objects import RentalMode
 from app.domain.property.value_objects import (
@@ -18,6 +19,9 @@ from app.domain.property.value_objects import (
 )
 
 # ---------- Property ----------
+
+# A link the web shows and the CRM sends to guests: a web address and nothing else.
+WebLink = Annotated[str, StringConstraints(strip_whitespace=True, max_length=1024, pattern=r"^https?://\S+$")]
 
 
 class _TurnoverHours(BaseModel):
@@ -45,6 +49,11 @@ class PropertyCreate(_TurnoverHours):
     entrance: str | None = None
     block: str | None = None
     floor: int | None = None
+    complex_name: str | None = Field(default=None, max_length=255)
+    floors_total: int | None = Field(default=None, ge=1, le=200)
+    map_url: WebLink | None = None
+    whatsapp_product_url: WebLink | None = None
+    video_url: WebLink | None = None
     rooms: int | None = None
     beds: int | None = None
     max_guests: int | None = Field(default=None, ge=1, le=50)
@@ -75,6 +84,11 @@ class PropertyUpdate(_TurnoverHours):
     entrance: str | None = None
     block: str | None = None
     floor: int | None = None
+    complex_name: str | None = Field(default=None, max_length=255)
+    floors_total: int | None = Field(default=None, ge=1, le=200)
+    map_url: WebLink | None = None
+    whatsapp_product_url: WebLink | None = None
+    video_url: WebLink | None = None
     rooms: int | None = None
     beds: int | None = None
     max_guests: int | None = Field(default=None, ge=1, le=50)
@@ -110,6 +124,11 @@ class PropertyResponse(BaseModel):
     entrance: str | None = None
     block: str | None = None
     floor: int | None = None
+    complex_name: str | None = None
+    floors_total: int | None = None
+    map_url: str | None = None
+    whatsapp_product_url: str | None = None
+    video_url: str | None = None
     rooms: int | None = None
     beds: int | None = None
     max_guests: int | None = None

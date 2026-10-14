@@ -160,6 +160,8 @@
     "address": "Address",
     "apt": "Apt {{number}}",
     "floor": "Floor {{number}}",
+    "floorOf": "Floor {{number}} of {{total}}",
+    "links": "Links",
     "pricingSaved": "Pricing saved",
     "failedSavePricing": "Failed to save pricing",
     "seasonalPriceAdded": "Seasonal price added",
@@ -218,6 +220,16 @@
       "internalNamePlaceholder": "APT-001-Downtown",
       "descriptionPlaceholder": "A beautiful property in the heart of the city...",
       "sourceUrlPlaceholder": "https://booking.com/...",
+      "complexName": "Residential complex",
+      "complexNamePlaceholder": "Expo Boulevard",
+      "floorsTotal": "Floors in the building",
+      "floorsTotalPlaceholder": "9",
+      "mapUrl": "Map link",
+      "mapUrlPlaceholder": "https://go.2gis.com/...",
+      "whatsappProductUrl": "WhatsApp catalog product",
+      "whatsappProductUrlPlaceholder": "https://wa.me/p/...",
+      "videoUrl": "Video tour",
+      "videoUrlPlaceholder": "https://www.instagram.com/reel/...",
       "fullAddressPlaceholder": "123 Main Street, City, Country",
       "apartmentNumberPlaceholder": "4B",
       "entrancePlaceholder": "A",
@@ -249,7 +261,8 @@
     },
     "validation": {
       "nameRequired": "Name is required",
-      "internalNameRequired": "Internal name is required"
+      "internalNameRequired": "Internal name is required",
+      "webLink": "The link must start with https://"
     },
     "amenityCategories": {
       "bathroom": "Bathroom",
