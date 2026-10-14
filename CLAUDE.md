@@ -82,13 +82,16 @@ Ports: Backend `:8000` (API at `/api/v1`), Frontend `:3000`, PostgreSQL `:5432`,
 
 Core PMS (auth, properties, bookings, cleaning, analytics) is complete and in production.
 Shipped on top of it: pricing suggestions, AI assistant with Telegram bot and Mini App, lead
-exchange + guest blacklist, listing import through `ai-service`. Channex integration works on
-staging and waits on certification before production. Curated project knowledge lives in
-`.omc/wiki/` (see below).
+exchange + guest blacklist, listing import through `ai-service`. Production runs 0.4.0
+(`CHANGELOG.md`): the API the CRM `aidyn_crm` uses (booking feed, bookings and payments with
+`Idempotency-Key` and its void endpoint, holds with an expiry, guest by phone, apartment facts),
+the Mini App for the operator (today, sell, flats, booking card with money) and for a cleaner
+("My cleanings"). Channex integration works on staging and waits on certification before
+production. Curated project knowledge lives in `.omc/wiki/` (see below).
 
 ## Key Patterns
 
-- Multi-tenancy: all queries scoped by `company_id` header
+- Multi-tenancy: all queries scoped by `company_id`, taken from the session token or the API key (`get_company_id`), never from a header
 - Repository pattern with abstract interfaces in domain, SQL implementations in infrastructure
 - Dependency injection: services receive repository instances
 - Audit logging on domain changes
