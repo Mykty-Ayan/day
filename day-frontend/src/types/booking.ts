@@ -173,6 +173,8 @@ export interface BookingCreateInput {
   children_count: number
   gantt_color?: string
   notes?: string
+  /** A hold: the booking cancels itself at this instant unless confirmed. With its zone. */
+  expires_at?: string
 }
 
 export interface BookingUpdateInput {
@@ -206,6 +208,8 @@ export interface PaymentInput {
 
 export interface DepositInput {
   amount: number
+  /** Refused with 409 while the booking has a deposit not returned yet. */
+  unless_open?: boolean
 }
 
 export interface DepositActionInput {
@@ -235,6 +239,8 @@ export interface MoveBookingInput {
 
 export interface GuestFilters {
   search?: string
+  /** Exact: 8…, +7… and 7… are one number. */
+  phone?: string
   offset?: number
   limit?: number
 }

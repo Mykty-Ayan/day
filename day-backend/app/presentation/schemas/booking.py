@@ -205,7 +205,8 @@ class BookingListResponse(BaseModel):
 
 
 class PaymentCreate(BaseModel):
-    amount: Decimal = Field(..., gt=0)
+    # The column is Numeric(12, 2): a larger figure fails in the database as a 500.
+    amount: Decimal = Field(..., gt=0, le=Decimal("9999999999.99"))
     type: PaymentType = PaymentType.PAYMENT
     method: PaymentMethod = PaymentMethod.CASH
     note: str | None = None
@@ -233,11 +234,28 @@ class PaymentResponse(BaseModel):
     created_at: datetime | None = None
 
 
+class BookingKeyVoidResponse(BaseModel):
+    """What came of a create sent with an Idempotency-Key: its booking, or the key is now closed."""
+
+    voided: bool
+    booking: BookingResponse | None = None
+
+
+class PaymentKeyVoidResponse(BaseModel):
+    """What came of a payment sent with an Idempotency-Key: its payment, or the key is now closed."""
+
+    voided: bool
+    payment: PaymentResponse | None = None
+
+
 # ---------- Deposit ----------
 
 
 class DepositCreate(BaseModel):
     amount: Decimal = Field(..., gt=0)
+    # Take it only if the booking has no deposit that is not returned yet (409
+    # otherwise): a retried press then cannot take the guest's deposit twice.
+    unless_open: bool = False
 
 
 class DepositAction(BaseModel):
@@ -396,19 +414,10 @@ class GanttDataResponse(BaseModel):
 # ---------- Today ----------
 
 
-class TodayBookingItem(BaseModel):
-    id: uuid.UUID
-    guest_name: str
-    property_name: str
-    property_internal_name: str
+class TodayBookingItem(BookingResponse):
+    """A whole booking: the Mini App opens these rows as booking cards (money, guest, flat)."""
+
     property_status: PropertyStatus | None = None
-    check_in: datetime
-    check_out: datetime
-    rental_mode: RentalMode = RentalMode.DAILY
-    status: BookingStatus
-    adults_count: int
-    children_count: int
-    overbooking: bool = False
 
 
 class TodayCheckResponse(BaseModel):

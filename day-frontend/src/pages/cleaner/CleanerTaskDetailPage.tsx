@@ -26,11 +26,13 @@ import type { CleaningStatus, CleaningType, RoomType } from '../../types/cleanin
 import { getChecklistTemplate as fetchChecklistTemplate } from '../../api/cleaning'
 import { showToast } from '../../components/ui/Toast'
 
+// A cleaner's own steps: start, then finish. Assigning and checking the work
+// are the manager's (the server refuses them to a cleaner).
 const CLEANING_VALID_TRANSITIONS: Record<CleaningStatus, CleaningStatus[]> = {
-  pending: ['assigned'],
+  pending: [],
   assigned: ['in_progress'],
   in_progress: ['done'],
-  done: ['verified'],
+  done: [],
   verified: [],
 }
 

@@ -809,7 +809,9 @@
     "validation": {
       "emailAndPassword": "Email and a password of at least 8 characters are required",
       "nameAndScopes": "A name and at least one scope are required"
-    }
+    },
+    "telegramCode": "Telegram code",
+    "telegramCodeHint": "Send it to the team member. They send it to the Day bot and get Telegram with the “{{role}}” rights, not yours. The code works once, for 30 minutes."
   },
   "channels": {
     "title": "Bots",
@@ -854,7 +856,8 @@
     "periods": {
       "tonight": "Tonight",
       "tomorrow": "Tomorrow",
-      "weekend": "Weekend"
+      "weekend": "Weekend",
+      "custom": "Dates"
     },
     "flats": "Units",
     "wifi": "Wi-Fi",
@@ -884,7 +887,22 @@
       "confirm": "Book",
       "saving": "Saving…",
       "failed": "Could not book",
-      "nights": "{{count}} night(s)"
+      "nights": "{{count}} night(s)",
+      "guests": "guests: {{count}}",
+      "known": "Returning guest: {{name}}. The booking goes under this name.",
+      "namePlaceholder": "Guest's name",
+      "source": "Source",
+      "hold": "Hold for {{count}} h",
+      "holdHint": "The booking cancels itself unless it's confirmed within {{count}} h.",
+      "warnedAsk": "This number is on colleagues' blacklist. Book anyway?",
+      "checkFailed": "Couldn't check the number against the blacklist. Try again.",
+      "retry": "Retry the booking",
+      "maybeMade": "No answer — the booking may already exist. Tap \"Retry booking\": it won't be doubled. Fields stay as sent until the answer comes.",
+      "pending": "Booking {{unit}} for \"{{guest}}\" is unsettled: no answer came. No new booking starts, so the guest is not booked twice.",
+      "notKept": "The phone would not keep the booking attempt, so it is not sent: a dropped connection could book the guest twice. Free some space or book on the web.",
+      "check": "Check on the server",
+      "notMade": "The {{unit}} booking for “{{guest}}” was not made and never will be. You can book again.",
+      "otherCompany": "This chat is now linked to another company. Check this booking on the web, in the company where it was started."
     },
     "booking": {
       "due": "Outstanding",
@@ -900,7 +918,31 @@
       "floor": "floor {{value}}",
       "messageDates": "Check-in {{from}}, check-out {{to}}.",
       "confirm": "Confirm",
-      "complete": "Complete"
+      "complete": "Complete",
+      "extendHour": "+1 hour",
+      "extendAsk": "Extend until {{until}}?",
+      "extendManual": "Extend until {{until}}? This booking's price was set by hand — the total won't change, so the extra time will be free.",
+      "extendPrice": "Extend until {{until}}? The total becomes {{total}}.",
+      "cancel": "Cancel booking",
+      "cancelAsk": "Cancel this booking? The dates become free; this can't be undone.",
+      "payAsk": "Record a payment of {{amount}} ({{method}})?",
+      "recordAmount": "Record {{amount}}",
+      "rest": "Balance",
+      "waiting": "Waiting for",
+      "received": "Received",
+      "receivedAsk": "Has {{amount}} arrived?",
+      "money": "Payment",
+      "call": "Call",
+      "stale": "Couldn't refresh the booking. Actions wait until it loads.",
+      "unsettled": "No answer to the payment of {{amount}} — it may already be recorded. Retry: it will not be recorded twice.",
+      "retryPayment": "Retry the payment of {{amount}}",
+      "howIn": "Getting in: {{method}}.",
+      "unsettledReceive": "No answer to confirming {{amount}}. Retry: the money won't count twice.",
+      "notKept": "The phone would not keep the payment attempt, so it is not sent: a dropped connection could double it. Free some space or record the payment on the web.",
+      "checkAttempt": "Check on the server",
+      "notRecorded": "The {{amount}} payment was not recorded and never will be. If the money came, enter it again.",
+      "notReceived": "Confirming {{amount}} has not landed yet. Press retry: the money will not count twice.",
+      "receiveGone": "The {{amount}} payment no longer waits for confirmation; the attempt is cleared."
     },
     "cleaning": {
       "title": "Cleaning",
@@ -933,7 +975,8 @@
       "keepAmount": "How much to keep",
       "reason": "Reason",
       "reasonPlaceholder": "Broken mirror",
-      "cancel": "Cancel"
+      "cancel": "Cancel",
+      "alreadyTaken": "A deposit is already taken; the list is updated"
     },
     "ask": {
       "intro": "Ask in words — I answer and act.",
@@ -945,9 +988,77 @@
       "applied": "Done",
       "proposes": "I suggest:",
       "s1": "What's free tomorrow and for how much?",
-      "s2": "What's the Wi-Fi in 62auc?",
+      "s2": "Who's arriving today?",
       "s3": "How much did I earn this month?"
-    }
+    },
+    "errors": {
+      "invalid": "Some fields are not filled in correctly. Check them and try again.",
+      "forbidden": "Your role can't do this.",
+      "staleStatus": "The booking has changed. Close the card and open it again.",
+      "noPrice": "This flat has no prices. Set them on the web: Properties → Prices.",
+      "assistantOff": "The assistant isn't available right now. Try later or use the tabs."
+    },
+    "retry": "Try again",
+    "crashed": "Something went wrong. Restart the panel — anything typed will be lost.",
+    "reload": "Restart",
+    "methods": {
+      "transfer": "Kaspi / transfer",
+      "cash": "Cash",
+      "card": "Card"
+    },
+    "sell": {
+      "daily": "Nights",
+      "hourly": "Hours",
+      "from": "From",
+      "nights": "Nights",
+      "date": "Date",
+      "start": "Start",
+      "hours": "Hours",
+      "guests": "Guests",
+      "hoursShort": "{{count}} h",
+      "pickSlot": "Pick a date and a start time"
+    },
+    "unit": {
+      "address": "Address",
+      "entrance": "entrance {{value}}",
+      "checkIn": "Check-in",
+      "hours": "Check-in from {{from}} · check-out by {{to}}",
+      "hourlyOnly": "Hourly rental only",
+      "maxGuests": "up to {{count}} guests",
+      "maxGuests_one": "up to {{count}} guest",
+      "wifiNoPassword": "The Wi-Fi password is not set or hidden for your role.",
+      "prices": "Prices",
+      "perNight": "night {{value}}",
+      "perHour": "hour {{value}}",
+      "deposit": "deposit {{value}}",
+      "facts": "What the assistant knows",
+      "forGuest": "guest",
+      "forAll": "all",
+      "amenities": "Amenities",
+      "calendar": "Calendar for Airbnb and Booking",
+      "calendarHint": "Paste the link into the platform's calendar sync — bookings made in Day close those dates there.",
+      "copyLink": "Copy link",
+      "status": {
+        "new": "not active",
+        "paused": "paused",
+        "active": "active",
+        "archived": "archived"
+      }
+    },
+    "linkedFailed": "Couldn't open the booking from the notice.",
+    "tapToHide": "Tap to hide",
+    "cleaner": {
+      "title": "My cleanings",
+      "today": "Today",
+      "tomorrow": "Tomorrow",
+      "noDate": "No date",
+      "none": "No cleanings yet. They show here once a manager assigns them.",
+      "start": "Start cleaning",
+      "done": "Done",
+      "doneAsk": "Is {{unit}} clean?"
+    },
+    "otherSession": "Another window signed in to another Day account. This one has stopped so the two do not mix.",
+    "continueHere": "Continue here"
   },
   "auth": {
     "forgot": {

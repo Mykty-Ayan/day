@@ -62,6 +62,17 @@ export interface PricingConfig {
   updated_at: string
 }
 
+/** Something true about a flat: "guest" facts (codes, how to get in) are told
+ *  to a guest with a booking, "public" ones to anyone asking. */
+export interface PropertyFact {
+  id: string
+  property_id: string
+  text: string
+  audience: 'public' | 'guest'
+  source: string
+  created_at?: string
+}
+
 export interface Property {
   id: string
   company_id: string
@@ -96,6 +107,8 @@ export interface Property {
   photos: PropertyPhoto[]
   amenities: Amenity[]
   pricing: PricingConfig | null
+  /** On the detail only; guest facts are left out for roles that may not see them. */
+  facts?: PropertyFact[]
   created_at: string
   updated_at: string
 }

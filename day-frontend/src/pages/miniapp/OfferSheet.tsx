@@ -13,28 +13,10 @@ import { Check, Copy, Send } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { getAvailability, type AvailableProperty } from '../../api/miniapp'
 import { copyText, openWhatsApp, resultFeedback, tapFeedback } from '../../lib/telegram'
-import { addDays, formatMoney, toISODate } from './format'
+import { formatMoney, toISODate } from './format'
 import { buildOfferMessage } from './messages'
 import { ActionButton, Chip, Field, Sheet } from './miniapp-ui'
-
-type Period = 'tonight' | 'tomorrow' | 'weekend' | 'custom'
-
-/** Friday to Sunday of this week, or the coming one once the weekend has passed. */
-function weekendRange(today: Date): [Date, Date] {
-  const daysUntilFriday = (5 - today.getDay() + 7) % 7
-  const friday = addDays(today, daysUntilFriday)
-  return [friday, addDays(friday, 2)]
-}
-
-function periodRange(period: Period, today: Date, custom: string, nights: number): [Date, Date] {
-  if (period === 'tomorrow') return [addDays(today, 1), addDays(today, 2)]
-  if (period === 'weekend') return weekendRange(today)
-  if (period === 'custom' && custom) {
-    const from = new Date(`${custom}T00:00:00`)
-    if (!Number.isNaN(from.getTime())) return [from, addDays(from, Math.max(1, nights))]
-  }
-  return [today, addDays(today, 1)]
-}
+import { nightsBetween, periodRange, type Period } from './sell'
 
 export default function OfferSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { t, i18n } = useTranslation()
@@ -47,8 +29,9 @@ export default function OfferSheet({ open, onClose }: { open: boolean; onClose: 
   const [picked, setPicked] = useState<string[]>([])
   const [copied, setCopied] = useState(false)
 
-  const nightCount = Math.max(1, parseInt(nights, 10) || 1)
-  const [checkIn, checkOut] = periodRange(period, today, customDate, nightCount)
+  const [checkIn, checkOut] = periodRange(period, today, customDate, Math.max(1, parseInt(nights, 10) || 1))
+  // From the range itself: "Weekend" is two nights whatever the nights field says.
+  const nightCount = nightsBetween(checkIn, checkOut)
 
   const availability = useQuery({
     queryKey: ['miniapp', 'offer', toISODate(checkIn), toISODate(checkOut)],

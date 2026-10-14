@@ -26,12 +26,14 @@ class ChannelIdentityModel(Base):
 
 class ConversationModel(Base):
     __tablename__ = "conversations"
+    # One thread per chat per company: a chat re-linked elsewhere starts afresh there.
+    __table_args__ = (UniqueConstraint("identity_id", "company_id", name="uq_conversation_identity_company"),)
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     company_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("companies.id"), index=True)
     channel: Mapped[str] = mapped_column(String(20))
     identity_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("channel_identities.id", ondelete="CASCADE"), unique=True, index=True
+        ForeignKey("channel_identities.id", ondelete="CASCADE"), index=True
     )
     state: Mapped[str] = mapped_column(String(40), default="idle")
     context: Mapped[dict] = mapped_column(JSON, default=dict)

@@ -6,9 +6,9 @@
  * open a dialog.
  */
 
-import { useEffect, type ReactNode } from 'react'
+import { useEffect, useRef, type ReactNode } from 'react'
 import { X } from 'lucide-react'
-import { tapFeedback } from '../../lib/telegram'
+import { showBackButton, tapFeedback } from '../../lib/telegram'
 
 export function Screen({ children }: { children: ReactNode }) {
   return (
@@ -115,6 +115,8 @@ export function Field({
   placeholder,
   type = 'text',
   inputMode,
+  min,
+  disabled,
 }: {
   label: string
   value: string
@@ -122,6 +124,8 @@ export function Field({
   placeholder?: string
   type?: string
   inputMode?: 'text' | 'tel' | 'numeric' | 'decimal'
+  min?: string
+  disabled?: boolean
 }) {
   return (
     <label className="block">
@@ -130,9 +134,11 @@ export function Field({
         type={type}
         inputMode={inputMode}
         value={value}
+        min={min}
+        disabled={disabled}
         placeholder={placeholder}
         onChange={(event) => onChange(event.target.value)}
-        className="tg-surface min-h-[44px] w-full rounded-xl px-3 text-sm outline-none"
+        className="tg-surface min-h-[44px] w-full rounded-xl px-3 text-sm outline-none disabled:opacity-60"
       />
     </label>
   )
@@ -167,6 +173,16 @@ export function Sheet({
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [open, onClose])
+
+  // Telegram's back arrow and Android's back gesture close the sheet, not the app.
+  const latestClose = useRef(onClose)
+  useEffect(() => {
+    latestClose.current = onClose
+  })
+  useEffect(() => {
+    if (!open) return
+    return showBackButton(() => latestClose.current())
+  }, [open])
 
   if (!open) return null
 

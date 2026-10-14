@@ -1,7 +1,7 @@
 """Unit tests for the messaging context: link codes, outbox, and both bots."""
 
 import uuid
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, time, timedelta
 from decimal import Decimal
 
 import pytest
@@ -17,6 +17,10 @@ from app.application.messaging.notifications import (
 )
 from app.domain.assistant.gateway import ChatMessage
 from app.domain.assistant.value_objects import AssistantReply, AssistantUnavailable, PendingAction
+from app.domain.auth.entities import User
+from app.domain.auth.value_objects import UserRole
+from app.domain.booking.entities import Booking
+from app.domain.booking.value_objects import BookingStatus
 from app.domain.messaging.entities import (
     ChannelIdentity,
     ChannelLinkCode,
@@ -28,6 +32,7 @@ from app.domain.messaging.repositories import (
     ChannelLinkCodeRepository,
     OutboundNotificationRepository,
 )
+from app.domain.messaging.services import AppButton
 from app.domain.messaging.value_objects import (
     Channel,
     ConversationState,
@@ -351,6 +356,76 @@ class TestNotifications:
         for event in NotificationEvent:
             assert render(event, {}) != ""
 
+    def test_render_escapes_what_guests_and_hosts_typed(self):
+        # Telegram parses the message as HTML: a "<" in a name used to make it refuse the whole notice.
+        text = render(
+            NotificationEvent.BOOKING_CREATED,
+            {"property_name": "Loft <2>", "guest_name": "Ann & <b>Co</b>"},
+        )
+
+        assert "Loft &lt;2&gt;" in text
+        assert "Ann &amp; &lt;b&gt;Co&lt;/b&gt;" in text
+
+    def test_long_message_is_cut_before_it_is_escaped(self):
+        text = render(NotificationEvent.GUEST_INQUIRY, {"text": "&" * 500})
+
+        assert text.count("&amp;") == 400
+        assert text.endswith("&amp;")
+
+    def test_render_shows_money_with_currency_and_a_readable_source(self):
+        text = render(NotificationEvent.BOOKING_CREATED, {"total_price": "25000.00", "source": "direct"})
+
+        assert "Сумма: 25 000 ₸" in text
+        assert "Источник: Прямое" in text
+
+    @pytest.mark.asyncio
+    async def test_booking_notice_carries_a_button_that_opens_the_booking(self):
+        repo = FakeNotificationRepository()
+        booking_id = str(uuid.uuid4())
+        await repo.save(
+            OutboundNotification(
+                company_id=COMPANY_ID,
+                channel=Channel.TELEGRAM,
+                target="555",
+                event=NotificationEvent.BOOKING_CREATED,
+                payload={"booking_id": booking_id},
+            )
+        )
+        provider = FakeProvider()
+        dispatcher = NotificationDispatcher(
+            repo, {Channel.TELEGRAM: provider}, mini_app_url="https://app.example.com/tma"
+        )
+
+        await dispatcher.dispatch_due()
+
+        assert provider.buttons == [[AppButton("Открыть бронь", f"https://app.example.com/tma?booking={booking_id}")]]
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("target", "url"),
+        [
+            ("-100123", "https://app.example.com/tma"),  # a group: Mini App buttons work in private chats only
+            ("555", "http://localhost:5173/tma"),  # Telegram refuses a Mini App that is not https
+            ("555", None),
+        ],
+    )
+    async def test_no_button_where_telegram_would_refuse_it(self, target, url):
+        repo = FakeNotificationRepository()
+        await repo.save(
+            OutboundNotification(
+                company_id=COMPANY_ID,
+                channel=Channel.TELEGRAM,
+                target=target,
+                event=NotificationEvent.BOOKING_CREATED,
+                payload={"booking_id": str(uuid.uuid4())},
+            )
+        )
+        provider = FakeProvider()
+
+        await NotificationDispatcher(repo, {Channel.TELEGRAM: provider}, mini_app_url=url).dispatch_due()
+
+        assert provider.buttons == [None]
+
 
 # ---------- host bot ----------
 
@@ -519,6 +594,15 @@ class TestHostBot:
         assert (check_in, check_out) == (date(2026, 8, 12), date(2026, 8, 15))
 
     @pytest.mark.asyncio
+    async def test_free_escapes_flat_names(self):
+        availability = StubAvailability([StubOption("Loft <2> & co", None)])
+        identity = ChannelIdentity(company_id=COMPANY_ID, channel=Channel.TELEGRAM, external_id="555")
+
+        reply = await _host_bot(availability).handle(identity, "555", "/free", today=TODAY)
+
+        assert "Loft &lt;2&gt; &amp; co" in reply.text
+
+    @pytest.mark.asyncio
     async def test_free_without_dates_uses_tonight(self):
         availability = StubAvailability([])
         identity = ChannelIdentity(company_id=COMPANY_ID, channel=Channel.TELEGRAM, external_id="555")
@@ -527,6 +611,47 @@ class TestHostBot:
 
         _, check_in, check_out = availability.calls[0]
         assert (check_in, check_out) == (TODAY, TODAY + timedelta(days=1))
+
+    @pytest.mark.asyncio
+    async def test_today_lists_the_guest_arriving_this_afternoon(self):
+        class SqlLikeRange:
+            """The repository's own overlap test: a date bound means midnight."""
+
+            def __init__(self, rows):
+                self.rows = rows
+
+            async def list_by_company_date_range(self, company_id, start, end):
+                start, end = datetime.combine(start, time()), datetime.combine(end, time())
+                return [b for b in self.rows if b.check_in < end and b.check_out > start]
+
+        class Named:
+            def __init__(self, name):
+                self.name = name
+
+        class ByName:
+            async def get_by_id(self, _id):
+                return Named("Studio <12>")
+
+        arriving = Booking(
+            company_id=COMPANY_ID,
+            check_in=datetime.combine(TODAY, time(14)),
+            check_out=datetime.combine(TODAY + timedelta(days=2), time(12)),
+            status=BookingStatus.CONFIRMED,
+        )
+        bot = HostBotService(
+            LinkChannelService(FakeLinkCodeRepository(), FakeIdentityRepository()),
+            StubAvailability([]),
+            SqlLikeRange([arriving]),
+            ByName(),
+            ByName(),
+        )
+        identity = ChannelIdentity(company_id=COMPANY_ID, channel=Channel.TELEGRAM, external_id="555")
+
+        reply = await bot.handle(identity, "555", "/today", today=TODAY)
+
+        arrivals = reply.text.split("<b>Выезды</b>")[0]
+        assert "10.08 14:00" in arrivals
+        assert "Studio &lt;12&gt;" in arrivals  # Telegram reads the reply as HTML
 
     @pytest.mark.asyncio
     async def test_unknown_command_shows_help(self):
@@ -685,3 +810,151 @@ class TestGuestBot:
         assert reply.handoff is True
         assert reply.booking_id is None
         assert conversation.state == ConversationState.HANDED_TO_HUMAN
+
+
+# ---------- team members in Telegram ----------
+
+
+class StubUsers:
+    """Only what the messaging services ask of the user repository."""
+
+    def __init__(self, users):
+        self.users = {u.id: u for u in users}
+
+    async def get_by_id(self, user_id):
+        return self.users.get(user_id)
+
+    async def get_many(self, user_ids):
+        return {i: self.users[i] for i in user_ids if i in self.users}
+
+
+OWNER = User(id=OWNER_ID, company_id=COMPANY_ID, email="owner@day.kz", role=UserRole.OWNER)
+CLEANER = User(company_id=COMPANY_ID, email="aigul@day.kz", role=UserRole.CLEANER)
+STRANGER = User(company_id=OTHER_COMPANY_ID, email="x@other.kz", role=UserRole.CLEANER)
+
+
+class TestTeamMembersInTelegram:
+    @pytest.mark.asyncio
+    async def test_owner_issues_a_code_that_links_the_chat_as_the_member(self):
+        codes, identities = FakeLinkCodeRepository(), FakeIdentityRepository()
+        svc = LinkChannelService(codes, identities, StubUsers([OWNER, CLEANER]))
+
+        code = await svc.issue_code_for_member(COMPANY_ID, CLEANER.id)
+        result = await svc.redeem(code.code, Channel.TELEGRAM, "777")
+
+        # The Mini App then signs in as the cleaner, with the cleaner's rights.
+        assert result.identity.user_id == CLEANER.id
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("member", [STRANGER, User(company_id=COMPANY_ID, email="gone@day.kz", is_active=False)])
+    async def test_no_code_for_someone_outside_the_team(self, member):
+        svc = LinkChannelService(FakeLinkCodeRepository(), FakeIdentityRepository(), StubUsers([member]))
+
+        with pytest.raises(LookupError):
+            await svc.issue_code_for_member(COMPANY_ID, member.id)
+
+    @pytest.mark.asyncio
+    async def test_booking_news_skips_a_cleaners_chat(self):
+        identities = FakeIdentityRepository(
+            [
+                ChannelIdentity(company_id=COMPANY_ID, channel=Channel.TELEGRAM, external_id="1", user_id=OWNER_ID),
+                ChannelIdentity(company_id=COMPANY_ID, channel=Channel.TELEGRAM, external_id="2", user_id=CLEANER.id),
+            ]
+        )
+        svc = NotificationService(FakeNotificationRepository(), identities, StubUsers([OWNER, CLEANER]))
+
+        queued = await svc.notify_company(COMPANY_ID, NotificationEvent.BOOKING_CREATED, {})
+
+        assert [n.target for n in queued] == ["1"]
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("text", ["/today", "/bookings", "/free", "/help", "кто заезжает сегодня?"])
+    async def test_a_cleaners_chat_gets_no_bookings_and_no_assistant(self, text):
+        class Untouchable:
+            async def list_by_company_date_range(self, *args):
+                raise AssertionError("a cleaner must not read bookings")
+
+        async def assistant_for(identity):
+            raise AssertionError("a cleaner must not reach the assistant")
+
+        bot = HostBotService(
+            LinkChannelService(FakeLinkCodeRepository(), FakeIdentityRepository()),
+            StubAvailability([]),
+            Untouchable(),
+            None,
+            None,
+            assistant_for=assistant_for,
+            user_repo=StubUsers([CLEANER]),
+        )
+        identity = ChannelIdentity(
+            company_id=COMPANY_ID, channel=Channel.TELEGRAM, external_id="777", user_id=CLEANER.id
+        )
+
+        reply = await bot.handle(identity, "777", text, today=TODAY)
+
+        assert "уборки" in reply.text.lower()
+
+    @pytest.mark.asyncio
+    async def test_a_cleaner_linking_the_chat_is_told_where_the_cleanings_are(self):
+        codes, identities = FakeLinkCodeRepository(), FakeIdentityRepository()
+        link = LinkChannelService(codes, identities, StubUsers([OWNER, CLEANER]))
+        code = await link.issue_code_for_member(COMPANY_ID, CLEANER.id)
+        bot = HostBotService(link, StubAvailability([]), None, None, None, user_repo=StubUsers([OWNER, CLEANER]))
+
+        reply = await bot.handle(None, "777", f"/start {code.code}")
+
+        assert "уборки" in reply.text.lower()
+        assert "/bookings" not in reply.text
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "now_linked",
+        [
+            ChannelIdentity(company_id=COMPANY_ID, channel=Channel.TELEGRAM, external_id="1", user_id=CLEANER.id),
+            ChannelIdentity(company_id=OTHER_COMPANY_ID, channel=Channel.TELEGRAM, external_id="1", user_id=OWNER_ID),
+            ChannelIdentity(
+                company_id=COMPANY_ID, channel=Channel.TELEGRAM, external_id="1", user_id=OWNER_ID, is_active=False
+            ),
+        ],
+    )
+    async def test_a_queued_notice_is_dropped_if_the_chat_changed_hands_before_it_went(self, now_linked):
+        # Queued for the owner's chat; by the time it goes out the chat is a cleaner's,
+        # another company's, or switched off.
+        repo = FakeNotificationRepository()
+        await repo.save(
+            OutboundNotification(
+                company_id=COMPANY_ID,
+                channel=Channel.TELEGRAM,
+                target="1",
+                event=NotificationEvent.BOOKING_CREATED,
+                payload={"guest_name": "Ann", "total_price": "25000"},
+            )
+        )
+        provider = FakeProvider()
+        dispatcher = NotificationDispatcher(
+            repo,
+            {Channel.TELEGRAM: provider},
+            identity_repo=FakeIdentityRepository([now_linked]),
+            user_repo=StubUsers([OWNER, CLEANER]),
+        )
+
+        assert await dispatcher.dispatch_due() == 0
+        assert provider.sent == []
+        assert repo.items[0].status == NotificationStatus.FAILED
+
+    @pytest.mark.asyncio
+    async def test_a_queued_notice_still_goes_to_the_owner(self):
+        repo = FakeNotificationRepository()
+        await repo.save(
+            OutboundNotification(company_id=COMPANY_ID, channel=Channel.TELEGRAM, target="1", payload={})
+        )
+        provider = FakeProvider()
+        owner_chat = ChannelIdentity(company_id=COMPANY_ID, channel=Channel.TELEGRAM, external_id="1", user_id=OWNER_ID)
+        dispatcher = NotificationDispatcher(
+            repo,
+            {Channel.TELEGRAM: provider},
+            identity_repo=FakeIdentityRepository([owner_chat]),
+            user_repo=StubUsers([OWNER]),
+        )
+
+        assert await dispatcher.dispatch_due() == 1

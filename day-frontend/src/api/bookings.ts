@@ -41,13 +41,35 @@ export async function listBookings(
   return res.data
 }
 
-export async function getBooking(id: string): Promise<BookingDetail> {
-  const res = await apiClient.get(`/bookings/${id}`)
+export async function getBooking(id: string, signal?: AbortSignal): Promise<BookingDetail> {
+  const res = await apiClient.get(`/bookings/${id}`, { signal })
   return res.data
 }
 
-export async function createBooking(data: BookingCreateInput): Promise<Booking> {
-  const res = await apiClient.post('/bookings', data)
+export async function createBooking(
+  data: BookingCreateInput,
+  idempotencyKey?: string,
+  expectedCompany?: string,
+): Promise<Booking> {
+  // The same key on a retry returns the booking already made instead of a second one.
+  const res = await apiClient.post('/bookings', data, {
+    headers: idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : undefined,
+    expectedCompany,
+  })
+  return res.data
+}
+
+/** Settle a create whose answer was lost: the booking its key made, or the key
+ *  is closed (`voided`) and a late request with it makes nothing. */
+export async function voidBookingKey(
+  idempotencyKey: string,
+  expectedCompany?: string,
+): Promise<{ voided: boolean; booking: Booking | null }> {
+  // A key is per company: asked in another one, "not made" would be about the wrong company.
+  const res = await apiClient.post('/bookings/idempotency-key/void', null, {
+    headers: { 'Idempotency-Key': idempotencyKey },
+    expectedCompany,
+  })
   return res.data
 }
 
@@ -92,8 +114,24 @@ export async function listPayments(bookingId: string): Promise<BookingPayment[]>
 export async function addPayment(
   bookingId: string,
   data: PaymentInput,
+  // The same key on a retry makes the server record the payment once.
+  idempotencyKey?: string,
 ): Promise<BookingPayment> {
-  const res = await apiClient.post(`/bookings/${bookingId}/payments`, data)
+  const res = await apiClient.post(`/bookings/${bookingId}/payments`, data, {
+    headers: idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : undefined,
+  })
+  return res.data
+}
+
+/** Settle a payment whose answer was lost: the payment its key recorded, or the
+ *  key is closed (`voided`) and a late request with it records nothing. */
+export async function voidPaymentKey(
+  bookingId: string,
+  idempotencyKey: string,
+): Promise<{ voided: boolean; payment: BookingPayment | null }> {
+  const res = await apiClient.post(`/bookings/${bookingId}/payments/idempotency-key/void`, null, {
+    headers: { 'Idempotency-Key': idempotencyKey },
+  })
   return res.data
 }
 
@@ -104,8 +142,8 @@ export async function confirmPayment(bookingId: string, paymentId: string): Prom
 
 // --- Deposits ---
 
-export async function listDeposits(bookingId: string): Promise<BookingDeposit[]> {
-  const res = await apiClient.get(`/bookings/${bookingId}/deposits`)
+export async function listDeposits(bookingId: string, signal?: AbortSignal): Promise<BookingDeposit[]> {
+  const res = await apiClient.get(`/bookings/${bookingId}/deposits`, { signal })
   return res.data
 }
 

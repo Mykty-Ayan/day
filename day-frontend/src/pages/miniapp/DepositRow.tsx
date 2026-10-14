@@ -7,12 +7,13 @@
  */
 
 import { useState } from 'react'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useIsMutating, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { HandCoins, ShieldCheck, Undo2, Wallet } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { createDeposit, depositAction, listDeposits } from '../../api/bookings'
 import type { BookingDeposit } from '../../types/booking'
 import { resultFeedback } from '../../lib/telegram'
+import { cardRead, readyToAct } from './card-state'
 import { formatMoney } from './format'
 import { ActionButton, Field } from './miniapp-ui'
 
@@ -20,10 +21,13 @@ export default function DepositRow({
   bookingId,
   suggestedAmount,
   onError,
+  locked = false,
 }: {
   bookingId: string
   suggestedAmount: number
   onError: (error: unknown) => void
+  /** The card has not reread the booking yet: no money moves on old figures. */
+  locked?: boolean
 }) {
   const { t, i18n } = useTranslation()
   const queryClient = useQueryClient()
@@ -34,27 +38,42 @@ export default function DepositRow({
   const [heldAmount, setHeldAmount] = useState('')
   const [reason, setReason] = useState('')
 
+  // Read again on every open: a deposit taken a minute ago by the CRM or another
+  // phone must show, or "Take deposit" takes a second one.
+  const [openedAt] = useState(() => Date.now())
   const deposits = useQuery({
-    queryKey: ['miniapp', 'deposits', bookingId],
-    queryFn: () => listDeposits(bookingId),
+    ...cardRead(['miniapp', 'deposits', bookingId], (signal) => listDeposits(bookingId, signal)),
     enabled: Boolean(bookingId),
   })
+  // A write started by an earlier card (closed before its answer) still counts:
+  // a reread can come back empty before that deposit is committed.
+  const writeKey = ['miniapp', 'deposit-write', bookingId]
+  const writing = useIsMutating({ mutationKey: writeKey }) > 0
+  const blocked = locked || writing || !readyToAct(deposits, openedAt)
 
   function refresh() {
     resultFeedback('success')
     queryClient.invalidateQueries({ queryKey: ['miniapp', 'deposits', bookingId] })
   }
 
+  // The server takes it only while no deposit is open: a press after a lost
+  // answer, or from a second phone, gets 409 instead of a second deposit.
   const take = useMutation({
-    mutationFn: () => createDeposit(bookingId, { amount: Number(amount || suggestedAmount) }),
+    mutationKey: writeKey,
+    mutationFn: () => createDeposit(bookingId, { amount: Number(amount || suggestedAmount), unless_open: true }),
     onSuccess: () => {
       setAmount('')
       refresh()
     },
-    onError,
+    onError: (error) => {
+      // A lost answer may hide a deposit already made: reread before another "Take".
+      queryClient.invalidateQueries({ queryKey: ['miniapp', 'deposits', bookingId] })
+      onError(error)
+    },
   })
 
   const act = useMutation({
+    mutationKey: writeKey,
     mutationFn: ({ deposit, action }: { deposit: BookingDeposit; action: 'pay' | 'return' }) =>
       depositAction(bookingId, deposit.id, { action }),
     onSuccess: refresh,
@@ -62,6 +81,7 @@ export default function DepositRow({
   })
 
   const hold = useMutation({
+    mutationKey: writeKey,
     mutationFn: (deposit: BookingDeposit) => {
       const kept = Number(heldAmount || deposit.amount)
       // Keeping the whole thing is its own action; the partial one refuses an
@@ -95,7 +115,7 @@ export default function DepositRow({
           inputMode="numeric"
           placeholder={String(suggestedAmount)}
         />
-        <ActionButton disabled={take.isPending} onClick={() => take.mutate()}>
+        <ActionButton disabled={blocked || take.isPending} onClick={() => take.mutate()}>
           <ShieldCheck className="h-4 w-4" />
           {t('miniapp.deposit.take')}
         </ActionButton>
@@ -124,7 +144,7 @@ export default function DepositRow({
           {deposit.status === 'pending' && (
             <div className="mt-2">
               <ActionButton
-                disabled={act.isPending}
+                disabled={blocked || act.isPending}
                 onClick={() => act.mutate({ deposit, action: 'pay' })}
               >
                 <Wallet className="h-4 w-4" />
@@ -135,13 +155,14 @@ export default function DepositRow({
           {deposit.status === 'paid' && holdingFor !== deposit.id && (
             <div className="mt-2 grid grid-cols-2 gap-2">
               <ActionButton
-                disabled={act.isPending}
+                disabled={blocked || act.isPending}
                 onClick={() => act.mutate({ deposit, action: 'return' })}
               >
                 <Undo2 className="h-4 w-4" />
                 {t('miniapp.deposit.give_back')}
               </ActionButton>
               <ActionButton
+                disabled={blocked}
                 onClick={() => {
                   setHoldingFor(deposit.id)
                   setHeldAmount(String(deposit.amount))
@@ -176,7 +197,7 @@ export default function DepositRow({
                 </ActionButton>
                 <ActionButton
                   tone="primary"
-                  disabled={hold.isPending || Number(heldAmount) <= 0}
+                  disabled={blocked || hold.isPending || Number(heldAmount) <= 0}
                   onClick={() => hold.mutate(deposit)}
                 >
                   <HandCoins className="h-4 w-4" />

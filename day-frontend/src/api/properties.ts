@@ -64,8 +64,8 @@ export async function listAllProperties(
   }
 }
 
-export async function getProperty(id: string): Promise<Property> {
-  const res = await apiClient.get(`/properties/${id}`)
+export async function getProperty(id: string, signal?: AbortSignal): Promise<Property> {
+  const res = await apiClient.get(`/properties/${id}`, { signal })
   return res.data
 }
 

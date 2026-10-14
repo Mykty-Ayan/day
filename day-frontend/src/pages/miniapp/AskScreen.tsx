@@ -6,7 +6,7 @@
  * changing something, a card that states what will happen and waits.
  */
 
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { ArrowUp, Check, Sparkles } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
@@ -18,6 +18,7 @@ import {
 } from '../../api/assistant'
 import { resultFeedback, tapFeedback } from '../../lib/telegram'
 import { ActionButton } from './miniapp-ui'
+import { errorText } from './errors'
 
 interface Entry {
   role: 'user' | 'assistant'
@@ -38,10 +39,26 @@ export default function AskScreen() {
   const queryClient = useQueryClient()
   const [entries, setEntries] = useState<Entry[]>([])
   const [draft, setDraft] = useState('')
-  const bottom = useRef<HTMLDivElement>(null)
+
+  // An answer can arrive after the operator switched tabs; it must not scroll
+  // the tab they are on now.
+  const timer = useRef<number | undefined>(undefined)
+  const mounted = useRef(true)
+  useEffect(() => {
+    mounted.current = true
+    return () => {
+      mounted.current = false
+      window.clearTimeout(timer.current)
+    }
+  }, [])
 
   function scrollDown() {
-    window.setTimeout(() => bottom.current?.scrollIntoView({ behavior: 'smooth' }), 50)
+    // Only this document: scrollIntoView also scrolled Telegram's frame around the
+    // app, pushing the tab bar out of reach with no way back.
+    window.clearTimeout(timer.current)
+    timer.current = window.setTimeout(() => {
+      if (mounted.current) window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'smooth' })
+    }, 50)
   }
 
   const ask = useMutation({
@@ -60,10 +77,10 @@ export default function AskScreen() {
     },
     onError: (error) => {
       resultFeedback('error')
-      const detail = (error as { response?: { data?: { detail?: string } } }).response?.data?.detail
+      const detail = errorText(error, t('miniapp.ask.failed'), t)
       setEntries((current) => [
         ...current,
-        { role: 'assistant', content: detail || t('miniapp.ask.failed') },
+        { role: 'assistant', content: detail },
       ])
       scrollDown()
     },
@@ -82,10 +99,10 @@ export default function AskScreen() {
     },
     onError: (error) => {
       resultFeedback('error')
-      const detail = (error as { response?: { data?: { detail?: string } } }).response?.data?.detail
+      const detail = errorText(error, t('miniapp.ask.failed'), t)
       setEntries((current) => [
         ...current,
-        { role: 'assistant', content: detail || t('miniapp.ask.failed') },
+        { role: 'assistant', content: detail },
       ])
     },
   })
@@ -154,7 +171,6 @@ export default function AskScreen() {
           </div>
         ))}
         {ask.isPending && <p className="tg-hint text-sm">{t('miniapp.ask.thinking')}</p>}
-        <div ref={bottom} />
       </div>
 
       <form

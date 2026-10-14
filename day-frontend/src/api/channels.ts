@@ -21,8 +21,13 @@ export async function listChannels(): Promise<ConnectedChannel[]> {
   return res.data
 }
 
-export async function createTelegramLinkCode(): Promise<TelegramLinkCode> {
-  const res = await apiClient.post<TelegramLinkCode>('/channels/telegram/link-code')
+/** A code that links a Telegram chat as the owner, or as a team member when
+ *  `userId` is given: the chat then gets that member's rights, not the owner's. */
+export async function createTelegramLinkCode(userId?: string): Promise<TelegramLinkCode> {
+  const res = await apiClient.post<TelegramLinkCode>(
+    '/channels/telegram/link-code',
+    userId ? { user_id: userId } : undefined,
+  )
   return res.data
 }
 

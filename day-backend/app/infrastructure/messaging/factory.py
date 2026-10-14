@@ -23,7 +23,7 @@ from app.domain.messaging.value_objects import Channel
 from app.infrastructure.assistant.factory import build_assistant_tools
 from app.infrastructure.assistant.openrouter import OpenRouterAssistantGateway
 from app.infrastructure.messaging.providers import TelegramProvider, WhapiProvider
-from app.infrastructure.repositories.auth import SqlUserRepository
+from app.infrastructure.repositories.auth import SqlCompanyRepository, SqlUserRepository
 from app.infrastructure.repositories.booking import (
     SqlBookingAuditLogRepository,
     SqlBookingRepository,
@@ -104,6 +104,8 @@ def build_host_bot(session: AsyncSession) -> HostBotService:
         SqlPropertyRepository(session),
         SqlGuestRepository(session),
         assistant_for=assistant_for,
+        company_repo=SqlCompanyRepository(session),
+        user_repo=SqlUserRepository(session),
     )
 
 
@@ -122,8 +124,15 @@ def build_notification_service(session: AsyncSession) -> NotificationService:
     return NotificationService(
         SqlOutboundNotificationRepository(session),
         SqlChannelIdentityRepository(session),
+        SqlUserRepository(session),
     )
 
 
 def build_dispatcher(session: AsyncSession) -> NotificationDispatcher:
-    return NotificationDispatcher(SqlOutboundNotificationRepository(session), _PROVIDERS)
+    return NotificationDispatcher(
+        SqlOutboundNotificationRepository(session),
+        _PROVIDERS,
+        mini_app_url=f"{settings.PUBLIC_APP_URL.rstrip('/')}/tma",
+        identity_repo=SqlChannelIdentityRepository(session),
+        user_repo=SqlUserRepository(session),
+    )

@@ -34,6 +34,8 @@ def _generate_code() -> str:
 class LinkResult:
     identity: ChannelIdentity
     company_id: uuid.UUID
+    # The company the chat was taken from, when re-linking moved it.
+    previous_company_id: uuid.UUID | None = None
 
 
 class StrandsTwoFactor(ValueError):
@@ -85,6 +87,23 @@ class LinkChannelService:
         )
         return await self._codes.save(code)
 
+    async def issue_code_for_member(
+        self,
+        company_id: uuid.UUID,
+        member_id: uuid.UUID,
+        channel: Channel = Channel.TELEGRAM,
+        now: datetime | None = None,
+    ) -> ChannelLinkCode:
+        """A code that links a chat as a team member, not as the owner issuing it.
+
+        A cleaner has no reason to open the web app; the owner hands them this
+        code instead. The chat then acts with the member's own rights.
+        """
+        member = await self._users.get_by_id(member_id) if self._users is not None else None
+        if member is None or member.company_id != company_id or not member.is_active:
+            raise LookupError("User not found")
+        return await self.issue_code(company_id, member.id, channel, now)
+
     async def redeem(
         self,
         code_value: str,
@@ -101,6 +120,11 @@ class LinkChannelService:
             raise ValueError("This code has expired or was already used")
 
         existing = await self._identities.get_by_external_id(channel, external_id)
+        moved_from = (
+            existing.company_id
+            if existing is not None and existing.is_active and existing.company_id != code.company_id
+            else None
+        )
         if existing is not None and existing.user_id != code.created_by:
             await self.guard_two_factor(existing)
         if existing is not None:
@@ -124,7 +148,7 @@ class LinkChannelService:
 
         code.used_at = now
         await self._codes.update(code)
-        return LinkResult(identity=identity, company_id=code.company_id)
+        return LinkResult(identity=identity, company_id=code.company_id, previous_company_id=moved_from)
 
     async def unlink(self, channel: Channel, external_id: str) -> None:
         identity = await self._identities.get_by_external_id(channel, external_id)

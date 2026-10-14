@@ -6,6 +6,8 @@
  * can be opened for debugging.
  */
 
+import { phoneDigits } from './phone'
+
 interface TelegramWebAppUser {
   id: number
   first_name?: string
@@ -16,6 +18,7 @@ interface TelegramWebAppUser {
 }
 
 interface TelegramWebApp {
+  version?: string
   initData: string
   initDataUnsafe?: { user?: TelegramWebAppUser }
   colorScheme: 'light' | 'dark'
@@ -28,6 +31,19 @@ interface TelegramWebApp {
   HapticFeedback?: {
     impactOccurred: (style: 'light' | 'medium' | 'heavy') => void
     notificationOccurred?: (type: 'error' | 'success' | 'warning') => void
+  }
+  isVersionAtLeast?: (version: string) => boolean
+  /** Bot API 6.2. */
+  showConfirm?: (message: string, callback: (confirmed: boolean) => void) => void
+  /** Bot API 7.7. */
+  disableVerticalSwipes?: () => void
+  enableClosingConfirmation?: () => void
+  disableClosingConfirmation?: () => void
+  BackButton?: {
+    show: () => void
+    hide: () => void
+    onClick: (callback: () => void) => void
+    offClick: (callback: () => void) => void
   }
 }
 
@@ -51,6 +67,52 @@ export function initTelegram(): void {
   if (!app) return
   app.ready()
   app.expand()
+  // A swipe down otherwise minimises the app in the middle of a form or a list.
+  if (app.isVersionAtLeast?.('7.7')) app.disableVerticalSwipes?.()
+}
+
+// Screens on top of each other: back closes only the top one, and the arrow
+// stays while anything is still open.
+const backStack: Array<() => void> = []
+let backDispatcher: (() => void) | null = null
+
+/** Telegram's own back arrow (and Android's back gesture) for a screen on top of
+ *  the tabs. Returns the cleanup that removes exactly this handler. */
+export function showBackButton(onBack: () => void): () => void {
+  const button = getWebApp()?.BackButton
+  if (!button) return () => {}
+  if (!backDispatcher) {
+    backDispatcher = () => backStack.at(-1)?.()
+    button.onClick(backDispatcher)
+  }
+  backStack.push(onBack)
+  button.show()
+  return () => {
+    const index = backStack.lastIndexOf(onBack)
+    if (index >= 0) backStack.splice(index, 1)
+    if (backStack.length === 0 && backDispatcher) {
+      button.offClick(backDispatcher)
+      backDispatcher = null
+      button.hide()
+    }
+  }
+}
+
+/** Telegram's own yes/no dialog for money and anything that cannot be undone;
+ *  the browser's confirm outside Telegram. */
+export function confirmAction(message: string): Promise<boolean> {
+  const app = getWebApp()
+  if (app?.showConfirm && app.isVersionAtLeast?.('6.2')) {
+    return new Promise((resolve) => app.showConfirm!(message, resolve))
+  }
+  return Promise.resolve(window.confirm(message))
+}
+
+/** Ask before closing while something typed would be lost. */
+export function setClosingConfirmation(on: boolean): void {
+  const app = getWebApp()
+  if (on) app?.enableClosingConfirmation?.()
+  else app?.disableClosingConfirmation?.()
 }
 
 export function getInitData(): string {
@@ -80,7 +142,7 @@ export function openExternal(url: string): void {
  *  Sending from their number is the point — a server-side blast from an
  *  unfamiliar sender is what gets an account limited. */
 export function openWhatsApp(phone: string, text: string): void {
-  const digits = phone.replace(/\D/g, '')
+  const digits = phoneDigits(phone)
   const base = digits ? `https://wa.me/${digits}` : 'https://wa.me/'
   openExternal(`${base}?text=${encodeURIComponent(text)}`)
 }

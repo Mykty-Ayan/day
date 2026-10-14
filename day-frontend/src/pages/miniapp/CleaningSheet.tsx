@@ -13,6 +13,7 @@ import { assignCleaner, createCleaningTask } from '../../api/cleaning'
 import { listCleaners } from '../../api/team'
 import type { Booking } from '../../types/booking'
 import { resultFeedback, tapFeedback } from '../../lib/telegram'
+import { errorText } from './errors'
 import { formatDay } from './format'
 import { ActionButton, Field, Sheet } from './miniapp-ui'
 
@@ -26,7 +27,8 @@ export default function CleaningSheet({
   const { t, i18n } = useTranslation()
   const queryClient = useQueryClient()
   const [cleanerId, setCleanerId] = useState<string | null>(null)
-  const [time, setTime] = useState('12:00')
+  // The flat turns over when the guest leaves: its own check-out hour, kept on the booking.
+  const [time, setTime] = useState(() => booking?.check_out.slice(11, 16) || '12:00')
   const [error, setError] = useState('')
 
   const cleaners = useQuery({
@@ -56,9 +58,7 @@ export default function CleaningSheet({
     },
     onError: (mutationError) => {
       resultFeedback('error')
-      const detail = (mutationError as { response?: { data?: { detail?: string } } }).response?.data
-        ?.detail
-      setError(detail || t('miniapp.cleaning.failed'))
+      setError(errorText(mutationError, t('miniapp.cleaning.failed'), t))
     },
   })
 
