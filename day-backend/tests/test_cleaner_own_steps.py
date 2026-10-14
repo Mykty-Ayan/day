@@ -16,7 +16,7 @@ from sqlalchemy.pool import NullPool
 
 from app.config import settings
 from app.domain.auth.value_objects import UserRole
-from tests.test_api_permissions import _request, _user_principal
+from tests.test_api_permissions import _api_key_principal, _request, _user_principal
 
 
 @pytest.mark.asyncio
@@ -27,6 +27,26 @@ async def test_a_cleaner_cannot_take_a_step_that_is_not_theirs(target):
         f"/api/v1/cleaning/{uuid.uuid4()}/status",
         _user_principal(UserRole.CLEANER),
         json={"target_status": target},
+    )
+    assert status == 403
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "scopes",
+    [
+        # A key is nobody's own cleaner: "own" without a user must not open every task.
+        ("cleaning:read", "cleaning:own"),
+        # Reading the cleanings is not changing them.
+        ("cleaning:read",),
+    ],
+)
+async def test_a_key_without_cleaning_write_cannot_change_a_status(scopes):
+    status = await _request(
+        "POST",
+        f"/api/v1/cleaning/{uuid.uuid4()}/status",
+        _api_key_principal(*scopes),
+        json={"target_status": "verified"},
     )
     assert status == 403
 

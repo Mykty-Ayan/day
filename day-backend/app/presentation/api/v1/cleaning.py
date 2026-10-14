@@ -318,9 +318,15 @@ async def change_task_status(
     session: AsyncSession = Depends(get_session),
     company_id: uuid.UUID = Depends(get_company_id),
     scope: uuid.UUID | None = Depends(cleaner_scope),
+    principal: Principal = Depends(get_principal),
 ):
-    if scope is not None and body.target_status not in _CLEANER_STEPS:
-        raise HTTPException(status_code=403, detail="A cleaner can only start or finish their own cleaning")
+    # Changing a status is writing: cleaning:write, or a cleaner's own step.
+    # cleaning:read alone, or "own" on a key that is nobody's, changes nothing.
+    if not principal.has(Permission.CLEANING_WRITE):
+        if scope is None:
+            raise HTTPException(status_code=403, detail="Insufficient permissions")
+        if body.target_status not in _CLEANER_STEPS:
+            raise HTTPException(status_code=403, detail="A cleaner can only start or finish their own cleaning")
     repos = _repos(session)
     if scope is not None:
         task = await repos["task"].get_by_id(task_id)
