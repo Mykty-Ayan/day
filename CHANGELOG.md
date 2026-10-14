@@ -1,5 +1,28 @@
 # Changelog
 
+## 0.4.0 — 2026-10-14
+
+The Telegram Mini App is rebuilt for the operator on the phone, and a cleaner gets their own way in. Money and bookings sent from a phone that lost its answer can no longer be recorded twice: the server settles a lost request by its key. Migrations 031–032 run on start. No environment variable has to change.
+
+### Added
+- Mini App booking card: status, times, call and WhatsApp, payments with a method and history, cancel, extend by a night or an hour with the new price, deposit (#100, #102)
+- Mini App "Sell": nights or hours for a party, phone first with a blacklist check, the source, a hold (#103)
+- Mini App flat card: hours, way in, Wi-Fi by role, prices, facts, amenities, the iCal link (#104)
+- A booking notice in Telegram opens the booking in the Mini App; `/today` shows the arrivals (#105)
+- A Telegram code for each team member: the chat is linked with that member's rights, not the owner's (#106, #109)
+- "My cleanings" in the Mini App for a cleaner: their own tasks by day, start and finish (#110)
+- `POST /bookings/idempotency-key/void` and `POST /bookings/{id}/payments/idempotency-key/void`: a request whose answer was lost is settled by its `Idempotency-Key` — the record it made, or the key is closed and a late request gets 409 (#107)
+- `unless_open` on `POST /bookings/{id}/deposits`: refused with 409 while another deposit is open (#108)
+
+### Changed
+- The Mini App behaves like a Telegram app: Back closes the sheet, swipes do not drop a form, a closed card acts on nothing it read (#101)
+- A cleaner's chat gets no booking notices and no assistant (#106)
+- A cleaner only starts and finishes their own cleaning; checking it is the manager's; a key without `cleaning:write` changes no status (#111)
+
+### Fixed
+- Today's bookings open as full cards; a server error no longer crashes the Mini App (#100)
+- A chat moved to another company starts a fresh conversation there instead of carrying the old company's last turns (#99)
+
 ## 0.3.0 — 2026-10-12
 
 Security catches up with the market, and an apartment gets the fields Airbnb and Booking ask for: capacity, bathrooms, its own check-in hours, how guests get in, a real amenity catalogue, and a calendar the platforms can read. Migrations 025–030 run on start. No environment variable has to change; `S3_PUBLIC_READ` is no longer read and can go.
