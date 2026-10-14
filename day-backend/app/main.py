@@ -194,7 +194,7 @@ def _setup_logging() -> None:
 def create_app() -> FastAPI:
     _setup_logging()
 
-    app = FastAPI(title="Day PMS API", version="0.3.0", lifespan=lifespan)
+    app = FastAPI(title="Day PMS API", version="0.4.0", lifespan=lifespan)
 
     from app.infrastructure.rate_limiter import RateLimitMiddleware
 
