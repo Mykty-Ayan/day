@@ -148,6 +148,11 @@ async def cleaner_scope(principal: Principal = Depends(get_principal)) -> uuid.U
     return None
 
 
+# The steps a cleaner takes on their own task. Checking the work ("verified"),
+# handing it back or reassigning it is the manager's.
+_CLEANER_STEPS = frozenset({CleaningStatus.IN_PROGRESS, CleaningStatus.DONE})
+
+
 def _forbid_other_cleaner(scope: uuid.UUID | None, cleaner_id: uuid.UUID | None) -> None:
     """404 rather than 403: a confined caller should not learn the task exists."""
     if scope is not None and cleaner_id != scope:
@@ -313,7 +318,15 @@ async def change_task_status(
     session: AsyncSession = Depends(get_session),
     company_id: uuid.UUID = Depends(get_company_id),
     scope: uuid.UUID | None = Depends(cleaner_scope),
+    principal: Principal = Depends(get_principal),
 ):
+    # Changing a status is writing: cleaning:write, or a cleaner's own step.
+    # cleaning:read alone, or "own" on a key that is nobody's, changes nothing.
+    if not principal.has(Permission.CLEANING_WRITE):
+        if scope is None:
+            raise HTTPException(status_code=403, detail="Insufficient permissions")
+        if body.target_status not in _CLEANER_STEPS:
+            raise HTTPException(status_code=403, detail="A cleaner can only start or finish their own cleaning")
     repos = _repos(session)
     if scope is not None:
         task = await repos["task"].get_by_id(task_id)
