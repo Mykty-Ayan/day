@@ -160,6 +160,8 @@
     "address": "Мекенжай",
     "apt": "Пәт. {{number}}",
     "floor": "Қабат {{number}}",
+    "floorOf": "Қабат {{number}} / {{total}}",
+    "links": "Сілтемелер",
     "pricingSaved": "Бағалар сақталды",
     "failedSavePricing": "Бағаларды сақтау сәтсіз аяқталды",
     "seasonalPriceAdded": "Маусымдық баға қосылды",
@@ -218,6 +220,16 @@
       "internalNamePlaceholder": "APT-001-Ortalyq",
       "descriptionPlaceholder": "Қала орталығындағы тамаша нысан...",
       "sourceUrlPlaceholder": "https://booking.com/...",
+      "complexName": "Тұрғын үй кешені",
+      "complexNamePlaceholder": "Expo Boulevard",
+      "floorsTotal": "Үйдегі қабат саны",
+      "floorsTotalPlaceholder": "9",
+      "mapUrl": "Картаға сілтеме",
+      "mapUrlPlaceholder": "https://go.2gis.com/...",
+      "whatsappProductUrl": "WhatsApp каталогындағы тауар",
+      "whatsappProductUrlPlaceholder": "https://wa.me/p/...",
+      "videoUrl": "Бейнешолу",
+      "videoUrlPlaceholder": "https://www.instagram.com/reel/...",
       "fullAddressPlaceholder": "Абай к-сі 10, қала, ел",
       "apartmentNumberPlaceholder": "4Б",
       "entrancePlaceholder": "А",
@@ -249,7 +261,8 @@
     },
     "validation": {
       "nameRequired": "Атауы міндетті",
-      "internalNameRequired": "Ішкі атауы міндетті"
+      "internalNameRequired": "Ішкі атауы міндетті",
+      "webLink": "Сілтеме https:// деп басталуы керек"
     },
     "amenityCategories": {
       "bathroom": "Жуынатын бөлме",

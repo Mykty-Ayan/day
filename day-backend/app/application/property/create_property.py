@@ -34,6 +34,11 @@ class CreatePropertyInput:
     entrance: str | None = None
     block: str | None = None
     floor: int | None = None
+    complex_name: str | None = None
+    floors_total: int | None = None
+    map_url: str | None = None
+    whatsapp_product_url: str | None = None
+    video_url: str | None = None
     rooms: int | None = None
     beds: int | None = None
     max_guests: int | None = None
@@ -88,6 +93,11 @@ class CreatePropertyService:
             entrance=inp.entrance,
             block=inp.block,
             floor=inp.floor,
+            complex_name=inp.complex_name,
+            floors_total=inp.floors_total,
+            map_url=inp.map_url,
+            whatsapp_product_url=inp.whatsapp_product_url,
+            video_url=inp.video_url,
             rooms=inp.rooms,
             beds=inp.beds,
             max_guests=inp.max_guests,

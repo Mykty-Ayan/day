@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { ArrowLeft, ArrowRight, Check, Loader2 } from 'lucide-react'
 import { useNavigate } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
+import { isWebLink } from '../../lib/utils'
 import { useCreateProperty } from '../../hooks/useProperties'
 import { createOrUpdatePricing, linkAmenities, uploadPhotos } from '../../api/properties'
 import type { CheckInMethod, PropertyType, PropertyCreateInput, PricingInput } from '../../types/property'
@@ -26,6 +27,9 @@ interface FormData {
     type: PropertyType
     description: string
     source_url: string
+    map_url: string
+    whatsapp_product_url: string
+    video_url: string
   }
   address: {
     address_full: string
@@ -33,6 +37,8 @@ interface FormData {
     entrance: string
     block: string
     floor: string
+    complex_name: string
+    floors_total: string
     latitude: string
     longitude: string
   }
@@ -69,8 +75,27 @@ interface FormData {
 }
 
 const initialForm: FormData = {
-  basic: { name: '', internal_name: '', type: 'apartment', description: '', source_url: '' },
-  address: { address_full: '', apartment_number: '', entrance: '', block: '', floor: '', latitude: '', longitude: '' },
+  basic: {
+    name: '',
+    internal_name: '',
+    type: 'apartment',
+    description: '',
+    source_url: '',
+    map_url: '',
+    whatsapp_product_url: '',
+    video_url: '',
+  },
+  address: {
+    address_full: '',
+    apartment_number: '',
+    entrance: '',
+    block: '',
+    floor: '',
+    complex_name: '',
+    floors_total: '',
+    latitude: '',
+    longitude: '',
+  },
   details: { rooms: '', beds: '', max_guests: '', bathrooms: '', area_living: '', area_total: '' },
   rental_mode: 'daily',
   pricing: { base_price: '', hourly_price: '', weekend_markup: '', default_deposit: '', extra_adult_price: '', extra_child_price: '', base_guests: '' },
@@ -128,6 +153,9 @@ export default function CreatePropertyPage() {
     if (step === 0) {
       if (!form.basic.name.trim()) newErrors.name = t('properties.validation.nameRequired')
       if (!form.basic.internal_name.trim()) newErrors.internal_name = t('properties.validation.internalNameRequired')
+      for (const key of ['map_url', 'whatsapp_product_url', 'video_url'] as const) {
+        if (form.basic[key].trim() && !isWebLink(form.basic[key])) newErrors[key] = t('properties.validation.webLink')
+      }
     }
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
@@ -154,11 +182,16 @@ export default function CreatePropertyPage() {
       rental_mode: form.rental_mode,
       description: form.basic.description || undefined,
       source_url: form.basic.source_url || undefined,
+      map_url: form.basic.map_url.trim() || undefined,
+      whatsapp_product_url: form.basic.whatsapp_product_url.trim() || undefined,
+      video_url: form.basic.video_url.trim() || undefined,
       address_full: form.address.address_full || undefined,
       apartment_number: form.address.apartment_number || undefined,
       entrance: form.address.entrance || undefined,
       block: form.address.block || undefined,
       floor: form.address.floor ? parseInt(form.address.floor) : undefined,
+      complex_name: form.address.complex_name.trim() || undefined,
+      floors_total: form.address.floors_total ? parseInt(form.address.floors_total) : undefined,
       latitude: form.address.latitude ? parseFloat(form.address.latitude) : undefined,
       longitude: form.address.longitude ? parseFloat(form.address.longitude) : undefined,
       rooms: form.details.rooms ? parseInt(form.details.rooms) : undefined,

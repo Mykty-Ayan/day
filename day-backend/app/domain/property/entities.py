@@ -39,6 +39,15 @@ class Property:
     entrance: str | None = None
     block: str | None = None
     floor: int | None = None
+    # Guests look a flat up by its residential complex; "5 of 9" needs the floors.
+    complex_name: str | None = None
+    floors_total: int | None = None
+
+    # Links the CRM hands to guests: the map pin, the product in the WhatsApp
+    # Business catalog, a video tour.
+    map_url: str | None = None
+    whatsapp_product_url: str | None = None
+    video_url: str | None = None
 
     # Details
     rooms: int | None = None

@@ -90,6 +90,11 @@ export interface Property {
   entrance: string
   block: string
   floor: number | null
+  complex_name: string | null
+  floors_total: number | null
+  map_url: string | null
+  whatsapp_product_url: string | null
+  video_url: string | null
   rooms: number
   beds: number
   max_guests: number | null
@@ -127,6 +132,11 @@ export interface PropertyCreateInput {
   entrance?: string
   block?: string
   floor?: number | null
+  complex_name?: string | null
+  floors_total?: number | null
+  map_url?: string | null
+  whatsapp_product_url?: string | null
+  video_url?: string | null
   rooms?: number
   beds?: number
   max_guests?: number | null
