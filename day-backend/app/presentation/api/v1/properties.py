@@ -103,6 +103,18 @@ def _visible_facts(facts: list, *, sees_secrets: bool) -> list:
     return [f for f in facts if f.audience != FactAudience.GUEST]
 
 
+def _visible_photos(photos: list, *, sees_secrets: bool) -> list:
+    if sees_secrets:
+        return photos
+    return [p for p in photos if p.audience != FactAudience.GUEST]
+
+
+def _check_photo_audience(audience: FactAudience, principal: Principal) -> None:
+    # Adding a check-in photo returns it; a writer who may not see codes may not place one.
+    if audience == FactAudience.GUEST and not _sees_secrets(principal):
+        raise HTTPException(status_code=403, detail="Check-in photos need property_secrets:read")
+
+
 def _to_property_response(p, photos: list | None = None, *, sees_secrets: bool) -> PropertyResponse:
     return PropertyResponse(
         id=p.id,
@@ -140,7 +152,10 @@ def _to_property_response(p, photos: list | None = None, *, sees_secrets: bool) 
         house_rules=p.house_rules,
         wifi_name=p.wifi_name,
         wifi_password=p.wifi_password if sees_secrets else None,
-        photos=[PropertyPhotoResponse.model_validate(photo, from_attributes=True) for photo in (photos or [])],
+        photos=[
+            PropertyPhotoResponse.model_validate(photo, from_attributes=True)
+            for photo in _visible_photos(photos or [], sees_secrets=sees_secrets)
+        ],
         created_at=p.created_at,
         updated_at=p.updated_at,
     )
@@ -474,7 +489,9 @@ async def add_photo(
     body: PhotoCreate,
     session: AsyncSession = Depends(get_session),
     company_id: uuid.UUID = Depends(get_company_id),
+    principal: Principal = Depends(get_principal),
 ):
+    _check_photo_audience(body.audience, principal)
     repos = _repos(session)
     svc = ManagePhotosService(repos["property"], repos["photo"])
     try:
@@ -485,6 +502,7 @@ async def add_photo(
             sort_order=body.sort_order,
             is_cover=body.is_cover,
             caption=body.caption,
+            audience=body.audience,
         )
         await session.commit()
         return PropertyPhotoResponse.model_validate(result, from_attributes=True)
@@ -519,10 +537,16 @@ async def upload_photo(
     file: UploadFile = File(...),
     sort_order: int = Form(0),
     is_cover: bool = Form(False),
+    audience: FactAudience = Form(FactAudience.PUBLIC),
+    caption: str | None = Form(None, max_length=500),
     session: AsyncSession = Depends(get_session),
     company_id: uuid.UUID = Depends(get_company_id),
+    principal: Principal = Depends(get_principal),
 ):
     """A photo from the owner's phone or computer. Linking by URL (imports, the CRM) stays on POST /photos."""
+    _check_photo_audience(audience, principal)
+    if is_cover and audience == FactAudience.GUEST:
+        raise HTTPException(status_code=400, detail="A check-in photo cannot be the cover")
     repos = _repos(session)
     prop = await repos["property"].get_by_id(property_id)
     if prop is None or prop.company_id != company_id:
@@ -548,7 +572,9 @@ async def upload_photo(
         raise HTTPException(status_code=500, detail="Failed to upload photo")
 
     svc = ManagePhotosService(repos["property"], repos["photo"])
-    result = await svc.add_photo(property_id, company_id, url, sort_order=sort_order, is_cover=is_cover)
+    result = await svc.add_photo(
+        property_id, company_id, url, sort_order=sort_order, is_cover=is_cover, caption=caption, audience=audience
+    )
     await session.commit()
     return PropertyPhotoResponse.model_validate(result, from_attributes=True)
 
@@ -564,10 +590,14 @@ async def set_photo_caption(
     body: PhotoCaption,
     session: AsyncSession = Depends(get_session),
     company_id: uuid.UUID = Depends(get_company_id),
+    principal: Principal = Depends(get_principal),
 ):
     repos = _repos(session)
     svc = ManagePhotosService(repos["property"], repos["photo"])
     try:
+        photos = _visible_photos(await svc.list_photos(property_id, company_id), sees_secrets=_sees_secrets(principal))
+        if not any(p.id == photo_id for p in photos):
+            raise ValueError("Photo not found")
         result = await svc.set_caption(photo_id, property_id, company_id, body.caption)
     except ValueError as e:
         await session.rollback()
@@ -607,13 +637,17 @@ async def reorder_photos(
     body: PhotoReorder,
     session: AsyncSession = Depends(get_session),
     company_id: uuid.UUID = Depends(get_company_id),
+    principal: Principal = Depends(get_principal),
 ):
     repos = _repos(session)
     svc = ManagePhotosService(repos["property"], repos["photo"])
     try:
         result = await svc.reorder_photos(property_id, company_id, body.photo_ids)
         await session.commit()
-        return [PropertyPhotoResponse.model_validate(p, from_attributes=True) for p in result]
+        return [
+            PropertyPhotoResponse.model_validate(p, from_attributes=True)
+            for p in _visible_photos(result, sees_secrets=_sees_secrets(principal))
+        ]
     except ValueError as e:
         await session.rollback()
         raise HTTPException(status_code=400, detail=str(e))

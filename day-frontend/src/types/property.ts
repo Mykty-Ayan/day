@@ -10,12 +10,17 @@ export type AmenityCategory =
   | 'comfort'
   | 'outdoor'
 
+/** guest: a check-in photo (the entrance, the lock): never in the listing. */
+export type PhotoAudience = 'public' | 'guest'
+
 export interface PropertyPhoto {
   id: string
   url: string
   thumbnail_url: string
   is_cover: boolean
   sort_order: number
+  caption: string | null
+  audience: PhotoAudience
   created_at: string
 }
 
