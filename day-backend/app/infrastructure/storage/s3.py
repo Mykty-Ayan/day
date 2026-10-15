@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import functools
 import json
 import os
 import uuid
@@ -43,6 +44,12 @@ def _ensure_bucket(client) -> None:
 
 
 PROPERTY_PHOTOS_PREFIX = "properties/"
+# Check-in photos (the entrance, the lock): outside the public prefix, handed
+# out only as signed links to those who may see door codes.
+CHECKIN_PHOTOS_PREFIX = "checkin/"
+#: Long enough for the CRM to hand a link to WhatsApp, short enough that a
+#: forwarded link or one kept after access was revoked dies within the hour.
+CHECKIN_PHOTO_LINK_SECONDS = 3600
 
 
 def apply_read_policy(client) -> None:
@@ -140,12 +147,13 @@ async def upload_booking_file(
 _PHOTO_EXTENSIONS = {"image/jpeg": ".jpg", "image/png": ".png", "image/webp": ".webp"}
 
 
-async def upload_property_photo(*, property_id: uuid.UUID, file_obj, content_type: str) -> str:
-    """Store a listing photo under the public prefix; returns the URL guests open."""
+async def upload_property_photo(*, property_id: uuid.UUID, file_obj, content_type: str, private: bool = False) -> str:
+    """Store a listing photo under the public prefix, or a check-in photo under the private one."""
     client = _s3_client()
     await asyncio.to_thread(_ensure_bucket, client)
     await asyncio.to_thread(apply_read_policy, client)
-    key = f"{PROPERTY_PHOTOS_PREFIX}{property_id}/{uuid.uuid4()}{_PHOTO_EXTENSIONS.get(content_type, '')}"
+    prefix = CHECKIN_PHOTOS_PREFIX if private else PROPERTY_PHOTOS_PREFIX
+    key = f"{prefix}{property_id}/{uuid.uuid4()}{_PHOTO_EXTENSIONS.get(content_type, '')}"
     try:
         file_obj.seek(0)
     except Exception:
@@ -154,6 +162,34 @@ async def upload_property_photo(*, property_id: uuid.UUID, file_obj, content_typ
         client.upload_fileobj, file_obj, settings.S3_BUCKET, key, ExtraArgs={"ContentType": content_type}
     )
     return build_public_url(key)
+
+
+@functools.cache
+def _signing_client():
+    # Signed for the address guests open: the signature covers the host.
+    return boto3.client(
+        "s3",
+        endpoint_url=settings.S3_PUBLIC_ENDPOINT or settings.S3_ENDPOINT,
+        aws_access_key_id=settings.S3_ACCESS_KEY,
+        aws_secret_access_key=settings.S3_SECRET_KEY,
+        region_name="us-east-1",
+        config=Config(s3={"addressing_style": "path"}, signature_version="s3v4"),
+    )
+
+
+def signed_photo_url(url: str) -> str:
+    """A stored check-in photo as a link that expires; any other URL as it is.
+
+    Signing is local (no request to storage). A link the owner pasted from
+    elsewhere is not ours to protect and passes through.
+    """
+    if not url.startswith(build_public_url(CHECKIN_PHOTOS_PREFIX)):
+        return url
+    return _signing_client().generate_presigned_url(
+        "get_object",
+        Params={"Bucket": settings.S3_BUCKET, "Key": _extract_key(url)},
+        ExpiresIn=CHECKIN_PHOTO_LINK_SECONDS,
+    )
 
 
 async def download_booking_file(*, file_url: str) -> tuple[bytes, str | None]:

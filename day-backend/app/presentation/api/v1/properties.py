@@ -43,7 +43,7 @@ from app.infrastructure.repositories.property import (
     SqlSeasonalPriceRepository,
 )
 from app.infrastructure.security import calendar_token
-from app.infrastructure.storage.s3 import upload_property_photo
+from app.infrastructure.storage.s3 import signed_photo_url, upload_property_photo
 from app.presentation.api.deps import Principal, get_company_id, get_principal, get_user_id, require
 from app.presentation.schemas.property import (
     AmenityResponse,
@@ -115,6 +115,14 @@ def _check_photo_audience(audience: FactAudience, principal: Principal) -> None:
         raise HTTPException(status_code=403, detail="Check-in photos need property_secrets:read")
 
 
+def _photo_response(photo) -> PropertyPhotoResponse:
+    response = PropertyPhotoResponse.model_validate(photo, from_attributes=True)
+    # Only callers who passed _visible_photos get here with a check-in photo.
+    if photo.audience == FactAudience.GUEST:
+        response.url = signed_photo_url(photo.url)
+    return response
+
+
 def _to_property_response(p, photos: list | None = None, *, sees_secrets: bool) -> PropertyResponse:
     return PropertyResponse(
         id=p.id,
@@ -152,10 +160,7 @@ def _to_property_response(p, photos: list | None = None, *, sees_secrets: bool) 
         house_rules=p.house_rules,
         wifi_name=p.wifi_name,
         wifi_password=p.wifi_password if sees_secrets else None,
-        photos=[
-            PropertyPhotoResponse.model_validate(photo, from_attributes=True)
-            for photo in _visible_photos(photos or [], sees_secrets=sees_secrets)
-        ],
+        photos=[_photo_response(photo) for photo in _visible_photos(photos or [], sees_secrets=sees_secrets)],
         created_at=p.created_at,
         updated_at=p.updated_at,
     )
@@ -505,7 +510,7 @@ async def add_photo(
             audience=body.audience,
         )
         await session.commit()
-        return PropertyPhotoResponse.model_validate(result, from_attributes=True)
+        return _photo_response(result)
     except ValueError as e:
         await session.rollback()
         raise HTTPException(status_code=400, detail=str(e))
@@ -567,7 +572,12 @@ async def upload_photo(
         )
 
     try:
-        url = await upload_property_photo(property_id=property_id, file_obj=file.file, content_type=content_type)
+        url = await upload_property_photo(
+            property_id=property_id,
+            file_obj=file.file,
+            content_type=content_type,
+            private=audience == FactAudience.GUEST,
+        )
     except Exception:
         raise HTTPException(status_code=500, detail="Failed to upload photo")
 
@@ -576,7 +586,7 @@ async def upload_photo(
         property_id, company_id, url, sort_order=sort_order, is_cover=is_cover, caption=caption, audience=audience
     )
     await session.commit()
-    return PropertyPhotoResponse.model_validate(result, from_attributes=True)
+    return _photo_response(result)
 
 
 @router.patch(
@@ -603,7 +613,7 @@ async def set_photo_caption(
         await session.rollback()
         raise HTTPException(status_code=404, detail=str(e))
     await session.commit()
-    return PropertyPhotoResponse.model_validate(result, from_attributes=True)
+    return _photo_response(result)
 
 
 @router.delete(
@@ -644,10 +654,7 @@ async def reorder_photos(
     try:
         result = await svc.reorder_photos(property_id, company_id, body.photo_ids)
         await session.commit()
-        return [
-            PropertyPhotoResponse.model_validate(p, from_attributes=True)
-            for p in _visible_photos(result, sees_secrets=_sees_secrets(principal))
-        ]
+        return [_photo_response(p) for p in _visible_photos(result, sees_secrets=_sees_secrets(principal))]
     except ValueError as e:
         await session.rollback()
         raise HTTPException(status_code=400, detail=str(e))

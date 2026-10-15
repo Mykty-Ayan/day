@@ -1,6 +1,7 @@
 """Check-in instruction photos (the entrance, the lock, the parking) reach only those who hand codes to guests."""
 
 from types import SimpleNamespace
+from urllib.parse import parse_qs, urlparse
 
 import pytest
 
@@ -9,8 +10,10 @@ from app.application.property.manage_photos import ManagePhotosService
 from app.domain.auth.permissions import Permission
 from app.domain.property.entities import PropertyPhoto
 from app.domain.property.value_objects import FactAudience
+from app.infrastructure.storage import s3
 from app.presentation.api.v1.properties import _visible_photos
 from tests.test_property_facts import flat  # noqa: F401  (a fixture)
+from tests.test_property_photo_upload import _upload, stored  # noqa: F401  (a fixture)
 from tests.test_property_services import (
     COMPANY_ID,
     FakeAmenityRepository,
@@ -24,6 +27,15 @@ from tests.test_property_services import (
 )
 
 LOCK = "https://cdn.example.com/properties/lock.jpg"
+
+
+@pytest.fixture
+def storage_keys(monkeypatch):
+    monkeypatch.setattr(s3.settings, "S3_ACCESS_KEY", "day-test")
+    monkeypatch.setattr(s3.settings, "S3_SECRET_KEY", "day-test-secret")
+    s3._signing_client.cache_clear()
+    yield
+    s3._signing_client.cache_clear()
 
 
 async def _service():
@@ -77,10 +89,11 @@ async def test_a_clone_keeps_who_may_see_a_photo_and_its_caption():
 
 
 @pytest.mark.integration
-async def test_instruction_photos_reach_only_the_keys_with_secrets(flat):  # noqa: F811  (the imported fixture)
+async def test_instruction_photos_reach_only_the_keys_with_secrets(flat, storage_keys):  # noqa: F811  (the imported fixture)
     client, prop, use = flat
     path = f"/api/v1/properties/{prop}"
-    lock = {"url": LOCK, "caption": "Замок: код в сообщении", "audience": "guest"}
+    stored_lock = s3.build_public_url(f"checkin/{prop}/lock.jpg")
+    lock = {"url": stored_lock, "caption": "Замок: код в сообщении", "audience": "guest"}
 
     use(Permission.PROPERTIES_READ, Permission.PROPERTIES_WRITE)
     assert (await client.post(f"{path}/photos", json=lock)).status_code == 403
@@ -98,6 +111,11 @@ async def test_instruction_photos_reach_only_the_keys_with_secrets(flat):  # noq
         return sorted(p["audience"] for p in response.json()["photos"])
 
     assert audiences(await client.get(path)) == ["guest", "public"]
+
+    # The stored file is private: those who may see it get a link that expires.
+    [guest] = [p for p in (await client.get(path)).json()["photos"] if p["audience"] == "guest"]
+    assert guest["url"].startswith(stored_lock + "?") and "X-Amz-Signature" in guest["url"]
+    assert created.json()["url"].startswith(stored_lock + "?")
 
     # A key without secrets: the card, the list and the caption edit do not show the lock.
     use(Permission.PROPERTIES_READ, Permission.PROPERTIES_WRITE)
@@ -117,3 +135,33 @@ async def test_instruction_photos_reach_only_the_keys_with_secrets(flat):  # noq
         ["https://cdn.example.com/properties/room.jpg"]
     ]
 
+
+
+def test_a_stored_check_in_photo_is_handed_out_as_a_link_that_expires(storage_keys):
+    stored_url = s3.build_public_url("checkin/flat/lock.jpg")
+    signed = s3.signed_photo_url(stored_url)
+    query = parse_qs(urlparse(signed).query)
+    assert signed.startswith(stored_url + "?")
+    assert "X-Amz-Signature" in query
+    assert query["X-Amz-Expires"] == [str(s3.CHECKIN_PHOTO_LINK_SECONDS)]
+
+
+def test_only_our_check_in_photos_are_signed(storage_keys):
+    # A listing photo is public anyway; a link the owner pasted is not ours to sign.
+    listing = s3.build_public_url("properties/flat/room.jpg")
+    assert s3.signed_photo_url(listing) == listing
+    assert s3.signed_photo_url("https://cdn.example.com/checkin/lock.jpg") == "https://cdn.example.com/checkin/lock.jpg"
+
+
+def test_the_bucket_never_opens_check_in_photos():
+    assert not s3.CHECKIN_PHOTOS_PREFIX.startswith(s3.PROPERTY_PHOTOS_PREFIX)
+
+
+@pytest.mark.asyncio
+async def test_an_uploaded_check_in_photo_goes_to_the_private_prefix(stored):  # noqa: F811  (the imported fixture)
+    sent, photos = stored()
+    assert await _upload(audience="guest", caption="Замок") == 201
+    assert sent[0]["private"] is True
+    assert (photos.saved[0].audience, photos.saved[0].caption) == (FactAudience.GUEST, "Замок")
+    assert await _upload() == 201
+    assert sent[1]["private"] is False
