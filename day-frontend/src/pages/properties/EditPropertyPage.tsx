@@ -6,7 +6,8 @@ import { useTranslation } from 'react-i18next'
 import { isWebLink } from '../../lib/utils'
 import Spinner from '../../components/ui/Spinner'
 import { useProperty, useUpdateProperty } from '../../hooks/useProperties'
-import type { CheckInMethod, Property, PropertyType, PropertyUpdateInput } from '../../types/property'
+import type { Property } from '../../types/property'
+import { formToUpdate, propertyToForm, type PropertyEditForm } from './propertyForm'
 import PropertyFormStepBasic from '../../components/property/PropertyFormStepBasic'
 import PropertyFormStepAddress from '../../components/property/PropertyFormStepAddress'
 import PropertyFormStepDetails from '../../components/property/PropertyFormStepDetails'
@@ -14,92 +15,6 @@ import PropertyFormStepRules from '../../components/property/PropertyFormStepRul
 import { showToast } from '../../components/ui/Toast'
 
 const STEPS = ['basicInfo', 'address', 'details', 'rules'] as const
-
-interface FormData {
-  basic: {
-    name: string
-    internal_name: string
-    type: PropertyType
-    description: string
-    source_url: string
-    map_url: string
-    whatsapp_product_url: string
-    video_url: string
-  }
-  address: {
-    address_full: string
-    apartment_number: string
-    entrance: string
-    block: string
-    floor: string
-    complex_name: string
-    floors_total: string
-    latitude: string
-    longitude: string
-  }
-  details: {
-    rooms: string
-    beds: string
-    max_guests: string
-    bathrooms: string
-    area_living: string
-    area_total: string
-  }
-  rules: {
-    check_in_hour: string
-    check_out_hour: string
-    check_in_method: string
-    check_in_instructions: string
-    check_out_instructions: string
-    house_rules: string
-    wifi_name: string
-    wifi_password: string
-  }
-}
-
-function propertyToForm(property: Property): FormData {
-  return {
-    basic: {
-      name: property.name || '',
-      internal_name: property.internal_name || '',
-      type: property.type || 'apartment',
-      description: property.description || '',
-      source_url: property.source_url || '',
-      map_url: property.map_url || '',
-      whatsapp_product_url: property.whatsapp_product_url || '',
-      video_url: property.video_url || '',
-    },
-    address: {
-      address_full: property.address_full || '',
-      apartment_number: property.apartment_number || '',
-      entrance: property.entrance || '',
-      block: property.block || '',
-      floor: property.floor != null ? String(property.floor) : '',
-      complex_name: property.complex_name || '',
-      floors_total: property.floors_total != null ? String(property.floors_total) : '',
-      latitude: property.latitude != null ? String(property.latitude) : '',
-      longitude: property.longitude != null ? String(property.longitude) : '',
-    },
-    details: {
-      rooms: property.rooms != null ? String(property.rooms) : '',
-      beds: property.beds != null ? String(property.beds) : '',
-      max_guests: property.max_guests != null ? String(property.max_guests) : '',
-      bathrooms: property.bathrooms != null ? String(property.bathrooms) : '',
-      area_living: property.area_living != null ? String(property.area_living) : '',
-      area_total: property.area_total != null ? String(property.area_total) : '',
-    },
-    rules: {
-      check_in_hour: property.check_in_hour != null ? String(property.check_in_hour) : '',
-      check_out_hour: property.check_out_hour != null ? String(property.check_out_hour) : '',
-      check_in_method: property.check_in_method || '',
-      check_in_instructions: property.check_in_instructions || '',
-      check_out_instructions: property.check_out_instructions || '',
-      house_rules: property.house_rules || '',
-      wifi_name: property.wifi_name || '',
-      wifi_password: property.wifi_password || '',
-    },
-  }
-}
 
 export default function EditPropertyPage() {
   const { t } = useTranslation()
@@ -126,7 +41,7 @@ function EditPropertyForm({ property, propertyId }: { property: Property; proper
   const navigate = useNavigate()
   const updateProperty = useUpdateProperty(propertyId)
   const [step, setStep] = useState(0)
-  const [form, setForm] = useState<FormData>(() => propertyToForm(property))
+  const [form, setForm] = useState<PropertyEditForm>(() => propertyToForm(property))
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [direction, setDirection] = useState(1)
 
@@ -157,40 +72,7 @@ function EditPropertyForm({ property, propertyId }: { property: Property; proper
   function handleSubmit() {
     if (!validateStep()) return
 
-    const payload: PropertyUpdateInput = {
-      name: form.basic.name,
-      internal_name: form.basic.internal_name,
-      type: form.basic.type,
-      description: form.basic.description || undefined,
-      source_url: form.basic.source_url || undefined,
-      map_url: form.basic.map_url.trim() || null,
-      whatsapp_product_url: form.basic.whatsapp_product_url.trim() || null,
-      video_url: form.basic.video_url.trim() || null,
-      address_full: form.address.address_full || undefined,
-      apartment_number: form.address.apartment_number || undefined,
-      entrance: form.address.entrance || undefined,
-      block: form.address.block || undefined,
-      floor: form.address.floor ? parseInt(form.address.floor) : undefined,
-      complex_name: form.address.complex_name.trim() || null,
-      floors_total: form.address.floors_total ? parseInt(form.address.floors_total) : null,
-      latitude: form.address.latitude ? parseFloat(form.address.latitude) : undefined,
-      longitude: form.address.longitude ? parseFloat(form.address.longitude) : undefined,
-      rooms: form.details.rooms ? parseInt(form.details.rooms) : undefined,
-      beds: form.details.beds ? parseInt(form.details.beds) : undefined,
-      // null, not undefined: a cleared field must reach the server as cleared.
-      max_guests: form.details.max_guests ? parseInt(form.details.max_guests) : null,
-      bathrooms: form.details.bathrooms ? parseInt(form.details.bathrooms) : null,
-      area_living: form.details.area_living ? parseFloat(form.details.area_living) : undefined,
-      area_total: form.details.area_total ? parseFloat(form.details.area_total) : undefined,
-      check_in_hour: form.rules.check_in_hour !== '' ? parseInt(form.rules.check_in_hour) : null,
-      check_out_hour: form.rules.check_out_hour !== '' ? parseInt(form.rules.check_out_hour) : null,
-      check_in_method: form.rules.check_in_method ? (form.rules.check_in_method as CheckInMethod) : null,
-      check_in_instructions: form.rules.check_in_instructions || undefined,
-      check_out_instructions: form.rules.check_out_instructions || undefined,
-      house_rules: form.rules.house_rules || undefined,
-      wifi_name: form.rules.wifi_name || undefined,
-      wifi_password: form.rules.wifi_password || undefined,
-    }
+    const payload = formToUpdate(form, property)
 
     updateProperty.mutate(payload, {
       onSuccess: () => {

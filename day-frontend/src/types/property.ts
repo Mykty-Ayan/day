@@ -153,7 +153,8 @@ export interface PropertyCreateInput {
   wifi_password?: string
 }
 
-export type PropertyUpdateInput = Partial<PropertyCreateInput>
+/** null clears a field; a missing field stays as it was. */
+export type PropertyUpdateInput = { [K in keyof PropertyCreateInput]?: PropertyCreateInput[K] | null }
 
 export interface PricingInput {
   base_price: number

@@ -1,9 +1,10 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ArrowLeft, ArrowRight, Check, Loader2 } from 'lucide-react'
 import { useNavigate } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 import { isWebLink } from '../../lib/utils'
+import { saveWizard } from './propertyForm'
 import { useCreateProperty } from '../../hooks/useProperties'
 import { createOrUpdatePricing, linkAmenities, uploadPhotos } from '../../api/properties'
 import type { CheckInMethod, PropertyType, PropertyCreateInput, PricingInput } from '../../types/property'
@@ -147,6 +148,9 @@ export default function CreatePropertyPage() {
   const [form, setForm] = useState<FormData>(initialForm)
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [direction, setDirection] = useState(1)
+  // The flat this wizard already created; a retry finishes it instead of making a second one.
+  const created = useRef<string | null>(null)
+  const [saving, setSaving] = useState(false)
 
   function validateStep(): boolean {
     const newErrors: Record<string, string> = {}
@@ -210,26 +214,35 @@ export default function CreatePropertyPage() {
       wifi_password: form.rules.wifi_password || undefined,
     }
 
+    setSaving(true)
+    let failedPhotos = 0
     try {
-      const property = await createProperty.mutateAsync(payload)
-
-      if (hasPricingInput(form.pricing)) {
-        await createOrUpdatePricing(property.id, toPricingInput(form.pricing))
-      }
-      if (form.amenityIds.length > 0) {
-        await linkAmenities(property.id, form.amenityIds)
-      }
-      // The photos step used to collect files and drop them on save.
-      const failedPhotos = form.photos.length > 0 ? await uploadPhotos(property.id, form.photos) : 0
+      const propertyId = await saveWizard(
+        created,
+        async () => (await createProperty.mutateAsync(payload)).id,
+        async (id) => {
+          if (hasPricingInput(form.pricing)) {
+            await createOrUpdatePricing(id, toPricingInput(form.pricing))
+          }
+          if (form.amenityIds.length > 0) {
+            await linkAmenities(id, form.amenityIds)
+          }
+          // The photos step used to collect files and drop them on save.
+          failedPhotos = form.photos.length > 0 ? await uploadPhotos(id, form.photos) : 0
+        },
+      )
 
       if (failedPhotos > 0) {
         showToast('error', t('properties.photosFailed', { count: failedPhotos }))
       } else {
         showToast('success', t('properties.propertyCreated'))
       }
-      navigate({ to: '/properties/$propertyId', params: { propertyId: property.id } })
+      navigate({ to: '/properties/$propertyId', params: { propertyId } })
     } catch {
-      showToast('error', t('properties.failedCreate'))
+      // Once the flat exists, the next click only finishes it.
+      showToast('error', created.current ? t('properties.failedFinishCreate') : t('properties.failedCreate'))
+    } finally {
+      setSaving(false)
     }
   }
 
@@ -341,10 +354,10 @@ export default function CreatePropertyPage() {
           <motion.button
             whileTap={{ scale: 0.97 }}
             onClick={isLast ? handleSubmit : goNext}
-            disabled={createProperty.isPending}
+            disabled={saving}
             className="flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl bg-black px-6 py-2.5 font-semibold text-white shadow-lg transition-colors hover:bg-gray-800 disabled:opacity-50 sm:w-auto"
           >
-            {createProperty.isPending ? (
+            {saving ? (
               <Loader2 className="w-4 h-4 animate-spin" />
             ) : isLast ? (
               <>
