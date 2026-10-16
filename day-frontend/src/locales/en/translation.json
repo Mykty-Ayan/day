@@ -438,6 +438,7 @@
     "childrenCount_other": "{{count}} children",
     "dateRange": "Dates",
     "selectDates": "Select dates",
+    "bookedNightsFailed": "Could not load booked dates.",
     "colors": {
       "blue": "Blue",
       "green": "Green",

@@ -27,6 +27,9 @@ interface DateRangePickerProps {
   booked?: ReadonlySet<string>
   /** The booked nights for the days on screen are still loading: no day can be picked yet. */
   bookedLoading?: boolean
+  /** The booked nights could not be loaded: no day can be picked, and `onBookedRetry` asks again. */
+  bookedFailed?: boolean
+  onBookedRetry?: () => void
   /** The first month on screen, on open and on every page turn: to load its booked nights. */
   onMonthChange?: (month: Date) => void
 }
@@ -58,6 +61,8 @@ export default function DateRangePicker({
   error,
   booked = NO_NIGHTS,
   bookedLoading = false,
+  bookedFailed = false,
+  onBookedRetry,
   onMonthChange,
 }: DateRangePickerProps) {
   const { t } = useTranslation()
@@ -133,13 +138,22 @@ export default function DateRangePicker({
           min={1}
           onSelect={handleSelect}
           disabled={
-            bookedLoading || [...(min ? [{ before: min }] : []), (date: Date) => isDayBlocked(day(date), booked, checkIn)]
+            bookedLoading || bookedFailed || [...(min ? [{ before: min }] : []), (date: Date) => isDayBlocked(day(date), booked, checkIn)]
           }
           modifiers={{ booked: (date: Date) => booked.has(day(date)) }}
           modifiersClassNames={{ booked: '[&>button]:line-through' }}
           numberOfMonths={numberOfMonths}
           initialFocus
         />
+        {/* Below the calendar: its month navigation overlays the top edge. */}
+        {bookedFailed && (
+          <p role="alert" className="px-2 pb-2 text-xs text-red-600">
+            {t('bookings.bookedNightsFailed')}{' '}
+            <button type="button" onClick={onBookedRetry} className="font-semibold underline">
+              {t('common.retry')}
+            </button>
+          </p>
+        )}
       </PopoverContent>
     </Popover>
   )

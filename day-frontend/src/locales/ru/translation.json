@@ -438,6 +438,7 @@
     "childrenCount_other": "{{count}} детей",
     "dateRange": "Даты",
     "selectDates": "Выберите даты",
+    "bookedNightsFailed": "Не удалось загрузить занятые даты.",
     "colors": {
       "blue": "Синий",
       "green": "Зелёный",

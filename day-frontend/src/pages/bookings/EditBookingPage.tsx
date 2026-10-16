@@ -309,6 +309,8 @@ function EditBookingForm({ detail, bookingId }: { detail: BookingDetail; booking
                   error={!!errors.check_in || !!errors.check_out}
                   booked={booked.data}
                   bookedLoading={booked.isLoading}
+                  bookedFailed={booked.isError}
+                  onBookedRetry={() => booked.refetch()}
                   onMonthChange={setCalendarMonth}
                 />
                 {errors.check_in && (
