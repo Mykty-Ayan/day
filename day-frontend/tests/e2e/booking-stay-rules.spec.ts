@@ -25,8 +25,10 @@ test.describe('Stay rules in the booking form', () => {
 
   test('a one-night stay in a two-night flat is refused, then booked on the operator word', async ({ page }) => {
     await page.goto(`/bookings/new?property_id=${propertyId}&check_in=${futureDate(20)}&check_out=${futureDate(21)}`)
-    await page.getByPlaceholder(/phone/i).first().fill('+77010000099')
-    await page.getByPlaceholder(/name/i).first().fill('Stay Rules Guest')
+    // A guest new to the company: a known one opens the suggestions list over the form.
+    const stamp = Date.now().toString().slice(-7)
+    await page.getByPlaceholder(/phone/i).first().fill(`+7701${stamp}`)
+    await page.getByPlaceholder(/name/i).first().fill(`Stay Rules ${stamp}`)
     await page.getByRole('button', { name: 'Create Booking' }).click()
 
     const alert = page.getByRole('alert').filter({ hasText: 'The booking breaks the apartment rules' })
