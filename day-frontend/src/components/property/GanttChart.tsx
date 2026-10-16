@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState, useCallback, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { useNavigate } from '@tanstack/react-router'
+import { Link, useNavigate } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 import type { Booking, BookingStatus, GanttBlock, GanttPropertySummary } from '../../types/booking'
 import type { PricingConfig } from '../../types/property'
@@ -9,6 +9,7 @@ import { moveBooking } from '../../api/bookings'
 import { stayRuleBreaches, stayRuleText, type StayRuleBreach } from '../../lib/booking-errors'
 import { blockNights, isDayBlocked } from '../../lib/booking-dates'
 import ConfirmDialog from '../ui/ConfirmDialog'
+import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover'
 import { useQueryClient } from '@tanstack/react-query'
 import { useCurrency } from '../../hooks/useCurrency'
 import { useMediaQuery } from '../../hooks/useMediaQuery'
@@ -153,6 +154,22 @@ function getBookingNights(checkIn: string, checkOut: string): number {
 
 function isHourlyBooking(booking: Booking): boolean {
   return booking.rental_mode === 'hourly'
+}
+
+// Hourly bookings by the day they start, where a day has two or more: each would
+// take the whole day cell and cover the others, so they show as one plate.
+function hourlyGroups(bookings: Booking[]): Map<string, Booking[]> {
+  const byDay = new Map<string, Booking[]>()
+  for (const booking of bookings) {
+    if (!isHourlyBooking(booking)) continue
+    const day = booking.check_in.slice(0, 10)
+    byDay.set(day, [...(byDay.get(day) ?? []), booking])
+  }
+  for (const [day, group] of byDay) {
+    if (group.length < 2) byDay.delete(day)
+    else group.sort((a, b) => a.check_in.localeCompare(b.check_in))
+  }
+  return byDay
 }
 
 // Whole hours (ceil, matching the backend hourly billing) between two datetimes.
@@ -686,6 +703,8 @@ export default function GanttChart({
             {sortedRows.map((row) => {
               const isPaused = row.property.status === 'paused'
               const closedNights = blockNights(row.blocks ?? [])
+              const hourlyByDay = hourlyGroups(row.bookings)
+              const grouped = new Set([...hourlyByDay.values()].flat().map((booking) => booking.id))
               return (
                 <div
                   key={row.property.id}
@@ -874,6 +893,7 @@ export default function GanttChart({
 
                 {/* Booking bars overlaid */}
                 {row.bookings.map((booking) => {
+                  if (grouped.has(booking.id)) return null
                   const pos = getBarPosition(booking)
                   if (!pos) return null
 
@@ -960,6 +980,54 @@ export default function GanttChart({
                         </div>
                       )}
                     </button>
+                  )
+                })}
+
+                {/* Several hourly bookings on one day: one plate, listed by the hour */}
+                {[...hourlyByDay].map(([day, group]) => {
+                  const start = parseDateOnly(day)
+                  const pos = getSpanPosition(start, new Date(start.getFullYear(), start.getMonth(), start.getDate() + 1), cellW)
+                  if (!pos) return null
+                  return (
+                    <Popover key={`hourly-${day}`}>
+                      <PopoverTrigger asChild>
+                        <button
+                          type="button"
+                          aria-label={t('gantt.hourlyMany', { flat: row.property.internal_name, n: group.length })}
+                          onClick={(e) => e.stopPropagation()}
+                          className="absolute rounded-full text-[11px] font-semibold text-white shadow-sm ring-1 ring-white/70 transition-shadow hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+                          style={{
+                            left: pos.left,
+                            width: pos.width,
+                            top: BAR_Y,
+                            height: BAR_H,
+                            backgroundColor: group[0].gantt_color || '#3B82F6',
+                            zIndex: 5,
+                          }}
+                        >
+                          ×{group.length}
+                        </button>
+                      </PopoverTrigger>
+                      <PopoverContent align="start" className="w-auto min-w-[200px] p-1.5">
+                        <ul>
+                          {group.map((booking) => (
+                            <li key={booking.id}>
+                              <Link
+                                to="/bookings/$bookingId"
+                                params={{ bookingId: booking.id }}
+                                search={{ from: 'gantt' } as Record<string, string>}
+                                className="flex min-h-[44px] items-center gap-2 rounded-lg px-2 text-sm hover:bg-gray-50"
+                              >
+                                <span className="font-semibold tabular-nums text-gray-900">
+                                  {booking.check_in.slice(11, 16)}–{booking.check_out.slice(11, 16)}
+                                </span>{' '}
+                                <span className="truncate text-gray-600">{booking.guest_name}</span>
+                              </Link>
+                            </li>
+                          ))}
+                        </ul>
+                      </PopoverContent>
+                    </Popover>
                   )
                 })}
                 </div>

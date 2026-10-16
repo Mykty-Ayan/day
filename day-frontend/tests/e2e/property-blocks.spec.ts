@@ -135,8 +135,7 @@ test('the flat page closes no further ahead than it lists', async ({ page, reque
   const popover = page.locator('[data-radix-popper-content-wrapper]')
   const cell = (d: Date) => popover.locator(`td[data-day="${local(d)}"] button`)
   for (let turn = 0; turn < 20 && (await cell(past).count()) === 0; turn++) {
-    // Fired on the arrow itself: the month caption sits over it (a separate fix).
-    await popover.getByRole('button', { name: /next month/i }).dispatchEvent('click')
+    await popover.getByRole('button', { name: /next month/i }).click()
   }
   await expect(cell(horizon)).toBeEnabled()
   await expect(cell(past)).toBeDisabled()

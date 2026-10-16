@@ -578,7 +578,8 @@
       "11": "December"
     },
     "closed": "Closed",
-    "closedDay": "The flat is closed on this day"
+    "closedDay": "The flat is closed on this day",
+    "hourlyMany": "{{flat}}: hourly bookings, {{n}}"
   },
   "cleaning": {
     "title": "Cleaning",
