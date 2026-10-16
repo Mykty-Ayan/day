@@ -439,6 +439,8 @@ class SqlBookingRepository(BookingRepository):
             property_id=block.property_id,
             start_date=block.start_date,
             end_date=block.end_date,
+            starts_at=block.starts_at,
+            ends_at=block.ends_at,
             reason=block.reason,
             created_by=block.created_by,
         )
@@ -1042,6 +1044,8 @@ def _model_to_block(m: PropertyBlockModel) -> PropertyBlock:
         property_id=m.property_id,
         start_date=m.start_date,
         end_date=m.end_date,
+        starts_at=m.starts_at,
+        ends_at=m.ends_at,
         reason=m.reason,
         created_by=m.created_by,
         created_at=m.created_at,

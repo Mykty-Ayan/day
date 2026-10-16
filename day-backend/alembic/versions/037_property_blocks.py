@@ -26,6 +26,8 @@ def upgrade() -> None:
         sa.Column("property_id", sa.Uuid(), sa.ForeignKey("properties.id", ondelete="CASCADE"), nullable=False),
         sa.Column("start_date", sa.Date(), nullable=False),
         sa.Column("end_date", sa.Date(), nullable=False),
+        sa.Column("starts_at", sa.DateTime(), nullable=False),
+        sa.Column("ends_at", sa.DateTime(), nullable=False),
         sa.Column("reason", sa.String(255), nullable=True),
         sa.Column("created_by", sa.Uuid(), nullable=True),
         sa.Column("created_at", sa.DateTime(), nullable=False, server_default=sa.func.now()),

@@ -253,6 +253,9 @@ class PropertyBlockModel(Base):
     property_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("properties.id", ondelete="CASCADE"), index=True)
     start_date: Mapped[date] = mapped_column(Date)
     end_date: Mapped[date] = mapped_column(Date)
+    # The span itself, fixed when the block is made (see PropertyBlock).
+    starts_at: Mapped[datetime] = mapped_column(DateTime)
+    ends_at: Mapped[datetime] = mapped_column(DateTime)
     reason: Mapped[str | None] = mapped_column(String(255), nullable=True)
     # Who closed the nights; like the audit log's changed_by, a plain id.
     created_by: Mapped[uuid.UUID | None] = mapped_column(nullable=True)
