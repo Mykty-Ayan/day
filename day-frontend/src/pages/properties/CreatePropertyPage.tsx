@@ -4,9 +4,9 @@ import { ArrowLeft, ArrowRight, Check, Loader2 } from 'lucide-react'
 import { useNavigate } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 import { isWebLink } from '../../lib/utils'
-import { saveWizard } from './propertyForm'
+import { saveWizard, wizardToUpdate } from './propertyForm'
 import { useCreateProperty } from '../../hooks/useProperties'
-import { createOrUpdatePricing, linkAmenities, uploadPhotos } from '../../api/properties'
+import { createOrUpdatePricing, linkAmenities, updateProperty, uploadPhotos } from '../../api/properties'
 import type { CheckInMethod, PropertyType, PropertyCreateInput, PricingInput } from '../../types/property'
 import type { RentalMode } from '../../types/booking'
 import PropertyFormStepBasic from '../../components/property/PropertyFormStepBasic'
@@ -220,6 +220,9 @@ export default function CreatePropertyPage() {
       const propertyId = await saveWizard(
         created,
         async () => (await createProperty.mutateAsync(payload)).id,
+        async (id) => {
+          await updateProperty(id, wizardToUpdate(payload))
+        },
         async (id) => {
           if (hasPricingInput(form.pricing)) {
             await createOrUpdatePricing(id, toPricingInput(form.pricing))

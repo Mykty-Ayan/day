@@ -1,4 +1,4 @@
-import type { CheckInMethod, Property, PropertyType, PropertyUpdateInput } from '../../types/property'
+import type { CheckInMethod, Property, PropertyCreateInput, PropertyType, PropertyUpdateInput } from '../../types/property'
 
 /** The edit form keeps every field as typed text; the payload turns it back into values. */
 export interface PropertyEditForm {
@@ -93,6 +93,8 @@ export function propertyToForm(property: Property): PropertyEditForm {
 // null, not undefined: the server keeps a missing field as it was, so a
 // cleared field must go out as cleared.
 const text = (value: string) => value.trim() || null
+// Wi-Fi name and password are typed into a phone as they are: spaces count.
+const exact = (value: string) => value || null
 const int = (value: string) => (value.trim() === '' ? null : parseInt(value, 10))
 const float = (value: string) => (value.trim() === '' ? null : parseFloat(value))
 
@@ -127,24 +129,32 @@ export function formToUpdate(form: PropertyEditForm, loaded: Property): Property
     check_in_instructions: text(form.rules.check_in_instructions),
     check_out_instructions: text(form.rules.check_out_instructions),
     house_rules: text(form.rules.house_rules),
-    wifi_name: text(form.rules.wifi_name),
+    wifi_name: exact(form.rules.wifi_name),
   }
   // Those who may not see the password get it empty; sending that back would
   // wipe it. It goes out only when someone changed it.
   if (form.rules.wifi_password !== asText(loaded.wifi_password)) {
-    body.wifi_password = text(form.rules.wifi_password)
+    body.wifi_password = exact(form.rules.wifi_password)
   }
   return body
 }
 
+/** The wizard's create payload as an update of the flat it already created:
+ *  a field left empty goes out as null, so a field cleared between attempts clears. */
+export function wizardToUpdate(payload: PropertyCreateInput): PropertyUpdateInput {
+  return Object.fromEntries(Object.entries(payload).map(([key, value]) => [key, value ?? null]))
+}
+
 /** The wizard's save. The flat is created once: a retry after a failed price or
- *  amenity save finishes that flat instead of creating a second one. */
+ *  amenity save first saves the form as it is now onto that flat, then finishes it. */
 export async function saveWizard(
   created: { current: string | null },
   create: () => Promise<string>,
+  update: (propertyId: string) => Promise<void>,
   finish: (propertyId: string) => Promise<void>,
 ): Promise<string> {
   if (created.current === null) created.current = await create()
+  else await update(created.current)
   await finish(created.current)
   return created.current
 }
