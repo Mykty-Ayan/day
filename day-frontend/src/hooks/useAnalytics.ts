@@ -8,16 +8,18 @@ import {
 const ANALYTICS_METRICS_KEY = 'analytics-metrics'
 const ANALYTICS_TIME_SERIES_KEY = 'analytics-time-series'
 
-export function useAnalyticsMetrics(filters: AnalyticsFilters = {}) {
+export function useAnalyticsMetrics(filters: AnalyticsFilters = {}, enabled = true) {
   return useQuery({
     queryKey: [ANALYTICS_METRICS_KEY, filters],
     queryFn: () => getAnalyticsMetrics(filters),
+    enabled,
   })
 }
 
-export function useAnalyticsTimeSeries(filters: AnalyticsFilters = {}) {
+export function useAnalyticsTimeSeries(filters: AnalyticsFilters = {}, enabled = true) {
   return useQuery({
     queryKey: [ANALYTICS_TIME_SERIES_KEY, filters],
     queryFn: () => getAnalyticsTimeSeries(filters),
+    enabled,
   })
 }

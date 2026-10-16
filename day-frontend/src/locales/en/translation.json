@@ -675,6 +675,8 @@
     "month": "Month",
     "quarter": "Quarter",
     "year": "Year",
+    "customPeriod": "Custom",
+    "pickPeriod": "Pick the first and the last day of the period",
     "daily": "Daily",
     "weekly": "Weekly",
     "monthly": "Monthly",

@@ -55,9 +55,15 @@ export function isDayBlocked(day: string, booked: ReadonlySet<string>, checkIn: 
 }
 
 /** The stay after a click: the check-out when a check-in waits for one and the
- *  day is later, a new check-in otherwise. A picked stay is never stretched. */
-export function pickStayDay(checkIn: string, checkOut: string, day: string): { checkIn: string; checkOut: string } {
-  if (checkIn && !checkOut && day > checkIn) return { checkIn, checkOut: day }
+ *  day is later, a new check-in otherwise. A picked stay is never stretched.
+ *  `sameDay` lets one day be both ends (a report, not a stay). */
+export function pickStayDay(
+  checkIn: string,
+  checkOut: string,
+  day: string,
+  { sameDay = false }: { sameDay?: boolean } = {},
+): { checkIn: string; checkOut: string } {
+  if (checkIn && !checkOut && (day > checkIn || (sameDay && day === checkIn))) return { checkIn, checkOut: day }
   return { checkIn: day, checkOut: '' }
 }
 

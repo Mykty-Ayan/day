@@ -32,6 +32,8 @@ interface DateRangePickerProps {
   onBookedRetry?: () => void
   /** The first month on screen, on open and on every page turn: to load its booked nights. */
   onMonthChange?: (month: Date) => void
+  /** One day may be both ends: a period of days, not a stay of nights. */
+  allowSameDay?: boolean
 }
 
 const NO_NIGHTS: ReadonlySet<string> = new Set()
@@ -64,6 +66,7 @@ export default function DateRangePicker({
   bookedFailed = false,
   onBookedRetry,
   onMonthChange,
+  allowSameDay = false,
 }: DateRangePickerProps) {
   const { t } = useTranslation()
   const [open, setOpen] = useState(false)
@@ -80,7 +83,7 @@ export default function DateRangePicker({
   // The click decides, not the range react-day-picker proposes: it would stretch
   // a picked stay across booked nights instead of starting a new one.
   function handleSelect(_range: DateRange | undefined, clicked: Date) {
-    const next = pickStayDay(start ? day(start) : '', end ? day(end) : '', day(clicked))
+    const next = pickStayDay(start ? day(start) : '', end ? day(end) : '', day(clicked), { sameDay: allowSameDay })
     onRangeChange(next.checkIn, next.checkOut)
     if (next.checkOut) {
       setOpen(false)
@@ -135,7 +138,7 @@ export default function DateRangePicker({
           onMonthChange={onMonthChange}
           showOutsideDays={false}
           pagedNavigation
-          min={1}
+          min={allowSameDay ? 0 : 1}
           onSelect={handleSelect}
           disabled={
             bookedLoading || bookedFailed || [...(min ? [{ before: min }] : []), (date: Date) => isDayBlocked(day(date), booked, checkIn)]
