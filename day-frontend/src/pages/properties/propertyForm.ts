@@ -102,12 +102,16 @@ export function listingLines(value: string): string[] {
     .filter(Boolean)
 }
 
-// As the server takes them: web addresses, at most twenty.
+// As the server takes them: web addresses of up to 500 characters, at most twenty.
 const MAX_LISTING_LINKS = 20
+const MAX_LISTING_LINK_LENGTH = 500
 
 export function listingLinksValid(value: string): boolean {
   const lines = listingLines(value)
-  return lines.length <= MAX_LISTING_LINKS && lines.every(isWebLink)
+  return (
+    lines.length <= MAX_LISTING_LINKS &&
+    lines.every((line) => isWebLink(line) && line.length <= MAX_LISTING_LINK_LENGTH)
+  )
 }
 
 // null, not undefined: the server keeps a missing field as it was, so a

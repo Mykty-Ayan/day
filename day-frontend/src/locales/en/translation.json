@@ -277,7 +277,7 @@
       "nameRequired": "Name is required",
       "internalNameRequired": "Internal name is required",
       "webLink": "The link must start with https://",
-      "listingLinks": "One link per line, each starting with http:// or https://, no spaces; at most 20"
+      "listingLinks": "One link per line, each starting with http:// or https://, no spaces, up to 500 characters; at most 20"
     },
     "amenityCategories": {
       "bathroom": "Bathroom",

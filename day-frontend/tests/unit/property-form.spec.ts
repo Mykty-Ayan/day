@@ -183,4 +183,8 @@ test('listing links must be web addresses, twenty at most', () => {
   expect(listingLinksValid('krisha.kz/a/show/1')).toBe(false)
   expect(listingLinksValid(Array.from({ length: 21 }, (_, n) => `https://krisha.kz/a/show/${n}`).join('\n'))).toBe(false)
   expect(listingLinksValid('')).toBe(true)
+  // 500 characters is the server's limit for one link.
+  const at = (length: number) => 'https://krisha.kz/' + 'a'.repeat(length - 'https://krisha.kz/'.length)
+  expect(listingLinksValid(at(500))).toBe(true)
+  expect(listingLinksValid(at(501))).toBe(false)
 })
