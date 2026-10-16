@@ -72,6 +72,10 @@ interface FormData {
     house_rules: string
     wifi_name: string
     wifi_password: string
+    min_nights: string
+    max_nights: string
+    buffer_hours: string
+    min_lead_hours: string
   }
   amenityIds: string[]
 }
@@ -112,6 +116,10 @@ const initialForm: FormData = {
     house_rules: '',
     wifi_name: '',
     wifi_password: '',
+    min_nights: '',
+    max_nights: '',
+    buffer_hours: '',
+    min_lead_hours: '',
   },
   amenityIds: [],
 }
@@ -216,6 +224,10 @@ export default function CreatePropertyPage() {
       house_rules: form.rules.house_rules || undefined,
       wifi_name: form.rules.wifi_name || undefined,
       wifi_password: form.rules.wifi_password || undefined,
+      min_nights: form.rules.min_nights ? parseInt(form.rules.min_nights) : undefined,
+      max_nights: form.rules.max_nights ? parseInt(form.rules.max_nights) : undefined,
+      buffer_hours: form.rules.buffer_hours ? parseInt(form.rules.buffer_hours) : undefined,
+      min_lead_hours: form.rules.min_lead_hours ? parseInt(form.rules.min_lead_hours) : undefined,
     }
 
     setSaving(true)

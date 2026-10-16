@@ -165,6 +165,20 @@ test('a retry saves the form changed between attempts', () => {
   })
 })
 
+test('stay rules go out as numbers, and a cleared one as null', () => {
+  const ruled = { ...flat, min_nights: 2, max_nights: null, buffer_hours: 2, min_lead_hours: 3 } as Property
+  const form = propertyToForm(ruled)
+  expect(form.rules).toMatchObject({ min_nights: '2', max_nights: '', buffer_hours: '2', min_lead_hours: '3' })
+  form.rules.max_nights = '28'
+  form.rules.min_lead_hours = ''
+  expect(formToUpdate(form, propertyToForm(ruled))).toMatchObject({
+    min_nights: 2,
+    max_nights: 28,
+    buffer_hours: 2,
+    min_lead_hours: null,
+  })
+})
+
 test('listing links are typed one per line and go out as a list', () => {
   expect(listingLines(' https://krisha.kz/a/show/1 \n\n https://www.booking.com/hotel/kz/a.html\n')).toEqual([
     'https://krisha.kz/a/show/1',

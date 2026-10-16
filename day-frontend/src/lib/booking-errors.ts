@@ -70,3 +70,41 @@ export function getBookingFieldError(error: unknown, t: Translate): BookingField
 
   return null
 }
+
+/** One stay rule of the apartment a booking breaks (see the property's rules). */
+export interface StayRuleBreach {
+  rule: 'min_nights' | 'max_nights' | 'buffer_hours' | 'min_lead_hours'
+  limit: number
+  actual: number
+}
+
+/** The broken stay rules of a refused booking (422, code "stay_rules"), or null
+ *  for any other error. The same request with override_rules books it anyway. */
+export function stayRuleBreaches(error: unknown): StayRuleBreach[] | null {
+  if (!isAxiosError(error)) return null
+  const detail = (error.response?.data as { detail?: unknown } | undefined)?.detail
+  if (typeof detail !== 'object' || detail === null) return null
+  const { code, breaches } = detail as { code?: unknown; breaches?: unknown }
+  return code === 'stay_rules' && Array.isArray(breaches) ? (breaches as StayRuleBreach[]) : null
+}
+
+export function stayRuleText(
+  breach: StayRuleBreach,
+  t: (key: string, values?: Record<string, unknown>) => string,
+): string {
+  return t(`bookings.stayRules.${breach.rule}`, { limit: breach.limit, actual: breach.actual })
+}
+
+/** A booking request the stay rules refused, kept to send again with override_rules. */
+export interface RulesRefusal<T> {
+  payload: T
+  breaches: StayRuleBreach[]
+}
+
+/** The breaches to show: only while the form would still send what was refused.
+ *  A change since then (even one made while the answer was on its way) is a new
+ *  booking for the server to check, not one the operator agreed to. */
+export function currentBreaches<T>(refusal: RulesRefusal<T> | null, payload: T): StayRuleBreach[] | null {
+  if (!refusal) return null
+  return JSON.stringify(refusal.payload) === JSON.stringify(payload) ? refusal.breaches : null
+}

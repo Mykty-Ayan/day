@@ -43,6 +43,10 @@ export interface PropertyEditForm {
     house_rules: string
     wifi_name: string
     wifi_password: string
+    min_nights: string
+    max_nights: string
+    buffer_hours: string
+    min_lead_hours: string
   }
 }
 
@@ -90,6 +94,10 @@ export function propertyToForm(property: Property): PropertyEditForm {
       house_rules: asText(property.house_rules),
       wifi_name: asText(property.wifi_name),
       wifi_password: asText(property.wifi_password),
+      min_nights: asNumberText(property.min_nights),
+      max_nights: asNumberText(property.max_nights),
+      buffer_hours: asNumberText(property.buffer_hours),
+      min_lead_hours: asNumberText(property.min_lead_hours),
     },
   }
 }
@@ -158,6 +166,10 @@ export function formToUpdate(form: PropertyEditForm, opened: PropertyEditForm): 
     check_out_instructions: text(form.rules.check_out_instructions),
     house_rules: text(form.rules.house_rules),
     wifi_name: exact(form.rules.wifi_name),
+    min_nights: int(form.rules.min_nights),
+    max_nights: int(form.rules.max_nights),
+    buffer_hours: int(form.rules.buffer_hours),
+    min_lead_hours: int(form.rules.min_lead_hours),
   }
   // Those who may not see the password get it empty; sending that back would
   // wipe it. It goes out only when someone changed it.

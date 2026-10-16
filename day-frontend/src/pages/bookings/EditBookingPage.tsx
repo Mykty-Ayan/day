@@ -14,7 +14,14 @@ import { ToggleGroup, ToggleGroupItem } from '../../components/ui/toggle-group'
 import NumberInput from '../../components/ui/number-input'
 import Spinner from '../../components/ui/Spinner'
 import { showToast } from '../../components/ui/Toast'
-import { getBookingApiErrorMessage, getBookingFieldError } from '../../lib/booking-errors'
+import {
+  currentBreaches,
+  getBookingApiErrorMessage,
+  getBookingFieldError,
+  stayRuleBreaches,
+  type RulesRefusal,
+} from '../../lib/booking-errors'
+import StayRulesAlert from '../../components/booking/StayRulesAlert'
 import { nightsWindow, switchRentalMode } from '../../lib/booking-dates'
 
 interface FormData {
@@ -121,6 +128,9 @@ function EditBookingForm({ detail, bookingId }: { detail: BookingDetail; booking
     { value: '#06B6D4', label: t('bookings.colors.cyan') },
   ]
 
+  // The save the stay rules refused; "save anyway" sends exactly it again.
+  const [refused, setRefused] = useState<RulesRefusal<BookingUpdateInput> | null>(null)
+
   function updateField<K extends keyof FormData>(key: K, value: FormData[K]) {
     setForm((f) => ({ ...f, [key]: value }))
     setErrors((e) => {
@@ -163,10 +173,8 @@ function EditBookingForm({ detail, bookingId }: { detail: BookingDetail; booking
     return Object.keys(errs).length === 0
   }
 
-  function handleSubmit() {
-    if (!validate()) return
-
-    const payload: BookingUpdateInput = {
+  function updatePayload(): BookingUpdateInput {
+    return {
       check_in: effectiveCheckIn,
       check_out: effectiveCheckOut,
       rental_mode: form.rental_mode,
@@ -176,13 +184,18 @@ function EditBookingForm({ detail, bookingId }: { detail: BookingDetail; booking
       gantt_color: form.gantt_color,
       notes: form.notes || undefined,
     }
+  }
 
+  function send(payload: BookingUpdateInput) {
     updateBooking.mutate(payload, {
       onSuccess: () => {
         showToast('success', t('bookings.bookingUpdated'))
         navigate({ to: '/bookings/$bookingId', params: { bookingId } })
       },
       onError: (err) => {
+        const broken = stayRuleBreaches(err)
+        setRefused(broken ? { payload, breaches: broken } : null)
+        if (broken) return
         const fieldError = getBookingFieldError(err, t)
         if (fieldError) {
           setErrors((prev) => ({ ...prev, [fieldError.field]: fieldError.message }))
@@ -191,6 +204,15 @@ function EditBookingForm({ detail, bookingId }: { detail: BookingDetail; booking
       },
     })
   }
+
+  function handleSubmit() {
+    if (!validate()) return
+    send(updatePayload())
+  }
+
+
+  // Shown only while the form still says what was refused.
+  const breaches = currentBreaches(refused, updatePayload())
 
   return (
     <div className="px-4 py-4 sm:px-6 sm:py-6 max-w-3xl mx-auto w-full">
@@ -432,12 +454,21 @@ function EditBookingForm({ detail, bookingId }: { detail: BookingDetail; booking
           </div>
         </div>
 
+        {breaches && refused && (
+          <StayRulesAlert
+            breaches={breaches}
+            action={t('bookings.stayRules.saveAnyway')}
+            busy={updateBooking.isPending}
+            onOverride={() => send({ ...refused.payload, override_rules: true })}
+          />
+        )}
+
         {/* Submit */}
         <div className="mt-6 flex justify-end">
           <motion.button
             whileTap={{ scale: 0.97 }}
             type="button"
-            onClick={handleSubmit}
+            onClick={() => handleSubmit()}
             disabled={updateBooking.isPending}
             className="flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl bg-black px-6 py-2.5 font-semibold text-white shadow-lg transition-colors hover:bg-gray-800 disabled:opacity-50 sm:w-auto"
           >

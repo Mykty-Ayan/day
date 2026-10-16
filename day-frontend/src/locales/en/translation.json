@@ -271,7 +271,14 @@
       "turnoverHours": "Check-out cannot be later than check-in, or back-to-back stays overlap",
       "listingUrls": "Listing links",
       "listingUrlsPlaceholder": "https://krisha.kz/a/show/…\nhttps://www.booking.com/hotel/…",
-      "listingUrlsHint": "One per line: Krisha, Booking, Airbnb, OLX. When a guest sends such a link, the CRM finds the flat by it."
+      "listingUrlsHint": "One per line: Krisha, Booking, Airbnb, OLX. When a guest sends such a link, the CRM finds the flat by it.",
+      "stayRules": "Booking rules",
+      "min_nights": "Minimum nights",
+      "max_nights": "Maximum nights",
+      "buffer_hours": "Cleaning between hourly bookings, h",
+      "min_lead_hours": "Book at least, h before check-in",
+      "noRule": "No limit",
+      "stayRulesHint": "Empty means no limit. The rules apply to bookings made in Day; bookings from Booking and Airbnb are not refused. A rule can be broken by confirming it when booking."
     },
     "validation": {
       "nameRequired": "Name is required",
@@ -476,6 +483,16 @@
     "overbooking": {
       "short": "Overbooking",
       "detail": "Overbooking: this booking came from a platform for nights already taken. Move or cancel one of the two bookings."
+    },
+    "stayRules": {
+      "title": "The booking breaks the apartment rules",
+      "min_nights": "Minimum nights: {{limit}}, this booking: {{actual}}",
+      "max_nights": "Maximum nights: {{limit}}, this booking: {{actual}}",
+      "buffer_hours": "Cleaning hours between hourly bookings: {{limit}}, here: {{actual}}",
+      "min_lead_hours": "Book at least {{limit}} h before check-in; this check-in is {{actual}} h away",
+      "bookAnyway": "Book anyway",
+      "saveAnyway": "Save anyway",
+      "moveAnyway": "Move anyway"
     }
   },
   "today": {

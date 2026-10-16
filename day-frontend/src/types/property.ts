@@ -100,6 +100,11 @@ export interface Property {
   map_url: string | null
   whatsapp_product_url: string | null
   video_url: string | null
+  /** Stay rules for bookings made in Day; null is no rule. */
+  min_nights: number | null
+  max_nights: number | null
+  buffer_hours: number | null
+  min_lead_hours: number | null
   /** The flat's listings (Krisha, Booking, Airbnb, OLX); the CRM finds the flat by a guest's link. */
   listing_urls: string[]
   rooms: number
@@ -144,6 +149,10 @@ export interface PropertyCreateInput {
   map_url?: string | null
   whatsapp_product_url?: string | null
   video_url?: string | null
+  min_nights?: number | null
+  max_nights?: number | null
+  buffer_hours?: number | null
+  min_lead_hours?: number | null
   listing_urls?: string[]
   rooms?: number
   beds?: number

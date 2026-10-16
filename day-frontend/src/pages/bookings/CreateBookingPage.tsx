@@ -19,7 +19,14 @@ import {
 import { ToggleGroup, ToggleGroupItem } from '../../components/ui/toggle-group'
 import NumberInput from '../../components/ui/number-input'
 import { useCurrency } from '../../hooks/useCurrency'
-import { getBookingApiErrorMessage, getBookingFieldError } from '../../lib/booking-errors'
+import {
+  currentBreaches,
+  getBookingApiErrorMessage,
+  getBookingFieldError,
+  stayRuleBreaches,
+  type RulesRefusal,
+} from '../../lib/booking-errors'
+import StayRulesAlert from '../../components/booking/StayRulesAlert'
 import { nightsWindow, switchRentalMode } from '../../lib/booking-dates'
 
 interface FormData {
@@ -218,6 +225,9 @@ export default function CreateBookingPage() {
 
   const { data: priceData, isFetching: priceLoading } = useCalculatePrice(debouncedPriceParams)
 
+  // The request the stay rules refused; "book anyway" sends exactly it again.
+  const [refused, setRefused] = useState<RulesRefusal<BookingCreateInput> | null>(null)
+
   function updateField<K extends keyof FormData>(key: K, value: FormData[K]) {
     setForm((f) => ({ ...f, [key]: value }))
     setErrors((e) => {
@@ -265,10 +275,8 @@ export default function CreateBookingPage() {
     return Object.keys(errs).length === 0
   }
 
-  function handleSubmit() {
-    if (!validate()) return
-
-    const payload: BookingCreateInput = {
+  function bookingPayload(): BookingCreateInput {
+    return {
       property_id: form.property_id,
       check_in: effectiveCheckIn,
       check_out: effectiveCheckOut,
@@ -282,12 +290,17 @@ export default function CreateBookingPage() {
       gantt_color: form.gantt_color,
       notes: form.notes || undefined,
     }
+  }
 
+  function send(payload: BookingCreateInput) {
     createBooking.mutate(payload, {
       onSuccess: (booking) => {
         navigate({ to: '/bookings/$bookingId', params: { bookingId: booking.id } })
       },
       onError: (err) => {
+        const broken = stayRuleBreaches(err)
+        setRefused(broken ? { payload, breaches: broken } : null)
+        if (broken) return
         const fieldError = getBookingFieldError(err, t)
         if (fieldError) {
           setErrors((prev) => ({ ...prev, [fieldError.field]: fieldError.message }))
@@ -295,6 +308,12 @@ export default function CreateBookingPage() {
       },
     })
   }
+
+  function handleSubmit() {
+    if (!validate()) return
+    send(bookingPayload())
+  }
+
 
   function handleBack() {
     // Preserve navigation context when booking is opened from gantt range selection.
@@ -304,6 +323,9 @@ export default function CreateBookingPage() {
     }
     navigate({ to: '/bookings' })
   }
+
+  // Shown only while the form still says what was refused.
+  const breaches = currentBreaches(refused, bookingPayload())
 
   return (
     <div className="px-4 py-4 sm:px-6 sm:py-6 max-w-6xl mx-auto w-full">
@@ -711,7 +733,15 @@ export default function CreateBookingPage() {
             </div>
 
             {/* Error message */}
-            {createBooking.isError && (
+            {breaches && refused && (
+              <StayRulesAlert
+                breaches={breaches}
+                action={t('bookings.stayRules.bookAnyway')}
+                busy={createBooking.isPending}
+                onOverride={() => send({ ...refused.payload, override_rules: true })}
+              />
+            )}
+            {createBooking.isError && !stayRuleBreaches(createBooking.error) && (
               <div className="mt-4 bg-red-50 border border-red-200 rounded-xl p-3">
                 <p className="text-sm text-red-600">
                   {getBookingApiErrorMessage(createBooking.error, t) ||
@@ -734,7 +764,7 @@ export default function CreateBookingPage() {
               <motion.button
                 whileTap={{ scale: 0.97 }}
                 type="button"
-                onClick={handleSubmit}
+                onClick={() => handleSubmit()}
                 disabled={createBooking.isPending || selectedProperty?.status === 'paused'}
                 className="flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl bg-black px-6 py-2.5 font-semibold text-white shadow-lg transition-colors hover:bg-gray-800 disabled:opacity-50 sm:w-auto"
               >
