@@ -401,6 +401,27 @@ export default function PropertyDetailPage() {
                   </div>
                 </div>
               )}
+              {property.listing_urls?.length > 0 && (
+                <div className="flex items-start gap-2 mt-4 pt-4 border-t border-gray-100">
+                  <ExternalLink className="w-4 h-4 text-gray-400 mt-0.5" />
+                  <div className="min-w-0">
+                    <p className="text-xs text-gray-500">{t('properties.listings')}</p>
+                    <div className="flex flex-col gap-y-1">
+                      {property.listing_urls.map((url) => (
+                        <a
+                          key={url}
+                          href={url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="truncate text-sm text-blue-600 hover:underline"
+                        >
+                          {url.replace(/^https?:\/\/(www\.)?/, '')}
+                        </a>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Description */}

@@ -2,6 +2,7 @@ import uuid
 from datetime import date, datetime
 
 from sqlalchemy import (
+    JSON,
     Boolean,
     Date,
     Float,
@@ -43,6 +44,7 @@ class PropertyModel(Base):
     map_url: Mapped[str | None] = mapped_column(String(1024), nullable=True)
     whatsapp_product_url: Mapped[str | None] = mapped_column(String(1024), nullable=True)
     video_url: Mapped[str | None] = mapped_column(String(1024), nullable=True)
+    listing_urls: Mapped[list] = mapped_column(JSON, nullable=False, default=list, server_default="[]")
     min_nights: Mapped[int | None] = mapped_column(Integer, nullable=True)
     max_nights: Mapped[int | None] = mapped_column(Integer, nullable=True)
     buffer_hours: Mapped[int | None] = mapped_column(Integer, nullable=True)

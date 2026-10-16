@@ -4,7 +4,7 @@ import { ArrowLeft, ArrowRight, Check, Loader2 } from 'lucide-react'
 import { useNavigate } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 import { isWebLink } from '../../lib/utils'
-import { saveWizard, wizardToUpdate } from './propertyForm'
+import { listingLines, listingLinksValid, saveWizard, wizardToUpdate } from './propertyForm'
 import { useCreateProperty } from '../../hooks/useProperties'
 import { createOrUpdatePricing, linkAmenities, updateProperty, uploadPhotos } from '../../api/properties'
 import type { CheckInMethod, PropertyType, PropertyCreateInput, PricingInput } from '../../types/property'
@@ -31,6 +31,7 @@ interface FormData {
     map_url: string
     whatsapp_product_url: string
     video_url: string
+    listing_urls: string
   }
   address: {
     address_full: string
@@ -89,6 +90,7 @@ const initialForm: FormData = {
     map_url: '',
     whatsapp_product_url: '',
     video_url: '',
+    listing_urls: '',
   },
   address: {
     address_full: '',
@@ -168,6 +170,7 @@ export default function CreatePropertyPage() {
       for (const key of ['map_url', 'whatsapp_product_url', 'video_url'] as const) {
         if (form.basic[key].trim() && !isWebLink(form.basic[key])) newErrors[key] = t('properties.validation.webLink')
       }
+      if (!listingLinksValid(form.basic.listing_urls)) newErrors.listing_urls = t('properties.validation.listingLinks')
     }
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
@@ -197,6 +200,7 @@ export default function CreatePropertyPage() {
       map_url: form.basic.map_url.trim() || undefined,
       whatsapp_product_url: form.basic.whatsapp_product_url.trim() || undefined,
       video_url: form.basic.video_url.trim() || undefined,
+      listing_urls: listingLines(form.basic.listing_urls),
       address_full: form.address.address_full || undefined,
       apartment_number: form.address.apartment_number || undefined,
       entrance: form.address.entrance || undefined,
