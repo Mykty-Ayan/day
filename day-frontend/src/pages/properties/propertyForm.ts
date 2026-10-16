@@ -98,7 +98,9 @@ const exact = (value: string) => value || null
 const int = (value: string) => (value.trim() === '' ? null : parseInt(value, 10))
 const float = (value: string) => (value.trim() === '' ? null : parseFloat(value))
 
-export function formToUpdate(form: PropertyEditForm, loaded: Property): PropertyUpdateInput {
+/** `opened` is the form as it was built when the page opened, not the property
+ *  now in the cache: a background refetch must not turn an untouched field into a change. */
+export function formToUpdate(form: PropertyEditForm, opened: PropertyEditForm): PropertyUpdateInput {
   const body: PropertyUpdateInput = {
     name: form.basic.name,
     internal_name: form.basic.internal_name,
@@ -133,7 +135,7 @@ export function formToUpdate(form: PropertyEditForm, loaded: Property): Property
   }
   // Those who may not see the password get it empty; sending that back would
   // wipe it. It goes out only when someone changed it.
-  if (form.rules.wifi_password !== asText(loaded.wifi_password)) {
+  if (form.rules.wifi_password !== opened.rules.wifi_password) {
     body.wifi_password = exact(form.rules.wifi_password)
   }
   return body

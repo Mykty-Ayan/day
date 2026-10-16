@@ -52,7 +52,7 @@ test('a cleared field goes out as null, so the server clears it', () => {
   form.details.area_total = ''
   form.rules.house_rules = ''
   form.rules.wifi_name = ''
-  const body = formToUpdate(form, flat)
+  const body = formToUpdate(form, propertyToForm(flat))
   expect(body.description).toBeNull()
   expect(body.block).toBeNull()
   expect(body.latitude).toBeNull()
@@ -64,11 +64,11 @@ test('a cleared field goes out as null, so the server clears it', () => {
 test('floor 0 is a floor, not an empty field', () => {
   const form = propertyToForm(flat)
   expect(form.address.floor).toBe('0')
-  expect(formToUpdate(form, flat).floor).toBe(0)
+  expect(formToUpdate(form, propertyToForm(flat)).floor).toBe(0)
 })
 
 test('untouched fields go out with the values they had', () => {
-  const body = formToUpdate(propertyToForm(flat), flat)
+  const body = formToUpdate(propertyToForm(flat), propertyToForm(flat))
   expect(body).toMatchObject({
     description: 'Тихий двор',
     address_full: 'Ауэзова 62',
@@ -84,23 +84,32 @@ test('untouched fields go out with the values they had', () => {
 test('the Wi-Fi password goes out only when it was changed', () => {
   // Someone who may not see the password gets it empty; saving must not wipe it.
   const hidden = { ...flat, wifi_password: null } as Property
-  expect('wifi_password' in formToUpdate(propertyToForm(hidden), hidden)).toBe(false)
+  expect('wifi_password' in formToUpdate(propertyToForm(hidden), propertyToForm(hidden))).toBe(false)
 
   const form = propertyToForm(flat)
-  expect('wifi_password' in formToUpdate(form, flat)).toBe(false)
+  expect('wifi_password' in formToUpdate(form, propertyToForm(flat))).toBe(false)
   form.rules.wifi_password = 'secret-2'
-  expect(formToUpdate(form, flat).wifi_password).toBe('secret-2')
+  expect(formToUpdate(form, propertyToForm(flat)).wifi_password).toBe('secret-2')
   form.rules.wifi_password = ''
-  expect(formToUpdate(form, flat).wifi_password).toBeNull()
+  expect(formToUpdate(form, propertyToForm(flat)).wifi_password).toBeNull()
+})
+
+test('a password set elsewhere after the form opened survives the save', () => {
+  // The form opened with no password; the CRM set one; a background refetch brought
+  // it in. The untouched empty field must not go out as "clear the password".
+  const opened = propertyToForm({ ...flat, wifi_password: null } as Property)
+  const form = structuredClone(opened)
+  form.basic.description = 'Новое описание'
+  expect('wifi_password' in formToUpdate(form, opened)).toBe(false)
 })
 
 test('Wi-Fi name and password keep their spaces', () => {
   // A network called "Guest WiFi " is not "Guest WiFi": trimming breaks the login.
   const spaced = { ...flat, wifi_name: 'Guest WiFi ', wifi_password: 'secret-1' } as Property
   const form = propertyToForm(spaced)
-  expect(formToUpdate(form, spaced).wifi_name).toBe('Guest WiFi ')
+  expect(formToUpdate(form, propertyToForm(spaced)).wifi_name).toBe('Guest WiFi ')
   form.rules.wifi_password = ' secret123 '
-  expect(formToUpdate(form, spaced).wifi_password).toBe(' secret123 ')
+  expect(formToUpdate(form, propertyToForm(spaced)).wifi_password).toBe(' secret123 ')
 })
 
 test('a retry after a failed save finishes the flat already created', async () => {

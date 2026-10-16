@@ -41,7 +41,9 @@ function EditPropertyForm({ property, propertyId }: { property: Property; proper
   const navigate = useNavigate()
   const updateProperty = useUpdateProperty(propertyId)
   const [step, setStep] = useState(0)
-  const [form, setForm] = useState<PropertyEditForm>(() => propertyToForm(property))
+  // The form as it opened: what the save compares against, whatever a refetch brings later.
+  const [opened] = useState<PropertyEditForm>(() => propertyToForm(property))
+  const [form, setForm] = useState<PropertyEditForm>(opened)
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [direction, setDirection] = useState(1)
 
@@ -72,7 +74,7 @@ function EditPropertyForm({ property, propertyId }: { property: Property; proper
   function handleSubmit() {
     if (!validateStep()) return
 
-    const payload = formToUpdate(form, property)
+    const payload = formToUpdate(form, opened)
 
     updateProperty.mutate(payload, {
       onSuccess: () => {
