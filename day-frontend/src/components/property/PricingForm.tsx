@@ -102,6 +102,11 @@ function PricingFormInner({
   const [discountValue, setDiscountValue] = useState('')
   const discountStep = discountType === 'percent' ? 1 : 1000
 
+  // An hourly booking is priced by the hour alone: the server ignores the nightly
+  // price, the weekend markup, the extra guests, seasons and discounts. The hidden
+  // values stay as they were and are saved back unchanged.
+  const nightly = rentalMode !== 'hourly'
+
   function parseNumber(value: string, fallback = 0) {
     const normalized = value.replace(/\s+/g, '').replace(',', '.')
     const parsed = Number.parseFloat(normalized)
@@ -206,17 +211,19 @@ function PricingFormInner({
           </ToggleGroup>
         </div>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <div>
-            <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">
-              {t('properties.pricing.basePrice')}
-            </label>
-            <NumberInput
-              value={basePrice}
-              onChange={setBasePrice}
-              min={0}
-              step={1000}
-            />
-          </div>
+          {nightly && (
+            <div>
+              <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">
+                {t('properties.pricing.basePrice')}
+              </label>
+              <NumberInput
+                value={basePrice}
+                onChange={setBasePrice}
+                min={0}
+                step={1000}
+              />
+            </div>
+          )}
           {rentalMode !== 'daily' && (
             <div>
               <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">
@@ -230,17 +237,19 @@ function PricingFormInner({
               />
             </div>
           )}
-          <div>
-            <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">
-              {t('properties.pricing.weekendMarkup')}
-            </label>
-            <NumberInput
-              value={weekendMarkup}
-              onChange={setWeekendMarkup}
-              min={0}
-              step={1}
-            />
-          </div>
+          {nightly && (
+            <div>
+              <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">
+                {t('properties.pricing.weekendMarkup')}
+              </label>
+              <NumberInput
+                value={weekendMarkup}
+                onChange={setWeekendMarkup}
+                min={0}
+                step={1}
+              />
+            </div>
+          )}
           <div>
             <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">
               {t('properties.pricing.defaultDeposit')}
@@ -252,39 +261,43 @@ function PricingFormInner({
               step={1000}
             />
           </div>
-          <div>
-            <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">
-              {t('properties.pricing.baseGuests')}
-            </label>
-            <NumberInput
-              value={baseGuests}
-              onChange={setBaseGuests}
-              min={1}
-              step={1}
-            />
-          </div>
-          <div>
-            <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">
-              {t('properties.pricing.extraAdultPrice')}
-            </label>
-            <NumberInput
-              value={extraAdult}
-              onChange={setExtraAdult}
-              min={0}
-              step={1000}
-            />
-          </div>
-          <div>
-            <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">
-              {t('properties.pricing.extraChildPrice')}
-            </label>
-            <NumberInput
-              value={extraChild}
-              onChange={setExtraChild}
-              min={0}
-              step={1000}
-            />
-          </div>
+          {nightly && (
+            <>
+              <div>
+                <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">
+                  {t('properties.pricing.baseGuests')}
+                </label>
+                <NumberInput
+                  value={baseGuests}
+                  onChange={setBaseGuests}
+                  min={1}
+                  step={1}
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">
+                  {t('properties.pricing.extraAdultPrice')}
+                </label>
+                <NumberInput
+                  value={extraAdult}
+                  onChange={setExtraAdult}
+                  min={0}
+                  step={1000}
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">
+                  {t('properties.pricing.extraChildPrice')}
+                </label>
+                <NumberInput
+                  value={extraChild}
+                  onChange={setExtraChild}
+                  min={0}
+                  step={1000}
+                />
+              </div>
+            </>
+          )}
         </div>
         <motion.button
           type="button"
@@ -298,205 +311,209 @@ function PricingFormInner({
         </motion.button>
       </div>
 
-      {/* Seasonal prices */}
-      <div>
-        <h3 className="text-sm font-bold text-gray-900 mb-3">{t('properties.pricing.seasonalPrices')}</h3>
+      {nightly && (
+        <>
+          {/* Seasonal prices */}
+          <div>
+            <h3 className="text-sm font-bold text-gray-900 mb-3">{t('properties.pricing.seasonalPrices')}</h3>
 
-        {seasonalSuggestions.length > 0 && (
-          <div className="mb-3 rounded-xl border border-gray-200 bg-gray-50 p-3">
-            <p className="text-xs font-bold uppercase tracking-wider text-gray-500">
-              {t('properties.pricing.suggestedSeasons')}
-            </p>
-            <div className="mt-2 flex flex-wrap gap-2">
-              {seasonalSuggestions.slice(0, 8).map((suggestion) => (
-                <button
-                  key={suggestion.key}
-                  type="button"
-                  onClick={() => applySeasonalSuggestion(suggestion)}
-                  className="rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-100 transition-colors"
-                  title={suggestion.source_properties.join(', ')}
-                >
-                  {t('properties.pricing.addSuggestion', {
-                    name: suggestion.name,
-                    start: formatSeasonalDate(suggestion.start_date),
-                    end: formatSeasonalDate(suggestion.end_date),
-                  })}
-                </button>
-              ))}
-            </div>
-            {seasonalSuggestions.length > 8 && (
-              <p className="mt-2 text-xs text-gray-500">
-                {t('properties.pricing.moreSuggestions', { count: seasonalSuggestions.length - 8 })}
-              </p>
+            {seasonalSuggestions.length > 0 && (
+              <div className="mb-3 rounded-xl border border-gray-200 bg-gray-50 p-3">
+                <p className="text-xs font-bold uppercase tracking-wider text-gray-500">
+                  {t('properties.pricing.suggestedSeasons')}
+                </p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {seasonalSuggestions.slice(0, 8).map((suggestion) => (
+                    <button
+                      key={suggestion.key}
+                      type="button"
+                      onClick={() => applySeasonalSuggestion(suggestion)}
+                      className="rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-100 transition-colors"
+                      title={suggestion.source_properties.join(', ')}
+                    >
+                      {t('properties.pricing.addSuggestion', {
+                        name: suggestion.name,
+                        start: formatSeasonalDate(suggestion.start_date),
+                        end: formatSeasonalDate(suggestion.end_date),
+                      })}
+                    </button>
+                  ))}
+                </div>
+                {seasonalSuggestions.length > 8 && (
+                  <p className="mt-2 text-xs text-gray-500">
+                    {t('properties.pricing.moreSuggestions', { count: seasonalSuggestions.length - 8 })}
+                  </p>
+                )}
+              </div>
             )}
-          </div>
-        )}
 
-        {seasonalPrices.map((sp: SeasonalPrice) => (
-          <div
-            key={sp.id}
-            className="mb-2 flex flex-col gap-2 rounded-xl border border-gray-200 bg-gray-50 p-3 sm:flex-row sm:items-center sm:justify-between"
-          >
-            <div>
-              <span className="text-sm font-semibold text-gray-900">{sp.name.trim()}</span>
-              <span className="ml-2 text-xs text-gray-500">
-                {formatSeasonalDate(sp.start_date)} - {formatSeasonalDate(sp.end_date)}
-              </span>
-            </div>
-            <div className="flex items-center gap-2 self-start sm:self-auto">
-              <span className="text-sm font-bold text-gray-900">{currencySymbol}{sp.price}</span>
-              <button
-                onClick={() => onDeleteSeasonal(sp.id)}
-                className="inline-flex h-11 w-11 items-center justify-center rounded-lg text-gray-400 transition-colors hover:bg-red-50 hover:text-red-600 sm:h-8 sm:w-8"
+            {seasonalPrices.map((sp: SeasonalPrice) => (
+              <div
+                key={sp.id}
+                className="mb-2 flex flex-col gap-2 rounded-xl border border-gray-200 bg-gray-50 p-3 sm:flex-row sm:items-center sm:justify-between"
               >
-                <X className="w-4 h-4" />
-              </button>
+                <div>
+                  <span className="text-sm font-semibold text-gray-900">{sp.name.trim()}</span>
+                  <span className="ml-2 text-xs text-gray-500">
+                    {formatSeasonalDate(sp.start_date)} - {formatSeasonalDate(sp.end_date)}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2 self-start sm:self-auto">
+                  <span className="text-sm font-bold text-gray-900">{currencySymbol}{sp.price}</span>
+                  <button
+                    onClick={() => onDeleteSeasonal(sp.id)}
+                    className="inline-flex h-11 w-11 items-center justify-center rounded-lg text-gray-400 transition-colors hover:bg-red-50 hover:text-red-600 sm:h-8 sm:w-8"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            ))}
+
+            <div className="mt-2 grid grid-cols-1 items-start gap-2 sm:grid-cols-2 xl:grid-cols-6">
+              <input
+                type="text"
+                value={seasonalName}
+                onChange={(e) => setSeasonalName(e.target.value)}
+                placeholder={t('properties.pricing.namePlaceholder')}
+                className="w-full rounded-xl border border-gray-200 bg-gray-50 p-2.5 text-sm text-gray-800 outline-none focus:ring-2 focus:ring-black/10 xl:col-span-2"
+              />
+              <DatePicker
+                value={seasonalStart}
+                onChange={setSeasonalStart}
+                placeholder={t('properties.pricing.startDatePlaceholder')}
+                className="xl:col-span-1"
+              />
+              <DatePicker
+                value={seasonalEnd}
+                onChange={setSeasonalEnd}
+                placeholder={t('properties.pricing.endDatePlaceholder')}
+                minDate={seasonalStart || undefined}
+                className="xl:col-span-1"
+              />
+              <div className="min-w-0 xl:col-span-1">
+                <NumberInput
+                  value={seasonalPrice}
+                  onChange={setSeasonalPrice}
+                  min={0}
+                  step={1000}
+                  placeholder={t('properties.pricing.pricePlaceholder')}
+                  inputClassName="p-2.5 text-sm"
+                  className="min-w-0"
+                />
+              </div>
+              <motion.button
+                type="button"
+                whileTap={{ scale: 0.97 }}
+                onClick={handleAddSeasonal}
+                className="flex h-11 w-full items-center justify-center rounded-xl bg-black text-white hover:bg-gray-800 shadow-lg transition-colors disabled:cursor-not-allowed disabled:opacity-50 xl:col-span-1"
+                aria-label={t('properties.pricing.addSeasonalAria')}
+              >
+                <Plus className="h-5 w-5" />
+                {/* A full-width icon-only button reads as ambiguous; keep the word. */}
+                <span className="ml-2 text-sm font-semibold">{t('common.add')}</span>
+              </motion.button>
+            </div>
+            <div className="mt-1 space-y-1.5">
+              <div className="flex flex-wrap gap-1.5">
+                {seasonalPercentQuickSet.map((percent) => {
+                  const finalPrice = baseForQuickSet * (1 + percent / 100)
+                  return (
+                    <button
+                      key={`pct-${percent}`}
+                      type="button"
+                      onClick={() => applyPercentQuickSet(percent)}
+                      disabled={baseForQuickSet <= 0}
+                      className="whitespace-nowrap rounded-md border border-gray-200 bg-white px-2 py-0.5 text-[11px] font-semibold leading-4 text-gray-600 transition-colors hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      +{percent}% ({formatMoney(finalPrice)})
+                    </button>
+                  )
+                })}
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {seasonalFixedQuickSet.map((fixed) => {
+                  const finalPrice = baseForQuickSet + fixed
+                  return (
+                    <button
+                      key={`fix-${fixed}`}
+                      type="button"
+                      onClick={() => applyFixedQuickSet(fixed)}
+                      className="whitespace-nowrap rounded-md border border-gray-200 bg-white px-2 py-0.5 text-[11px] font-semibold leading-4 text-gray-600 transition-colors hover:bg-gray-100"
+                    >
+                      +{formatMoney(fixed)} ({formatMoney(finalPrice)})
+                    </button>
+                  )
+                })}
+              </div>
             </div>
           </div>
-        ))}
 
-        <div className="mt-2 grid grid-cols-1 items-start gap-2 sm:grid-cols-2 xl:grid-cols-6">
-          <input
-            type="text"
-            value={seasonalName}
-            onChange={(e) => setSeasonalName(e.target.value)}
-            placeholder={t('properties.pricing.namePlaceholder')}
-            className="w-full rounded-xl border border-gray-200 bg-gray-50 p-2.5 text-sm text-gray-800 outline-none focus:ring-2 focus:ring-black/10 xl:col-span-2"
-          />
-          <DatePicker
-            value={seasonalStart}
-            onChange={setSeasonalStart}
-            placeholder={t('properties.pricing.startDatePlaceholder')}
-            className="xl:col-span-1"
-          />
-          <DatePicker
-            value={seasonalEnd}
-            onChange={setSeasonalEnd}
-            placeholder={t('properties.pricing.endDatePlaceholder')}
-            minDate={seasonalStart || undefined}
-            className="xl:col-span-1"
-          />
-          <div className="min-w-0 xl:col-span-1">
-            <NumberInput
-              value={seasonalPrice}
-              onChange={setSeasonalPrice}
-              min={0}
-              step={1000}
-              placeholder={t('properties.pricing.pricePlaceholder')}
-              inputClassName="p-2.5 text-sm"
-              className="min-w-0"
-            />
-          </div>
-          <motion.button
-            type="button"
-            whileTap={{ scale: 0.97 }}
-            onClick={handleAddSeasonal}
-            className="flex h-11 w-full items-center justify-center rounded-xl bg-black text-white hover:bg-gray-800 shadow-lg transition-colors disabled:cursor-not-allowed disabled:opacity-50 xl:col-span-1"
-            aria-label={t('properties.pricing.addSeasonalAria')}
-          >
-            <Plus className="h-5 w-5" />
-            {/* A full-width icon-only button reads as ambiguous; keep the word. */}
-            <span className="ml-2 text-sm font-semibold">{t('common.add')}</span>
-          </motion.button>
-        </div>
-        <div className="mt-1 space-y-1.5">
-          <div className="flex flex-wrap gap-1.5">
-            {seasonalPercentQuickSet.map((percent) => {
-              const finalPrice = baseForQuickSet * (1 + percent / 100)
-              return (
+          {/* Discount rules */}
+          <div>
+            <h3 className="text-sm font-bold text-gray-900 mb-3">{t('properties.pricing.discountRules')}</h3>
+            {discountRules.map((dr: DiscountRule) => (
+              <div
+                key={dr.id}
+                className="mb-2 flex flex-col gap-2 rounded-xl border border-gray-200 bg-gray-50 p-3 sm:flex-row sm:items-center sm:justify-between"
+              >
+                <span className="text-sm text-gray-700">
+                  {t('properties.pricing.discountLabel', {
+                    nights: dr.min_nights,
+                    amount: dr.type === 'percent' ? `${dr.value}%` : `${currencySymbol}${dr.value}`,
+                  })}
+                </span>
                 <button
-                  key={`pct-${percent}`}
-                  type="button"
-                  onClick={() => applyPercentQuickSet(percent)}
-                  disabled={baseForQuickSet <= 0}
-                  className="whitespace-nowrap rounded-md border border-gray-200 bg-white px-2 py-0.5 text-[11px] font-semibold leading-4 text-gray-600 transition-colors hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50"
+                  onClick={() => onDeleteDiscount(dr.id)}
+                  className="inline-flex h-11 w-11 items-center justify-center self-start rounded-lg text-gray-400 transition-colors hover:bg-red-50 hover:text-red-600 sm:h-8 sm:w-8 sm:self-auto"
                 >
-                  +{percent}% ({formatMoney(finalPrice)})
+                  <X className="w-4 h-4" />
                 </button>
-              )
-            })}
+              </div>
+            ))}
+            <div className="flex flex-col sm:flex-row gap-2 mt-2">
+              <NumberInput
+                value={discountNights}
+                onChange={setDiscountNights}
+                min={1}
+                step={1}
+                placeholder={t('properties.pricing.minNightsPlaceholder')}
+                inputClassName="p-2.5 text-sm"
+                className="w-full sm:flex-1 min-w-0"
+              />
+              <Select value={discountType} onValueChange={(v) => setDiscountType(v as 'percent' | 'fixed')}>
+                <SelectTrigger className="w-full sm:w-28 shrink-0">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="percent">{t('properties.pricing.percent')}</SelectItem>
+                  <SelectItem value="fixed">{t('properties.pricing.fixed')}</SelectItem>
+                </SelectContent>
+              </Select>
+              <NumberInput
+                value={discountValue}
+                onChange={setDiscountValue}
+                min={0}
+                step={discountStep}
+                placeholder={t('properties.pricing.valuePlaceholder')}
+                inputClassName="p-2.5 text-sm"
+                className="w-full sm:flex-1 min-w-0"
+              />
+              <motion.button
+                type="button"
+                whileTap={{ scale: 0.97 }}
+                onClick={handleAddDiscount}
+                className={compactActionButtonClass}
+                aria-label={t('properties.pricing.addDiscountAria')}
+              >
+                <Plus className="h-5 w-5" />
+                {/* A full-width icon-only button reads as ambiguous; keep the word. */}
+                <span className="ml-2 text-sm font-semibold">{t('common.add')}</span>
+              </motion.button>
+            </div>
           </div>
-          <div className="flex flex-wrap gap-1.5">
-            {seasonalFixedQuickSet.map((fixed) => {
-              const finalPrice = baseForQuickSet + fixed
-              return (
-                <button
-                  key={`fix-${fixed}`}
-                  type="button"
-                  onClick={() => applyFixedQuickSet(fixed)}
-                  className="whitespace-nowrap rounded-md border border-gray-200 bg-white px-2 py-0.5 text-[11px] font-semibold leading-4 text-gray-600 transition-colors hover:bg-gray-100"
-                >
-                  +{formatMoney(fixed)} ({formatMoney(finalPrice)})
-                </button>
-              )
-            })}
-          </div>
-        </div>
-      </div>
-
-      {/* Discount rules */}
-      <div>
-        <h3 className="text-sm font-bold text-gray-900 mb-3">{t('properties.pricing.discountRules')}</h3>
-        {discountRules.map((dr: DiscountRule) => (
-          <div
-            key={dr.id}
-            className="mb-2 flex flex-col gap-2 rounded-xl border border-gray-200 bg-gray-50 p-3 sm:flex-row sm:items-center sm:justify-between"
-          >
-            <span className="text-sm text-gray-700">
-              {t('properties.pricing.discountLabel', {
-                nights: dr.min_nights,
-                amount: dr.type === 'percent' ? `${dr.value}%` : `${currencySymbol}${dr.value}`,
-              })}
-            </span>
-            <button
-              onClick={() => onDeleteDiscount(dr.id)}
-              className="inline-flex h-11 w-11 items-center justify-center self-start rounded-lg text-gray-400 transition-colors hover:bg-red-50 hover:text-red-600 sm:h-8 sm:w-8 sm:self-auto"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          </div>
-        ))}
-        <div className="flex flex-col sm:flex-row gap-2 mt-2">
-          <NumberInput
-            value={discountNights}
-            onChange={setDiscountNights}
-            min={1}
-            step={1}
-            placeholder={t('properties.pricing.minNightsPlaceholder')}
-            inputClassName="p-2.5 text-sm"
-            className="w-full sm:flex-1 min-w-0"
-          />
-          <Select value={discountType} onValueChange={(v) => setDiscountType(v as 'percent' | 'fixed')}>
-            <SelectTrigger className="w-full sm:w-28 shrink-0">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="percent">{t('properties.pricing.percent')}</SelectItem>
-              <SelectItem value="fixed">{t('properties.pricing.fixed')}</SelectItem>
-            </SelectContent>
-          </Select>
-          <NumberInput
-            value={discountValue}
-            onChange={setDiscountValue}
-            min={0}
-            step={discountStep}
-            placeholder={t('properties.pricing.valuePlaceholder')}
-            inputClassName="p-2.5 text-sm"
-            className="w-full sm:flex-1 min-w-0"
-          />
-          <motion.button
-            type="button"
-            whileTap={{ scale: 0.97 }}
-            onClick={handleAddDiscount}
-            className={compactActionButtonClass}
-            aria-label={t('properties.pricing.addDiscountAria')}
-          >
-            <Plus className="h-5 w-5" />
-            {/* A full-width icon-only button reads as ambiguous; keep the word. */}
-            <span className="ml-2 text-sm font-semibold">{t('common.add')}</span>
-          </motion.button>
-        </div>
-      </div>
+        </>
+      )}
     </div>
   )
 }
