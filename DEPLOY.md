@@ -36,6 +36,10 @@ value someone could guess.
 `VITE_API_URL` is compiled into the frontend bundle. Changing it later requires
 a rebuild, not a restart.
 
+`VITE_AI_IMPORT=on` shows AI import in the menu. Leave it unset until the
+ai-service runs next to the backend: without it every import fails as
+"AI import is unavailable".
+
 ## 4. Attach the domains
 
 In the **Domains** tab, one entry per service:

@@ -10,6 +10,9 @@ COPY . .
 
 ARG VITE_API_URL
 ENV VITE_API_URL=$VITE_API_URL
+# "on" shows AI import in the menu; leave it unset until the ai-service is deployed.
+ARG VITE_AI_IMPORT
+ENV VITE_AI_IMPORT=$VITE_AI_IMPORT
 RUN npm run build
 
 # Serve stage

@@ -130,6 +130,8 @@ services:
       args:
         # Baked at build time — changing it requires a rebuild, not a restart.
         VITE_API_URL: ${VITE_API_URL:?VITE_API_URL is required}
+        # "on" once the ai-service runs here; unset hides AI import in the menu.
+        VITE_AI_IMPORT: ${VITE_AI_IMPORT:-}
     restart: unless-stopped
     depends_on:
       - backend

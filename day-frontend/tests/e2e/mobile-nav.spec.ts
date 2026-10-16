@@ -43,7 +43,8 @@ test.describe('Mobile navigation', () => {
       { name: /^Gantt Chart$/i, url: /\/properties\/gantt/ },
       { name: /^Today$/i, url: /\/bookings\/today/ },
       { name: /^Checklists$/i, url: /\/cleaning\/checklists/ },
-      { name: /^AI Import$/i, url: /\/ai-import/ },
+      // Only in a build that has the ai-service: the dev server reads the same env.
+      ...(process.env.VITE_AI_IMPORT === 'on' ? [{ name: /^AI Import$/i, url: /\/ai-import/ }] : []),
       { name: /^Settings$/i, url: /\/settings/ },
     ]
 
@@ -58,5 +59,13 @@ test.describe('Mobile navigation', () => {
       await page.waitForURL(target.url)
       await expectNoHorizontalOverflow(page)
     }
+  })
+
+  test('AI import stays out of the menu until the build turns it on', async ({ page }) => {
+    test.skip(process.env.VITE_AI_IMPORT === 'on', 'this build has the ai-service')
+    await page.goto('/properties')
+    await page.locator('nav').getByRole('button', { name: /^More$/i }).click()
+    await expect(page.getByRole('link', { name: /^Settings$/i }).first()).toBeVisible()
+    await expect(page.getByRole('link', { name: /^AI Import$/i })).toHaveCount(0)
   })
 })

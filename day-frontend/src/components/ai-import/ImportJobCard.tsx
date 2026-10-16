@@ -4,6 +4,7 @@ import { Loader2, CheckCircle2, XCircle, Clock } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import type { ImportJob, ImportJobStatus, ImportSourceType } from '../../types/ai-import'
 import { parseApiDateTime } from '../../utils/date-time'
+import { importErrorText } from '../../lib/ai-import'
 
 interface Props {
   job: ImportJob
@@ -168,7 +169,7 @@ export default function ImportJobCard({ job, index, onClick }: Props) {
       </div>
 
       {job.error_message && (
-        <p className="text-xs text-red-500 mt-2 line-clamp-2">{job.error_message}</p>
+        <p className="text-xs text-red-500 mt-2 line-clamp-2">{importErrorText(job.error_message, t)}</p>
       )}
     </motion.div>
   )
