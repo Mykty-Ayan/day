@@ -264,7 +264,7 @@ export default function ImportPreviewPage() {
             <div className="flex items-center gap-2 mb-2">
               <AlertTriangle className="w-4 h-4 text-amber-600" />
               <span className="text-xs font-bold text-amber-700">
-                {warnings.length === 1 ? t('aiImport.warningCount', { count: 1 }) : t('aiImport.warningsCount', { count: warnings.length })}
+                {t('aiImport.warningsCount', { count: warnings.length })}
               </span>
             </div>
             <ul className="space-y-1">
