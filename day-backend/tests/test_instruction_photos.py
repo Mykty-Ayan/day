@@ -1,5 +1,6 @@
 """Check-in instruction photos (the entrance, the lock, the parking) reach only those who hand codes to guests."""
 
+import uuid
 from types import SimpleNamespace
 from urllib.parse import parse_qs, urlparse
 
@@ -8,12 +9,15 @@ import pytest
 from app.application.property.clone_property import ClonePropertyService
 from app.application.property.manage_photos import ManagePhotosService
 from app.domain.auth.permissions import Permission
+from app.domain.auth.value_objects import UserRole
 from app.domain.property.entities import PropertyPhoto
 from app.domain.property.value_objects import FactAudience
 from app.infrastructure.storage import s3
+from app.presentation.api.v1 import properties
 from app.presentation.api.v1.properties import _visible_photos
+from tests.test_api_permissions import _request, _user_principal
 from tests.test_property_facts import flat  # noqa: F401  (a fixture)
-from tests.test_property_photo_upload import _upload, stored  # noqa: F401  (a fixture)
+from tests.test_property_photo_upload import JPEG, _upload, stored  # noqa: F401  (a fixture)
 from tests.test_property_services import (
     COMPANY_ID,
     FakeAmenityRepository,
@@ -89,18 +93,29 @@ async def test_a_clone_keeps_who_may_see_a_photo_and_its_caption():
 
 
 @pytest.mark.integration
-async def test_instruction_photos_reach_only_the_keys_with_secrets(flat, storage_keys):  # noqa: F811  (the imported fixture)
+async def test_instruction_photos_reach_only_the_keys_with_secrets(flat, storage_keys, monkeypatch):  # noqa: F811  (the imported fixture)
     client, prop, use = flat
     path = f"/api/v1/properties/{prop}"
     stored_lock = s3.build_public_url(f"checkin/{prop}/lock.jpg")
-    lock = {"url": stored_lock, "caption": "Замок: код в сообщении", "audience": "guest"}
+
+    async def fake_upload(**kwargs):
+        return stored_lock
+
+    monkeypatch.setattr(properties, "upload_property_photo", fake_upload)
+
+    async def upload(**form):
+        return await client.post(
+            f"{path}/photos/upload",
+            files={"file": ("lock.jpg", JPEG, "image/jpeg")},
+            data={"caption": "Замок: код в сообщении", "audience": "guest", **form},
+        )
 
     use(Permission.PROPERTIES_READ, Permission.PROPERTIES_WRITE)
-    assert (await client.post(f"{path}/photos", json=lock)).status_code == 403
+    assert (await upload()).status_code == 403
 
     use(Permission.PROPERTIES_READ, Permission.PROPERTIES_WRITE, Permission.PROPERTY_SECRETS_READ)
-    assert (await client.post(f"{path}/photos", json={**lock, "is_cover": True})).status_code == 400
-    created = await client.post(f"{path}/photos", json=lock)
+    assert (await upload(is_cover="true")).status_code == 400
+    created = await upload()
     assert created.status_code == 201, created.text
     assert created.json()["audience"] == "guest"
     photo_id = created.json()["id"]
@@ -165,3 +180,26 @@ async def test_an_uploaded_check_in_photo_goes_to_the_private_prefix(stored):  #
     assert (photos.saved[0].audience, photos.saved[0].caption) == (FactAudience.GUEST, "Замок")
     assert await _upload() == 201
     assert sent[1]["private"] is False
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "url",
+    [
+        # Another company's stored check-in photo: signing it would hand that file out for an hour.
+        "checkin/00000000-0000-0000-0000-00000000000a/lock.jpg",
+        # A file in the public prefix: hidden from the API, still open to anyone with the link.
+        "properties/00000000-0000-0000-0000-00000000000b/lock.jpg",
+    ],
+)
+async def test_a_check_in_photo_is_never_linked_by_url(stored, url):  # noqa: F811  (the imported fixture)
+    """A link cannot be made private after the fact: a check-in photo is uploaded as a file."""
+    _, photos = stored()
+    status = await _request(
+        "POST",
+        f"/api/v1/properties/{uuid.uuid4()}/photos",
+        _user_principal(UserRole.OWNER),
+        json={"url": s3.build_public_url(url), "audience": "guest"},
+    )
+    assert status == 400
+    assert photos.saved == []

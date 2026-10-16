@@ -494,9 +494,12 @@ async def add_photo(
     body: PhotoCreate,
     session: AsyncSession = Depends(get_session),
     company_id: uuid.UUID = Depends(get_company_id),
-    principal: Principal = Depends(get_principal),
 ):
-    _check_photo_audience(body.audience, principal)
+    # A link cannot be made private after the fact: one in the public prefix
+    # stays open to anyone, and one to a stored check-in photo of another
+    # company would be signed and handed out. Check-in photos come as files.
+    if body.audience == FactAudience.GUEST:
+        raise HTTPException(status_code=400, detail="A check-in photo is uploaded as a file: POST /photos/upload")
     repos = _repos(session)
     svc = ManagePhotosService(repos["property"], repos["photo"])
     try:
@@ -507,7 +510,6 @@ async def add_photo(
             sort_order=body.sort_order,
             is_cover=body.is_cover,
             caption=body.caption,
-            audience=body.audience,
         )
         await session.commit()
         return _photo_response(result)
