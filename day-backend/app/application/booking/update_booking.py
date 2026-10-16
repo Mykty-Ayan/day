@@ -11,8 +11,9 @@ from app.application.booking.create_booking import (
     validate_rental_mode_allowed,
 )
 from app.application.booking.price_calculator import PriceCalculatorService
+from app.application.booking.stay_rules import overridden_rules, stay_rule_breaches
 from app.domain.booking.entities import Booking, BookingAuditLog
-from app.domain.booking.exceptions import BookingOverlapError
+from app.domain.booking.exceptions import BookingOverlapError, StayRulesError
 from app.domain.booking.repositories import (
     BookingAuditLogRepository,
     BookingRepository,
@@ -24,6 +25,7 @@ from app.domain.booking.value_objects import (
     RentalMode,
 )
 from app.domain.property.repositories import PropertyRepository
+from app.domain.settings.repositories import CompanySettingsRepository
 
 _UNSET = object()
 
@@ -45,6 +47,8 @@ class UpdateBookingInput:
     notes: object = field(default=_UNSET)
     # Naive UTC; None releases the hold.
     expires_at: object = field(default=_UNSET)
+    # The operator confirmed new dates that break the apartment's stay rules.
+    override_rules: bool = False
 
 
 class UpdateBookingService:
@@ -54,11 +58,14 @@ class UpdateBookingService:
         property_repo: PropertyRepository,
         audit_repo: BookingAuditLogRepository,
         price_calculator: PriceCalculatorService,
+        settings_repo: CompanySettingsRepository | None = None,
     ) -> None:
         self._booking_repo = booking_repo
         self._property_repo = property_repo
         self._audit_repo = audit_repo
         self._price_calculator = price_calculator
+        # The company's clock for the lead-time rule; without it, the default zone.
+        self._settings_repo = settings_repo
 
     async def execute(self, inp: UpdateBookingInput) -> Booking:
         booking = await self._booking_repo.get_by_id(inp.booking_id)
@@ -157,6 +164,26 @@ class UpdateBookingService:
             )
             if overlapping:
                 raise BookingOverlapError()
+            # The form sends the saved dates back with any edit: only a stay that
+            # really moved is checked, and the lead time only for a new check-in.
+            moved = (booking.check_in, booking.check_out, booking.rental_mode) != (saved_in, saved_out, saved_mode)
+            if moved and prop is not None:
+                breaches = await stay_rule_breaches(
+                    prop,
+                    booking.property_id,
+                    booking.check_in,
+                    booking.check_out,
+                    booking.rental_mode,
+                    company_id=inp.company_id,
+                    booking_repo=self._booking_repo,
+                    settings_repo=self._settings_repo,
+                    exclude_id=booking.id,
+                    with_lead_time=booking.check_in != saved_in,
+                )
+                if breaches and not inp.override_rules:
+                    raise StayRulesError(breaches)
+                if breaches:
+                    changes.append(("stay_rules_overridden", None, overridden_rules(breaches)))
             # The new dates clash with nothing, so an OTA overbooking is resolved.
             booking.overbooking = False
 

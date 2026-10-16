@@ -3,8 +3,9 @@ from __future__ import annotations
 import uuid
 
 from app.application.booking.create_booking import validate_rental_mode_allowed
+from app.application.booking.stay_rules import overridden_rules, stay_rule_breaches
 from app.domain.booking.entities import Booking, BookingAuditLog
-from app.domain.booking.exceptions import BookingOverlapError
+from app.domain.booking.exceptions import BookingOverlapError, StayRulesError
 from app.domain.booking.repositories import (
     BookingAuditLogRepository,
     BookingRepository,
@@ -32,6 +33,7 @@ class MoveBookingService:
         target_property_id: uuid.UUID,
         *,
         changed_by: uuid.UUID | None = None,
+        override_rules: bool = False,
     ) -> Booking:
         booking = await self._booking_repo.get_by_id(booking_id)
         if booking is None:
@@ -58,6 +60,21 @@ class MoveBookingService:
         )
         if overlapping:
             raise BookingOverlapError("Date range overlaps with existing booking on target property")
+        # The target flat's rules; the dates stay, so no lead time.
+        breaches = await stay_rule_breaches(
+            target,
+            target_property_id,
+            booking.check_in,
+            booking.check_out,
+            booking.rental_mode,
+            company_id=company_id,
+            booking_repo=self._booking_repo,
+            settings_repo=None,
+            exclude_id=booking.id,
+            with_lead_time=False,
+        )
+        if breaches and not override_rules:
+            raise StayRulesError(breaches)
         # The target is free on these dates, so an OTA overbooking is resolved.
         booking.overbooking = False
 
@@ -75,5 +92,15 @@ class MoveBookingService:
                 action=BookingAuditAction.MOVE,
             )
         )
+        if breaches:
+            await self._audit_repo.create(
+                BookingAuditLog(
+                    booking_id=updated.id,
+                    changed_by=changed_by,
+                    field_name="stay_rules_overridden",
+                    new_value=overridden_rules(breaches),
+                    action=BookingAuditAction.MOVE,
+                )
+            )
 
         return updated

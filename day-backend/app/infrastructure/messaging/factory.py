@@ -40,6 +40,7 @@ from app.infrastructure.repositories.property import (
     SqlPropertyRepository,
     SqlSeasonalPriceRepository,
 )
+from app.infrastructure.repositories.settings import SqlCompanySettingsRepository
 
 # Providers are stateless HTTP clients, so one instance each is enough.
 _PROVIDERS: dict[Channel, MessageProvider] = {
@@ -116,6 +117,7 @@ def build_guest_bot(session: AsyncSession) -> GuestBotService:
         SqlPropertyRepository(session),
         SqlBookingAuditLogRepository(session),
         build_price_calculator(session),
+        SqlCompanySettingsRepository(session),
     )
     return GuestBotService(build_availability(session), create_booking)
 
