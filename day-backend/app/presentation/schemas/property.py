@@ -190,6 +190,7 @@ class PropertyPhotoResponse(BaseModel):
     sort_order: int
     is_cover: bool
     caption: str | None = None
+    audience: FactAudience = FactAudience.PUBLIC
     created_at: datetime | None = None
 
 
@@ -198,6 +199,8 @@ class PhotoCreate(BaseModel):
     sort_order: int = 0
     is_cover: bool = False
     caption: str | None = Field(default=None, max_length=500)
+    # guest: a check-in instruction (the entrance, the lock, the parking).
+    audience: FactAudience = FactAudience.PUBLIC
 
 
 class PhotoCaption(BaseModel):

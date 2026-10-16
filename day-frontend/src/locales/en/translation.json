@@ -161,6 +161,16 @@
     "apt": "Apt {{number}}",
     "floor": "Floor {{number}}",
     "floorOf": "Floor {{number}} of {{total}}",
+    "checkInPhotos": {
+      "title": "Check-in photos",
+      "hint": "The entrance, the lock, the parking. Never in the listing; only the owner, managers and integrations with access to secrets see them, like the door code.",
+      "add": "Add a check-in photo",
+      "captionPlaceholder": "What it shows: \"entrance from the yard\"",
+      "deleteTitle": "Delete the photo?",
+      "deleteMessage": "The photo leaves the guest's check-in instructions.",
+      "deleteFailed": "Could not delete the photo",
+      "captionFailed": "Could not save the caption"
+    },
     "links": "Links",
     "pricingSaved": "Pricing saved",
     "failedSavePricing": "Failed to save pricing",

@@ -91,6 +91,9 @@ class PropertyPhoto:
     is_cover: bool = False
     # What the picture shows ("entrance from the yard"), for whoever sends it on.
     caption: str | None = None
+    # guest: a check-in instruction (the entrance, the lock): never in the
+    # listing, only for those who hand codes to guests.
+    audience: FactAudience = FactAudience.PUBLIC
     created_at: datetime | None = None
 
 

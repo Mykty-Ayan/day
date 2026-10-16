@@ -44,6 +44,7 @@ import PricingForm, { type SeasonalSuggestion } from '../../components/property/
 import StatusBadge from '../../components/property/StatusBadge'
 import { showToast } from '../../components/ui/Toast'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
+import CheckInPhotosCard from '../../components/property/CheckInPhotosCard'
 import AuditTrail from '../../components/ui/AuditTrail'
 import Spinner from '../../components/ui/Spinner'
 import Button from '../../components/ui/Button'
@@ -77,6 +78,7 @@ export default function PropertyDetailPage() {
   const navigate = useNavigate()
   const { data: property, isLoading } = useProperty(propertyId)
   const uploadPhotos = useUploadPhotos(propertyId)
+  const { data: currentUser } = useCurrentUser()
 
   function addPhotos(event: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(event.target.files ?? [])
@@ -272,7 +274,7 @@ export default function PropertyDetailPage() {
                 onChange={addPhotos}
               />
             </label>
-              {property.photos.map((photo) => (
+              {property.photos.filter((photo) => photo.audience !== 'guest').map((photo) => (
                 <div
                   key={photo.id}
                   className={`shrink-0 w-48 h-32 rounded-xl overflow-hidden ${
@@ -411,6 +413,10 @@ export default function PropertyDetailPage() {
                   {property.description}
                 </p>
               </div>
+            )}
+
+            {currentUser && currentUser.role !== 'cleaner' && (
+              <CheckInPhotosCard propertyId={propertyId} photos={property.photos} />
             )}
 
             {/* Rules */}

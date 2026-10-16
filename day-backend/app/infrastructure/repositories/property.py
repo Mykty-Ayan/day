@@ -145,6 +145,7 @@ def _model_to_photo(m: PropertyPhotoModel) -> PropertyPhoto:
         sort_order=m.sort_order,
         is_cover=m.is_cover,
         caption=m.caption,
+        audience=FactAudience(m.audience),
         created_at=m.created_at,
     )
 
@@ -316,7 +317,8 @@ class SqlPropertyPhotoRepository(PropertyPhotoRepository):
         stmt = (
             select(PropertyPhotoModel)
             .where(PropertyPhotoModel.property_id == property_id)
-            .order_by(PropertyPhotoModel.sort_order)
+            # Ties (photos added by URL all start at 0) keep the order they were added in.
+            .order_by(PropertyPhotoModel.sort_order, PropertyPhotoModel.created_at, PropertyPhotoModel.id)
         )
         result = await self._session.scalars(stmt)
         return [_model_to_photo(m) for m in result.all()]
@@ -329,6 +331,7 @@ class SqlPropertyPhotoRepository(PropertyPhotoRepository):
             sort_order=photo.sort_order,
             is_cover=photo.is_cover,
             caption=photo.caption,
+            audience=photo.audience.value,
         )
         self._session.add(model)
         await self._session.flush()

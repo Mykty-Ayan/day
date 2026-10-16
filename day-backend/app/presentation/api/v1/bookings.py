@@ -45,6 +45,7 @@ from app.domain.booking.exceptions import (
 )
 from app.domain.booking.value_objects import BookingSource, BookingStatus, PaymentStatus, RentalMode
 from app.domain.messaging.value_objects import NotificationEvent
+from app.domain.property.value_objects import FactAudience
 from app.domain.settings.entities import CompanySettings
 from app.infrastructure.database import get_session
 from app.infrastructure.messaging.booking_notice import notify_booking
@@ -763,6 +764,8 @@ async def get_availability(
                 photos=[
                     AvailablePhotoResponse(url=p.url, caption=p.caption, is_cover=p.is_cover, sort_order=p.sort_order)
                     for p in sorted(flat_photos, key=lambda p: (not p.is_cover, p.sort_order))
+                    # Offered to people who have not booked: never a check-in photo.
+                    if p.audience != FactAudience.GUEST
                 ],
             )
             for item, flat_photos in zip(available, photos)
