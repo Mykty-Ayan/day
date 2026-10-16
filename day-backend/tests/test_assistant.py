@@ -269,3 +269,89 @@ class TestSystemPrompt:
         # message — an apology for a limitation it does not have.
         assert "расшифрованными" in SYSTEM_PROMPT
         assert "не умеешь с ним работать" in SYSTEM_PROMPT
+
+
+class TestStayRules:
+    """A booking the flat's rules refuse comes back to the model in words it can
+    pass on, and goes through only when the user agreed to break the rules."""
+
+    def _context(self, create):
+        from types import SimpleNamespace
+
+        flat = SimpleNamespace(id=uuid.uuid4(), internal_name="62auc", name="Студия", company_id=None)
+
+        class Properties:
+            async def list_by_company(self, company_id, limit=200):
+                return [flat]
+
+        return ToolContext(
+            uuid.uuid4(),
+            availability_service=None,
+            booking_repo=None,
+            guest_repo=None,
+            property_repo=Properties(),
+            create_booking_service=create,
+            update_booking_service=None,
+            payment_service=None,
+            cleaning_service=None,
+            metrics_service=None,
+            today=TODAY,
+        )
+
+    @pytest.mark.asyncio
+    async def test_a_refusal_names_the_rules_and_how_to_go_on(self):
+        from app.domain.booking.exceptions import StayRulesError
+        from app.domain.booking.stay_rules import RuleBreach
+
+        async def create(**kwargs):
+            raise StayRulesError([RuleBreach("min_nights", 2, 1)])
+
+        with pytest.raises(ValueError) as refused:
+            await self._context(create).create_booking("62auc", "Ерлан", "2026-08-27")
+        assert "минимум ночей 2, в брони 1" in str(refused.value)
+        assert "override_rules" in str(refused.value)
+
+    @pytest.mark.asyncio
+    async def test_the_users_word_goes_through_to_the_booking(self):
+        seen = []
+
+        async def create(**kwargs):
+            seen.append(kwargs.get("override_rules"))
+            raise ValueError("stop here")
+
+        with pytest.raises(ValueError, match="stop here"):
+            await self._context(create).create_booking("62auc", "Ерлан", "2026-08-27", override_rules=True)
+        assert seen == [True]
+
+    def test_the_confirmation_says_the_rules_are_broken(self):
+        from app.application.assistant.tools import build_tools
+
+        tool = build_tools(self._context(None))["create_booking"]
+        args = {"property_query": "62auc", "guest_name": "Ерлан", "check_in": "2026-08-27"}
+        assert "вопреки правилам" not in tool.describe(args)
+        assert "вопреки правилам" in tool.describe({**args, "override_rules": True})
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("word", ["false", "true", 1, "yes", None])
+    async def test_only_a_real_true_breaks_the_rules(self, word):
+        # The model's arguments are not typed: bool("false") is True, and a
+        # string must not switch the flat's rules off.
+        seen = []
+
+        async def create(**kwargs):
+            seen.append(kwargs.get("override_rules"))
+            raise ValueError("stop here")
+
+        with pytest.raises(ValueError, match="stop here"):
+            await self._context(create).create_booking("62auc", "Ерлан", "2026-08-27", override_rules=word)
+        assert seen == [False]
+
+    def test_the_extension_card_says_the_rules_are_broken(self):
+        from app.application.assistant.tools import build_tools
+
+        tool = build_tools(self._context(None))["extend_booking"]
+        args = {"booking_id": str(uuid.uuid4()), "nights": 3}
+        assert "вопреки правилам" not in tool.describe(args)
+        assert "вопреки правилам" in tool.describe({**args, "override_rules": True})
+        # The card follows the flag the tool will act on: a string is not it.
+        assert "вопреки правилам" not in tool.describe({**args, "override_rules": "false"})
