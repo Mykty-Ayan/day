@@ -45,11 +45,13 @@ async def property_calendar(
     found = await bookings.get_by_property_and_dates(
         property_id, today - timedelta(days=1), today + timedelta(days=_HORIZON_DAYS)
     )
+    closed = await bookings.list_blocks(property_id, today - timedelta(days=1), today + timedelta(days=_HORIZON_DAYS))
     # Nights by the flat's own hours, else the company default.
     ranges = blocked_nights(
         found,
         settings.DEFAULT_CHECK_IN_HOUR if prop.check_in_hour is None else prop.check_in_hour,
         settings.DEFAULT_CHECK_OUT_HOUR if prop.check_out_hour is None else prop.check_out_hour,
+        blocks=closed,
     )
     body = render_calendar(property_id, ranges, stamp=datetime.now(timezone.utc))
     return Response(
