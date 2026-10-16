@@ -4,10 +4,12 @@ from __future__ import annotations
 
 import asyncio
 import uuid
+from datetime import date
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Response, UploadFile, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.application.booking.manage_blocks import ManageBlocksService
 from app.application.property.change_status import ChangePropertyStatusService
 from app.application.property.create_property import (
     CreatePropertyInput,
@@ -28,9 +30,11 @@ from app.application.property.update_property import (
 )
 from app.config import settings
 from app.domain.auth.permissions import Permission
+from app.domain.booking.exceptions import BlockOverlapsBookingError
 from app.domain.property.entities import DiscountRule, PropertyCosts, SeasonalPrice
 from app.domain.property.value_objects import FactAudience, FactSource, PropertyStatus
 from app.infrastructure.database import get_session
+from app.infrastructure.repositories.booking import SqlBookingRepository
 from app.infrastructure.repositories.property import (
     SqlAmenityRepository,
     SqlDiscountRuleRepository,
@@ -45,6 +49,7 @@ from app.infrastructure.repositories.property import (
 from app.infrastructure.security import calendar_token
 from app.infrastructure.storage.s3 import signed_photo_url, upload_property_photo
 from app.presentation.api.deps import Principal, get_company_id, get_principal, get_user_id, require
+from app.presentation.schemas.booking import PropertyBlockCreate, PropertyBlockResponse
 from app.presentation.schemas.property import (
     AmenityResponse,
     DiscountRuleCreate,
@@ -1080,3 +1085,80 @@ async def get_property_tags(
         return [TagResponse.model_validate(t, from_attributes=True) for t in result]
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
+
+
+# ---------- Blocks: nights closed without a booking ----------
+
+
+@router.get(
+    "/{property_id}/blocks",
+    response_model=list[PropertyBlockResponse],
+    dependencies=[Depends(require(Permission.BOOKINGS_READ))],
+)
+async def list_blocks(
+    property_id: uuid.UUID,
+    date_from: date = Query(...),
+    date_to: date = Query(...),
+    session: AsyncSession = Depends(get_session),
+    company_id: uuid.UUID = Depends(get_company_id),
+):
+    svc = ManageBlocksService(SqlBookingRepository(session), SqlPropertyRepository(session))
+    try:
+        blocks = await svc.list(company_id, property_id, date_from, date_to)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    return [PropertyBlockResponse.model_validate(b, from_attributes=True) for b in blocks]
+
+
+@router.post(
+    "/{property_id}/blocks",
+    response_model=PropertyBlockResponse,
+    status_code=201,
+    dependencies=[Depends(require(Permission.BOOKINGS_WRITE))],
+)
+async def create_block(
+    property_id: uuid.UUID,
+    body: PropertyBlockCreate,
+    session: AsyncSession = Depends(get_session),
+    company_id: uuid.UUID = Depends(get_company_id),
+    principal: Principal = Depends(get_principal),
+):
+    """Close the flat's nights: no booking is made over them. A block over a booking is refused (409)."""
+    svc = ManageBlocksService(SqlBookingRepository(session), SqlPropertyRepository(session))
+    try:
+        block = await svc.create(
+            company_id,
+            property_id,
+            body.start_date,
+            body.end_date,
+            reason=body.reason,
+            created_by=principal.actor_id,
+        )
+    except BlockOverlapsBookingError as e:
+        await session.rollback()
+        raise HTTPException(status_code=409, detail=str(e))
+    except ValueError as e:
+        await session.rollback()
+        raise HTTPException(status_code=404, detail=str(e))
+    await session.commit()
+    return PropertyBlockResponse.model_validate(block, from_attributes=True)
+
+
+@router.delete(
+    "/{property_id}/blocks/{block_id}",
+    status_code=204,
+    dependencies=[Depends(require(Permission.BOOKINGS_WRITE))],
+)
+async def delete_block(
+    property_id: uuid.UUID,
+    block_id: uuid.UUID,
+    session: AsyncSession = Depends(get_session),
+    company_id: uuid.UUID = Depends(get_company_id),
+):
+    svc = ManageBlocksService(SqlBookingRepository(session), SqlPropertyRepository(session))
+    try:
+        await svc.delete(company_id, property_id, block_id)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    await session.commit()
+

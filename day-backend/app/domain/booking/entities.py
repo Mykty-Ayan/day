@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
 
 from app.domain.booking.value_objects import (
@@ -163,4 +163,26 @@ class BookingAuditLog:
     old_value: str | None = None
     new_value: str | None = None
     action: BookingAuditAction = BookingAuditAction.CREATE
+    created_at: datetime | None = None
+
+
+@dataclass
+class PropertyBlock:
+    """Nights a flat is closed without a booking: repairs, the owner's own
+    guests, a stay sold elsewhere. start_date is the first closed night and
+    end_date the day after the last one, like a check-out; the block runs from
+    the flat's check-out hour on start_date to the same hour on end_date, so the
+    guest leaving that morning and the one arriving on end_date are untouched.
+    starts_at and ends_at keep that span as it was when the block was made: a
+    later change of the check-out hour does not move it onto a booked stay."""
+
+    id: uuid.UUID = field(default_factory=uuid.uuid4)
+    company_id: uuid.UUID = field(default_factory=uuid.uuid4)
+    property_id: uuid.UUID = field(default_factory=uuid.uuid4)
+    start_date: date = field(default_factory=date.today)
+    end_date: date = field(default_factory=date.today)
+    starts_at: datetime | None = None
+    ends_at: datetime | None = None
+    reason: str | None = None
+    created_by: uuid.UUID | None = None
     created_at: datetime | None = None

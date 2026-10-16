@@ -1,11 +1,20 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
 from typing import Literal
 
-from pydantic import AliasChoices, AwareDatetime, BaseModel, ConfigDict, Field, computed_field, field_serializer
+from pydantic import (
+    AliasChoices,
+    AwareDatetime,
+    BaseModel,
+    ConfigDict,
+    Field,
+    computed_field,
+    field_serializer,
+    model_validator,
+)
 
 from app.application.leads.check_guest import normalise_phone
 from app.domain.booking.value_objects import (
@@ -461,3 +470,29 @@ class BookingDetailResponse(BaseModel):
     comments: list[BookingCommentResponse]
     contract: None = None  # BookingContractResponse placeholder
     audit_logs: list[BookingAuditLogResponse]
+
+
+class PropertyBlockCreate(BaseModel):
+    """Nights to close: start_date is the first night, end_date the day after the
+    last one (like a check-out)."""
+
+    start_date: date
+    end_date: date
+    reason: str | None = Field(default=None, max_length=255)
+
+    @model_validator(mode="after")
+    def _at_least_one_night(self):
+        if self.end_date <= self.start_date:
+            raise ValueError("end_date must be after start_date")
+        return self
+
+
+class PropertyBlockResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    property_id: uuid.UUID
+    start_date: date
+    end_date: date
+    reason: str | None = None
+    created_at: datetime | None = None

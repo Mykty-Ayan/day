@@ -12,6 +12,7 @@ from dataclasses import dataclass
 from datetime import date, datetime, time, timedelta
 from decimal import Decimal
 
+from app.application.booking.blocks import blocks_stay
 from app.application.booking.create_booking import apply_default_times
 from app.application.booking.price_calculator import PriceCalculatorService
 from app.config import settings
@@ -107,6 +108,11 @@ class CheckAvailabilityService:
         for booking in bookings:
             if booking.status in _BLOCKING_STATUSES:
                 taken[booking.property_id].append(booking)
+        closed: dict[uuid.UUID, list] = defaultdict(list)
+        for block in await self._bookings.list_company_blocks(
+            company_id, start.date() - timedelta(days=1), end.date() + timedelta(days=1)
+        ):
+            closed[block.property_id].append(block)
 
         results: list[AvailableProperty] = []
         for prop in properties:
@@ -116,6 +122,8 @@ class CheckAvailabilityService:
             # Half-open interval: a checkout at noon and a check-in at 14:00 on
             # the same day do not collide.
             if any(b.check_in < end and b.check_out > start for b in taken[prop.id]):
+                continue
+            if blocks_stay(closed[prop.id], start, end):
                 continue
             if rental_mode == RentalMode.HOURLY and prop.rental_mode == RentalMode.DAILY:
                 continue

@@ -4,6 +4,7 @@ import uuid
 from dataclasses import dataclass, field
 from decimal import Decimal
 
+from app.application.booking.blocks import ensure_not_blocked
 from app.application.booking.create_booking import (
     apply_default_times,
     settle_boundary,
@@ -68,7 +69,9 @@ class UpdateBookingService:
         self._settings_repo = settings_repo
 
     async def execute(self, inp: UpdateBookingInput) -> Booking:
-        booking = await self._booking_repo.get_by_id(inp.booking_id)
+        # Locked: the save below writes the whole row, and a stale read would put
+        # back whatever another request changed meanwhile.
+        booking = await self._booking_repo.get_for_update(inp.booking_id)
         if booking is None:
             raise ValueError("Booking not found")
         if booking.company_id != inp.company_id:
@@ -168,6 +171,7 @@ class UpdateBookingService:
             # really moved is checked, and the lead time only for a new check-in.
             moved = (booking.check_in, booking.check_out, booking.rental_mode) != (saved_in, saved_out, saved_mode)
             if moved and prop is not None:
+                await ensure_not_blocked(self._booking_repo, prop, booking.check_in, booking.check_out)
                 breaches = await stay_rule_breaches(
                     prop,
                     booking.property_id,
