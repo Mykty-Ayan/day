@@ -16,6 +16,7 @@ import {
   listAmenities,
   getPropertyAuditLog,
   uploadPhotos,
+  setPhotoCaption,
   deletePhoto,
   reorderPhotos,
   linkAmenities,
@@ -30,7 +31,7 @@ import {
   getPropertyTags,
   assignTags,
 } from '../api/properties'
-import type { SeasonalPriceInput, DiscountRuleInput } from '../types/property'
+import type { SeasonalPriceInput, DiscountRuleInput, PhotoAudience } from '../types/property'
 
 const PROPERTIES_KEY = 'properties'
 const PROPERTY_KEY = 'property'
@@ -167,12 +168,24 @@ export function useAmenities() {
 export function useUploadPhotos(propertyId: string) {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: ({ files, startAt }: { files: File[]; startAt: number }) =>
+    mutationFn: ({ files, startAt, audience }: { files: File[]; startAt: number; audience?: PhotoAudience }) =>
       uploadPhotos(
         propertyId,
         files.map((file) => ({ file })),
         startAt,
+        audience,
       ),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: [PROPERTY_KEY, propertyId] })
+    },
+  })
+}
+
+export function useSetPhotoCaption(propertyId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ photoId, caption }: { photoId: string; caption: string | null }) =>
+      setPhotoCaption(propertyId, photoId, caption),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: [PROPERTY_KEY, propertyId] })
     },

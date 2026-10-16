@@ -101,7 +101,7 @@ export default function DateRangePicker({
         </button>
       </PopoverTrigger>
       <PopoverContent
-        className="z-popover w-auto max-w-[calc(100vw-1rem)] overflow-hidden rounded-2xl border border-gray-200 bg-white p-2 shadow-2xl"
+        className="z-popover w-auto max-w-[calc(100vw-1rem)] overflow-x-hidden rounded-2xl border border-gray-200 bg-white p-2 shadow-2xl"
         align="start"
         sideOffset={8}
       >

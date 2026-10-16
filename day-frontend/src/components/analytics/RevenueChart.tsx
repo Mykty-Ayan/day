@@ -78,7 +78,7 @@ export default function RevenueChart({ data }: { data: TimeSeriesPoint[] }) {
                   <div className="bg-gray-900 text-white text-xs rounded-lg px-3 py-2 whitespace-nowrap shadow-lg">
                     <div className="font-bold">{symbol}{value.toLocaleString()}</div>
                     <div className="text-gray-300">
-                      {point.bookings_count} {t('analytics.bookings')}
+                      {t('analytics.bookingsCount', { count: point.bookings_count })}
                     </div>
                     <div className="text-gray-300">{point.period_label}</div>
                   </div>
