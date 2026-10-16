@@ -1,4 +1,5 @@
-import type { RentalMode } from '../types/booking'
+import { addDays, format, parseISO } from 'date-fns'
+import type { Booking, BookingStatus, RentalMode } from '../types/booking'
 
 interface BookingDates {
   check_in: string
@@ -20,4 +21,42 @@ export function switchRentalMode<T extends BookingDates>(form: T, mode: RentalMo
   const checkIn = form.hourly_date || datePart(form.check_in)
   const checkOut = datePart(form.check_out) > checkIn ? form.check_out : ''
   return { ...form, rental_mode: mode, check_in: checkIn, check_out: checkOut }
+}
+
+/** What the calendar needs of a booking to tell its nights. */
+export type Stay = Pick<Booking, 'id' | 'check_in' | 'check_out' | 'status' | 'rental_mode'>
+
+// The database lets no two bookings in these statuses overlap (bookings_no_overlap).
+const FREES_NIGHTS: BookingStatus[] = ['cancelled', 'completed']
+
+/** The nights (yyyy-MM-dd) a flat's daily stays take: check-in day to the night
+ *  before check-out. An hourly booking takes no night: the server checks its
+ *  hours against a new stay. `exceptId` is the booking being edited. */
+export function bookedNights(stays: Stay[], exceptId?: string): Set<string> {
+  const nights = new Set<string>()
+  for (const stay of stays) {
+    if (stay.id === exceptId || stay.rental_mode === 'hourly' || FREES_NIGHTS.includes(stay.status)) continue
+    const checkOut = datePart(stay.check_out)
+    for (let night = parseISO(datePart(stay.check_in)); format(night, 'yyyy-MM-dd') < checkOut; night = addDays(night, 1)) {
+      nights.add(format(night, 'yyyy-MM-dd'))
+    }
+  }
+  return nights
+}
+
+/** Whether a day cannot be clicked in the daily range picker. With no check-in
+ *  picked, a click starts a stay, and a booked night cannot. After a check-in, a
+ *  later click is the check-out: up to and including the first booked night
+ *  (that guest leaves the day the next one arrives), never past it. */
+export function isDayBlocked(day: string, booked: ReadonlySet<string>, checkIn: string | null): boolean {
+  if (!checkIn || day <= checkIn) return booked.has(day)
+  const firstBooked = [...booked].filter((night) => night >= checkIn).sort()[0]
+  return firstBooked !== undefined && day > firstBooked
+}
+
+/** The stay after a click: the check-out when a check-in waits for one and the
+ *  day is later, a new check-in otherwise. A picked stay is never stretched. */
+export function pickStayDay(checkIn: string, checkOut: string, day: string): { checkIn: string; checkOut: string } {
+  if (checkIn && !checkOut && day > checkIn) return { checkIn, checkOut: day }
+  return { checkIn: day, checkOut: '' }
 }

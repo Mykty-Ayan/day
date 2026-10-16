@@ -3,6 +3,8 @@ import {
   useMutation,
   useQueryClient,
 } from '@tanstack/react-query'
+import { addDays, addMonths, endOfMonth, format, startOfMonth } from 'date-fns'
+import { bookedNights } from '../lib/booking-dates'
 import type {
   BookingFilters,
   BookingCreateInput,
@@ -55,6 +57,21 @@ export function useBookings(filters: BookingFilters = {}) {
   return useQuery({
     queryKey: [BOOKINGS_KEY, filters],
     queryFn: () => listBookings(filters),
+  })
+}
+
+/** The nights a flat's stays take in the two months the calendar shows from
+ *  `month`. Limit: one page of 100 bookings; past that the calendar shows fewer
+ *  booked nights, and the server still refuses an overlap. */
+export function useBookedNights(propertyId: string, month: Date, exceptBookingId?: string) {
+  const dateFrom = format(startOfMonth(month), 'yyyy-MM-dd')
+  // A day past the window: the filter compares a check-in time with midnight.
+  const dateTo = format(addDays(endOfMonth(addMonths(month, 1)), 1), 'yyyy-MM-dd')
+  return useQuery({
+    queryKey: [BOOKINGS_KEY, { property_id: propertyId, date_from: dateFrom, date_to: dateTo, per_page: 100 }],
+    queryFn: () => listBookings({ property_id: propertyId, date_from: dateFrom, date_to: dateTo, per_page: 100 }),
+    enabled: !!propertyId,
+    select: (page) => bookedNights(page.items, exceptBookingId),
   })
 }
 

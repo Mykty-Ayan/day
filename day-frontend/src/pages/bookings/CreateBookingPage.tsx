@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { motion } from 'framer-motion'
 import { ArrowLeft, Check, Loader2, Calculator, User, Phone, Mail } from 'lucide-react'
 import { useNavigate } from '@tanstack/react-router'
-import { useCreateBooking, useCalculatePrice, useGuests } from '../../hooks/useBookings'
+import { useBookedNights, useCreateBooking, useCalculatePrice, useGuests } from '../../hooks/useBookings'
 import { useAllProperties } from '../../hooks/useProperties'
 import type { BookingSource, BookingCreateInput, PriceCalculateInput, RentalMode } from '../../types/booking'
 import DateRangePicker from '../../components/ui/date-range-picker'
@@ -182,6 +182,10 @@ export default function CreateBookingPage() {
       ? `${form.hourly_date}T${form.end_time}:00`
       : ''
     : form.check_out
+
+  // The calendar's first month on screen: its booked nights are shown struck through.
+  const [calendarMonth, setCalendarMonth] = useState(() => new Date())
+  const { data: booked } = useBookedNights(form.property_id, calendarMonth)
 
   const { data: guestsData } = useGuests(
     { search: guestSearch, limit: 5 },
@@ -446,6 +450,8 @@ export default function CreateBookingPage() {
                       minDate={new Date()}
                       placeholder={t('bookings.selectDates')}
                       error={!!errors.check_in || !!errors.check_out}
+                      booked={booked}
+                      onMonthChange={setCalendarMonth}
                     />
                     {errors.check_in && (
                       <p className="text-xs text-red-500 mt-1">{errors.check_in}</p>

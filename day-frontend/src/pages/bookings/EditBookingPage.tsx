@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { motion } from 'framer-motion'
 import { ArrowLeft, Check, Loader2 } from 'lucide-react'
 import { useNavigate, useParams } from '@tanstack/react-router'
-import { useBooking, useUpdateBooking } from '../../hooks/useBookings'
+import { useBookedNights, useBooking, useUpdateBooking } from '../../hooks/useBookings'
 import { useProperty } from '../../hooks/useProperties'
 import type { BookingDetail, BookingSource, BookingUpdateInput, RentalMode } from '../../types/booking'
 import DateRangePicker from '../../components/ui/date-range-picker'
@@ -83,6 +83,9 @@ function EditBookingForm({ detail, bookingId }: { detail: BookingDetail; booking
   const { t } = useTranslation()
   const navigate = useNavigate()
   const updateBooking = useUpdateBooking(bookingId)
+  // Other stays of the flat, struck through in the calendar; this booking's own nights stay open.
+  const [calendarMonth, setCalendarMonth] = useState(() => new Date())
+  const { data: booked } = useBookedNights(detail.booking.property_id, calendarMonth, bookingId)
   const { data: property } = useProperty(detail.booking.property_id)
   const [form, setForm] = useState<FormData>(() => detailToForm(detail))
   const [errors, setErrors] = useState<Record<string, string>>({})
@@ -303,6 +306,8 @@ function EditBookingForm({ detail, bookingId }: { detail: BookingDetail; booking
                   }}
                   placeholder={t('bookings.selectDates')}
                   error={!!errors.check_in || !!errors.check_out}
+                  booked={booked}
+                  onMonthChange={setCalendarMonth}
                 />
                 {errors.check_in && (
                   <p className="text-xs text-red-500 mt-1">{errors.check_in}</p>

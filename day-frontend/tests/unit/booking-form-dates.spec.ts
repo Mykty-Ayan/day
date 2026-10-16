@@ -5,7 +5,7 @@
  */
 
 import { expect, test } from '@playwright/test'
-import { switchRentalMode } from '../../src/lib/booking-dates'
+import { bookedNights, isDayBlocked, pickStayDay, switchRentalMode, type Stay } from '../../src/lib/booking-dates'
 import { TIME_OPTIONS, nearestOption } from '../../src/components/ui/time-options'
 
 const empty = { check_in: '', check_out: '', rental_mode: 'daily' as const, hourly_date: '' }
@@ -61,4 +61,64 @@ test('a saved booking carries its date, not its clock time', () => {
 test('switching with no date picked yet keeps the fields empty', () => {
   expect(switchRentalMode(empty, 'hourly')).toMatchObject({ hourly_date: '' })
   expect(switchRentalMode({ ...empty, rental_mode: 'hourly' }, 'daily')).toMatchObject({ check_in: '', check_out: '' })
+})
+
+// --- Booked nights in the daily calendar ---
+
+const stay = (id: string, check_in: string, check_out: string, extra: Partial<Stay> = {}): Stay => ({
+  id,
+  check_in,
+  check_out,
+  status: 'confirmed',
+  rental_mode: 'daily',
+  ...extra,
+})
+
+test('a stay books the nights from its check-in to the night before its check-out', () => {
+  const nights = bookedNights([stay('b1', '2026-10-20T14:00:00', '2026-10-23T12:00:00')])
+  expect([...nights].sort()).toEqual(['2026-10-20', '2026-10-21', '2026-10-22'])
+})
+
+test('cancelled, completed and hourly bookings book no nights', () => {
+  const nights = bookedNights([
+    stay('b1', '2026-10-20T14:00:00', '2026-10-21T12:00:00', { status: 'cancelled' }),
+    stay('b2', '2026-10-22T14:00:00', '2026-10-23T12:00:00', { status: 'completed' }),
+    stay('b3', '2026-10-24T10:00:00', '2026-10-24T13:00:00', { rental_mode: 'hourly' }),
+  ])
+  expect(nights.size).toBe(0)
+})
+
+test('the booking being edited does not block its own nights', () => {
+  const both = [stay('b1', '2026-10-20T14:00:00', '2026-10-22T12:00:00'), stay('b2', '2026-10-25T14:00:00', '2026-10-26T12:00:00')]
+  expect([...bookedNights(both, 'b1')]).toEqual(['2026-10-25'])
+})
+
+test('with no check-in picked, a booked night cannot start a stay', () => {
+  const booked = new Set(['2026-10-20', '2026-10-21'])
+  expect(isDayBlocked('2026-10-20', booked, null)).toBe(true)
+  expect(isDayBlocked('2026-10-22', booked, null)).toBe(false)
+  expect(isDayBlocked('2026-10-19', booked, null)).toBe(false)
+})
+
+test('after a check-in, the stay can end on the first booked night and not past it', () => {
+  // Booked 20th and 21st. Check-in on the 17th: out on the 18th–20th (the next guest
+  // arrives the day this one leaves), never the 21st or later.
+  const booked = new Set(['2026-10-20', '2026-10-21'])
+  expect(isDayBlocked('2026-10-18', booked, '2026-10-17')).toBe(false)
+  expect(isDayBlocked('2026-10-20', booked, '2026-10-17')).toBe(false)
+  expect(isDayBlocked('2026-10-21', booked, '2026-10-17')).toBe(true)
+  expect(isDayBlocked('2026-10-25', booked, '2026-10-17')).toBe(true)
+  // A click before the check-in starts a new stay: booked nights stay closed.
+  expect(isDayBlocked('2026-10-15', booked, '2026-10-22')).toBe(false)
+  expect(isDayBlocked('2026-10-21', booked, '2026-10-22')).toBe(true)
+  // Nothing booked after the check-in: any later day.
+  expect(isDayBlocked('2026-11-30', booked, '2026-10-22')).toBe(false)
+})
+
+test('a click picks the check-out after a check-in, and starts a new stay otherwise', () => {
+  expect(pickStayDay('', '', '2026-10-20')).toEqual({ checkIn: '2026-10-20', checkOut: '' })
+  expect(pickStayDay('2026-10-20', '', '2026-10-23')).toEqual({ checkIn: '2026-10-20', checkOut: '2026-10-23' })
+  expect(pickStayDay('2026-10-20', '', '2026-10-18')).toEqual({ checkIn: '2026-10-18', checkOut: '' })
+  // A full stay picked: the next click starts over instead of stretching it across booked nights.
+  expect(pickStayDay('2026-10-20', '2026-10-23', '2026-10-27')).toEqual({ checkIn: '2026-10-27', checkOut: '' })
 })
