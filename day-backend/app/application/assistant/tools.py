@@ -79,6 +79,15 @@ _RULE_WORDS = {
 }
 
 
+def _overrides(value: Any) -> bool:
+    """Only a real true breaks the rules: the model's arguments are not typed,
+    and bool("false") is True."""
+    return value is True
+
+
+_AGAINST_RULES = " вопреки правилам квартиры"
+
+
 def _stay_rules_refused(refused: StayRulesError) -> ValueError:
     broken = "; ".join(_RULE_WORDS[b.rule].format(limit=b.limit, actual=b.actual) for b in refused.breaches)
     return ValueError(
@@ -171,7 +180,7 @@ def build_tools(context: "ToolContext") -> dict[str, Tool]:
             describe=lambda args: (
                 f"Забронировать {args.get('property_query')} на {args.get('guest_name')} "
                 f"с {args.get('check_in')} по {args.get('check_out') or 'следующий день'}"
-                + (" вопреки правилам квартиры" if args.get("override_rules") else "")
+                + (_AGAINST_RULES if _overrides(args.get("override_rules")) else "")
             ),
         ),
         Tool(
@@ -189,6 +198,7 @@ def build_tools(context: "ToolContext") -> dict[str, Tool]:
             run=context.extend_booking,
             describe=lambda args: (
                 f"Продлить бронь на {args.get('nights', 1)} ноч. (id {args.get('booking_id')})"
+                + (_AGAINST_RULES if _overrides(args.get("override_rules")) else "")
             ),
         ),
         Tool(
@@ -372,7 +382,7 @@ class ToolContext:
                 guest_phone=guest_phone,
                 check_in=start,
                 check_out=end,
-                override_rules=bool(override_rules),
+                override_rules=_overrides(override_rules),
             )
         except StayRulesError as refused:
             raise _stay_rules_refused(refused) from refused
@@ -385,7 +395,7 @@ class ToolContext:
                 booking_id=booking.id,
                 company_id=self._company_id,
                 check_out=booking.check_out + timedelta(days=max(1, nights)),
-                override_rules=bool(override_rules),
+                override_rules=_overrides(override_rules),
             )
         except StayRulesError as refused:
             raise _stay_rules_refused(refused) from refused

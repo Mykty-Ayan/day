@@ -330,3 +330,28 @@ class TestStayRules:
         args = {"property_query": "62auc", "guest_name": "Ерлан", "check_in": "2026-08-27"}
         assert "вопреки правилам" not in tool.describe(args)
         assert "вопреки правилам" in tool.describe({**args, "override_rules": True})
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("word", ["false", "true", 1, "yes", None])
+    async def test_only_a_real_true_breaks_the_rules(self, word):
+        # The model's arguments are not typed: bool("false") is True, and a
+        # string must not switch the flat's rules off.
+        seen = []
+
+        async def create(**kwargs):
+            seen.append(kwargs.get("override_rules"))
+            raise ValueError("stop here")
+
+        with pytest.raises(ValueError, match="stop here"):
+            await self._context(create).create_booking("62auc", "Ерлан", "2026-08-27", override_rules=word)
+        assert seen == [False]
+
+    def test_the_extension_card_says_the_rules_are_broken(self):
+        from app.application.assistant.tools import build_tools
+
+        tool = build_tools(self._context(None))["extend_booking"]
+        args = {"booking_id": str(uuid.uuid4()), "nights": 3}
+        assert "вопреки правилам" not in tool.describe(args)
+        assert "вопреки правилам" in tool.describe({**args, "override_rules": True})
+        # The card follows the flag the tool will act on: a string is not it.
+        assert "вопреки правилам" not in tool.describe({**args, "override_rules": "false"})
