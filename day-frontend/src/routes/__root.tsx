@@ -5,6 +5,7 @@ import MobileShell from '../components/layout/MobileShell'
 import ToastContainer from '../components/ui/Toast'
 import { useCurrentUser, useLogout } from '../hooks/useAuth'
 import { useMediaQuery } from '../hooks/useMediaQuery'
+import { AI_IMPORT_ENABLED } from '../lib/features'
 
 const PUBLIC_ROUTES = ['/login', '/register', '/forgot-password']
 const CLEANER_ROUTE_PREFIX = '/cleaner'
@@ -71,7 +72,7 @@ function AuthenticatedLayout() {
     { to: '/cleaning', label: t('nav.cleaning'), icon: SprayCan },
     { to: '/cleaning/checklists', label: t('nav.checklists'), icon: ClipboardList },
     { to: '/analytics', label: t('nav.analytics'), icon: BarChart3 },
-    { to: '/ai-import', label: t('nav.aiImport'), icon: Sparkles },
+    ...(AI_IMPORT_ENABLED ? [{ to: '/ai-import', label: t('nav.aiImport'), icon: Sparkles }] : []),
     { to: '/settings', label: t('nav.settings'), icon: Settings },
   ] as const
 

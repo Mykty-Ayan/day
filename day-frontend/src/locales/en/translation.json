@@ -720,6 +720,7 @@
     "backToImports": "Back to Imports",
     "importFailed": "Import Failed",
     "unknownError": "An unknown error occurred during import.",
+    "unavailable": "AI import is unavailable: the listing parser is not connected. Create the property by hand.",
     "noPropertyData": "No property data available for this import.",
     "creatingProperty": "Creating...",
     "createProperty": "Create Property",
