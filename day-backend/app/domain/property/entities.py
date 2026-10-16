@@ -49,6 +49,14 @@ class Property:
     whatsapp_product_url: str | None = None
     video_url: str | None = None
 
+    # Stay rules for bookings made in Day; empty is no rule. The fewest and most
+    # nights of a daily stay; hours kept free around an hourly booking for
+    # cleaning; hours a stay must be booked ahead of its check-in.
+    min_nights: int | None = None
+    max_nights: int | None = None
+    buffer_hours: int | None = None
+    min_lead_hours: int | None = None
+
     # Details
     rooms: int | None = None
     beds: int | None = None

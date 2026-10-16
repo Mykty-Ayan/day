@@ -4,7 +4,7 @@ import enum
 import uuid
 from dataclasses import dataclass
 
-from app.application.property.create_property import check_turnover_hours
+from app.application.property.create_property import check_stay_nights, check_turnover_hours
 from app.domain.property.entities import Property, PropertyAuditLog
 from app.domain.property.repositories import PropertyAuditLogRepository, PropertyRepository
 from app.domain.property.value_objects import AuditAction, PropertyStatus
@@ -35,6 +35,10 @@ class UpdatePropertyInput:
     map_url: object = _UNSET
     whatsapp_product_url: object = _UNSET
     video_url: object = _UNSET
+    min_nights: object = _UNSET
+    max_nights: object = _UNSET
+    buffer_hours: object = _UNSET
+    min_lead_hours: object = _UNSET
     rooms: object = _UNSET
     beds: object = _UNSET
     max_guests: object = _UNSET
@@ -59,6 +63,7 @@ _UPDATABLE_FIELDS = {
     "latitude", "longitude", "address_full", "apartment_number",
     "entrance", "block", "floor", "rooms", "beds", "max_guests", "bathrooms",
     "complex_name", "floors_total", "map_url", "whatsapp_product_url", "video_url",
+    "min_nights", "max_nights", "buffer_hours", "min_lead_hours",
     "check_in_hour", "check_out_hour", "check_in_method",
     "area_living", "area_total",
     "check_in_instructions", "check_out_instructions", "house_rules",
@@ -91,6 +96,10 @@ class UpdatePropertyService:
         check_turnover_hours(
             prop.check_in_hour if inp.check_in_hour is _UNSET else inp.check_in_hour,  # type: ignore[arg-type]
             prop.check_out_hour if inp.check_out_hour is _UNSET else inp.check_out_hour,  # type: ignore[arg-type]
+        )
+        check_stay_nights(
+            prop.min_nights if inp.min_nights is _UNSET else inp.min_nights,  # type: ignore[arg-type]
+            prop.max_nights if inp.max_nights is _UNSET else inp.max_nights,  # type: ignore[arg-type]
         )
 
         # Check unique internal_name if changed

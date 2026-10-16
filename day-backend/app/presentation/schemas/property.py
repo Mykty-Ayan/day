@@ -34,6 +34,14 @@ class _TurnoverHours(BaseModel):
             raise ValueError("Check-out hour must not be later than the check-in hour")
         return self
 
+    @model_validator(mode="after")
+    def _most_nights_not_below_fewest(self):
+        # No stay could pass both; a PATCH with one side is checked against the saved one.
+        fewest, most = getattr(self, "min_nights", None), getattr(self, "max_nights", None)
+        if fewest is not None and most is not None and most < fewest:
+            raise ValueError("max_nights must not be below min_nights")
+        return self
+
 
 class PropertyCreate(_TurnoverHours):
     name: str = Field(..., min_length=1, max_length=255)
@@ -54,6 +62,11 @@ class PropertyCreate(_TurnoverHours):
     map_url: WebLink | None = None
     whatsapp_product_url: WebLink | None = None
     video_url: WebLink | None = None
+    # Stay rules for bookings made in Day; null is no rule.
+    min_nights: int | None = Field(default=None, ge=1, le=365)
+    max_nights: int | None = Field(default=None, ge=1, le=365)
+    buffer_hours: int | None = Field(default=None, ge=1, le=24)
+    min_lead_hours: int | None = Field(default=None, ge=1, le=24 * 30)
     rooms: int | None = None
     beds: int | None = None
     max_guests: int | None = Field(default=None, ge=1, le=50)
@@ -89,6 +102,11 @@ class PropertyUpdate(_TurnoverHours):
     map_url: WebLink | None = None
     whatsapp_product_url: WebLink | None = None
     video_url: WebLink | None = None
+    # Stay rules for bookings made in Day; null is no rule.
+    min_nights: int | None = Field(default=None, ge=1, le=365)
+    max_nights: int | None = Field(default=None, ge=1, le=365)
+    buffer_hours: int | None = Field(default=None, ge=1, le=24)
+    min_lead_hours: int | None = Field(default=None, ge=1, le=24 * 30)
     rooms: int | None = None
     beds: int | None = None
     max_guests: int | None = Field(default=None, ge=1, le=50)
@@ -129,6 +147,10 @@ class PropertyResponse(BaseModel):
     map_url: str | None = None
     whatsapp_product_url: str | None = None
     video_url: str | None = None
+    min_nights: int | None = None
+    max_nights: int | None = None
+    buffer_hours: int | None = None
+    min_lead_hours: int | None = None
     rooms: int | None = None
     beds: int | None = None
     max_guests: int | None = None
