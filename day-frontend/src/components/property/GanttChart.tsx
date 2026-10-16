@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState, useCallback, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { useNavigate } from '@tanstack/react-router'
+import { Link, useNavigate } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 import type { Booking, BookingStatus, GanttBlock, GanttPropertySummary } from '../../types/booking'
 import type { PricingConfig } from '../../types/property'
@@ -9,6 +9,7 @@ import { moveBooking } from '../../api/bookings'
 import { stayRuleBreaches, stayRuleText, type StayRuleBreach } from '../../lib/booking-errors'
 import { blockNights, isDayBlocked } from '../../lib/booking-dates'
 import ConfirmDialog from '../ui/ConfirmDialog'
+import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover'
 import { useQueryClient } from '@tanstack/react-query'
 import { useCurrency } from '../../hooks/useCurrency'
 import { useMediaQuery } from '../../hooks/useMediaQuery'
@@ -153,6 +154,37 @@ function getBookingNights(checkIn: string, checkOut: string): number {
 
 function isHourlyBooking(booking: Booking): boolean {
   return booking.rental_mode === 'hourly'
+}
+
+// An hourly booking that fits in one day cell (a few hours, even past midnight).
+function isShortHourly(booking: Booking): boolean {
+  if (!isHourlyBooking(booking)) return false
+  const { start, end } = getBookingDayRange(booking.check_in, booking.check_out)
+  return Math.round((end.getTime() - start.getTime()) / 86400000) === 1
+}
+
+// A row's short hourly bookings by their day, by the hour. Each takes the whole
+// day cell, so two or more on one day would cover each other: they show as one plate.
+function hourlyByDay(bookings: Booking[]): Map<string, Booking[]> {
+  const byDay = new Map<string, Booking[]>()
+  for (const booking of bookings.filter(isShortHourly).sort((a, b) => a.check_in.localeCompare(b.check_in))) {
+    const day = booking.check_in.slice(0, 10)
+    byDay.set(day, [...(byDay.get(day) ?? []), booking])
+  }
+  return byDay
+}
+
+// The days a row's other bars cover: stays by the night and hourly ones over several days.
+function longBarDays(bookings: Booking[]): Set<string> {
+  const days = new Set<string>()
+  for (const booking of bookings) {
+    if (isShortHourly(booking)) continue
+    const { start, end } = getBookingDayRange(booking.check_in, booking.check_out)
+    for (let day = start; day < end; day = new Date(day.getFullYear(), day.getMonth(), day.getDate() + 1)) {
+      days.add(toDateStr(day))
+    }
+  }
+  return days
 }
 
 // Whole hours (ceil, matching the backend hourly billing) between two datetimes.
@@ -350,6 +382,8 @@ export default function GanttChart({
 
   // Touch fallback for the drag-only move feature: a bottom-sheet property picker.
   const [moveSheetBooking, setMoveSheetBooking] = useState<Booking | null>(null)
+  // The open plate of several hourly bookings: `${propertyId}:${day}`.
+  const [openPlate, setOpenPlate] = useState<string | null>(null)
   // A move the target flat's stay rules refused, waiting for the operator's word.
   const [ruleMove, setRuleMove] = useState<{ bookingId: string; targetPropertyId: string; breaches: StayRuleBreach[] } | null>(null)
 
@@ -686,6 +720,12 @@ export default function GanttChart({
             {sortedRows.map((row) => {
               const isPaused = row.property.status === 'paused'
               const closedNights = blockNights(row.blocks ?? [])
+              const hourly = hourlyByDay(row.bookings)
+              const plates = [...hourly].filter(([, group]) => group.length > 1)
+              const grouped = new Set(plates.flatMap(([, group]) => group.map((booking) => booking.id)))
+              // On a day a longer bar also covers, the hourly ones take the cell's left
+              // half (they come before a 14:00 check-in) and sit above it.
+              const sharedDays = longBarDays(row.bookings)
               return (
                 <div
                   key={row.property.id}
@@ -874,8 +914,11 @@ export default function GanttChart({
 
                 {/* Booking bars overlaid */}
                 {row.bookings.map((booking) => {
-                  const pos = getBarPosition(booking)
-                  if (!pos) return null
+                  if (grouped.has(booking.id)) return null
+                  const bar = getBarPosition(booking)
+                  if (!bar) return null
+                  const shared = isShortHourly(booking) && sharedDays.has(booking.check_in.slice(0, 10))
+                  const pos = shared ? { left: bar.left, width: cellW / 2 } : bar
 
                   return (
                     <button
@@ -919,7 +962,7 @@ export default function GanttChart({
                         top: BAR_Y,
                         height: BAR_H,
                         backgroundColor: booking.gantt_color || '#3B82F6',
-                        zIndex: 5,
+                        zIndex: shared ? 6 : 5,
                       }}
                     >
                       <div className="flex items-center h-full px-2 overflow-hidden">
@@ -960,6 +1003,87 @@ export default function GanttChart({
                         </div>
                       )}
                     </button>
+                  )
+                })}
+
+                {/* Several hourly bookings on one day: one plate, listed by the hour */}
+                {plates.map(([day, group]) => {
+                  const start = parseDateOnly(day)
+                  const cell = getSpanPosition(start, new Date(start.getFullYear(), start.getMonth(), start.getDate() + 1), cellW)
+                  if (!cell) return null
+                  const shared = sharedDays.has(day)
+                  const pos = shared ? { left: cell.left, width: cellW / 2 } : cell
+                  const key = `${row.property.id}:${day}`
+                  // A clash inside the plate shows on it, as on a bar.
+                  const clash = group.some((booking) => booking.overbooking)
+                  return (
+                    <Popover
+                      key={`hourly-${day}`}
+                      open={openPlate === key}
+                      onOpenChange={(open) => setOpenPlate(open ? key : null)}
+                    >
+                      <PopoverTrigger asChild>
+                        <button
+                          type="button"
+                          aria-label={`${clash ? `${t('bookings.overbooking.short')}: ` : ''}${t('gantt.hourlyMany', { flat: row.property.internal_name, n: group.length })}`}
+                          onClick={(e) => e.stopPropagation()}
+                          className={`absolute rounded-full text-[11px] font-semibold text-white shadow-sm ring-1 ring-white/70 transition-shadow hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
+                            clash ? 'outline outline-2 outline-red-600 outline-offset-1' : ''
+                          }`}
+                          style={{
+                            left: pos.left,
+                            width: pos.width,
+                            top: BAR_Y,
+                            height: BAR_H,
+                            backgroundColor: group[0].gantt_color || '#3B82F6',
+                            zIndex: shared ? 6 : 5,
+                          }}
+                        >
+                          ×{group.length}
+                        </button>
+                      </PopoverTrigger>
+                      <PopoverContent align="start" className="w-auto min-w-[200px] p-1.5">
+                        <ul>
+                          {group.map((booking) => (
+                            <li key={booking.id}>
+                              <Link
+                                to="/bookings/$bookingId"
+                                params={{ bookingId: booking.id }}
+                                search={{ from: 'gantt' } as Record<string, string>}
+                                // Moved like a bar: dragged onto another flat's row, or on a
+                                // touch screen through the booking card and its "Move".
+                                draggable
+                                onDragStart={(e) => handleDragStart(e, booking, row.property.id)}
+                                onDragEnd={() => {
+                                  handleDragEnd()
+                                  setOpenPlate(null)
+                                }}
+                                onClick={(e) => {
+                                  if (!isCoarsePointer) return
+                                  e.preventDefault()
+                                  setOpenPlate(null)
+                                  setTouchTooltipBooking(booking)
+                                }}
+                                className="flex min-h-[44px] items-center gap-2 rounded-lg px-2 text-sm hover:bg-gray-50"
+                              >
+                                {booking.overbooking && (
+                                  <>
+                                    <span className="sr-only">{t('bookings.overbooking.short')}: </span>
+                                    <span aria-hidden className="shrink-0 rounded bg-red-600 px-1 text-[10px] font-bold text-white">
+                                      !
+                                    </span>
+                                  </>
+                                )}
+                                <span className="font-semibold tabular-nums text-gray-900">
+                                  {booking.check_in.slice(11, 16)}–{booking.check_out.slice(11, 16)}
+                                </span>{' '}
+                                <span className="truncate text-gray-600">{booking.guest_name}</span>
+                              </Link>
+                            </li>
+                          ))}
+                        </ul>
+                      </PopoverContent>
+                    </Popover>
                   )
                 })}
                 </div>
