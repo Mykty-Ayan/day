@@ -359,11 +359,11 @@ export default function PropertyDetailPage() {
                     <p className="text-sm text-gray-900">
                       {[property.complex_name, property.address_full].filter(Boolean).join(', ')}
                     </p>
-                    {(property.apartment_number || property.floor) && (
+                    {(property.apartment_number || property.floor != null) && (
                       <p className="text-xs text-gray-500 mt-0.5">
                         {property.apartment_number && t('properties.apt', { number: property.apartment_number })}
-                        {property.apartment_number && property.floor && ', '}
-                        {property.floor &&
+                        {property.apartment_number && property.floor != null && ', '}
+                        {property.floor != null &&
                           (property.floors_total
                             ? t('properties.floorOf', { number: property.floor, total: property.floors_total })
                             : t('properties.floor', { number: property.floor }))}
