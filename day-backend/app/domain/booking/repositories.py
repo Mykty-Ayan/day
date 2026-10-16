@@ -86,7 +86,14 @@ class BookingRepository(abc.ABC):
         check_out: date,
         *,
         exclude_id: uuid.UUID | None = None,
-    ) -> list[Booking]: ...
+        include_completed: bool = False,
+    ) -> list[Booking]:
+        """The flat's active bookings in the range. `include_completed` adds the
+        completed ones: a stay that ended early still needs its cleaning."""
+
+    async def lock_property_calendar(self, property_id: uuid.UUID) -> None:  # noqa: B027  (no-op unless SQL)
+        """Serialize the checks of one flat's neighbours until the transaction ends:
+        two bookings at once must not both find the flat free of a buffer."""
 
     @abc.abstractmethod
     async def list_by_company(

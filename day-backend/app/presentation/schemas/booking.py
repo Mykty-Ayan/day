@@ -78,6 +78,9 @@ class BookingCreate(BaseModel):
     # confirmed first. Must carry its zone: a hold set at night for "09:00"
     # means the company's morning, not UTC's.
     expires_at: AwareDatetime | None = None
+    # The operator confirmed a stay that breaks the apartment's stay rules
+    # (nights, cleaning buffer, lead time); without it such a stay answers 422.
+    override_rules: bool = False
 
 
 class BookingUpdate(BaseModel):
@@ -93,6 +96,8 @@ class BookingUpdate(BaseModel):
     notes: str | None = None
     # Extends a hold, or releases it with null. Pending bookings only.
     expires_at: AwareDatetime | None = None
+    # New dates that break the apartment's stay rules, confirmed by the operator.
+    override_rules: bool = False
 
 
 class BookingResponse(BaseModel):
@@ -191,6 +196,8 @@ class BookingStatusChange(BaseModel):
 
 class BookingMove(BaseModel):
     target_property_id: uuid.UUID
+    # The target flat's stay rules broken, confirmed by the operator.
+    override_rules: bool = False
 
 
 class BookingListResponse(BaseModel):

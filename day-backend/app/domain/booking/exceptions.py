@@ -1,5 +1,7 @@
 """Errors the booking domain raises on purpose."""
 
+from app.domain.booking.stay_rules import RuleBreach
+
 
 class BookingOverlapError(ValueError):
     """The stay shares a night with an active booking of the same property.
@@ -35,3 +37,17 @@ class IdempotencyKeyVoidedError(ValueError):
 
     def __init__(self) -> None:
         super().__init__("Idempotency-Key was voided")
+
+
+class StayRulesError(ValueError):
+    """The booking breaks the apartment's stay rules (nights, cleaning buffer, lead time).
+
+    A ValueError, so the assistant and the guest bot keep catching it; the HTTP
+    layer answers 422 with the breaches, and the operator may send the same
+    request again with override_rules.
+    """
+
+    def __init__(self, breaches: list[RuleBreach]) -> None:
+        self.breaches = breaches
+        broken = ", ".join(f"{b.rule} {b.limit} (booking: {b.actual})" for b in breaches)
+        super().__init__(f"Booking breaks the apartment's stay rules: {broken}")

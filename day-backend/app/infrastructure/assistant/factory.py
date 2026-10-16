@@ -36,6 +36,7 @@ from app.infrastructure.repositories.property import (
     SqlPropertyRepository,
     SqlSeasonalPriceRepository,
 )
+from app.infrastructure.repositories.settings import SqlCompanySettingsRepository
 
 
 def build_assistant_tools(
@@ -57,8 +58,9 @@ def build_assistant_tools(
         SqlDiscountRuleRepository(session),
     )
 
-    create_booking = CreateBookingService(bookings, guests, properties, audit, prices)
-    update_booking = UpdateBookingService(bookings, properties, audit, prices)
+    company_settings = SqlCompanySettingsRepository(session)
+    create_booking = CreateBookingService(bookings, guests, properties, audit, prices, company_settings)
+    update_booking = UpdateBookingService(bookings, properties, audit, prices, company_settings)
     manage_payments = ManagePaymentsService(bookings, payments, audit)
     create_cleaning = CreateCleaningTaskService(SqlCleaningTaskRepository(session), properties)
     metrics = CalculateMetricsService(SqlAnalyticsRepository(session), SqlPropertyCostsRepository(session))

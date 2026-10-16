@@ -142,7 +142,9 @@ class FakeBookingRepository(BookingRepository):
     async def idempotency_key_voided(self, company_id, key):
         return False
 
-    async def get_by_property_and_dates(self, property_id, check_in, check_out, *, exclude_id=None):
+    async def get_by_property_and_dates(
+        self, property_id, check_in, check_out, *, exclude_id=None, include_completed=False
+    ):
         result = []
         for b in self.items.values():
             if b.property_id != property_id or b.status == BookingStatus.CANCELLED or b.id == exclude_id:
