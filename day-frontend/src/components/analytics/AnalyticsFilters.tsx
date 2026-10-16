@@ -7,6 +7,7 @@ import {
 } from '../ui/select'
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover'
 import { ToggleGroup, ToggleGroupItem } from '../ui/toggle-group'
+import DateRangePicker from '../ui/date-range-picker'
 import type { PeriodPreset, Granularity } from '../../types/analytics'
 import type { Property } from '../../types/property'
 import { Checkbox } from '../ui/checkbox'
@@ -16,6 +17,9 @@ import { motion } from 'framer-motion'
 import { useTranslation } from 'react-i18next'
 
 interface Props {
+  /** The owner's own period, first and last day included; used when period is 'custom'. */
+  range: { from: string; to: string }
+  onRangeChange: (range: { from: string; to: string }) => void
   period: PeriodPreset
   onPeriodChange: (period: PeriodPreset) => void
   granularity: Granularity
@@ -26,6 +30,8 @@ interface Props {
   onSourceChange: (source: string) => void
   properties: Property[]
   onExport: () => void
+  /** No export while the own period is not picked yet. */
+  exportDisabled?: boolean
 }
 
 export default function AnalyticsFilterBar({
@@ -37,8 +43,11 @@ export default function AnalyticsFilterBar({
   onPropertyChange,
   source,
   onSourceChange,
+  range,
+  onRangeChange,
   properties,
   onExport,
+  exportDisabled = false,
 }: Props) {
   const { t } = useTranslation()
 
@@ -47,6 +56,7 @@ export default function AnalyticsFilterBar({
     { value: 'month', label: t('analytics.month') },
     { value: 'quarter', label: t('analytics.quarter') },
     { value: 'year', label: t('analytics.year') },
+    { value: 'custom', label: t('analytics.customPeriod') },
   ]
 
   const GRANULARITY_OPTIONS: { value: Granularity; label: string }[] = [
@@ -106,6 +116,19 @@ export default function AnalyticsFilterBar({
             ))}
           </ToggleGroup>
         </div>
+
+        {period === 'custom' && (
+          <div className="w-full sm:w-64">
+            <DateRangePicker
+              id="analytics-period"
+              startDate={range.from}
+              endDate={range.to}
+              onRangeChange={(from, to) => onRangeChange({ from, to })}
+              placeholder={t('analytics.pickPeriod')}
+              allowSameDay
+            />
+          </div>
+        )}
 
         <div className="w-full overflow-x-auto sm:w-auto">
           <ToggleGroup
@@ -208,7 +231,8 @@ export default function AnalyticsFilterBar({
         <motion.button
           whileTap={{ scale: 0.97 }}
           onClick={onExport}
-          className="flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 sm:w-auto"
+          disabled={exportDisabled}
+          className="flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 disabled:opacity-50 sm:w-auto"
         >
           <Download className="w-4 h-4" />
           {t('analytics.exportCsv')}

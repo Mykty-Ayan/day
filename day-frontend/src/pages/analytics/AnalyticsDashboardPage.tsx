@@ -5,6 +5,7 @@ import { useAnalyticsMetrics, useAnalyticsTimeSeries } from '../../hooks/useAnal
 import { useProperties } from '../../hooks/useProperties'
 import { exportAnalyticsCsv } from '../../api/analytics'
 import type { PeriodPreset, Granularity } from '../../types/analytics'
+import { customRange } from './period'
 import SummaryCards from '../../components/analytics/SummaryCards'
 import MetricsTable from '../../components/analytics/MetricsTable'
 import RevenueChart from '../../components/analytics/RevenueChart'
@@ -19,9 +20,15 @@ export default function AnalyticsDashboardPage() {
   const [granularity, setGranularity] = useState<Granularity>('day')
   const [propertyIds, setPropertyIds] = useState<string[]>([])
   const [source, setSource] = useState('all')
+  const [range, setRange] = useState({ from: '', to: '' })
 
+  // The owner's own period asks nothing until both days are picked: the API
+  // would answer the last 30 days and pass them off as the chosen period.
+  const custom = period === 'custom' ? customRange(range.from, range.to) : null
+  const waiting = period === 'custom' && custom === null
   const filters = {
     period,
+    ...custom,
     granularity,
     property_ids: propertyIds.length > 0 ? propertyIds : undefined,
     source: source === 'all' ? undefined : source,
@@ -32,23 +39,25 @@ export default function AnalyticsDashboardPage() {
     isLoading: metricsLoading,
     isError: metricsError,
     refetch: refetchMetrics,
-  } = useAnalyticsMetrics(filters)
+  } = useAnalyticsMetrics(filters, !waiting)
   const {
     data: timeSeriesData,
     isLoading: timeSeriesLoading,
     isError: timeSeriesError,
     refetch: refetchTimeSeries,
-  } = useAnalyticsTimeSeries(filters)
+  } = useAnalyticsTimeSeries(filters, !waiting)
   const { data: propertiesData } = useProperties({ per_page: 100, status: 'active' })
   const properties = propertiesData?.items ?? []
 
   async function handleExport() {
+    // Without both days the API would export the last 30 days as if chosen.
+    if (waiting) return
     try {
       const blob = await exportAnalyticsCsv(filters)
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
-      a.download = `analytics-${period}.csv`
+      a.download = custom ? `analytics-${range.from}-${range.to}.csv` : `analytics-${period}.csv`
       a.click()
       URL.revokeObjectURL(url)
       showToast('success', t('analytics.reportExported'))
@@ -91,12 +100,19 @@ export default function AnalyticsDashboardPage() {
             onPropertyChange={setPropertyIds}
             source={source}
             onSourceChange={setSource}
+            range={range}
+            onRangeChange={setRange}
             properties={properties}
             onExport={handleExport}
+            exportDisabled={waiting}
           />
         </div>
 
-        {isLoading ? (
+        {waiting ? (
+          <div className="flex flex-col items-center justify-center py-20 text-center">
+            <p className="text-sm text-gray-500">{t('analytics.pickPeriod')}</p>
+          </div>
+        ) : isLoading ? (
           <Spinner />
         ) : isError ? (
           <div className="flex flex-col items-center justify-center py-20 text-center">
