@@ -20,6 +20,7 @@ import { ToggleGroup, ToggleGroupItem } from '../../components/ui/toggle-group'
 import NumberInput from '../../components/ui/number-input'
 import { useCurrency } from '../../hooks/useCurrency'
 import { getBookingApiErrorMessage, getBookingFieldError } from '../../lib/booking-errors'
+import { switchRentalMode } from '../../lib/booking-dates'
 
 interface FormData {
   property_id: string
@@ -221,6 +222,18 @@ export default function CreateBookingPage() {
     })
   }
 
+  // The picked date moves to the other mode's field instead of disappearing.
+  function switchMode(mode: RentalMode) {
+    setForm((f) => switchRentalMode(f, mode))
+    setErrors((e) => {
+      const next = { ...e }
+      delete next.rental_mode
+      delete next.check_in
+      delete next.check_out
+      return next
+    })
+  }
+
   function validate(): boolean {
     const errs: Record<string, string> = {}
     if (!form.property_id) errs.property_id = t('bookings.validation.propertyRequired')
@@ -355,7 +368,7 @@ export default function CreateBookingPage() {
                     value={rentalMode}
                     onValueChange={(value) => {
                       if (!value) return
-                      updateField('rental_mode', value as RentalMode)
+                      switchMode(value as RentalMode)
                     }}
                   >
                     <ToggleGroupItem value="daily">{t('bookings.rentalMode.daily')}</ToggleGroupItem>

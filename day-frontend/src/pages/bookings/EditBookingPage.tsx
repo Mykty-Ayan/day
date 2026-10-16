@@ -15,6 +15,7 @@ import NumberInput from '../../components/ui/number-input'
 import Spinner from '../../components/ui/Spinner'
 import { showToast } from '../../components/ui/Toast'
 import { getBookingApiErrorMessage, getBookingFieldError } from '../../lib/booking-errors'
+import { switchRentalMode } from '../../lib/booking-dates'
 
 interface FormData {
   check_in: string
@@ -125,6 +126,18 @@ function EditBookingForm({ detail, bookingId }: { detail: BookingDetail; booking
     })
   }
 
+  // The picked date moves to the other mode's field instead of disappearing.
+  function switchMode(mode: RentalMode) {
+    setForm((f) => switchRentalMode(f, mode))
+    setErrors((e) => {
+      const next = { ...e }
+      delete next.rental_mode
+      delete next.check_in
+      delete next.check_out
+      return next
+    })
+  }
+
   function validate(): boolean {
     const errs: Record<string, string> = {}
     if (isHourly) {
@@ -214,7 +227,7 @@ function EditBookingForm({ detail, bookingId }: { detail: BookingDetail; booking
                 value={form.rental_mode}
                 onValueChange={(value) => {
                   if (!value) return
-                  updateField('rental_mode', value as RentalMode)
+                  switchMode(value as RentalMode)
                 }}
               >
                 <ToggleGroupItem value="daily">{t('bookings.rentalMode.daily')}</ToggleGroupItem>
