@@ -70,3 +70,27 @@ export function getBookingFieldError(error: unknown, t: Translate): BookingField
 
   return null
 }
+
+/** One stay rule of the apartment a booking breaks (see the property's rules). */
+export interface StayRuleBreach {
+  rule: 'min_nights' | 'max_nights' | 'buffer_hours' | 'min_lead_hours'
+  limit: number
+  actual: number
+}
+
+/** The broken stay rules of a refused booking (422, code "stay_rules"), or null
+ *  for any other error. The same request with override_rules books it anyway. */
+export function stayRuleBreaches(error: unknown): StayRuleBreach[] | null {
+  if (!isAxiosError(error)) return null
+  const detail = (error.response?.data as { detail?: unknown } | undefined)?.detail
+  if (typeof detail !== 'object' || detail === null) return null
+  const { code, breaches } = detail as { code?: unknown; breaches?: unknown }
+  return code === 'stay_rules' && Array.isArray(breaches) ? (breaches as StayRuleBreach[]) : null
+}
+
+export function stayRuleText(
+  breach: StayRuleBreach,
+  t: (key: string, values?: Record<string, unknown>) => string,
+): string {
+  return t(`bookings.stayRules.${breach.rule}`, { limit: breach.limit, actual: breach.actual })
+}

@@ -6,6 +6,8 @@ import type { Booking, BookingStatus, GanttPropertySummary } from '../../types/b
 import type { PricingConfig } from '../../types/property'
 import { showToast } from '../ui/Toast'
 import { moveBooking } from '../../api/bookings'
+import { stayRuleBreaches, stayRuleText, type StayRuleBreach } from '../../lib/booking-errors'
+import ConfirmDialog from '../ui/ConfirmDialog'
 import { useQueryClient } from '@tanstack/react-query'
 import { useCurrency } from '../../hooks/useCurrency'
 import { useMediaQuery } from '../../hooks/useMediaQuery'
@@ -345,6 +347,8 @@ export default function GanttChart({
 
   // Touch fallback for the drag-only move feature: a bottom-sheet property picker.
   const [moveSheetBooking, setMoveSheetBooking] = useState<Booking | null>(null)
+  // A move the target flat's stay rules refused, waiting for the operator's word.
+  const [ruleMove, setRuleMove] = useState<{ bookingId: string; targetPropertyId: string; breaches: StayRuleBreach[] } | null>(null)
 
   // Horizontal-scroll affordance: edge fades that appear when the track can scroll.
   const [scrollShadow, setScrollShadow] = useState<{ start: boolean; end: boolean }>({
@@ -407,6 +411,21 @@ export default function GanttChart({
     setDragOverPropertyId(null)
   }, [])
 
+  // One move, by drag or by the picker. The target flat's stay rules may refuse
+  // it; the operator then confirms and the same move goes again with override_rules.
+  const runMove = useCallback(async (bookingId: string, targetPropertyId: string, overrideRules = false) => {
+    try {
+      await moveBooking(bookingId, { target_property_id: targetPropertyId, override_rules: overrideRules || undefined })
+      queryClient.invalidateQueries({ queryKey: ['gantt-data'] })
+      queryClient.invalidateQueries({ queryKey: ['bookings'] })
+      showToast('success', t('gantt.bookingMoved'))
+    } catch (error) {
+      const breaches = stayRuleBreaches(error)
+      if (breaches) setRuleMove({ bookingId, targetPropertyId, breaches })
+      else showToast('error', t('gantt.failedMoveBooking'))
+    }
+  }, [queryClient, t])
+
   const handleDrop = useCallback(async (e: React.DragEvent, targetPropertyId: string) => {
     e.preventDefault()
     setDragOverPropertyId(null)
@@ -424,17 +443,9 @@ export default function GanttChart({
       return
     }
 
-    try {
-      await moveBooking(dragBooking.booking.id, { target_property_id: targetPropertyId })
-      queryClient.invalidateQueries({ queryKey: ['gantt-data'] })
-      queryClient.invalidateQueries({ queryKey: ['bookings'] })
-      showToast('success', t('gantt.bookingMoved'))
-    } catch {
-      showToast('error', t('gantt.failedMoveBooking'))
-    }
-
+    await runMove(dragBooking.booking.id, targetPropertyId)
     setDragBooking(null)
-  }, [dragBooking, propertyStatusById, queryClient, t])
+  }, [dragBooking, propertyStatusById, runMove, t])
 
   // Touch-friendly move: same semantics as drag-and-drop, driven by the picker.
   const handleMoveBookingTo = useCallback(async (
@@ -449,17 +460,10 @@ export default function GanttChart({
       setMoveSheetBooking(null)
       return
     }
-    try {
-      await moveBooking(booking.id, { target_property_id: targetPropertyId })
-      queryClient.invalidateQueries({ queryKey: ['gantt-data'] })
-      queryClient.invalidateQueries({ queryKey: ['bookings'] })
-      showToast('success', t('gantt.bookingMoved'))
-    } catch {
-      showToast('error', t('gantt.failedMoveBooking'))
-    }
+    await runMove(booking.id, targetPropertyId)
     setMoveSheetBooking(null)
     setTouchTooltipBooking(null)
-  }, [propertyStatusById, queryClient, t])
+  }, [propertyStatusById, runMove, t])
 
   // Active preview end date while hovering after selecting check-in.
   const pendingPreviewEnd = useMemo(() => {
@@ -1119,6 +1123,17 @@ export default function GanttChart({
           </motion.div>
         )}
       </AnimatePresence>
+      <ConfirmDialog
+        open={ruleMove !== null}
+        title={t('bookings.stayRules.title')}
+        message={(ruleMove?.breaches ?? []).map((breach) => stayRuleText(breach, t)).join('; ')}
+        confirmLabel={t('bookings.stayRules.moveAnyway')}
+        onConfirm={() => {
+          if (ruleMove) void runMove(ruleMove.bookingId, ruleMove.targetPropertyId, true)
+          setRuleMove(null)
+        }}
+        onCancel={() => setRuleMove(null)}
+      />
     </motion.div>
   )
 }

@@ -157,3 +157,17 @@ test('a retry saves the form changed between attempts', () => {
     wifi_name: 'Guest WiFi ',
   })
 })
+
+test('stay rules go out as numbers, and a cleared one as null', () => {
+  const ruled = { ...flat, min_nights: 2, max_nights: null, buffer_hours: 2, min_lead_hours: 3 } as Property
+  const form = propertyToForm(ruled)
+  expect(form.rules).toMatchObject({ min_nights: '2', max_nights: '', buffer_hours: '2', min_lead_hours: '3' })
+  form.rules.max_nights = '28'
+  form.rules.min_lead_hours = ''
+  expect(formToUpdate(form, propertyToForm(ruled))).toMatchObject({
+    min_nights: 2,
+    max_nights: 28,
+    buffer_hours: 2,
+    min_lead_hours: null,
+  })
+})

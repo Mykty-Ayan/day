@@ -19,7 +19,8 @@ import {
 import { ToggleGroup, ToggleGroupItem } from '../../components/ui/toggle-group'
 import NumberInput from '../../components/ui/number-input'
 import { useCurrency } from '../../hooks/useCurrency'
-import { getBookingApiErrorMessage, getBookingFieldError } from '../../lib/booking-errors'
+import { getBookingApiErrorMessage, getBookingFieldError, stayRuleBreaches, type StayRuleBreach } from '../../lib/booking-errors'
+import StayRulesAlert from '../../components/booking/StayRulesAlert'
 import { nightsWindow, switchRentalMode } from '../../lib/booking-dates'
 
 interface FormData {
@@ -218,7 +219,11 @@ export default function CreateBookingPage() {
 
   const { data: priceData, isFetching: priceLoading } = useCalculatePrice(debouncedPriceParams)
 
+  // The apartment's stay rules the last try broke; any change asks the server again.
+  const [breaches, setBreaches] = useState<StayRuleBreach[] | null>(null)
+
   function updateField<K extends keyof FormData>(key: K, value: FormData[K]) {
+    setBreaches(null)
     setForm((f) => ({ ...f, [key]: value }))
     setErrors((e) => {
       const next = { ...e }
@@ -229,6 +234,7 @@ export default function CreateBookingPage() {
 
   // The picked date moves to the other mode's field instead of disappearing.
   function switchMode(mode: RentalMode) {
+    setBreaches(null)
     setForm((f) => switchRentalMode(f, mode))
     setErrors((e) => {
       const next = { ...e }
@@ -265,7 +271,7 @@ export default function CreateBookingPage() {
     return Object.keys(errs).length === 0
   }
 
-  function handleSubmit() {
+  function handleSubmit(overrideRules = false) {
     if (!validate()) return
 
     const payload: BookingCreateInput = {
@@ -281,6 +287,7 @@ export default function CreateBookingPage() {
       children_count: form.children_count,
       gantt_color: form.gantt_color,
       notes: form.notes || undefined,
+      override_rules: overrideRules || undefined,
     }
 
     createBooking.mutate(payload, {
@@ -288,6 +295,9 @@ export default function CreateBookingPage() {
         navigate({ to: '/bookings/$bookingId', params: { bookingId: booking.id } })
       },
       onError: (err) => {
+        const broken = stayRuleBreaches(err)
+        setBreaches(broken)
+        if (broken) return
         const fieldError = getBookingFieldError(err, t)
         if (fieldError) {
           setErrors((prev) => ({ ...prev, [fieldError.field]: fieldError.message }))
@@ -711,7 +721,15 @@ export default function CreateBookingPage() {
             </div>
 
             {/* Error message */}
-            {createBooking.isError && (
+            {breaches && (
+              <StayRulesAlert
+                breaches={breaches}
+                action={t('bookings.stayRules.bookAnyway')}
+                busy={createBooking.isPending}
+                onOverride={() => handleSubmit(true)}
+              />
+            )}
+            {createBooking.isError && !breaches && (
               <div className="mt-4 bg-red-50 border border-red-200 rounded-xl p-3">
                 <p className="text-sm text-red-600">
                   {getBookingApiErrorMessage(createBooking.error, t) ||
@@ -734,7 +752,7 @@ export default function CreateBookingPage() {
               <motion.button
                 whileTap={{ scale: 0.97 }}
                 type="button"
-                onClick={handleSubmit}
+                onClick={() => handleSubmit()}
                 disabled={createBooking.isPending || selectedProperty?.status === 'paused'}
                 className="flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl bg-black px-6 py-2.5 font-semibold text-white shadow-lg transition-colors hover:bg-gray-800 disabled:opacity-50 sm:w-auto"
               >

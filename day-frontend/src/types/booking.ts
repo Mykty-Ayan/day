@@ -175,6 +175,8 @@ export interface BookingCreateInput {
   notes?: string
   /** A hold: the booking cancels itself at this instant unless confirmed. With its zone. */
   expires_at?: string
+  /** Book it although it breaks the apartment's stay rules: the operator confirmed. */
+  override_rules?: boolean
 }
 
 export interface BookingUpdateInput {
@@ -186,6 +188,7 @@ export interface BookingUpdateInput {
   children_count?: number
   gantt_color?: string
   notes?: string
+  override_rules?: boolean
 }
 
 export interface BookingFilters {
@@ -235,6 +238,7 @@ export interface PriceCalculateInput {
 
 export interface MoveBookingInput {
   target_property_id: string
+  override_rules?: boolean
 }
 
 export interface GuestFilters {

@@ -1,0 +1,39 @@
+/**
+ * An apartment's stay rules in the booking form: a stay that breaks them is
+ * refused with the broken rules named, and the operator can book it anyway.
+ */
+
+import { test, expect } from '../fixtures/e2e-auth'
+import { createTestProperty, futureDate, API_BASE } from '../fixtures/test-data'
+
+test.describe('Stay rules in the booking form', () => {
+  let propertyId = ''
+
+  test.beforeEach(async ({ request }) => {
+    const created = await request.post(`${API_BASE}/properties`, { data: { ...createTestProperty(), min_nights: 2 } })
+    expect(created.ok(), await created.text()).toBeTruthy()
+    propertyId = (await created.json()).id
+    await request.post(`${API_BASE}/properties/${propertyId}/status`, { data: { target_status: 'active' } })
+    await request.put(`${API_BASE}/properties/${propertyId}/pricing`, {
+      data: { base_price: 10000, weekend_markup: 0, default_deposit: 0, extra_adult_price: 0, extra_child_price: 0, base_guests: 2 },
+    })
+  })
+
+  test.afterEach(async ({ request }) => {
+    await request.delete(`${API_BASE}/properties/${propertyId}`).catch(() => undefined)
+  })
+
+  test('a one-night stay in a two-night flat is refused, then booked on the operator word', async ({ page }) => {
+    await page.goto(`/bookings/new?property_id=${propertyId}&check_in=${futureDate(20)}&check_out=${futureDate(21)}`)
+    await page.getByPlaceholder(/phone/i).first().fill('+77010000099')
+    await page.getByPlaceholder(/name/i).first().fill('Stay Rules Guest')
+    await page.getByRole('button', { name: 'Create Booking' }).click()
+
+    const alert = page.getByRole('alert').filter({ hasText: 'The booking breaks the apartment rules' })
+    await expect(alert).toBeVisible()
+    await expect(alert).toContainText('Minimum nights: 2, this booking: 1')
+
+    await alert.getByRole('button', { name: 'Book anyway' }).click()
+    await page.waitForURL(/\/bookings\/[0-9a-f-]{36}$/)
+  })
+})

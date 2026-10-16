@@ -14,7 +14,8 @@ import { ToggleGroup, ToggleGroupItem } from '../../components/ui/toggle-group'
 import NumberInput from '../../components/ui/number-input'
 import Spinner from '../../components/ui/Spinner'
 import { showToast } from '../../components/ui/Toast'
-import { getBookingApiErrorMessage, getBookingFieldError } from '../../lib/booking-errors'
+import { getBookingApiErrorMessage, getBookingFieldError, stayRuleBreaches, type StayRuleBreach } from '../../lib/booking-errors'
+import StayRulesAlert from '../../components/booking/StayRulesAlert'
 import { nightsWindow, switchRentalMode } from '../../lib/booking-dates'
 
 interface FormData {
@@ -121,7 +122,11 @@ function EditBookingForm({ detail, bookingId }: { detail: BookingDetail; booking
     { value: '#06B6D4', label: t('bookings.colors.cyan') },
   ]
 
+  // The apartment's stay rules the last save broke; any change asks the server again.
+  const [breaches, setBreaches] = useState<StayRuleBreach[] | null>(null)
+
   function updateField<K extends keyof FormData>(key: K, value: FormData[K]) {
+    setBreaches(null)
     setForm((f) => ({ ...f, [key]: value }))
     setErrors((e) => {
       const next = { ...e }
@@ -132,6 +137,7 @@ function EditBookingForm({ detail, bookingId }: { detail: BookingDetail; booking
 
   // The picked date moves to the other mode's field instead of disappearing.
   function switchMode(mode: RentalMode) {
+    setBreaches(null)
     setForm((f) => switchRentalMode(f, mode))
     setErrors((e) => {
       const next = { ...e }
@@ -163,7 +169,7 @@ function EditBookingForm({ detail, bookingId }: { detail: BookingDetail; booking
     return Object.keys(errs).length === 0
   }
 
-  function handleSubmit() {
+  function handleSubmit(overrideRules = false) {
     if (!validate()) return
 
     const payload: BookingUpdateInput = {
@@ -175,6 +181,7 @@ function EditBookingForm({ detail, bookingId }: { detail: BookingDetail; booking
       children_count: form.children_count,
       gantt_color: form.gantt_color,
       notes: form.notes || undefined,
+      override_rules: overrideRules || undefined,
     }
 
     updateBooking.mutate(payload, {
@@ -183,6 +190,9 @@ function EditBookingForm({ detail, bookingId }: { detail: BookingDetail; booking
         navigate({ to: '/bookings/$bookingId', params: { bookingId } })
       },
       onError: (err) => {
+        const broken = stayRuleBreaches(err)
+        setBreaches(broken)
+        if (broken) return
         const fieldError = getBookingFieldError(err, t)
         if (fieldError) {
           setErrors((prev) => ({ ...prev, [fieldError.field]: fieldError.message }))
@@ -432,12 +442,21 @@ function EditBookingForm({ detail, bookingId }: { detail: BookingDetail; booking
           </div>
         </div>
 
+        {breaches && (
+          <StayRulesAlert
+            breaches={breaches}
+            action={t('bookings.stayRules.saveAnyway')}
+            busy={updateBooking.isPending}
+            onOverride={() => handleSubmit(true)}
+          />
+        )}
+
         {/* Submit */}
         <div className="mt-6 flex justify-end">
           <motion.button
             whileTap={{ scale: 0.97 }}
             type="button"
-            onClick={handleSubmit}
+            onClick={() => handleSubmit()}
             disabled={updateBooking.isPending}
             className="flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl bg-black px-6 py-2.5 font-semibold text-white shadow-lg transition-colors hover:bg-gray-800 disabled:opacity-50 sm:w-auto"
           >
