@@ -8,11 +8,14 @@ import { createTestProperty, futureDate, API_BASE } from '../fixtures/test-data'
 
 test.describe('Stay rules in the booking form', () => {
   let propertyId = ''
+  let internalName = ''
 
   test.beforeEach(async ({ request }) => {
-    const created = await request.post(`${API_BASE}/properties`, { data: { ...createTestProperty(), min_nights: 2 } })
+    const data = createTestProperty()
+    const created = await request.post(`${API_BASE}/properties`, { data: { ...data, min_nights: 2 } })
     expect(created.ok(), await created.text()).toBeTruthy()
     propertyId = (await created.json()).id
+    internalName = data.internal_name
     await request.post(`${API_BASE}/properties/${propertyId}/status`, { data: { target_status: 'active' } })
     await request.put(`${API_BASE}/properties/${propertyId}/pricing`, {
       data: { base_price: 10000, weekend_markup: 0, default_deposit: 0, extra_adult_price: 0, extra_child_price: 0, base_guests: 2 },
@@ -29,6 +32,8 @@ test.describe('Stay rules in the booking form', () => {
     const stamp = Date.now().toString().slice(-7)
     await page.getByPlaceholder(/phone/i).first().fill(`+7701${stamp}`)
     await page.getByPlaceholder(/name/i).first().fill(`Stay Rules ${stamp}`)
+    // The flat list comes in pages: a press before the flat is in it stops at "choose a flat".
+    await expect(page.locator('#create-property')).toContainText(internalName)
     await page.getByRole('button', { name: 'Create Booking' }).click()
 
     const alert = page.getByRole('alert').filter({ hasText: 'The booking breaks the apartment rules' })
@@ -53,6 +58,7 @@ test.describe('Stay rules in the booking form', () => {
     await page.getByPlaceholder(/phone/i).first().fill(`+7702${stamp}`)
     const name = page.getByPlaceholder(/name/i).first()
     await name.fill(`Stay Rules ${stamp}`)
+    await expect(page.locator('#create-property')).toContainText(internalName)
     const sent = page.waitForResponse((response) => response.request().method() === 'POST' && response.url().endsWith('/api/v1/bookings'))
     await page.getByRole('button', { name: 'Create Booking' }).click()
     await name.fill(`Stay Rules ${stamp} changed`)
