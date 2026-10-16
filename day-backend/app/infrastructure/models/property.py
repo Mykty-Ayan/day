@@ -43,6 +43,10 @@ class PropertyModel(Base):
     map_url: Mapped[str | None] = mapped_column(String(1024), nullable=True)
     whatsapp_product_url: Mapped[str | None] = mapped_column(String(1024), nullable=True)
     video_url: Mapped[str | None] = mapped_column(String(1024), nullable=True)
+    min_nights: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    max_nights: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    buffer_hours: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    min_lead_hours: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
     # Details
     rooms: Mapped[int | None] = mapped_column(Integer, nullable=True)

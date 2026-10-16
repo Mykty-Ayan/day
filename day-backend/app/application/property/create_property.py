@@ -18,6 +18,12 @@ def check_turnover_hours(check_in_hour: int | None, check_out_hour: int | None) 
         raise ValueError("Check-out hour must not be later than the check-in hour")
 
 
+def check_stay_nights(min_nights: int | None, max_nights: int | None) -> None:
+    """Refuse a most-nights rule below the fewest-nights one: no stay could pass both."""
+    if min_nights is not None and max_nights is not None and max_nights < min_nights:
+        raise ValueError("max_nights must not be below min_nights")
+
+
 @dataclass
 class CreatePropertyInput:
     company_id: uuid.UUID
@@ -39,6 +45,10 @@ class CreatePropertyInput:
     map_url: str | None = None
     whatsapp_product_url: str | None = None
     video_url: str | None = None
+    min_nights: int | None = None
+    max_nights: int | None = None
+    buffer_hours: int | None = None
+    min_lead_hours: int | None = None
     rooms: int | None = None
     beds: int | None = None
     max_guests: int | None = None
@@ -69,6 +79,7 @@ class CreatePropertyService:
 
     async def execute(self, inp: CreatePropertyInput) -> Property:
         check_turnover_hours(inp.check_in_hour, inp.check_out_hour)
+        check_stay_nights(inp.min_nights, inp.max_nights)
         if await self._property_repo.exists_internal_name(
             inp.company_id, inp.internal_name
         ):
@@ -98,6 +109,10 @@ class CreatePropertyService:
             map_url=inp.map_url,
             whatsapp_product_url=inp.whatsapp_product_url,
             video_url=inp.video_url,
+            min_nights=inp.min_nights,
+            max_nights=inp.max_nights,
+            buffer_hours=inp.buffer_hours,
+            min_lead_hours=inp.min_lead_hours,
             rooms=inp.rooms,
             beds=inp.beds,
             max_guests=inp.max_guests,
