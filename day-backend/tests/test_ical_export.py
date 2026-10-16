@@ -81,7 +81,7 @@ class _Bookings:
     def __init__(self, rows=None):
         self._rows = rows or [_booking(datetime(2026, 11, 1, 14), datetime(2026, 11, 3, 12))]
 
-    async def get_by_property_and_dates(self, property_id, start, end, *, exclude_id=None):
+    async def get_by_property_and_dates(self, property_id, start, end, *, exclude_id=None, include_completed=False):
         _Bookings.asked.append((start, end))
         return self._rows
 

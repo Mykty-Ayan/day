@@ -41,9 +41,11 @@ async def stay_rule_breaches(
     check-in (a later check-out, a move to another flat)."""
     neighbours = []
     if rules.buffer_hours is not None:
+        # Until commit: a booking saved meanwhile next door would not be seen.
+        await booking_repo.lock_property_calendar(property_id)
         reach = timedelta(hours=rules.buffer_hours)
         neighbours = await booking_repo.get_by_property_and_dates(
-            property_id, check_in - reach, check_out + reach, exclude_id=exclude_id
+            property_id, check_in - reach, check_out + reach, exclude_id=exclude_id, include_completed=True
         )
     now = None
     if with_lead_time and rules.min_lead_hours is not None:
