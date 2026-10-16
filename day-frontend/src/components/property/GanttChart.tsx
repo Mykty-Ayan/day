@@ -156,20 +156,35 @@ function isHourlyBooking(booking: Booking): boolean {
   return booking.rental_mode === 'hourly'
 }
 
-// Hourly bookings by the day they start, where a day has two or more: each would
-// take the whole day cell and cover the others, so they show as one plate.
-function hourlyGroups(bookings: Booking[]): Map<string, Booking[]> {
+// An hourly booking that fits in one day cell (a few hours, even past midnight).
+function isShortHourly(booking: Booking): boolean {
+  if (!isHourlyBooking(booking)) return false
+  const { start, end } = getBookingDayRange(booking.check_in, booking.check_out)
+  return Math.round((end.getTime() - start.getTime()) / 86400000) === 1
+}
+
+// A row's short hourly bookings by their day, by the hour. Each takes the whole
+// day cell, so two or more on one day would cover each other: they show as one plate.
+function hourlyByDay(bookings: Booking[]): Map<string, Booking[]> {
   const byDay = new Map<string, Booking[]>()
-  for (const booking of bookings) {
-    if (!isHourlyBooking(booking)) continue
+  for (const booking of bookings.filter(isShortHourly).sort((a, b) => a.check_in.localeCompare(b.check_in))) {
     const day = booking.check_in.slice(0, 10)
     byDay.set(day, [...(byDay.get(day) ?? []), booking])
   }
-  for (const [day, group] of byDay) {
-    if (group.length < 2) byDay.delete(day)
-    else group.sort((a, b) => a.check_in.localeCompare(b.check_in))
-  }
   return byDay
+}
+
+// The days a row's other bars cover: stays by the night and hourly ones over several days.
+function longBarDays(bookings: Booking[]): Set<string> {
+  const days = new Set<string>()
+  for (const booking of bookings) {
+    if (isShortHourly(booking)) continue
+    const { start, end } = getBookingDayRange(booking.check_in, booking.check_out)
+    for (let day = start; day < end; day = new Date(day.getFullYear(), day.getMonth(), day.getDate() + 1)) {
+      days.add(toDateStr(day))
+    }
+  }
+  return days
 }
 
 // Whole hours (ceil, matching the backend hourly billing) between two datetimes.
@@ -367,6 +382,8 @@ export default function GanttChart({
 
   // Touch fallback for the drag-only move feature: a bottom-sheet property picker.
   const [moveSheetBooking, setMoveSheetBooking] = useState<Booking | null>(null)
+  // The open plate of several hourly bookings: `${propertyId}:${day}`.
+  const [openPlate, setOpenPlate] = useState<string | null>(null)
   // A move the target flat's stay rules refused, waiting for the operator's word.
   const [ruleMove, setRuleMove] = useState<{ bookingId: string; targetPropertyId: string; breaches: StayRuleBreach[] } | null>(null)
 
@@ -703,8 +720,12 @@ export default function GanttChart({
             {sortedRows.map((row) => {
               const isPaused = row.property.status === 'paused'
               const closedNights = blockNights(row.blocks ?? [])
-              const hourlyByDay = hourlyGroups(row.bookings)
-              const grouped = new Set([...hourlyByDay.values()].flat().map((booking) => booking.id))
+              const hourly = hourlyByDay(row.bookings)
+              const plates = [...hourly].filter(([, group]) => group.length > 1)
+              const grouped = new Set(plates.flatMap(([, group]) => group.map((booking) => booking.id)))
+              // On a day a longer bar also covers, the hourly ones take the cell's left
+              // half (they come before a 14:00 check-in) and sit above it.
+              const sharedDays = longBarDays(row.bookings)
               return (
                 <div
                   key={row.property.id}
@@ -894,8 +915,10 @@ export default function GanttChart({
                 {/* Booking bars overlaid */}
                 {row.bookings.map((booking) => {
                   if (grouped.has(booking.id)) return null
-                  const pos = getBarPosition(booking)
-                  if (!pos) return null
+                  const bar = getBarPosition(booking)
+                  if (!bar) return null
+                  const shared = isShortHourly(booking) && sharedDays.has(booking.check_in.slice(0, 10))
+                  const pos = shared ? { left: bar.left, width: cellW / 2 } : bar
 
                   return (
                     <button
@@ -939,7 +962,7 @@ export default function GanttChart({
                         top: BAR_Y,
                         height: BAR_H,
                         backgroundColor: booking.gantt_color || '#3B82F6',
-                        zIndex: 5,
+                        zIndex: shared ? 6 : 5,
                       }}
                     >
                       <div className="flex items-center h-full px-2 overflow-hidden">
@@ -984,12 +1007,19 @@ export default function GanttChart({
                 })}
 
                 {/* Several hourly bookings on one day: one plate, listed by the hour */}
-                {[...hourlyByDay].map(([day, group]) => {
+                {plates.map(([day, group]) => {
                   const start = parseDateOnly(day)
-                  const pos = getSpanPosition(start, new Date(start.getFullYear(), start.getMonth(), start.getDate() + 1), cellW)
-                  if (!pos) return null
+                  const cell = getSpanPosition(start, new Date(start.getFullYear(), start.getMonth(), start.getDate() + 1), cellW)
+                  if (!cell) return null
+                  const shared = sharedDays.has(day)
+                  const pos = shared ? { left: cell.left, width: cellW / 2 } : cell
+                  const key = `${row.property.id}:${day}`
                   return (
-                    <Popover key={`hourly-${day}`}>
+                    <Popover
+                      key={`hourly-${day}`}
+                      open={openPlate === key}
+                      onOpenChange={(open) => setOpenPlate(open ? key : null)}
+                    >
                       <PopoverTrigger asChild>
                         <button
                           type="button"
@@ -1002,7 +1032,7 @@ export default function GanttChart({
                             top: BAR_Y,
                             height: BAR_H,
                             backgroundColor: group[0].gantt_color || '#3B82F6',
-                            zIndex: 5,
+                            zIndex: shared ? 6 : 5,
                           }}
                         >
                           ×{group.length}
@@ -1016,6 +1046,20 @@ export default function GanttChart({
                                 to="/bookings/$bookingId"
                                 params={{ bookingId: booking.id }}
                                 search={{ from: 'gantt' } as Record<string, string>}
+                                // Moved like a bar: dragged onto another flat's row, or on a
+                                // touch screen through the booking card and its "Move".
+                                draggable
+                                onDragStart={(e) => handleDragStart(e, booking, row.property.id)}
+                                onDragEnd={() => {
+                                  handleDragEnd()
+                                  setOpenPlate(null)
+                                }}
+                                onClick={(e) => {
+                                  if (!isCoarsePointer) return
+                                  e.preventDefault()
+                                  setOpenPlate(null)
+                                  setTouchTooltipBooking(booking)
+                                }}
                                 className="flex min-h-[44px] items-center gap-2 rounded-lg px-2 text-sm hover:bg-gray-50"
                               >
                                 <span className="font-semibold tabular-nums text-gray-900">
