@@ -113,6 +113,27 @@ test('a booking in the plate moves to another flat by drag and drop', async ({ p
     .toBe(target.id)
 })
 
+test('a plate that holds an overbooking says so, and so does its line', async ({ page, request }) => {
+  // A platform booking for hours already taken (from Channex): the bar shows it in
+  // red, and the plate must not hide it. The flag is set on the chessboard answer.
+  const flat = await hourlyFlat(request)
+  const day = inDays(6)
+  const clash = await book(request, flat.id, `${day}T10:00:00`, `${day}T12:00:00`)
+  await book(request, flat.id, `${day}T15:00:00`, `${day}T17:00:00`)
+  await page.route('**/api/v1/bookings/gantt?*', async (route) => {
+    const answer = await (await route.fetch()).json()
+    for (const row of answer.properties) {
+      for (const booking of row.bookings) if (booking.id === clash.id) booking.overbooking = true
+    }
+    await route.fulfill({ json: answer })
+  })
+
+  await page.goto('/properties/gantt')
+  const plate = page.getByRole('button', { name: `Overbooking: ${flat.name}: hourly bookings, 2` })
+  await plate.click()
+  await expect(page.getByRole('dialog').getByRole('link', { name: new RegExp(`^Overbooking: 10:00`) })).toBeVisible()
+})
+
 test.describe('on a touch screen', () => {
   test.use({ hasTouch: true })
 

@@ -1014,6 +1014,8 @@ export default function GanttChart({
                   const shared = sharedDays.has(day)
                   const pos = shared ? { left: cell.left, width: cellW / 2 } : cell
                   const key = `${row.property.id}:${day}`
+                  // A clash inside the plate shows on it, as on a bar.
+                  const clash = group.some((booking) => booking.overbooking)
                   return (
                     <Popover
                       key={`hourly-${day}`}
@@ -1023,9 +1025,11 @@ export default function GanttChart({
                       <PopoverTrigger asChild>
                         <button
                           type="button"
-                          aria-label={t('gantt.hourlyMany', { flat: row.property.internal_name, n: group.length })}
+                          aria-label={`${clash ? `${t('bookings.overbooking.short')}: ` : ''}${t('gantt.hourlyMany', { flat: row.property.internal_name, n: group.length })}`}
                           onClick={(e) => e.stopPropagation()}
-                          className="absolute rounded-full text-[11px] font-semibold text-white shadow-sm ring-1 ring-white/70 transition-shadow hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+                          className={`absolute rounded-full text-[11px] font-semibold text-white shadow-sm ring-1 ring-white/70 transition-shadow hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
+                            clash ? 'outline outline-2 outline-red-600 outline-offset-1' : ''
+                          }`}
                           style={{
                             left: pos.left,
                             width: pos.width,
@@ -1062,6 +1066,14 @@ export default function GanttChart({
                                 }}
                                 className="flex min-h-[44px] items-center gap-2 rounded-lg px-2 text-sm hover:bg-gray-50"
                               >
+                                {booking.overbooking && (
+                                  <>
+                                    <span className="sr-only">{t('bookings.overbooking.short')}: </span>
+                                    <span aria-hidden className="shrink-0 rounded bg-red-600 px-1 text-[10px] font-bold text-white">
+                                      !
+                                    </span>
+                                  </>
+                                )}
                                 <span className="font-semibold tabular-nums text-gray-900">
                                   {booking.check_in.slice(11, 16)}–{booking.check_out.slice(11, 16)}
                                 </span>{' '}
