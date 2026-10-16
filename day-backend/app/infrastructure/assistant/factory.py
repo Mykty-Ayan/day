@@ -76,6 +76,7 @@ def build_assistant_tools(
                 check_out=kwargs["check_out"],
                 adults_count=2,
                 changed_by=user_id,
+                override_rules=kwargs.get("override_rules", False),
             )
         )
 
@@ -86,6 +87,7 @@ def build_assistant_tools(
                 company_id=kwargs["company_id"],
                 check_out=kwargs["check_out"],
                 changed_by=user_id,
+                override_rules=kwargs.get("override_rules", False),
             )
         )
 

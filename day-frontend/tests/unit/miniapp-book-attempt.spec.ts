@@ -11,6 +11,7 @@ import {
   companyFromToken,
   latestBookingCall,
   loadBookingAttempt,
+  sameBooking,
   saveBookingAttempt,
   startBooking,
   storedBookingAttempt,
@@ -202,4 +203,15 @@ test('a stored attempt reopens its sheet even when its flat is no longer free', 
     rentalMode: ATTEMPT.body.rental_mode,
     guests: ATTEMPT.body.adults_count,
   })
+})
+
+test('a refused booking is the same booking while only the hold moment differs', () => {
+  // The hold ends two hours after the press: a second press is later, not another booking.
+  const held = { ...ATTEMPT.body, expires_at: '2026-10-12T10:00:00.000Z' }
+  expect(sameBooking(held, { ...held, expires_at: '2026-10-12T10:05:00.000Z' })).toBe(true)
+  expect(sameBooking(held, { ...held, override_rules: true })).toBe(true)
+  // Holding or not, another guest or other dates: another booking.
+  expect(sameBooking(held, ATTEMPT.body)).toBe(false)
+  expect(sameBooking(ATTEMPT.body, { ...ATTEMPT.body, guest_name: 'Айгуль' })).toBe(false)
+  expect(sameBooking(ATTEMPT.body, { ...ATTEMPT.body, check_out: '2026-10-14' })).toBe(false)
 })

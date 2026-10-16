@@ -14,6 +14,7 @@ from datetime import date, datetime, timedelta
 from typing import Any, Awaitable, Callable
 
 from app.domain.assistant.value_objects import ToolEffect
+from app.domain.booking.exceptions import StayRulesError
 
 _DATE = {"type": "string", "description": "Дата в формате ГГГГ-ММ-ДД"}
 
@@ -59,6 +60,31 @@ def money(value: Any) -> str:
         return f"{float(value):,.0f}".replace(",", " ")
     except (TypeError, ValueError):
         return str(value)
+
+
+# The flat's stay rules (nights, cleaning buffer, lead time) are broken only on
+# the user's word, after a refusal named them.
+_OVERRIDE_RULES = {
+    "type": "boolean",
+    "description": (
+        "true только если бронь уже отказали по правилам квартиры и пользователь явно согласился их нарушить"
+    ),
+}
+
+_RULE_WORDS = {
+    "min_nights": "минимум ночей {limit}, в брони {actual}",
+    "max_nights": "максимум ночей {limit}, в брони {actual}",
+    "buffer_hours": "часов на уборку между почасовыми бронями {limit}, здесь {actual}",
+    "min_lead_hours": "бронировать не позже чем за {limit} ч до заезда, а до заезда {actual} ч",
+}
+
+
+def _stay_rules_refused(refused: StayRulesError) -> ValueError:
+    broken = "; ".join(_RULE_WORDS[b.rule].format(limit=b.limit, actual=b.actual) for b in refused.breaches)
+    return ValueError(
+        f"Бронь нарушает правила квартиры: {broken}. Нарушить их можно только если пользователь явно "
+        "согласится: тогда повтори с override_rules=true."
+    )
 
 
 def build_tools(context: "ToolContext") -> dict[str, Tool]:
@@ -136,6 +162,7 @@ def build_tools(context: "ToolContext") -> dict[str, Tool]:
                     "guest_phone": {"type": "string"},
                     "check_in": _DATE,
                     "check_out": _DATE,
+                    "override_rules": _OVERRIDE_RULES,
                 },
                 ["property_query", "guest_name", "check_in"],
             ),
@@ -144,6 +171,7 @@ def build_tools(context: "ToolContext") -> dict[str, Tool]:
             describe=lambda args: (
                 f"Забронировать {args.get('property_query')} на {args.get('guest_name')} "
                 f"с {args.get('check_in')} по {args.get('check_out') or 'следующий день'}"
+                + (" вопреки правилам квартиры" if args.get("override_rules") else "")
             ),
         ),
         Tool(
@@ -153,6 +181,7 @@ def build_tools(context: "ToolContext") -> dict[str, Tool]:
                 {
                     "booking_id": {"type": "string"},
                     "nights": {"type": "integer", "description": "Сколько ночей добавить, по умолчанию 1"},
+                    "override_rules": _OVERRIDE_RULES,
                 },
                 ["booking_id"],
             ),
@@ -328,29 +357,38 @@ class ToolContext:
         check_in: str,
         check_out: str | None = None,
         guest_phone: str = "",
+        override_rules: bool = False,
     ) -> Any:
         found = await self._find_property(property_query)
         if found is None:
             raise ValueError(f"Квартира «{property_query}» не найдена")
         start = parse_date(check_in)
         end = parse_date(check_out, start + timedelta(days=1))
-        booking = await self._create_booking(
-            company_id=self._company_id,
-            property_id=found.id,
-            guest_name=guest_name,
-            guest_phone=guest_phone,
-            check_in=start,
-            check_out=end,
-        )
+        try:
+            booking = await self._create_booking(
+                company_id=self._company_id,
+                property_id=found.id,
+                guest_name=guest_name,
+                guest_phone=guest_phone,
+                check_in=start,
+                check_out=end,
+                override_rules=bool(override_rules),
+            )
+        except StayRulesError as refused:
+            raise _stay_rules_refused(refused) from refused
         return await self._describe_booking(booking)
 
-    async def extend_booking(self, booking_id: str, nights: int = 1) -> Any:
+    async def extend_booking(self, booking_id: str, nights: int = 1, override_rules: bool = False) -> Any:
         booking = await self._own_booking(booking_id)
-        moved = await self._update_booking(
-            booking_id=booking.id,
-            company_id=self._company_id,
-            check_out=booking.check_out + timedelta(days=max(1, nights)),
-        )
+        try:
+            moved = await self._update_booking(
+                booking_id=booking.id,
+                company_id=self._company_id,
+                check_out=booking.check_out + timedelta(days=max(1, nights)),
+                override_rules=bool(override_rules),
+            )
+        except StayRulesError as refused:
+            raise _stay_rules_refused(refused) from refused
         return await self._describe_booking(moved)
 
     async def record_payment(self, booking_id: str, amount: float, method: str = "transfer") -> Any:

@@ -132,3 +132,14 @@ export function phoneStorage(): Storage | undefined {
     return undefined
   }
 }
+
+/** Whether two bodies book the same stay for the same guest. The hold's end is
+ *  counted from each press, so only holding or not counts; override_rules is
+ *  the operator's word on the stay, not a different stay. */
+export function sameBooking(a: BookingCreateInput, b: BookingCreateInput): boolean {
+  const essence = ({ expires_at, override_rules, ...stay }: BookingCreateInput) => {
+    void override_rules
+    return JSON.stringify({ ...stay, held: Boolean(expires_at) })
+  }
+  return essence(a) === essence(b)
+}
