@@ -45,6 +45,7 @@ import StatusBadge from '../../components/property/StatusBadge'
 import { showToast } from '../../components/ui/Toast'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import CheckInPhotosCard from '../../components/property/CheckInPhotosCard'
+import BlocksCard from '../../components/property/BlocksCard'
 import AuditTrail from '../../components/ui/AuditTrail'
 import Spinner from '../../components/ui/Spinner'
 import Button from '../../components/ui/Button'
@@ -437,7 +438,10 @@ export default function PropertyDetailPage() {
             )}
 
             {currentUser && currentUser.role !== 'cleaner' && (
-              <CheckInPhotosCard propertyId={propertyId} photos={property.photos} />
+              <>
+                <CheckInPhotosCard propertyId={propertyId} photos={property.photos} />
+                <BlocksCard propertyId={propertyId} />
+              </>
             )}
 
             {/* Rules */}

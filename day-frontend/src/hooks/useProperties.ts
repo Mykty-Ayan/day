@@ -30,6 +30,9 @@ import {
   deleteTag as deleteTagApi,
   getPropertyTags,
   assignTags,
+  listBlocks,
+  createBlock,
+  deleteBlock,
 } from '../api/properties'
 import type { SeasonalPriceInput, DiscountRuleInput, PhotoAudience } from '../types/property'
 
@@ -291,4 +294,36 @@ export function useAssignTags(propertyId: string) {
       qc.invalidateQueries({ queryKey: [PROPERTY_KEY, propertyId] })
     },
   })
+}
+
+// --- Closed nights (blocks) ---
+
+export function useBlocks(propertyId: string, dateFrom: string, dateTo: string) {
+  return useQuery({
+    queryKey: ['property-blocks', propertyId, dateFrom, dateTo],
+    queryFn: () => listBlocks(propertyId, dateFrom, dateTo),
+  })
+}
+
+function useBlocksChange<T>(propertyId: string, change: (input: T) => Promise<unknown>) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: change,
+    onSuccess: () => {
+      // The chessboard and the booking calendars show closed nights too.
+      qc.invalidateQueries({ queryKey: ['property-blocks', propertyId] })
+      qc.invalidateQueries({ queryKey: ['gantt-data'] })
+      qc.invalidateQueries({ queryKey: ['bookings'] })
+    },
+  })
+}
+
+export function useCreateBlock(propertyId: string) {
+  return useBlocksChange(propertyId, (body: { start_date: string; end_date: string; reason?: string }) =>
+    createBlock(propertyId, body),
+  )
+}
+
+export function useDeleteBlock(propertyId: string) {
+  return useBlocksChange(propertyId, (blockId: string) => deleteBlock(propertyId, blockId))
 }

@@ -96,6 +96,7 @@ from app.presentation.schemas.booking import (
     DepositAction,
     DepositCreate,
     DepositResponse,
+    GanttBlockResponse,
     GanttBookingResponse,
     GanttDataResponse,
     GanttPropertyResponse,
@@ -1327,6 +1328,11 @@ def _build_gantt_response(result) -> GanttDataResponse:
                     )
                     for b in p.bookings
                 ],
+                blocks=[
+                    GanttBlockResponse(id=b.id, start_date=b.start_date, end_date=b.end_date, reason=b.reason)
+                    for b in p.blocks
+                ],
+                rental_mode=p.rental_mode,
             )
             for p in result.properties
         ]

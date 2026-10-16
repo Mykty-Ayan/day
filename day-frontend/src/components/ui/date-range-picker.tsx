@@ -17,6 +17,7 @@ interface DateRangePickerProps {
   endDate?: string
   onRangeChange: (start: string, end: string) => void
   minDate?: DateLike
+  maxDate?: DateLike
   responsiveMonths?: boolean
   months?: 1 | 2
   placeholder?: string
@@ -55,6 +56,7 @@ export default function DateRangePicker({
   endDate,
   onRangeChange,
   minDate,
+  maxDate,
   responsiveMonths = true,
   months,
   placeholder,
@@ -74,6 +76,7 @@ export default function DateRangePicker({
   const start = normalizeDate(startDate)
   const end = normalizeDate(endDate)
   const min = normalizeDate(minDate)
+  const max = normalizeDate(maxDate)
   const numberOfMonths =
     months ?? (responsiveMonths ? (isMdUp ? 2 : 1) : 2)
 
@@ -141,7 +144,7 @@ export default function DateRangePicker({
           min={allowSameDay ? 0 : 1}
           onSelect={handleSelect}
           disabled={
-            bookedLoading || bookedFailed || [...(min ? [{ before: min }] : []), (date: Date) => isDayBlocked(day(date), booked, checkIn)]
+            bookedLoading || bookedFailed || [...(min ? [{ before: min }] : []), ...(max ? [{ after: max }] : []), (date: Date) => isDayBlocked(day(date), booked, checkIn)]
           }
           modifiers={{ booked: (date: Date) => booked.has(day(date)) }}
           modifiersClassNames={{ booked: '[&>button]:line-through' }}

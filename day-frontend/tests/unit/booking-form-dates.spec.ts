@@ -5,7 +5,7 @@
  */
 
 import { expect, test } from '@playwright/test'
-import { bookedNights, isDayBlocked, nightsWindow, pickStayDay, switchRentalMode, type Stay } from '../../src/lib/booking-dates'
+import { blockNights, bookedNights, isDayBlocked, nightsWindow, pickStayDay, switchRentalMode, type Stay } from '../../src/lib/booking-dates'
 import { TIME_OPTIONS, nearestOption } from '../../src/components/ui/time-options'
 
 const empty = { check_in: '', check_out: '', rental_mode: 'daily' as const, hourly_date: '' }
@@ -135,4 +135,12 @@ test('with a check-in picked, the loaded nights start at the check-in, however f
   expect(nightsWindow(new Date(2026, 11, 1), '2026-10-17T14:00:00').from).toBe('2026-10-17')
   // A check-in inside the window changes nothing.
   expect(nightsWindow(new Date(2026, 9, 1), '2026-10-17')).toEqual({ from: '2026-10-01', to: '2026-12-01' })
+})
+
+test('a closed stretch takes its nights in the calendar, like a stay', () => {
+  // Closed from the 20th to the 22nd: the nights of the 20th and 21st.
+  expect([...blockNights([{ start_date: '2026-10-20', end_date: '2026-10-22' }])].sort()).toEqual([
+    '2026-10-20',
+    '2026-10-21',
+  ])
 })

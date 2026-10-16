@@ -238,3 +238,13 @@ export interface TagCreateInput {
 
 /** How the guest gets in — the choices Airbnb and Booking.com offer. */
 export type CheckInMethod = 'lockbox' | 'keypad' | 'smart_lock' | 'building_staff' | 'host_greets' | 'other'
+
+/** Nights a flat is closed without a booking: start_date the first, end_date the day after the last. */
+export interface PropertyBlock {
+  id: string
+  property_id: string
+  start_date: string
+  end_date: string
+  reason: string | null
+  created_at: string | null
+}

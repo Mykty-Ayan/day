@@ -150,8 +150,17 @@ export interface GanttData {
   properties: GanttPropertyRow[]
 }
 
+/** Nights a flat is closed without a booking: start_date the first, end_date the day after the last. */
+export interface GanttBlock {
+  id: string
+  start_date: string
+  end_date: string
+  reason: string | null
+}
+
 export interface GanttPropertyRow extends GanttPropertySummary {
   bookings: Booking[]
+  blocks?: GanttBlock[]
 }
 
 export interface TodayChecks {

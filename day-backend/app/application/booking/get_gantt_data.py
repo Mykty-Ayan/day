@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import uuid
-from dataclasses import dataclass
+from collections import defaultdict
+from dataclasses import dataclass, field
 from datetime import date, datetime
 
 from app.domain.booking.repositories import BookingRepository, GuestRepository
@@ -27,6 +28,16 @@ class GanttBooking:
 
 
 @dataclass
+class GanttBlock:
+    """Nights the flat is closed without a booking: start_date the first, end_date the day after the last."""
+
+    id: uuid.UUID
+    start_date: date
+    end_date: date
+    reason: str | None
+
+
+@dataclass
 class GanttProperty:
     id: uuid.UUID
     name: str
@@ -34,6 +45,8 @@ class GanttProperty:
     type: str
     status: str
     bookings: list[GanttBooking]
+    blocks: list[GanttBlock] = field(default_factory=list)
+    rental_mode: str = "daily"
 
 
 @dataclass
@@ -74,6 +87,11 @@ class GetGanttDataService:
             if len(batch) < batch_size:
                 break
             offset += batch_size
+
+        # One query for the whole board, not one a flat.
+        closed: dict[uuid.UUID, list[GanttBlock]] = defaultdict(list)
+        for block in await self._booking_repo.list_company_blocks(company_id, start_date, end_date):
+            closed[block.property_id].append(GanttBlock(block.id, block.start_date, block.end_date, block.reason))
 
         result: list[GanttProperty] = []
         for prop in properties:
@@ -116,6 +134,8 @@ class GetGanttDataService:
                     type=prop.type.value,
                     status=prop.status.value,
                     bookings=gantt_bookings,
+                    blocks=closed[prop.id],
+                    rental_mode=prop.rental_mode.value,
                 )
             )
 

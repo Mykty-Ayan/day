@@ -3,7 +3,8 @@ import {
   useMutation,
   useQueryClient,
 } from '@tanstack/react-query'
-import { bookedNights } from '../lib/booking-dates'
+import { blockNights, bookedNights } from '../lib/booking-dates'
+import { listBlocks } from '../api/properties'
 import type {
   BookingFilters,
   BookingCreateInput,
@@ -70,10 +71,12 @@ export function useBookedNights(propertyId: string, from: string, to: string, ex
       const rest = await Promise.all(
         Array.from({ length: Math.max(0, first.pages - 1) }, (_, i) => listBookings({ ...filters, page: i + 2 })),
       )
-      return [first, ...rest].flatMap((page) => page.items)
+      const blocks = await listBlocks(propertyId, from, to)
+      return { stays: [first, ...rest].flatMap((page) => page.items), blocks }
     },
     enabled: !!propertyId,
-    select: (stays) => bookedNights(stays, exceptBookingId),
+    // Closed nights take the calendar like booked ones.
+    select: ({ stays, blocks }) => new Set([...bookedNights(stays, exceptBookingId), ...blockNights(blocks)]),
   })
 }
 
