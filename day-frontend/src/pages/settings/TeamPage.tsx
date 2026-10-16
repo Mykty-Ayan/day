@@ -585,7 +585,7 @@ export default function TeamPage() {
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-semibold text-gray-900">{key.name}</p>
                     <p className="truncate text-xs text-gray-500">
-                      <code>{key.key_hint}…</code> · {key.scopes.length} {t('team.scopesShort')} ·{' '}
+                      <code>{key.key_hint}…</code> · {t('team.scopesCount', { count: key.scopes.length })} ·{' '}
                       {t('team.lastUsed')}: {formatDate(key.last_used_at, i18n.language)}
                     </p>
                   </div>

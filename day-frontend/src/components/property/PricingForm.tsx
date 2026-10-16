@@ -444,7 +444,7 @@ function PricingFormInner({
           >
             <span className="text-sm text-gray-700">
               {t('properties.pricing.discountLabel', {
-                nights: dr.min_nights,
+                count: dr.min_nights,
                 amount: dr.type === 'percent' ? `${dr.value}%` : `${currencySymbol}${dr.value}`,
               })}
             </span>
