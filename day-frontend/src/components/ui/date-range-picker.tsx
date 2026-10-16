@@ -5,6 +5,7 @@ import type { DateRange } from 'react-day-picker'
 import { useTranslation } from 'react-i18next'
 import { cn } from '../../lib/utils'
 import { useMediaQuery } from '../../hooks/useMediaQuery'
+import { isDayBlocked, pickStayDay } from '../../lib/booking-dates'
 import { Calendar } from './calendar'
 import { Popover, PopoverContent, PopoverTrigger } from './popover'
 
@@ -22,7 +23,19 @@ interface DateRangePickerProps {
   disabled?: boolean
   className?: string
   error?: boolean
+  /** Nights (yyyy-MM-dd) already taken: shown struck through, and a stay cannot cover them. */
+  booked?: ReadonlySet<string>
+  /** The booked nights for the days on screen are still loading: no day can be picked yet. */
+  bookedLoading?: boolean
+  /** The booked nights could not be loaded: no day can be picked, and `onBookedRetry` asks again. */
+  bookedFailed?: boolean
+  onBookedRetry?: () => void
+  /** The first month on screen, on open and on every page turn: to load its booked nights. */
+  onMonthChange?: (month: Date) => void
 }
+
+const NO_NIGHTS: ReadonlySet<string> = new Set()
+const day = (date: Date) => format(date, 'yyyy-MM-dd')
 
 function normalizeDate(value?: DateLike): Date | undefined {
   if (!value) return undefined
@@ -46,6 +59,11 @@ export default function DateRangePicker({
   disabled,
   className,
   error,
+  booked = NO_NIGHTS,
+  bookedLoading = false,
+  bookedFailed = false,
+  onBookedRetry,
+  onMonthChange,
 }: DateRangePickerProps) {
   const { t } = useTranslation()
   const [open, setOpen] = useState(false)
@@ -59,17 +77,22 @@ export default function DateRangePicker({
   const selected: DateRange | undefined =
     start ? { from: start, to: end } : undefined
 
-  function handleSelect(range: DateRange | undefined) {
-    if (!range) {
-      onRangeChange('', '')
-      return
-    }
-    const from = range.from ? format(range.from, 'yyyy-MM-dd') : ''
-    const to = range.to ? format(range.to, 'yyyy-MM-dd') : ''
-    onRangeChange(from, to)
-    if (range.from && range.to) {
+  // The click decides, not the range react-day-picker proposes: it would stretch
+  // a picked stay across booked nights instead of starting a new one.
+  function handleSelect(_range: DateRange | undefined, clicked: Date) {
+    const next = pickStayDay(start ? day(start) : '', end ? day(end) : '', day(clicked))
+    onRangeChange(next.checkIn, next.checkOut)
+    if (next.checkOut) {
       setOpen(false)
     }
+  }
+
+  const defaultMonth = start ?? min ?? new Date()
+  const checkIn = start && !end ? day(start) : null
+
+  function handleOpenChange(next: boolean) {
+    if (next) onMonthChange?.(defaultMonth)
+    setOpen(next)
   }
 
   let label = placeholder ?? t('common.selectDates')
@@ -82,7 +105,7 @@ export default function DateRangePicker({
   }
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover open={open} onOpenChange={handleOpenChange}>
       <PopoverTrigger asChild>
         <button
           id={id}
@@ -108,15 +131,29 @@ export default function DateRangePicker({
         <Calendar
           mode="range"
           selected={selected}
-          defaultMonth={start ?? min ?? new Date()}
+          defaultMonth={defaultMonth}
+          onMonthChange={onMonthChange}
           showOutsideDays={false}
           pagedNavigation
           min={1}
           onSelect={handleSelect}
-          disabled={min ? { before: min } : undefined}
+          disabled={
+            bookedLoading || bookedFailed || [...(min ? [{ before: min }] : []), (date: Date) => isDayBlocked(day(date), booked, checkIn)]
+          }
+          modifiers={{ booked: (date: Date) => booked.has(day(date)) }}
+          modifiersClassNames={{ booked: '[&>button]:line-through' }}
           numberOfMonths={numberOfMonths}
           initialFocus
         />
+        {/* Below the calendar: its month navigation overlays the top edge. */}
+        {bookedFailed && (
+          <p role="alert" className="px-2 pb-2 text-xs text-red-600">
+            {t('bookings.bookedNightsFailed')}{' '}
+            <button type="button" onClick={onBookedRetry} className="font-semibold underline">
+              {t('common.retry')}
+            </button>
+          </p>
+        )}
       </PopoverContent>
     </Popover>
   )

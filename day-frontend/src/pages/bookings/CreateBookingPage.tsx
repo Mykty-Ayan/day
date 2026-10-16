@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { motion } from 'framer-motion'
 import { ArrowLeft, Check, Loader2, Calculator, User, Phone, Mail } from 'lucide-react'
 import { useNavigate } from '@tanstack/react-router'
-import { useCreateBooking, useCalculatePrice, useGuests } from '../../hooks/useBookings'
+import { useBookedNights, useCreateBooking, useCalculatePrice, useGuests } from '../../hooks/useBookings'
 import { useAllProperties } from '../../hooks/useProperties'
 import type { BookingSource, BookingCreateInput, PriceCalculateInput, RentalMode } from '../../types/booking'
 import DateRangePicker from '../../components/ui/date-range-picker'
@@ -20,7 +20,7 @@ import { ToggleGroup, ToggleGroupItem } from '../../components/ui/toggle-group'
 import NumberInput from '../../components/ui/number-input'
 import { useCurrency } from '../../hooks/useCurrency'
 import { getBookingApiErrorMessage, getBookingFieldError } from '../../lib/booking-errors'
-import { switchRentalMode } from '../../lib/booking-dates'
+import { nightsWindow, switchRentalMode } from '../../lib/booking-dates'
 
 interface FormData {
   property_id: string
@@ -182,6 +182,11 @@ export default function CreateBookingPage() {
       ? `${form.hourly_date}T${form.end_time}:00`
       : ''
     : form.check_out
+
+  // The calendar's first month on screen: its booked nights are shown struck through.
+  const [calendarMonth, setCalendarMonth] = useState(() => new Date())
+  const nights = nightsWindow(calendarMonth, form.check_in && !form.check_out ? form.check_in : null)
+  const booked = useBookedNights(form.property_id, nights.from, nights.to)
 
   const { data: guestsData } = useGuests(
     { search: guestSearch, limit: 5 },
@@ -446,6 +451,11 @@ export default function CreateBookingPage() {
                       minDate={new Date()}
                       placeholder={t('bookings.selectDates')}
                       error={!!errors.check_in || !!errors.check_out}
+                      booked={booked.data}
+                      bookedLoading={booked.isLoading}
+                      bookedFailed={booked.isError}
+                      onBookedRetry={() => booked.refetch()}
+                      onMonthChange={setCalendarMonth}
                     />
                     {errors.check_in && (
                       <p className="text-xs text-red-500 mt-1">{errors.check_in}</p>

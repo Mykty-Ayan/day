@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { motion } from 'framer-motion'
 import { ArrowLeft, Check, Loader2 } from 'lucide-react'
 import { useNavigate, useParams } from '@tanstack/react-router'
-import { useBooking, useUpdateBooking } from '../../hooks/useBookings'
+import { useBookedNights, useBooking, useUpdateBooking } from '../../hooks/useBookings'
 import { useProperty } from '../../hooks/useProperties'
 import type { BookingDetail, BookingSource, BookingUpdateInput, RentalMode } from '../../types/booking'
 import DateRangePicker from '../../components/ui/date-range-picker'
@@ -15,7 +15,7 @@ import NumberInput from '../../components/ui/number-input'
 import Spinner from '../../components/ui/Spinner'
 import { showToast } from '../../components/ui/Toast'
 import { getBookingApiErrorMessage, getBookingFieldError } from '../../lib/booking-errors'
-import { switchRentalMode } from '../../lib/booking-dates'
+import { nightsWindow, switchRentalMode } from '../../lib/booking-dates'
 
 interface FormData {
   check_in: string
@@ -86,6 +86,10 @@ function EditBookingForm({ detail, bookingId }: { detail: BookingDetail; booking
   const { data: property } = useProperty(detail.booking.property_id)
   const [form, setForm] = useState<FormData>(() => detailToForm(detail))
   const [errors, setErrors] = useState<Record<string, string>>({})
+  // Other stays of the flat, struck through in the calendar; this booking's own nights stay open.
+  const [calendarMonth, setCalendarMonth] = useState(() => new Date())
+  const nights = nightsWindow(calendarMonth, form.check_in && !form.check_out ? form.check_in : null)
+  const booked = useBookedNights(detail.booking.property_id, nights.from, nights.to, bookingId)
 
   const isHourly = form.rental_mode === 'hourly'
   const effectiveCheckIn = isHourly
@@ -303,6 +307,11 @@ function EditBookingForm({ detail, bookingId }: { detail: BookingDetail; booking
                   }}
                   placeholder={t('bookings.selectDates')}
                   error={!!errors.check_in || !!errors.check_out}
+                  booked={booked.data}
+                  bookedLoading={booked.isLoading}
+                  bookedFailed={booked.isError}
+                  onBookedRetry={() => booked.refetch()}
+                  onMonthChange={setCalendarMonth}
                 />
                 {errors.check_in && (
                   <p className="text-xs text-red-500 mt-1">{errors.check_in}</p>

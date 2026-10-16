@@ -3,6 +3,7 @@ import {
   useMutation,
   useQueryClient,
 } from '@tanstack/react-query'
+import { bookedNights } from '../lib/booking-dates'
 import type {
   BookingFilters,
   BookingCreateInput,
@@ -55,6 +56,24 @@ export function useBookings(filters: BookingFilters = {}) {
   return useQuery({
     queryKey: [BOOKINGS_KEY, filters],
     queryFn: () => listBookings(filters),
+  })
+}
+
+/** The nights a flat's stays take between `from` and `to` (yyyy-MM-dd; see
+ *  nightsWindow), every page of them: a short page would leave nights open. */
+export function useBookedNights(propertyId: string, from: string, to: string, exceptBookingId?: string) {
+  return useQuery({
+    queryKey: [BOOKINGS_KEY, 'booked-nights', propertyId, from, to],
+    queryFn: async () => {
+      const filters = { property_id: propertyId, date_from: from, date_to: to, per_page: 100 }
+      const first = await listBookings(filters)
+      const rest = await Promise.all(
+        Array.from({ length: Math.max(0, first.pages - 1) }, (_, i) => listBookings({ ...filters, page: i + 2 })),
+      )
+      return [first, ...rest].flatMap((page) => page.items)
+    },
+    enabled: !!propertyId,
+    select: (stays) => bookedNights(stays, exceptBookingId),
   })
 }
 
