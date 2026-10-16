@@ -12,7 +12,7 @@ from dataclasses import dataclass
 from datetime import date, datetime, time, timedelta
 from decimal import Decimal
 
-from app.application.booking.blocks import blocks_stay, checkout_hour
+from app.application.booking.blocks import blocks_stay
 from app.application.booking.create_booking import apply_default_times
 from app.application.booking.price_calculator import PriceCalculatorService
 from app.config import settings
@@ -123,7 +123,7 @@ class CheckAvailabilityService:
             # the same day do not collide.
             if any(b.check_in < end and b.check_out > start for b in taken[prop.id]):
                 continue
-            if blocks_stay(closed[prop.id], checkout_hour(prop), start, end):
+            if blocks_stay(closed[prop.id], start, end):
                 continue
             if rental_mode == RentalMode.HOURLY and prop.rental_mode == RentalMode.DAILY:
                 continue

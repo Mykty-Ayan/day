@@ -20,12 +20,8 @@ def block_span(start_date: date, end_date: date, hour: int) -> tuple[datetime, d
     return datetime.combine(start_date, time(hour)), datetime.combine(end_date, time(hour))
 
 
-def blocks_stay(blocks: list[PropertyBlock], hour: int, check_in: datetime, check_out: datetime) -> bool:
-    for block in blocks:
-        start, end = block_span(block.start_date, block.end_date, hour)
-        if check_in < end and check_out > start:
-            return True
-    return False
+def blocks_stay(blocks: list[PropertyBlock], check_in: datetime, check_out: datetime) -> bool:
+    return any(check_in < block.ends_at and check_out > block.starts_at for block in blocks)
 
 
 async def ensure_not_blocked(booking_repo: BookingRepository, prop, check_in: datetime, check_out: datetime) -> None:
@@ -35,5 +31,5 @@ async def ensure_not_blocked(booking_repo: BookingRepository, prop, check_in: da
     blocks = await booking_repo.list_blocks(
         prop.id, check_in.date() - timedelta(days=1), check_out.date() + timedelta(days=1)
     )
-    if blocks_stay(blocks, checkout_hour(prop), check_in, check_out):
+    if blocks_stay(blocks, check_in, check_out):
         raise PropertyBlockedError()

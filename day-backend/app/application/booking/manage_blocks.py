@@ -47,6 +47,8 @@ class ManageBlocksService:
                 property_id=property_id,
                 start_date=start_date,
                 end_date=end_date,
+                starts_at=start,
+                ends_at=end,
                 reason=reason,
                 created_by=created_by,
             )

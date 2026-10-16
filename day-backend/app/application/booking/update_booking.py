@@ -69,7 +69,9 @@ class UpdateBookingService:
         self._settings_repo = settings_repo
 
     async def execute(self, inp: UpdateBookingInput) -> Booking:
-        booking = await self._booking_repo.get_by_id(inp.booking_id)
+        # Locked: the save below writes the whole row, and a stale read would put
+        # back whatever another request changed meanwhile.
+        booking = await self._booking_repo.get_for_update(inp.booking_id)
         if booking is None:
             raise ValueError("Booking not found")
         if booking.company_id != inp.company_id:

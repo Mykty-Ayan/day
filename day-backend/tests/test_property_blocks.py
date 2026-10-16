@@ -144,3 +144,41 @@ async def test_a_block_and_a_booking_at_once_do_not_both_get_in(flat):  # noqa: 
         client.post("/api/v1/bookings", json=stay),
     )
     assert sorted([closed.status_code, booked.status_code]) == [201, 409], (closed.text, booked.text)
+
+
+async def test_a_new_check_out_hour_does_not_move_a_block():
+    # The block was set while guests left at noon. Check-out moved to 10:00 later
+    # must not stretch it over the last hours of a stay that ends at noon that day.
+    f = Flats()
+    prop = await f.flat()
+    await _blocked(f, prop, date(2030, 3, 10), date(2030, 3, 12))
+    prop.check_out_hour = 10
+    await f.props.save(prop)
+    # The morning of the first day stays open, as when the block was set...
+    await f.book(prop, datetime(2030, 3, 10, 9), datetime(2030, 3, 10, 11, 30), RentalMode.HOURLY)
+    # ...and the flat stays closed until noon of the last one.
+    with pytest.raises(PropertyBlockedError):
+        await f.book(prop, datetime(2030, 3, 12, 10, 30), datetime(2030, 3, 12, 11, 30), RentalMode.HOURLY)
+
+
+async def test_edits_read_the_booking_under_its_row_lock():
+    # A full-row save from a stale read could put a booking back on nights
+    # closed meanwhile: the edit, the move and the status change lock the row first.
+    from app.application.booking.change_booking_status import ChangeBookingStatusService
+    from app.domain.booking.value_objects import BookingStatus
+
+    f = Flats()
+    here, there = await f.flat(), await f.flat()
+    booking = await f.book(here, datetime(2030, 9, 1, 14), datetime(2030, 9, 2, 12))
+    locked = []
+    read = f.bookings.get_for_update
+
+    async def get_for_update(booking_id):
+        locked.append(booking_id)
+        return await read(booking_id)
+
+    f.bookings.get_for_update = get_for_update
+    await f.update.execute(UpdateBookingInput(booking_id=booking.id, company_id=COMPANY_ID, notes="Поздний заезд"))
+    await f.move.execute(booking.id, COMPANY_ID, there.id)
+    await ChangeBookingStatusService(f.bookings, f.audit).execute(booking.id, COMPANY_ID, BookingStatus.CONFIRMED)
+    assert locked == [booking.id, booking.id, booking.id]
