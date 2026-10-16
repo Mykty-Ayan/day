@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import uuid
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from app.config import settings
 from app.domain.booking.value_objects import RentalMode
@@ -45,6 +45,7 @@ class CreatePropertyInput:
     map_url: str | None = None
     whatsapp_product_url: str | None = None
     video_url: str | None = None
+    listing_urls: list[str] = field(default_factory=list)
     min_nights: int | None = None
     max_nights: int | None = None
     buffer_hours: int | None = None
@@ -109,6 +110,7 @@ class CreatePropertyService:
             map_url=inp.map_url,
             whatsapp_product_url=inp.whatsapp_product_url,
             video_url=inp.video_url,
+            listing_urls=list(inp.listing_urls),
             min_nights=inp.min_nights,
             max_nights=inp.max_nights,
             buffer_hours=inp.buffer_hours,

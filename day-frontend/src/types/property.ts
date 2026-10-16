@@ -105,6 +105,8 @@ export interface Property {
   max_nights: number | null
   buffer_hours: number | null
   min_lead_hours: number | null
+  /** The flat's listings (Krisha, Booking, Airbnb, OLX); the CRM finds the flat by a guest's link. */
+  listing_urls: string[]
   rooms: number
   beds: number
   max_guests: number | null
@@ -151,6 +153,7 @@ export interface PropertyCreateInput {
   max_nights?: number | null
   buffer_hours?: number | null
   min_lead_hours?: number | null
+  listing_urls?: string[]
   rooms?: number
   beds?: number
   max_guests?: number | null

@@ -48,6 +48,9 @@ class Property:
     map_url: str | None = None
     whatsapp_product_url: str | None = None
     video_url: str | None = None
+    # The flat's listings on Krisha, Booking, Airbnb, OLX: a guest sends one,
+    # and the CRM finds the flat by it.
+    listing_urls: list[str] = field(default_factory=list)
 
     # Stay rules for bookings made in Day; empty is no rule. The fewest and most
     # nights of a daily stay; hours kept free around an hourly booking for
