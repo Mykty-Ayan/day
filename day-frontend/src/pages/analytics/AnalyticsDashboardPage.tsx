@@ -50,6 +50,8 @@ export default function AnalyticsDashboardPage() {
   const properties = propertiesData?.items ?? []
 
   async function handleExport() {
+    // Without both days the API would export the last 30 days as if chosen.
+    if (waiting) return
     try {
       const blob = await exportAnalyticsCsv(filters)
       const url = URL.createObjectURL(blob)
@@ -102,6 +104,7 @@ export default function AnalyticsDashboardPage() {
             onRangeChange={setRange}
             properties={properties}
             onExport={handleExport}
+            exportDisabled={waiting}
           />
         </div>
 
