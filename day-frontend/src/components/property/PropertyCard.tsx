@@ -15,7 +15,8 @@ interface Props {
 export default function PropertyCard({ property, index, variant = 'large' }: Props) {
   const { t } = useTranslation()
   const { symbol } = useCurrency()
-  const photos = property.photos ?? []
+  // Check-in photos (the lock, the entrance) never open the listing.
+  const photos = (property.photos ?? []).filter((p) => p.audience !== 'guest')
   const coverPhoto = photos.find((p) => p.is_cover) || photos[0]
   const isList = variant === 'list'
   const isMedium = variant === 'medium'

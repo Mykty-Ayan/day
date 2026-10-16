@@ -10,12 +10,17 @@ export type AmenityCategory =
   | 'comfort'
   | 'outdoor'
 
+/** guest: a check-in photo (the entrance, the lock): never in the listing. */
+export type PhotoAudience = 'public' | 'guest'
+
 export interface PropertyPhoto {
   id: string
   url: string
   thumbnail_url: string
   is_cover: boolean
   sort_order: number
+  caption: string | null
+  audience: PhotoAudience
   created_at: string
 }
 
@@ -153,7 +158,8 @@ export interface PropertyCreateInput {
   wifi_password?: string
 }
 
-export type PropertyUpdateInput = Partial<PropertyCreateInput>
+/** null clears a field; a missing field stays as it was. */
+export type PropertyUpdateInput = { [K in keyof PropertyCreateInput]?: PropertyCreateInput[K] | null }
 
 export interface PricingInput {
   base_price: number

@@ -106,6 +106,8 @@ class ClonePropertyService:
                     url=photo.url,
                     sort_order=photo.sort_order,
                     is_cover=photo.is_cover,
+                    caption=photo.caption,
+                    audience=photo.audience,
                 )
             )
 

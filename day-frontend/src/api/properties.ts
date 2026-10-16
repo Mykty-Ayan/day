@@ -14,6 +14,7 @@ import type {
   Amenity,
   PropertyAuditLog,
   PropertyStatus,
+  PhotoAudience,
   Tag,
   TagCreateInput,
 } from '../types/property'
@@ -91,12 +92,13 @@ export async function changePropertyStatus(
 export async function uploadPhoto(
   propertyId: string,
   file: File,
-  options: { sortOrder?: number; isCover?: boolean } = {},
+  options: { sortOrder?: number; isCover?: boolean; audience?: PhotoAudience } = {},
 ): Promise<void> {
   const formData = new FormData()
   formData.append('file', file)
   formData.append('sort_order', String(options.sortOrder ?? 0))
   formData.append('is_cover', String(options.isCover ?? false))
+  formData.append('audience', options.audience ?? 'public')
   await apiClient.post(`/properties/${propertyId}/photos/upload`, formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
   })
@@ -108,16 +110,22 @@ export async function uploadPhotos(
   propertyId: string,
   photos: { file: File; isCover?: boolean }[],
   startAt = 0,
+  audience: PhotoAudience = 'public',
 ): Promise<number> {
   let failed = 0
   for (const [index, photo] of photos.entries()) {
     try {
-      await uploadPhoto(propertyId, photo.file, { sortOrder: startAt + index, isCover: photo.isCover })
+      await uploadPhoto(propertyId, photo.file, { sortOrder: startAt + index, isCover: photo.isCover, audience })
     } catch {
       failed += 1
     }
   }
   return failed
+}
+
+/** null removes the caption. */
+export async function setPhotoCaption(propertyId: string, photoId: string, caption: string | null): Promise<void> {
+  await apiClient.patch(`/properties/${propertyId}/photos/${photoId}`, { caption })
 }
 
 export async function deletePhoto(
