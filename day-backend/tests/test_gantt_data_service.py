@@ -190,3 +190,25 @@ async def test_the_chessboard_shows_each_flats_closed_nights():
         (date(2026, 2, 10), date(2026, 2, 12), "Ремонт")
     ]
     assert by_flat["89auc"] == []
+
+
+async def test_the_chessboard_knows_an_hourly_flat():
+    # An hourly flat's cell opens the hourly form, and a block's first and last
+    # days stay open by the hour: the page needs the flat's rental mode.
+    from app.domain.booking.value_objects import RentalMode
+    from app.presentation.api.v1.bookings import _build_gantt_response
+
+    company_id = uuid.uuid4()
+    flat = Property(
+        id=uuid.uuid4(), company_id=company_id, name="Студия", internal_name="28auc",
+        type=PropertyType.APARTMENT, status=PropertyStatus.ACTIVE, rental_mode=RentalMode.HOURLY,
+    )
+    property_repo, booking_repo, guest_repo = AsyncMock(), AsyncMock(), AsyncMock()
+    property_repo.list_by_company.return_value = [flat]
+    booking_repo.list_by_property_date_range.return_value = []
+    booking_repo.list_company_blocks.return_value = []
+
+    result = await GetGanttDataService(property_repo, booking_repo, guest_repo).execute(  # type: ignore[arg-type]
+        company_id, date(2026, 2, 1), date(2026, 2, 28)
+    )
+    assert _build_gantt_response(result).properties[0].rental_mode == RentalMode.HOURLY

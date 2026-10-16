@@ -46,6 +46,7 @@ class GanttProperty:
     status: str
     bookings: list[GanttBooking]
     blocks: list[GanttBlock] = field(default_factory=list)
+    rental_mode: str = "daily"
 
 
 @dataclass
@@ -134,6 +135,7 @@ class GetGanttDataService:
                     status=prop.status.value,
                     bookings=gantt_bookings,
                     blocks=closed[prop.id],
+                    rental_mode=prop.rental_mode.value,
                 )
             )
 

@@ -430,6 +430,7 @@ class GanttPropertyResponse(BaseModel):
     bookings: list[GanttBookingResponse]
     # Nights closed without a booking.
     blocks: list[GanttBlockResponse] = []
+    rental_mode: RentalMode = RentalMode.DAILY
 
 
 class GanttDataResponse(BaseModel):

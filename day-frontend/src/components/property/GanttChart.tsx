@@ -820,9 +820,15 @@ export default function GanttChart({
                         }
                       }}
                       onClick={() => {
-                        // The booking calendar's rule: a closed night starts no stay, and a
-                        // stay picked before it ends on its morning at the latest.
-                        if (isDayBlocked(dayKey, closedNights, isPendingRow ? pendingSelection.checkIn : null)) {
+                        // An hourly flat goes by the hour: a block's first and last days keep
+                        // their morning or afternoon, so only a day closed around the clock is
+                        // refused. Otherwise the booking calendar's rule: a closed night starts
+                        // no stay, and a stay picked before it ends on its morning at the latest.
+                        const refused = row.property.rental_mode === 'hourly'
+                          ? closedNights.has(dayKey)
+                            && closedNights.has(toDateStr(new Date(day.getFullYear(), day.getMonth(), day.getDate() - 1)))
+                          : isDayBlocked(dayKey, closedNights, isPendingRow ? pendingSelection.checkIn : null)
+                        if (refused) {
                           showToast('error', t('gantt.closedDay'))
                           return
                         }

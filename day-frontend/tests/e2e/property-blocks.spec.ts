@@ -37,7 +37,9 @@ test('closed nights are set on the flat page and kept off by the booking calenda
   // Reopen from the flat page.
   await page.goto(`/properties/${id}`)
   await page.getByRole('button', { name: 'Reopen dates' }).first().click()
+  const removed = page.waitForResponse((r) => r.request().method() === 'DELETE' && r.url().includes(`/properties/${id}/blocks/`))
   await page.getByRole('button', { name: 'Reopen dates' }).last().click()
+  expect((await removed).status()).toBe(204)
   await expect(page.getByText('No closed dates.')).toBeVisible()
   const left = await (await request.get(`${API_BASE}/properties/${id}/blocks`, { params: { date_from: first, date_to: out } })).json()
   expect(left).toEqual([])
@@ -47,10 +49,18 @@ test('closed nights are set on the flat page and kept off by the booking calenda
 const local = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
-async function closedFlat(request: import('@playwright/test').APIRequestContext, start: string, end: string, reason: string) {
-  // First in the chessboard: its rows go by internal name.
-  const data = createTestProperty({ internal_name: `000-${Math.random().toString(36).slice(2, 10)}` })
-  const { id } = await (await request.post(`${API_BASE}/properties`, { data })).json()
+async function closedFlat(
+  request: import('@playwright/test').APIRequestContext,
+  start: string,
+  end: string,
+  reason: string,
+  extra: Record<string, unknown> = {},
+) {
+  // First in the chessboard, whose rows go by internal name: the flats of past runs
+  // stay (a flat is not deleted), and a newer name sorts before them all.
+  const newest = String(1e13 - Date.now()).padStart(13, '0')
+  const data = createTestProperty({ internal_name: `000-0-${newest}-${Math.random().toString(36).slice(2, 6)}` })
+  const { id } = await (await request.post(`${API_BASE}/properties`, { data: { ...data, ...extra } })).json()
   await request.post(`${API_BASE}/properties/${id}/status`, { data: { target_status: 'active' } })
   const block = await request.post(`${API_BASE}/properties/${id}/blocks`, { data: { start_date: start, end_date: end, reason } })
   expect(block.status(), await block.text()).toBe(201)
@@ -81,6 +91,24 @@ test('the chessboard starts no stay on a closed night and ends one at its mornin
   await expect(page.getByText('The flat is closed on this day')).toBeVisible()
   await cell(day(10)).click()
   await page.waitForURL((url) => url.searchParams.get('check_in') === local(day(8)) && url.searchParams.get('check_out') === local(day(10)))
+})
+
+test('an hourly flat keeps the free hours of a block\'s first and last days', async ({ page, request }) => {
+  // Closed from noon of the 10th to noon of the 12th: the 10th's morning and the
+  // 12th's afternoon are free by the hour; the 11th is closed around the clock.
+  const day = (offset: number) => {
+    const d = new Date()
+    d.setDate(d.getDate() + offset)
+    return d
+  }
+  const name = await closedFlat(request, local(day(10)), local(day(12)), `Hourly ${Date.now()}`, { rental_mode: 'hourly' })
+  const cell = (d: Date) => page.getByRole('button', { name: new RegExp(`^${name}, \\S+ ${d.getDate()} ${MONTHS[d.getMonth()]}$`) })
+
+  await page.goto('/properties/gantt')
+  await cell(day(11)).click()
+  await expect(page.getByText('The flat is closed on this day')).toBeVisible()
+  await cell(day(10)).click()
+  await page.waitForURL((url) => url.searchParams.get('check_in')?.startsWith(`${local(day(10))}T`) ?? false)
 })
 
 test('a block that starts on the last day shown is drawn', async ({ page, request }) => {
