@@ -1,4 +1,4 @@
-import { addDays, format, parseISO } from 'date-fns'
+import { addDays, addMonths, endOfMonth, format, parseISO, startOfMonth } from 'date-fns'
 import type { Booking, BookingStatus, RentalMode } from '../types/booking'
 
 interface BookingDates {
@@ -59,4 +59,14 @@ export function isDayBlocked(day: string, booked: ReadonlySet<string>, checkIn: 
 export function pickStayDay(checkIn: string, checkOut: string, day: string): { checkIn: string; checkOut: string } {
   if (checkIn && !checkOut && day > checkIn) return { checkIn, checkOut: day }
   return { checkIn: day, checkOut: '' }
+}
+
+/** The days (yyyy-MM-dd) whose booked nights the calendar must know: the two
+ *  months on screen from `month`, and back to the check-in while a check-out
+ *  is being picked, since the stay covers every night from there.
+ *  `to` is a day past the window: the filter compares a check-in time with midnight. */
+export function nightsWindow(month: Date, checkIn: string | null): { from: string; to: string } {
+  const shown = format(startOfMonth(month), 'yyyy-MM-dd')
+  const from = checkIn && datePart(checkIn) < shown ? datePart(checkIn) : shown
+  return { from, to: format(addDays(endOfMonth(addMonths(month, 1)), 1), 'yyyy-MM-dd') }
 }

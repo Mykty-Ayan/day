@@ -25,6 +25,8 @@ interface DateRangePickerProps {
   error?: boolean
   /** Nights (yyyy-MM-dd) already taken: shown struck through, and a stay cannot cover them. */
   booked?: ReadonlySet<string>
+  /** The booked nights for the days on screen are still loading: no day can be picked yet. */
+  bookedLoading?: boolean
   /** The first month on screen, on open and on every page turn: to load its booked nights. */
   onMonthChange?: (month: Date) => void
 }
@@ -55,6 +57,7 @@ export default function DateRangePicker({
   className,
   error,
   booked = NO_NIGHTS,
+  bookedLoading = false,
   onMonthChange,
 }: DateRangePickerProps) {
   const { t } = useTranslation()
@@ -129,7 +132,9 @@ export default function DateRangePicker({
           pagedNavigation
           min={1}
           onSelect={handleSelect}
-          disabled={[...(min ? [{ before: min }] : []), (date: Date) => isDayBlocked(day(date), booked, checkIn)]}
+          disabled={
+            bookedLoading || [...(min ? [{ before: min }] : []), (date: Date) => isDayBlocked(day(date), booked, checkIn)]
+          }
           modifiers={{ booked: (date: Date) => booked.has(day(date)) }}
           modifiersClassNames={{ booked: '[&>button]:line-through' }}
           numberOfMonths={numberOfMonths}

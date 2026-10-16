@@ -5,7 +5,7 @@
  */
 
 import { expect, test } from '@playwright/test'
-import { bookedNights, isDayBlocked, pickStayDay, switchRentalMode, type Stay } from '../../src/lib/booking-dates'
+import { bookedNights, isDayBlocked, nightsWindow, pickStayDay, switchRentalMode, type Stay } from '../../src/lib/booking-dates'
 import { TIME_OPTIONS, nearestOption } from '../../src/components/ui/time-options'
 
 const empty = { check_in: '', check_out: '', rental_mode: 'daily' as const, hourly_date: '' }
@@ -121,4 +121,18 @@ test('a click picks the check-out after a check-in, and starts a new stay otherw
   expect(pickStayDay('2026-10-20', '', '2026-10-18')).toEqual({ checkIn: '2026-10-18', checkOut: '' })
   // A full stay picked: the next click starts over instead of stretching it across booked nights.
   expect(pickStayDay('2026-10-20', '2026-10-23', '2026-10-27')).toEqual({ checkIn: '2026-10-27', checkOut: '' })
+})
+
+test('the calendar loads the two months on screen', () => {
+  expect(nightsWindow(new Date(2026, 9, 16), null)).toEqual({ from: '2026-10-01', to: '2026-12-01' })
+})
+
+test('with a check-in picked, the loaded nights start at the check-in, however far the calendar pages', () => {
+  // Check-in 17 October, calendar paged to December: a stay to 1 December crosses
+  // October's bookings, so October must stay loaded.
+  expect(nightsWindow(new Date(2026, 11, 1), '2026-10-17')).toEqual({ from: '2026-10-17', to: '2027-02-01' })
+  // The edit form holds the check-in with its time.
+  expect(nightsWindow(new Date(2026, 11, 1), '2026-10-17T14:00:00').from).toBe('2026-10-17')
+  // A check-in inside the window changes nothing.
+  expect(nightsWindow(new Date(2026, 9, 1), '2026-10-17')).toEqual({ from: '2026-10-01', to: '2026-12-01' })
 })

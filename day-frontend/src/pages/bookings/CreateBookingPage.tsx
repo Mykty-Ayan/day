@@ -20,7 +20,7 @@ import { ToggleGroup, ToggleGroupItem } from '../../components/ui/toggle-group'
 import NumberInput from '../../components/ui/number-input'
 import { useCurrency } from '../../hooks/useCurrency'
 import { getBookingApiErrorMessage, getBookingFieldError } from '../../lib/booking-errors'
-import { switchRentalMode } from '../../lib/booking-dates'
+import { nightsWindow, switchRentalMode } from '../../lib/booking-dates'
 
 interface FormData {
   property_id: string
@@ -185,7 +185,8 @@ export default function CreateBookingPage() {
 
   // The calendar's first month on screen: its booked nights are shown struck through.
   const [calendarMonth, setCalendarMonth] = useState(() => new Date())
-  const { data: booked } = useBookedNights(form.property_id, calendarMonth)
+  const nights = nightsWindow(calendarMonth, form.check_in && !form.check_out ? form.check_in : null)
+  const booked = useBookedNights(form.property_id, nights.from, nights.to)
 
   const { data: guestsData } = useGuests(
     { search: guestSearch, limit: 5 },
@@ -450,7 +451,8 @@ export default function CreateBookingPage() {
                       minDate={new Date()}
                       placeholder={t('bookings.selectDates')}
                       error={!!errors.check_in || !!errors.check_out}
-                      booked={booked}
+                      booked={booked.data}
+                      bookedLoading={booked.isLoading}
                       onMonthChange={setCalendarMonth}
                     />
                     {errors.check_in && (
