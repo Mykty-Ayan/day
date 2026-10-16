@@ -31,7 +31,8 @@ function Calendar({
         month: 'space-y-4',
         month_caption: 'relative flex h-11 items-center justify-center px-11',
         caption_label: 'text-base font-semibold tracking-tight text-gray-900',
-        nav: 'absolute inset-x-0 top-0 flex h-11 items-center justify-between px-0.5',
+        // Above the month caption, which is positioned too and would take the arrows' clicks.
+        nav: 'absolute inset-x-0 top-0 z-10 flex h-11 items-center justify-between px-0.5',
         button_previous:
           'h-11 w-11 rounded-xl border border-gray-200 bg-white text-gray-600 transition-colors hover:bg-gray-50 disabled:opacity-50',
         button_next:
