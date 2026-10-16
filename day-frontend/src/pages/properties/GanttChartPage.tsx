@@ -87,6 +87,9 @@ export default function GanttChartPage() {
   const rangeEndDate = useMemo(() => new Date(year, month + 2, 0), [year, month])
   const startDate = toDateStr(rangeStartDate)
   const endDate = toDateStr(rangeEndDate)
+  // The server takes what starts before end_date's midnight: asked for the last
+  // day shown, it would leave out that day's check-ins and closed nights.
+  const queryEndDate = toDateStr(new Date(year, month + 2, 1))
 
   const {
     data: ganttData,
@@ -95,7 +98,7 @@ export default function GanttChartPage() {
     error,
     isFetching,
     refetch,
-  } = useGanttData(startDate, endDate)
+  } = useGanttData(startDate, queryEndDate)
 
   const rows: GanttRow[] = useMemo(() => {
     if (!ganttData) return []

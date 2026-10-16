@@ -17,7 +17,10 @@ const day = (value: string) => format(parseISO(value), 'dd.MM.yyyy')
 export default function BlocksCard({ propertyId }: { propertyId: string }) {
   const { t } = useTranslation()
   const today = format(new Date(), 'yyyy-MM-dd')
-  const blocks = useBlocks(propertyId, today, format(addDays(new Date(), 366), 'yyyy-MM-dd'))
+  // The card lists a year ahead, and the calendar closes no further: a block
+  // past the list could not be seen or reopened.
+  const horizon = addDays(new Date(), 366)
+  const blocks = useBlocks(propertyId, today, format(horizon, 'yyyy-MM-dd'))
   const create = useCreateBlock(propertyId)
   const remove = useDeleteBlock(propertyId)
   const [range, setRange] = useState({ from: '', to: '' })
@@ -79,6 +82,7 @@ export default function BlocksCard({ propertyId }: { propertyId: string }) {
             endDate={range.to}
             onRangeChange={(from, to) => setRange({ from, to })}
             minDate={new Date()}
+            maxDate={horizon}
             placeholder={t('properties.blocks.pickNights')}
           />
         </div>

@@ -7,6 +7,7 @@ import type { PricingConfig } from '../../types/property'
 import { showToast } from '../ui/Toast'
 import { moveBooking } from '../../api/bookings'
 import { stayRuleBreaches, stayRuleText, type StayRuleBreach } from '../../lib/booking-errors'
+import { blockNights, isDayBlocked } from '../../lib/booking-dates'
 import ConfirmDialog from '../ui/ConfirmDialog'
 import { useQueryClient } from '@tanstack/react-query'
 import { useCurrency } from '../../hooks/useCurrency'
@@ -79,12 +80,6 @@ function getBookingDayRange(checkIn: string, checkOut: string): { start: Date; e
     end = new Date(start.getFullYear(), start.getMonth(), start.getDate() + 1)
   }
   return { start, end }
-}
-
-// A closed night: start_date <= day < end_date.
-function isClosedOnDate(blocks: GanttBlock[] | undefined, day: Date): boolean {
-  const key = toDateStr(day)
-  return (blocks ?? []).some((block) => block.start_date <= key && key < block.end_date)
 }
 
 function isBookedOnDate(bookings: Booking[], day: Date): boolean {
@@ -690,6 +685,7 @@ export default function GanttChart({
             {/* Grid rows with booking bars */}
             {sortedRows.map((row) => {
               const isPaused = row.property.status === 'paused'
+              const closedNights = blockNights(row.blocks ?? [])
               return (
                 <div
                   key={row.property.id}
@@ -737,7 +733,7 @@ export default function GanttChart({
                       && dayKey === pendingPreviewEnd,
                   )
                   const hasBooking = isBookedOnDate(row.bookings, day)
-                  const closed = isClosedOnDate(row.blocks, day)
+                  const closed = closedNights.has(dayKey)
                   const nightlyRate = hasBooking || closed
                     ? null
                     : getNightlyRateForDate(pricingByProperty?.[row.property.id], day)
@@ -824,8 +820,9 @@ export default function GanttChart({
                         }
                       }}
                       onClick={() => {
-                        // A closed night starts no stay; ending one on it (its morning) is fine.
-                        if (closed && !isPendingRow) {
+                        // The booking calendar's rule: a closed night starts no stay, and a
+                        // stay picked before it ends on its morning at the latest.
+                        if (isDayBlocked(dayKey, closedNights, isPendingRow ? pendingSelection.checkIn : null)) {
                           showToast('error', t('gantt.closedDay'))
                           return
                         }
