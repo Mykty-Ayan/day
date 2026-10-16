@@ -94,3 +94,17 @@ export function stayRuleText(
 ): string {
   return t(`bookings.stayRules.${breach.rule}`, { limit: breach.limit, actual: breach.actual })
 }
+
+/** A booking request the stay rules refused, kept to send again with override_rules. */
+export interface RulesRefusal<T> {
+  payload: T
+  breaches: StayRuleBreach[]
+}
+
+/** The breaches to show: only while the form would still send what was refused.
+ *  A change since then (even one made while the answer was on its way) is a new
+ *  booking for the server to check, not one the operator agreed to. */
+export function currentBreaches<T>(refusal: RulesRefusal<T> | null, payload: T): StayRuleBreach[] | null {
+  if (!refusal) return null
+  return JSON.stringify(refusal.payload) === JSON.stringify(payload) ? refusal.breaches : null
+}

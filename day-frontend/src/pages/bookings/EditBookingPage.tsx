@@ -14,7 +14,13 @@ import { ToggleGroup, ToggleGroupItem } from '../../components/ui/toggle-group'
 import NumberInput from '../../components/ui/number-input'
 import Spinner from '../../components/ui/Spinner'
 import { showToast } from '../../components/ui/Toast'
-import { getBookingApiErrorMessage, getBookingFieldError, stayRuleBreaches, type StayRuleBreach } from '../../lib/booking-errors'
+import {
+  currentBreaches,
+  getBookingApiErrorMessage,
+  getBookingFieldError,
+  stayRuleBreaches,
+  type RulesRefusal,
+} from '../../lib/booking-errors'
 import StayRulesAlert from '../../components/booking/StayRulesAlert'
 import { nightsWindow, switchRentalMode } from '../../lib/booking-dates'
 
@@ -122,11 +128,10 @@ function EditBookingForm({ detail, bookingId }: { detail: BookingDetail; booking
     { value: '#06B6D4', label: t('bookings.colors.cyan') },
   ]
 
-  // The apartment's stay rules the last save broke; any change asks the server again.
-  const [breaches, setBreaches] = useState<StayRuleBreach[] | null>(null)
+  // The save the stay rules refused; "save anyway" sends exactly it again.
+  const [refused, setRefused] = useState<RulesRefusal<BookingUpdateInput> | null>(null)
 
   function updateField<K extends keyof FormData>(key: K, value: FormData[K]) {
-    setBreaches(null)
     setForm((f) => ({ ...f, [key]: value }))
     setErrors((e) => {
       const next = { ...e }
@@ -137,7 +142,6 @@ function EditBookingForm({ detail, bookingId }: { detail: BookingDetail; booking
 
   // The picked date moves to the other mode's field instead of disappearing.
   function switchMode(mode: RentalMode) {
-    setBreaches(null)
     setForm((f) => switchRentalMode(f, mode))
     setErrors((e) => {
       const next = { ...e }
@@ -169,10 +173,8 @@ function EditBookingForm({ detail, bookingId }: { detail: BookingDetail; booking
     return Object.keys(errs).length === 0
   }
 
-  function handleSubmit(overrideRules = false) {
-    if (!validate()) return
-
-    const payload: BookingUpdateInput = {
+  function updatePayload(): BookingUpdateInput {
+    return {
       check_in: effectiveCheckIn,
       check_out: effectiveCheckOut,
       rental_mode: form.rental_mode,
@@ -181,9 +183,10 @@ function EditBookingForm({ detail, bookingId }: { detail: BookingDetail; booking
       children_count: form.children_count,
       gantt_color: form.gantt_color,
       notes: form.notes || undefined,
-      override_rules: overrideRules || undefined,
     }
+  }
 
+  function send(payload: BookingUpdateInput) {
     updateBooking.mutate(payload, {
       onSuccess: () => {
         showToast('success', t('bookings.bookingUpdated'))
@@ -191,7 +194,7 @@ function EditBookingForm({ detail, bookingId }: { detail: BookingDetail; booking
       },
       onError: (err) => {
         const broken = stayRuleBreaches(err)
-        setBreaches(broken)
+        setRefused(broken ? { payload, breaches: broken } : null)
         if (broken) return
         const fieldError = getBookingFieldError(err, t)
         if (fieldError) {
@@ -201,6 +204,15 @@ function EditBookingForm({ detail, bookingId }: { detail: BookingDetail; booking
       },
     })
   }
+
+  function handleSubmit() {
+    if (!validate()) return
+    send(updatePayload())
+  }
+
+
+  // Shown only while the form still says what was refused.
+  const breaches = currentBreaches(refused, updatePayload())
 
   return (
     <div className="px-4 py-4 sm:px-6 sm:py-6 max-w-3xl mx-auto w-full">
@@ -442,12 +454,12 @@ function EditBookingForm({ detail, bookingId }: { detail: BookingDetail; booking
           </div>
         </div>
 
-        {breaches && (
+        {breaches && refused && (
           <StayRulesAlert
             breaches={breaches}
             action={t('bookings.stayRules.saveAnyway')}
             busy={updateBooking.isPending}
-            onOverride={() => handleSubmit(true)}
+            onOverride={() => send({ ...refused.payload, override_rules: true })}
           />
         )}
 

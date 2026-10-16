@@ -38,4 +38,28 @@ test.describe('Stay rules in the booking form', () => {
     await alert.getByRole('button', { name: 'Book anyway' }).click()
     await page.waitForURL(/\/bookings\/[0-9a-f-]{36}$/)
   })
+
+  test('a refusal that comes back after the form changed offers nothing to book anyway', async ({ page }) => {
+    // The operator changed the guest while the answer was on its way: the late
+    // refusal is about the request as it was, not about what the form says now.
+    let release = () => {}
+    const held = new Promise<void>((resolve) => (release = resolve))
+    await page.route('**/api/v1/bookings', async (route) => {
+      if (route.request().method() === 'POST') await held
+      await route.continue()
+    })
+    await page.goto(`/bookings/new?property_id=${propertyId}&check_in=${futureDate(30)}&check_out=${futureDate(31)}`)
+    const stamp = Date.now().toString().slice(-7)
+    await page.getByPlaceholder(/phone/i).first().fill(`+7702${stamp}`)
+    const name = page.getByPlaceholder(/name/i).first()
+    await name.fill(`Stay Rules ${stamp}`)
+    const sent = page.waitForResponse((response) => response.request().method() === 'POST' && response.url().endsWith('/api/v1/bookings'))
+    await page.getByRole('button', { name: 'Create Booking' }).click()
+    await name.fill(`Stay Rules ${stamp} changed`)
+    release()
+    expect((await sent).status()).toBe(422)
+
+    await expect(page.getByRole('button', { name: 'Book anyway' })).toHaveCount(0)
+    await expect(page.getByText(/status code 422/)).toHaveCount(0)
+  })
 })
