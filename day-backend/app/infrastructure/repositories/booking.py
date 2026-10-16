@@ -414,6 +414,13 @@ class SqlBookingRepository(BookingRepository):
             {"k": f"booking-idempotency:{company_id}:{key}"},
         )
 
+    async def lock_property_calendar(self, property_id: uuid.UUID) -> None:
+        # Same kind of lock as lock_idempotency_key, held until commit.
+        await self._session.execute(
+            text("SELECT pg_advisory_xact_lock(hashtextextended(:k, 0))"),
+            {"k": f"booking-property:{property_id}"},
+        )
+
     async def get_by_idempotency_key(self, company_id: uuid.UUID, key: str) -> Booking | None:
         result = await self._session.scalar(
             select(BookingModel).where(
@@ -446,10 +453,11 @@ class SqlBookingRepository(BookingRepository):
         check_out: date,
         *,
         exclude_id: uuid.UUID | None = None,
+        include_completed: bool = False,
     ) -> list[Booking]:
         stmt = select(BookingModel).where(
             BookingModel.property_id == property_id,
-            BookingModel.status.notin_(["cancelled", "completed"]),
+            BookingModel.status.notin_(["cancelled"] if include_completed else ["cancelled", "completed"]),
             BookingModel.check_in < check_out,
             BookingModel.check_out > check_in,
         )

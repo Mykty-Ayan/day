@@ -193,3 +193,53 @@ async def test_the_api_names_the_broken_rules_and_takes_a_confirmed_stay(flat): 
 
     confirmed = await client.post("/api/v1/bookings", json={**stay, "override_rules": True})
     assert confirmed.status_code == 201, confirmed.text
+
+
+async def _hourly_flat(client, prop, use):
+    use(Permission.PROPERTIES_READ, Permission.PROPERTIES_WRITE, Permission.BOOKINGS_READ, Permission.BOOKINGS_WRITE)
+    updated = await client.patch(f"/api/v1/properties/{prop}", json={"rental_mode": "both", "buffer_hours": 2})
+    assert updated.status_code == 200, updated.text
+
+
+def _hourly(prop, start: str, end: str, phone: str) -> dict:
+    return {
+        "property_id": str(prop),
+        "guest_name": "Почасовой",
+        "guest_phone": phone,
+        "check_in": start,
+        "check_out": end,
+        "rental_mode": "hourly",
+    }
+
+
+@pytest.mark.integration
+async def test_two_bookings_at_once_cannot_both_skip_the_buffer(flat):  # noqa: F811  (the imported fixture)
+    # Each one alone sees no neighbour; together they would leave one hour for cleaning.
+    import asyncio
+
+    client, prop, use = flat
+    await _hourly_flat(client, prop, use)
+    morning = _hourly(prop, "2030-04-01T10:00:00", "2030-04-01T12:00:00", "+77010001601")
+    noon = _hourly(prop, "2030-04-01T13:00:00", "2030-04-01T15:00:00", "+77010001602")
+    first, second = await asyncio.gather(
+        client.post("/api/v1/bookings", json=morning), client.post("/api/v1/bookings", json=noon)
+    )
+    assert sorted([first.status_code, second.status_code]) == [201, 422], (first.text, second.text)
+
+
+@pytest.mark.integration
+async def test_a_completed_booking_still_needs_its_cleaning(flat):  # noqa: F811  (the imported fixture)
+    client, prop, use = flat
+    await _hourly_flat(client, prop, use)
+    done = await client.post(
+        "/api/v1/bookings", json=_hourly(prop, "2030-04-02T10:00:00", "2030-04-02T12:00:00", "+77010001603")
+    )
+    assert done.status_code == 201, done.text
+    for status in ("confirmed", "checked_in", "checked_out", "completed"):
+        moved = await client.post(f"/api/v1/bookings/{done.json()['id']}/status", json={"target_status": status})
+        assert moved.status_code == 200, (status, moved.text)
+    after = await client.post(
+        "/api/v1/bookings", json=_hourly(prop, "2030-04-02T13:00:00", "2030-04-02T15:00:00", "+77010001604")
+    )
+    assert after.status_code == 422, after.text
+    assert after.json()["detail"]["breaches"] == [{"rule": "buffer_hours", "limit": 2, "actual": 1}]
