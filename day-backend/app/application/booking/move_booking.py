@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import uuid
 
+from app.application.booking.blocks import ensure_not_blocked
 from app.application.booking.create_booking import validate_rental_mode_allowed
 from app.application.booking.stay_rules import overridden_rules, stay_rule_breaches
 from app.domain.booking.entities import Booking, BookingAuditLog
@@ -60,6 +61,7 @@ class MoveBookingService:
         )
         if overlapping:
             raise BookingOverlapError("Date range overlaps with existing booking on target property")
+        await ensure_not_blocked(self._booking_repo, target, booking.check_in, booking.check_out)
         # The target flat's rules; the dates stay, so no lead time.
         breaches = await stay_rule_breaches(
             target,

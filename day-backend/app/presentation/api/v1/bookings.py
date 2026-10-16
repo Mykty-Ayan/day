@@ -42,6 +42,7 @@ from app.domain.booking.exceptions import (
     IdempotencyKeyReusedError,
     IdempotencyKeyTakenError,
     IdempotencyKeyVoidedError,
+    PropertyBlockedError,
     StayRulesError,
 )
 from app.domain.booking.value_objects import BookingSource, BookingStatus, PaymentStatus, RentalMode
@@ -349,6 +350,9 @@ async def create_booking(
     except StayRulesError as e:
         await session.rollback()
         raise _stay_rules_refused(e)
+    except PropertyBlockedError as e:
+        await session.rollback()
+        raise HTTPException(status_code=409, detail=str(e))
     except ValueError as e:
         await session.rollback()
         raise HTTPException(status_code=400, detail=str(e))
@@ -674,6 +678,9 @@ async def update_booking(
     except StayRulesError as e:
         await session.rollback()
         raise _stay_rules_refused(e)
+    except PropertyBlockedError as e:
+        await session.rollback()
+        raise HTTPException(status_code=409, detail=str(e))
     except ValueError as e:
         await session.rollback()
         raise HTTPException(status_code=400, detail=str(e))
@@ -732,6 +739,9 @@ async def move_booking(
     except StayRulesError as e:
         await session.rollback()
         raise _stay_rules_refused(e)
+    except PropertyBlockedError as e:
+        await session.rollback()
+        raise HTTPException(status_code=409, detail=str(e))
     except ValueError as e:
         await session.rollback()
         raise HTTPException(status_code=400, detail=str(e))

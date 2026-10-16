@@ -21,6 +21,7 @@ from app.domain.booking.entities import (
     BookingPayment,
     GroupBooking,
     Guest,
+    PropertyBlock,
 )
 from app.domain.booking.exceptions import BookingOverlapError, IdempotencyKeyTakenError
 from app.domain.booking.repositories import (
@@ -56,6 +57,7 @@ from app.infrastructure.models.booking import (
     BookingPaymentModel,
     GroupBookingModel,
     GuestModel,
+    PropertyBlockModel,
     VoidedIdempotencyKeyModel,
 )
 
@@ -413,6 +415,43 @@ class SqlBookingRepository(BookingRepository):
             text("SELECT pg_advisory_xact_lock(hashtextextended(:k, 0))"),
             {"k": f"booking-idempotency:{company_id}:{key}"},
         )
+
+    async def list_blocks(self, property_id: uuid.UUID, date_from: date, date_to: date) -> list[PropertyBlock]:
+        stmt = select(PropertyBlockModel).where(
+            PropertyBlockModel.property_id == property_id,
+            PropertyBlockModel.start_date < date_to,
+            PropertyBlockModel.end_date > date_from,
+        ).order_by(PropertyBlockModel.start_date)
+        return [_model_to_block(m) for m in (await self._session.scalars(stmt)).all()]
+
+    async def list_company_blocks(self, company_id: uuid.UUID, date_from: date, date_to: date) -> list[PropertyBlock]:
+        stmt = select(PropertyBlockModel).where(
+            PropertyBlockModel.company_id == company_id,
+            PropertyBlockModel.start_date < date_to,
+            PropertyBlockModel.end_date > date_from,
+        ).order_by(PropertyBlockModel.start_date)
+        return [_model_to_block(m) for m in (await self._session.scalars(stmt)).all()]
+
+    async def add_block(self, block: PropertyBlock) -> PropertyBlock:
+        model = PropertyBlockModel(
+            id=block.id,
+            company_id=block.company_id,
+            property_id=block.property_id,
+            start_date=block.start_date,
+            end_date=block.end_date,
+            reason=block.reason,
+            created_by=block.created_by,
+        )
+        self._session.add(model)
+        await self._session.flush()
+        return _model_to_block(model)
+
+    async def get_block(self, block_id: uuid.UUID) -> PropertyBlock | None:
+        model = await self._session.get(PropertyBlockModel, block_id)
+        return _model_to_block(model) if model else None
+
+    async def delete_block(self, block_id: uuid.UUID) -> None:
+        await self._session.execute(delete(PropertyBlockModel).where(PropertyBlockModel.id == block_id))
 
     async def lock_property_calendar(self, property_id: uuid.UUID) -> None:
         # Same kind of lock as lock_idempotency_key, held until commit.
@@ -994,3 +1033,16 @@ class SqlBookingAuditLogRepository(BookingAuditLogRepository):
         )
         result = await self._session.scalars(stmt)
         return [_model_to_audit(m) for m in result.all()]
+
+
+def _model_to_block(m: PropertyBlockModel) -> PropertyBlock:
+    return PropertyBlock(
+        id=m.id,
+        company_id=m.company_id,
+        property_id=m.property_id,
+        start_date=m.start_date,
+        end_date=m.end_date,
+        reason=m.reason,
+        created_by=m.created_by,
+        created_at=m.created_at,
+    )

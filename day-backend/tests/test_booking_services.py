@@ -98,6 +98,29 @@ class FakeBookingRepository(BookingRepository):
     def __init__(self) -> None:
         self._bookings: dict[uuid.UUID, Booking] = {}
         self._voided: set[tuple[uuid.UUID, str]] = set()
+        self._blocks: dict[uuid.UUID, object] = {}
+
+    async def list_blocks(self, property_id, date_from, date_to):
+        return [
+            b for b in self._blocks.values()
+            if b.property_id == property_id and b.start_date < date_to and b.end_date > date_from
+        ]
+
+    async def list_company_blocks(self, company_id, date_from, date_to):
+        return [
+            b for b in self._blocks.values()
+            if b.company_id == company_id and b.start_date < date_to and b.end_date > date_from
+        ]
+
+    async def add_block(self, block):
+        self._blocks[block.id] = block
+        return block
+
+    async def get_block(self, block_id):
+        return self._blocks.get(block_id)
+
+    async def delete_block(self, block_id):
+        self._blocks.pop(block_id, None)
 
     async def create(self, booking: Booking) -> Booking:
         self._bookings[booking.id] = booking

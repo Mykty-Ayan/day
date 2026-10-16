@@ -140,6 +140,9 @@ class _CompanyRange:
     def __init__(self, rows):
         self._rows = rows
 
+    async def list_company_blocks(self, company_id, date_from, date_to):
+        return []  # no flat is closed in these cases
+
     async def list_by_company_date_range(self, company_id, start_date, end_date):
         return [
             b for b in self._rows

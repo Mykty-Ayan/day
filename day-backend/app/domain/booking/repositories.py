@@ -16,6 +16,7 @@ from app.domain.booking.entities import (
     BookingPayment,
     GroupBooking,
     Guest,
+    PropertyBlock,
 )
 from app.domain.booking.value_objects import BookingSource, BookingStatus
 
@@ -90,6 +91,26 @@ class BookingRepository(abc.ABC):
     ) -> list[Booking]:
         """The flat's active bookings in the range. `include_completed` adds the
         completed ones: a stay that ended early still needs its cleaning."""
+
+    # The flat's closed nights (blocks) live in its calendar with its bookings.
+    # A store without blocks has none; only the SQL one writes them.
+
+    async def list_blocks(self, property_id: uuid.UUID, date_from: date, date_to: date) -> list[PropertyBlock]:
+        """The flat's blocks with a night in [date_from, date_to)."""
+        return []
+
+    async def list_company_blocks(self, company_id: uuid.UUID, date_from: date, date_to: date) -> list[PropertyBlock]:
+        """Every flat's blocks of the company with a night in [date_from, date_to)."""
+        return []
+
+    async def add_block(self, block: PropertyBlock) -> PropertyBlock:
+        raise NotImplementedError
+
+    async def get_block(self, block_id: uuid.UUID) -> PropertyBlock | None:
+        return None
+
+    async def delete_block(self, block_id: uuid.UUID) -> None:
+        raise NotImplementedError
 
     async def lock_property_calendar(self, property_id: uuid.UUID) -> None:  # noqa: B027  (no-op unless SQL)
         """Serialize the checks of one flat's neighbours until the transaction ends:

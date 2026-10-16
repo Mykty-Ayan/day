@@ -1,8 +1,10 @@
 import uuid
-from datetime import datetime
+from datetime import date, datetime
 
 from sqlalchemy import (
     Boolean,
+    CheckConstraint,
+    Date,
     DateTime,
     ForeignKey,
     Integer,
@@ -238,3 +240,20 @@ class BookingAuditLogModel(Base):
     created_at: Mapped[datetime] = mapped_column(default=datetime.utcnow)
 
     booking: Mapped["BookingModel"] = relationship(back_populates="audit_logs")
+
+
+class PropertyBlockModel(Base):
+    """Nights a flat is closed without a booking (migration 037)."""
+
+    __tablename__ = "property_blocks"
+    __table_args__ = (CheckConstraint("end_date > start_date", name="ck_property_blocks_nights"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    company_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("companies.id"), index=True)
+    property_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("properties.id", ondelete="CASCADE"), index=True)
+    start_date: Mapped[date] = mapped_column(Date)
+    end_date: Mapped[date] = mapped_column(Date)
+    reason: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    # Who closed the nights; like the audit log's changed_by, a plain id.
+    created_by: Mapped[uuid.UUID | None] = mapped_column(nullable=True)
+    created_at: Mapped[datetime] = mapped_column(default=datetime.utcnow)

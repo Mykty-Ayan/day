@@ -51,3 +51,17 @@ class StayRulesError(ValueError):
         self.breaches = breaches
         broken = ", ".join(f"{b.rule} {b.limit} (booking: {b.actual})" for b in breaches)
         super().__init__(f"Booking breaks the apartment's stay rules: {broken}")
+
+
+class PropertyBlockedError(ValueError):
+    """The stay falls on nights the flat is closed (a block). The HTTP layer answers 409."""
+
+    def __init__(self) -> None:
+        super().__init__("Dates are blocked")
+
+
+class BlockOverlapsBookingError(ValueError):
+    """A block would close nights a booking already holds. The HTTP layer answers 409."""
+
+    def __init__(self) -> None:
+        super().__init__("Dates have bookings")

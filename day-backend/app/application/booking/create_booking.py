@@ -4,6 +4,7 @@ import uuid
 from dataclasses import dataclass
 from datetime import date, datetime, time
 
+from app.application.booking.blocks import ensure_not_blocked
 from app.application.booking.price_calculator import PriceCalculatorService
 from app.application.booking.stay_rules import overridden_rules, stay_rule_breaches
 from app.config import settings
@@ -224,6 +225,7 @@ class CreateBookingService:
         )
         if overlapping:
             raise BookingOverlapError()
+        await ensure_not_blocked(self._booking_repo, prop, check_in, check_out)
 
         breaches = await stay_rule_breaches(
             prop,
