@@ -7,6 +7,7 @@
 
 import { expect, test } from '@playwright/test'
 import {
+  attemptSheet,
   companyFromToken,
   latestBookingCall,
   loadBookingAttempt,
@@ -185,5 +186,20 @@ test.describe('a late answer to an earlier send of the same booking', () => {
     saveBookingAttempt(storage, 'c-1', sent)
     expect(storedBookingAttempt(storage, 'c-1')).toEqual(sent)
     expect(storedBookingAttempt(storage, 'c-2')).toBeNull()
+  })
+})
+
+test('a stored attempt reopens its sheet even when its flat is no longer free', () => {
+  // The lost answer may be the booking that took the last free flat: the free list
+  // is empty, yet the attempt must still be retried or checked from its sheet.
+  const { unit, range } = attemptSheet(ATTEMPT)
+  expect(unit.property_id).toBe(ATTEMPT.body.property_id)
+  expect(unit.name).toBe('89auc')
+  // The sheet sends the range as it is: the same body goes out under the same key.
+  expect(range).toEqual({
+    checkIn: ATTEMPT.body.check_in,
+    checkOut: ATTEMPT.body.check_out,
+    rentalMode: ATTEMPT.body.rental_mode,
+    guests: ATTEMPT.body.adults_count,
   })
 })

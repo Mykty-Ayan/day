@@ -20,6 +20,7 @@ import {
   companyFromToken,
   latestBookingCall,
   loadBookingAttempt,
+  phoneStorage,
   saveBookingAttempt,
   startBooking,
   storedBookingAttempt,
@@ -35,14 +36,6 @@ import { useClosingConfirmation } from './useClosingConfirmation'
 
 const SOURCES: BookingSource[] = ['direct', 'airbnb', 'booking', 'other']
 const HOLD_HOURS = 2
-
-function phoneStorage(): Storage | undefined {
-  try {
-    return window.localStorage
-  } catch {
-    return undefined
-  }
-}
 
 export default function BookSheet({
   unit,
