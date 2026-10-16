@@ -182,3 +182,51 @@ async def test_edits_read_the_booking_under_its_row_lock():
     await f.move.execute(booking.id, COMPANY_ID, there.id)
     await ChangeBookingStatusService(f.bookings, f.audit).execute(booking.id, COMPANY_ID, BookingStatus.CONFIRMED)
     assert locked == [booking.id, booking.id, booking.id]
+
+
+async def test_closed_nights_go_to_channex_as_unavailable():
+    # Channex sells what Day says is free: closed nights go out as availability 0.
+    from decimal import Decimal
+
+    from app.application.channex.push_ari import PushAriInput, PushAriService
+    from app.domain.booking.entities import PropertyBlock
+    from app.domain.property.entities import PricingConfig
+    from tests.test_booking_services import _make_property
+    from tests.test_channex_services import COMPANY_ID as CHANNEX_COMPANY
+    from tests.test_channex_services import (
+        PROPERTY_ID,
+        FakeBookingRepository,
+        FakeGateway,
+        FakeListingRepository,
+        FakePricingRepository,
+        FakePropertyRepository,
+        _active_listing,
+    )
+
+    listed = _make_property(company_id=CHANNEX_COMPANY)
+    listed.id = PROPERTY_ID
+    listings = FakeListingRepository()
+    await listings.create(_active_listing())
+    bookings = FakeBookingRepository()
+    closed = PropertyBlock(
+        company_id=CHANNEX_COMPANY,
+        property_id=PROPERTY_ID,
+        start_date=date(2026, 11, 2),
+        end_date=date(2026, 11, 4),
+        starts_at=datetime(2026, 11, 2, 12),
+        ends_at=datetime(2026, 11, 4, 12),
+    )
+
+    async def list_blocks(property_id, date_from, date_to):
+        return [closed]
+
+    bookings.list_blocks = list_blocks
+    service = PushAriService(
+        listings, bookings, FakePricingRepository(PricingConfig(base_price=Decimal("25000"))), FakeGateway(),
+        FakePropertyRepository([listed]),
+    )
+    result = await service.execute(
+        PushAriInput(company_id=CHANNEX_COMPANY, property_id=PROPERTY_ID, date_from=date(2026, 11, 1),
+                     date_to=date(2026, 11, 6))
+    )
+    assert result.blocked_dates == [date(2026, 11, 2), date(2026, 11, 3)]

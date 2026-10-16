@@ -33,8 +33,9 @@ class PushAriResult:
 class PushAriService:
     """Push availability and nightly rate for a listing's date range.
 
-    Availability is derived from Day PMS bookings: a night covered by any
-    non-cancelled booking is pushed as 0, everything else as 1. Channex also
+    Availability is derived from Day PMS bookings and closed nights (blocks):
+    a night covered by any non-cancelled booking or a block is pushed as 0,
+    everything else as 1. Channex also
     auto-decrements on channel bookings, so this push is the reconciliation
     that keeps direct bookings blocking the channels too.
     """
@@ -74,6 +75,7 @@ class PushAriService:
         bookings = await self._bookings.list_by_property_date_range(
             inp.property_id, inp.date_from, inp.date_to + timedelta(days=1), company_id=inp.company_id
         )
+        closed = await self._bookings.list_blocks(inp.property_id, inp.date_from, inp.date_to + timedelta(days=1))
         # Nights by the flat's own hours, as the iCal feed counts them.
         prop = await self._properties.get_by_id(inp.property_id)
         blocked = {
@@ -82,6 +84,7 @@ class PushAriService:
                 bookings,
                 settings.DEFAULT_CHECK_IN_HOUR if prop is None or prop.check_in_hour is None else prop.check_in_hour,
                 settings.DEFAULT_CHECK_OUT_HOUR if prop is None or prop.check_out_hour is None else prop.check_out_hour,
+                blocks=closed,
             )
             for night in _days(start, end)
             if inp.date_from <= night < inp.date_to
