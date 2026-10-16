@@ -102,6 +102,7 @@ export default function GanttChartPage() {
     return ganttData.properties.map((p) => ({
       property: p,
       bookings: p.bookings,
+      blocks: p.blocks ?? [],
     }))
   }, [ganttData])
 

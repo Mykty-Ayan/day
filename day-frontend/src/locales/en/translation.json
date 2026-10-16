@@ -323,7 +323,21 @@
       "failed": "Could not get the link",
       "copyFailed": "Could not copy: select the link and copy it by hand"
     },
-    "listings": "Listings"
+    "listings": "Listings",
+    "blocks": {
+      "title": "Closed dates",
+      "hint": "Nights without a booking: repairs, your own guests, a stay sold elsewhere. Nothing can be booked on them, and the flat is not offered.",
+      "empty": "No closed dates.",
+      "pickNights": "First night → check-out day",
+      "reason": "Reason, e.g. \"repairs\"",
+      "add": "Close dates",
+      "added": "Dates closed",
+      "remove": "Reopen dates",
+      "removeTitle": "Reopen these dates for booking?",
+      "removed": "Dates reopened",
+      "hasBookings": "These dates already have bookings",
+      "failed": "Could not save"
+    }
   },
   "bookings": {
     "title": "Bookings",
@@ -446,7 +460,8 @@
       "dateRequired": "Date is required",
       "startTimeRequired": "Start time is required",
       "endTimeRequired": "End time is required",
-      "endTimeAfterStart": "End time must be after start time"
+      "endTimeAfterStart": "End time must be after start time",
+      "datesBlocked": "The flat is closed on these dates"
     },
     "sources": {
       "direct": "Direct",
@@ -561,7 +576,9 @@
       "9": "October",
       "10": "November",
       "11": "December"
-    }
+    },
+    "closed": "Closed",
+    "closedDay": "The flat is closed on this day"
   },
   "cleaning": {
     "title": "Cleaning",

@@ -414,6 +414,13 @@ class GanttBookingResponse(BaseModel):
     overbooking: bool = False
 
 
+class GanttBlockResponse(BaseModel):
+    id: uuid.UUID
+    start_date: date
+    end_date: date
+    reason: str | None = None
+
+
 class GanttPropertyResponse(BaseModel):
     id: uuid.UUID
     name: str
@@ -421,6 +428,8 @@ class GanttPropertyResponse(BaseModel):
     type: str
     status: PropertyStatus
     bookings: list[GanttBookingResponse]
+    # Nights closed without a booking.
+    blocks: list[GanttBlockResponse] = []
 
 
 class GanttDataResponse(BaseModel):

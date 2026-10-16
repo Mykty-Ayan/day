@@ -2,7 +2,7 @@ import { useMemo, useRef, useState, useCallback, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useNavigate } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
-import type { Booking, BookingStatus, GanttPropertySummary } from '../../types/booking'
+import type { Booking, BookingStatus, GanttBlock, GanttPropertySummary } from '../../types/booking'
 import type { PricingConfig } from '../../types/property'
 import { showToast } from '../ui/Toast'
 import { moveBooking } from '../../api/bookings'
@@ -15,6 +15,8 @@ import { useMediaQuery } from '../../hooks/useMediaQuery'
 export interface GanttRow {
   property: GanttPropertySummary
   bookings: Booking[]
+  /** Nights closed without a booking. */
+  blocks?: GanttBlock[]
 }
 
 interface Props {
@@ -77,6 +79,12 @@ function getBookingDayRange(checkIn: string, checkOut: string): { start: Date; e
     end = new Date(start.getFullYear(), start.getMonth(), start.getDate() + 1)
   }
   return { start, end }
+}
+
+// A closed night: start_date <= day < end_date.
+function isClosedOnDate(blocks: GanttBlock[] | undefined, day: Date): boolean {
+  const key = toDateStr(day)
+  return (blocks ?? []).some((block) => block.start_date <= key && key < block.end_date)
 }
 
 function isBookedOnDate(bookings: Booking[], day: Date): boolean {
@@ -475,6 +483,13 @@ export default function GanttChart({
 
   function getBarPosition(booking: Booking): { left: number; width: number } | null {
     const { start: checkIn, end: checkOut } = getBookingDayRange(booking.check_in, booking.check_out)
+    // Hourly / same-day bookings collapse to a sub-cell span; keep them at a full
+    // cell so they stay tappable and identifiable (see the distinct pill styling).
+    return getSpanPosition(checkIn, checkOut, isHourlyBooking(booking) ? cellW : cellW * 0.5)
+  }
+
+  // [checkIn, checkOut) in whole days, clipped to the visible range.
+  function getSpanPosition(checkIn: Date, checkOut: Date, minWidth: number): { left: number; width: number } | null {
     const rangeEndExclusive = new Date(
       rangeEndDate.getFullYear(),
       rangeEndDate.getMonth(),
@@ -495,9 +510,6 @@ export default function GanttChart({
     )
 
     const left = startDayOffset * cellW
-    // Hourly / same-day bookings collapse to a sub-cell span; keep them at a full
-    // cell so they stay tappable and identifiable (see the distinct pill styling).
-    const minWidth = isHourlyBooking(booking) ? cellW : cellW * 0.5
     const width = Math.max((endDayOffset - startDayOffset) * cellW, minWidth)
 
     return { left, width }
@@ -725,7 +737,8 @@ export default function GanttChart({
                       && dayKey === pendingPreviewEnd,
                   )
                   const hasBooking = isBookedOnDate(row.bookings, day)
-                  const nightlyRate = hasBooking
+                  const closed = isClosedOnDate(row.blocks, day)
+                  const nightlyRate = hasBooking || closed
                     ? null
                     : getNightlyRateForDate(pricingByProperty?.[row.property.id], day)
                   return (
@@ -810,7 +823,14 @@ export default function GanttChart({
                           setRangePreviewTooltip(null)
                         }
                       }}
-                      onClick={() => handleCellClick(row.property, day)}
+                      onClick={() => {
+                        // A closed night starts no stay; ending one on it (its morning) is fine.
+                        if (closed && !isPendingRow) {
+                          showToast('error', t('gantt.closedDay'))
+                          return
+                        }
+                        handleCellClick(row.property, day)
+                      }}
                     >
                       {nightlyRate !== null && (
                         <div className="pointer-events-none flex h-full items-end justify-center pb-1">
@@ -820,6 +840,32 @@ export default function GanttChart({
                         </div>
                       )}
                     </button>
+                  )
+                })}
+
+                {/* Closed nights: hatched, under the booking bars */}
+                {(row.blocks ?? []).map((block) => {
+                  const pos = getSpanPosition(parseDateOnly(block.start_date), parseDateOnly(block.end_date), cellW * 0.5)
+                  if (!pos) return null
+                  const label = block.reason || t('gantt.closed')
+                  return (
+                    <div
+                      key={block.id}
+                      role="img"
+                      aria-label={`${t('gantt.closed')}: ${label}`}
+                      title={label}
+                      className="pointer-events-none absolute rounded-lg text-[11px] font-semibold text-gray-600"
+                      style={{
+                        left: pos.left,
+                        width: pos.width,
+                        top: BAR_Y,
+                        height: BAR_H,
+                        zIndex: 4,
+                        background: 'repeating-linear-gradient(45deg, #e5e7eb 0 6px, #f3f4f6 6px 12px)',
+                      }}
+                    >
+                      <div className="flex h-full items-center overflow-hidden whitespace-nowrap px-2">{label}</div>
+                    </div>
                   )
                 })}
 

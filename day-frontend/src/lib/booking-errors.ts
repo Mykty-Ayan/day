@@ -31,6 +31,12 @@ export function getBookingApiErrorMessage(error: unknown, t: Translate): string 
   if (normalized.includes('date range overlaps with existing booking')) {
     return t('bookings.validation.dateRangeOverlap')
   }
+  if (normalized.includes('dates are blocked')) {
+    return t('bookings.validation.datesBlocked')
+  }
+  if (normalized.includes('dates have bookings')) {
+    return t('properties.blocks.hasBookings')
+  }
   if (normalized.includes('check-out must be after check-in')) {
     return t('bookings.validation.checkOutAfterCheckIn')
   }
@@ -57,6 +63,7 @@ export function getBookingFieldError(error: unknown, t: Translate): BookingField
   const normalized = normalizeMessage(raw)
   if (
     normalized.includes('date range overlaps with existing booking') ||
+    normalized.includes('dates are blocked') ||
     normalized.includes('check-out must be after check-in')
   ) {
     return { field: 'check_out', message: getBookingApiErrorMessage(error, t) ?? t('bookings.failedUpdate') }

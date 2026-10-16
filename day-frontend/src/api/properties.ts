@@ -17,6 +17,7 @@ import type {
   PhotoAudience,
   Tag,
   TagCreateInput,
+  PropertyBlock,
 } from '../types/property'
 
 // --- Properties ---
@@ -297,4 +298,23 @@ export async function assignTags(
 export async function getCalendarLink(propertyId: string): Promise<string> {
   const res = await apiClient.get<{ url: string }>(`/properties/${propertyId}/calendar-link`)
   return res.data.url
+}
+
+// --- Closed nights (blocks) ---
+
+export async function listBlocks(propertyId: string, dateFrom: string, dateTo: string): Promise<PropertyBlock[]> {
+  const res = await apiClient.get(`/properties/${propertyId}/blocks`, { params: { date_from: dateFrom, date_to: dateTo } })
+  return res.data
+}
+
+export async function createBlock(
+  propertyId: string,
+  body: { start_date: string; end_date: string; reason?: string },
+): Promise<PropertyBlock> {
+  const res = await apiClient.post(`/properties/${propertyId}/blocks`, body)
+  return res.data
+}
+
+export async function deleteBlock(propertyId: string, blockId: string): Promise<void> {
+  await apiClient.delete(`/properties/${propertyId}/blocks/${blockId}`)
 }

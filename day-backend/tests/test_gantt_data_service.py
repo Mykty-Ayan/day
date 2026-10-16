@@ -158,3 +158,35 @@ def test_the_booking_answer_carries_the_clash_flag():
         overbooking=True,
     )
     assert _to_booking_response(booking).overbooking is True
+
+
+async def test_the_chessboard_shows_each_flats_closed_nights():
+    from app.domain.booking.entities import PropertyBlock
+
+    company_id = uuid.uuid4()
+    flat = Property(
+        id=uuid.uuid4(), company_id=company_id, name="Студия", internal_name="62auc",
+        type=PropertyType.APARTMENT, status=PropertyStatus.ACTIVE,
+    )
+    other = Property(
+        id=uuid.uuid4(), company_id=company_id, name="Двушка", internal_name="89auc",
+        type=PropertyType.APARTMENT, status=PropertyStatus.ACTIVE,
+    )
+    block = PropertyBlock(
+        company_id=company_id, property_id=flat.id, start_date=date(2026, 2, 10), end_date=date(2026, 2, 12),
+        reason="Ремонт",
+    )
+    property_repo, booking_repo, guest_repo = AsyncMock(), AsyncMock(), AsyncMock()
+    property_repo.list_by_company.return_value = [flat, other]
+    booking_repo.list_by_property_date_range.return_value = []
+    booking_repo.list_company_blocks.return_value = [block]
+
+    result = await GetGanttDataService(property_repo, booking_repo, guest_repo).execute(  # type: ignore[arg-type]
+        company_id, date(2026, 2, 1), date(2026, 2, 28)
+    )
+    booking_repo.list_company_blocks.assert_awaited_once_with(company_id, date(2026, 2, 1), date(2026, 2, 28))
+    by_flat = {p.internal_name: p.blocks for p in result.properties}
+    assert [(b.start_date, b.end_date, b.reason) for b in by_flat["62auc"]] == [
+        (date(2026, 2, 10), date(2026, 2, 12), "Ремонт")
+    ]
+    assert by_flat["89auc"] == []

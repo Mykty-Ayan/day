@@ -4,7 +4,7 @@
  */
 
 import { expect, test } from '@playwright/test'
-import { currentBreaches, stayRuleBreaches, stayRuleText } from '../../src/lib/booking-errors'
+import { currentBreaches, getBookingApiErrorMessage, stayRuleBreaches, stayRuleText } from '../../src/lib/booking-errors'
 
 const refused = (detail: unknown) => ({ isAxiosError: true, response: { status: 422, data: { detail } } })
 const t = (key: string, values?: Record<string, unknown>) => `${key} ${JSON.stringify(values ?? {})}`
@@ -39,4 +39,10 @@ test('a refusal shows only while the form would still send what was refused', ()
   expect(currentBreaches(refusal, { ...sent })).toEqual(refusal.breaches)
   expect(currentBreaches(refusal, { ...sent, check_out: '2026-10-22' })).toBeNull()
   expect(currentBreaches(null, sent)).toBeNull()
+})
+
+test('closed dates read as such', () => {
+  const t2 = (key: string) => key
+  expect(getBookingApiErrorMessage(refused('Dates are blocked'), t2)).toBe('bookings.validation.datesBlocked')
+  expect(getBookingApiErrorMessage(refused('Dates have bookings'), t2)).toBe('properties.blocks.hasBookings')
 })

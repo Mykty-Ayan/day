@@ -44,6 +44,17 @@ export function bookedNights(stays: Stay[], exceptId?: string): Set<string> {
   return nights
 }
 
+/** The nights (yyyy-MM-dd) a flat is closed: start_date to the night before end_date. */
+export function blockNights(blocks: { start_date: string; end_date: string }[]): Set<string> {
+  const nights = new Set<string>()
+  for (const block of blocks) {
+    for (let night = parseISO(block.start_date); format(night, 'yyyy-MM-dd') < block.end_date; night = addDays(night, 1)) {
+      nights.add(format(night, 'yyyy-MM-dd'))
+    }
+  }
+  return nights
+}
+
 /** Whether a day cannot be clicked in the daily range picker. With no check-in
  *  picked, a click starts a stay, and a booked night cannot. After a check-in, a
  *  later click is the check-out: up to and including the first booked night
