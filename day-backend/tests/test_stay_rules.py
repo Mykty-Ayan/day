@@ -85,3 +85,13 @@ def test_every_broken_rule_is_reported():
         RuleBreach("min_nights", 3, 1),
         RuleBreach("min_lead_hours", 48, 26),
     ]
+
+
+def test_a_booking_inside_a_completed_one_has_no_cleaning_time():
+    # An hourly booking 10:00-12:00 marked completed at 11:00. Its hours no longer
+    # block the flat, but a new one at 11:30 leaves no time to clean.
+    flat = rules(buffer_hours=2)
+    completed = stay("2026-10-20T10:00", "2026-10-20T12:00", HOURLY)
+    assert breaches(flat, stay("2026-10-20T11:30", "2026-10-20T13:00", HOURLY), neighbours=[completed]) == [
+        RuleBreach("buffer_hours", 2, 0)
+    ]

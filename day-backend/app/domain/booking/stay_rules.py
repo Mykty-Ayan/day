@@ -72,11 +72,16 @@ def stay_breaches(
     if rules.buffer_hours is not None:
         buffer = timedelta(hours=rules.buffer_hours)
         gaps = [
-            check_in - other.check_out if other.check_out <= check_in else other.check_in - check_out
+            check_in - other.check_out
+            if other.check_out <= check_in
+            else other.check_in - check_out
+            if other.check_in >= check_out
+            # Overlapping: an active one is refused before this, as an overlap; a
+            # completed one (left early) no longer blocks its hours, yet leaves
+            # no time to clean.
+            else timedelta(0)
             for other in neighbours
             if RentalMode.HOURLY in (rental_mode, other.rental_mode)
-            # An overlap is refused on its own, as an overlap.
-            and (other.check_out <= check_in or other.check_in >= check_out)
         ]
         short = [gap for gap in gaps if gap < buffer]
         if short:
