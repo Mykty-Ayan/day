@@ -7,7 +7,7 @@ import { isWebLink } from '../../lib/utils'
 import Spinner from '../../components/ui/Spinner'
 import { useProperty, useUpdateProperty } from '../../hooks/useProperties'
 import type { Property } from '../../types/property'
-import { formToUpdate, propertyToForm, type PropertyEditForm } from './propertyForm'
+import { formToUpdate, listingLinksValid, propertyToForm, type PropertyEditForm } from './propertyForm'
 import PropertyFormStepBasic from '../../components/property/PropertyFormStepBasic'
 import PropertyFormStepAddress from '../../components/property/PropertyFormStepAddress'
 import PropertyFormStepDetails from '../../components/property/PropertyFormStepDetails'
@@ -55,6 +55,7 @@ function EditPropertyForm({ property, propertyId }: { property: Property; proper
       for (const key of ['map_url', 'whatsapp_product_url', 'video_url'] as const) {
         if (form.basic[key].trim() && !isWebLink(form.basic[key])) newErrors[key] = t('properties.validation.webLink')
       }
+      if (!listingLinksValid(form.basic.listing_urls)) newErrors.listing_urls = t('properties.validation.listingLinks')
     }
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0

@@ -10,6 +10,7 @@ interface BasicData {
   map_url: string
   whatsapp_product_url: string
   video_url: string
+  listing_urls: string
 }
 
 interface Props {
@@ -136,6 +137,27 @@ export default function PropertyFormStepBasic({ data, onChange, errors }: Props)
           {errors[key] && <p className="text-red-600 text-xs mt-1">{errors[key]}</p>}
         </div>
       ))}
+
+      <div>
+        <label htmlFor="listing-urls" className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">
+          {t('properties.form.listingUrls')}
+        </label>
+        <textarea
+          id="listing-urls"
+          rows={3}
+          value={data.listing_urls}
+          onChange={(e) => update('listing_urls', e.target.value)}
+          placeholder={t('properties.form.listingUrlsPlaceholder')}
+          className={`w-full resize-none bg-gray-50 border rounded-xl p-3 outline-none focus:ring-2 focus:ring-black/10 text-gray-800 text-sm ${
+            errors.listing_urls ? 'border-red-300 bg-red-50' : 'border-gray-200'
+          }`}
+        />
+        {errors.listing_urls ? (
+          <p className="text-red-600 text-xs mt-1">{errors.listing_urls}</p>
+        ) : (
+          <p className="text-gray-500 text-xs mt-1">{t('properties.form.listingUrlsHint')}</p>
+        )}
+      </div>
     </div>
   )
 }

@@ -274,12 +274,16 @@
       "checkInMethod": "Как гость заходит",
       "defaultHour": "Как у компании ({{hour}})",
       "notSet": "Не указано",
-      "turnoverHours": "Выезд не может быть позже заезда: иначе соседние брони пересекутся"
+      "turnoverHours": "Выезд не может быть позже заезда: иначе соседние брони пересекутся",
+      "listingUrls": "Ссылки на объявления",
+      "listingUrlsPlaceholder": "https://krisha.kz/a/show/…\nhttps://www.booking.com/hotel/…",
+      "listingUrlsHint": "По одной в строке: Krisha, Booking, Airbnb, OLX. Гость присылает такую ссылку — CRM находит по ней квартиру."
     },
     "validation": {
       "nameRequired": "Название обязательно",
       "internalNameRequired": "Внутреннее название обязательно",
-      "webLink": "Ссылка должна начинаться с https://"
+      "webLink": "Ссылка должна начинаться с https://",
+      "listingLinks": "По одной ссылке в строке: каждая начинается с http:// или https://, без пробелов, до 500 символов; не больше 20"
     },
     "amenityCategories": {
       "bathroom": "Ванная",
@@ -317,7 +321,8 @@
       "copied": "Ссылка скопирована",
       "failed": "Не удалось получить ссылку",
       "copyFailed": "Не удалось скопировать: выделите ссылку и скопируйте вручную"
-    }
+    },
+    "listings": "Объявления"
   },
   "bookings": {
     "title": "Бронирования",

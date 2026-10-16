@@ -268,12 +268,16 @@
       "checkInMethod": "Қонақ қалай кіреді",
       "defaultHour": "Компаниядағыдай ({{hour}})",
       "notSet": "Көрсетілмеген",
-      "turnoverHours": "Шығу кіруден кеш болмауы керек, әйтпесе қатар броньдар қиылысады"
+      "turnoverHours": "Шығу кіруден кеш болмауы керек, әйтпесе қатар броньдар қиылысады",
+      "listingUrls": "Хабарландыру сілтемелері",
+      "listingUrlsPlaceholder": "https://krisha.kz/a/show/…\nhttps://www.booking.com/hotel/…",
+      "listingUrlsHint": "Әр жолға біреуден: Krisha, Booking, Airbnb, OLX. Қонақ осындай сілтеме жіберсе, CRM пәтерді сол бойынша табады."
     },
     "validation": {
       "nameRequired": "Атауы міндетті",
       "internalNameRequired": "Ішкі атауы міндетті",
-      "webLink": "Сілтеме https:// деп басталуы керек"
+      "webLink": "Сілтеме https:// деп басталуы керек",
+      "listingLinks": "Әр жолға бір сілтеме: http:// немесе https:// басталады, бос орынсыз, 500 таңбаға дейін; 20-дан аспайды"
     },
     "amenityCategories": {
       "bathroom": "Жуынатын бөлме",
@@ -311,7 +315,8 @@
       "copied": "Сілтеме көшірілді",
       "failed": "Сілтемені алу мүмкін болмады",
       "copyFailed": "Көшіру мүмкін болмады: сілтемені белгілеп, қолмен көшіріңіз"
-    }
+    },
+    "listings": "Хабарландырулар"
   },
   "bookings": {
     "title": "Броньдар",

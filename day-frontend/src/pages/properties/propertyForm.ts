@@ -1,3 +1,4 @@
+import { isWebLink } from '../../lib/utils'
 import type { CheckInMethod, Property, PropertyCreateInput, PropertyType, PropertyUpdateInput } from '../../types/property'
 
 /** The edit form keeps every field as typed text; the payload turns it back into values. */
@@ -11,6 +12,8 @@ export interface PropertyEditForm {
     map_url: string
     whatsapp_product_url: string
     video_url: string
+    /** One link per line. */
+    listing_urls: string
   }
   address: {
     address_full: string
@@ -57,6 +60,7 @@ export function propertyToForm(property: Property): PropertyEditForm {
       map_url: asText(property.map_url),
       whatsapp_product_url: asText(property.whatsapp_product_url),
       video_url: asText(property.video_url),
+      listing_urls: (property.listing_urls ?? []).join('\n'),
     },
     address: {
       address_full: asText(property.address_full),
@@ -90,6 +94,26 @@ export function propertyToForm(property: Property): PropertyEditForm {
   }
 }
 
+/** The flat's listing links as typed, one per line; blank lines dropped. */
+export function listingLines(value: string): string[] {
+  return value
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean)
+}
+
+// As the server takes them: web addresses of up to 500 characters, at most twenty.
+const MAX_LISTING_LINKS = 20
+const MAX_LISTING_LINK_LENGTH = 500
+
+export function listingLinksValid(value: string): boolean {
+  const lines = listingLines(value)
+  return (
+    lines.length <= MAX_LISTING_LINKS &&
+    lines.every((line) => isWebLink(line) && line.length <= MAX_LISTING_LINK_LENGTH)
+  )
+}
+
 // null, not undefined: the server keeps a missing field as it was, so a
 // cleared field must go out as cleared.
 const text = (value: string) => value.trim() || null
@@ -110,6 +134,8 @@ export function formToUpdate(form: PropertyEditForm, opened: PropertyEditForm): 
     map_url: text(form.basic.map_url),
     whatsapp_product_url: text(form.basic.whatsapp_product_url),
     video_url: text(form.basic.video_url),
+    // Always sent: an emptied field clears the links.
+    listing_urls: listingLines(form.basic.listing_urls),
     address_full: text(form.address.address_full),
     apartment_number: text(form.address.apartment_number),
     entrance: text(form.address.entrance),
