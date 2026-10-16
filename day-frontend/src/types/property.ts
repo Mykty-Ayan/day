@@ -100,6 +100,8 @@ export interface Property {
   map_url: string | null
   whatsapp_product_url: string | null
   video_url: string | null
+  /** The flat's listings (Krisha, Booking, Airbnb, OLX); the CRM finds the flat by a guest's link. */
+  listing_urls: string[]
   rooms: number
   beds: number
   max_guests: number | null
@@ -142,6 +144,7 @@ export interface PropertyCreateInput {
   map_url?: string | null
   whatsapp_product_url?: string | null
   video_url?: string | null
+  listing_urls?: string[]
   rooms?: number
   beds?: number
   max_guests?: number | null

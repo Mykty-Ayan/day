@@ -6,7 +6,14 @@
  */
 
 import { expect, test } from '@playwright/test'
-import { formToUpdate, propertyToForm, saveWizard, wizardToUpdate } from '../../src/pages/properties/propertyForm'
+import {
+  formToUpdate,
+  listingLines,
+  listingLinksValid,
+  propertyToForm,
+  saveWizard,
+  wizardToUpdate,
+} from '../../src/pages/properties/propertyForm'
 import type { Property, PropertyCreateInput } from '../../src/types/property'
 
 const flat = {
@@ -156,4 +163,24 @@ test('a retry saves the form changed between attempts', () => {
     floor: 0,
     wifi_name: 'Guest WiFi ',
   })
+})
+
+test('listing links are typed one per line and go out as a list', () => {
+  expect(listingLines(' https://krisha.kz/a/show/1 \n\n https://www.booking.com/hotel/kz/a.html\n')).toEqual([
+    'https://krisha.kz/a/show/1',
+    'https://www.booking.com/hotel/kz/a.html',
+  ])
+  const listed = { ...flat, listing_urls: ['https://krisha.kz/a/show/1'] } as unknown as Property
+  const form = propertyToForm(listed)
+  expect(form.basic.listing_urls).toBe('https://krisha.kz/a/show/1')
+  form.basic.listing_urls = ''
+  // An emptied field clears the links: an empty list, never a missing one.
+  expect(formToUpdate(form, propertyToForm(listed)).listing_urls).toEqual([])
+})
+
+test('listing links must be web addresses, twenty at most', () => {
+  expect(listingLinksValid('https://krisha.kz/a/show/1\nhttps://olx.kz/d/obyavlenie/x')).toBe(true)
+  expect(listingLinksValid('krisha.kz/a/show/1')).toBe(false)
+  expect(listingLinksValid(Array.from({ length: 21 }, (_, n) => `https://krisha.kz/a/show/${n}`).join('\n'))).toBe(false)
+  expect(listingLinksValid('')).toBe(true)
 })

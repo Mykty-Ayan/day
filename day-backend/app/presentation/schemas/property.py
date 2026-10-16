@@ -22,6 +22,8 @@ from app.domain.property.value_objects import (
 
 # A link the web shows and the CRM sends to guests: a web address and nothing else.
 WebLink = Annotated[str, StringConstraints(strip_whitespace=True, max_length=1024, pattern=r"^https?://\S+$")]
+# A listing of the flat on Krisha, Booking, Airbnb, OLX; the CRM matches a guest's link against them.
+ListingLink = Annotated[str, StringConstraints(strip_whitespace=True, max_length=500, pattern=r"^https?://\S+$")]
 
 
 class _TurnoverHours(BaseModel):
@@ -62,6 +64,7 @@ class PropertyCreate(_TurnoverHours):
     map_url: WebLink | None = None
     whatsapp_product_url: WebLink | None = None
     video_url: WebLink | None = None
+    listing_urls: list[ListingLink] = Field(default_factory=list, max_length=20)
     # Stay rules for bookings made in Day; null is no rule.
     min_nights: int | None = Field(default=None, ge=1, le=365)
     max_nights: int | None = Field(default=None, ge=1, le=365)
@@ -102,6 +105,7 @@ class PropertyUpdate(_TurnoverHours):
     map_url: WebLink | None = None
     whatsapp_product_url: WebLink | None = None
     video_url: WebLink | None = None
+    listing_urls: list[ListingLink] = Field(default_factory=list, max_length=20)
     # Stay rules for bookings made in Day; null is no rule.
     min_nights: int | None = Field(default=None, ge=1, le=365)
     max_nights: int | None = Field(default=None, ge=1, le=365)
@@ -147,6 +151,7 @@ class PropertyResponse(BaseModel):
     map_url: str | None = None
     whatsapp_product_url: str | None = None
     video_url: str | None = None
+    listing_urls: list[str] = []
     min_nights: int | None = None
     max_nights: int | None = None
     buffer_hours: int | None = None
