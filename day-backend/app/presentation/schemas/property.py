@@ -134,6 +134,8 @@ class PropertyResponse(BaseModel):
     company_id: uuid.UUID
     name: str
     internal_name: str
+    # The code of the flat's page for guests (/s/<code>).
+    public_code: str | None = None
     type: PropertyType
     status: PropertyStatus
     rental_mode: RentalMode = RentalMode.DAILY

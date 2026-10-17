@@ -5,12 +5,12 @@ from starlette.requests import Request
 from app.infrastructure.rate_limiter import _bucket_owner
 
 
-def _request(headers: dict[str, str], client=("10.0.0.1", 1234)) -> Request:
+def _request(headers: dict[str, str], client=("10.0.0.1", 1234), path="/") -> Request:
     return Request(
         {
             "type": "http",
             "method": "GET",
-            "path": "/",
+            "path": path,
             "headers": [(k.lower().encode(), v.encode()) for k, v in headers.items()],
             "client": client,
         }
@@ -38,3 +38,12 @@ def test_the_raw_secret_never_reaches_redis():
 def test_anonymous_falls_back_to_client_address():
     assert _bucket_owner(_request({})) == "ip:10.0.0.1"
     assert _bucket_owner(_request({}, client=None)) == "ip:unknown"
+
+
+def test_a_page_with_no_sign_in_counts_by_address_whatever_the_headers_say():
+    # The guest pages and the iCal feed ignore credentials: a made-up one per
+    # request would otherwise buy a fresh bucket each time.
+    for path in ("/api/v1/public/stays/abc2def", "/api/v1/calendar/x.ics"):
+        a = _bucket_owner(_request({"Authorization": "Bearer a"}, path=path))
+        b = _bucket_owner(_request({"Authorization": "Bearer b"}, path=path))
+        assert a == b == "ip:10.0.0.1"

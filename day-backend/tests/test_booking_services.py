@@ -71,6 +71,9 @@ class FakePropertyRepository(PropertyRepository):
     async def get_by_id(self, property_id: uuid.UUID) -> Property | None:
         return self._properties.get(property_id)
 
+    async def get_by_public_code(self, code):
+        return next((p for p in self._properties.values() if p.public_code == code), None)
+
     async def list_by_company(self, company_id, *, offset=0, limit=50, status=None, search=None):
         return [p for p in self._properties.values() if p.company_id == company_id]
 

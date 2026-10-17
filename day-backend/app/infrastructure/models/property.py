@@ -16,6 +16,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from app.domain.property.entities import new_public_code
 from app.infrastructure.database import Base
 
 
@@ -26,6 +27,8 @@ class PropertyModel(Base):
     company_id: Mapped[uuid.UUID] = mapped_column(index=True)
     name: Mapped[str] = mapped_column(String(255))
     internal_name: Mapped[str] = mapped_column(String(255))
+    # Any flat written without one (a script, a test) still gets its code.
+    public_code: Mapped[str] = mapped_column(String(16), unique=True, default=new_public_code)
     type: Mapped[str] = mapped_column(String(50))
     status: Mapped[str] = mapped_column(String(50), default="new")
     rental_mode: Mapped[str] = mapped_column(String(20), default="daily")
