@@ -146,6 +146,7 @@ def _to_property_response(p, photos: list | None = None, *, sees_secrets: bool) 
         company_id=p.company_id,
         name=p.name,
         internal_name=p.internal_name,
+        public_code=p.public_code,
         type=p.type,
         status=p.status,
         rental_mode=p.rental_mode,

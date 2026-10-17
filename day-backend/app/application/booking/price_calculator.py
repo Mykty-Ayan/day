@@ -29,6 +29,37 @@ class PriceBreakdown:
     total: Decimal
 
 
+@dataclass(frozen=True)
+class NightRate:
+    date: date
+    price: Decimal
+    # The weekend markup inside price, and whether the price was set on the calendar.
+    weekend: Decimal = Decimal("0")
+    from_calendar: bool = False
+
+
+def nightly_rates(
+    pricing: PricingConfig, seasonals: list, calendar: dict[date, Decimal], first: date, nights: int
+) -> list[NightRate]:
+    """Each night's price, as a booking pays it before guests and discounts: a price
+    set on the calendar for that night; else the season's or the base, plus the
+    weekend markup on Friday and Saturday nights. The booking total and the guest's
+    calendar both count from here."""
+    rates = []
+    for offset in range(nights):
+        night = first + timedelta(days=offset)
+        if night in calendar:
+            rates.append(NightRate(night, calendar[night], from_calendar=True))
+            continue
+        season = next(
+            (s for s in seasonals if s.start_date and s.end_date and s.start_date <= night <= s.end_date), None
+        )
+        price = season.price_per_night if season else pricing.base_price
+        weekend = pricing.weekend_markup if night.weekday() in (4, 5) and pricing.weekend_markup > 0 else Decimal("0")
+        rates.append(NightRate(night, price + weekend, weekend))
+    return rates
+
+
 class PriceCalculatorService:
     def __init__(
         self,
@@ -120,37 +151,14 @@ class PriceCalculatorService:
         seasonal_adjustment = Decimal("0")
         calendar_total = Decimal("0")
 
-        current = check_in_date
-        for _ in range(nights):
-            # A calendar price replaces the night's price, season and weekend markup
-            # included; it shows as an adjustment, as a season's does.
-            if current in calendar:
-                base_total += pricing.base_price
-                seasonal_adjustment += calendar[current] - pricing.base_price
-                calendar_total += calendar[current]
-                current += timedelta(days=1)
-                continue
-
-            # Check if any seasonal price applies for this night
-            night_price = pricing.base_price
-            is_seasonal = False
-            for s in seasonals:
-                if s.start_date and s.end_date and s.start_date <= current <= s.end_date:
-                    night_price = s.price_per_night
-                    is_seasonal = True
-                    break
-
-            if is_seasonal:
-                seasonal_adjustment += night_price - pricing.base_price
-                base_total += pricing.base_price
-            else:
-                base_total += night_price
-
-            # Weekend markup (Friday=4, Saturday=5)
-            if current.weekday() in (4, 5) and pricing.weekend_markup > 0:
-                weekend_surcharge += pricing.weekend_markup
-
-            current += timedelta(days=1)
+        # The breakdown splits each night's price: the base, the weekend markup, and
+        # the rest (a season, or a calendar price, which replaces both) as an adjustment.
+        for rate in nightly_rates(pricing, seasonals, calendar, check_in_date, nights):
+            base_total += pricing.base_price
+            weekend_surcharge += rate.weekend
+            seasonal_adjustment += rate.price - pricing.base_price - rate.weekend
+            if rate.from_calendar:
+                calendar_total += rate.price
 
         # Extra guest surcharge
         extra_guest_surcharge = Decimal("0")

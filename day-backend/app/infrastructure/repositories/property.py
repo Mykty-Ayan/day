@@ -66,6 +66,7 @@ def _model_to_property(m: PropertyModel) -> Property:
         company_id=m.company_id,
         name=m.name,
         internal_name=m.internal_name,
+        public_code=m.public_code,
         type=PropertyType(m.type),
         status=PropertyStatus(m.status),
         rental_mode=RentalMode(m.rental_mode),
@@ -112,6 +113,7 @@ def _property_to_dict(p: Property) -> dict:
         "company_id": p.company_id,
         "name": p.name,
         "internal_name": p.internal_name,
+        "public_code": p.public_code,
         "type": p.type.value,
         "status": p.status.value,
         "rental_mode": p.rental_mode.value,
@@ -234,6 +236,10 @@ class SqlPropertyRepository(PropertyRepository):
 
     async def get_by_id(self, property_id: uuid.UUID) -> Property | None:
         result = await self._session.get(PropertyModel, property_id)
+        return _model_to_property(result) if result else None
+
+    async def get_by_public_code(self, code: str) -> Property | None:
+        result = await self._session.scalar(select(PropertyModel).where(PropertyModel.public_code == code))
         return _model_to_property(result) if result else None
 
     async def list_by_company(

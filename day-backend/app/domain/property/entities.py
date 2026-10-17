@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import secrets
 import uuid
 from dataclasses import dataclass, field
 from datetime import date, datetime
@@ -16,6 +17,13 @@ from app.domain.property.value_objects import (
     PropertyType,
 )
 
+# Lower case letters and digits a reader cannot mix up (no 0/o, 1/l/i).
+_CODE_ALPHABET = "abcdefghjkmnpqrstuvwxyz23456789"
+
+
+def new_public_code() -> str:
+    return "".join(secrets.choice(_CODE_ALPHABET) for _ in range(7))
+
 
 @dataclass
 class Property:
@@ -25,6 +33,9 @@ class Property:
     company_id: uuid.UUID = field(default_factory=uuid.uuid4)
     name: str = ""
     internal_name: str = ""
+    # The flat's code on its page for guests (/s/<code>): random, so the link tells
+    # nothing of the flat — the internal name often holds its number.
+    public_code: str = field(default_factory=lambda: new_public_code())
     type: PropertyType = PropertyType.APARTMENT
     status: PropertyStatus = PropertyStatus.NEW
     rental_mode: RentalMode = RentalMode.DAILY

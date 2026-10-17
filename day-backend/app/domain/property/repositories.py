@@ -26,6 +26,10 @@ class PropertyRepository(abc.ABC):
     @abc.abstractmethod
     async def get_by_id(self, property_id: uuid.UUID) -> Property | None: ...
 
+    async def get_by_public_code(self, code: str) -> Property | None:
+        """The flat behind a guest page's code, of any company: the code is the key."""
+        return None
+
     @abc.abstractmethod
     async def list_by_company(
         self,
