@@ -144,9 +144,10 @@ async def test_a_platforms_link_leaves_out_what_came_from_that_platform(monkeypa
     from app.infrastructure.security import calendar_token
 
     airbnb, booking = uuid.uuid4(), uuid.uuid4()
-    from_airbnb = replace(CLOSED, id=uuid.uuid4(), feed_id=airbnb)
+    from_airbnb = replace(CLOSED, id=uuid.uuid4(), feed_id=airbnb, source="airbnb", reserved=True)
     from_booking = replace(
-        CLOSED, id=uuid.uuid4(), feed_id=booking, start_date=date(2026, 11, 20), end_date=date(2026, 11, 21),
+        CLOSED, id=uuid.uuid4(), feed_id=booking, source="booking", reserved=True,
+        start_date=date(2026, 11, 20), end_date=date(2026, 11, 21),
         starts_at=datetime(2026, 11, 20, 12), ends_at=datetime(2026, 11, 21, 12),
     )
     blocks = [from_airbnb, from_booking]
@@ -155,6 +156,19 @@ async def test_a_platforms_link_leaves_out_what_came_from_that_platform(monkeypa
     assert "DTSTART;VALUE=DATE:20261120" in for_airbnb.text
     everything = await _get(monkeypatch, calendar_token(PROPERTY_ID), blocks=blocks)
     assert "DTSTART;VALUE=DATE:20261110" in everything.text and "DTSTART;VALUE=DATE:20261120" in everything.text
+
+
+@pytest.mark.asyncio
+async def test_a_platforms_unavailable_nights_are_not_passed_on(monkeypatch):
+    # Only a platform's bookings go on to the other platforms: its "Not available"
+    # nights may be another's echo, and passing them on would keep both closed.
+    from dataclasses import replace
+
+    from app.infrastructure.security import calendar_token
+
+    echo = replace(CLOSED, id=uuid.uuid4(), feed_id=uuid.uuid4(), source="airbnb", reserved=False)
+    feed = await _get(monkeypatch, calendar_token(PROPERTY_ID), blocks=[echo])
+    assert "DTSTART;VALUE=DATE:20261110" not in feed.text
 
 
 @pytest.mark.asyncio

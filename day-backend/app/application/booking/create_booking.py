@@ -225,7 +225,7 @@ class CreateBookingService:
         )
         if overlapping:
             raise BookingOverlapError()
-        await ensure_not_blocked(self._booking_repo, prop, check_in, check_out)
+        await ensure_not_blocked(self._booking_repo, prop, check_in, check_out, BookingSource(inp.source).value)
 
         breaches = await stay_rule_breaches(
             prop,
