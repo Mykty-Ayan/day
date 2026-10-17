@@ -450,7 +450,7 @@
     "hours_many": "{{count}} часов",
     "hours_other": "{{count}} часа",
     "weekendSurcharge": "Наценка за выходные",
-    "seasonalAdjustment": "Сезонная корректировка",
+    "seasonalAdjustment": "Сезон и цены на даты",
     "extraGuestSurcharge": "Доплата за доп. гостей",
     "discount": "Скидка",
     "bookingUpdated": "Бронирование обновлено",

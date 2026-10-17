@@ -440,7 +440,7 @@
     "hours": "{{count}} сағат",
     "hours_other": "{{count}} сағат",
     "weekendSurcharge": "Демалыс күні үстемесі",
-    "seasonalAdjustment": "Маусымдық түзету",
+    "seasonalAdjustment": "Маусым және күн бағалары",
     "extraGuestSurcharge": "Қосымша қонақ үстемесі",
     "discount": "Жеңілдік",
     "bookingUpdated": "Бронь жаңартылды",

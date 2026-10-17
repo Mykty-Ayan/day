@@ -440,7 +440,7 @@
     "hours": "{{count}} hour",
     "hours_other": "{{count}} hours",
     "weekendSurcharge": "Weekend surcharge",
-    "seasonalAdjustment": "Seasonal adjustment",
+    "seasonalAdjustment": "Season and date prices",
     "extraGuestSurcharge": "Extra guest surcharge",
     "discount": "Discount",
     "bookingUpdated": "Booking updated",
