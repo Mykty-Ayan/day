@@ -74,7 +74,7 @@ test('a guest whose phone speaks Chinese reads the page in Chinese, and can pick
   const guest = await browser.newContext({ locale: 'zh-CN', baseURL: test.info().project.use.baseURL })
   const page = await guest.newPage()
   await page.goto(`/s/${code}`)
-  await expect(page.getByRole('heading', { name: '空闲日期' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: '可订日期' })).toBeVisible()
   await page.getByRole('button', { name: /语言/ }).click()
   await page.getByRole('radio', { name: 'Deutsch' }).click()
   await expect(page.getByRole('heading', { name: 'Freie Termine' })).toBeVisible()

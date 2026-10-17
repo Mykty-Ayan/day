@@ -276,7 +276,7 @@ export function Waiting({ offer, booking, locale }: { offer: PublicOffer; bookin
   const ranOut = booking.expires_at !== null && now > Date.parse(booking.expires_at)
   const flat = offer.flats.find((f) => f.code === booking.flat)
   const until = booking.expires_at
-    ? new Intl.DateTimeFormat(locale, { hour: '2-digit', minute: '2-digit' }).format(new Date(booking.expires_at))
+    ? new Intl.DateTimeFormat(locale, { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date(booking.expires_at))
     : null
   const deposit = booking.deposit != null ? money(booking.deposit, locale) : null
   const dates = stayDates(locale, offer.check_in, offer.check_out)
