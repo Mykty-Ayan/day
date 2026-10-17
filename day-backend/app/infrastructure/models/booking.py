@@ -307,4 +307,8 @@ class GuestOfferModel(Base):
     guests: Mapped[int] = mapped_column(Integer)
     property_ids: Mapped[list] = mapped_column(JSON)
     created_by: Mapped[uuid.UUID | None] = mapped_column(nullable=True)
+    # Migration 042.
+    booking_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("bookings.id", name="fk_guest_offers_booking_id", ondelete="SET NULL"), nullable=True
+    )
     created_at: Mapped[datetime] = mapped_column(default=datetime.utcnow)
