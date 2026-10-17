@@ -10,6 +10,7 @@ import pytest
 
 from app.application.booking.price_calculator import nightly_rates
 from app.application.property.public_stay import GetPublicStayService
+from app.config import settings
 from app.domain.auth.permissions import Permission
 from app.domain.booking.entities import Booking, PropertyBlock
 from app.domain.booking.value_objects import BookingStatus, RentalMode
@@ -170,6 +171,19 @@ async def test_a_flat_shows_only_the_prices_it_takes():
     found = await s.service().execute(by_night.public_code, date(2030, 10, 1), date(2030, 10, 3))
     stay = PublicStayResponse.from_stay(found)
     assert (stay.prices.night, stay.prices.hour, len(stay.nights)) == (25000.0, None, 2)
+
+
+async def test_a_flat_with_no_hours_of_its_own_shows_the_ones_a_booking_keeps():
+    s = Stay()
+    prop = await s.flat()
+    prop.check_in_hour = prop.check_out_hour = None
+    await s.props.save(prop)
+    found = await s.service().execute(prop.public_code, date(2030, 10, 1), date(2030, 10, 3))
+    stay = PublicStayResponse.from_stay(found)
+    assert (stay.check_in_hour, stay.check_out_hour) == (
+        settings.DEFAULT_CHECK_IN_HOUR,
+        settings.DEFAULT_CHECK_OUT_HOUR,
+    )
 
 
 async def test_only_an_active_flat_has_a_page():

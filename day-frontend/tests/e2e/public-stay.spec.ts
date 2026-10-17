@@ -25,6 +25,8 @@ test('a guest with the link sees the flat, its free nights and what a stay costs
     data: createTestBooking(id, { check_in: day(3), check_out: day(4) }),
   })
   expect(booked.ok(), await booked.text()).toBeTruthy()
+  // Two nights at least from now on; the one-night booking was made before.
+  await request.patch(`${API_BASE}/properties/${id}`, { data: { min_nights: 2 } })
   const code = (await (await request.get(`${API_BASE}/properties/${id}`)).json()).public_code as string
 
   // A browser that never signed in, on a Russian phone.
@@ -38,11 +40,24 @@ test('a guest with the link sees the flat, its free nights and what a stay costs
 
   const night = (offset: number) => page.locator(`[data-night="${day(offset)}"]`)
   await expect(night(3)).toBeDisabled()
+  // Past the taken night a free day cannot end the stay begun on the 1st: it begins another.
+  await night(1).click()
+  await night(5).click()
+  await expect(page.getByText('Теперь день выезда')).toBeVisible()
+  await expect(night(5)).toHaveAttribute('aria-pressed', 'true')
+  // One night where the flat takes two at least: no sum, the rule instead.
+  await night(6).click()
+  await expect(page.getByText('Минимум 2 ночи').last()).toBeVisible()
+  await expect(page.getByTestId('stay-total')).toHaveCount(0)
   await night(5).click()
   await night(7).click()
   await expect(page.getByTestId('stay-total')).toHaveText('20 000 ₸')
 
+  // Kazakh on a Russian phone: the count is Kazakh too, not the Russian form.
   await page.getByRole('button', { name: /Язык/ }).click()
+  await page.getByRole('radio', { name: 'Қазақша' }).click()
+  await expect(page.getByText('2 түн', { exact: true })).toBeVisible()
+  await page.getByRole('button', { name: /Тіл/ }).click()
   await page.getByRole('radio', { name: 'English' }).click()
   await expect(page.getByRole('heading', { name: 'Free dates' })).toBeVisible()
   await guest.close()

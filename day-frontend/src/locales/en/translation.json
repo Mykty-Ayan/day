@@ -1238,6 +1238,12 @@
     "location": "Location",
     "addressAfter": "We send the exact address and how to find the building after booking.",
     "poweredBy": "This page runs on Day: prices and free dates update by themselves.",
-    "close": "Close"
+    "close": "Close",
+    "retry": "Try again",
+    "perHour": "per hour",
+    "area": "{{area}} m²",
+    "minNights_one": "At least {{count}} night",
+    "minNights_other": "At least {{count}} nights",
+    "totalHint": "The nights alone, before discounts and fees for extra guests."
   }
 }

@@ -1,4 +1,5 @@
 import { existsSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
@@ -16,6 +17,15 @@ export default defineConfig({
     react(),
     tailwindcss(),
   ],
+  build: {
+    rollupOptions: {
+      // guest.html: the shell nginx serves for guest pages, with no Telegram SDK.
+      input: {
+        main: fileURLToPath(new URL('./index.html', import.meta.url)),
+        guest: fileURLToPath(new URL('./guest.html', import.meta.url)),
+      },
+    },
+  },
   server: {
     port: 3000,
     host: true,
