@@ -46,8 +46,8 @@ class PublicStayResponse(BaseModel):
     check_in_method: str | None = None
     house_rules: str | None = None
     min_nights: int | None = None
-    map_url: str | None = None
-    video_url: str | None = None
+    # No map link and no video: the map pins the building (as Airbnb, the place is
+    # told after booking), and an owner's video may be the one of the lock.
     photos: list[str] = []
     amenities: list[PublicAmenity] = []
     prices: PublicPrices
@@ -75,13 +75,13 @@ class PublicStayResponse(BaseModel):
             check_in_method=p.check_in_method.value if p.check_in_method else None,
             house_rules=p.house_rules,
             min_nights=p.min_nights,
-            map_url=p.map_url,
-            video_url=p.video_url,
             photos=stay.photos,
             amenities=[PublicAmenity(name=a.name, category=a.category.value) for a in stay.amenities],
+            # Only the prices the flat takes: no night for one let by the hour, no hour
+            # for one let by the night.
             prices=PublicPrices(
-                night=float(pricing.base_price) if pricing else None,
-                hour=float(pricing.hourly_price) if pricing and pricing.hourly_price > 0 else None,
+                night=float(pricing.base_price) if stay.by_night and pricing else None,
+                hour=float(pricing.hourly_price) if stay.by_hour and pricing else None,
                 deposit=float(pricing.default_deposit) if pricing and pricing.default_deposit > 0 else None,
             ),
             nights=[PublicNightResponse(date=n.date, price=float(n.price), free=n.free) for n in stay.nights],

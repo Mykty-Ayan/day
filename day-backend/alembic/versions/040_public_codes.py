@@ -34,7 +34,14 @@ def upgrade() -> None:
         bind.execute(
             sa.text("UPDATE properties SET public_code = :code WHERE id = :id"), {"code": code, "id": property_id}
         )
-    op.alter_column("properties", "public_code", nullable=False)
+    # A default in the database too: during a deploy the old container still adds
+    # flats without a code, and so would an image rolled back without a downgrade.
+    op.alter_column(
+        "properties",
+        "public_code",
+        nullable=False,
+        server_default=sa.text("substr(md5(random()::text || clock_timestamp()::text), 1, 7)"),
+    )
     op.create_unique_constraint("uq_properties_public_code", "properties", ["public_code"])
 
 

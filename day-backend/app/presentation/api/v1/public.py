@@ -26,6 +26,9 @@ public_router = APIRouter(prefix="/public", tags=["public"])
 # Two months on screen and a bit; more is a crawl, not a guest.
 _MAX_NIGHTS = 120
 _DEFAULT_NIGHTS = 62
+# From yesterday (the server's day may lag the company's), two years ahead at most:
+# the flat's past is its bookings, not a guest's business.
+_HORIZON_DAYS = 730
 
 
 @public_router.get("/stays/{code}", response_model=PublicStayResponse)
@@ -36,7 +39,10 @@ async def public_stay(
     session: AsyncSession = Depends(get_session),
 ):
     """A flat's page for guests: the flat, its prices and its nights in [date_from, date_to)."""
-    start = date_from or date.today()
+    today = date.today()
+    start = date_from or today
+    if not today - timedelta(days=1) <= start <= today + timedelta(days=_HORIZON_DAYS):
+        raise HTTPException(status_code=422, detail="date_from must be from today, within two years")
     end = date_to or start + timedelta(days=_DEFAULT_NIGHTS)
     if not 0 < (end - start).days <= _MAX_NIGHTS:
         raise HTTPException(status_code=422, detail=f"date_to must be after date_from, at most {_MAX_NIGHTS} nights")
