@@ -333,5 +333,9 @@ class GuestOfferRepository(abc.ABC):
     async def add(self, offer: GuestOffer) -> GuestOffer: ...
 
     @abc.abstractmethod
-    async def get_by_code(self, code: str) -> GuestOffer | None:
-        """The offer behind a link's code, of any company: the code is the key."""
+    async def get_by_code(self, code: str, *, lock: bool = False) -> GuestOffer | None:
+        """The offer behind a link's code, of any company: the code is the key.
+        `lock` holds its row until commit, so two bookings by one link go one by one."""
+
+    @abc.abstractmethod
+    async def set_booking(self, offer_id: uuid.UUID, booking_id: uuid.UUID) -> None: ...

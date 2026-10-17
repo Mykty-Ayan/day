@@ -30,7 +30,7 @@ logger = logging.getLogger(__name__)
 
 _SOURCES = {"direct": "Прямое", "booking": "Booking.com", "airbnb": "Airbnb", "other": "Другое", "crm": "CRM"}
 
-_BOOKING_EVENTS = {NotificationEvent.BOOKING_CREATED, NotificationEvent.BOOKING_CANCELLED}
+_BOOKING_EVENTS = {NotificationEvent.BOOKING_CREATED, NotificationEvent.BOOKING_CANCELLED, NotificationEvent.GUEST_HOLD}
 
 
 def _money(value: str) -> str:
@@ -83,6 +83,29 @@ def render(event: NotificationEvent, payload: dict) -> str:
                 f"Даты: {payload.get('check_in', '—')} — {payload.get('check_out', '—')}",
             ]
         )
+
+    if event == NotificationEvent.GUEST_HOLD:
+        lines = [
+            "🔔 <b>Бронь по ссылке гостя</b>",
+            f"Объект: {payload.get('property_name', '—')}",
+            f"Гость: {payload.get('guest_name', '—')}, {payload.get('phone', '—')}",
+            f"Заезд: {payload.get('check_in', '—')}",
+            f"Выезд: {payload.get('check_out', '—')}",
+            f"Гостей: {payload.get('guests', '—')}",
+        ]
+        if payload.get("total_price"):
+            lines.append(f"За ночи при заселении: {_money(payload['total_price'])}")
+        until = payload.get("until", "—")
+        if payload.get("deposit"):
+            lines += [
+                "",
+                f"Выставьте счёт Kaspi на залог {_money(payload['deposit'])} на номер {payload.get('phone', '—')}.",
+                f"Даты держим до {until}. Оплату отметьте в карточке брони и подтвердите её,"
+                " иначе бронь снимется сама.",
+            ]
+        else:
+            lines += ["", f"Залог у квартиры не задан: подтвердите бронь в карточке до {until}, иначе она снимется."]
+        return "\n".join(lines)
 
     if event == NotificationEvent.CALENDAR_CLASH:
         return "\n".join(

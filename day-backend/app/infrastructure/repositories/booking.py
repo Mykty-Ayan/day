@@ -674,6 +674,16 @@ class SqlBookingRepository(BookingRepository):
             )
             .exists()
         )
+        # A deposit marked paid is money too: a guest who booked by a personal link
+        # paid the Kaspi invoice, and the operator has yet to confirm.
+        deposit_paid = (
+            select(BookingDepositModel.id)
+            .where(
+                BookingDepositModel.booking_id == BookingModel.id,
+                BookingDepositModel.status != DepositStatus.PENDING.value,
+            )
+            .exists()
+        )
         stmt = (
             select(BookingModel)
             .where(
@@ -681,6 +691,7 @@ class SqlBookingRepository(BookingRepository):
                 BookingModel.expires_at.is_not(None),
                 BookingModel.expires_at <= now,
                 ~paid,
+                ~deposit_paid,
             )
             .order_by(BookingModel.expires_at)
             .limit(limit)
@@ -1150,9 +1161,15 @@ class SqlGuestOfferRepository(GuestOfferRepository):
         await self._session.flush()
         return _model_to_offer(model)
 
-    async def get_by_code(self, code: str) -> GuestOffer | None:
-        model = await self._session.scalar(select(GuestOfferModel).where(GuestOfferModel.code == code))
+    async def get_by_code(self, code: str, *, lock: bool = False) -> GuestOffer | None:
+        query = select(GuestOfferModel).where(GuestOfferModel.code == code)
+        model = await self._session.scalar(query.with_for_update() if lock else query)
         return _model_to_offer(model) if model else None
+
+    async def set_booking(self, offer_id: uuid.UUID, booking_id: uuid.UUID) -> None:
+        await self._session.execute(
+            update(GuestOfferModel).where(GuestOfferModel.id == offer_id).values(booking_id=booking_id)
+        )
 
 
 def _model_to_offer(m: GuestOfferModel) -> GuestOffer:
@@ -1168,4 +1185,5 @@ def _model_to_offer(m: GuestOfferModel) -> GuestOffer:
         property_ids=[uuid.UUID(p) for p in m.property_ids],
         created_by=m.created_by,
         created_at=m.created_at,
+        booking_id=m.booking_id,
     )

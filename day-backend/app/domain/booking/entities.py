@@ -229,3 +229,5 @@ class GuestOffer:
     property_ids: list[uuid.UUID] = field(default_factory=list)
     created_by: uuid.UUID | None = None
     created_at: datetime | None = None
+    # The booking the guest made by this link; a cancelled one frees the link again.
+    booking_id: uuid.UUID | None = None
