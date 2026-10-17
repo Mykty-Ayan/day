@@ -4,7 +4,7 @@
  */
 
 import { expect, test } from '@playwright/test'
-import { guestLanguage, monthCells, stayQuote } from '../../src/lib/public-stay'
+import { guestLanguage, monthCells, stayDates, stayQuote } from '../../src/lib/public-stay'
 
 test('a month is laid out from Monday, with blanks before its first day', () => {
   // 1 October 2026 is a Thursday.
@@ -34,4 +34,17 @@ test('the page opens in the guest\'s choice, else the phone\'s language, else En
   // A tourist reads English sooner than Russian.
   expect(guestLanguage(null, 'zh-CN')).toBe('en')
   expect(guestLanguage('xx', null)).toBe('en')
+})
+
+test("a stay's dates read as one range, and as two dates where the browser has no ranges", () => {
+  expect(stayDates('ru-RU', '2026-10-20', '2026-10-22')).toBe('20–22 октября')
+  expect(stayDates('ru-RU', '2026-10-30', '2026-11-02')).toBe('30 октября – 2 ноября')
+  const range = Intl.DateTimeFormat.prototype.formatRange
+  try {
+    // Safari before 14.1.
+    Object.defineProperty(Intl.DateTimeFormat.prototype, 'formatRange', { value: undefined, configurable: true, writable: true })
+    expect(stayDates('ru-RU', '2026-10-20', '2026-10-22')).toBe('20 октября – 22 октября')
+  } finally {
+    Object.defineProperty(Intl.DateTimeFormat.prototype, 'formatRange', { value: range, configurable: true, writable: true })
+  }
 })

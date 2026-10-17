@@ -329,6 +329,38 @@ async def test_a_paid_hold_is_never_swept():
 
 
 @pytest.mark.integration
+async def test_a_hold_whose_deposit_is_paid_is_never_swept():
+    # A guest who booked by a personal link pays the Kaspi invoice for the deposit;
+    # the operator marks it paid before confirming. The nights are the guest's:
+    # the sweep leaves them, and takes a hold whose deposit is still expected.
+    from app.infrastructure.models.booking import BookingDepositModel
+    from app.infrastructure.repositories.booking import SqlBookingRepository
+
+    async with _maker() as maker:
+        async with maker() as setup:
+            company, prop, guest = await _flat(setup)
+            holds = {}
+            for status, day in (("paid", 1), ("pending", 5)):
+                holds[status] = await SqlBookingRepository(setup).create(
+                    Booking(
+                        company_id=company, property_id=prop, guest_id=guest,
+                        check_in=datetime(2026, 11, day, 14), check_out=datetime(2026, 11, day + 2, 12),
+                        status=BookingStatus.PENDING, expires_at=NOW - timedelta(minutes=1),
+                    )
+                )
+                setup.add(BookingDepositModel(booking_id=holds[status].id, amount=10000, status=status))
+            await setup.commit()
+        try:
+            async with maker() as s:
+                expired = {b.id for b in await SqlBookingRepository(s).list_expired_holds(NOW, limit=1000)}
+                assert holds["paid"].id not in expired
+                assert holds["pending"].id in expired
+                await s.rollback()
+        finally:
+            await _cleanup(maker, company)
+
+
+@pytest.mark.integration
 async def test_a_payment_moves_the_booking_up_the_feed():
     # The CRM learns paid_amount from the feed, which orders by
     # bookings.updated_at; a payment that leaves the status alone must still

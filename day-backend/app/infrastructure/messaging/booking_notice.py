@@ -52,14 +52,12 @@ async def notify_guest_hold(
     session: AsyncSession,
     held: OfferBooking,
     property_repo: PropertyRepository,
-    guest_repo: GuestRepository,
     settings_repo: CompanySettingsRepository,
 ) -> None:
     """Ask the host to send the Kaspi invoice, queued with the hold itself. The
     host reads the deadline on the company's clock, as the guest does on theirs."""
     booking = held.booking
     prop = await property_repo.get_by_id(booking.property_id)
-    guest = await guest_repo.get_by_id(booking.guest_id) if booking.guest_id else None
     company = await settings_repo.get_by_company(booking.company_id)
     zone = ZoneInfo(company.time_zone if company and company.time_zone else DEFAULT_TIME_ZONE)
     until = booking.expires_at.replace(tzinfo=timezone.utc).astimezone(zone) if booking.expires_at else None
@@ -68,7 +66,8 @@ async def notify_guest_hold(
         NotificationEvent.GUEST_HOLD,
         {
             "property_name": prop.name if prop else "—",
-            "guest_name": guest.name if guest else "—",
+            # Who booked, not the older guest record the phone found.
+            "guest_name": held.name or "—",
             "phone": held.phone,
             "check_in": booking.check_in.strftime("%d.%m.%Y %H:%M"),
             "check_out": booking.check_out.strftime("%d.%m.%Y %H:%M"),
