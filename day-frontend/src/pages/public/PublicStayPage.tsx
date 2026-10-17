@@ -1,147 +1,43 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { addDays, format, parseISO } from 'date-fns'
-import { isAxiosError } from 'axios'
-import { BedDouble, Building2, Globe, KeyRound, LayoutGrid, MapPin, Ruler, Users, X } from 'lucide-react'
+import { BedDouble, Building2, KeyRound, LayoutGrid, MapPin, Ruler, Users } from 'lucide-react'
 import { getPublicStay, type PublicStay } from '../../api/public'
 import { isDayBlocked } from '../../lib/booking-dates'
-import { guestLanguage, monthCells, stayQuote, type GuestLanguage } from '../../lib/public-stay'
+import { money, monthCells, retryNetwork, stayQuote } from '../../lib/public-stay'
+import { GuestFrame, LoadFailed } from './GuestFrame'
 
-const LANGUAGES: { code: GuestLanguage; name: string; locale: string }[] = [
-  { code: 'ru', name: 'Русский', locale: 'ru-RU' },
-  { code: 'kz', name: 'Қазақша', locale: 'kk-KZ' },
-  { code: 'en', name: 'English', locale: 'en-GB' },
-]
 // Two months on screen, one under the other, as a phone scrolls.
 const WINDOW_NIGHTS = 62
 // The guest does it themselves: no lock and no code to send.
 const SELF_CHECK_IN = ['lockbox', 'keypad', 'smart_lock']
 
-function savedLanguage(): string | null {
-  try {
-    return localStorage.getItem('guest-language')
-  } catch {
-    return null
-  }
-}
-
-function money(value: number, locale: string): string {
-  return `${Math.round(value).toLocaleString(locale)} ₸`
-}
-
 /** A flat's page for guests, opened by its link with no sign-in: what the flat is,
  *  what a night costs and which nights are free. */
 export default function PublicStayPage({ code }: { code: string }) {
-  const { t, i18n } = useTranslation()
-  const [language, setLanguage] = useState<GuestLanguage>(() =>
-    guestLanguage(savedLanguage(), typeof navigator === 'undefined' ? null : navigator.language),
-  )
-  const [picking, setPicking] = useState(false)
-  const languageButton = useRef<HTMLButtonElement>(null)
-  useEffect(() => {
-    void i18n.changeLanguage(language)
-    document.documentElement.lang = language === 'kz' ? 'kk' : language
-  }, [i18n, language])
-  const locale = LANGUAGES.find((l) => l.code === language)?.locale ?? 'ru-RU'
+  return <GuestFrame>{(locale) => <Stay code={code} locale={locale} />}</GuestFrame>
+}
 
+function Stay({ code, locale }: { code: string; locale: string }) {
+  const { t } = useTranslation()
   const today = format(new Date(), 'yyyy-MM-dd')
   const until = format(addDays(new Date(), WINDOW_NIGHTS), 'yyyy-MM-dd')
   const stay = useQuery({
     queryKey: ['public-stay', code, today],
     queryFn: () => getPublicStay(code, today, until),
-    // A link that leads nowhere stays so: only a failed network is tried again.
-    retry: (count, error) => !(isAxiosError(error) && error.response && error.response.status < 500) && count < 2,
+    retry: retryNetwork,
   })
 
-  function closeLanguages() {
-    setPicking(false)
-    languageButton.current?.focus()
-  }
-
-  function choose(next: GuestLanguage) {
-    setLanguage(next)
-    closeLanguages()
-    try {
-      localStorage.setItem('guest-language', next)
-    } catch {
-      // Private mode: the pick lasts for this visit.
-    }
-  }
-
   return (
-    <div className="min-h-screen bg-white text-gray-900">
-      <div className="mx-auto max-w-[640px]">
-        <header className="flex h-14 items-center justify-end border-b border-gray-200 px-4">
-          <button
-            ref={languageButton}
-            type="button"
-            onClick={() => setPicking(true)}
-            aria-label={`${t('guest.language')}: ${LANGUAGES.find((l) => l.code === language)?.name}`}
-            className="flex h-11 items-center gap-1.5 rounded-xl border border-gray-200 px-3 text-sm font-semibold"
-          >
-            <Globe className="h-4 w-4" aria-hidden />
-            {language.toUpperCase()}
-          </button>
-        </header>
-        {stay.isPending && <p className="p-6 text-sm text-gray-500">{t('guest.loading')}</p>}
-        {/* A refresh that fails later keeps the page the guest has. */}
-        {stay.isError && !stay.data && (
-          <div className="flex flex-col items-start gap-3 p-6">
-            <p className="text-base text-gray-700">
-              {isAxiosError(stay.error) && stay.error.response?.status === 404 ? t('guest.notFound') : t('guest.failed')}
-            </p>
-            {!(isAxiosError(stay.error) && stay.error.response?.status === 404) && (
-              <button
-                type="button"
-                onClick={() => void stay.refetch()}
-                className="h-11 rounded-xl border border-gray-200 px-4 text-sm font-semibold"
-              >
-                {t('guest.retry')}
-              </button>
-            )}
-          </div>
-        )}
-        {stay.data && <StayView stay={stay.data} locale={locale} today={today} />}
-      </div>
-      {picking && (
-        <div className="fixed inset-0 z-overlay flex items-end justify-center bg-black/40 sm:items-center" onClick={closeLanguages}>
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-label={t('guest.language')}
-            onClick={(e) => e.stopPropagation()}
-            onKeyDown={(e) => {
-              if (e.key === 'Escape') closeLanguages()
-            }}
-            className="w-full max-w-sm rounded-t-2xl bg-white p-4 sm:rounded-2xl"
-          >
-            <div className="mb-2 flex items-center justify-between">
-              <h2 className="text-base font-bold">{t('guest.language')}</h2>
-              <button type="button" onClick={closeLanguages} aria-label={t('guest.close')} className="flex h-11 w-11 items-center justify-center rounded-lg">
-                <X className="h-5 w-5" aria-hidden />
-              </button>
-            </div>
-            <div role="radiogroup" aria-label={t('guest.language')} className="flex flex-col">
-              {LANGUAGES.map((l) => (
-                <button
-                  key={l.code}
-                  type="button"
-                  role="radio"
-                  aria-checked={l.code === language}
-                  autoFocus={l.code === language}
-                  onClick={() => choose(l.code)}
-                  className={`flex min-h-[48px] items-center justify-between rounded-xl px-3 text-left text-base ${l.code === language ? 'bg-emerald-50 font-semibold' : ''}`}
-                >
-                  {l.name}
-                  {l.code === language && <span aria-hidden className="text-emerald-700">✓</span>}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
+    <>
+      {stay.isPending && <p className="p-6 text-sm text-gray-500">{t('guest.loading')}</p>}
+      {/* A refresh that fails later keeps the page the guest has. */}
+      {stay.isError && !stay.data && (
+        <LoadFailed error={stay.error} onRetry={() => void stay.refetch()} gone={{ 404: t('guest.notFound') }} />
       )}
-    </div>
+      {stay.data && <StayView stay={stay.data} locale={locale} today={today} />}
+    </>
   )
 }
 

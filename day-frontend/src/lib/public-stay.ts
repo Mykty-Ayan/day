@@ -1,6 +1,7 @@
 /** The flat's page for guests: calendar layout, the price of a stay, its language. */
 
 import { addDays, format, parseISO } from 'date-fns'
+import { isAxiosError } from 'axios'
 
 export interface PublicNight {
   date: string
@@ -33,6 +34,23 @@ export function stayQuote(nights: PublicNight[], checkIn: string, checkOut: stri
     free = free && Boolean(night?.free)
   }
   return { count, total, free }
+}
+
+/** "20–22 октября": a stay's dates as the guest's language says them. Safari before
+ *  14.1 has no formatRange: there the two dates are joined by a dash. */
+export function stayDates(locale: string, checkIn: string, checkOut: string): string {
+  const day = new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'long' })
+  const [from, to] = [parseISO(checkIn), parseISO(checkOut)]
+  return typeof day.formatRange === 'function' ? day.formatRange(from, to) : `${day.format(from)} – ${day.format(to)}`
+}
+
+export function money(value: number, locale: string): string {
+  return `${Math.round(value).toLocaleString(locale)} ₸`
+}
+
+/** A link that leads nowhere stays so: only a failed network is tried again. */
+export function retryNetwork(count: number, error: unknown): boolean {
+  return !(isAxiosError(error) && error.response && error.response.status < 500) && count < 2
 }
 
 export type GuestLanguage = 'ru' | 'kz' | 'en'
