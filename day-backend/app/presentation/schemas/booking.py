@@ -421,6 +421,11 @@ class GanttBlockResponse(BaseModel):
     reason: str | None = None
 
 
+class GanttDayPriceResponse(BaseModel):
+    date: date
+    price: float
+
+
 class GanttPropertyResponse(BaseModel):
     id: uuid.UUID
     name: str
@@ -431,6 +436,8 @@ class GanttPropertyResponse(BaseModel):
     # Nights closed without a booking.
     blocks: list[GanttBlockResponse] = []
     rental_mode: RentalMode = RentalMode.DAILY
+    # Nights priced on the calendar, replacing the flat's usual price.
+    day_prices: list[GanttDayPriceResponse] = []
 
 
 class GanttDataResponse(BaseModel):

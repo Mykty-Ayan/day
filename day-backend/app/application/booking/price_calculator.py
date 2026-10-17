@@ -9,6 +9,7 @@ from decimal import Decimal
 from app.domain.booking.value_objects import RentalMode
 from app.domain.property.entities import PricingConfig
 from app.domain.property.repositories import (
+    DayPriceRepository,
     DiscountRuleRepository,
     PricingConfigRepository,
     SeasonalPriceRepository,
@@ -34,10 +35,12 @@ class PriceCalculatorService:
         pricing_repo: PricingConfigRepository,
         seasonal_repo: SeasonalPriceRepository,
         discount_repo: DiscountRuleRepository,
+        day_price_repo: DayPriceRepository,
     ) -> None:
         self._pricing_repo = pricing_repo
         self._seasonal_repo = seasonal_repo
         self._discount_repo = discount_repo
+        self._day_price_repo = day_price_repo
 
     async def calculate(
         self,
@@ -106,12 +109,28 @@ class PriceCalculatorService:
         if nights <= 0:
             raise ValueError("Check-out must be after check-in")
 
+        # Prices set on the calendar for single nights, as Airbnb's custom price.
+        calendar = {
+            p.date: p.price
+            for p in await self._day_price_repo.list_for_property(pricing.property_id, check_in_date, check_out_date)
+        }
+
         base_total = Decimal("0")
         weekend_surcharge = Decimal("0")
         seasonal_adjustment = Decimal("0")
+        calendar_total = Decimal("0")
 
         current = check_in_date
         for _ in range(nights):
+            # A calendar price replaces the night's price, season and weekend markup
+            # included; it shows as an adjustment, as a season's does.
+            if current in calendar:
+                base_total += pricing.base_price
+                seasonal_adjustment += calendar[current] - pricing.base_price
+                calendar_total += calendar[current]
+                current += timedelta(days=1)
+                continue
+
             # Check if any seasonal price applies for this night
             night_price = pricing.base_price
             is_seasonal = False
@@ -152,7 +171,8 @@ class PriceCalculatorService:
         if applicable_discounts:
             best = applicable_discounts[0]
             if best.discount_percent > 0:
-                discount_amount = subtotal * best.discount_percent / 100
+                # As on Airbnb, a calendar price is not cut by a long-stay discount.
+                discount_amount = (subtotal - calendar_total) * best.discount_percent / 100
             if best.discount_fixed > 0:
                 discount_amount = max(discount_amount, best.discount_fixed)
 

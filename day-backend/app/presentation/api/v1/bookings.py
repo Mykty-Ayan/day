@@ -62,6 +62,7 @@ from app.infrastructure.repositories.booking import (
     SqlGuestRepository,
 )
 from app.infrastructure.repositories.property import (
+    SqlDayPriceRepository,
     SqlDiscountRuleRepository,
     SqlPricingConfigRepository,
     SqlPropertyPhotoRepository,
@@ -99,6 +100,7 @@ from app.presentation.schemas.booking import (
     GanttBlockResponse,
     GanttBookingResponse,
     GanttDataResponse,
+    GanttDayPriceResponse,
     GanttPropertyResponse,
     GuestListResponse,
     GuestResponse,
@@ -133,6 +135,7 @@ def _repos(session: AsyncSession):
         "pricing": SqlPricingConfigRepository(session),
         "seasonal": SqlSeasonalPriceRepository(session),
         "discount": SqlDiscountRuleRepository(session),
+        "day_price": SqlDayPriceRepository(session),
         "settings": SqlCompanySettingsRepository(session),
         "photo": SqlPropertyPhotoRepository(session),
     }
@@ -160,7 +163,7 @@ def _request_hash(body) -> str:
 
 
 def _price_calculator(repos):
-    return PriceCalculatorService(repos["pricing"], repos["seasonal"], repos["discount"])
+    return PriceCalculatorService(repos["pricing"], repos["seasonal"], repos["discount"], repos["day_price"])
 
 
 def _to_booking_response(
@@ -1333,6 +1336,7 @@ def _build_gantt_response(result) -> GanttDataResponse:
                     for b in p.blocks
                 ],
                 rental_mode=p.rental_mode,
+                day_prices=[GanttDayPriceResponse(date=d.date, price=float(d.price)) for d in p.day_prices],
             )
             for p in result.properties
         ]
@@ -1352,7 +1356,7 @@ async def get_gantt_data(
     company_id: uuid.UUID = Depends(get_company_id),
 ):
     repos = _repos(session)
-    svc = GetGanttDataService(repos["property"], repos["booking"], repos["guest"])
+    svc = GetGanttDataService(repos["property"], repos["booking"], repos["guest"], repos["day_price"])
     result = await svc.execute(company_id, start_date, end_date)
     return _build_gantt_response(result)
 

@@ -458,3 +458,22 @@ class TagAssign(BaseModel):
 
 class BatchPricingUpdate(BaseModel):
     base_price: Decimal = Field(..., ge=0)
+
+
+class DayPriceSet(BaseModel):
+    """A price for the nights from start_date to the night before end_date (as a stay's)."""
+
+    start_date: date
+    end_date: date
+    price: Decimal = Field(gt=0, le=Decimal("99999999.99"))
+
+    @model_validator(mode="after")
+    def _at_least_one_night(self):
+        if self.end_date <= self.start_date:
+            raise ValueError("end_date must be after start_date")
+        return self
+
+
+class DayPriceResponse(BaseModel):
+    date: date
+    price: float

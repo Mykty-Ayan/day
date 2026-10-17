@@ -4,9 +4,10 @@ import uuid
 from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import date, datetime
+from decimal import Decimal
 
 from app.domain.booking.repositories import BookingRepository, GuestRepository
-from app.domain.property.repositories import PropertyRepository
+from app.domain.property.repositories import DayPriceRepository, PropertyRepository
 from app.domain.property.value_objects import PropertyStatus
 
 
@@ -38,6 +39,14 @@ class GanttBlock:
 
 
 @dataclass
+class GanttDayPrice:
+    """A night's price set on the calendar."""
+
+    date: date
+    price: Decimal
+
+
+@dataclass
 class GanttProperty:
     id: uuid.UUID
     name: str
@@ -47,6 +56,7 @@ class GanttProperty:
     bookings: list[GanttBooking]
     blocks: list[GanttBlock] = field(default_factory=list)
     rental_mode: str = "daily"
+    day_prices: list[GanttDayPrice] = field(default_factory=list)
 
 
 @dataclass
@@ -60,10 +70,12 @@ class GetGanttDataService:
         property_repo: PropertyRepository,
         booking_repo: BookingRepository,
         guest_repo: GuestRepository,
+        day_price_repo: DayPriceRepository,
     ) -> None:
         self._property_repo = property_repo
         self._booking_repo = booking_repo
         self._guest_repo = guest_repo
+        self._day_price_repo = day_price_repo
 
     async def execute(
         self,
@@ -92,6 +104,9 @@ class GetGanttDataService:
         closed: dict[uuid.UUID, list[GanttBlock]] = defaultdict(list)
         for block in await self._booking_repo.list_company_blocks(company_id, start_date, end_date):
             closed[block.property_id].append(GanttBlock(block.id, block.start_date, block.end_date, block.reason))
+        priced: dict[uuid.UUID, list[GanttDayPrice]] = defaultdict(list)
+        for night in await self._day_price_repo.list_for_company(company_id, start_date, end_date):
+            priced[night.property_id].append(GanttDayPrice(night.date, night.price))
 
         result: list[GanttProperty] = []
         for prop in properties:
@@ -136,6 +151,7 @@ class GetGanttDataService:
                     bookings=gantt_bookings,
                     blocks=closed[prop.id],
                     rental_mode=prop.rental_mode.value,
+                    day_prices=priced[prop.id],
                 )
             )
 

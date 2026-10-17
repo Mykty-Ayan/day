@@ -30,6 +30,7 @@ from app.infrastructure.repositories.booking import (
 )
 from app.infrastructure.repositories.cleaning import SqlCleaningTaskRepository
 from app.infrastructure.repositories.property import (
+    SqlDayPriceRepository,
     SqlDiscountRuleRepository,
     SqlPricingConfigRepository,
     SqlPropertyCostsRepository,
@@ -56,6 +57,7 @@ def build_assistant_tools(
         SqlPricingConfigRepository(session),
         SqlSeasonalPriceRepository(session),
         SqlDiscountRuleRepository(session),
+        SqlDayPriceRepository(session),
     )
 
     company_settings = SqlCompanySettingsRepository(session)

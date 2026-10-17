@@ -191,6 +191,18 @@ class SeasonalPrice:
 
 
 @dataclass
+class DayPrice:
+    """A price for one night set on the calendar, as Airbnb's custom nightly price:
+    it replaces the flat's price for that night (base, season and weekend markup),
+    and a long-stay discount does not cut it."""
+
+    company_id: uuid.UUID = field(default_factory=uuid.uuid4)
+    property_id: uuid.UUID = field(default_factory=uuid.uuid4)
+    date: date = field(default_factory=date.today)
+    price: Decimal = Decimal("0")
+
+
+@dataclass
 class DiscountRule:
     id: uuid.UUID = field(default_factory=uuid.uuid4)
     pricing_config_id: uuid.UUID = field(default_factory=uuid.uuid4)

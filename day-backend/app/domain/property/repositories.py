@@ -3,9 +3,12 @@ from __future__ import annotations
 import abc
 import uuid
 from collections.abc import Sequence
+from datetime import date
+from decimal import Decimal
 
 from app.domain.property.entities import (
     Amenity,
+    DayPrice,
     DiscountRule,
     PricingConfig,
     Property,
@@ -125,6 +128,25 @@ class SeasonalPriceRepository(abc.ABC):
 
     @abc.abstractmethod
     async def delete(self, price_id: uuid.UUID) -> None: ...
+
+
+class DayPriceRepository(abc.ABC):
+    """Calendar prices by night. Dates are [date_from, date_to), like nights of a stay."""
+
+    @abc.abstractmethod
+    async def list_for_property(self, property_id: uuid.UUID, date_from: date, date_to: date) -> list[DayPrice]: ...
+
+    @abc.abstractmethod
+    async def list_for_company(self, company_id: uuid.UUID, date_from: date, date_to: date) -> list[DayPrice]: ...
+
+    @abc.abstractmethod
+    async def set_prices(
+        self, company_id: uuid.UUID, property_id: uuid.UUID, nights: Sequence[date], price: Decimal
+    ) -> None:
+        """Set the price of each night, replacing one already set."""
+
+    @abc.abstractmethod
+    async def clear(self, property_id: uuid.UUID, date_from: date, date_to: date) -> None: ...
 
 
 class DiscountRuleRepository(abc.ABC):

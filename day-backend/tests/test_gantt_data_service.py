@@ -81,7 +81,7 @@ async def test_gantt_returns_active_and_paused_properties_only():
     ]
     guest_repo.get_by_id.return_value = guest
 
-    service = GetGanttDataService(property_repo, booking_repo, guest_repo)  # type: ignore[arg-type]
+    service = GetGanttDataService(property_repo, booking_repo, guest_repo, AsyncMock())  # type: ignore[arg-type]
     result = await service.execute(company_id, start_date, end_date)
 
     property_repo.list_by_company.assert_any_await(
@@ -140,7 +140,7 @@ async def test_gantt_shows_which_bookings_clash():
     booking_repo.list_by_property_date_range.return_value = [clash]
     guest_repo.get_by_id.return_value = None
 
-    result = await GetGanttDataService(property_repo, booking_repo, guest_repo).execute(  # type: ignore[arg-type]
+    result = await GetGanttDataService(property_repo, booking_repo, guest_repo, AsyncMock()).execute(  # type: ignore[arg-type]
         company_id, date(2026, 2, 1), date(2026, 2, 28)
     )
     assert result.properties[0].bookings[0].overbooking is True
@@ -181,7 +181,7 @@ async def test_the_chessboard_shows_each_flats_closed_nights():
     booking_repo.list_by_property_date_range.return_value = []
     booking_repo.list_company_blocks.return_value = [block]
 
-    result = await GetGanttDataService(property_repo, booking_repo, guest_repo).execute(  # type: ignore[arg-type]
+    result = await GetGanttDataService(property_repo, booking_repo, guest_repo, AsyncMock()).execute(  # type: ignore[arg-type]
         company_id, date(2026, 2, 1), date(2026, 2, 28)
     )
     booking_repo.list_company_blocks.assert_awaited_once_with(company_id, date(2026, 2, 1), date(2026, 2, 28))
@@ -208,7 +208,7 @@ async def test_the_chessboard_knows_an_hourly_flat():
     booking_repo.list_by_property_date_range.return_value = []
     booking_repo.list_company_blocks.return_value = []
 
-    result = await GetGanttDataService(property_repo, booking_repo, guest_repo).execute(  # type: ignore[arg-type]
+    result = await GetGanttDataService(property_repo, booking_repo, guest_repo, AsyncMock()).execute(  # type: ignore[arg-type]
         company_id, date(2026, 2, 1), date(2026, 2, 28)
     )
     assert _build_gantt_response(result).properties[0].rental_mode == RentalMode.HOURLY
