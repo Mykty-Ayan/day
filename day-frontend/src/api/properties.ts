@@ -318,3 +318,17 @@ export async function createBlock(
 export async function deleteBlock(propertyId: string, blockId: string): Promise<void> {
   await apiClient.delete(`/properties/${propertyId}/blocks/${blockId}`)
 }
+
+/** Nights from start_date to the night before end_date, as a stay's. */
+export interface DayPriceRange {
+  start_date: string
+  end_date: string
+}
+
+export async function setDayPrices(propertyId: string, body: DayPriceRange & { price: number }): Promise<void> {
+  await apiClient.put(`/properties/${propertyId}/day-prices`, body)
+}
+
+export async function clearDayPrices(propertyId: string, range: DayPriceRange): Promise<void> {
+  await apiClient.delete(`/properties/${propertyId}/day-prices`, { params: range })
+}

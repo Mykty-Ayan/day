@@ -158,9 +158,16 @@ export interface GanttBlock {
   reason: string | null
 }
 
+/** A night priced on the calendar, replacing the flat's usual price. */
+export interface GanttDayPrice {
+  date: string
+  price: number
+}
+
 export interface GanttPropertyRow extends GanttPropertySummary {
   bookings: Booking[]
   blocks?: GanttBlock[]
+  day_prices?: GanttDayPrice[]
 }
 
 export interface TodayChecks {

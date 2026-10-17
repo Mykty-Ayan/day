@@ -19,6 +19,8 @@ import {
 } from '../../components/ui/select'
 import { ToggleGroup, ToggleGroupItem } from '../../components/ui/toggle-group'
 import GanttAgendaView from '../../components/property/GanttAgendaView'
+import DayPriceDialog, { type DayPriceSelection } from '../../components/property/DayPriceDialog'
+import { showToast } from '../../components/ui/Toast'
 
 // Month keys match gantt.months translation keys (0-11)
 
@@ -73,6 +75,9 @@ export default function GanttChartPage() {
   const [viewMode, setViewMode] = useState<GanttViewMode>(() => readInitialViewMode())
   // Keeps the first click state for the 2-step check-in/check-out flow.
   const [pendingSelection, setPendingSelection] = useState<PendingSelection | null>(null)
+  // What a click on a day does: start a stay, or pick nights to price (as on Airbnb's calendar).
+  const [cellMode, setCellMode] = useState<'bookings' | 'prices'>('bookings')
+  const [priceSelection, setPriceSelection] = useState<DayPriceSelection | null>(null)
 
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -106,6 +111,7 @@ export default function GanttChartPage() {
       property: p,
       bookings: p.bookings,
       blocks: p.blocks ?? [],
+      dayPrices: p.day_prices ?? [],
     }))
   }, [ganttData])
 
@@ -158,6 +164,10 @@ export default function GanttChartPage() {
     : Math.min(currentPage * pageSize, sortedRows.length)
 
   function handleCellClick(propertyId: string, date: string) {
+    if (cellMode === 'prices') {
+      pickPricedNight(propertyId, date)
+      return
+    }
     // First click selects check-in, second valid click on the same row selects check-out.
     if (!pendingSelection || pendingSelection.propertyId !== propertyId) {
       setPendingSelection({ propertyId, checkIn: date })
@@ -193,6 +203,29 @@ export default function GanttChartPage() {
         check_out: date,
         from: 'gantt',
       } as Record<string, string>,
+    })
+  }
+
+  // The first click picks a night, the second one in the same row the other end:
+  // the nights between them, both included, get a price.
+  function pickPricedNight(propertyId: string, date: string) {
+    const row = rows.find((candidate) => candidate.property.id === propertyId)
+    if (row?.property.rental_mode === 'hourly') {
+      showToast('error', t('gantt.priceHourly'))
+      return
+    }
+    if (!pendingSelection || pendingSelection.propertyId !== propertyId) {
+      setPendingSelection({ propertyId, checkIn: date })
+      return
+    }
+    const [first, last] = [pendingSelection.checkIn, date].sort()
+    setPendingSelection(null)
+    setPriceSelection({
+      propertyId,
+      flatName: row?.property.internal_name ?? '',
+      startDate: first,
+      endDate: addDays(last, 1),
+      price: row?.dayPrices?.find((night) => night.date === first)?.price ?? null,
     })
   }
 
@@ -282,6 +315,23 @@ export default function GanttChartPage() {
               <ToggleGroupItem value="gantt">{t('gantt.title')}</ToggleGroupItem>
             </ToggleGroup>
           </div>
+          {viewMode === 'gantt' && (
+            <div className="flex flex-wrap items-center gap-3">
+              <ToggleGroup
+                type="single"
+                value={cellMode}
+                onValueChange={(value) => {
+                  if (!value) return
+                  setPendingSelection(null)
+                  setCellMode(value as 'bookings' | 'prices')
+                }}
+              >
+                <ToggleGroupItem value="bookings">{t('gantt.modeBookings')}</ToggleGroupItem>
+                <ToggleGroupItem value="prices">{t('gantt.modePrices')}</ToggleGroupItem>
+              </ToggleGroup>
+              {cellMode === 'prices' && <p className="text-xs text-gray-500">{t('gantt.pricePick')}</p>}
+            </div>
+          )}
 
           <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <p className="text-xs font-semibold text-gray-500">
@@ -376,8 +426,10 @@ export default function GanttChartPage() {
             pricingByProperty={pricingByProperty}
             onCellClick={handleCellClick}
             pendingSelection={pendingSelection}
+            priceMode={cellMode === 'prices'}
           />
         )}
+        {priceSelection && <DayPriceDialog selection={priceSelection} onClose={() => setPriceSelection(null)} />}
       </motion.div>
     </div>
   )

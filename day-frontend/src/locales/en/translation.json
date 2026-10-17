@@ -579,7 +579,19 @@
     },
     "closed": "Closed",
     "closedDay": "The flat is closed on this day",
-    "hourlyMany": "{{flat}}: hourly bookings, {{n}}"
+    "hourlyMany": "{{flat}}: hourly bookings, {{n}}",
+    "modeBookings": "Bookings",
+    "modePrices": "Prices",
+    "pricePick": "Pick the first and the last night; the same day twice for one night.",
+    "priceTitle": "Price per night",
+    "priceNights": "nights: {{n}}",
+    "priceHint": "Replaces the usual price on these nights. Bookings already made keep their price.",
+    "priceSave": "Save",
+    "priceReset": "Back to usual price",
+    "priceSaved": "Price saved",
+    "priceResetDone": "The usual price is back",
+    "priceFailed": "Could not save the price",
+    "priceHourly": "A price per night is for daily rentals"
   },
   "cleaning": {
     "title": "Cleaning",
