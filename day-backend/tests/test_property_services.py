@@ -1134,6 +1134,32 @@ class TestManagePricingService:
         assert len(remaining) == 0
 
     @pytest.mark.asyncio
+    async def test_another_companys_season_and_discount_cannot_be_deleted(self):
+        # Company A names its own flat in the path and company B's season or
+        # discount id: the flat check alone let it delete B's.
+        prop_repo, _, seasonal_repo, discount_repo, svc, theirs = await self._setup()
+        await svc.upsert_pricing(theirs.id, COMPANY_ID, PricingConfigInput(base_price=Decimal("100")))
+        season = await svc.add_seasonal_price(
+            theirs.id, COMPANY_ID, SeasonalPrice(name="Summer", price_per_night=Decimal("150"))
+        )
+        rule = await svc.add_discount_rule(
+            theirs.id, COMPANY_ID, DiscountRule(min_nights=5, discount_percent=Decimal("10"))
+        )
+        other = uuid.uuid4()
+        ours = _make_property(company_id=other, internal_name="ours")
+        await prop_repo.save(ours)
+        await svc.upsert_pricing(ours.id, other, PricingConfigInput(base_price=Decimal("90")))
+
+        with pytest.raises(ValueError, match="Seasonal price not found"):
+            await svc.delete_seasonal_price(ours.id, other, season.id)
+        with pytest.raises(ValueError, match="Discount rule not found"):
+            await svc.delete_discount_rule(ours.id, other, rule.id)
+
+        pricing = await svc.get_pricing(theirs.id, COMPANY_ID)
+        assert [s.id for s in await seasonal_repo.list_by_pricing_config(pricing.id)] == [season.id]
+        assert [r.id for r in await discount_repo.list_by_pricing_config(pricing.id)] == [rule.id]
+
+    @pytest.mark.asyncio
     async def test_list_seasonal_prices(self):
         _, _, _, _, svc, prop = await self._setup()
         await svc.upsert_pricing(prop.id, COMPANY_ID, PricingConfigInput(base_price=Decimal("100")))
