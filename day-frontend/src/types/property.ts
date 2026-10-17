@@ -249,6 +249,8 @@ export interface PropertyBlock {
   created_at: string | null
   /** Read from a platform's calendar: that calendar keeps it. */
   feed_id?: string | null
+  /** That platform, as bookings name it (airbnb, booking). */
+  source?: string | null
 }
 
 /** A platform's iCal calendar of the flat, read by Day every half hour. */

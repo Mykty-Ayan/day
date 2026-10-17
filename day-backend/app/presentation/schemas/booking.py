@@ -515,8 +515,9 @@ class PropertyBlockResponse(BaseModel):
     end_date: date
     reason: str | None = None
     created_at: datetime | None = None
-    # Taken from a platform calendar: that calendar keeps it.
+    # Taken from a platform calendar: that calendar keeps it; source is that platform.
     feed_id: uuid.UUID | None = None
+    source: str | None = None
 
 
 class CalendarFeedCreate(BaseModel):

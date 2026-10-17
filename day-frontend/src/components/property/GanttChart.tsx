@@ -87,6 +87,9 @@ function getBookingDayRange(checkIn: string, checkOut: string): { start: Date; e
   return { start, end }
 }
 
+// As the server and the booking calendar count them: these hold no night.
+const FREES_NIGHTS_STATUSES: BookingStatus[] = ['cancelled', 'completed']
+
 function isBookedOnDate(bookings: Booking[], day: Date): boolean {
   const dayStart = new Date(day.getFullYear(), day.getMonth(), day.getDate())
   return bookings.some((booking) => {
@@ -916,40 +919,63 @@ export default function GanttChart({
                   const pos = getSpanPosition(parseDateOnly(block.start_date), parseDateOnly(block.end_date), cellW * 0.5)
                   if (!pos) return null
                   const label = block.reason || t('gantt.closed')
-                  // Only a platform calendar closes nights a Day booking holds: a double
-                  // sale, drawn over the booking in red until one of the two is cancelled.
-                  const start = parseDateOnly(block.start_date)
-                  const nights = Math.round((parseDateOnly(block.end_date).getTime() - start.getTime()) / 86400000)
-                  const clash = Array.from({ length: nights }, (_, n) => (
-                    new Date(start.getFullYear(), start.getMonth(), start.getDate() + n)
-                  )).some((night) => isBookedOnDate(row.bookings, night))
-                  const title = clash ? t('gantt.doubleSale') : t('gantt.closed')
                   return (
                     <div
                       key={block.id}
                       role="img"
-                      aria-label={`${title}: ${label}`}
-                      title={clash ? `${title}: ${label}` : label}
-                      className={`pointer-events-none absolute rounded-lg text-[11px] font-semibold ${
-                        clash ? 'text-red-700 outline outline-2 outline-red-600' : 'text-gray-600'
-                      }`}
+                      aria-label={`${t('gantt.closed')}: ${label}`}
+                      title={label}
+                      className="pointer-events-none absolute rounded-lg text-[11px] font-semibold text-gray-600"
                       style={{
                         left: pos.left,
                         width: pos.width,
                         top: BAR_Y,
                         height: BAR_H,
-                        zIndex: clash ? 6 : 4,
-                        background: clash
-                          ? 'repeating-linear-gradient(45deg, #fecaca 0 6px, #fee2e2 6px 12px)'
-                          : 'repeating-linear-gradient(45deg, #e5e7eb 0 6px, #f3f4f6 6px 12px)',
+                        zIndex: 4,
+                        background: 'repeating-linear-gradient(45deg, #e5e7eb 0 6px, #f3f4f6 6px 12px)',
                       }}
                     >
-                      <div className="flex h-full items-center overflow-hidden whitespace-nowrap px-2">
-                        {clash ? `${title} · ${label}` : label}
-                      </div>
+                      <div className="flex h-full items-center overflow-hidden whitespace-nowrap px-2">{label}</div>
                     </div>
                   )
                 })}
+
+                {/* A platform's booking over a Day booking (the server tells which): the
+                    nights sold twice, in red over the booking, until one is cancelled. */}
+                {(row.blocks ?? []).filter((block) => block.clash).flatMap((block) =>
+                  row.bookings
+                    .filter((booking) => !FREES_NIGHTS_STATUSES.includes(booking.status))
+                    .map((booking) => {
+                      const { start: checkIn, end: checkOut } = getBookingDayRange(booking.check_in, booking.check_out)
+                      const blockStart = parseDateOnly(block.start_date)
+                      const blockEnd = parseDateOnly(block.end_date)
+                      const from = checkIn > blockStart ? checkIn : blockStart
+                      const to = checkOut < blockEnd ? checkOut : blockEnd
+                      if (from >= to) return null
+                      const pos = getSpanPosition(from, to, cellW * 0.5)
+                      if (!pos) return null
+                      const label = `${t('gantt.doubleSale')} · ${block.reason || t('gantt.closed')}`
+                      return (
+                        <div
+                          key={`${block.id}:${booking.id}`}
+                          role="img"
+                          aria-label={`${t('gantt.doubleSale')}: ${block.reason || t('gantt.closed')}`}
+                          title={label}
+                          className="pointer-events-none absolute rounded-lg text-[11px] font-semibold text-red-800 outline outline-2 outline-red-600"
+                          style={{
+                            left: pos.left,
+                            width: pos.width,
+                            top: BAR_Y,
+                            height: BAR_H,
+                            zIndex: 7,
+                            background: 'repeating-linear-gradient(45deg, rgba(254,202,202,0.85) 0 6px, rgba(254,226,226,0.6) 6px 12px)',
+                          }}
+                        >
+                          <div className="flex h-full items-center overflow-hidden whitespace-nowrap px-2">{label}</div>
+                        </div>
+                      )
+                    }),
+                )}
 
                 {/* Booking bars overlaid */}
                 {row.bookings.map((booking) => {

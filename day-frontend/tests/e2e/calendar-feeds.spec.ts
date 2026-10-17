@@ -39,7 +39,7 @@ test('a platform calendar is added, shows how it was read and its own Day link, 
   await expect(item).toContainText('Not read:')
   await expect(item.getByLabel('Day link for Airbnb')).toHaveValue(/&exclude=[0-9a-f-]{36}$/)
 
-  await item.getByRole('button', { name: 'Remove' }).click()
+  await item.getByRole('button', { name: 'Remove: Airbnb' }).click()
   await page.getByRole('button', { name: 'Remove' }).last().click()
   await expect(card).toContainText('No calendars yet.')
 })
@@ -73,11 +73,38 @@ test('a calendar\'s nights over a Day booking show as a double booking', async (
     for (const row of answer.properties) {
       if (row.id !== flat.id) continue
       row.blocks = [
-        { id: '33333333-3333-4333-8333-333333333333', start_date: day(7), end_date: day(9), reason: 'Airbnb', feed_id: 'x' },
+        { id: '33333333-3333-4333-8333-333333333333', start_date: day(7), end_date: day(9), reason: 'Airbnb', clash: true },
       ]
     }
     await route.fulfill({ json: answer })
   })
   await page.goto('/properties/gantt')
   await expect(page.getByRole('img', { name: 'Double booking: Airbnb' })).toBeAttached()
+})
+
+test('a platform\'s own booking is not kept off its nights by that platform\'s calendar', async ({ page, request }) => {
+  // The owner books the Airbnb guest in Day too, after Day read Airbnb's calendar:
+  // those nights are that very stay, for Airbnb; for anyone else they stay closed.
+  const flat = await activeFlat(request)
+  await page.route(`**/api/v1/properties/${flat.id}/blocks?*`, async (route) => {
+    await route.fulfill({
+      json: [
+        {
+          id: '44444444-4444-4444-8444-444444444444', property_id: flat.id, start_date: day(10), end_date: day(12),
+          reason: 'Airbnb', created_at: null, feed_id: '55555555-5555-4555-8555-555555555555', source: 'airbnb',
+        },
+      ],
+    })
+  })
+  await page.goto(`/bookings/new?property_id=${flat.id}`)
+  await expect(page.locator('#create-property')).toContainText(flat.name)
+  const night = page.locator(`[data-radix-popper-content-wrapper] td[data-day="${day(10)}"] button`)
+
+  await page.locator('#create-date-range').click()
+  await expect(night).toBeDisabled()
+  await page.keyboard.press('Escape')
+
+  await page.getByRole('radio', { name: 'Airbnb' }).click()
+  await page.locator('#create-date-range').click()
+  await expect(night).toBeEnabled()
 })

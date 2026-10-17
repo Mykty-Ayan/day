@@ -369,7 +369,7 @@ export function useCalendarFeeds(propertyId: string, enabled = true) {
   })
 }
 
-function useCalendarFeedsChange<T>(propertyId: string, change: (input: T) => Promise<unknown>) {
+function useCalendarFeedsChange<T, R>(propertyId: string, change: (input: T) => Promise<R>) {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: change,

@@ -96,7 +96,7 @@ function EditBookingForm({ detail, bookingId }: { detail: BookingDetail; booking
   // Other stays of the flat, struck through in the calendar; this booking's own nights stay open.
   const [calendarMonth, setCalendarMonth] = useState(() => new Date())
   const nights = nightsWindow(calendarMonth, form.check_in && !form.check_out ? form.check_in : null)
-  const booked = useBookedNights(detail.booking.property_id, nights.from, nights.to, bookingId)
+  const booked = useBookedNights(detail.booking.property_id, nights.from, nights.to, bookingId, detail.booking.source)
 
   const isHourly = form.rental_mode === 'hourly'
   const effectiveCheckIn = isHourly

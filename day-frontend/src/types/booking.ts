@@ -156,6 +156,8 @@ export interface GanttBlock {
   start_date: string
   end_date: string
   reason: string | null
+  /** A platform's booking over a Day booking: the same night sold twice. */
+  clash?: boolean
 }
 
 /** A night priced on the calendar, replacing the flat's usual price. */

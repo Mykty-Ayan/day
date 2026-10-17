@@ -316,8 +316,8 @@
       "other": "Other"
     },
     "calendar": {
-      "title": "Calendar for Airbnb and Booking",
-      "hint": "Paste the link into calendar sync on Airbnb and Booking: bookings made in Day close those dates there. The link shows taken nights only",
+      "title": "Day link for other platforms",
+      "hint": "For a platform with no calendar of its own below: paste it into its calendar sync, and bookings made in Day close those dates there. A platform with a calendar below takes its own link from there. The link shows taken nights only",
       "copy": "Copy link",
       "copied": "Link copied",
       "failed": "Could not get the link",
@@ -353,10 +353,12 @@
       "sync": "Read now",
       "remove": "Remove",
       "removeTitle": "Remove the calendar?",
-      "removeMessage": "The nights it closed become free in Day.",
+      "removeMessage": "The nights {{name}} closed become free in Day.",
       "exportFor": "Day link for {{name}}",
-      "exportHint": "Paste this Day link into {{name}}: it leaves out what came from {{name}}.",
-      "fromCalendar": "From calendar: {{name}}"
+      "exportHint": "Paste this link into {{name}} in place of the earlier Day link: it leaves out what came from {{name}}.",
+      "fromCalendar": "From calendar: {{name}}",
+      "addedUnread": "Calendar added, not read yet: {{error}}",
+      "loadFailed": "Could not load the calendars"
     }
   },
   "bookings": {

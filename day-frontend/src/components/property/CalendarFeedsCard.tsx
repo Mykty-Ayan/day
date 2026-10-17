@@ -28,10 +28,12 @@ export default function CalendarFeedsCard({ propertyId }: { propertyId: string }
     add.mutate(
       { name: name.trim(), url: url.trim() },
       {
-        onSuccess: () => {
+        onSuccess: (feed) => {
           setName('')
           setUrl('')
-          showToast('success', t('properties.feeds.added'))
+          // Kept either way; a first read that failed says why on the card too.
+          if (feed.last_error) showToast('error', t('properties.feeds.addedUnread', { error: feed.last_error }))
+          else showToast('success', t('properties.feeds.added'))
         },
         onError: (error) =>
           showToast(
@@ -62,6 +64,7 @@ export default function CalendarFeedsCard({ propertyId }: { propertyId: string }
         </div>
       </div>
 
+      {feeds.isError && <p className="text-sm text-red-600">{t('properties.feeds.loadFailed')}</p>}
       {feeds.data && feeds.data.length === 0 && <p className="text-sm text-gray-500">{t('properties.feeds.empty')}</p>}
       <ul className="space-y-3">
         {(feeds.data ?? []).map((feed) => (
@@ -78,7 +81,7 @@ export default function CalendarFeedsCard({ propertyId }: { propertyId: string }
               <div className="flex shrink-0 gap-1">
                 <button
                   type="button"
-                  aria-label={t('properties.feeds.sync')}
+                  aria-label={`${t('properties.feeds.sync')}: ${feed.name}`}
                   title={t('properties.feeds.sync')}
                   disabled={sync.isPending}
                   onClick={() => sync.mutate(feed.id, { onError: () => showToast('error', t('properties.feeds.addFailed')) })}
@@ -88,7 +91,7 @@ export default function CalendarFeedsCard({ propertyId }: { propertyId: string }
                 </button>
                 <button
                   type="button"
-                  aria-label={t('properties.feeds.remove')}
+                  aria-label={`${t('properties.feeds.remove')}: ${feed.name}`}
                   onClick={() => setRemoving(feed)}
                   className="inline-flex h-11 w-11 items-center justify-center rounded-lg text-gray-400 hover:bg-red-50 hover:text-red-600 sm:h-8 sm:w-8"
                 >
@@ -166,7 +169,7 @@ export default function CalendarFeedsCard({ propertyId }: { propertyId: string }
       <ConfirmDialog
         open={removing !== null}
         title={t('properties.feeds.removeTitle')}
-        message={t('properties.feeds.removeMessage')}
+        message={removing ? t('properties.feeds.removeMessage', { name: removing.name }) : ''}
         confirmLabel={t('properties.feeds.remove')}
         variant="danger"
         loading={remove.isPending}

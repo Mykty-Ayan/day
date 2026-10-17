@@ -193,7 +193,7 @@ export default function CreateBookingPage() {
   // The calendar's first month on screen: its booked nights are shown struck through.
   const [calendarMonth, setCalendarMonth] = useState(() => new Date())
   const nights = nightsWindow(calendarMonth, form.check_in && !form.check_out ? form.check_in : null)
-  const booked = useBookedNights(form.property_id, nights.from, nights.to)
+  const booked = useBookedNights(form.property_id, nights.from, nights.to, undefined, form.source)
 
   const { data: guestsData } = useGuests(
     { search: guestSearch, limit: 5 },
