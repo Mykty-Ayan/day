@@ -123,6 +123,9 @@ class FakeBookingRepository(BookingRepository):
     async def delete_block(self, block_id):
         self._blocks.pop(block_id, None)
 
+    async def list_feed_blocks(self, feed_id):
+        return [b for b in self._blocks.values() if b.feed_id == feed_id]
+
     async def create(self, booking: Booking) -> Booking:
         self._bookings[booking.id] = booking
         return booking

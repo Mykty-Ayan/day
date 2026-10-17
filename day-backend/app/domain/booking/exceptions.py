@@ -65,3 +65,11 @@ class BlockOverlapsBookingError(ValueError):
 
     def __init__(self) -> None:
         super().__init__("Dates have bookings")
+
+
+class BlockFromCalendarError(ValueError):
+    """A block taken from a platform's calendar: that calendar keeps it, and it comes
+    back on the next read if removed by hand. The HTTP layer answers 409."""
+
+    def __init__(self) -> None:
+        super().__init__("The block comes from a platform calendar")

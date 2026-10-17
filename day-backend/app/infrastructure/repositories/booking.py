@@ -19,6 +19,7 @@ from app.domain.booking.entities import (
     BookingDeposit,
     BookingFile,
     BookingPayment,
+    CalendarFeed,
     GroupBooking,
     Guest,
     PropertyBlock,
@@ -32,6 +33,7 @@ from app.domain.booking.repositories import (
     BookingFileRepository,
     BookingPaymentRepository,
     BookingRepository,
+    CalendarFeedRepository,
     GroupBookingRepository,
     GuestRepository,
 )
@@ -55,6 +57,7 @@ from app.infrastructure.models.booking import (
     BookingFileModel,
     BookingModel,
     BookingPaymentModel,
+    CalendarFeedModel,
     GroupBookingModel,
     GuestModel,
     PropertyBlockModel,
@@ -443,6 +446,10 @@ class SqlBookingRepository(BookingRepository):
             ends_at=block.ends_at,
             reason=block.reason,
             created_by=block.created_by,
+            feed_id=block.feed_id,
+            external_uid=block.external_uid,
+            source=block.source,
+            reserved=block.reserved,
         )
         self._session.add(model)
         await self._session.flush()
@@ -454,6 +461,10 @@ class SqlBookingRepository(BookingRepository):
 
     async def delete_block(self, block_id: uuid.UUID) -> None:
         await self._session.execute(delete(PropertyBlockModel).where(PropertyBlockModel.id == block_id))
+
+    async def list_feed_blocks(self, feed_id: uuid.UUID) -> list[PropertyBlock]:
+        stmt = select(PropertyBlockModel).where(PropertyBlockModel.feed_id == feed_id)
+        return [_model_to_block(m) for m in (await self._session.scalars(stmt)).all()]
 
     async def lock_property_calendar(self, property_id: uuid.UUID) -> None:
         # Same kind of lock as lock_idempotency_key, held until commit.
@@ -1048,5 +1059,68 @@ def _model_to_block(m: PropertyBlockModel) -> PropertyBlock:
         ends_at=m.ends_at,
         reason=m.reason,
         created_by=m.created_by,
+        created_at=m.created_at,
+        feed_id=m.feed_id,
+        external_uid=m.external_uid,
+        source=m.source,
+        reserved=m.reserved,
+    )
+
+
+class SqlCalendarFeedRepository(CalendarFeedRepository):
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+
+    async def add(self, feed: CalendarFeed) -> CalendarFeed:
+        model = CalendarFeedModel(
+            id=feed.id,
+            company_id=feed.company_id,
+            property_id=feed.property_id,
+            name=feed.name,
+            url=feed.url,
+            source=feed.source,
+        )
+        self._session.add(model)
+        await self._session.flush()
+        return _model_to_feed(model)
+
+    async def get(self, feed_id: uuid.UUID) -> CalendarFeed | None:
+        model = await self._session.get(CalendarFeedModel, feed_id, populate_existing=True)
+        return _model_to_feed(model) if model else None
+
+    async def list_for_property(self, property_id: uuid.UUID) -> list[CalendarFeed]:
+        stmt = (
+            select(CalendarFeedModel)
+            .where(CalendarFeedModel.property_id == property_id)
+            .order_by(CalendarFeedModel.created_at)
+        )
+        return [_model_to_feed(m) for m in (await self._session.scalars(stmt)).all()]
+
+    async def list_all(self) -> list[CalendarFeed]:
+        stmt = select(CalendarFeedModel).order_by(CalendarFeedModel.created_at)
+        return [_model_to_feed(m) for m in (await self._session.scalars(stmt)).all()]
+
+    async def delete(self, feed_id: uuid.UUID) -> None:
+        await self._session.execute(delete(PropertyBlockModel).where(PropertyBlockModel.feed_id == feed_id))
+        await self._session.execute(delete(CalendarFeedModel).where(CalendarFeedModel.id == feed_id))
+
+    async def record_sync(self, feed_id: uuid.UUID, synced_at: datetime, error: str | None) -> None:
+        await self._session.execute(
+            update(CalendarFeedModel)
+            .where(CalendarFeedModel.id == feed_id)
+            .values(last_synced_at=synced_at, last_error=error)
+        )
+
+
+def _model_to_feed(m: CalendarFeedModel) -> CalendarFeed:
+    return CalendarFeed(
+        id=m.id,
+        company_id=m.company_id,
+        property_id=m.property_id,
+        name=m.name,
+        url=m.url,
+        source=m.source,
+        last_synced_at=m.last_synced_at,
+        last_error=m.last_error,
         created_at=m.created_at,
     )

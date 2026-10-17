@@ -172,7 +172,9 @@ class UpdateBookingService:
             # really moved is checked, and the lead time only for a new check-in.
             moved = (booking.check_in, booking.check_out, booking.rental_mode) != (saved_in, saved_out, saved_mode)
             if moved and prop is not None:
-                await ensure_not_blocked(self._booking_repo, prop, booking.check_in, booking.check_out)
+                await ensure_not_blocked(
+                    self._booking_repo, prop, booking.check_in, booking.check_out, booking.source.value
+                )
                 breaches = await stay_rule_breaches(
                     prop,
                     booking.property_id,

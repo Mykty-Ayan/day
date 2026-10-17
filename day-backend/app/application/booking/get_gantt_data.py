@@ -7,6 +7,7 @@ from datetime import date, datetime
 from decimal import Decimal
 
 from app.domain.booking.repositories import BookingRepository, GuestRepository
+from app.domain.booking.value_objects import BookingStatus
 from app.domain.property.repositories import DayPriceRepository, PropertyRepository
 from app.domain.property.value_objects import PropertyStatus
 
@@ -36,6 +37,8 @@ class GanttBlock:
     start_date: date
     end_date: date
     reason: str | None
+    # A platform's booking over a Day booking of another source: a double sale.
+    clash: bool = False
 
 
 @dataclass
@@ -101,9 +104,9 @@ class GetGanttDataService:
             offset += batch_size
 
         # One query for the whole board, not one a flat.
-        closed: dict[uuid.UUID, list[GanttBlock]] = defaultdict(list)
+        closed: dict[uuid.UUID, list] = defaultdict(list)
         for block in await self._booking_repo.list_company_blocks(company_id, start_date, end_date):
-            closed[block.property_id].append(GanttBlock(block.id, block.start_date, block.end_date, block.reason))
+            closed[block.property_id].append(block)
         priced: dict[uuid.UUID, list[GanttDayPrice]] = defaultdict(list)
         for night in await self._day_price_repo.list_for_company(company_id, start_date, end_date):
             priced[night.property_id].append(GanttDayPrice(night.date, night.price))
@@ -149,10 +152,27 @@ class GetGanttDataService:
                     type=prop.type.value,
                     status=prop.status.value,
                     bookings=gantt_bookings,
-                    blocks=closed[prop.id],
+                    blocks=[
+                        GanttBlock(block.id, block.start_date, block.end_date, block.reason, _clash(block, bookings))
+                        for block in closed[prop.id]
+                    ],
                     rental_mode=prop.rental_mode.value,
                     day_prices=priced[prop.id],
                 )
             )
 
         return GanttData(properties=result)
+
+
+def _clash(block, bookings) -> bool:
+    """A platform's booking (not a mere closure) over a Day booking of another source,
+    as the calendar reader tells it: the same night sold twice."""
+    if block.feed_id is None or not block.reserved or block.starts_at is None:
+        return False
+    return any(
+        b.status not in (BookingStatus.CANCELLED, BookingStatus.COMPLETED)
+        and b.source.value != block.source
+        and b.check_in < block.ends_at
+        and b.check_out > block.starts_at
+        for b in bookings
+    )

@@ -14,6 +14,7 @@ from app.domain.booking.entities import (
     BookingDeposit,
     BookingFile,
     BookingPayment,
+    CalendarFeed,
     GroupBooking,
     Guest,
     PropertyBlock,
@@ -111,6 +112,10 @@ class BookingRepository(abc.ABC):
 
     async def delete_block(self, block_id: uuid.UUID) -> None:
         raise NotImplementedError
+
+    async def list_feed_blocks(self, feed_id: uuid.UUID) -> list[PropertyBlock]:
+        """The blocks taken from one platform calendar."""
+        return []
 
     async def lock_property_calendar(self, property_id: uuid.UUID) -> None:  # noqa: B027  (no-op unless SQL)
         """Serialize the checks of one flat's neighbours until the transaction ends:
@@ -298,3 +303,25 @@ class BookingAuditLogRepository(abc.ABC):
         offset: int = 0,
         limit: int = 50,
     ) -> list[BookingAuditLog]: ...
+
+
+class CalendarFeedRepository(abc.ABC):
+    @abc.abstractmethod
+    async def add(self, feed: CalendarFeed) -> CalendarFeed: ...
+
+    @abc.abstractmethod
+    async def get(self, feed_id: uuid.UUID) -> CalendarFeed | None: ...
+
+    @abc.abstractmethod
+    async def list_for_property(self, property_id: uuid.UUID) -> list[CalendarFeed]: ...
+
+    @abc.abstractmethod
+    async def list_all(self) -> list[CalendarFeed]:
+        """Every company's calendars, for the timer."""
+
+    @abc.abstractmethod
+    async def delete(self, feed_id: uuid.UUID) -> None:
+        """With its blocks."""
+
+    @abc.abstractmethod
+    async def record_sync(self, feed_id: uuid.UUID, synced_at: datetime, error: str | None) -> None: ...
