@@ -1297,8 +1297,9 @@ async def add_calendar_feed(
 ):
     """Add a platform's calendar of the flat and read it at once: its events close the
     nights. A read that fails is answered in last_error, and the calendar stays."""
+    feeds = build_calendar_feeds(session, fetch_calendar)
     try:
-        feed = await build_calendar_feeds(session, fetch_calendar).add(company_id, property_id, body.name, body.url)
+        feed = await feeds.add(company_id, property_id, body.name, body.url)
     except IntegrityError:
         await session.rollback()
         raise HTTPException(status_code=409, detail="This calendar is already added")
@@ -1306,7 +1307,16 @@ async def add_calendar_feed(
         await session.rollback()
         raise HTTPException(status_code=404, detail=str(e))
     await session.commit()
-    return _feed_answer(feed)
+    return await _read_now(session, feeds, feed)
+
+
+async def _read_now(session: AsyncSession, feeds, feed) -> CalendarFeedResponse:
+    # Read with no transaction open: a platform that answers slowly holds no
+    # database connection (the session gives it back at commit).
+    loaded = await feeds.load(feed)
+    await feeds.apply(feed, loaded)
+    await session.commit()
+    return _feed_answer(await feeds.get(feed.id))
 
 
 @router.post(
@@ -1321,13 +1331,14 @@ async def sync_calendar_feed(
     company_id: uuid.UUID = Depends(get_company_id),
 ):
     """Read the calendar now, not at the next turn of the timer."""
+    feeds = build_calendar_feeds(session, fetch_calendar)
     try:
-        feed = await build_calendar_feeds(session, fetch_calendar).sync(company_id, property_id, feed_id)
+        feed = await feeds.get_own(company_id, property_id, feed_id)
     except ValueError as e:
         await session.rollback()
         raise HTTPException(status_code=404, detail=str(e))
     await session.commit()
-    return _feed_answer(feed)
+    return await _read_now(session, feeds, feed)
 
 
 @router.delete(

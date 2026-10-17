@@ -612,7 +612,9 @@
     "priceResetDone": "The usual price is back",
     "priceFailed": "Could not save the price",
     "priceHourly": "A price per night is for daily rentals",
-    "doubleSale": "Double booking"
+    "doubleSale": "Double booking",
+    "priceLastHint": "First night {{first}}. Now the last one (it counts too).",
+    "priceInvalid": "Enter the price in digits, for example 25000 or 25 000."
   },
   "cleaning": {
     "title": "Cleaning",

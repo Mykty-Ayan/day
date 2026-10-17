@@ -24,12 +24,17 @@ def blocks_stay(blocks: list[PropertyBlock], check_in: datetime, check_out: date
     return any(check_in < block.ends_at and check_out > block.starts_at for block in blocks)
 
 
-async def ensure_not_blocked(booking_repo: BookingRepository, prop, check_in: datetime, check_out: datetime) -> None:
+async def ensure_not_blocked(
+    booking_repo: BookingRepository, prop, check_in: datetime, check_out: datetime, source: str | None = None
+) -> None:
     """Refuse a stay on the flat's closed nights. Under the calendar lock, held to
-    commit, so a block and a booking made at once cannot both get in."""
+    commit, so a block and a booking made at once cannot both get in. A platform's
+    own booking (source) is not refused by that platform's calendar: the block is
+    that very stay, read from the platform before it was booked in Day."""
     await booking_repo.lock_property_calendar(prop.id)
     blocks = await booking_repo.list_blocks(
         prop.id, check_in.date() - timedelta(days=1), check_out.date() + timedelta(days=1)
     )
+    blocks = [block for block in blocks if source is None or block.source != source]
     if blocks_stay(blocks, check_in, check_out):
         raise PropertyBlockedError()

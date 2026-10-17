@@ -29,19 +29,25 @@ FRESH = timedelta(minutes=25)
 async def run_once(maker: async_sessionmaker[AsyncSession] = async_session) -> int:
     async with maker() as session:
         feeds = await SqlCalendarFeedRepository(session).list_all()
-    now = datetime.utcnow()
     read = 0
-    for feed in feeds:
-        if feed.last_synced_at is not None and now - feed.last_synced_at < FRESH:
-            continue
+    for listed in feeds:
         try:
+            # Looked at again just before: the owner or another instance may have read
+            # it since the list was taken, or the owner removed it.
             async with maker() as session:
-                await build_calendar_feeds(session, fetch_calendar).read(feed)
+                feed = await SqlCalendarFeedRepository(session).get(listed.id)
+            if feed is None or (feed.last_synced_at and datetime.utcnow() - feed.last_synced_at < FRESH):
+                continue
+            async with maker() as session:
+                calendars = build_calendar_feeds(session, fetch_calendar)
+                # Read before the session touches the database: a slow platform holds no connection.
+                loaded = await calendars.load(feed)
+                await calendars.apply(feed, loaded)
                 await session.commit()
             read += 1
         except Exception:
             # The calendar keeps its blocks; the next turn tries again.
-            logger.exception("Calendar %s could not be read", feed.id)
+            logger.exception("Calendar %s could not be read", listed.id)
     return read
 
 

@@ -9,14 +9,19 @@ from unittest.mock import AsyncMock
 
 import pytest
 
+from app.application.booking.create_booking import CreateBookingInput, CreateBookingService
+from app.application.booking.update_booking import UpdateBookingInput, UpdateBookingService
 from app.application.property.day_prices import ManageDayPricesService
 from app.domain.auth.permissions import Permission
 from app.domain.booking.value_objects import RentalMode
 from app.domain.property.entities import DiscountRule, PricingConfig, SeasonalPrice
 from tests.test_booking_services import (
     COMPANY_ID,
+    FakeBookingAuditLogRepository,
+    FakeBookingRepository,
     FakeDayPriceRepository,
     FakeDiscountRuleRepository,
+    FakeGuestRepository,
     FakePricingConfigRepository,
     FakePropertyRepository,
     FakeSeasonalPriceRepository,
@@ -38,6 +43,10 @@ class Prices:
         self.days = FakeDayPriceRepository()
         self.calc = _build_price_calculator(self.pricing, self.seasonal, self.discounts, self.days)
         self.svc = ManageDayPricesService(self.props, self.days)
+        self.bookings = FakeBookingRepository()
+        audit = FakeBookingAuditLogRepository()
+        self.create = CreateBookingService(self.bookings, FakeGuestRepository(), self.props, audit, self.calc)
+        self.update = UpdateBookingService(self.bookings, self.props, audit, self.calc)
 
     async def flat(self, **pricing):
         prop = _make_property(company_id=COMPANY_ID)
@@ -74,6 +83,52 @@ async def test_a_long_stay_discount_leaves_a_calendar_price_whole():
     await p.svc.set(COMPANY_ID, prop.id, NEW_YEAR, date(2027, 1, 1), Decimal("25000"))
     # 10 % off the two ordinary nights only: 45 000 − 2 000.
     assert await p.total(prop, date(2026, 12, 30), date(2027, 1, 2)) == Decimal("43000")
+
+
+async def test_a_fixed_long_stay_discount_leaves_a_calendar_price_whole_too():
+    p = Prices()
+    prop, config = await p.flat()
+    await p.discounts.save(DiscountRule(pricing_config_id=config.id, min_nights=3, discount_fixed=Decimal("5000")))
+    await p.svc.set(COMPANY_ID, prop.id, NEW_YEAR, date(2027, 1, 1), Decimal("25000"))
+    # The 5 000 comes off the two ordinary nights.
+    assert await p.total(prop, date(2026, 12, 30), date(2027, 1, 2)) == Decimal("40000")
+    await p.svc.set(COMPANY_ID, prop.id, date(2026, 12, 30), date(2027, 1, 2), Decimal("30000"))
+    # Every night priced on the calendar: nothing to take the discount from.
+    assert await p.total(prop, date(2026, 12, 30), date(2027, 1, 2)) == Decimal("90000")
+
+
+async def test_a_booking_made_keeps_its_price_when_edited_without_new_dates():
+    # The edit form sends the saved dates back with any change: a note alone must
+    # not reprice the stay by a calendar price set after it was booked.
+    p = Prices()
+    prop, _ = await p.flat()
+    booking = await p.create.execute(
+        CreateBookingInput(company_id=COMPANY_ID, property_id=prop.id, guest_name="Ерлан",
+                           check_in=datetime(2026, 12, 30, 14), check_out=datetime(2027, 1, 1, 12))
+    )
+    assert booking.total_price == Decimal("20000")
+    await p.svc.set(COMPANY_ID, prop.id, NEW_YEAR, date(2027, 1, 1), Decimal("25000"))
+    edited = await p.update.execute(
+        UpdateBookingInput(booking_id=booking.id, company_id=COMPANY_ID, check_in=booking.check_in,
+                           check_out=booking.check_out, adults_count=booking.adults_count,
+                           children_count=booking.children_count, notes="Поздний заезд")
+    )
+    assert edited.total_price == Decimal("20000")
+    # New dates take today's prices: one night more is 31 Dec at the calendar price.
+    longer = await p.update.execute(
+        UpdateBookingInput(booking_id=booking.id, company_id=COMPANY_ID, check_out=datetime(2027, 1, 2, 12))
+    )
+    assert longer.total_price == Decimal("45000")
+
+
+def test_a_calendar_price_has_at_most_two_decimals():
+    from pydantic import ValidationError
+
+    from app.presentation.schemas.property import DayPriceSet
+
+    with pytest.raises(ValidationError):
+        DayPriceSet(start_date=NEW_YEAR, end_date=date(2027, 1, 1), price="0.001")
+    assert DayPriceSet(start_date=NEW_YEAR, end_date=date(2027, 1, 1), price="25000.50").price == Decimal("25000.50")
 
 
 async def test_an_hourly_stay_keeps_the_hourly_price():

@@ -429,7 +429,13 @@ export default function GanttChartPage() {
             priceMode={cellMode === 'prices'}
           />
         )}
-        {priceSelection && <DayPriceDialog selection={priceSelection} onClose={() => setPriceSelection(null)} />}
+        {priceSelection && (
+          <DayPriceDialog
+            key={`${priceSelection.propertyId}:${priceSelection.startDate}:${priceSelection.endDate}`}
+            selection={priceSelection}
+            onClose={() => setPriceSelection(null)}
+          />
+        )}
       </motion.div>
     </div>
   )

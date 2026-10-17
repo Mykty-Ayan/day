@@ -190,6 +190,10 @@ class PropertyBlock:
     # calendar keeps it, and it cannot be removed by hand.
     feed_id: uuid.UUID | None = None
     external_uid: str | None = None
+    # The platform (a BookingSource value) and whether the event is a booking there
+    # (False: nights the platform only marks unavailable, maybe another's echo).
+    source: str | None = None
+    reserved: bool | None = None
 
 
 @dataclass
@@ -202,6 +206,8 @@ class CalendarFeed:
     property_id: uuid.UUID = field(default_factory=uuid.uuid4)
     name: str = ""
     url: str = ""
+    # The platform, told by the link's address (a BookingSource value), if known.
+    source: str | None = None
     last_synced_at: datetime | None = None
     last_error: str | None = None
     created_at: datetime | None = None

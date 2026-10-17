@@ -61,7 +61,9 @@ class MoveBookingService:
         )
         if overlapping:
             raise BookingOverlapError("Date range overlaps with existing booking on target property")
-        await ensure_not_blocked(self._booking_repo, target, booking.check_in, booking.check_out)
+        await ensure_not_blocked(
+            self._booking_repo, target, booking.check_in, booking.check_out, booking.source.value
+        )
         # The target flat's rules; the dates stay, so no lead time.
         breaches = await stay_rule_breaches(
             target,

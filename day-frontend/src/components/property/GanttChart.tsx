@@ -604,9 +604,11 @@ export default function GanttChart({
       {pendingSelection && (
         <div className="border-b border-blue-100 bg-blue-50 px-3 py-2">
           <p className="text-xs font-semibold text-blue-700">
-            {t('gantt.tapCheckoutHint', {
-              checkIn: formatPreviewDate(pendingSelection.checkIn, shortMonthNames),
-            })}
+            {priceMode
+              ? t('gantt.priceLastHint', { first: formatPreviewDate(pendingSelection.checkIn, shortMonthNames) })
+              : t('gantt.tapCheckoutHint', {
+                  checkIn: formatPreviewDate(pendingSelection.checkIn, shortMonthNames),
+                })}
           </p>
         </div>
       )}
@@ -1000,6 +1002,8 @@ export default function GanttChart({
                         height: BAR_H,
                         backgroundColor: booking.gantt_color || '#3B82F6',
                         zIndex: shared ? 6 : 5,
+                        // Picking prices: a booked night is picked through its bar.
+                        pointerEvents: priceMode ? 'none' : undefined,
                       }}
                     >
                       <div className="flex items-center h-full px-2 overflow-hidden">
@@ -1074,6 +1078,7 @@ export default function GanttChart({
                             height: BAR_H,
                             backgroundColor: group[0].gantt_color || '#3B82F6',
                             zIndex: shared ? 6 : 5,
+                            pointerEvents: priceMode ? 'none' : undefined,
                           }}
                         >
                           ×{group.length}

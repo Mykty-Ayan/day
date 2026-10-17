@@ -448,6 +448,8 @@ class SqlBookingRepository(BookingRepository):
             created_by=block.created_by,
             feed_id=block.feed_id,
             external_uid=block.external_uid,
+            source=block.source,
+            reserved=block.reserved,
         )
         self._session.add(model)
         await self._session.flush()
@@ -1060,6 +1062,8 @@ def _model_to_block(m: PropertyBlockModel) -> PropertyBlock:
         created_at=m.created_at,
         feed_id=m.feed_id,
         external_uid=m.external_uid,
+        source=m.source,
+        reserved=m.reserved,
     )
 
 
@@ -1069,7 +1073,12 @@ class SqlCalendarFeedRepository(CalendarFeedRepository):
 
     async def add(self, feed: CalendarFeed) -> CalendarFeed:
         model = CalendarFeedModel(
-            id=feed.id, company_id=feed.company_id, property_id=feed.property_id, name=feed.name, url=feed.url
+            id=feed.id,
+            company_id=feed.company_id,
+            property_id=feed.property_id,
+            name=feed.name,
+            url=feed.url,
+            source=feed.source,
         )
         self._session.add(model)
         await self._session.flush()
@@ -1110,6 +1119,7 @@ def _model_to_feed(m: CalendarFeedModel) -> CalendarFeed:
         property_id=m.property_id,
         name=m.name,
         url=m.url,
+        source=m.source,
         last_synced_at=m.last_synced_at,
         last_error=m.last_error,
         created_at=m.created_at,

@@ -339,8 +339,11 @@ function useDayPricesChange<T>(change: (input: T) => Promise<unknown>) {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: change,
-    // The chessboard shows the nights' prices.
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['gantt-data'] }),
+    onSuccess: () => {
+      // The chessboard shows the nights' prices, and the booking form counts them.
+      qc.invalidateQueries({ queryKey: ['gantt-data'] })
+      qc.invalidateQueries({ queryKey: ['price-calculation'] })
+    },
   })
 }
 
