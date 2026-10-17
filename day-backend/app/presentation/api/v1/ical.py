@@ -46,6 +46,10 @@ async def property_calendar(
         property_id, today - timedelta(days=1), today + timedelta(days=_HORIZON_DAYS)
     )
     closed = await bookings.list_blocks(property_id, today - timedelta(days=1), today + timedelta(days=_HORIZON_DAYS))
+    # Of a platform's calendar only its bookings go on: nights it merely marks
+    # unavailable may be another platform's echo, and passing them on would keep
+    # both platforms closed after the guest cancels.
+    closed = [block for block in closed if block.feed_id is None or block.reserved]
     # Nights by the flat's own hours, else the company default.
     ranges = blocked_nights(
         found,

@@ -27,6 +27,7 @@ def upgrade() -> None:
         sa.Column("property_id", sa.Uuid(), sa.ForeignKey("properties.id", ondelete="CASCADE"), nullable=False),
         sa.Column("name", sa.String(100), nullable=False),
         sa.Column("url", sa.Text(), nullable=False),
+        sa.Column("source", sa.String(20), nullable=True),
         sa.Column("last_synced_at", sa.DateTime(), nullable=True),
         sa.Column("last_error", sa.String(500), nullable=True),
         sa.Column("created_at", sa.DateTime(), nullable=False, server_default=sa.func.now()),
@@ -39,6 +40,8 @@ def upgrade() -> None:
         sa.Column("feed_id", sa.Uuid(), sa.ForeignKey("calendar_feeds.id", ondelete="CASCADE"), nullable=True),
     )
     op.add_column("property_blocks", sa.Column("external_uid", sa.String(500), nullable=True))
+    op.add_column("property_blocks", sa.Column("source", sa.String(20), nullable=True))
+    op.add_column("property_blocks", sa.Column("reserved", sa.Boolean(), nullable=True))
     op.create_index("ix_property_blocks_feed_id", "property_blocks", ["feed_id"])
     op.create_unique_constraint("uq_property_blocks_feed_event", "property_blocks", ["feed_id", "external_uid"])
 
@@ -46,6 +49,8 @@ def upgrade() -> None:
 def downgrade() -> None:
     op.drop_constraint("uq_property_blocks_feed_event", "property_blocks", type_="unique")
     op.drop_index("ix_property_blocks_feed_id", table_name="property_blocks")
+    op.drop_column("property_blocks", "reserved")
+    op.drop_column("property_blocks", "source")
     op.drop_column("property_blocks", "external_uid")
     op.drop_column("property_blocks", "feed_id")
     op.drop_index("ix_calendar_feeds_property_id", table_name="calendar_feeds")

@@ -136,6 +136,19 @@ async def test_the_feed_opens_with_the_right_token_only(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_a_platforms_unavailable_nights_are_not_passed_on(monkeypatch):
+    # Only a platform's bookings go on to the other platforms: its "Not available"
+    # nights may be another's echo, and passing them on would keep both closed.
+    from dataclasses import replace
+
+    from app.infrastructure.security import calendar_token
+
+    echo = replace(CLOSED, id=uuid.uuid4(), feed_id=uuid.uuid4(), source="airbnb", reserved=False)
+    feed = await _get(monkeypatch, calendar_token(PROPERTY_ID), blocks=[echo])
+    assert "DTSTART;VALUE=DATE:20261110" not in feed.text
+
+
+@pytest.mark.asyncio
 async def test_the_feed_shows_closed_nights(monkeypatch):
     from app.infrastructure.security import calendar_token
 

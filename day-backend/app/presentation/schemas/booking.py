@@ -419,6 +419,8 @@ class GanttBlockResponse(BaseModel):
     start_date: date
     end_date: date
     reason: str | None = None
+    # A platform's booking over a Day booking: the same night sold twice.
+    clash: bool = False
 
 
 class GanttDayPriceResponse(BaseModel):

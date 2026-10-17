@@ -269,6 +269,8 @@ class PropertyBlockModel(Base):
         ForeignKey("calendar_feeds.id", ondelete="CASCADE"), nullable=True, index=True
     )
     external_uid: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    source: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    reserved: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
 
 
 class CalendarFeedModel(Base):
@@ -282,6 +284,7 @@ class CalendarFeedModel(Base):
     property_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("properties.id", ondelete="CASCADE"), index=True)
     name: Mapped[str] = mapped_column(String(100))
     url: Mapped[str] = mapped_column(Text)
+    source: Mapped[str | None] = mapped_column(String(20), nullable=True)
     last_synced_at: Mapped[datetime | None] = mapped_column(nullable=True)
     last_error: Mapped[str | None] = mapped_column(String(500), nullable=True)
     created_at: Mapped[datetime] = mapped_column(default=datetime.utcnow)
