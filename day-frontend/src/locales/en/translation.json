@@ -1236,9 +1236,7 @@
     "checkInHow": "{{method}}. We send the code or key after booking.",
     "rules": "House rules",
     "location": "Location",
-    "addressAfter": "We send the exact address after booking.",
-    "openMap": "Open the map",
-    "watchVideo": "Watch the video",
+    "addressAfter": "We send the exact address and how to find the building after booking.",
     "poweredBy": "This page runs on Day: prices and free dates update by themselves.",
     "close": "Close"
   }

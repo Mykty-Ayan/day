@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { addDays, format, parseISO } from 'date-fns'
 import { isAxiosError } from 'axios'
-import { BedDouble, Building2, Clock, Globe, KeyRound, LayoutGrid, MapPin, PlayCircle, Ruler, Users, X } from 'lucide-react'
+import { BedDouble, Building2, Clock, Globe, KeyRound, LayoutGrid, MapPin, Ruler, Users, X } from 'lucide-react'
 import { getPublicStay, type PublicStay } from '../../api/public'
 import { isDayBlocked } from '../../lib/booking-dates'
 import { guestLanguage, monthCells, stayQuote, type GuestLanguage } from '../../lib/public-stay'
@@ -332,21 +332,7 @@ function StayView({ stay, locale, today }: { stay: PublicStay; locale: string; t
           </p>
         )}
         <p className="text-sm text-gray-600">{t('guest.addressAfter')}</p>
-        {stay.map_url && (
-          <a href={stay.map_url} target="_blank" rel="noopener noreferrer" className="flex h-12 items-center justify-center rounded-2xl border border-gray-900 text-[15px] font-semibold">
-            {t('guest.openMap')}
-          </a>
-        )}
       </section>
-
-      {stay.video_url && (
-        <section className="px-5 pt-7">
-          <a href={stay.video_url} target="_blank" rel="noopener noreferrer" className="flex h-12 items-center justify-center gap-2 rounded-2xl border border-gray-900 text-[15px] font-semibold">
-            <PlayCircle className="h-5 w-5" aria-hidden />
-            {t('guest.watchVideo')}
-          </a>
-        </section>
-      )}
 
       <footer className="px-5 pb-10 pt-8 text-xs text-gray-500">{t('guest.poweredBy')}</footer>
     </main>

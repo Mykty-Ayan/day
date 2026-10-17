@@ -26,8 +26,6 @@ export interface PublicStay {
   check_in_method: string | null
   house_rules: string | null
   min_nights: number | null
-  map_url: string | null
-  video_url: string | null
   photos: string[]
   amenities: { name: string; category: string }[]
   prices: { night: number | null; hour: number | null; deposit: number | null }
