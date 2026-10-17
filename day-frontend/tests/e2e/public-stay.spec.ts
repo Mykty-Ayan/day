@@ -79,6 +79,18 @@ test('a guest whose phone speaks Chinese reads the page in Chinese, and can pick
   await page.getByRole('radio', { name: 'Deutsch' }).click()
   await expect(page.getByRole('heading', { name: 'Freie Termine' })).toBeVisible()
   await guest.close()
+
+  // Arabic reads right to left: the page turns with it, and back for the next language.
+  const arab = await browser.newContext({ locale: 'ar-AE', baseURL: test.info().project.use.baseURL })
+  const page2 = await arab.newPage()
+  await page2.goto(`/s/${code}`)
+  await expect(page2.getByRole('heading', { name: 'التواريخ المتاحة' })).toBeVisible()
+  await expect(page2.locator('html')).toHaveAttribute('dir', 'rtl')
+  await page2.getByRole('button', { name: /اللغة/ }).click()
+  await page2.getByRole('radio', { name: '한국어' }).click()
+  await expect(page2.getByRole('heading', { name: '예약 가능한 날짜' })).toBeVisible()
+  await expect(page2.locator('html')).toHaveAttribute('dir', 'ltr')
+  await arab.close()
 })
 
 test('a wrong link says so instead of asking to sign in', async ({ browser }) => {

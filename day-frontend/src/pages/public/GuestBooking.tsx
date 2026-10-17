@@ -112,7 +112,7 @@ export function BookForm({
         disabled={book.isPending}
         className="flex h-11 items-center gap-2 self-start text-sm font-semibold disabled:opacity-50"
       >
-        <ArrowLeft className="h-4 w-4" aria-hidden />
+        <ArrowLeft className="h-4 w-4 rtl:rotate-180" aria-hidden />
         {t('guestBook.back')}
       </button>
       <section className="flex flex-col gap-1">

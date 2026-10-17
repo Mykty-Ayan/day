@@ -100,13 +100,14 @@ function StayView({ stay, locale, today }: { stay: PublicStay; locale: string; t
         <section aria-label={t('guest.photos')} className="relative">
           <div
             className="flex aspect-[4/3] snap-x snap-mandatory overflow-x-auto bg-gray-100"
-            onScroll={(e) => setPhoto(Math.round(e.currentTarget.scrollLeft / e.currentTarget.clientWidth))}
+            // Right to left, the scroll runs below zero.
+            onScroll={(e) => setPhoto(Math.round(Math.abs(e.currentTarget.scrollLeft) / e.currentTarget.clientWidth))}
           >
             {stay.photos.map((url, n) => (
               <img key={url} src={url} alt={t('guest.photoOf', { n: n + 1, total: stay.photos.length })} loading={n === 0 ? 'eager' : 'lazy'} fetchPriority={n === 0 ? 'high' : 'auto'} decoding="async" className="h-full w-full flex-none snap-center object-cover" />
             ))}
           </div>
-          <span className="absolute bottom-3 right-3 rounded-full bg-black/70 px-2.5 py-1 text-xs font-semibold text-white">
+          <span className="absolute bottom-3 end-3 rounded-full bg-black/70 px-2.5 py-1 text-xs font-semibold text-white">
             {photo + 1} / {stay.photos.length}
           </span>
         </section>
@@ -203,7 +204,7 @@ function StayView({ stay, locale, today }: { stay: PublicStay; locale: string; t
               {quote && <span className="text-sm text-gray-600">{t('guest.nights', { count: quote.count })}</span>}
             </div>
             {quote && short == null && <span data-testid="stay-total" className="text-lg font-bold">{money(quote.total, locale)}</span>}
-            {short != null && <span className="text-right text-sm font-semibold text-amber-800">{t('guest.minNights', { count: short })}</span>}
+            {short != null && <span className="text-end text-sm font-semibold text-amber-800">{t('guest.minNights', { count: short })}</span>}
           </div>
           {quote && short == null && <p className="text-xs text-gray-500">{t('guest.totalHint')}</p>}
         </section>
