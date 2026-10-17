@@ -2,6 +2,7 @@ import uuid
 from datetime import date, datetime
 
 from sqlalchemy import (
+    JSON,
     Boolean,
     CheckConstraint,
     Date,
@@ -287,4 +288,23 @@ class CalendarFeedModel(Base):
     source: Mapped[str | None] = mapped_column(String(20), nullable=True)
     last_synced_at: Mapped[datetime | None] = mapped_column(nullable=True)
     last_error: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(default=datetime.utcnow)
+
+
+class GuestOfferModel(Base):
+    """A personal link for a guest: flats for the guest's dates (migration 041)."""
+
+    __tablename__ = "guest_offers"
+    __table_args__ = (CheckConstraint("check_out > check_in", name="ck_guest_offers_nights"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    company_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("companies.id"), index=True)
+    code: Mapped[str] = mapped_column(String(16), unique=True)
+    guest_name: Mapped[str] = mapped_column(String(255))
+    guest_phone: Mapped[str] = mapped_column(String(50))
+    check_in: Mapped[date] = mapped_column(Date)
+    check_out: Mapped[date] = mapped_column(Date)
+    guests: Mapped[int] = mapped_column(Integer)
+    property_ids: Mapped[list] = mapped_column(JSON)
+    created_by: Mapped[uuid.UUID | None] = mapped_column(nullable=True)
     created_at: Mapped[datetime] = mapped_column(default=datetime.utcnow)

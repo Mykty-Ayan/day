@@ -11,6 +11,7 @@ from app.presentation.api.v1.cleaning import checklist_router, cleaning_router, 
 from app.presentation.api.v1.health import router as health_router
 from app.presentation.api.v1.ical import ical_router
 from app.presentation.api.v1.leads import blacklist_router, lead_router
+from app.presentation.api.v1.offers import offers_router
 from app.presentation.api.v1.properties import amenity_router
 from app.presentation.api.v1.properties import router as properties_router
 from app.presentation.api.v1.public import public_router
@@ -44,3 +45,4 @@ api_v1_router.include_router(assistant_router)
 api_v1_router.include_router(webhook_router)
 api_v1_router.include_router(ical_router)
 api_v1_router.include_router(public_router)
+api_v1_router.include_router(offers_router)

@@ -211,3 +211,21 @@ class CalendarFeed:
     last_synced_at: datetime | None = None
     last_error: str | None = None
     created_at: datetime | None = None
+
+
+@dataclass
+class GuestOffer:
+    """A personal link for a guest (/o/<code>): one flat or several for the guest's
+    dates. The guest's name and phone stay here; the link holds only the code."""
+
+    id: uuid.UUID = field(default_factory=uuid.uuid4)
+    company_id: uuid.UUID = field(default_factory=uuid.uuid4)
+    code: str = ""
+    guest_name: str = ""
+    guest_phone: str = ""
+    check_in: date = field(default_factory=date.today)
+    check_out: date = field(default_factory=date.today)
+    guests: int = 1
+    property_ids: list[uuid.UUID] = field(default_factory=list)
+    created_by: uuid.UUID | None = None
+    created_at: datetime | None = None
