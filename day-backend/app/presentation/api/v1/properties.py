@@ -15,6 +15,7 @@ from app.application.property.create_property import (
     CreatePropertyInput,
     CreatePropertyService,
 )
+from app.application.property.day_prices import ManageDayPricesService
 from app.application.property.get_property import GetPropertyService
 from app.application.property.list_properties import ListPropertiesService
 from app.application.property.manage_amenities import ManageAmenitiesService
@@ -37,6 +38,7 @@ from app.infrastructure.database import get_session
 from app.infrastructure.repositories.booking import SqlBookingRepository
 from app.infrastructure.repositories.property import (
     SqlAmenityRepository,
+    SqlDayPriceRepository,
     SqlDiscountRuleRepository,
     SqlPricingConfigRepository,
     SqlPropertyAuditLogRepository,
@@ -52,6 +54,8 @@ from app.presentation.api.deps import Principal, get_company_id, get_principal, 
 from app.presentation.schemas.booking import PropertyBlockCreate, PropertyBlockResponse
 from app.presentation.schemas.property import (
     AmenityResponse,
+    DayPriceResponse,
+    DayPriceSet,
     DiscountRuleCreate,
     DiscountRuleResponse,
     PhotoCaption,
@@ -1162,3 +1166,76 @@ async def delete_block(
         raise HTTPException(status_code=404, detail=str(e))
     await session.commit()
 
+
+# ---------- Calendar prices ----------
+
+
+def _day_prices(session: AsyncSession) -> ManageDayPricesService:
+    return ManageDayPricesService(SqlPropertyRepository(session), SqlDayPriceRepository(session))
+
+
+def _day_price_answer(prices) -> list[DayPriceResponse]:
+    return [DayPriceResponse(date=p.date, price=float(p.price)) for p in prices]
+
+
+@router.get(
+    "/{property_id}/day-prices",
+    response_model=list[DayPriceResponse],
+    dependencies=[Depends(require(Permission.PROPERTIES_READ))],
+)
+async def list_day_prices(
+    property_id: uuid.UUID,
+    date_from: date = Query(...),
+    date_to: date = Query(...),
+    session: AsyncSession = Depends(get_session),
+    company_id: uuid.UUID = Depends(get_company_id),
+):
+    """Nights priced on the calendar in [date_from, date_to)."""
+    try:
+        prices = await _day_prices(session).list(company_id, property_id, date_from, date_to)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    return _day_price_answer(prices)
+
+
+@router.put(
+    "/{property_id}/day-prices",
+    response_model=list[DayPriceResponse],
+    dependencies=[Depends(require(Permission.PROPERTIES_WRITE))],
+)
+async def set_day_prices(
+    property_id: uuid.UUID,
+    body: DayPriceSet,
+    session: AsyncSession = Depends(get_session),
+    company_id: uuid.UUID = Depends(get_company_id),
+):
+    """Price the nights from start_date to the night before end_date, as Airbnb's custom
+    nightly price: it replaces the usual price on them. Bookings made keep their price."""
+    try:
+        prices = await _day_prices(session).set(company_id, property_id, body.start_date, body.end_date, body.price)
+    except ValueError as e:
+        await session.rollback()
+        raise HTTPException(status_code=404 if str(e) == "Property not found" else 422, detail=str(e))
+    await session.commit()
+    return _day_price_answer(prices)
+
+
+@router.delete(
+    "/{property_id}/day-prices",
+    status_code=204,
+    dependencies=[Depends(require(Permission.PROPERTIES_WRITE))],
+)
+async def clear_day_prices(
+    property_id: uuid.UUID,
+    start_date: date = Query(...),
+    end_date: date = Query(...),
+    session: AsyncSession = Depends(get_session),
+    company_id: uuid.UUID = Depends(get_company_id),
+):
+    """Back to the usual price on those nights."""
+    try:
+        await _day_prices(session).clear(company_id, property_id, start_date, end_date)
+    except ValueError as e:
+        await session.rollback()
+        raise HTTPException(status_code=404 if str(e) == "Property not found" else 422, detail=str(e))
+    await session.commit()

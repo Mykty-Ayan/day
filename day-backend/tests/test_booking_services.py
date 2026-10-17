@@ -44,8 +44,9 @@ from app.domain.booking.value_objects import (
     PaymentType,
     RentalMode,
 )
-from app.domain.property.entities import DiscountRule, PricingConfig, Property, SeasonalPrice
+from app.domain.property.entities import DayPrice, DiscountRule, PricingConfig, Property, SeasonalPrice
 from app.domain.property.repositories import (
+    DayPriceRepository,
     DiscountRuleRepository,
     PricingConfigRepository,
     PropertyRepository,
@@ -428,6 +429,30 @@ class FakeSeasonalPriceRepository(SeasonalPriceRepository):
         self._prices.pop(price_id, None)
 
 
+class FakeDayPriceRepository(DayPriceRepository):
+    def __init__(self) -> None:
+        self._prices: dict[tuple[uuid.UUID, date], DayPrice] = {}
+
+    async def list_for_property(self, property_id, date_from, date_to):
+        return sorted(
+            (p for p in self._prices.values() if p.property_id == property_id and date_from <= p.date < date_to),
+            key=lambda p: p.date,
+        )
+
+    async def list_for_company(self, company_id, date_from, date_to):
+        return [p for p in self._prices.values() if p.company_id == company_id and date_from <= p.date < date_to]
+
+    async def set_prices(self, company_id, property_id, nights, price):
+        for night in nights:
+            self._prices[(property_id, night)] = DayPrice(
+                company_id=company_id, property_id=property_id, date=night, price=price
+            )
+
+    async def clear(self, property_id, date_from, date_to):
+        for key in [k for k in self._prices if k[0] == property_id and date_from <= k[1] < date_to]:
+            del self._prices[key]
+
+
 class FakeDiscountRuleRepository(DiscountRuleRepository):
     def __init__(self) -> None:
         self._rules: dict[uuid.UUID, DiscountRule] = {}
@@ -502,11 +527,14 @@ def _make_pricing_config(property_id: uuid.UUID, base_price: Decimal = Decimal("
     return PricingConfig(property_id=property_id, base_price=base_price)
 
 
-def _build_price_calculator(pricing_repo=None, seasonal_repo=None, discount_repo=None) -> PriceCalculatorService:
+def _build_price_calculator(
+    pricing_repo=None, seasonal_repo=None, discount_repo=None, day_price_repo=None
+) -> PriceCalculatorService:
     return PriceCalculatorService(
         pricing_repo or FakePricingConfigRepository(),
         seasonal_repo or FakeSeasonalPriceRepository(),
         discount_repo or FakeDiscountRuleRepository(),
+        day_price_repo or FakeDayPriceRepository(),
     )
 
 

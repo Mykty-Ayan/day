@@ -35,6 +35,7 @@ from app.infrastructure.repositories.messaging import (
     SqlOutboundNotificationRepository,
 )
 from app.infrastructure.repositories.property import (
+    SqlDayPriceRepository,
     SqlDiscountRuleRepository,
     SqlPricingConfigRepository,
     SqlPropertyRepository,
@@ -62,6 +63,7 @@ def build_price_calculator(session: AsyncSession) -> PriceCalculatorService:
         SqlPricingConfigRepository(session),
         SqlSeasonalPriceRepository(session),
         SqlDiscountRuleRepository(session),
+        SqlDayPriceRepository(session),
     )
 
 

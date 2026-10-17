@@ -2,15 +2,17 @@ from __future__ import annotations
 
 import uuid
 from collections.abc import Sequence
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
 
 from sqlalchemy import delete, func, select, update
+from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.domain.booking.value_objects import RentalMode
 from app.domain.property.entities import (
     Amenity,
+    DayPrice,
     DiscountRule,
     PricingConfig,
     Property,
@@ -22,6 +24,7 @@ from app.domain.property.entities import (
 )
 from app.domain.property.repositories import (
     AmenityRepository,
+    DayPriceRepository,
     DiscountRuleRepository,
     PricingConfigRepository,
     PropertyAuditLogRepository,
@@ -47,6 +50,7 @@ from app.infrastructure.models.property import (
     PropertyAmenityModel,
     PropertyAuditLogModel,
     PropertyCostsModel,
+    PropertyDayPriceModel,
     PropertyFactModel,
     PropertyModel,
     PropertyPhotoModel,
@@ -513,6 +517,59 @@ class SqlPricingConfigRepository(PricingConfigRepository):
         return _model_to_pricing(result)  # type: ignore[arg-type]
 
 
+class SqlDayPriceRepository(DayPriceRepository):
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+
+    async def list_for_property(self, property_id: uuid.UUID, date_from: date, date_to: date) -> list[DayPrice]:
+        stmt = select(PropertyDayPriceModel).where(
+            PropertyDayPriceModel.property_id == property_id,
+            PropertyDayPriceModel.date >= date_from,
+            PropertyDayPriceModel.date < date_to,
+        ).order_by(PropertyDayPriceModel.date)
+        return [_model_to_day_price(m) for m in (await self._session.scalars(stmt)).all()]
+
+    async def list_for_company(self, company_id: uuid.UUID, date_from: date, date_to: date) -> list[DayPrice]:
+        stmt = select(PropertyDayPriceModel).where(
+            PropertyDayPriceModel.company_id == company_id,
+            PropertyDayPriceModel.date >= date_from,
+            PropertyDayPriceModel.date < date_to,
+        ).order_by(PropertyDayPriceModel.property_id, PropertyDayPriceModel.date)
+        return [_model_to_day_price(m) for m in (await self._session.scalars(stmt)).all()]
+
+    async def set_prices(
+        self, company_id: uuid.UUID, property_id: uuid.UUID, nights: Sequence[date], price: Decimal
+    ) -> None:
+        if not nights:
+            return
+        stmt = insert(PropertyDayPriceModel).values(
+            [
+                {
+                    "id": uuid.uuid4(),
+                    "company_id": company_id,
+                    "property_id": property_id,
+                    "date": night,
+                    "price": price,
+                }
+                for night in nights
+            ]
+        )
+        stmt = stmt.on_conflict_do_update(
+            constraint="uq_property_day_prices_night",
+            set_={"price": stmt.excluded.price, "updated_at": func.now()},
+        )
+        await self._session.execute(stmt)
+
+    async def clear(self, property_id: uuid.UUID, date_from: date, date_to: date) -> None:
+        await self._session.execute(
+            delete(PropertyDayPriceModel).where(
+                PropertyDayPriceModel.property_id == property_id,
+                PropertyDayPriceModel.date >= date_from,
+                PropertyDayPriceModel.date < date_to,
+            )
+        )
+
+
 class SqlSeasonalPriceRepository(SeasonalPriceRepository):
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
@@ -778,3 +835,7 @@ class SqlPropertyFactRepository(PropertyFactRepository):
     async def delete(self, fact_id: uuid.UUID) -> None:
         await self._session.execute(delete(PropertyFactModel).where(PropertyFactModel.id == fact_id))
         await self._session.flush()
+
+
+def _model_to_day_price(m: PropertyDayPriceModel) -> DayPrice:
+    return DayPrice(company_id=m.company_id, property_id=m.property_id, date=m.date, price=Decimal(str(m.price)))

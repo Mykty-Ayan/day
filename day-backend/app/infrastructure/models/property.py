@@ -4,6 +4,7 @@ from datetime import date, datetime
 from sqlalchemy import (
     JSON,
     Boolean,
+    CheckConstraint,
     Date,
     Float,
     ForeignKey,
@@ -167,6 +168,23 @@ class PropertyCostsModel(Base):
     cleaning_cost: Mapped[float] = mapped_column(Numeric(12, 2), default=0)
     consumables_per_night: Mapped[float] = mapped_column(Numeric(12, 2), default=0)
     created_at: Mapped[datetime] = mapped_column(default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class PropertyDayPriceModel(Base):
+    """A price for one night set on the calendar (migration 038)."""
+
+    __tablename__ = "property_day_prices"
+    __table_args__ = (
+        UniqueConstraint("property_id", "date", name="uq_property_day_prices_night"),
+        CheckConstraint("price > 0", name="ck_property_day_prices_price"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    company_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("companies.id"), index=True)
+    property_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("properties.id", ondelete="CASCADE"))
+    date: Mapped[date] = mapped_column(Date)
+    price: Mapped[float] = mapped_column(Numeric(12, 2))
     updated_at: Mapped[datetime] = mapped_column(default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
