@@ -1261,7 +1261,8 @@
     "notFound": "This link was not found. Ask for a new one.",
     "expired": "The dates of this link have passed. Write to us and we will find new ones.",
     "choose": "Choose",
-    "hold": "Pick one and we hold it for you for 30 minutes."
+    "hold": "Pick one and we hold it for you for 30 minutes.",
+    "lapsed": "The booking's time ran out before the payment came. Choose a flat again."
   },
   "guestBook": {
     "back": "All flats",
@@ -1294,6 +1295,10 @@
     "step3": "Once paid, we send the address, entrance and code on WhatsApp.",
     "confirmed": "Booking confirmed",
     "confirmedNext": "We send the address, entrance and how to get in on WhatsApp before check-in.",
-    "nightsAtCheckIn": "The nights, {{total}}, are paid at check-in"
+    "nightsAtCheckIn": "The nights, {{total}}, are paid at check-in",
+    "sendFailed": "Could not send. Check the connection and press again.",
+    "nameNeeded": "Your phone comes from our chat. Write the name we book for.",
+    "phoneWrong": "A number has 10 to 15 digits, with the country code.",
+    "ranOut": "Time is up — checking the payment"
   }
 }

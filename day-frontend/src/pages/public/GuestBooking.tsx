@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { isAxiosError } from 'axios'
@@ -11,11 +11,18 @@ import {
   type PublicOfferBooking,
   type PublicOfferFlat,
 } from '../../api/public'
-import { phoneDigits } from '../../lib/phone'
 import { money, retryNetwork, stayDates } from '../../lib/public-stay'
+import { LoadFailed } from './GuestFrame'
 
-// The server's word for a flat taken meanwhile; any other 409 is the link's own booking.
-const TAKEN = 'The flat is taken for these dates'
+// As the server checks it: E.164 holds up to 15 digits, fewer than 10 is no full number.
+const fullPhone = (phone: string) => /^\d{10,15}$/.test(phone.replace(/\D/g, ''))
+
+/** A heading that takes the focus when its screen opens, so a screen reader tells it. */
+function useFocusOnOpen<T extends HTMLElement>() {
+  const ref = useRef<T>(null)
+  useEffect(() => ref.current?.focus(), [])
+  return ref
+}
 
 /** Booking one flat of the link: the guest checks the name, the number the Kaspi
  *  invoice goes to and the guests; Day holds the dates for 30 minutes. */
@@ -25,17 +32,18 @@ export function BookForm({
   locale,
   onBack,
   onBooked,
-  onStale,
+  onRefresh,
 }: {
   offer: PublicOffer
   flat: PublicOfferFlat
   locale: string
   onBack: () => void
   onBooked: (booking: PublicOfferBooking) => void
-  /** The link has a booking already, or the flat went: the page reloads the link. */
-  onStale: () => void
+  /** The flat was taken or the link booked meanwhile: the page reads the link again. */
+  onRefresh: () => void
 }) {
   const { t } = useTranslation()
+  const heading = useFocusOnOpen<HTMLHeadingElement>()
   // The flat's own page: its deposit, hours and house rules.
   const stay = useQuery({
     queryKey: ['public-stay', flat.code, offer.check_in, offer.check_out],
@@ -62,8 +70,9 @@ export function BookForm({
         ...(otherPhone !== null ? { phone: otherPhone } : {}),
       }),
     onSuccess: onBooked,
+    // Taken meanwhile, or booked by this link elsewhere: what the link says now decides.
     onError: (error) => {
-      if (isAxiosError(error) && error.response?.status === 409 && error.response.data?.detail !== TAKEN) onStale()
+      if (isAxiosError(error) && error.response?.status === 409) onRefresh()
     },
   })
   const status = isAxiosError(book.error) ? book.error.response?.status : undefined
@@ -73,19 +82,43 @@ export function BookForm({
       ? t('guestBook.taken')
       : status === 410
         ? t('guestOffer.expired')
-        : status === 422 || status === 404
-          ? t('guestBook.refused')
-          : t('guest.failed')
-  const ready = (!rules || agreed) && (otherPhone === null || phoneDigits(otherPhone).length >= 10) && !book.isPending
+        : status === 404
+          ? t('guestOffer.notFound')
+          : status === 422
+            ? t('guestBook.refused')
+            : t('guestBook.sendFailed')
+  const phoneWrong = otherPhone !== null && otherPhone.trim() !== '' && !fullPhone(otherPhone)
+  // The deposit and the house rules are the flat's terms: no booking before the guest sees them.
+  const ready =
+    stay.isSuccess &&
+    flat.free &&
+    status !== 410 &&
+    (!rules || agreed) &&
+    (otherPhone === null || fullPhone(otherPhone)) &&
+    (offer.guest !== null || name.trim() !== '') &&
+    !book.isPending
 
   return (
-    <main className="flex flex-col gap-5 px-5 pb-10 pt-4">
-      <button type="button" onClick={onBack} className="flex h-11 items-center gap-2 self-start text-sm font-semibold">
+    <form
+      onSubmit={(e) => {
+        e.preventDefault()
+        if (ready) book.mutate()
+      }}
+      className="flex flex-col gap-5 px-5 pb-10 pt-4"
+    >
+      <button
+        type="button"
+        onClick={onBack}
+        disabled={book.isPending}
+        className="flex h-11 items-center gap-2 self-start text-sm font-semibold disabled:opacity-50"
+      >
         <ArrowLeft className="h-4 w-4" aria-hidden />
         {t('guestBook.back')}
       </button>
       <section className="flex flex-col gap-1">
-        <h1 className="text-2xl font-bold leading-tight tracking-tight">{t('guestBook.title')}</h1>
+        <h1 ref={heading} tabIndex={-1} className="text-2xl font-bold leading-tight tracking-tight outline-none">
+          {t('guestBook.title')}
+        </h1>
         <p className="text-base text-gray-700">{flat.name}</p>
       </section>
 
@@ -106,7 +139,10 @@ export function BookForm({
         </div>
       </div>
 
-      <p className="text-sm text-gray-600">{t('guestBook.fromChat')}</p>
+      {stay.isError && !stay.data && (
+        <LoadFailed error={stay.error} onRetry={() => void stay.refetch()} gone={{}} />
+      )}
+      <p className="text-sm text-gray-600">{offer.guest !== null ? t('guestBook.fromChat') : t('guestBook.nameNeeded')}</p>
 
       <label className="flex flex-col gap-1.5">
         <span className="text-sm font-semibold">{t('guestBook.name')}</span>
@@ -114,6 +150,7 @@ export function BookForm({
           value={name}
           onChange={(e) => setName(e.target.value)}
           autoComplete="given-name"
+          aria-required={offer.guest === null}
           maxLength={255}
           className="h-12 rounded-xl border border-gray-300 px-3 text-base"
         />
@@ -137,12 +174,16 @@ export function BookForm({
             autoComplete="tel"
             autoFocus
             aria-label={t('guestBook.phone')}
+            aria-invalid={phoneWrong}
+            aria-describedby="phone-hint"
             placeholder="+7 7__ ___ __ __"
             maxLength={50}
-            className="h-12 rounded-xl border border-gray-300 px-3 text-base"
+            className={`h-12 rounded-xl border px-3 text-base ${phoneWrong ? 'border-amber-600' : 'border-gray-300'}`}
           />
         )}
-        <span className="text-xs text-gray-500">{otherPhone === null ? t('guestBook.phoneHidden') : t('guestBook.phoneHint')}</span>
+        <span id="phone-hint" className={`text-xs ${phoneWrong ? 'text-amber-800' : 'text-gray-500'}`}>
+          {otherPhone === null ? t('guestBook.phoneHidden') : phoneWrong ? t('guestBook.phoneWrong') : t('guestBook.phoneHint')}
+        </span>
       </div>
 
       <div className="flex items-center justify-between">
@@ -195,7 +236,13 @@ export function BookForm({
       )}
       {rules && (
         <label className="flex items-start gap-3 text-sm">
-          <input type="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} className="mt-0.5 h-5 w-5" />
+          <input
+            type="checkbox"
+            checked={agreed}
+            onChange={(e) => setAgreed(e.target.checked)}
+            aria-required
+            className="mt-0.5 h-5 w-5"
+          />
           {t('guestBook.agree')}
         </label>
       )}
@@ -205,16 +252,13 @@ export function BookForm({
           {refusal}
         </p>
       )}
-      <button
-        type="button"
-        onClick={() => book.mutate()}
-        disabled={!ready}
-        className="h-14 rounded-2xl bg-emerald-700 text-base font-bold text-white disabled:opacity-50"
-      >
-        {book.isPending ? t('guestBook.booking') : t('guestBook.book')}
-      </button>
+      {flat.free && (
+        <button type="submit" disabled={!ready} className="h-14 rounded-2xl bg-emerald-700 text-base font-bold text-white disabled:opacity-50">
+          {book.isPending ? t('guestBook.booking') : t('guestBook.book')}
+        </button>
+      )}
       <p className="text-xs leading-relaxed text-gray-500">{t('guestBook.holdNote')}</p>
-    </main>
+    </form>
   )
 }
 
@@ -222,6 +266,14 @@ export function BookForm({
  *  stay is confirmed. */
 export function Waiting({ offer, booking, locale }: { offer: PublicOffer; booking: PublicOfferBooking; locale: string }) {
   const { t } = useTranslation()
+  const heading = useFocusOnOpen<HTMLHeadingElement>()
+  // The clock, for the moment the hold runs out while the page is open.
+  const [now, setNow] = useState(() => Date.now())
+  useEffect(() => {
+    const tick = setInterval(() => setNow(Date.now()), 10_000)
+    return () => clearInterval(tick)
+  }, [])
+  const ranOut = booking.expires_at !== null && now > Date.parse(booking.expires_at)
   const flat = offer.flats.find((f) => f.code === booking.flat)
   const until = booking.expires_at
     ? new Intl.DateTimeFormat(locale, { hour: '2-digit', minute: '2-digit' }).format(new Date(booking.expires_at))
@@ -233,8 +285,8 @@ export function Waiting({ offer, booking, locale }: { offer: PublicOffer; bookin
     <main className="flex flex-col gap-5 px-5 pb-10 pt-5">
       {booking.status === 'pending' ? (
         <section className="flex flex-col gap-2">
-          <h1 className="text-2xl font-bold leading-tight tracking-tight">
-            {until ? t('guestBook.heldUntil', { time: until }) : t('guestBook.held')}
+          <h1 ref={heading} tabIndex={-1} className="text-2xl font-bold leading-tight tracking-tight outline-none">
+            {ranOut ? t('guestBook.ranOut') : until ? t('guestBook.heldUntil', { time: until }) : t('guestBook.held')}
           </h1>
           <p className="text-base leading-relaxed text-gray-700">
             {deposit
@@ -256,7 +308,9 @@ export function Waiting({ offer, booking, locale }: { offer: PublicOffer; bookin
         </section>
       ) : (
         <section className="flex flex-col gap-2">
-          <h1 className="text-2xl font-bold leading-tight tracking-tight">{t('guestBook.confirmed')}</h1>
+          <h1 ref={heading} tabIndex={-1} className="text-2xl font-bold leading-tight tracking-tight outline-none">
+            {t('guestBook.confirmed')}
+          </h1>
           <p className="text-base leading-relaxed text-gray-700">{t('guestBook.confirmedNext')}</p>
         </section>
       )}
