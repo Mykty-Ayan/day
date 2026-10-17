@@ -534,3 +534,5 @@ class CalendarFeedResponse(BaseModel):
     url: str
     last_synced_at: datetime | None = None
     last_error: str | None = None
+    # Day's link to paste into this same platform: without the nights read from it.
+    export_url: str | None = None
