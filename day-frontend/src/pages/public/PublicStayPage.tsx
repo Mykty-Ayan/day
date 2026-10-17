@@ -107,15 +107,16 @@ function StayView({ stay, locale, today }: { stay: PublicStay; locale: string; t
               <img key={url} src={url} alt={t('guest.photoOf', { n: n + 1, total: stay.photos.length })} loading={n === 0 ? 'eager' : 'lazy'} fetchPriority={n === 0 ? 'high' : 'auto'} decoding="async" className="h-full w-full flex-none snap-center object-cover" />
             ))}
           </div>
-          <span className="absolute bottom-3 end-3 rounded-full bg-black/70 px-2.5 py-1 text-xs font-semibold text-white">
+          <span dir="ltr" className="absolute bottom-3 end-3 rounded-full bg-black/70 px-2.5 py-1 text-xs font-semibold text-white">
             {photo + 1} / {stay.photos.length}
           </span>
         </section>
       )}
 
       <section className="flex flex-col gap-2 px-5 pt-5">
-        {stay.complex_name && <span className="text-sm text-gray-600">{stay.complex_name}</span>}
-        <h1 className="text-2xl font-bold leading-tight tracking-tight">{stay.name}</h1>
+        {/* The owner's words, in their language: their own direction on a right-to-left page. */}
+        {stay.complex_name && <span dir="auto" className="text-sm text-gray-600">{stay.complex_name}</span>}
+        <h1 dir="auto" className="text-2xl font-bold leading-tight tracking-tight">{stay.name}</h1>
       </section>
 
       {facts.length > 0 && (
@@ -213,7 +214,7 @@ function StayView({ stay, locale, today }: { stay: PublicStay; locale: string; t
       {stay.description && (
         <section className="flex flex-col gap-2 px-5 pt-7">
           <h2 className="text-xl font-bold">{t('guest.about')}</h2>
-          <p className="whitespace-pre-line text-base leading-relaxed">{stay.description}</p>
+          <p dir="auto" className="whitespace-pre-line text-base leading-relaxed">{stay.description}</p>
         </section>
       )}
 
@@ -221,7 +222,7 @@ function StayView({ stay, locale, today }: { stay: PublicStay; locale: string; t
         <section className="flex flex-col gap-3 px-5 pt-7">
           <h2 className="text-xl font-bold">{t('guest.amenities')}</h2>
           <ul className="grid grid-cols-2 gap-x-3 gap-y-2 text-[15px]">
-            {stay.amenities.map((a) => <li key={a.name}>{a.name}</li>)}
+            {stay.amenities.map((a) => <li key={a.name} dir="auto">{a.name}</li>)}
           </ul>
         </section>
       )}
@@ -259,7 +260,7 @@ function StayView({ stay, locale, today }: { stay: PublicStay; locale: string; t
       {stay.house_rules && (
         <section className="flex flex-col gap-2 px-5 pt-7">
           <h2 className="text-xl font-bold">{t('guest.rules')}</h2>
-          <p className="whitespace-pre-line text-base leading-relaxed">{stay.house_rules}</p>
+          <p dir="auto" className="whitespace-pre-line text-base leading-relaxed">{stay.house_rules}</p>
         </section>
       )}
 
@@ -268,7 +269,7 @@ function StayView({ stay, locale, today }: { stay: PublicStay; locale: string; t
         {stay.complex_name && (
           <p className="flex items-center gap-2 text-base">
             <MapPin className="h-5 w-5" aria-hidden />
-            {stay.complex_name}
+            <span dir="auto">{stay.complex_name}</span>
           </p>
         )}
         <p className="text-sm text-gray-600">{t('guest.addressAfter')}</p>

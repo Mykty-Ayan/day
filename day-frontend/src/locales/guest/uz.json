@@ -12,7 +12,7 @@
     "beds": "{{count}} karavot",
     "floor": "{{floor}}-qavat",
     "floorOf": "{{floor}}-qavat, jami {{total}} qavat",
-    "perNight": "bir kecha",
+    "perNight": "kechasiga",
     "hourly": "Soatbay: soatiga {{price}}",
     "deposit": "Garov {{price}}, chiqib ketgandan keyin qaytariladi",
     "freeDates": "Bo‘sh sanalar",
@@ -38,7 +38,7 @@
     "perHour": "soatiga",
     "area": "{{area}} m²",
     "minNights": "Kamida {{count}} kecha",
-    "totalHint": "Faqat kechalar narxi, chegirmalar va qo‘shimcha mehmonlar uchun to‘lovsiz."
+    "totalHint": "Faqat kechalar narxi: chegirmalar va qo‘shimcha mehmonlar uchun to‘lovlar hisobga olinmagan."
   },
   "guestOffer": {
     "hello": "{{name}}, sanalaringiz uchun kvartiralar",
