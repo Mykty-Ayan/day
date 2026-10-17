@@ -19,8 +19,15 @@ function Offer({ code, locale }: { code: string; locale: string }) {
     queryKey: ['public-offer', code],
     queryFn: () => getPublicOffer(code),
     retry: retryNetwork,
-    // Waiting for the deposit: the page sees the operator confirm, or the hold lapse.
-    refetchInterval: (query) => (query.state.data?.booking?.status === 'pending' ? 30_000 : false),
+    // Free and taken change by the minute: a guest back from Kaspi sees the link as it is.
+    staleTime: 0,
+    // Waiting for the deposit: the page sees the operator confirm, or the hold lapse;
+    // past its time the sweep is due within the minute.
+    refetchInterval: (query) => {
+      const booking = query.state.data?.booking
+      if (booking?.status !== 'pending') return false
+      return booking.expires_at && Date.now() > Date.parse(booking.expires_at) ? 15_000 : 30_000
+    },
   })
   return (
     <>
@@ -32,15 +39,24 @@ function Offer({ code, locale }: { code: string; locale: string }) {
           gone={{ 404: t('guestOffer.notFound'), 410: t('guestOffer.expired') }}
         />
       )}
-      {offer.data && <OfferView offer={offer.data} locale={locale} onStale={() => void offer.refetch()} />}
+      {offer.data && <OfferView offer={offer.data} locale={locale} onRefresh={() => void offer.refetch()} />}
     </>
   )
 }
 
-function OfferView({ offer, locale, onStale }: { offer: PublicOffer; locale: string; onStale: () => void }) {
+function OfferView({ offer, locale, onRefresh }: { offer: PublicOffer; locale: string; onRefresh: () => void }) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
   const [chosen, setChosen] = useState<string | null>(null)
+  // A booking gone from the link: the hold ran out unpaid. Kept from the last render.
+  const held = offer.booking !== null
+  const [wasHeld, setWasHeld] = useState(held)
+  const [lapsed, setLapsed] = useState(false)
+  if (held !== wasHeld) {
+    setWasHeld(held)
+    setLapsed(!held)
+    setChosen(null)
+  }
   const dates = useMemo(() => stayDates(locale, offer.check_in, offer.check_out), [locale, offer.check_in, offer.check_out])
   const nights = t('guest.nights', { count: offer.nights })
   const allFree = offer.flats.length > 0 && offer.flats.every((f) => f.free)
@@ -55,13 +71,10 @@ function OfferView({ offer, locale, onStale }: { offer: PublicOffer; locale: str
         locale={locale}
         onBack={() => setChosen(null)}
         onBooked={(booking) => {
-          queryClient.setQueryData(['public-offer', offer.code], { ...offer, booking })
+          queryClient.setQueryData<PublicOffer>(['public-offer', offer.code], (old) => old && { ...old, booking })
           window.scrollTo(0, 0)
         }}
-        onStale={() => {
-          setChosen(null)
-          onStale()
-        }}
+        onRefresh={onRefresh}
       />
     )
   }
@@ -81,6 +94,11 @@ function OfferView({ offer, locale, onStale }: { offer: PublicOffer; locale: str
           </p>
         )}
       </section>
+      {lapsed && (
+        <p role="status" className="rounded-xl bg-amber-50 p-3 text-sm text-amber-900">
+          {t('guestOffer.lapsed')}
+        </p>
+      )}
 
       {offer.flats.length === 0 && <p className="text-base text-gray-700">{t('guestOffer.none')}</p>}
       {offer.flats.map((flat, n) => (
@@ -92,6 +110,7 @@ function OfferView({ offer, locale, onStale }: { offer: PublicOffer; locale: str
           first={n === 0}
           onChoose={() => {
             setChosen(flat.code)
+            setLapsed(false)
             window.scrollTo(0, 0)
           }}
         />
