@@ -18,9 +18,10 @@ const isGuestPage = (pathname: string) => GUEST_PAGE_PREFIXES.some((prefix) => p
 
 export const Route = createRootRoute({
   beforeLoad: ({ location }) => {
-    const token = localStorage.getItem('access_token')
     if (location.pathname === MINIAPP_ROUTE) return
+    // Before the token: a guest's browser may refuse storage, and reading it throws.
     if (isGuestPage(location.pathname)) return
+    const token = localStorage.getItem('access_token')
     if (!token && !PUBLIC_ROUTES.includes(location.pathname)) {
       throw redirect({ to: '/login' })
     }
