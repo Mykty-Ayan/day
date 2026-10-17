@@ -54,6 +54,20 @@ export interface PublicOfferFlat {
   free: boolean
 }
 
+/** The link's booking: which flat, until when the dates are held, the deposit to
+ *  pay and the masked number the Kaspi invoice goes to. */
+export interface PublicOfferBooking {
+  flat: string
+  /** pending: waiting for the deposit; confirmed: the dates are the guest's. */
+  status: 'pending' | 'confirmed' | 'checked_in' | 'checked_out' | 'completed'
+  expires_at: string | null
+  deposit: number | null
+  phone: string
+  guests: number
+  /** What the nights cost, paid at check-in. */
+  total: number | null
+}
+
 /** A guest's personal link: the first name, a masked phone and the flats for the guest's dates. */
 export interface PublicOffer {
   code: string
@@ -64,9 +78,19 @@ export interface PublicOffer {
   nights: number
   guests: number
   flats: PublicOfferFlat[]
+  booking: PublicOfferBooking | null
 }
 
 export async function getPublicOffer(code: string): Promise<PublicOffer> {
   const res = await publicClient.get(`/public/offers/${encodeURIComponent(code)}`)
+  return res.data
+}
+
+/** Book one flat of the link: name and phone only when they are not the link's. */
+export async function bookFromOffer(
+  code: string,
+  body: { flat: string; guests: number; name?: string; phone?: string },
+): Promise<PublicOfferBooking> {
+  const res = await publicClient.post(`/public/offers/${encodeURIComponent(code)}/book`, body)
   return res.data
 }
