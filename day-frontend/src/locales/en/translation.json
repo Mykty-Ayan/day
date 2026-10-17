@@ -1245,5 +1245,20 @@
     "minNights_one": "At least {{count}} night",
     "minNights_other": "At least {{count}} nights",
     "totalHint": "The nights alone, before discounts and fees for extra guests."
+  },
+  "guestOffer": {
+    "hello": "{{name}}, here are flats for your dates",
+    "title": "Flats for your dates",
+    "guests_one": "{{count}} guest",
+    "guests_other": "{{count}} guests",
+    "freeOne": "Free right now",
+    "freeAll": "All free right now",
+    "none": "The flats of this link are not on sale now. Write to us and we will find others.",
+    "taken": "Taken for these dates",
+    "forStay": "for {{nights}}",
+    "noPrice": "We will tell you the price in the chat",
+    "details": "Details",
+    "notFound": "This link was not found. Ask for a new one.",
+    "expired": "The dates of this link have passed. Write to us and we will find new ones."
   }
 }

@@ -26,6 +26,7 @@ import { Route as SCodeRouteImport } from './routes/s/$code'
 import { Route as PropertiesNewRouteImport } from './routes/properties/new'
 import { Route as PropertiesGanttRouteImport } from './routes/properties/gantt'
 import { Route as PropertiesPropertyIdRouteImport } from './routes/properties/$propertyId'
+import { Route as OCodeRouteImport } from './routes/o/$code'
 import { Route as CleaningNewRouteImport } from './routes/cleaning/new'
 import { Route as CleaningChecklistsRouteImport } from './routes/cleaning/checklists'
 import { Route as CleaningTaskIdRouteImport } from './routes/cleaning/$taskId'
@@ -124,6 +125,11 @@ const PropertiesPropertyIdRoute = PropertiesPropertyIdRouteImport.update({
   path: '/properties/$propertyId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const OCodeRoute = OCodeRouteImport.update({
+  id: '/o/$code',
+  path: '/o/$code',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const CleaningNewRoute = CleaningNewRouteImport.update({
   id: '/cleaning/new',
   path: '/cleaning/new',
@@ -201,6 +207,7 @@ export interface FileRoutesByFullPath {
   '/cleaning/$taskId': typeof CleaningTaskIdRoute
   '/cleaning/checklists': typeof CleaningChecklistsRoute
   '/cleaning/new': typeof CleaningNewRoute
+  '/o/$code': typeof OCodeRoute
   '/properties/$propertyId': typeof PropertiesPropertyIdRouteWithChildren
   '/properties/gantt': typeof PropertiesGanttRoute
   '/properties/new': typeof PropertiesNewRoute
@@ -231,6 +238,7 @@ export interface FileRoutesByTo {
   '/cleaning/$taskId': typeof CleaningTaskIdRoute
   '/cleaning/checklists': typeof CleaningChecklistsRoute
   '/cleaning/new': typeof CleaningNewRoute
+  '/o/$code': typeof OCodeRoute
   '/properties/gantt': typeof PropertiesGanttRoute
   '/properties/new': typeof PropertiesNewRoute
   '/s/$code': typeof SCodeRoute
@@ -262,6 +270,7 @@ export interface FileRoutesById {
   '/cleaning/$taskId': typeof CleaningTaskIdRoute
   '/cleaning/checklists': typeof CleaningChecklistsRoute
   '/cleaning/new': typeof CleaningNewRoute
+  '/o/$code': typeof OCodeRoute
   '/properties/$propertyId': typeof PropertiesPropertyIdRouteWithChildren
   '/properties/gantt': typeof PropertiesGanttRoute
   '/properties/new': typeof PropertiesNewRoute
@@ -295,6 +304,7 @@ export interface FileRouteTypes {
     | '/cleaning/$taskId'
     | '/cleaning/checklists'
     | '/cleaning/new'
+    | '/o/$code'
     | '/properties/$propertyId'
     | '/properties/gantt'
     | '/properties/new'
@@ -325,6 +335,7 @@ export interface FileRouteTypes {
     | '/cleaning/$taskId'
     | '/cleaning/checklists'
     | '/cleaning/new'
+    | '/o/$code'
     | '/properties/gantt'
     | '/properties/new'
     | '/s/$code'
@@ -355,6 +366,7 @@ export interface FileRouteTypes {
     | '/cleaning/$taskId'
     | '/cleaning/checklists'
     | '/cleaning/new'
+    | '/o/$code'
     | '/properties/$propertyId'
     | '/properties/gantt'
     | '/properties/new'
@@ -387,6 +399,7 @@ export interface RootRouteChildren {
   CleaningTaskIdRoute: typeof CleaningTaskIdRoute
   CleaningChecklistsRoute: typeof CleaningChecklistsRoute
   CleaningNewRoute: typeof CleaningNewRoute
+  OCodeRoute: typeof OCodeRoute
   PropertiesPropertyIdRoute: typeof PropertiesPropertyIdRouteWithChildren
   PropertiesGanttRoute: typeof PropertiesGanttRoute
   PropertiesNewRoute: typeof PropertiesNewRoute
@@ -522,6 +535,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PropertiesPropertyIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/o/$code': {
+      id: '/o/$code'
+      path: '/o/$code'
+      fullPath: '/o/$code'
+      preLoaderRoute: typeof OCodeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/cleaning/new': {
       id: '/cleaning/new'
       path: '/cleaning/new'
@@ -649,6 +669,7 @@ const rootRouteChildren: RootRouteChildren = {
   CleaningTaskIdRoute: CleaningTaskIdRoute,
   CleaningChecklistsRoute: CleaningChecklistsRoute,
   CleaningNewRoute: CleaningNewRoute,
+  OCodeRoute: OCodeRoute,
   PropertiesPropertyIdRoute: PropertiesPropertyIdRouteWithChildren,
   PropertiesGanttRoute: PropertiesGanttRoute,
   PropertiesNewRoute: PropertiesNewRoute,
