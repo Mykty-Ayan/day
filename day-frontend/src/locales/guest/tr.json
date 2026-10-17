@@ -54,7 +54,8 @@
     "notFound": "Bu bağlantı bulunamadı. Yeni bir tane isteyin.",
     "expired": "Bu bağlantının tarihleri geçti. Bize yazın, yeni tarihler bulalım.",
     "choose": "Seç",
-    "hold": "Birini seçin, 30 dakika sizin için tutalım."
+    "hold": "Birini seçin, 30 dakika sizin için tutalım.",
+    "lapsed": "Rezervasyon süresi doldu, ödeme gelmedi. Daireyi yeniden seçin."
   },
   "guestBook": {
     "back": "Tüm daireler",
@@ -87,7 +88,11 @@
     "step3": "Ödemeden sonra adresi, girişi ve kodu WhatsApp'tan göndeririz.",
     "confirmed": "Rezervasyon onaylandı",
     "confirmedNext": "Adresi, bina girişini ve daireye nasıl gireceğinizi girişten önce WhatsApp'tan göndeririz.",
-    "nightsAtCheckIn": "Geceler {{total}}, girişte ödenir"
+    "nightsAtCheckIn": "Geceler {{total}}, girişte ödenir",
+    "sendFailed": "Gönderilemedi. Bağlantıyı kontrol edip tekrar basın.",
+    "nameNeeded": "Telefonunuz sohbetimizden alındı. Rezervasyonun kimin adına olduğunu yazın.",
+    "phoneWrong": "Numara, ülke koduyla birlikte 10 ila 15 haneli olmalı.",
+    "ranOut": "Süre doldu — ödemeyi kontrol ediyoruz"
   },
   "properties": {
     "checkInMethod": {

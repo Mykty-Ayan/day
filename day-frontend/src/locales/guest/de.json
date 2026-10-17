@@ -60,7 +60,8 @@
     "notFound": "Dieser Link wurde nicht gefunden. Bitte fragen Sie nach einem neuen.",
     "expired": "Die Daten dieses Links sind vorbei. Schreiben Sie uns, wir finden neue.",
     "choose": "Auswählen",
-    "hold": "Wählen Sie eine aus, wir halten sie 30 Minuten für Sie frei."
+    "hold": "Wählen Sie eine aus, wir halten sie 30 Minuten für Sie frei.",
+    "lapsed": "Die Buchungszeit ist abgelaufen, ohne dass die Zahlung eingegangen ist. Wählen Sie die Wohnung erneut."
   },
   "guestBook": {
     "back": "Alle Wohnungen",
@@ -93,7 +94,11 @@
     "step3": "Nach der Zahlung schicken wir Adresse, Eingang und Code per WhatsApp.",
     "confirmed": "Buchung bestätigt",
     "confirmedNext": "Adresse, Eingang und wie Sie hineinkommen, schicken wir vor der Anreise per WhatsApp.",
-    "nightsAtCheckIn": "Die Nächte, {{total}}, zahlen Sie bei Anreise"
+    "nightsAtCheckIn": "Die Nächte, {{total}}, zahlen Sie bei Anreise",
+    "sendFailed": "Senden fehlgeschlagen. Prüfen Sie die Verbindung und tippen Sie erneut.",
+    "nameNeeded": "Ihre Telefonnummer stammt aus unserem Chat. Geben Sie den Namen an, auf den wir buchen.",
+    "phoneWrong": "Eine Nummer hat 10 bis 15 Ziffern, mit Ländervorwahl.",
+    "ranOut": "Die Zeit ist um — wir prüfen die Zahlung"
   },
   "properties": {
     "checkInMethod": {

@@ -54,7 +54,8 @@
     "notFound": "未找到此链接。请索取新链接。",
     "expired": "此链接的日期已过。请联系我们，我们会为您找新的日期。",
     "choose": "选择",
-    "hold": "选择一套，我们为您保留 30 分钟。"
+    "hold": "选择一套，我们为您保留 30 分钟。",
+    "lapsed": "预订时间已过，未收到付款。请重新选择房源。"
   },
   "guestBook": {
     "back": "全部房源",
@@ -87,7 +88,11 @@
     "step3": "付款后，我们会通过 WhatsApp 发送地址、单元门和密码。",
     "confirmed": "预订已确认",
     "confirmedNext": "入住前我们会通过 WhatsApp 发送地址、单元门和进入方式。",
-    "nightsAtCheckIn": "住宿费 {{total}}，入住时支付"
+    "nightsAtCheckIn": "住宿费 {{total}}，入住时支付",
+    "sendFailed": "发送失败。请检查网络后再按一次。",
+    "nameNeeded": "电话来自我们的聊天记录。请填写预订人的姓名。",
+    "phoneWrong": "号码应为 10 到 15 位数字，含国家代码。",
+    "ranOut": "时间已到——正在核实付款"
   },
   "properties": {
     "checkInMethod": {
