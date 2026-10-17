@@ -2,7 +2,7 @@ import { useMemo, useRef, useState, useCallback, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Link, useNavigate } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
-import type { Booking, BookingStatus, GanttBlock, GanttPropertySummary } from '../../types/booking'
+import type { Booking, BookingStatus, GanttBlock, GanttDayPrice, GanttPropertySummary } from '../../types/booking'
 import type { PricingConfig } from '../../types/property'
 import { showToast } from '../ui/Toast'
 import { moveBooking } from '../../api/bookings'
@@ -19,6 +19,8 @@ export interface GanttRow {
   bookings: Booking[]
   /** Nights closed without a booking. */
   blocks?: GanttBlock[]
+  /** Nights priced on the calendar. */
+  dayPrices?: GanttDayPrice[]
 }
 
 interface Props {
@@ -35,6 +37,8 @@ interface Props {
     propertyId: string
     checkIn: string
   } | null
+  /** Clicks pick nights to price (first and last, inclusive), not a stay. */
+  priceMode?: boolean
 }
 
 function getDaysInRange(start: Date, end: Date): Date[] {
@@ -283,6 +287,7 @@ export default function GanttChart({
   pricingByProperty,
   onCellClick,
   pendingSelection,
+  priceMode = false,
 }: Props) {
   const { t } = useTranslation()
   const navigate = useNavigate()
@@ -506,9 +511,15 @@ export default function GanttChart({
   const pendingPreviewEnd = useMemo(() => {
     if (!pendingSelection || !hoverPreview) return null
     if (hoverPreview.propertyId !== pendingSelection.propertyId) return null
+    // Picking prices, the hovered night is the last one and counts.
+    if (priceMode) {
+      if (hoverPreview.date < pendingSelection.checkIn) return null
+      const last = parseDateOnly(hoverPreview.date)
+      return toDateStr(new Date(last.getFullYear(), last.getMonth(), last.getDate() + 1))
+    }
     if (hoverPreview.date <= pendingSelection.checkIn) return null
     return hoverPreview.date
-  }, [hoverPreview, pendingSelection])
+  }, [hoverPreview, pendingSelection, priceMode])
 
   function getBarPosition(booking: Booking): { left: number; width: number } | null {
     const { start: checkIn, end: checkOut } = getBookingDayRange(booking.check_in, booking.check_out)
@@ -593,9 +604,11 @@ export default function GanttChart({
       {pendingSelection && (
         <div className="border-b border-blue-100 bg-blue-50 px-3 py-2">
           <p className="text-xs font-semibold text-blue-700">
-            {t('gantt.tapCheckoutHint', {
-              checkIn: formatPreviewDate(pendingSelection.checkIn, shortMonthNames),
-            })}
+            {priceMode
+              ? t('gantt.priceLastHint', { first: formatPreviewDate(pendingSelection.checkIn, shortMonthNames) })
+              : t('gantt.tapCheckoutHint', {
+                  checkIn: formatPreviewDate(pendingSelection.checkIn, shortMonthNames),
+                })}
           </p>
         </div>
       )}
@@ -720,6 +733,7 @@ export default function GanttChart({
             {sortedRows.map((row) => {
               const isPaused = row.property.status === 'paused'
               const closedNights = blockNights(row.blocks ?? [])
+              const priced = new Map((row.dayPrices ?? []).map((night) => [night.date, night.price]))
               const hourly = hourlyByDay(row.bookings)
               const plates = [...hourly].filter(([, group]) => group.length > 1)
               const grouped = new Set(plates.flatMap(([, group]) => group.map((booking) => booking.id)))
@@ -768,15 +782,17 @@ export default function GanttChart({
                       && dayKey < pendingPreviewEnd,
                   )
                   const isPendingCheckOutCandidate = Boolean(
-                    isPendingRow
+                    !priceMode
+                      && isPendingRow
                       && pendingPreviewEnd
                       && dayKey === pendingPreviewEnd,
                   )
                   const hasBooking = isBookedOnDate(row.bookings, day)
                   const closed = closedNights.has(dayKey)
+                  const custom = priced.get(dayKey)
                   const nightlyRate = hasBooking || closed
                     ? null
-                    : getNightlyRateForDate(pricingByProperty?.[row.property.id], day)
+                    : custom ?? getNightlyRateForDate(pricingByProperty?.[row.property.id], day)
                   return (
                     <button
                       key={dayKey}
@@ -819,7 +835,7 @@ export default function GanttChart({
                             ? prev
                             : { propertyId: row.property.id, date: dayKey }
                         ))
-                        if (dayKey > pendingSelection.checkIn) {
+                        if (!priceMode && dayKey > pendingSelection.checkIn) {
                           const checkInDate = parseDateOnly(pendingSelection.checkIn)
                           const checkOutDate = parseDateOnly(dayKey)
                           const nights = Math.max(
@@ -860,6 +876,11 @@ export default function GanttChart({
                         }
                       }}
                       onClick={() => {
+                        // Picking nights to price: any night, closed or booked, as on Airbnb.
+                        if (priceMode) {
+                          onCellClick?.(row.property.id, dayKey)
+                          return
+                        }
                         // An hourly flat goes by the hour: a block's first and last days keep
                         // their morning or afternoon, so only a day closed around the clock is
                         // refused. Otherwise the booking calendar's rule: a closed night starts
@@ -877,7 +898,11 @@ export default function GanttChart({
                     >
                       {nightlyRate !== null && (
                         <div className="pointer-events-none flex h-full items-end justify-center pb-1">
-                          <span className={`text-[10px] font-semibold ${isPaused ? 'text-gray-500' : 'text-emerald-700'}`}>
+                          <span
+                            className={`text-[10px] font-semibold ${
+                              isPaused ? 'text-gray-500' : custom !== undefined ? 'text-violet-700' : 'text-emerald-700'
+                            }`}
+                          >
                             {formatCellPrice(nightlyRate, currencySymbol)}
                           </span>
                         </div>
@@ -963,6 +988,8 @@ export default function GanttChart({
                         height: BAR_H,
                         backgroundColor: booking.gantt_color || '#3B82F6',
                         zIndex: shared ? 6 : 5,
+                        // Picking prices: a booked night is picked through its bar.
+                        pointerEvents: priceMode ? 'none' : undefined,
                       }}
                     >
                       <div className="flex items-center h-full px-2 overflow-hidden">
@@ -1037,6 +1064,7 @@ export default function GanttChart({
                             height: BAR_H,
                             backgroundColor: group[0].gantt_color || '#3B82F6',
                             zIndex: shared ? 6 : 5,
+                            pointerEvents: priceMode ? 'none' : undefined,
                           }}
                         >
                           ×{group.length}

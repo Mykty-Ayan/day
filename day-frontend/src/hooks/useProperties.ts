@@ -33,6 +33,9 @@ import {
   listBlocks,
   createBlock,
   deleteBlock,
+  setDayPrices,
+  clearDayPrices,
+  type DayPriceRange,
 } from '../api/properties'
 import type { SeasonalPriceInput, DiscountRuleInput, PhotoAudience } from '../types/property'
 
@@ -326,4 +329,28 @@ export function useCreateBlock(propertyId: string) {
 
 export function useDeleteBlock(propertyId: string) {
   return useBlocksChange(propertyId, (blockId: string) => deleteBlock(propertyId, blockId))
+}
+
+function useDayPricesChange<T>(change: (input: T) => Promise<unknown>) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: change,
+    onSuccess: () => {
+      // The chessboard shows the nights' prices, and the booking form counts them.
+      qc.invalidateQueries({ queryKey: ['gantt-data'] })
+      qc.invalidateQueries({ queryKey: ['price-calculation'] })
+    },
+  })
+}
+
+export function useSetDayPrices() {
+  return useDayPricesChange(({ propertyId, ...body }: DayPriceRange & { propertyId: string; price: number }) =>
+    setDayPrices(propertyId, body),
+  )
+}
+
+export function useClearDayPrices() {
+  return useDayPricesChange(({ propertyId, ...range }: DayPriceRange & { propertyId: string }) =>
+    clearDayPrices(propertyId, range),
+  )
 }
