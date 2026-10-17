@@ -101,6 +101,12 @@ class ManagePricingService:
         price_id: uuid.UUID,
     ) -> None:
         await self._check_property(property_id, company_id)
+        # The id must be one of this flat's: the flat check alone would let any
+        # company delete another's season by its id.
+        pricing = await self._pricing_repo.get_by_property(property_id)
+        own = await self._seasonal_repo.list_by_pricing_config(pricing.id) if pricing else []
+        if price_id not in {s.id for s in own}:
+            raise ValueError("Seasonal price not found")
         await self._seasonal_repo.delete(price_id)
 
     async def list_seasonal_prices(
@@ -134,6 +140,11 @@ class ManagePricingService:
         rule_id: uuid.UUID,
     ) -> None:
         await self._check_property(property_id, company_id)
+        # As for seasons: only one of this flat's own rules.
+        pricing = await self._pricing_repo.get_by_property(property_id)
+        own = await self._discount_repo.list_by_pricing_config(pricing.id) if pricing else []
+        if rule_id not in {r.id for r in own}:
+            raise ValueError("Discount rule not found")
         await self._discount_repo.delete(rule_id)
 
     async def list_discount_rules(
