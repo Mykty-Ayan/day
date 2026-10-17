@@ -465,7 +465,7 @@ class DayPriceSet(BaseModel):
 
     start_date: date
     end_date: date
-    price: Decimal = Field(gt=0, le=Decimal("99999999.99"))
+    price: Decimal = Field(gt=0, le=Decimal("99999999.99"), decimal_places=2)
 
     @model_validator(mode="after")
     def _at_least_one_night(self):
