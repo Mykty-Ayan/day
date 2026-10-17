@@ -3,7 +3,7 @@ what a night costs and which nights are free. Nothing that lets a stranger find
 the door: no internal name (it holds the flat's number), address, entrance,
 codes, Wi-Fi, check-in instructions or check-in photos."""
 
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from decimal import Decimal
 
 import pytest
@@ -27,7 +27,11 @@ from tests.test_booking_services import (
 )
 from tests.test_property_facts import flat  # noqa: F401  (a fixture)
 
-SECRETS = ["89auc", "Райымбека 210/4", "кв. 89", "подъезд 3", "блок Б", "Home-89", "pass-89", "Код 4471", "43.2389"]
+SECRETS = [
+    "89auc", "Райымбека 210/4", "кв. 89", "подъезд 3", "блок Б", "Home-89", "pass-89", "Код 4471", "43.2389",
+    # The map pins the building, and the video may be the one of the lock.
+    "maps.google.com", "lock-video",
+]
 
 
 class _Photos:
@@ -77,6 +81,8 @@ class Stay:
             wifi_name="Home-89",
             wifi_password="pass-89",
             house_rules="Без вечеринок",
+            map_url="https://maps.google.com/?q=43.2389,76.8897",
+            video_url="https://youtu.be/lock-video",
         )
         await self.props.save(prop)
         await self.pricing.save(PricingConfig(property_id=prop.id, base_price=Decimal("25000"), **pricing))
@@ -91,19 +97,22 @@ class Stay:
 async def test_a_guest_sees_the_flat_and_none_of_its_secrets():
     s = Stay()
     prop = await s.flat(hourly_price=Decimal("3000"), default_deposit=Decimal("10000"))
+    # A listing photo's address holds the flat's id, as storage names it: that id opens
+    # nothing without signing in, so it may be seen.
+    listing_photo = f"https://files.example/day/properties/{prop.id}/a.jpg"
     photos = [
-        PropertyPhoto(property_id=prop.id, url="https://files.example/properties/a.jpg", sort_order=1),
+        PropertyPhoto(property_id=prop.id, url=listing_photo, sort_order=1),
         PropertyPhoto(property_id=prop.id, url="https://files.example/checkin/door.jpg", audience=FactAudience.GUEST),
     ]
     stay = await s.service(photos).execute(prop.public_code, date(2030, 10, 1), date(2030, 10, 8))
     answer = PublicStayResponse.from_stay(stay).model_dump_json()
-    for secret in SECRETS + ["checkin/door.jpg", str(prop.id)]:
+    for secret in SECRETS + ["checkin/door.jpg"]:
         assert secret not in answer, secret
     shown = PublicStayResponse.from_stay(stay)
     assert (shown.name, shown.max_guests, shown.area_total, shown.complex_name) == (
         "Двухкомнатная квартира в ЖК Auezov City", 4, 55.0, "Auezov City"
     )
-    assert shown.photos == ["https://files.example/properties/a.jpg"]
+    assert shown.photos == [listing_photo]
     assert [a.name for a in shown.amenities] == ["Wi-Fi", "Кондиционер"]
     assert (shown.prices.night, shown.prices.hour, shown.prices.deposit) == (25000.0, 3000.0, 10000.0)
 
@@ -120,7 +129,8 @@ async def test_each_night_shows_its_price_and_whether_it_is_free():
     # 1 Oct 2030 is a Tuesday; the 4th a Friday.
     await s.bookings.create(Booking(company_id=COMPANY_ID, property_id=prop.id, status=BookingStatus.CONFIRMED,
                                     check_in=datetime(2030, 10, 1, 14), check_out=datetime(2030, 10, 2, 12)))
-    # Gone early, cancelled, or by the hour: no night is held.
+    # Gone early or cancelled: no night is held. By the hour from 10:00 on the
+    # 6th: the night before is held, as a booking would find it.
     for status, mode, start, end in [
         (BookingStatus.COMPLETED, RentalMode.DAILY, datetime(2030, 10, 3, 14), datetime(2030, 10, 4, 12)),
         (BookingStatus.CANCELLED, RentalMode.DAILY, datetime(2030, 10, 5, 14), datetime(2030, 10, 6, 12)),
@@ -129,7 +139,8 @@ async def test_each_night_shows_its_price_and_whether_it_is_free():
         await s.bookings.create(Booking(company_id=COMPANY_ID, property_id=prop.id, status=status, rental_mode=mode,
                                         check_in=start, check_out=end))
     await s.bookings.add_block(PropertyBlock(company_id=COMPANY_ID, property_id=prop.id,
-                                             start_date=date(2030, 10, 7), end_date=date(2030, 10, 8)))
+                                             start_date=date(2030, 10, 7), end_date=date(2030, 10, 8),
+                                             starts_at=datetime(2030, 10, 7, 12), ends_at=datetime(2030, 10, 8, 12)))
 
     stay = await s.service().execute(prop.public_code, date(2030, 10, 1), date(2030, 10, 8))
     assert [(n.date.day, int(n.price), n.free) for n in stay.nights] == [
@@ -137,10 +148,28 @@ async def test_each_night_shows_its_price_and_whether_it_is_free():
         (2, 40000, True),
         (3, 25000, True),
         (4, 27000, True),
-        (5, 27000, True),
+        # Night 5 runs to noon of the 6th, when the hourly guest is in: taken.
+        (5, 27000, False),
         (6, 30000, True),
         (7, 30000, False),
     ]
+
+
+async def test_a_flat_shows_only_the_prices_it_takes():
+    s = Stay()
+    by_hour = await s.flat(hourly_price=Decimal("3000"))
+    by_hour.rental_mode = RentalMode.HOURLY
+    await s.props.save(by_hour)
+    found = await s.service().execute(by_hour.public_code, date(2030, 10, 1), date(2030, 10, 3))
+    stay = PublicStayResponse.from_stay(found)
+    assert (stay.prices.night, stay.prices.hour, stay.nights) == (None, 3000.0, [])
+
+    by_night = await s.flat(hourly_price=Decimal("3000"))
+    by_night.rental_mode = RentalMode.DAILY
+    await s.props.save(by_night)
+    found = await s.service().execute(by_night.public_code, date(2030, 10, 1), date(2030, 10, 3))
+    stay = PublicStayResponse.from_stay(found)
+    assert (stay.prices.night, stay.prices.hour, len(stay.nights)) == (25000.0, None, 2)
 
 
 async def test_only_an_active_flat_has_a_page():
@@ -178,11 +207,17 @@ async def test_the_page_through_the_api(flat):  # noqa: F811  (the imported fixt
     assert code
 
     use()  # no credential at all
-    page = await client.get(f"/api/v1/public/stays/{code}", params={"date_from": "2030-10-01", "date_to": "2030-10-08"})
+    soon = date.today() + timedelta(days=30)
+    week = {"date_from": soon.isoformat(), "date_to": (soon + timedelta(days=7)).isoformat()}
+    page = await client.get(f"/api/v1/public/stays/{code}", params=week)
     assert page.status_code == 200, page.text
     body = page.json()
     assert body["prices"]["night"] == 20000.0 and len(body["nights"]) == 7
     assert "internal_name" not in body and "t13" not in page.text
     assert (await client.get("/api/v1/public/stays/nosuchcode")).status_code == 404
-    too_long = {"date_from": "2030-10-01", "date_to": "2031-10-01"}
+    too_long = {"date_from": soon.isoformat(), "date_to": (soon + timedelta(days=365)).isoformat()}
     assert (await client.get(f"/api/v1/public/stays/{code}", params=too_long)).status_code == 422
+    # Not the flat's past (its bookings), nor years ahead, nor a date past the calendar's end.
+    for window in ({"date_from": "2020-01-01", "date_to": "2020-02-01"}, {"date_from": "2040-01-01"},
+                   {"date_from": "9999-12-01"}):
+        assert (await client.get(f"/api/v1/public/stays/{code}", params=window)).status_code == 422, window
