@@ -9,6 +9,7 @@ from pydantic import BaseModel
 
 from app.application.booking.guest_offers import PublicOffer, greeting, mask_phone
 from app.application.property.public_stay import PublicStay
+from app.config import settings
 
 
 class PublicAmenity(BaseModel):
@@ -71,8 +72,9 @@ class PublicStayResponse(BaseModel):
             floor=p.floor,
             floors_total=p.floors_total,
             complex_name=p.complex_name,
-            check_in_hour=p.check_in_hour,
-            check_out_hour=p.check_out_hour,
+            # A flat with no hours of its own keeps the company's, as a booking does.
+            check_in_hour=settings.DEFAULT_CHECK_IN_HOUR if p.check_in_hour is None else p.check_in_hour,
+            check_out_hour=settings.DEFAULT_CHECK_OUT_HOUR if p.check_out_hour is None else p.check_out_hour,
             check_in_method=p.check_in_method.value if p.check_in_method else None,
             house_rules=p.house_rules,
             min_nights=p.min_nights,

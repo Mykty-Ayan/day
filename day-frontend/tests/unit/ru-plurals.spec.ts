@@ -77,6 +77,15 @@ test('every count used in Russian resolves in English and Kazakh too', () => {
   }
 })
 
+test('every Kazakh count has a bare string, whatever plural rules the phone brings', () => {
+  // 'kz' is no locale Intl knows: i18next takes the phone's plural rules and asks a
+  // Russian phone for "_few"; with no bare string to answer, the Russian one shows.
+  // Kazakh keeps a noun singular after a number, so the bare string serves every count.
+  const kz = load('kz')
+  const bases = new Set(Object.keys(kz).filter((key) => PLURAL.test(key)).map((key) => key.replace(PLURAL, '')))
+  expect([...bases].filter((base) => !(base in kz))).toEqual([])
+})
+
 test('i18next renders the Russian forms', async () => {
   const i18n = i18next.createInstance()
   await i18n.init({ lng: 'ru', resources: { ru: { translation: JSON.parse(readFileSync(new URL('../../src/locales/ru/translation.json', import.meta.url), 'utf8')) } } })
