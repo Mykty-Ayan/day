@@ -32,7 +32,7 @@ test('the page opens in the guest\'s choice, else the phone\'s language, else En
   expect(guestLanguage(null, 'kk-KZ')).toBe('kz')
   expect(guestLanguage(null, 'en-GB')).toBe('en')
   // A tourist reads English sooner than Russian.
-  expect(guestLanguage(null, 'zh-CN')).toBe('en')
+  expect(guestLanguage(null, 'fr-FR')).toBe('en')
   expect(guestLanguage('xx', null)).toBe('en')
 })
 

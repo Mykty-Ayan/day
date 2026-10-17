@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { isAxiosError } from 'axios'
 import { Globe, X } from 'lucide-react'
-import type { i18n as I18n } from 'i18next'
+import i18n from '../../i18n'
 import { guestLanguage, type GuestLanguage } from '../../lib/public-stay'
 
 const LANGUAGES: { code: GuestLanguage; name: string; locale: string }[] = [
@@ -17,12 +17,17 @@ const LANGUAGES: { code: GuestLanguage; name: string; locale: string }[] = [
 // The guest pages' own languages, a chunk each: the operator's app never loads them.
 const BUNDLES = import.meta.glob<{ default: object }>('../../locales/guest/*.json')
 
-async function showIn(i18n: I18n, language: GuestLanguage): Promise<void> {
+/** Show the page in `language` once its strings are here; false when another pick
+ *  came meanwhile (`stale`), which then wins: a slow bundle never overrides it. */
+async function showIn(language: GuestLanguage, stale: () => boolean): Promise<boolean> {
   const bundle = BUNDLES[`../../locales/guest/${language}.json`]
   if (bundle && !i18n.hasResourceBundle(language, 'translation')) {
-    i18n.addResourceBundle(language, 'translation', (await bundle()).default, true, true)
+    const strings = (await bundle()).default
+    i18n.addResourceBundle(language, 'translation', strings, true, true)
   }
+  if (stale()) return false
   await i18n.changeLanguage(language)
+  return !stale()
 }
 
 function savedLanguage(): string | null {
@@ -36,7 +41,7 @@ function savedLanguage(): string | null {
 /** A guest page's frame: the language picker on top, the page in the guest's
  *  language (the phone's, or the one picked here) below. */
 export function GuestFrame({ children }: { children: (locale: string) => ReactNode }) {
-  const { t, i18n } = useTranslation()
+  const { t } = useTranslation()
   const [language, setLanguage] = useState<GuestLanguage>(() =>
     guestLanguage(savedLanguage(), typeof navigator === 'undefined' ? null : navigator.language),
   )
@@ -44,21 +49,25 @@ export function GuestFrame({ children }: { children: (locale: string) => ReactNo
   const [shown, setShown] = useState<GuestLanguage | null>(null)
   const [picking, setPicking] = useState(false)
   const languageButton = useRef<HTMLButtonElement>(null)
+  // The i18n instance itself, not the hook's: the hook hands a new wrapper on every
+  // change of language, which would run this twice for each pick.
   useEffect(() => {
     let current = true
-    showIn(i18n, language)
-      // A bundle that did not load (the network): English, which every page has.
-      .catch(() => showIn(i18n, 'en').then(() => 'en' as const))
+    showIn(language, () => !current)
       .then((done) => {
-        if (!current) return
-        const next = done ?? language
-        setShown(next)
-        document.documentElement.lang = next === 'kz' ? 'kk' : next
+        if (!done) return
+        setShown(language)
+        document.documentElement.lang = language === 'kz' ? 'kk' : language
+      })
+      // A bundle that did not load (the network): English, which every page has, and
+      // the picker says so; a pick again tries the bundle again.
+      .catch(() => {
+        if (current) setLanguage('en')
       })
     return () => {
       current = false
     }
-  }, [i18n, language])
+  }, [language])
   const locale = LANGUAGES.find((l) => l.code === shown)?.locale ?? 'ru-RU'
 
   function closeLanguages() {
