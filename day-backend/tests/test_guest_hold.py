@@ -9,11 +9,11 @@ from decimal import Decimal
 import pytest
 
 from app.application.booking.create_booking import CreateBookingService
-from app.application.booking.guest_hold import GuestHoldService, OfferTakenError
+from app.application.booking.guest_hold import GuestHoldService, OfferBooking, OfferTakenError
 from app.application.booking.guest_offers import GuestOffersService, OfferExpiredError
 from app.application.messaging.notifications import render
 from app.domain.auth.permissions import Permission
-from app.domain.booking.entities import Booking
+from app.domain.booking.entities import Booking, Guest
 from app.domain.booking.exceptions import BookingOverlapError
 from app.domain.booking.value_objects import BookingStatus, DepositStatus
 from app.domain.messaging.value_objects import NotificationEvent
@@ -59,6 +59,7 @@ class _Photos:
 class Holds:
     def __init__(self):
         self.today = NOW.date()
+        self.now = NOW
         self.props = FakePropertyRepository()
         self.pricing = FakePricingConfigRepository()
         self.bookings = FakeBookingRepository()
@@ -74,7 +75,7 @@ class Holds:
         )
         self.service = GuestHoldService(
             self.offers, self.props, self.bookings, self.guests, self.pricing, self.deposits, create,
-            now=lambda: NOW, today=lambda: self.today,
+            now=lambda: self.now,
         )
 
     async def flat(self, name="Студия", deposit="10000", status=PropertyStatus.ACTIVE):
@@ -123,7 +124,17 @@ async def test_the_invoice_goes_to_another_number_when_the_guest_gives_one():
     offer = await h.offer(studio)
     held = await h.service.book(offer.code, flat=studio.public_code, guests=1, name="Айгерим", phone="+77770001122")
     guest = await h.guests.get_by_id(held.booking.guest_id)
-    assert (guest.name, guest.phone, held.phone) == ("Айгерим", "+77770001122", "+77770001122")
+    assert (guest.name, guest.phone, held.phone, held.name) == ("Айгерим", "+77770001122", "+77770001122", "Айгерим")
+
+
+async def test_who_booked_is_told_even_when_the_phone_finds_an_older_guest():
+    h = Holds()
+    studio = await h.flat()
+    offer = await h.offer(studio)
+    await h.guests.create(Guest(company_id=COMPANY_ID, name="Старое имя", phone="+77770001122"))
+    held = await h.service.book(offer.code, flat=studio.public_code, guests=1, name="Айгерим", phone="+77770001122")
+    assert (await h.guests.get_by_id(held.booking.guest_id)).name == "Старое имя"
+    assert held.name == "Айгерим" and "Айгерим, +77770001122" in held.booking.notes
 
 
 async def test_one_link_makes_one_booking_at_a_time():
@@ -154,7 +165,8 @@ async def test_a_guest_books_only_a_flat_of_the_link_still_on_sale():
         await h.service.book(offer.code, flat=studio.public_code, guests=4)
     with pytest.raises(ValueError, match="Not found"):
         await h.service.book("nosuchcode", flat=studio.public_code, guests=2)
-    h.today = date(2030, 10, 21)
+    # 00:30 on the 21st in Almaty, still the 20th by UTC: the stay has begun.
+    h.now = datetime(2030, 10, 20, 19, 30)
     with pytest.raises(OfferExpiredError):
         await h.service.book(offer.code, flat=studio.public_code, guests=2)
 
@@ -176,6 +188,36 @@ async def test_a_flat_with_no_deposit_is_held_with_none_to_pay():
     offer = await h.offer(studio)
     held = await h.service.book(offer.code, flat=studio.public_code, guests=2)
     assert held.deposit is None and await h.deposits.get_by_booking(held.booking.id) == []
+
+
+async def test_the_notice_tells_the_deadline_on_the_company_clock(monkeypatch):
+    from app.infrastructure.messaging import booking_notice
+
+    queued = []
+
+    class _Notices:
+        async def notify_company(self, company_id, event, payload):
+            queued.append((event, payload))
+
+    class _NoSettings:
+        async def get_by_company(self, company_id):
+            return None
+
+    monkeypatch.setattr(booking_notice, "build_notification_service", lambda session: _Notices())
+    h = Holds()
+    studio = await h.flat()
+    booking = Booking(company_id=COMPANY_ID, property_id=studio.id, check_in=datetime(2030, 10, 20, 14),
+                      check_out=datetime(2030, 10, 22, 12), adults_count=2, total_price=Decimal("50000"),
+                      expires_at=datetime(2030, 10, 1, 9, 45))
+    held = OfferBooking(booking=booking, flat=studio.public_code, deposit=Decimal("10000"),
+                        phone="+77012345678", name="Айгерим")
+    await booking_notice.notify_guest_hold(None, held, h.props, _NoSettings())
+    [(event, payload)] = queued
+    assert event == NotificationEvent.GUEST_HOLD
+    # 09:45 UTC is 14:45 in Almaty, the company's default clock.
+    assert (payload["until"], payload["guest_name"], payload["deposit"], payload["total_price"]) == (
+        "14:45", "Айгерим", "10000", "50000"
+    )
 
 
 def test_the_host_is_asked_to_send_the_kaspi_invoice():
@@ -205,12 +247,16 @@ async def test_booking_from_a_link_through_the_api(flat):  # noqa: F811  (the im
     flat_code = (await client.get(f"/api/v1/properties/{prop}")).json()["public_code"]
 
     use()  # the guest: no credential at all
+    wrong = await client.post(f"/api/v1/public/offers/{code}/book", json={"flat": "nosuchflat", "guests": 2})
+    assert wrong.status_code == 404
     booked = await client.post(f"/api/v1/public/offers/{code}/book", json={"flat": flat_code, "guests": 2})
     assert booked.status_code == 201, booked.text
     assert booked.json()["flat"] == flat_code and booked.json()["phone"] == "+7 701 ••• •• 78"
-    assert booked.json()["expires_at"]
+    assert booked.json()["expires_at"] and (booked.json()["guests"], booked.json()["total"]) == (2, 40000.0)
     again = await client.post(f"/api/v1/public/offers/{code}/book", json={"flat": flat_code, "guests": 2})
     assert again.status_code == 409
+    no_link = await client.post("/api/v1/public/offers/nosuchcode/book", json={"flat": flat_code, "guests": 2})
+    assert no_link.status_code == 404
     page = (await client.get(f"/api/v1/public/offers/{code}")).json()
     assert page["booking"]["flat"] == flat_code and page["booking"]["status"] == "pending"
     assert "2345678" not in str(page)

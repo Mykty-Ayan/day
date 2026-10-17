@@ -11,8 +11,9 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
+from zoneinfo import ZoneInfo
 
 from app.application.booking.create_booking import CreateBookingInput, CreateBookingService
 from app.application.booking.guest_offers import OfferExpiredError
@@ -26,6 +27,8 @@ from app.domain.booking.repositories import (
 from app.domain.booking.value_objects import BookingStatus, DepositStatus
 from app.domain.property.repositories import PricingConfigRepository, PropertyRepository
 from app.domain.property.value_objects import PropertyStatus
+from app.domain.settings.entities import DEFAULT_TIME_ZONE
+from app.domain.settings.repositories import CompanySettingsRepository
 
 HOLD_MINUTES = 30
 
@@ -42,6 +45,9 @@ class OfferBooking:
     deposit: Decimal | None
     # The number the invoice goes to.
     phone: str
+    # Who booked: the name on the form, or the one aidyn took from the chat. The
+    # booking's guest is found by phone and may carry an older name.
+    name: str = ""
 
 
 class GuestHoldService:
@@ -54,9 +60,9 @@ class GuestHoldService:
         pricing_repo: PricingConfigRepository,
         deposit_repo: BookingDepositRepository,
         create_booking: CreateBookingService,
+        settings_repo: CompanySettingsRepository | None = None,
         *,
         now: Callable[[], datetime] = datetime.utcnow,
-        today: Callable[[], date] = date.today,
     ) -> None:
         self._offers = offer_repo
         self._properties = property_repo
@@ -65,8 +71,8 @@ class GuestHoldService:
         self._pricing = pricing_repo
         self._deposits = deposit_repo
         self._create = create_booking
+        self._settings = settings_repo
         self._now = now
-        self._today = today
 
     async def book(
         self, code: str, *, flat: str, guests: int, name: str | None = None, phone: str | None = None
@@ -77,7 +83,7 @@ class GuestHoldService:
         offer = await self._offers.get_by_code(code, lock=True)
         if offer is None:
             raise ValueError("Not found")
-        if self._today() > offer.check_in:
+        if await self._company_today(offer.company_id) > offer.check_in:
             raise OfferExpiredError("Expired")
         if await self._live_booking(offer) is not None:
             raise OfferTakenError("This link has a booking already")
@@ -94,17 +100,22 @@ class GuestHoldService:
 
         pricing = await self._pricing.get_by_property(prop.id)
         deposit = pricing.default_deposit if pricing and pricing.default_deposit > 0 else None
-        phone = (phone or "").strip() or offer.guest_phone
+        name, phone = (name or "").strip(), (phone or "").strip()
+        notes = f"Гость забронировал по личной ссылке /o/{offer.code}"
+        if name or phone:
+            # The guest found by phone keeps its own name: who booked is told here.
+            notes += f". С формы: {name or offer.guest_name}, {phone or offer.guest_phone}"
+        name, phone = name or offer.guest_name, phone or offer.guest_phone
         booking = await self._create.execute(
             CreateBookingInput(
                 company_id=offer.company_id,
                 property_id=prop.id,
-                guest_name=(name or "").strip() or offer.guest_name,
+                guest_name=name,
                 guest_phone=phone,
                 check_in=offer.check_in,
                 check_out=offer.check_out,
                 adults_count=guests,
-                notes=f"Гость забронировал по личной ссылке /o/{offer.code}",
+                notes=notes,
                 expires_at=self._now() + timedelta(minutes=HOLD_MINUTES),
             )
         )
@@ -113,7 +124,7 @@ class GuestHoldService:
             await self._deposits.create(BookingDeposit(booking_id=booking.id, amount=deposit))
         await self._offers.set_booking(offer.id, booking.id)
         offer.booking_id = booking.id
-        return OfferBooking(booking=booking, flat=prop.public_code, deposit=deposit, phone=phone)
+        return OfferBooking(booking=booking, flat=prop.public_code, deposit=deposit, phone=phone, name=name)
 
     async def current(self, offer: GuestOffer) -> OfferBooking | None:
         """The link's booking while it holds its dates: waiting for payment or confirmed."""
@@ -129,6 +140,13 @@ class GuestHoldService:
             deposit=deposits[0].amount if deposits else None,
             phone=(guest.phone if guest and guest.phone else offer.guest_phone),
         )
+
+    async def _company_today(self, company_id) -> date:
+        """The company's date: from midnight to 05:00 in Almaty the server's UTC
+        date is still yesterday, and a link would book a stay already begun."""
+        company = await self._settings.get_by_company(company_id) if self._settings else None
+        zone = ZoneInfo(company.time_zone if company and company.time_zone else DEFAULT_TIME_ZONE)
+        return self._now().replace(tzinfo=timezone.utc).astimezone(zone).date()
 
     async def _live_booking(self, offer: GuestOffer) -> Booking | None:
         if offer.booking_id is None:

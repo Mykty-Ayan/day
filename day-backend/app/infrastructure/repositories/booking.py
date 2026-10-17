@@ -674,6 +674,16 @@ class SqlBookingRepository(BookingRepository):
             )
             .exists()
         )
+        # A deposit marked paid is money too: a guest who booked by a personal link
+        # paid the Kaspi invoice, and the operator has yet to confirm.
+        deposit_paid = (
+            select(BookingDepositModel.id)
+            .where(
+                BookingDepositModel.booking_id == BookingModel.id,
+                BookingDepositModel.status != DepositStatus.PENDING.value,
+            )
+            .exists()
+        )
         stmt = (
             select(BookingModel)
             .where(
@@ -681,6 +691,7 @@ class SqlBookingRepository(BookingRepository):
                 BookingModel.expires_at.is_not(None),
                 BookingModel.expires_at <= now,
                 ~paid,
+                ~deposit_paid,
             )
             .order_by(BookingModel.expires_at)
             .limit(limit)

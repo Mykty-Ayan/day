@@ -114,6 +114,7 @@ def _holds(session: AsyncSession) -> GuestHoldService:
         pricing,
         SqlBookingDepositRepository(session),
         CreateBookingService(bookings, guests, properties, audit, prices, settings_repo),
+        settings_repo,
     )
 
 
@@ -128,7 +129,6 @@ async def book_from_offer(code: str, body: PublicOfferBook, session: AsyncSessio
             session,
             held,
             SqlPropertyRepository(session),
-            SqlGuestRepository(session),
             SqlCompanySettingsRepository(session),
         )
     except OfferExpiredError:

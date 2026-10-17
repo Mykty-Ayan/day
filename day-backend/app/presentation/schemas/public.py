@@ -132,6 +132,9 @@ class PublicOfferBooking(BaseModel):
     expires_at: datetime | None = None
     deposit: float | None = None
     phone: str
+    guests: int
+    # What the nights cost for the guests booked, paid at check-in; none when the flat has no price.
+    total: float | None = None
 
     @classmethod
     def from_hold(cls, held: OfferBooking) -> PublicOfferBooking:
@@ -142,6 +145,8 @@ class PublicOfferBooking(BaseModel):
             expires_at=b.expires_at.replace(tzinfo=timezone.utc) if b.expires_at else None,
             deposit=float(held.deposit) if held.deposit is not None else None,
             phone=mask_phone(held.phone),
+            guests=b.adults_count + b.children_count,
+            total=float(b.total_price) if b.total_price and b.total_price > 0 else None,
         )
 
 
