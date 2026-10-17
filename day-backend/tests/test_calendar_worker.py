@@ -60,6 +60,38 @@ async def test_the_timer_reads_the_calendars_not_read_lately(flat, monkeypatch):
         read.clear()
         await calendar_worker.run_once(maker)
         assert stale not in read
+
+        # One that breaks does not stop the others, and one removed since the list was
+        # taken is not read at all.
+        from app.domain.booking.entities import CalendarFeed
+        from app.infrastructure.repositories.booking import SqlCalendarFeedRepository
+
+        broken, after = f"https://broken.example/{uuid.uuid4()}", f"https://after.example/{uuid.uuid4()}"
+        gone = CalendarFeed(company_id=company_id, property_id=prop, name="Gone", url="https://gone.example/a.ics")
+        async with maker() as session:
+            session.add_all(
+                [
+                    CalendarFeedModel(company_id=company_id, property_id=prop, name="Broken", url=broken),
+                    CalendarFeedModel(company_id=company_id, property_id=prop, name="After", url=after),
+                ]
+            )
+            await session.commit()
+        listed = SqlCalendarFeedRepository.list_all
+
+        async def with_a_removed_one(self):
+            return [gone, *await listed(self)]
+
+        async def breaking(url):
+            if url == broken:
+                raise RuntimeError("a platform answered nonsense")
+            read.append(url)
+            return AIRBNB
+
+        monkeypatch.setattr(SqlCalendarFeedRepository, "list_all", with_a_removed_one)
+        monkeypatch.setattr(calendar_worker, "fetch_calendar", breaking)
+        read.clear()
+        await calendar_worker.run_once(maker)
+        assert after in read and gone.url not in read
     finally:
         async with maker() as session:
             await session.execute(delete(CalendarFeedModel).where(CalendarFeedModel.property_id == prop))
