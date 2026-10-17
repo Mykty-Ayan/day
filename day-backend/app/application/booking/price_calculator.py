@@ -174,7 +174,7 @@ class PriceCalculatorService:
                 # As on Airbnb, a calendar price is not cut by a long-stay discount.
                 discount_amount = (subtotal - calendar_total) * best.discount_percent / 100
             if best.discount_fixed > 0:
-                discount_amount = max(discount_amount, best.discount_fixed)
+                discount_amount = max(discount_amount, min(best.discount_fixed, subtotal - calendar_total))
 
         total = subtotal - discount_amount
 

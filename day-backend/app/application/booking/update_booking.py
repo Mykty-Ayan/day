@@ -87,6 +87,7 @@ class UpdateBookingService:
         # The web form sends the saved dates and mode back with any edit; only
         # a value that differs from these is new and gets the flat's hours.
         saved_in, saved_out, saved_mode = booking.check_in, booking.check_out, booking.rental_mode
+        saved_guests = (booking.adults_count, booking.children_count)
         # A price the operator typed in by hand is their number and survives a
         # date change; one the system worked out should follow the new dates.
         price_was_system_set = booking.total_price == booking.calculated_price
@@ -191,24 +192,28 @@ class UpdateBookingService:
             # The new dates clash with nothing, so an OTA overbooking is resolved.
             booking.overbooking = False
 
-            # Recalculate price
-            try:
-                breakdown = await self._price_calculator.calculate(
-                    booking.property_id,
-                    booking.check_in,
-                    booking.check_out,
-                    booking.adults_count,
-                    booking.children_count,
-                    booking.rental_mode,
-                )
-                booking.calculated_price = breakdown.total
-                # Without this an extra night is added for free: the charge
-                # stays on the old dates while the stay grows.
-                if price_was_system_set and inp.total_price is _UNSET:
-                    _track("total_price", str(booking.total_price), str(breakdown.total))
-                    booking.total_price = breakdown.total
-            except ValueError:
-                pass  # No pricing config, keep existing calculated_price
+            # Recalculate price, only for new dates or guests: the form sends the saved
+            # ones back with any edit, and a price set since (a calendar price) must
+            # not change a stay booked before it.
+            repriced = moved or (booking.adults_count, booking.children_count) != saved_guests
+            if repriced:
+                try:
+                    breakdown = await self._price_calculator.calculate(
+                        booking.property_id,
+                        booking.check_in,
+                        booking.check_out,
+                        booking.adults_count,
+                        booking.children_count,
+                        booking.rental_mode,
+                    )
+                    booking.calculated_price = breakdown.total
+                    # Without this an extra night is added for free: the charge
+                    # stays on the old dates while the stay grows.
+                    if price_was_system_set and inp.total_price is _UNSET:
+                        _track("total_price", str(booking.total_price), str(breakdown.total))
+                        booking.total_price = breakdown.total
+                except ValueError:
+                    pass  # No pricing config, keep existing calculated_price
 
         updated = await self._booking_repo.update(booking)
 
