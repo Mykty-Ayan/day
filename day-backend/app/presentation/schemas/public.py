@@ -3,13 +3,15 @@ field on the flat stays private until it is added to this list."""
 
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, datetime, timezone
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, field_validator
 
+from app.application.booking.guest_hold import OfferBooking
 from app.application.booking.guest_offers import PublicOffer, greeting, mask_phone
 from app.application.property.public_stay import PublicStay
 from app.config import settings
+from app.presentation.schemas.offers import full_phone
 
 
 class PublicAmenity(BaseModel):
@@ -105,6 +107,44 @@ class PublicOfferFlat(BaseModel):
     free: bool
 
 
+class PublicOfferBook(BaseModel):
+    """A guest books one flat of the link. Name and phone only when they are not the
+    link's: it was forwarded, or someone else pays."""
+
+    flat: str = Field(min_length=1, max_length=16)
+    guests: int = Field(ge=1, le=50)
+    name: str | None = Field(default=None, max_length=255)
+    phone: str | None = Field(default=None, max_length=50)
+
+    @field_validator("phone")
+    @classmethod
+    def _a_phone_number(cls, value: str | None) -> str | None:
+        return full_phone(value) if value else None
+
+
+class PublicOfferBooking(BaseModel):
+    """The link's booking as the guest sees it: which flat, until when the dates
+    are held, the deposit to pay and the masked number the invoice goes to."""
+
+    flat: str
+    # pending: waiting for the deposit; confirmed: the dates are the guest's.
+    status: str
+    expires_at: datetime | None = None
+    deposit: float | None = None
+    phone: str
+
+    @classmethod
+    def from_hold(cls, held: OfferBooking) -> PublicOfferBooking:
+        b = held.booking
+        return cls(
+            flat=held.flat,
+            status=b.status.value,
+            expires_at=b.expires_at.replace(tzinfo=timezone.utc) if b.expires_at else None,
+            deposit=float(held.deposit) if held.deposit is not None else None,
+            phone=mask_phone(held.phone),
+        )
+
+
 class PublicOfferResponse(BaseModel):
     """A guest's personal link: the first name and a masked phone, never more."""
 
@@ -116,9 +156,10 @@ class PublicOfferResponse(BaseModel):
     nights: int
     guests: int
     flats: list[PublicOfferFlat]
+    booking: PublicOfferBooking | None = None
 
     @classmethod
-    def from_offer(cls, public: PublicOffer) -> PublicOfferResponse:
+    def from_offer(cls, public: PublicOffer, held: OfferBooking | None = None) -> PublicOfferResponse:
         o = public.offer
         return cls(
             code=o.code,
@@ -143,4 +184,5 @@ class PublicOfferResponse(BaseModel):
                 )
                 for f in public.flats
             ],
+            booking=PublicOfferBooking.from_hold(held) if held else None,
         )
