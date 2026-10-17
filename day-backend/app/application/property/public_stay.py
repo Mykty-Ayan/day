@@ -100,29 +100,31 @@ class GetPublicStayService:
         seasonals = await self._seasonal.list_by_pricing_config(pricing.id)
         calendar = {p.date: p.price for p in await self._day_prices.list_for_property(prop.id, date_from, date_to)}
         rates: list[NightRate] = nightly_rates(pricing, seasonals, calendar, date_from, count)
-
-        # Nights by the flat's own hours, as a booking finds them and as the iCal
-        # feed tells the platforms: night D runs from D at check-in time to D+1 at
-        # check-out time, and an hourly booking holds the night it falls in.
-        start = datetime.combine(date_from - timedelta(days=1), time.min)
-        end = datetime.combine(date_to + timedelta(days=1), time.min)
-        stays = [
-            booking
-            for booking in await self._bookings.list_by_property_date_range(
-                prop.id, start, end, company_id=prop.company_id
-            )
-            if booking.status not in _FREES_NIGHTS
-        ]
-        blocks = await self._bookings.list_blocks(prop.id, date_from - timedelta(days=1), date_to + timedelta(days=1))
-        taken: set[date] = set()
-        for first, last in blocked_nights(
-            stays,
-            settings.DEFAULT_CHECK_IN_HOUR if prop.check_in_hour is None else prop.check_in_hour,
-            settings.DEFAULT_CHECK_OUT_HOUR if prop.check_out_hour is None else prop.check_out_hour,
-            blocks=blocks,
-        ):
-            taken.update(_days(first, last))
+        taken = await taken_nights(self._bookings, prop, date_from, date_to)
         return [PublicNight(rate.date, rate.price, rate.date not in taken) for rate in rates]
+
+
+async def taken_nights(bookings: BookingRepository, prop: Property, date_from: date, date_to: date) -> set[date]:
+    """The flat's taken nights around [date_from, date_to), by its own hours, as a booking
+    finds them and as the iCal feed tells the platforms: night D runs from D at check-in
+    time to D+1 at check-out time, and an hourly booking holds the night it falls in."""
+    start = datetime.combine(date_from - timedelta(days=1), time.min)
+    end = datetime.combine(date_to + timedelta(days=1), time.min)
+    stays = [
+        booking
+        for booking in await bookings.list_by_property_date_range(prop.id, start, end, company_id=prop.company_id)
+        if booking.status not in _FREES_NIGHTS
+    ]
+    blocks = await bookings.list_blocks(prop.id, date_from - timedelta(days=1), date_to + timedelta(days=1))
+    taken: set[date] = set()
+    for first, last in blocked_nights(
+        stays,
+        settings.DEFAULT_CHECK_IN_HOUR if prop.check_in_hour is None else prop.check_in_hour,
+        settings.DEFAULT_CHECK_OUT_HOUR if prop.check_out_hour is None else prop.check_out_hour,
+        blocks=blocks,
+    ):
+        taken.update(_days(first, last))
+    return taken
 
 
 def _days(first: date, end: date) -> list[date]:

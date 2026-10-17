@@ -22,6 +22,7 @@ from app.domain.booking.entities import (
     CalendarFeed,
     GroupBooking,
     Guest,
+    GuestOffer,
     PropertyBlock,
 )
 from app.domain.booking.exceptions import BookingOverlapError, IdempotencyKeyTakenError
@@ -35,6 +36,7 @@ from app.domain.booking.repositories import (
     BookingRepository,
     CalendarFeedRepository,
     GroupBookingRepository,
+    GuestOfferRepository,
     GuestRepository,
 )
 from app.domain.booking.value_objects import (
@@ -60,6 +62,7 @@ from app.infrastructure.models.booking import (
     CalendarFeedModel,
     GroupBookingModel,
     GuestModel,
+    GuestOfferModel,
     PropertyBlockModel,
     VoidedIdempotencyKeyModel,
 )
@@ -1122,5 +1125,47 @@ def _model_to_feed(m: CalendarFeedModel) -> CalendarFeed:
         source=m.source,
         last_synced_at=m.last_synced_at,
         last_error=m.last_error,
+        created_at=m.created_at,
+    )
+
+
+class SqlGuestOfferRepository(GuestOfferRepository):
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+
+    async def add(self, offer: GuestOffer) -> GuestOffer:
+        model = GuestOfferModel(
+            id=offer.id,
+            company_id=offer.company_id,
+            code=offer.code,
+            guest_name=offer.guest_name,
+            guest_phone=offer.guest_phone,
+            check_in=offer.check_in,
+            check_out=offer.check_out,
+            guests=offer.guests,
+            property_ids=[str(p) for p in offer.property_ids],
+            created_by=offer.created_by,
+        )
+        self._session.add(model)
+        await self._session.flush()
+        return _model_to_offer(model)
+
+    async def get_by_code(self, code: str) -> GuestOffer | None:
+        model = await self._session.scalar(select(GuestOfferModel).where(GuestOfferModel.code == code))
+        return _model_to_offer(model) if model else None
+
+
+def _model_to_offer(m: GuestOfferModel) -> GuestOffer:
+    return GuestOffer(
+        id=m.id,
+        company_id=m.company_id,
+        code=m.code,
+        guest_name=m.guest_name,
+        guest_phone=m.guest_phone,
+        check_in=m.check_in,
+        check_out=m.check_out,
+        guests=m.guests,
+        property_ids=[uuid.UUID(p) for p in m.property_ids],
+        created_by=m.created_by,
         created_at=m.created_at,
     )

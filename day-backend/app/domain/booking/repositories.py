@@ -17,6 +17,7 @@ from app.domain.booking.entities import (
     CalendarFeed,
     GroupBooking,
     Guest,
+    GuestOffer,
     PropertyBlock,
 )
 from app.domain.booking.value_objects import BookingSource, BookingStatus
@@ -325,3 +326,12 @@ class CalendarFeedRepository(abc.ABC):
 
     @abc.abstractmethod
     async def record_sync(self, feed_id: uuid.UUID, synced_at: datetime, error: str | None) -> None: ...
+
+
+class GuestOfferRepository(abc.ABC):
+    @abc.abstractmethod
+    async def add(self, offer: GuestOffer) -> GuestOffer: ...
+
+    @abc.abstractmethod
+    async def get_by_code(self, code: str) -> GuestOffer | None:
+        """The offer behind a link's code, of any company: the code is the key."""

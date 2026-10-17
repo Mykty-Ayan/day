@@ -8,6 +8,7 @@ from datetime import date, timedelta
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.application.booking.guest_offers import OfferExpiredError
 from app.application.property.public_stay import GetPublicStayService
 from app.infrastructure.database import get_session
 from app.infrastructure.repositories.booking import SqlBookingRepository
@@ -19,7 +20,8 @@ from app.infrastructure.repositories.property import (
     SqlPropertyRepository,
     SqlSeasonalPriceRepository,
 )
-from app.presentation.schemas.public import PublicStayResponse
+from app.presentation.api.v1.offers import offers_service
+from app.presentation.schemas.public import PublicOfferResponse, PublicStayResponse
 
 public_router = APIRouter(prefix="/public", tags=["public"])
 
@@ -61,3 +63,16 @@ async def public_stay(
         # The same answer for a wrong code and a flat not on sale: the code is the key.
         raise HTTPException(status_code=404, detail="Not found")
     return PublicStayResponse.from_stay(stay)
+
+
+@public_router.get("/offers/{code}", response_model=PublicOfferResponse)
+async def public_offer(code: str, session: AsyncSession = Depends(get_session)):
+    """A guest's personal link: the flats for the guest's dates, each with the stay's
+    price and whether it is still free. 410 once the check-in day has passed."""
+    try:
+        offer = await offers_service(session).public(code)
+    except OfferExpiredError:
+        raise HTTPException(status_code=410, detail="Expired")
+    except ValueError:
+        raise HTTPException(status_code=404, detail="Not found")
+    return PublicOfferResponse.from_offer(offer)

@@ -7,6 +7,7 @@ from datetime import date
 
 from pydantic import BaseModel
 
+from app.application.booking.guest_offers import PublicOffer, greeting, mask_phone
 from app.application.property.public_stay import PublicStay
 from app.config import settings
 
@@ -87,4 +88,59 @@ class PublicStayResponse(BaseModel):
                 deposit=float(pricing.default_deposit) if pricing and pricing.default_deposit > 0 else None,
             ),
             nights=[PublicNightResponse(date=n.date, price=float(n.price), free=n.free) for n in stay.nights],
+        )
+
+
+class PublicOfferFlat(BaseModel):
+    code: str
+    name: str
+    complex_name: str | None = None
+    rooms: int | None = None
+    max_guests: int | None = None
+    area_total: float | None = None
+    floor: int | None = None
+    photo: str | None = None
+    # The stay's price for the offer's dates and guests, as a booking would count it.
+    total: float | None = None
+    free: bool
+
+
+class PublicOfferResponse(BaseModel):
+    """A guest's personal link: the first name and a masked phone, never more."""
+
+    code: str
+    guest: str | None = None
+    phone: str
+    check_in: date
+    check_out: date
+    nights: int
+    guests: int
+    flats: list[PublicOfferFlat]
+
+    @classmethod
+    def from_offer(cls, public: PublicOffer) -> PublicOfferResponse:
+        o = public.offer
+        return cls(
+            code=o.code,
+            guest=greeting(o.guest_name),
+            phone=mask_phone(o.guest_phone),
+            check_in=o.check_in,
+            check_out=o.check_out,
+            nights=(o.check_out - o.check_in).days,
+            guests=o.guests,
+            flats=[
+                PublicOfferFlat(
+                    code=f.property.public_code,
+                    name=f.property.name,
+                    complex_name=f.property.complex_name,
+                    rooms=f.property.rooms,
+                    max_guests=f.property.max_guests,
+                    area_total=f.property.area_total,
+                    floor=f.property.floor,
+                    photo=f.photo,
+                    total=float(f.total) if f.total is not None else None,
+                    free=f.free,
+                )
+                for f in public.flats
+            ],
         )
