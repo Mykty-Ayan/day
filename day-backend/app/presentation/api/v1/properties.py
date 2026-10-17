@@ -7,6 +7,7 @@ import uuid
 from datetime import date
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Response, UploadFile, status
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.application.booking.manage_blocks import ManageBlocksService
@@ -31,9 +32,11 @@ from app.application.property.update_property import (
 )
 from app.config import settings
 from app.domain.auth.permissions import Permission
-from app.domain.booking.exceptions import BlockOverlapsBookingError
+from app.domain.booking.exceptions import BlockFromCalendarError, BlockOverlapsBookingError
 from app.domain.property.entities import DiscountRule, PropertyCosts, SeasonalPrice
 from app.domain.property.value_objects import FactAudience, FactSource, PropertyStatus
+from app.infrastructure.calendar_feeds import build_calendar_feeds
+from app.infrastructure.calendar_fetch import fetch_calendar
 from app.infrastructure.database import get_session
 from app.infrastructure.repositories.booking import SqlBookingRepository
 from app.infrastructure.repositories.property import (
@@ -51,7 +54,12 @@ from app.infrastructure.repositories.property import (
 from app.infrastructure.security import calendar_token
 from app.infrastructure.storage.s3 import signed_photo_url, upload_property_photo
 from app.presentation.api.deps import Principal, get_company_id, get_principal, get_user_id, require
-from app.presentation.schemas.booking import PropertyBlockCreate, PropertyBlockResponse
+from app.presentation.schemas.booking import (
+    CalendarFeedCreate,
+    CalendarFeedResponse,
+    PropertyBlockCreate,
+    PropertyBlockResponse,
+)
 from app.presentation.schemas.property import (
     AmenityResponse,
     DayPriceResponse,
@@ -1162,6 +1170,8 @@ async def delete_block(
     svc = ManageBlocksService(SqlBookingRepository(session), SqlPropertyRepository(session))
     try:
         await svc.delete(company_id, property_id, block_id)
+    except BlockFromCalendarError as e:
+        raise HTTPException(status_code=409, detail=str(e))
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
     await session.commit()
@@ -1238,4 +1248,93 @@ async def clear_day_prices(
     except ValueError as e:
         await session.rollback()
         raise HTTPException(status_code=404 if str(e) == "Property not found" else 422, detail=str(e))
+    await session.commit()
+
+
+# ---------- Platforms' calendars ----------
+# The link holds the platform's secret: reading it takes properties:write, as the
+# Day calendar link does.
+
+
+@router.get(
+    "/{property_id}/calendar-feeds",
+    response_model=list[CalendarFeedResponse],
+    dependencies=[Depends(require(Permission.PROPERTIES_WRITE))],
+)
+async def list_calendar_feeds(
+    property_id: uuid.UUID,
+    session: AsyncSession = Depends(get_session),
+    company_id: uuid.UUID = Depends(get_company_id),
+):
+    try:
+        feeds = await build_calendar_feeds(session, fetch_calendar).list(company_id, property_id)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    return [CalendarFeedResponse.model_validate(f, from_attributes=True) for f in feeds]
+
+
+@router.post(
+    "/{property_id}/calendar-feeds",
+    response_model=CalendarFeedResponse,
+    status_code=201,
+    dependencies=[Depends(require(Permission.PROPERTIES_WRITE))],
+)
+async def add_calendar_feed(
+    property_id: uuid.UUID,
+    body: CalendarFeedCreate,
+    session: AsyncSession = Depends(get_session),
+    company_id: uuid.UUID = Depends(get_company_id),
+):
+    """Add a platform's calendar of the flat and read it at once: its events close the
+    nights. A read that fails is answered in last_error, and the calendar stays."""
+    try:
+        feed = await build_calendar_feeds(session, fetch_calendar).add(company_id, property_id, body.name, body.url)
+    except IntegrityError:
+        await session.rollback()
+        raise HTTPException(status_code=409, detail="This calendar is already added")
+    except ValueError as e:
+        await session.rollback()
+        raise HTTPException(status_code=404, detail=str(e))
+    await session.commit()
+    return CalendarFeedResponse.model_validate(feed, from_attributes=True)
+
+
+@router.post(
+    "/{property_id}/calendar-feeds/{feed_id}/sync",
+    response_model=CalendarFeedResponse,
+    dependencies=[Depends(require(Permission.PROPERTIES_WRITE))],
+)
+async def sync_calendar_feed(
+    property_id: uuid.UUID,
+    feed_id: uuid.UUID,
+    session: AsyncSession = Depends(get_session),
+    company_id: uuid.UUID = Depends(get_company_id),
+):
+    """Read the calendar now, not at the next turn of the timer."""
+    try:
+        feed = await build_calendar_feeds(session, fetch_calendar).sync(company_id, property_id, feed_id)
+    except ValueError as e:
+        await session.rollback()
+        raise HTTPException(status_code=404, detail=str(e))
+    await session.commit()
+    return CalendarFeedResponse.model_validate(feed, from_attributes=True)
+
+
+@router.delete(
+    "/{property_id}/calendar-feeds/{feed_id}",
+    status_code=204,
+    dependencies=[Depends(require(Permission.PROPERTIES_WRITE))],
+)
+async def remove_calendar_feed(
+    property_id: uuid.UUID,
+    feed_id: uuid.UUID,
+    session: AsyncSession = Depends(get_session),
+    company_id: uuid.UUID = Depends(get_company_id),
+):
+    """The calendar goes with the nights it closed."""
+    try:
+        await build_calendar_feeds(session, fetch_calendar).remove(company_id, property_id, feed_id)
+    except ValueError as e:
+        await session.rollback()
+        raise HTTPException(status_code=404, detail=str(e))
     await session.commit()

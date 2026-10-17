@@ -11,6 +11,7 @@ from sqlalchemy import (
     Numeric,
     String,
     Text,
+    UniqueConstraint,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -246,7 +247,10 @@ class PropertyBlockModel(Base):
     """Nights a flat is closed without a booking (migration 037)."""
 
     __tablename__ = "property_blocks"
-    __table_args__ = (CheckConstraint("end_date > start_date", name="ck_property_blocks_nights"),)
+    __table_args__ = (
+        CheckConstraint("end_date > start_date", name="ck_property_blocks_nights"),
+        UniqueConstraint("feed_id", "external_uid", name="uq_property_blocks_feed_event"),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     company_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("companies.id"), index=True)
@@ -259,4 +263,25 @@ class PropertyBlockModel(Base):
     reason: Mapped[str | None] = mapped_column(String(255), nullable=True)
     # Who closed the nights; like the audit log's changed_by, a plain id.
     created_by: Mapped[uuid.UUID | None] = mapped_column(nullable=True)
+    created_at: Mapped[datetime] = mapped_column(default=datetime.utcnow)
+    # Taken from a platform calendar (migration 039): that calendar and its event.
+    feed_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("calendar_feeds.id", ondelete="CASCADE"), nullable=True, index=True
+    )
+    external_uid: Mapped[str | None] = mapped_column(String(500), nullable=True)
+
+
+class CalendarFeedModel(Base):
+    """A platform's iCal calendar of a flat, read on a timer (migration 039)."""
+
+    __tablename__ = "calendar_feeds"
+    __table_args__ = (UniqueConstraint("property_id", "url", name="uq_calendar_feeds_url"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    company_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("companies.id"), index=True)
+    property_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("properties.id", ondelete="CASCADE"), index=True)
+    name: Mapped[str] = mapped_column(String(100))
+    url: Mapped[str] = mapped_column(Text)
+    last_synced_at: Mapped[datetime | None] = mapped_column(nullable=True)
+    last_error: Mapped[str | None] = mapped_column(String(500), nullable=True)
     created_at: Mapped[datetime] = mapped_column(default=datetime.utcnow)

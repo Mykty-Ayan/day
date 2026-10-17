@@ -84,6 +84,16 @@ def render(event: NotificationEvent, payload: dict) -> str:
             ]
         )
 
+    if event == NotificationEvent.CALENDAR_CLASH:
+        return "\n".join(
+            [
+                "⚠️ <b>Двойная бронь</b>",
+                f"Объект: {payload.get('property_name', '—')}",
+                f"Календарь {payload.get('feed_name', '—')} закрыл ночи {payload.get('nights', '—')},",
+                "а в Day на них есть бронь. Отмените одну из двух броней.",
+            ]
+        )
+
     if event == NotificationEvent.GUEST_INQUIRY:
         return "\n".join(
             [

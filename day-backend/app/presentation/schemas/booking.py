@@ -513,3 +513,22 @@ class PropertyBlockResponse(BaseModel):
     end_date: date
     reason: str | None = None
     created_at: datetime | None = None
+    # Taken from a platform calendar: that calendar keeps it.
+    feed_id: uuid.UUID | None = None
+
+
+class CalendarFeedCreate(BaseModel):
+    """A platform's iCal link of the flat (Airbnb: Calendar > Availability > Export)."""
+
+    name: str = Field(min_length=1, max_length=100)
+    url: str = Field(max_length=2000, pattern=r"^https?://\S+$")
+
+
+class CalendarFeedResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    name: str
+    url: str
+    last_synced_at: datetime | None = None
+    last_error: str | None = None

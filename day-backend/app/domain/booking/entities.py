@@ -186,3 +186,22 @@ class PropertyBlock:
     reason: str | None = None
     created_by: uuid.UUID | None = None
     created_at: datetime | None = None
+    # Taken from a platform's calendar (a CalendarFeed) and its event there: the
+    # calendar keeps it, and it cannot be removed by hand.
+    feed_id: uuid.UUID | None = None
+    external_uid: str | None = None
+
+
+@dataclass
+class CalendarFeed:
+    """A platform's iCal calendar of the flat (Airbnb, Booking.com, ...), read on a
+    timer: its events close the flat's nights. The link holds the platform's secret."""
+
+    id: uuid.UUID = field(default_factory=uuid.uuid4)
+    company_id: uuid.UUID = field(default_factory=uuid.uuid4)
+    property_id: uuid.UUID = field(default_factory=uuid.uuid4)
+    name: str = ""
+    url: str = ""
+    last_synced_at: datetime | None = None
+    last_error: str | None = None
+    created_at: datetime | None = None

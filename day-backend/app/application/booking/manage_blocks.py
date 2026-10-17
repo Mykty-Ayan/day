@@ -7,7 +7,7 @@ from datetime import date
 
 from app.application.booking.blocks import block_span, checkout_hour
 from app.domain.booking.entities import PropertyBlock
-from app.domain.booking.exceptions import BlockOverlapsBookingError
+from app.domain.booking.exceptions import BlockFromCalendarError, BlockOverlapsBookingError
 from app.domain.booking.repositories import BookingRepository
 from app.domain.property.repositories import PropertyRepository
 
@@ -65,4 +65,6 @@ class ManageBlocksService:
         block = await self._bookings.get_block(block_id)
         if block is None or block.property_id != property_id:
             raise ValueError("Block not found")
+        if block.feed_id is not None:
+            raise BlockFromCalendarError()
         await self._bookings.delete_block(block_id)
