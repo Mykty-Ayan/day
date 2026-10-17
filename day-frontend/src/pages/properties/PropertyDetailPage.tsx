@@ -46,6 +46,7 @@ import { showToast } from '../../components/ui/Toast'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import CheckInPhotosCard from '../../components/property/CheckInPhotosCard'
 import BlocksCard from '../../components/property/BlocksCard'
+import CalendarFeedsCard from '../../components/property/CalendarFeedsCard'
 import AuditTrail from '../../components/ui/AuditTrail'
 import Spinner from '../../components/ui/Spinner'
 import Button from '../../components/ui/Button'
@@ -293,6 +294,7 @@ export default function PropertyDetailPage() {
         </div>
 
         <CalendarLinkCard propertyId={propertyId} />
+        {currentUser && currentUser.role !== 'cleaner' && <CalendarFeedsCard propertyId={propertyId} />}
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Left column - Details */}

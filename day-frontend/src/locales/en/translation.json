@@ -316,8 +316,8 @@
       "other": "Other"
     },
     "calendar": {
-      "title": "Calendar for Airbnb and Booking",
-      "hint": "Paste the link into calendar sync on Airbnb and Booking: bookings made in Day close those dates there. The link shows taken nights only",
+      "title": "Day link for other platforms",
+      "hint": "For a platform with no calendar of its own below: paste it into its calendar sync, and bookings made in Day close those dates there. A platform with a calendar below takes its own link from there. The link shows taken nights only",
       "copy": "Copy link",
       "copied": "Link copied",
       "failed": "Could not get the link",
@@ -337,6 +337,28 @@
       "removed": "Dates reopened",
       "hasBookings": "These dates already have bookings",
       "failed": "Could not save"
+    },
+    "feeds": {
+      "title": "Platform calendars",
+      "hint": "Paste this flat's calendar link from Airbnb, Booking.com or another site: Day reads it every 30 minutes and closes the nights booked there.",
+      "empty": "No calendars yet.",
+      "name": "Platform",
+      "url": "Calendar link (.ics)",
+      "add": "Add",
+      "added": "Calendar added",
+      "addFailed": "Could not do it with the calendar",
+      "duplicate": "This calendar is already added",
+      "read": "Read {{time}}",
+      "error": "Not read: {{error}}",
+      "sync": "Read now",
+      "remove": "Remove",
+      "removeTitle": "Remove the calendar?",
+      "removeMessage": "The nights {{name}} closed become free in Day.",
+      "exportFor": "Day link for {{name}}",
+      "exportHint": "Paste this link into {{name}} in place of the earlier Day link: it leaves out what came from {{name}}.",
+      "fromCalendar": "From calendar: {{name}}",
+      "addedUnread": "Calendar added, not read yet: {{error}}",
+      "loadFailed": "Could not load the calendars"
     }
   },
   "bookings": {
@@ -592,6 +614,7 @@
     "priceResetDone": "The usual price is back",
     "priceFailed": "Could not save the price",
     "priceHourly": "A price per night is for daily rentals",
+    "doubleSale": "Double booking",
     "priceLastHint": "First night {{first}}. Now the last one (it counts too).",
     "priceInvalid": "Enter the price in digits, for example 25000 or 25 000."
   },

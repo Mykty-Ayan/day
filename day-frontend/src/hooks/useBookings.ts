@@ -62,7 +62,14 @@ export function useBookings(filters: BookingFilters = {}) {
 
 /** The nights a flat's stays take between `from` and `to` (yyyy-MM-dd; see
  *  nightsWindow), every page of them: a short page would leave nights open. */
-export function useBookedNights(propertyId: string, from: string, to: string, exceptBookingId?: string) {
+export function useBookedNights(
+  propertyId: string,
+  from: string,
+  to: string,
+  exceptBookingId?: string,
+  /** The booking's source: its own platform's calendar does not close nights for it. */
+  source?: string,
+) {
   return useQuery({
     queryKey: [BOOKINGS_KEY, 'booked-nights', propertyId, from, to],
     queryFn: async () => {
@@ -76,7 +83,11 @@ export function useBookedNights(propertyId: string, from: string, to: string, ex
     },
     enabled: !!propertyId,
     // Closed nights take the calendar like booked ones.
-    select: ({ stays, blocks }) => new Set([...bookedNights(stays, exceptBookingId), ...blockNights(blocks)]),
+    select: ({ stays, blocks }) =>
+      new Set([
+        ...bookedNights(stays, exceptBookingId),
+        ...blockNights(blocks.filter((block) => !source || block.source !== source)),
+      ]),
   })
 }
 

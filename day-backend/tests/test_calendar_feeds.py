@@ -320,7 +320,10 @@ async def test_calendars_through_the_api(flat, monkeypatch):  # noqa: F811  (the
 
     window = {"date_from": "2030-10-01", "date_to": "2030-11-01"}
     blocks = (await client.get(f"/api/v1/properties/{prop}/blocks", params=window)).json()
-    assert [(b["start_date"], b["reason"]) for b in blocks] == [("2030-10-10", "Airbnb"), ("2030-10-20", "Airbnb")]
+    assert [(b["start_date"], b["reason"], b["source"]) for b in blocks] == [
+        ("2030-10-10", "Airbnb", "airbnb"),
+        ("2030-10-20", "Airbnb", "airbnb"),
+    ]
     refused = await client.delete(f"/api/v1/properties/{prop}/blocks/{blocks[0]['id']}")
     assert refused.status_code == 409, refused.text
 
