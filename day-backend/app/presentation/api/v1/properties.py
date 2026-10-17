@@ -339,8 +339,12 @@ async def calendar_link(
     prop = await _repos(session)["property"].get_by_id(property_id)
     if prop is None or prop.company_id != company_id:
         raise HTTPException(status_code=404, detail="Property not found")
+    return {"url": _calendar_url(property_id)}
+
+
+def _calendar_url(property_id: uuid.UUID) -> str:
     base = settings.PUBLIC_BASE_URL.rstrip("/")
-    return {"url": f"{base}/api/v1/calendar/{property_id}.ics?token={calendar_token(property_id)}"}
+    return f"{base}/api/v1/calendar/{property_id}.ics?token={calendar_token(property_id)}"
 
 
 # ---------- Knowledge base ----------
@@ -1256,6 +1260,12 @@ async def clear_day_prices(
 # Day calendar link does.
 
 
+def _feed_answer(feed) -> CalendarFeedResponse:
+    answer = CalendarFeedResponse.model_validate(feed, from_attributes=True)
+    answer.export_url = f"{_calendar_url(feed.property_id)}&exclude={feed.id}"
+    return answer
+
+
 @router.get(
     "/{property_id}/calendar-feeds",
     response_model=list[CalendarFeedResponse],
@@ -1270,7 +1280,7 @@ async def list_calendar_feeds(
         feeds = await build_calendar_feeds(session, fetch_calendar).list(company_id, property_id)
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
-    return [CalendarFeedResponse.model_validate(f, from_attributes=True) for f in feeds]
+    return [_feed_answer(f) for f in feeds]
 
 
 @router.post(
@@ -1296,7 +1306,7 @@ async def add_calendar_feed(
         await session.rollback()
         raise HTTPException(status_code=404, detail=str(e))
     await session.commit()
-    return CalendarFeedResponse.model_validate(feed, from_attributes=True)
+    return _feed_answer(feed)
 
 
 @router.post(
@@ -1317,7 +1327,7 @@ async def sync_calendar_feed(
         await session.rollback()
         raise HTTPException(status_code=404, detail=str(e))
     await session.commit()
-    return CalendarFeedResponse.model_validate(feed, from_attributes=True)
+    return _feed_answer(feed)
 
 
 @router.delete(

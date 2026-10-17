@@ -132,12 +132,17 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     import asyncio
 
     from app.domain.messaging.value_objects import Channel
+    from app.infrastructure.calendar_worker import calendar_worker
     from app.infrastructure.hold_worker import hold_worker
     from app.infrastructure.messaging.factory import get_provider
     from app.infrastructure.messaging.worker import notification_worker
 
     stop = asyncio.Event()
-    workers = [asyncio.create_task(notification_worker(stop)), asyncio.create_task(hold_worker(stop))]
+    workers = [
+        asyncio.create_task(notification_worker(stop)),
+        asyncio.create_task(hold_worker(stop)),
+        asyncio.create_task(calendar_worker(stop)),
+    ]
     # A bucket made public by an older deploy stays public until its policy
     # is removed, and it holds guests' documents. In the background: a slow
     # or absent MinIO must not hold up the API.

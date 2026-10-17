@@ -120,17 +120,12 @@ class CalendarFeedsService:
         await self._feeds.delete(feed_id)
 
     async def sync(self, company_id: uuid.UUID, property_id: uuid.UUID, feed_id: uuid.UUID) -> CalendarFeed:
-        await self._read(await self._own_feed(company_id, property_id, feed_id))
+        await self.read(await self._own_feed(company_id, property_id, feed_id))
         return await self._feeds.get(feed_id)
 
-    async def sync_all(self) -> int:
-        """Read every company's calendars (the timer). One that fails keeps its error."""
-        feeds = await self._feeds.list_all()
-        for feed in feeds:
-            await self._read(feed)
-        return len(feeds)
-
-    async def _read(self, feed: CalendarFeed) -> None:
+    async def read(self, feed: CalendarFeed) -> None:
+        """Bring the feed's blocks in line with its calendar. For the timer, which reads
+        every company's calendars: no owner check here."""
         now = datetime.utcnow()
         try:
             events = parse_events(await self._fetch(feed.url))

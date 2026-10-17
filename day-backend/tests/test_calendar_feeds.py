@@ -221,6 +221,9 @@ async def test_calendars_through_the_api(flat, monkeypatch):  # noqa: F811  (the
     assert created.status_code == 201, created.text
     feed = created.json()
     assert feed["name"] == "Airbnb" and feed["last_error"] is None and feed["last_synced_at"]
+    # Day's link for Airbnb itself leaves out what came from Airbnb.
+    assert f"/api/v1/calendar/{prop}.ics?token=" in feed["export_url"]
+    assert feed["export_url"].endswith(f"&exclude={feed['id']}")
     assert (await client.post(path, json={**body, "url": "file:///etc/passwd"})).status_code == 422
 
     window = {"date_from": "2030-10-01", "date_to": "2030-11-01"}

@@ -105,7 +105,7 @@ class _Bookings:
         return self._rows
 
 
-async def _get(monkeypatch, token: str, *, hours=(None, None), rows=None, blocks=()):
+async def _get(monkeypatch, token: str, *, hours=(None, None), rows=None, blocks=(), **params):
     from httpx import ASGITransport, AsyncClient
 
     from app.domain.property.entities import Property
@@ -118,7 +118,7 @@ async def _get(monkeypatch, token: str, *, hours=(None, None), rows=None, blocks
     app.dependency_overrides[get_session] = lambda: None
     try:
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-            return await client.get(f"/api/v1/calendar/{PROPERTY_ID}.ics", params={"token": token})
+            return await client.get(f"/api/v1/calendar/{PROPERTY_ID}.ics", params={"token": token, **params})
     finally:
         app.dependency_overrides.pop(get_session, None)
 
@@ -133,6 +133,28 @@ async def test_the_feed_opens_with_the_right_token_only(monkeypatch):
     assert "DTSTART;VALUE=DATE:20261101" in good.text
 
     assert (await _get(monkeypatch, "0" * 32)).status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_a_platforms_link_leaves_out_what_came_from_that_platform(monkeypatch):
+    # Airbnb's own nights sent back to Airbnb would close them a second time and
+    # keep them closed after the guest cancels there: its link leaves them out.
+    from dataclasses import replace
+
+    from app.infrastructure.security import calendar_token
+
+    airbnb, booking = uuid.uuid4(), uuid.uuid4()
+    from_airbnb = replace(CLOSED, id=uuid.uuid4(), feed_id=airbnb)
+    from_booking = replace(
+        CLOSED, id=uuid.uuid4(), feed_id=booking, start_date=date(2026, 11, 20), end_date=date(2026, 11, 21),
+        starts_at=datetime(2026, 11, 20, 12), ends_at=datetime(2026, 11, 21, 12),
+    )
+    blocks = [from_airbnb, from_booking]
+    for_airbnb = await _get(monkeypatch, calendar_token(PROPERTY_ID), blocks=blocks, exclude=str(airbnb))
+    assert "DTSTART;VALUE=DATE:20261110" not in for_airbnb.text
+    assert "DTSTART;VALUE=DATE:20261120" in for_airbnb.text
+    everything = await _get(monkeypatch, calendar_token(PROPERTY_ID), blocks=blocks)
+    assert "DTSTART;VALUE=DATE:20261110" in everything.text and "DTSTART;VALUE=DATE:20261120" in everything.text
 
 
 @pytest.mark.asyncio
