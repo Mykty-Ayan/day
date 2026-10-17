@@ -337,6 +337,26 @@
       "removed": "Dates reopened",
       "hasBookings": "These dates already have bookings",
       "failed": "Could not save"
+    },
+    "feeds": {
+      "title": "Platform calendars",
+      "hint": "Paste this flat's calendar link from Airbnb, Booking.com or another site: Day reads it every 30 minutes and closes the nights booked there.",
+      "empty": "No calendars yet.",
+      "name": "Platform",
+      "url": "Calendar link (.ics)",
+      "add": "Add",
+      "added": "Calendar added",
+      "addFailed": "Could not do it with the calendar",
+      "duplicate": "This calendar is already added",
+      "read": "Read {{time}}",
+      "error": "Not read: {{error}}",
+      "sync": "Read now",
+      "remove": "Remove",
+      "removeTitle": "Remove the calendar?",
+      "removeMessage": "The nights it closed become free in Day.",
+      "exportFor": "Day link for {{name}}",
+      "exportHint": "Paste this Day link into {{name}}: it leaves out what came from {{name}}.",
+      "fromCalendar": "From calendar: {{name}}"
     }
   },
   "bookings": {
@@ -591,7 +611,8 @@
     "priceSaved": "Price saved",
     "priceResetDone": "The usual price is back",
     "priceFailed": "Could not save the price",
-    "priceHourly": "A price per night is for daily rentals"
+    "priceHourly": "A price per night is for daily rentals",
+    "doubleSale": "Double booking"
   },
   "cleaning": {
     "title": "Cleaning",

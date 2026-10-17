@@ -914,23 +914,37 @@ export default function GanttChart({
                   const pos = getSpanPosition(parseDateOnly(block.start_date), parseDateOnly(block.end_date), cellW * 0.5)
                   if (!pos) return null
                   const label = block.reason || t('gantt.closed')
+                  // Only a platform calendar closes nights a Day booking holds: a double
+                  // sale, drawn over the booking in red until one of the two is cancelled.
+                  const start = parseDateOnly(block.start_date)
+                  const nights = Math.round((parseDateOnly(block.end_date).getTime() - start.getTime()) / 86400000)
+                  const clash = Array.from({ length: nights }, (_, n) => (
+                    new Date(start.getFullYear(), start.getMonth(), start.getDate() + n)
+                  )).some((night) => isBookedOnDate(row.bookings, night))
+                  const title = clash ? t('gantt.doubleSale') : t('gantt.closed')
                   return (
                     <div
                       key={block.id}
                       role="img"
-                      aria-label={`${t('gantt.closed')}: ${label}`}
-                      title={label}
-                      className="pointer-events-none absolute rounded-lg text-[11px] font-semibold text-gray-600"
+                      aria-label={`${title}: ${label}`}
+                      title={clash ? `${title}: ${label}` : label}
+                      className={`pointer-events-none absolute rounded-lg text-[11px] font-semibold ${
+                        clash ? 'text-red-700 outline outline-2 outline-red-600' : 'text-gray-600'
+                      }`}
                       style={{
                         left: pos.left,
                         width: pos.width,
                         top: BAR_Y,
                         height: BAR_H,
-                        zIndex: 4,
-                        background: 'repeating-linear-gradient(45deg, #e5e7eb 0 6px, #f3f4f6 6px 12px)',
+                        zIndex: clash ? 6 : 4,
+                        background: clash
+                          ? 'repeating-linear-gradient(45deg, #fecaca 0 6px, #fee2e2 6px 12px)'
+                          : 'repeating-linear-gradient(45deg, #e5e7eb 0 6px, #f3f4f6 6px 12px)',
                       }}
                     >
-                      <div className="flex h-full items-center overflow-hidden whitespace-nowrap px-2">{label}</div>
+                      <div className="flex h-full items-center overflow-hidden whitespace-nowrap px-2">
+                        {clash ? `${title} · ${label}` : label}
+                      </div>
                     </div>
                   )
                 })}

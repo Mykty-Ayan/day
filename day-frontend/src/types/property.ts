@@ -247,4 +247,17 @@ export interface PropertyBlock {
   end_date: string
   reason: string | null
   created_at: string | null
+  /** Read from a platform's calendar: that calendar keeps it. */
+  feed_id?: string | null
+}
+
+/** A platform's iCal calendar of the flat, read by Day every half hour. */
+export interface CalendarFeed {
+  id: string
+  name: string
+  url: string
+  last_synced_at: string | null
+  last_error: string | null
+  /** Day's link for this same platform: without the nights read from it. */
+  export_url: string | null
 }

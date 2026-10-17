@@ -36,6 +36,10 @@ import {
   setDayPrices,
   clearDayPrices,
   type DayPriceRange,
+  listCalendarFeeds,
+  addCalendarFeed,
+  syncCalendarFeed,
+  removeCalendarFeed,
 } from '../api/properties'
 import type { SeasonalPriceInput, DiscountRuleInput, PhotoAudience } from '../types/property'
 
@@ -350,4 +354,40 @@ export function useClearDayPrices() {
   return useDayPricesChange(({ propertyId, ...range }: DayPriceRange & { propertyId: string }) =>
     clearDayPrices(propertyId, range),
   )
+}
+
+// --- Platforms' calendars ---
+
+export function useCalendarFeeds(propertyId: string, enabled = true) {
+  return useQuery({
+    queryKey: ['calendar-feeds', propertyId],
+    queryFn: () => listCalendarFeeds(propertyId),
+    enabled,
+  })
+}
+
+function useCalendarFeedsChange<T>(propertyId: string, change: (input: T) => Promise<unknown>) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: change,
+    onSuccess: () => {
+      // A calendar closes and frees nights: the blocks, the chessboard and the booking calendars.
+      qc.invalidateQueries({ queryKey: ['calendar-feeds', propertyId] })
+      qc.invalidateQueries({ queryKey: ['property-blocks', propertyId] })
+      qc.invalidateQueries({ queryKey: ['gantt-data'] })
+      qc.invalidateQueries({ queryKey: ['bookings'] })
+    },
+  })
+}
+
+export function useAddCalendarFeed(propertyId: string) {
+  return useCalendarFeedsChange(propertyId, (body: { name: string; url: string }) => addCalendarFeed(propertyId, body))
+}
+
+export function useSyncCalendarFeed(propertyId: string) {
+  return useCalendarFeedsChange(propertyId, (feedId: string) => syncCalendarFeed(propertyId, feedId))
+}
+
+export function useRemoveCalendarFeed(propertyId: string) {
+  return useCalendarFeedsChange(propertyId, (feedId: string) => removeCalendarFeed(propertyId, feedId))
 }

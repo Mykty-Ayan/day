@@ -1,24 +1,5 @@
 import apiClient from './client'
-import type {
-  Property,
-  PropertyCreateInput,
-  PropertyUpdateInput,
-  PropertyFilters,
-  PaginatedResponse,
-  PricingConfig,
-  PricingInput,
-  SeasonalPrice,
-  SeasonalPriceInput,
-  DiscountRule,
-  DiscountRuleInput,
-  Amenity,
-  PropertyAuditLog,
-  PropertyStatus,
-  PhotoAudience,
-  Tag,
-  TagCreateInput,
-  PropertyBlock,
-} from '../types/property'
+import type { Property, PropertyCreateInput, PropertyUpdateInput, PropertyFilters, PaginatedResponse, PricingConfig, PricingInput, SeasonalPrice, SeasonalPriceInput, DiscountRule, DiscountRuleInput, Amenity, PropertyAuditLog, PropertyStatus, PhotoAudience, Tag, TagCreateInput, PropertyBlock, CalendarFeed } from '../types/property'
 
 // --- Properties ---
 
@@ -317,6 +298,25 @@ export async function createBlock(
 
 export async function deleteBlock(propertyId: string, blockId: string): Promise<void> {
   await apiClient.delete(`/properties/${propertyId}/blocks/${blockId}`)
+}
+
+export async function listCalendarFeeds(propertyId: string): Promise<CalendarFeed[]> {
+  const res = await apiClient.get(`/properties/${propertyId}/calendar-feeds`)
+  return res.data
+}
+
+export async function addCalendarFeed(propertyId: string, body: { name: string; url: string }): Promise<CalendarFeed> {
+  const res = await apiClient.post(`/properties/${propertyId}/calendar-feeds`, body)
+  return res.data
+}
+
+export async function syncCalendarFeed(propertyId: string, feedId: string): Promise<CalendarFeed> {
+  const res = await apiClient.post(`/properties/${propertyId}/calendar-feeds/${feedId}/sync`)
+  return res.data
+}
+
+export async function removeCalendarFeed(propertyId: string, feedId: string): Promise<void> {
+  await apiClient.delete(`/properties/${propertyId}/calendar-feeds/${feedId}`)
 }
 
 /** Nights from start_date to the night before end_date, as a stay's. */

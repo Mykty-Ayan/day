@@ -43,7 +43,7 @@ export default function BlocksCard({ propertyId }: { propertyId: string }) {
   }
 
   return (
-    <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm space-y-3">
+    <section aria-label={t('properties.blocks.title')} className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm space-y-3">
       <div className="flex items-start gap-2">
         <CalendarOff className="w-4 h-4 mt-0.5 shrink-0 text-gray-500" />
         <div>
@@ -60,8 +60,14 @@ export default function BlocksCard({ propertyId }: { propertyId: string }) {
               <span className="font-semibold text-gray-900">
                 {day(block.start_date)} → {day(block.end_date)}
               </span>
-              {block.reason && <span className="ml-2 text-gray-500">{block.reason}</span>}
+              {block.feed_id ? (
+                <span className="ml-2 text-gray-500">{t('properties.feeds.fromCalendar', { name: block.reason })}</span>
+              ) : (
+                block.reason && <span className="ml-2 text-gray-500">{block.reason}</span>
+              )}
             </span>
+            {/* Its calendar keeps it: freed by removing the calendar, not here. */}
+            {!block.feed_id && (
             <button
               type="button"
               aria-label={t('properties.blocks.remove')}
@@ -70,6 +76,7 @@ export default function BlocksCard({ propertyId }: { propertyId: string }) {
             >
               <Trash2 className="w-4 h-4" />
             </button>
+            )}
           </li>
         ))}
       </ul>
@@ -123,6 +130,6 @@ export default function BlocksCard({ propertyId }: { propertyId: string }) {
         }}
         onCancel={() => setDeleting(null)}
       />
-    </div>
+    </section>
   )
 }
