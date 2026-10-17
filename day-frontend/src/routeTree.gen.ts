@@ -22,6 +22,7 @@ import { Route as BookingsIndexRouteImport } from './routes/bookings/index'
 import { Route as AnalyticsIndexRouteImport } from './routes/analytics/index'
 import { Route as AiImportIndexRouteImport } from './routes/ai-import/index'
 import { Route as SettingsTeamRouteImport } from './routes/settings/team'
+import { Route as SCodeRouteImport } from './routes/s/$code'
 import { Route as PropertiesNewRouteImport } from './routes/properties/new'
 import { Route as PropertiesGanttRouteImport } from './routes/properties/gantt'
 import { Route as PropertiesPropertyIdRouteImport } from './routes/properties/$propertyId'
@@ -101,6 +102,11 @@ const AiImportIndexRoute = AiImportIndexRouteImport.update({
 const SettingsTeamRoute = SettingsTeamRouteImport.update({
   id: '/settings/team',
   path: '/settings/team',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SCodeRoute = SCodeRouteImport.update({
+  id: '/s/$code',
+  path: '/s/$code',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PropertiesNewRoute = PropertiesNewRouteImport.update({
@@ -198,6 +204,7 @@ export interface FileRoutesByFullPath {
   '/properties/$propertyId': typeof PropertiesPropertyIdRouteWithChildren
   '/properties/gantt': typeof PropertiesGanttRoute
   '/properties/new': typeof PropertiesNewRoute
+  '/s/$code': typeof SCodeRoute
   '/settings/team': typeof SettingsTeamRoute
   '/ai-import/': typeof AiImportIndexRoute
   '/analytics/': typeof AnalyticsIndexRoute
@@ -226,6 +233,7 @@ export interface FileRoutesByTo {
   '/cleaning/new': typeof CleaningNewRoute
   '/properties/gantt': typeof PropertiesGanttRoute
   '/properties/new': typeof PropertiesNewRoute
+  '/s/$code': typeof SCodeRoute
   '/settings/team': typeof SettingsTeamRoute
   '/ai-import': typeof AiImportIndexRoute
   '/analytics': typeof AnalyticsIndexRoute
@@ -257,6 +265,7 @@ export interface FileRoutesById {
   '/properties/$propertyId': typeof PropertiesPropertyIdRouteWithChildren
   '/properties/gantt': typeof PropertiesGanttRoute
   '/properties/new': typeof PropertiesNewRoute
+  '/s/$code': typeof SCodeRoute
   '/settings/team': typeof SettingsTeamRoute
   '/ai-import/': typeof AiImportIndexRoute
   '/analytics/': typeof AnalyticsIndexRoute
@@ -289,6 +298,7 @@ export interface FileRouteTypes {
     | '/properties/$propertyId'
     | '/properties/gantt'
     | '/properties/new'
+    | '/s/$code'
     | '/settings/team'
     | '/ai-import/'
     | '/analytics/'
@@ -317,6 +327,7 @@ export interface FileRouteTypes {
     | '/cleaning/new'
     | '/properties/gantt'
     | '/properties/new'
+    | '/s/$code'
     | '/settings/team'
     | '/ai-import'
     | '/analytics'
@@ -347,6 +358,7 @@ export interface FileRouteTypes {
     | '/properties/$propertyId'
     | '/properties/gantt'
     | '/properties/new'
+    | '/s/$code'
     | '/settings/team'
     | '/ai-import/'
     | '/analytics/'
@@ -378,6 +390,7 @@ export interface RootRouteChildren {
   PropertiesPropertyIdRoute: typeof PropertiesPropertyIdRouteWithChildren
   PropertiesGanttRoute: typeof PropertiesGanttRoute
   PropertiesNewRoute: typeof PropertiesNewRoute
+  SCodeRoute: typeof SCodeRoute
   SettingsTeamRoute: typeof SettingsTeamRoute
   AiImportIndexRoute: typeof AiImportIndexRoute
   AnalyticsIndexRoute: typeof AnalyticsIndexRoute
@@ -479,6 +492,13 @@ declare module '@tanstack/react-router' {
       path: '/settings/team'
       fullPath: '/settings/team'
       preLoaderRoute: typeof SettingsTeamRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/s/$code': {
+      id: '/s/$code'
+      path: '/s/$code'
+      fullPath: '/s/$code'
+      preLoaderRoute: typeof SCodeRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/properties/new': {
@@ -632,6 +652,7 @@ const rootRouteChildren: RootRouteChildren = {
   PropertiesPropertyIdRoute: PropertiesPropertyIdRouteWithChildren,
   PropertiesGanttRoute: PropertiesGanttRoute,
   PropertiesNewRoute: PropertiesNewRoute,
+  SCodeRoute: SCodeRoute,
   SettingsTeamRoute: SettingsTeamRoute,
   AiImportIndexRoute: AiImportIndexRoute,
   AnalyticsIndexRoute: AnalyticsIndexRoute,

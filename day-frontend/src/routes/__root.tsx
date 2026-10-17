@@ -12,11 +12,14 @@ const CLEANER_ROUTE_PREFIX = '/cleaner'
 // The Mini App authenticates itself from Telegram's signed initData, so it must
 // not be bounced to /login before it has had the chance.
 const MINIAPP_ROUTE = '/tma'
+// A flat's page for guests: opened by its link, nobody signs in.
+const GUEST_PAGE_PREFIX = '/s/'
 
 export const Route = createRootRoute({
   beforeLoad: ({ location }) => {
     const token = localStorage.getItem('access_token')
     if (location.pathname === MINIAPP_ROUTE) return
+    if (location.pathname.startsWith(GUEST_PAGE_PREFIX)) return
     if (!token && !PUBLIC_ROUTES.includes(location.pathname)) {
       throw redirect({ to: '/login' })
     }
@@ -27,7 +30,7 @@ export const Route = createRootRoute({
 function RootLayout() {
   const pathname = useRouterState({ select: (s) => s.location.pathname })
 
-  if (PUBLIC_ROUTES.includes(pathname)) {
+  if (PUBLIC_ROUTES.includes(pathname) || pathname.startsWith(GUEST_PAGE_PREFIX)) {
     return (
       <>
         <Outlet />
