@@ -7,7 +7,7 @@ from datetime import date
 
 from pydantic import BaseModel
 
-from app.application.booking.guest_offers import PublicOffer, mask_phone
+from app.application.booking.guest_offers import PublicOffer, greeting, mask_phone
 from app.application.property.public_stay import PublicStay
 
 
@@ -107,7 +107,7 @@ class PublicOfferResponse(BaseModel):
     """A guest's personal link: the first name and a masked phone, never more."""
 
     code: str
-    guest: str
+    guest: str | None = None
     phone: str
     check_in: date
     check_out: date
@@ -120,7 +120,7 @@ class PublicOfferResponse(BaseModel):
         o = public.offer
         return cls(
             code=o.code,
-            guest=(o.guest_name.split() or [""])[0],
+            guest=greeting(o.guest_name),
             phone=mask_phone(o.guest_phone),
             check_in=o.check_in,
             check_out=o.check_out,

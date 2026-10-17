@@ -5,7 +5,7 @@ from __future__ import annotations
 import uuid
 from datetime import date
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 class OfferCreate(BaseModel):
@@ -15,6 +15,14 @@ class OfferCreate(BaseModel):
     check_out: date
     guests: int = Field(ge=1, le=50)
     property_ids: list[uuid.UUID] = Field(min_length=1, max_length=10)
+
+    @field_validator("guest_phone")
+    @classmethod
+    def _a_phone_number(cls, value: str) -> str:
+        # E.164 holds up to 15 digits; fewer than 10 is no full number anywhere.
+        if not 10 <= sum(ch.isdigit() for ch in value) <= 15:
+            raise ValueError("guest_phone must hold 10 to 15 digits")
+        return value
 
     @model_validator(mode="after")
     def _at_least_one_night(self):
