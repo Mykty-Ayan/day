@@ -62,6 +62,58 @@ test('a guest with a personal link sees the flats for their dates', async ({ bro
   await guest.close()
 })
 
+async function offerFor(request: APIRequestContext, flats: string[], from: number) {
+  const made = await request.post(`${API_BASE}/offers`, {
+    data: { guest_name: 'Ерлан Сапаров', guest_phone: '+7 701 234 56 78', check_in: day(from), check_out: day(from + 2), guests: 2, property_ids: flats },
+  })
+  expect(made.status(), await made.text()).toBe(201)
+  return (await made.json()).code as string
+}
+
+test('a guest books a flat by the link and waits for the Kaspi invoice', async ({ browser, request }) => {
+  const studio = await flatOnSale(request, 'Студия для брони')
+  const code = await offerFor(request, [studio], 20)
+
+  const guest = await browser.newContext({ locale: 'ru-RU', baseURL: test.info().project.use.baseURL })
+  const page = await guest.newPage()
+  await page.goto(`/o/${code}`)
+  await page.getByRole('button', { name: 'Выбрать' }).click()
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Бронь')
+  await expect(page.getByTestId('deposit')).toHaveText('10 000 ₸')
+  await expect(page.getByText('+7 701 ••• •• 78')).toBeVisible()
+
+  // The flat has house rules: no booking until the guest accepts them.
+  const book = page.getByRole('button', { name: 'Забронировать' })
+  await expect(book).toBeDisabled()
+  await page.getByLabel('Принимаю правила дома').check()
+  await book.click()
+
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText(/^Даты за вами до \d\d:\d\d$/)
+  // The sum's thousands are split by a no-break space.
+  await expect(page.getByText(/счёт на залог 10\s000 ₸ на номер \+7 701 ••• •• 78/)).toBeVisible()
+  await expect(page.getByText('За ночи 20 000 ₸ — при заселении')).toBeVisible()
+  // The link remembers its booking: the guest who comes back sees it, not the flats.
+  await page.reload()
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText(/^Даты за вами до/)
+  await guest.close()
+})
+
+test('the invoice goes to another number when the guest gives one', async ({ browser, request }) => {
+  const studio = await flatOnSale(request, 'Студия для другого номера')
+  const code = await offerFor(request, [studio], 25)
+
+  const guest = await browser.newContext({ locale: 'ru-RU', baseURL: test.info().project.use.baseURL })
+  const page = await guest.newPage()
+  await page.goto(`/o/${code}`)
+  await page.getByRole('button', { name: 'Выбрать' }).click()
+  await page.getByRole('button', { name: 'Другой номер' }).click()
+  await page.getByRole('textbox', { name: 'Номер Kaspi для счёта' }).fill('+7 777 000 11 22')
+  await page.getByLabel('Принимаю правила дома').check()
+  await page.getByRole('button', { name: 'Забронировать' }).click()
+  await expect(page.getByText(/на номер \+7 777 ••• •• 22/)).toBeVisible()
+  await guest.close()
+})
+
 test('a wrong personal link says so instead of asking to sign in', async ({ browser }) => {
   const guest = await browser.newContext({ locale: 'en-US', baseURL: test.info().project.use.baseURL })
   const page = await guest.newPage()
