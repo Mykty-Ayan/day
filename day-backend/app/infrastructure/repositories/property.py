@@ -54,6 +54,8 @@ from app.infrastructure.models.property import (
     PropertyFactModel,
     PropertyModel,
     PropertyPhotoModel,
+    PropertyTagAssociationModel,
+    PropertyTagModel,
     SeasonalPriceModel,
 )
 
@@ -230,6 +232,16 @@ def _model_to_audit(m: PropertyAuditLogModel) -> PropertyAuditLog:
 # ---------- implementations ----------
 
 
+def _wearing_tag(company_id: uuid.UUID, tag_id: uuid.UUID):
+    # The tag must be the company's own: another company's tag matches no flat,
+    # even if a stray row links it to one of ours.
+    return (
+        select(PropertyTagAssociationModel.property_id)
+        .join(PropertyTagModel, PropertyTagModel.id == PropertyTagAssociationModel.tag_id)
+        .where(PropertyTagModel.id == tag_id, PropertyTagModel.company_id == company_id)
+    )
+
+
 class SqlPropertyRepository(PropertyRepository):
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
@@ -250,18 +262,23 @@ class SqlPropertyRepository(PropertyRepository):
         limit: int = 50,
         status: PropertyStatus | None = None,
         search: str | None = None,
+        tag_id: uuid.UUID | None = None,
     ) -> list[Property]:
         stmt = select(PropertyModel).where(PropertyModel.company_id == company_id)
         if status is not None:
             stmt = stmt.where(PropertyModel.status == status.value)
         if search:
             stmt = stmt.where(PropertyModel.internal_name.ilike(f"%{search}%"))
+        if tag_id is not None:
+            stmt = stmt.where(PropertyModel.id.in_(_wearing_tag(company_id, tag_id)))
         stmt = stmt.order_by(PropertyModel.created_at.desc()).offset(offset).limit(limit)
         result = await self._session.scalars(stmt)
         return [_model_to_property(m) for m in result.all()]
 
-    async def count_by_company(self, company_id: uuid.UUID) -> int:
+    async def count_by_company(self, company_id: uuid.UUID, *, tag_id: uuid.UUID | None = None) -> int:
         stmt = select(func.count()).select_from(PropertyModel).where(PropertyModel.company_id == company_id)
+        if tag_id is not None:
+            stmt = stmt.where(PropertyModel.id.in_(_wearing_tag(company_id, tag_id)))
         result = await self._session.scalar(stmt)
         return result or 0
 

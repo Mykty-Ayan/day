@@ -265,6 +265,7 @@ async def list_properties(
     per_page: int = Query(default=50, ge=1, le=100),
     status: PropertyStatus | None = None,
     search: str | None = None,
+    tag_id: uuid.UUID | None = None,
     session: AsyncSession = Depends(get_session),
     company_id: uuid.UUID = Depends(get_company_id),
     principal: Principal = Depends(get_principal),
@@ -272,7 +273,7 @@ async def list_properties(
     repos = _repos(session)
     svc = ListPropertiesService(repos["property"])
     offset = (page - 1) * per_page
-    result = await svc.execute(company_id, offset=offset, limit=per_page, status=status, search=search)
+    result = await svc.execute(company_id, offset=offset, limit=per_page, status=status, search=search, tag_id=tag_id)
     photos_by_property = (
         await asyncio.gather(*[repos["photo"].list_by_property(prop.id) for prop in result.items])
         if result.items

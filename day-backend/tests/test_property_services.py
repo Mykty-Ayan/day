@@ -47,6 +47,16 @@ USER_ID = uuid.UUID("00000000-0000-0000-0000-000000000002")
 class FakePropertyRepository(PropertyRepository):
     def __init__(self) -> None:
         self._properties: dict[uuid.UUID, Property] = {}
+        self._tagged: dict[uuid.UUID, set[uuid.UUID]] = {}  # tag id -> ids of its properties
+
+    def tag(self, prop: Property, tag_id: uuid.UUID) -> None:
+        self._tagged.setdefault(tag_id, set()).add(prop.id)
+
+    def _visible(self, company_id: uuid.UUID, tag_id: uuid.UUID | None) -> list[Property]:
+        result = [p for p in self._properties.values() if p.company_id == company_id]
+        if tag_id is not None:
+            result = [p for p in result if p.id in self._tagged.get(tag_id, set())]
+        return result
 
     async def get_by_id(self, property_id: uuid.UUID) -> Property | None:
         return self._properties.get(property_id)
@@ -59,8 +69,9 @@ class FakePropertyRepository(PropertyRepository):
         limit: int = 50,
         status: PropertyStatus | None = None,
         search: str | None = None,
+        tag_id: uuid.UUID | None = None,
     ) -> list[Property]:
-        result = [p for p in self._properties.values() if p.company_id == company_id]
+        result = self._visible(company_id, tag_id)
         if status is not None:
             result = [p for p in result if p.status == status]
         if search is not None:
@@ -68,8 +79,8 @@ class FakePropertyRepository(PropertyRepository):
             result = [p for p in result if q in p.name.lower() or q in p.internal_name.lower()]
         return result[offset : offset + limit]
 
-    async def count_by_company(self, company_id: uuid.UUID) -> int:
-        return sum(1 for p in self._properties.values() if p.company_id == company_id)
+    async def count_by_company(self, company_id: uuid.UUID, *, tag_id: uuid.UUID | None = None) -> int:
+        return len(self._visible(company_id, tag_id))
 
     async def save(self, prop: Property) -> Property:
         self._properties[prop.id] = prop
@@ -844,6 +855,67 @@ class TestListPropertiesService:
 
         assert result.items == []
         assert result.total == 0
+
+    @pytest.mark.asyncio
+    async def test_tag_filter(self):
+        prop_repo = FakePropertyRepository()
+        tag_id = uuid.uuid4()
+        tagged = [_make_property(name=f"Tagged {i}", internal_name=f"tagged-{i}") for i in range(3)]
+        untagged = _make_property(name="Untagged", internal_name="untagged")
+        for p in [*tagged, untagged]:
+            await prop_repo.save(p)
+        for p in tagged:
+            prop_repo.tag(p, tag_id)
+        svc = ListPropertiesService(prop_repo)
+
+        result = await svc.execute(COMPANY_ID, tag_id=tag_id)
+
+        assert {p.id for p in result.items} == {p.id for p in tagged}
+        assert result.total == 3
+
+    @pytest.mark.asyncio
+    async def test_tag_filter_total_counts_the_tagged_not_all(self):
+        # The pager reads total: with 3 of 5 tagged and a page of 2 it must say 3, not 5.
+        prop_repo = FakePropertyRepository()
+        tag_id = uuid.uuid4()
+        for i in range(5):
+            p = _make_property(name=f"Prop {i}", internal_name=f"prop-{i}")
+            await prop_repo.save(p)
+            if i < 3:
+                prop_repo.tag(p, tag_id)
+        svc = ListPropertiesService(prop_repo)
+
+        result = await svc.execute(COMPANY_ID, offset=0, limit=2, tag_id=tag_id)
+
+        assert len(result.items) == 2
+        assert result.total == 3
+
+    @pytest.mark.asyncio
+    async def test_a_tag_nobody_wears_gives_an_empty_list(self):
+        prop_repo = FakePropertyRepository()
+        await prop_repo.save(_make_property())
+        svc = ListPropertiesService(prop_repo)
+
+        result = await svc.execute(COMPANY_ID, tag_id=uuid.uuid4())
+
+        assert result.items == []
+        assert result.total == 0
+
+    @pytest.mark.asyncio
+    async def test_tag_filter_stays_inside_the_company(self):
+        prop_repo = FakePropertyRepository()
+        tag_id = uuid.uuid4()
+        mine = _make_property(company_id=COMPANY_ID, name="Mine", internal_name="mine")
+        theirs = _make_property(company_id=OTHER_COMPANY_ID, name="Theirs", internal_name="theirs")
+        for p in (mine, theirs):
+            await prop_repo.save(p)
+            prop_repo.tag(p, tag_id)
+        svc = ListPropertiesService(prop_repo)
+
+        result = await svc.execute(COMPANY_ID, tag_id=tag_id)
+
+        assert [p.name for p in result.items] == ["Mine"]
+        assert result.total == 1
 
 
 # ---------- TestChangePropertyStatusService ----------
