@@ -14,8 +14,11 @@ from app.domain.booking.entities import (
     BookingDeposit,
     BookingFile,
     BookingPayment,
+    CalendarFeed,
     GroupBooking,
     Guest,
+    GuestOffer,
+    PropertyBlock,
 )
 from app.domain.booking.value_objects import BookingSource, BookingStatus
 
@@ -86,7 +89,38 @@ class BookingRepository(abc.ABC):
         check_out: date,
         *,
         exclude_id: uuid.UUID | None = None,
-    ) -> list[Booking]: ...
+        include_completed: bool = False,
+    ) -> list[Booking]:
+        """The flat's active bookings in the range. `include_completed` adds the
+        completed ones: a stay that ended early still needs its cleaning."""
+
+    # The flat's closed nights (blocks) live in its calendar with its bookings.
+    # A store without blocks has none; only the SQL one writes them.
+
+    async def list_blocks(self, property_id: uuid.UUID, date_from: date, date_to: date) -> list[PropertyBlock]:
+        """The flat's blocks with a night in [date_from, date_to)."""
+        return []
+
+    async def list_company_blocks(self, company_id: uuid.UUID, date_from: date, date_to: date) -> list[PropertyBlock]:
+        """Every flat's blocks of the company with a night in [date_from, date_to)."""
+        return []
+
+    async def add_block(self, block: PropertyBlock) -> PropertyBlock:
+        raise NotImplementedError
+
+    async def get_block(self, block_id: uuid.UUID) -> PropertyBlock | None:
+        return None
+
+    async def delete_block(self, block_id: uuid.UUID) -> None:
+        raise NotImplementedError
+
+    async def list_feed_blocks(self, feed_id: uuid.UUID) -> list[PropertyBlock]:
+        """The blocks taken from one platform calendar."""
+        return []
+
+    async def lock_property_calendar(self, property_id: uuid.UUID) -> None:  # noqa: B027  (no-op unless SQL)
+        """Serialize the checks of one flat's neighbours until the transaction ends:
+        two bookings at once must not both find the flat free of a buffer."""
 
     @abc.abstractmethod
     async def list_by_company(
@@ -270,3 +304,38 @@ class BookingAuditLogRepository(abc.ABC):
         offset: int = 0,
         limit: int = 50,
     ) -> list[BookingAuditLog]: ...
+
+
+class CalendarFeedRepository(abc.ABC):
+    @abc.abstractmethod
+    async def add(self, feed: CalendarFeed) -> CalendarFeed: ...
+
+    @abc.abstractmethod
+    async def get(self, feed_id: uuid.UUID) -> CalendarFeed | None: ...
+
+    @abc.abstractmethod
+    async def list_for_property(self, property_id: uuid.UUID) -> list[CalendarFeed]: ...
+
+    @abc.abstractmethod
+    async def list_all(self) -> list[CalendarFeed]:
+        """Every company's calendars, for the timer."""
+
+    @abc.abstractmethod
+    async def delete(self, feed_id: uuid.UUID) -> None:
+        """With its blocks."""
+
+    @abc.abstractmethod
+    async def record_sync(self, feed_id: uuid.UUID, synced_at: datetime, error: str | None) -> None: ...
+
+
+class GuestOfferRepository(abc.ABC):
+    @abc.abstractmethod
+    async def add(self, offer: GuestOffer) -> GuestOffer: ...
+
+    @abc.abstractmethod
+    async def get_by_code(self, code: str, *, lock: bool = False) -> GuestOffer | None:
+        """The offer behind a link's code, of any company: the code is the key.
+        `lock` holds its row until commit, so two bookings by one link go one by one."""
+
+    @abc.abstractmethod
+    async def set_booking(self, offer_id: uuid.UUID, booking_id: uuid.UUID) -> None: ...

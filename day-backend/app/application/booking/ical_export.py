@@ -8,32 +8,36 @@ no price — because whoever holds its link can read it.
 from __future__ import annotations
 
 import uuid
+from collections.abc import Sequence
 from datetime import date, datetime, time, timedelta
 
-from app.domain.booking.entities import Booking
+from app.domain.booking.entities import Booking, PropertyBlock
 from app.domain.booking.value_objects import BookingStatus
 
 _FREE = {BookingStatus.CANCELLED}
 
 
-def blocked_nights(bookings: list[Booking], check_in_hour: int, check_out_hour: int) -> list[tuple[date, date]]:
+def blocked_nights(
+    bookings: list[Booking], check_in_hour: int, check_out_hour: int, blocks: Sequence[PropertyBlock] = ()
+) -> list[tuple[date, date]]:
     """Taken nights as [start, end) date ranges, merged.
 
     Night D runs from D at check-in time to D+1 at check-out time; a booking
     takes every night it overlaps. So an hourly booking at 10:00 takes the
     night before (its guest leaves at noon), and one at 15:00 takes that
-    evening's night.
+    evening's night. A block (nights closed without a booking) takes nights
+    as a stay over its span would.
     """
+    spans = [(b.check_in, b.check_out) for b in bookings if b.status not in _FREE]
+    spans += [(block.starts_at, block.ends_at) for block in blocks]
     nights: set[date] = set()
-    for booking in bookings:
-        if booking.status in _FREE:
-            continue
+    for check_in, check_out in spans:
         touched = False
-        day = booking.check_in.date() - timedelta(days=1)
-        while datetime.combine(day, time(check_in_hour)) < booking.check_out:
+        day = check_in.date() - timedelta(days=1)
+        while datetime.combine(day, time(check_in_hour)) < check_out:
             night_start = datetime.combine(day, time(check_in_hour))
             night_end = datetime.combine(day + timedelta(days=1), time(check_out_hour))
-            if booking.check_in < night_end and booking.check_out > night_start:
+            if check_in < night_end and check_out > night_start:
                 nights.add(day)
                 touched = True
             day += timedelta(days=1)
@@ -41,7 +45,7 @@ def blocked_nights(bookings: list[Booking], check_in_hour: int, check_out_hour: 
             # Inside the turnover gap (say 12:00–14:00) it touches no night, but a
             # stay running through that day would clash. A feed only says "night
             # taken", so take the evening's night: safe, at worst one night unsold.
-            nights.add(booking.check_in.date())
+            nights.add(check_in.date())
 
     ranges: list[tuple[date, date]] = []
     for night in sorted(nights):

@@ -13,13 +13,16 @@ import { useTranslation } from 'react-i18next'
 import { calculatePrice, createBooking, listGuests, voidBookingKey } from '../../api/bookings'
 import { SessionChangedError } from '../../api/client'
 import { checkBlacklist, type AvailableProperty } from '../../api/miniapp'
+import { stayRuleBreaches, stayRuleText, type RulesRefusal } from '../../lib/booking-errors'
 import { phoneDigits } from '../../lib/phone'
 import { confirmAction, resultFeedback } from '../../lib/telegram'
-import type { Booking, BookingSource } from '../../types/booking'
+import type { Booking, BookingCreateInput, BookingSource } from '../../types/booking'
 import {
   companyFromToken,
   latestBookingCall,
   loadBookingAttempt,
+  phoneStorage,
+  sameBooking,
   saveBookingAttempt,
   startBooking,
   storedBookingAttempt,
@@ -35,14 +38,6 @@ import { useClosingConfirmation } from './useClosingConfirmation'
 
 const SOURCES: BookingSource[] = ['direct', 'airbnb', 'booking', 'other']
 const HOLD_HOURS = 2
-
-function phoneStorage(): Storage | undefined {
-  try {
-    return window.localStorage
-  } catch {
-    return undefined
-  }
-}
 
 export default function BookSheet({
   unit,
@@ -63,6 +58,8 @@ export default function BookSheet({
   const [source, setSource] = useState<BookingSource>('direct')
   const [hold, setHold] = useState(false)
   const [error, setError] = useState('')
+  // A booking the flat's stay rules refused; "book anyway" books the same one with override_rules.
+  const [refusal, setRefusal] = useState<RulesRefusal<BookingCreateInput> | null>(null)
   // A booking sent but not answered, kept on the phone: closing the sheet must
   // not let the guest be booked into a second flat. A retry sends the same body
   // under the same key; until then no other booking starts, whichever flat.
@@ -169,7 +166,9 @@ export default function BookSheet({
         const left = afterFailure(stored, mutationError)
         setPending(left)
         if (!left) {
-          setError(errorText(mutationError, t('miniapp.book.failed'), t))
+          const broken = stayRuleBreaches(mutationError)
+          setRefusal(broken ? { payload: sent.body, breaches: broken } : null)
+          setError(broken ? '' : errorText(mutationError, t('miniapp.book.failed'), t))
           return
         }
         // The booking may exist already: the lists must show it before anyone books this guest again.
@@ -179,30 +178,36 @@ export default function BookSheet({
     },
   })
 
-  async function askBook() {
+  // The form as it is now, hold time included.
+  function formBody(): BookingCreateInput {
+    return {
+      property_id: unit!.property_id,
+      guest_name: guestName,
+      guest_phone: phone.trim(),
+      check_in: range!.checkIn,
+      check_out: range!.checkOut,
+      rental_mode: range!.rentalMode,
+      source,
+      adults_count: range!.guests,
+      children_count: 0,
+      expires_at: hold ? new Date(Date.now() + HOLD_HOURS * 3_600_000).toISOString() : undefined,
+    }
+  }
+
+  async function askBook(overrideRules = false) {
     // A second tap before the first one's check returns must not book twice.
     if (pressed.current || pending) return
     if (!sameSession()) return setError(t('miniapp.book.otherCompany'))
     pressed.current = true
     setChecking(true)
     setError('')
-    // The form as it is now, hold time included; the fields lock until the request is out.
+    setRefusal(null)
+    // The fields lock until the request is out. A new key: the refused one made nothing.
     const attempt: BookingAttempt = {
       unit: unit!.name,
       key: crypto.randomUUID(),
       call: 1,
-      body: {
-        property_id: unit!.property_id,
-        guest_name: guestName,
-        guest_phone: phone.trim(),
-        check_in: range!.checkIn,
-        check_out: range!.checkOut,
-        rental_mode: range!.rentalMode,
-        source,
-        adults_count: range!.guests,
-        children_count: 0,
-        expires_at: hold ? new Date(Date.now() + HOLD_HOURS * 3_600_000).toISOString() : undefined,
-      },
+      body: { ...formBody(), override_rules: overrideRules || undefined },
     }
     try {
       const outcome = await startBooking(attempt, {
@@ -298,6 +303,8 @@ export default function BookSheet({
   // The flat's own hours, as availability reports them; the slot itself for hours.
   // Nothing in the form changes from the press until an answer settles it.
   const locked = checking || book.isPending || pending !== null
+  // Only while the form still books what was refused: a change is a new booking to check.
+  const breaches = refusal && sameBooking(refusal.payload, formBody()) ? refusal.breaches : null
 
   const from = unit.check_in ?? range.checkIn
   const to = unit.check_out ?? range.checkOut
@@ -396,8 +403,22 @@ export default function BookSheet({
         </p>
       )}
 
+      {breaches && (
+        <div role="alert" className="tg-surface space-y-2 rounded-xl px-3 py-3">
+          <p className="text-sm font-semibold">{t('bookings.stayRules.title')}</p>
+          <ul className="list-disc space-y-0.5 pl-5 text-sm">
+            {breaches.map((breach) => (
+              <li key={breach.rule}>{stayRuleText(breach, t)}</li>
+            ))}
+          </ul>
+          <ActionButton disabled={!guestName || locked} onClick={() => askBook(true)}>
+            {t('bookings.stayRules.bookAnyway')}
+          </ActionButton>
+        </div>
+      )}
+
       {!pending && (
-        <ActionButton tone="primary" disabled={!guestName || locked} onClick={askBook}>
+        <ActionButton tone="primary" disabled={!guestName || locked} onClick={() => askBook()}>
           <CalendarCheck className="h-4 w-4" />
           {locked ? t('miniapp.book.saving') : t('miniapp.book.confirm')}
         </ActionButton>

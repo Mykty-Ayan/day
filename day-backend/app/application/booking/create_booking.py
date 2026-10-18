@@ -4,13 +4,16 @@ import uuid
 from dataclasses import dataclass
 from datetime import date, datetime, time
 
+from app.application.booking.blocks import ensure_not_blocked
 from app.application.booking.price_calculator import PriceCalculatorService
+from app.application.booking.stay_rules import overridden_rules, stay_rule_breaches
 from app.config import settings
 from app.domain.booking.entities import Booking, BookingAuditLog, Guest
 from app.domain.booking.exceptions import (
     BookingOverlapError,
     IdempotencyKeyReusedError,
     IdempotencyKeyVoidedError,
+    StayRulesError,
 )
 from app.domain.booking.repositories import (
     BookingAuditLogRepository,
@@ -25,6 +28,7 @@ from app.domain.booking.value_objects import (
 )
 from app.domain.property.repositories import PropertyRepository
 from app.domain.property.value_objects import PropertyStatus
+from app.domain.settings.repositories import CompanySettingsRepository
 
 
 def _coerce_default_time(value: date | datetime | None, hour: int) -> datetime | None:
@@ -131,6 +135,8 @@ class CreateBookingInput:
     idempotency_hash: str | None = None
     # Naive UTC. Makes the booking a hold that lapses at this moment.
     expires_at: datetime | None = None
+    # The operator confirmed a stay that breaks the apartment's stay rules.
+    override_rules: bool = False
 
 
 def validate_hold_expiry(expires_at: datetime | None) -> None:
@@ -146,12 +152,15 @@ class CreateBookingService:
         property_repo: PropertyRepository,
         audit_repo: BookingAuditLogRepository,
         price_calculator: PriceCalculatorService,
+        settings_repo: CompanySettingsRepository | None = None,
     ) -> None:
         self._booking_repo = booking_repo
         self._guest_repo = guest_repo
         self._property_repo = property_repo
         self._audit_repo = audit_repo
         self._price_calculator = price_calculator
+        # The company's clock for the lead-time rule; without it, the default zone.
+        self._settings_repo = settings_repo
 
     async def replay(self, company_id: uuid.UUID, key: str, request_hash: str) -> Booking | None:
         """The booking an earlier request with this Idempotency-Key created, if any.
@@ -216,6 +225,20 @@ class CreateBookingService:
         )
         if overlapping:
             raise BookingOverlapError()
+        await ensure_not_blocked(self._booking_repo, prop, check_in, check_out, BookingSource(inp.source).value)
+
+        breaches = await stay_rule_breaches(
+            prop,
+            prop.id,
+            check_in,
+            check_out,
+            inp.rental_mode,
+            company_id=inp.company_id,
+            booking_repo=self._booking_repo,
+            settings_repo=self._settings_repo,
+        )
+        if breaches and not inp.override_rules:
+            raise StayRulesError(breaches)
 
         # Auto-create or find guest
         guest = None
@@ -273,5 +296,16 @@ class CreateBookingService:
                 action=BookingAuditAction.CREATE,
             )
         )
+        if breaches:
+            # Who let a stay break the flat's rules, and which.
+            await self._audit_repo.create(
+                BookingAuditLog(
+                    booking_id=booking.id,
+                    changed_by=inp.changed_by,
+                    field_name="stay_rules_overridden",
+                    new_value=overridden_rules(breaches),
+                    action=BookingAuditAction.CREATE,
+                )
+            )
 
         return booking

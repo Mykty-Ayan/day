@@ -30,12 +30,14 @@ from app.infrastructure.repositories.booking import (
 )
 from app.infrastructure.repositories.cleaning import SqlCleaningTaskRepository
 from app.infrastructure.repositories.property import (
+    SqlDayPriceRepository,
     SqlDiscountRuleRepository,
     SqlPricingConfigRepository,
     SqlPropertyCostsRepository,
     SqlPropertyRepository,
     SqlSeasonalPriceRepository,
 )
+from app.infrastructure.repositories.settings import SqlCompanySettingsRepository
 
 
 def build_assistant_tools(
@@ -55,10 +57,12 @@ def build_assistant_tools(
         SqlPricingConfigRepository(session),
         SqlSeasonalPriceRepository(session),
         SqlDiscountRuleRepository(session),
+        SqlDayPriceRepository(session),
     )
 
-    create_booking = CreateBookingService(bookings, guests, properties, audit, prices)
-    update_booking = UpdateBookingService(bookings, properties, audit, prices)
+    company_settings = SqlCompanySettingsRepository(session)
+    create_booking = CreateBookingService(bookings, guests, properties, audit, prices, company_settings)
+    update_booking = UpdateBookingService(bookings, properties, audit, prices, company_settings)
     manage_payments = ManagePaymentsService(bookings, payments, audit)
     create_cleaning = CreateCleaningTaskService(SqlCleaningTaskRepository(session), properties)
     metrics = CalculateMetricsService(SqlAnalyticsRepository(session), SqlPropertyCostsRepository(session))
@@ -74,6 +78,7 @@ def build_assistant_tools(
                 check_out=kwargs["check_out"],
                 adults_count=2,
                 changed_by=user_id,
+                override_rules=kwargs.get("override_rules", False),
             )
         )
 
@@ -84,6 +89,7 @@ def build_assistant_tools(
                 company_id=kwargs["company_id"],
                 check_out=kwargs["check_out"],
                 changed_by=user_id,
+                override_rules=kwargs.get("override_rules", False),
             )
         )
 

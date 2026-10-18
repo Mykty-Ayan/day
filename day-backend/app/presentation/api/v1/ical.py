@@ -30,6 +30,7 @@ def _repos(session: AsyncSession):
 async def property_calendar(
     property_id: uuid.UUID,
     token: str = Query(...),
+    exclude: uuid.UUID | None = Query(None),
     session: AsyncSession = Depends(get_session),
 ):
     # The same answer for a wrong token and a missing flat: the link is the key.
@@ -45,11 +46,20 @@ async def property_calendar(
     found = await bookings.get_by_property_and_dates(
         property_id, today - timedelta(days=1), today + timedelta(days=_HORIZON_DAYS)
     )
+    closed = await bookings.list_blocks(property_id, today - timedelta(days=1), today + timedelta(days=_HORIZON_DAYS))
+    # Of a platform's calendar only its bookings go on: nights it merely marks
+    # unavailable may be another platform's echo, and passing them on would keep
+    # both platforms closed after the guest cancels.
+    closed = [block for block in closed if block.feed_id is None or block.reserved]
+    # The link given to a platform leaves out the nights read from that platform's own
+    # calendar: sent back, they would stay closed there after a guest cancels.
+    closed = [block for block in closed if exclude is None or block.feed_id != exclude]
     # Nights by the flat's own hours, else the company default.
     ranges = blocked_nights(
         found,
         settings.DEFAULT_CHECK_IN_HOUR if prop.check_in_hour is None else prop.check_in_hour,
         settings.DEFAULT_CHECK_OUT_HOUR if prop.check_out_hour is None else prop.check_out_hour,
+        blocks=closed,
     )
     body = render_calendar(property_id, ranges, stamp=datetime.now(timezone.utc))
     return Response(

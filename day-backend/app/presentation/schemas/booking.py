@@ -1,11 +1,20 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
 from typing import Literal
 
-from pydantic import AliasChoices, AwareDatetime, BaseModel, ConfigDict, Field, computed_field, field_serializer
+from pydantic import (
+    AliasChoices,
+    AwareDatetime,
+    BaseModel,
+    ConfigDict,
+    Field,
+    computed_field,
+    field_serializer,
+    model_validator,
+)
 
 from app.application.leads.check_guest import normalise_phone
 from app.domain.booking.value_objects import (
@@ -78,6 +87,9 @@ class BookingCreate(BaseModel):
     # confirmed first. Must carry its zone: a hold set at night for "09:00"
     # means the company's morning, not UTC's.
     expires_at: AwareDatetime | None = None
+    # The operator confirmed a stay that breaks the apartment's stay rules
+    # (nights, cleaning buffer, lead time); without it such a stay answers 422.
+    override_rules: bool = False
 
 
 class BookingUpdate(BaseModel):
@@ -93,6 +105,8 @@ class BookingUpdate(BaseModel):
     notes: str | None = None
     # Extends a hold, or releases it with null. Pending bookings only.
     expires_at: AwareDatetime | None = None
+    # New dates that break the apartment's stay rules, confirmed by the operator.
+    override_rules: bool = False
 
 
 class BookingResponse(BaseModel):
@@ -191,6 +205,8 @@ class BookingStatusChange(BaseModel):
 
 class BookingMove(BaseModel):
     target_property_id: uuid.UUID
+    # The target flat's stay rules broken, confirmed by the operator.
+    override_rules: bool = False
 
 
 class BookingListResponse(BaseModel):
@@ -398,6 +414,20 @@ class GanttBookingResponse(BaseModel):
     overbooking: bool = False
 
 
+class GanttBlockResponse(BaseModel):
+    id: uuid.UUID
+    start_date: date
+    end_date: date
+    reason: str | None = None
+    # A platform's booking over a Day booking: the same night sold twice.
+    clash: bool = False
+
+
+class GanttDayPriceResponse(BaseModel):
+    date: date
+    price: float
+
+
 class GanttPropertyResponse(BaseModel):
     id: uuid.UUID
     name: str
@@ -405,6 +435,11 @@ class GanttPropertyResponse(BaseModel):
     type: str
     status: PropertyStatus
     bookings: list[GanttBookingResponse]
+    # Nights closed without a booking.
+    blocks: list[GanttBlockResponse] = []
+    rental_mode: RentalMode = RentalMode.DAILY
+    # Nights priced on the calendar, replacing the flat's usual price.
+    day_prices: list[GanttDayPriceResponse] = []
 
 
 class GanttDataResponse(BaseModel):
@@ -454,3 +489,51 @@ class BookingDetailResponse(BaseModel):
     comments: list[BookingCommentResponse]
     contract: None = None  # BookingContractResponse placeholder
     audit_logs: list[BookingAuditLogResponse]
+
+
+class PropertyBlockCreate(BaseModel):
+    """Nights to close: start_date is the first night, end_date the day after the
+    last one (like a check-out)."""
+
+    start_date: date
+    end_date: date
+    reason: str | None = Field(default=None, max_length=255)
+
+    @model_validator(mode="after")
+    def _at_least_one_night(self):
+        if self.end_date <= self.start_date:
+            raise ValueError("end_date must be after start_date")
+        return self
+
+
+class PropertyBlockResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    property_id: uuid.UUID
+    start_date: date
+    end_date: date
+    reason: str | None = None
+    created_at: datetime | None = None
+    # Taken from a platform calendar: that calendar keeps it; source is that platform.
+    feed_id: uuid.UUID | None = None
+    source: str | None = None
+
+
+class CalendarFeedCreate(BaseModel):
+    """A platform's iCal link of the flat (Airbnb: Calendar > Availability > Export)."""
+
+    name: str = Field(min_length=1, max_length=100)
+    url: str = Field(max_length=2000, pattern=r"^https?://\S+$")
+
+
+class CalendarFeedResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    name: str
+    url: str
+    last_synced_at: datetime | None = None
+    last_error: str | None = None
+    # Day's link to paste into this same platform: without the nights read from it.
+    export_url: str | None = None

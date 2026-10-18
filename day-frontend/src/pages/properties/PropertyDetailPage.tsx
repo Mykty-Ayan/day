@@ -17,6 +17,7 @@ import {
   Users,
   Bath,
   ImagePlus,
+  ExternalLink,
 } from 'lucide-react'
 import { useParams, Link, useNavigate } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
@@ -43,6 +44,9 @@ import PricingForm, { type SeasonalSuggestion } from '../../components/property/
 import StatusBadge from '../../components/property/StatusBadge'
 import { showToast } from '../../components/ui/Toast'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
+import CheckInPhotosCard from '../../components/property/CheckInPhotosCard'
+import BlocksCard from '../../components/property/BlocksCard'
+import CalendarFeedsCard from '../../components/property/CalendarFeedsCard'
 import AuditTrail from '../../components/ui/AuditTrail'
 import Spinner from '../../components/ui/Spinner'
 import Button from '../../components/ui/Button'
@@ -76,6 +80,7 @@ export default function PropertyDetailPage() {
   const navigate = useNavigate()
   const { data: property, isLoading } = useProperty(propertyId)
   const uploadPhotos = useUploadPhotos(propertyId)
+  const { data: currentUser } = useCurrentUser()
 
   function addPhotos(event: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(event.target.files ?? [])
@@ -271,7 +276,7 @@ export default function PropertyDetailPage() {
                 onChange={addPhotos}
               />
             </label>
-              {property.photos.map((photo) => (
+              {property.photos.filter((photo) => photo.audience !== 'guest').map((photo) => (
                 <div
                   key={photo.id}
                   className={`shrink-0 w-48 h-32 rounded-xl overflow-hidden ${
@@ -289,6 +294,7 @@ export default function PropertyDetailPage() {
         </div>
 
         <CalendarLinkCard propertyId={propertyId} />
+        {currentUser && currentUser.role !== 'cleaner' && <CalendarFeedsCard propertyId={propertyId} />}
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Left column - Details */}
@@ -348,21 +354,83 @@ export default function PropertyDetailPage() {
                   </div>
                 </div>
               </div>
-              {property.address_full && (
+              {(property.address_full || property.complex_name) && (
                 <div className="flex items-start gap-2 mt-4 pt-4 border-t border-gray-100">
                   <MapPin className="w-4 h-4 text-gray-400 mt-0.5" />
                   <div>
                     <p className="text-xs text-gray-500">{t('properties.address')}</p>
-                    <p className="text-sm text-gray-900">{property.address_full}</p>
-                    {(property.apartment_number || property.floor) && (
+                    <p className="text-sm text-gray-900">
+                      {[property.complex_name, property.address_full].filter(Boolean).join(', ')}
+                    </p>
+                    {(property.apartment_number || property.floor != null) && (
                       <p className="text-xs text-gray-500 mt-0.5">
                         {property.apartment_number && t('properties.apt', { number: property.apartment_number })}
-                        {property.apartment_number && property.floor && ', '}
-                        {property.floor && t('properties.floor', { number: property.floor })}
+                        {property.apartment_number && property.floor != null && ', '}
+                        {property.floor != null &&
+                          (property.floors_total
+                            ? t('properties.floorOf', { number: property.floor, total: property.floors_total })
+                            : t('properties.floor', { number: property.floor }))}
                       </p>
                     )}
                   </div>
                 </div>
+              )}
+              {(property.map_url || property.whatsapp_product_url || property.video_url) && (
+                <div className="flex items-start gap-2 mt-4 pt-4 border-t border-gray-100">
+                  <ExternalLink className="w-4 h-4 text-gray-400 mt-0.5" />
+                  <div>
+                    <p className="text-xs text-gray-500">{t('properties.links')}</p>
+                    <div className="flex flex-wrap gap-x-4 gap-y-1">
+                      {(
+                        [
+                          [property.map_url, 'mapUrl'],
+                          [property.whatsapp_product_url, 'whatsappProductUrl'],
+                          [property.video_url, 'videoUrl'],
+                        ] as const
+                      ).map(([url, label]) =>
+                        url ? (
+                          <a
+                            key={label}
+                            href={url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-sm text-blue-600 hover:underline"
+                          >
+                            {t(`properties.form.${label}`)}
+                          </a>
+                        ) : null,
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+              {(
+                [
+                  ['listings', property.listing_urls],
+                  ['hourlyListings', property.hourly_listing_urls],
+                ] as const
+              ).map(([label, urls]) =>
+                urls?.length > 0 ? (
+                  <div key={label} className="flex items-start gap-2 mt-4 pt-4 border-t border-gray-100">
+                    <ExternalLink className="w-4 h-4 text-gray-400 mt-0.5" />
+                    <div className="min-w-0">
+                      <p className="text-xs text-gray-500">{t(`properties.${label}`)}</p>
+                      <div className="flex flex-col gap-y-1">
+                        {urls.map((url) => (
+                          <a
+                            key={url}
+                            href={url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="truncate text-sm text-blue-600 hover:underline"
+                          >
+                            {url.replace(/^https?:\/\/(www\.)?/, '')}
+                          </a>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                ) : null,
               )}
             </div>
 
@@ -376,6 +444,13 @@ export default function PropertyDetailPage() {
                   {property.description}
                 </p>
               </div>
+            )}
+
+            {currentUser && currentUser.role !== 'cleaner' && (
+              <>
+                <CheckInPhotosCard propertyId={propertyId} photos={property.photos} />
+                <BlocksCard propertyId={propertyId} />
+              </>
             )}
 
             {/* Rules */}

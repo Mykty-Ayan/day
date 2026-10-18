@@ -30,6 +30,10 @@ _PASSWORD_ROUTES = (
     "/api/v1/auth/two-factor",
 )
 
+# Pages with no sign-in (guest pages, the iCal feed) ignore credentials: a made-up
+# one per request would buy a fresh bucket each time, so they count by address.
+_ANONYMOUS_PREFIXES = ("/api/v1/public/", "/api/v1/calendar/")
+
 # Paths excluded from rate limiting
 _EXCLUDED_PATHS = {"/api/v1/health", "/health"}
 # Provider webhooks: a 429 makes Telegram and whapi redeliver the same update
@@ -60,7 +64,8 @@ def _bucket_owner(request: Request) -> str:
     Login and register always count by address: they need no credential, so
     keying them on a header let a guesser buy a fresh bucket per attempt.
     """
-    if request.url.path not in _PASSWORD_ROUTES:
+    path = request.url.path
+    if path not in _PASSWORD_ROUTES and not path.startswith(_ANONYMOUS_PREFIXES):
         for header in ("x-api-key", "authorization"):
             value = request.headers.get(header)
             if value:

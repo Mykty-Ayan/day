@@ -27,7 +27,7 @@ class ChangeBookingStatusService:
         *,
         changed_by: uuid.UUID | None = None,
     ) -> Booking:
-        booking = await self._booking_repo.get_by_id(booking_id)
+        booking = await self._booking_repo.get_for_update(booking_id)
         if booking is None:
             raise ValueError("Booking not found")
         if booking.company_id != company_id:

@@ -7,6 +7,7 @@ import { ArrowLeft, Check, Loader2, AlertTriangle } from 'lucide-react'
 import { useImportJob, useConfirmImport } from '../../hooks/useAIImport'
 import type { MappedPropertyData } from '../../types/ai-import'
 import PropertyPreviewForm from '../../components/ai-import/PropertyPreviewForm'
+import { importErrorText } from '../../lib/ai-import'
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null
@@ -179,7 +180,7 @@ export default function ImportPreviewPage() {
         >
           <div className="bg-red-50 border border-red-200 rounded-xl p-6">
             <h2 className="text-sm font-bold text-red-700 mb-2">{t('aiImport.importFailed')}</h2>
-            <p className="text-sm text-red-600">{job.error_message || t('aiImport.unknownError')}</p>
+            <p className="text-sm text-red-600">{importErrorText(job.error_message, t)}</p>
             <p className="text-xs text-gray-500 mt-3">
               URL: {job.source_url}
             </p>
@@ -264,7 +265,7 @@ export default function ImportPreviewPage() {
             <div className="flex items-center gap-2 mb-2">
               <AlertTriangle className="w-4 h-4 text-amber-600" />
               <span className="text-xs font-bold text-amber-700">
-                {warnings.length === 1 ? t('aiImport.warningCount', { count: 1 }) : t('aiImport.warningsCount', { count: warnings.length })}
+                {t('aiImport.warningsCount', { count: warnings.length })}
               </span>
             </div>
             <ul className="space-y-1">

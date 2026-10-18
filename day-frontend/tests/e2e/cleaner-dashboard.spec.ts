@@ -1,5 +1,7 @@
 import { test, expect } from '../fixtures/e2e-auth'
 import {
+  cleaningStatus,
+  createTestCleaner,
   createTestProperty,
   createTestPricing,
   futureDate,
@@ -33,7 +35,7 @@ test.describe('Cleaner Dashboard - E2E', () => {
     request: import('@playwright/test').APIRequestContext,
     propertyId: string,
   ) {
-    const cleanerId = '00000000-0000-0000-0000-000000000042'
+    const { id: cleanerId } = await createTestCleaner(request)
     const data = {
       property_id: propertyId,
       type: 'post_checkout',
@@ -136,8 +138,8 @@ test.describe('Cleaner Dashboard - E2E', () => {
     await expect(page.getByText(prop.name as string)).toBeVisible({ timeout: 5000 })
 
     // Overview and Report tabs should be visible
-    await expect(page.getByRole('button', { name: /overview/i })).toBeVisible({ timeout: 5000 })
-    await expect(page.getByRole('button', { name: /report/i })).toBeVisible({ timeout: 5000 })
+    await expect(page.getByRole('tab', { name: /overview/i })).toBeVisible({ timeout: 5000 })
+    await expect(page.getByRole('tab', { name: /report/i })).toBeVisible({ timeout: 5000 })
   })
 
   test('complete task lifecycle via UI', async ({ page, request }) => {
@@ -151,16 +153,13 @@ test.describe('Cleaner Dashboard - E2E', () => {
     const startBtn = transitionButton(page, 'in_progress')
     await expect(startBtn).toBeVisible({ timeout: 5000 })
     await startBtn.click()
-    await page.waitForTimeout(1000)
 
-    // in_progress -> done
+    // in_progress -> done (the button is there once the start went through)
     const doneBtn = transitionButton(page, 'done')
     await expect(doneBtn).toBeVisible({ timeout: 5000 })
     await doneBtn.click()
-    await page.waitForTimeout(1000)
 
-    // Should show done status
-    await expect(page.getByText(/done/i).first()).toBeVisible({ timeout: 5000 })
+    await expect.poll(() => cleaningStatus(request, task.id)).toBe('done')
   })
 
   test('submit report marks task as done', async ({ page, request }) => {
@@ -172,30 +171,16 @@ test.describe('Cleaner Dashboard - E2E', () => {
       data: { target_status: 'in_progress' },
     })
 
-    await page.goto(`/cleaning/${task.id}`)
-    await page.waitForLoadState('networkidle')
+    // The cleaner's page: finishing a cleaning asks for the report first
+    await page.goto(`/cleaner/${task.id}`)
+    await page.getByRole('button', { name: /mark as done/i }).click()
+    await page.getByPlaceholder(/any issues or comments/i).fill('All rooms cleaned thoroughly')
+    await page.getByRole('button', { name: /^submit report$/i }).click()
 
-    // Click Report tab
-    await page.getByRole('button', { name: /report/i }).click()
-    await page.waitForTimeout(500)
-
-    // Fill report notes if visible
-    const notesField = page.getByPlaceholder(/notes|comment/i)
-    if (await notesField.isVisible({ timeout: 2000 }).catch(() => false)) {
-      await notesField.fill('All rooms cleaned thoroughly')
-    }
-
-    // Submit report or transition to done
-    const submitBtn = page.getByRole('button', { name: /submit.*report|save.*report/i })
-    if (await submitBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
-      await submitBtn.click()
-    } else {
-      await page.getByRole('button', { name: /overview/i }).click()
-      await page.waitForTimeout(300)
-      await transitionButton(page, 'done').click()
-    }
-
-    await page.waitForTimeout(1000)
-    await expect(page.getByText(/done/i).first()).toBeVisible({ timeout: 5000 })
+    await expect
+      .poll(async () => (await (await request.get(`${API_BASE}/cleaning/${task.id}`)).json()).task.status)
+      .toBe('done')
+    const detail = await (await request.get(`${API_BASE}/cleaning/${task.id}`)).json()
+    expect(detail.report.report.notes).toBe('All rooms cleaned thoroughly')
   })
 })

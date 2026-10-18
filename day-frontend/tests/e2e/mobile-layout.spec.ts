@@ -24,6 +24,9 @@ test.describe('Mobile layout smoke', () => {
   test('core routes stay within viewport across mobile width matrix', async ({
     page,
   }) => {
+    // 24 pages, each until the network is quiet: about 20 s alone, past the
+    // 30 s default when the other workers load the same stand.
+    test.slow()
     for (const width of MOBILE_WIDTHS) {
       await page.setViewportSize({ width, height: MOBILE_HEIGHT })
 

@@ -19,8 +19,11 @@ from app.domain.booking.entities import (
     BookingDeposit,
     BookingFile,
     BookingPayment,
+    CalendarFeed,
     GroupBooking,
     Guest,
+    GuestOffer,
+    PropertyBlock,
 )
 from app.domain.booking.exceptions import BookingOverlapError, IdempotencyKeyTakenError
 from app.domain.booking.repositories import (
@@ -31,7 +34,9 @@ from app.domain.booking.repositories import (
     BookingFileRepository,
     BookingPaymentRepository,
     BookingRepository,
+    CalendarFeedRepository,
     GroupBookingRepository,
+    GuestOfferRepository,
     GuestRepository,
 )
 from app.domain.booking.value_objects import (
@@ -54,8 +59,11 @@ from app.infrastructure.models.booking import (
     BookingFileModel,
     BookingModel,
     BookingPaymentModel,
+    CalendarFeedModel,
     GroupBookingModel,
     GuestModel,
+    GuestOfferModel,
+    PropertyBlockModel,
     VoidedIdempotencyKeyModel,
 )
 
@@ -414,6 +422,60 @@ class SqlBookingRepository(BookingRepository):
             {"k": f"booking-idempotency:{company_id}:{key}"},
         )
 
+    async def list_blocks(self, property_id: uuid.UUID, date_from: date, date_to: date) -> list[PropertyBlock]:
+        stmt = select(PropertyBlockModel).where(
+            PropertyBlockModel.property_id == property_id,
+            PropertyBlockModel.start_date < date_to,
+            PropertyBlockModel.end_date > date_from,
+        ).order_by(PropertyBlockModel.start_date)
+        return [_model_to_block(m) for m in (await self._session.scalars(stmt)).all()]
+
+    async def list_company_blocks(self, company_id: uuid.UUID, date_from: date, date_to: date) -> list[PropertyBlock]:
+        stmt = select(PropertyBlockModel).where(
+            PropertyBlockModel.company_id == company_id,
+            PropertyBlockModel.start_date < date_to,
+            PropertyBlockModel.end_date > date_from,
+        ).order_by(PropertyBlockModel.start_date)
+        return [_model_to_block(m) for m in (await self._session.scalars(stmt)).all()]
+
+    async def add_block(self, block: PropertyBlock) -> PropertyBlock:
+        model = PropertyBlockModel(
+            id=block.id,
+            company_id=block.company_id,
+            property_id=block.property_id,
+            start_date=block.start_date,
+            end_date=block.end_date,
+            starts_at=block.starts_at,
+            ends_at=block.ends_at,
+            reason=block.reason,
+            created_by=block.created_by,
+            feed_id=block.feed_id,
+            external_uid=block.external_uid,
+            source=block.source,
+            reserved=block.reserved,
+        )
+        self._session.add(model)
+        await self._session.flush()
+        return _model_to_block(model)
+
+    async def get_block(self, block_id: uuid.UUID) -> PropertyBlock | None:
+        model = await self._session.get(PropertyBlockModel, block_id)
+        return _model_to_block(model) if model else None
+
+    async def delete_block(self, block_id: uuid.UUID) -> None:
+        await self._session.execute(delete(PropertyBlockModel).where(PropertyBlockModel.id == block_id))
+
+    async def list_feed_blocks(self, feed_id: uuid.UUID) -> list[PropertyBlock]:
+        stmt = select(PropertyBlockModel).where(PropertyBlockModel.feed_id == feed_id)
+        return [_model_to_block(m) for m in (await self._session.scalars(stmt)).all()]
+
+    async def lock_property_calendar(self, property_id: uuid.UUID) -> None:
+        # Same kind of lock as lock_idempotency_key, held until commit.
+        await self._session.execute(
+            text("SELECT pg_advisory_xact_lock(hashtextextended(:k, 0))"),
+            {"k": f"booking-property:{property_id}"},
+        )
+
     async def get_by_idempotency_key(self, company_id: uuid.UUID, key: str) -> Booking | None:
         result = await self._session.scalar(
             select(BookingModel).where(
@@ -446,10 +508,11 @@ class SqlBookingRepository(BookingRepository):
         check_out: date,
         *,
         exclude_id: uuid.UUID | None = None,
+        include_completed: bool = False,
     ) -> list[Booking]:
         stmt = select(BookingModel).where(
             BookingModel.property_id == property_id,
-            BookingModel.status.notin_(["cancelled", "completed"]),
+            BookingModel.status.notin_(["cancelled"] if include_completed else ["cancelled", "completed"]),
             BookingModel.check_in < check_out,
             BookingModel.check_out > check_in,
         )
@@ -611,6 +674,16 @@ class SqlBookingRepository(BookingRepository):
             )
             .exists()
         )
+        # A deposit marked paid is money too: a guest who booked by a personal link
+        # paid the Kaspi invoice, and the operator has yet to confirm.
+        deposit_paid = (
+            select(BookingDepositModel.id)
+            .where(
+                BookingDepositModel.booking_id == BookingModel.id,
+                BookingDepositModel.status != DepositStatus.PENDING.value,
+            )
+            .exists()
+        )
         stmt = (
             select(BookingModel)
             .where(
@@ -618,6 +691,7 @@ class SqlBookingRepository(BookingRepository):
                 BookingModel.expires_at.is_not(None),
                 BookingModel.expires_at <= now,
                 ~paid,
+                ~deposit_paid,
             )
             .order_by(BookingModel.expires_at)
             .limit(limit)
@@ -986,3 +1060,130 @@ class SqlBookingAuditLogRepository(BookingAuditLogRepository):
         )
         result = await self._session.scalars(stmt)
         return [_model_to_audit(m) for m in result.all()]
+
+
+def _model_to_block(m: PropertyBlockModel) -> PropertyBlock:
+    return PropertyBlock(
+        id=m.id,
+        company_id=m.company_id,
+        property_id=m.property_id,
+        start_date=m.start_date,
+        end_date=m.end_date,
+        starts_at=m.starts_at,
+        ends_at=m.ends_at,
+        reason=m.reason,
+        created_by=m.created_by,
+        created_at=m.created_at,
+        feed_id=m.feed_id,
+        external_uid=m.external_uid,
+        source=m.source,
+        reserved=m.reserved,
+    )
+
+
+class SqlCalendarFeedRepository(CalendarFeedRepository):
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+
+    async def add(self, feed: CalendarFeed) -> CalendarFeed:
+        model = CalendarFeedModel(
+            id=feed.id,
+            company_id=feed.company_id,
+            property_id=feed.property_id,
+            name=feed.name,
+            url=feed.url,
+            source=feed.source,
+        )
+        self._session.add(model)
+        await self._session.flush()
+        return _model_to_feed(model)
+
+    async def get(self, feed_id: uuid.UUID) -> CalendarFeed | None:
+        model = await self._session.get(CalendarFeedModel, feed_id, populate_existing=True)
+        return _model_to_feed(model) if model else None
+
+    async def list_for_property(self, property_id: uuid.UUID) -> list[CalendarFeed]:
+        stmt = (
+            select(CalendarFeedModel)
+            .where(CalendarFeedModel.property_id == property_id)
+            .order_by(CalendarFeedModel.created_at)
+        )
+        return [_model_to_feed(m) for m in (await self._session.scalars(stmt)).all()]
+
+    async def list_all(self) -> list[CalendarFeed]:
+        stmt = select(CalendarFeedModel).order_by(CalendarFeedModel.created_at)
+        return [_model_to_feed(m) for m in (await self._session.scalars(stmt)).all()]
+
+    async def delete(self, feed_id: uuid.UUID) -> None:
+        await self._session.execute(delete(PropertyBlockModel).where(PropertyBlockModel.feed_id == feed_id))
+        await self._session.execute(delete(CalendarFeedModel).where(CalendarFeedModel.id == feed_id))
+
+    async def record_sync(self, feed_id: uuid.UUID, synced_at: datetime, error: str | None) -> None:
+        await self._session.execute(
+            update(CalendarFeedModel)
+            .where(CalendarFeedModel.id == feed_id)
+            .values(last_synced_at=synced_at, last_error=error)
+        )
+
+
+def _model_to_feed(m: CalendarFeedModel) -> CalendarFeed:
+    return CalendarFeed(
+        id=m.id,
+        company_id=m.company_id,
+        property_id=m.property_id,
+        name=m.name,
+        url=m.url,
+        source=m.source,
+        last_synced_at=m.last_synced_at,
+        last_error=m.last_error,
+        created_at=m.created_at,
+    )
+
+
+class SqlGuestOfferRepository(GuestOfferRepository):
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+
+    async def add(self, offer: GuestOffer) -> GuestOffer:
+        model = GuestOfferModel(
+            id=offer.id,
+            company_id=offer.company_id,
+            code=offer.code,
+            guest_name=offer.guest_name,
+            guest_phone=offer.guest_phone,
+            check_in=offer.check_in,
+            check_out=offer.check_out,
+            guests=offer.guests,
+            property_ids=[str(p) for p in offer.property_ids],
+            created_by=offer.created_by,
+        )
+        self._session.add(model)
+        await self._session.flush()
+        return _model_to_offer(model)
+
+    async def get_by_code(self, code: str, *, lock: bool = False) -> GuestOffer | None:
+        query = select(GuestOfferModel).where(GuestOfferModel.code == code)
+        model = await self._session.scalar(query.with_for_update() if lock else query)
+        return _model_to_offer(model) if model else None
+
+    async def set_booking(self, offer_id: uuid.UUID, booking_id: uuid.UUID) -> None:
+        await self._session.execute(
+            update(GuestOfferModel).where(GuestOfferModel.id == offer_id).values(booking_id=booking_id)
+        )
+
+
+def _model_to_offer(m: GuestOfferModel) -> GuestOffer:
+    return GuestOffer(
+        id=m.id,
+        company_id=m.company_id,
+        code=m.code,
+        guest_name=m.guest_name,
+        guest_phone=m.guest_phone,
+        check_in=m.check_in,
+        check_out=m.check_out,
+        guests=m.guests,
+        property_ids=[uuid.UUID(p) for p in m.property_ids],
+        created_by=m.created_by,
+        created_at=m.created_at,
+        booking_id=m.booking_id,
+    )

@@ -3,8 +3,9 @@ from __future__ import annotations
 import uuid
 from datetime import date, datetime
 from decimal import Decimal
+from typing import Annotated
 
-from pydantic import AliasChoices, BaseModel, ConfigDict, Field, computed_field, model_validator
+from pydantic import AliasChoices, BaseModel, ConfigDict, Field, StringConstraints, computed_field, model_validator
 
 from app.domain.booking.value_objects import RentalMode
 from app.domain.property.value_objects import (
@@ -19,6 +20,11 @@ from app.domain.property.value_objects import (
 
 # ---------- Property ----------
 
+# A link the web shows and the CRM sends to guests: a web address and nothing else.
+WebLink = Annotated[str, StringConstraints(strip_whitespace=True, max_length=1024, pattern=r"^https?://\S+$")]
+# A listing of the flat on Krisha, Booking, Airbnb, OLX; the CRM matches a guest's link against them.
+ListingLink = Annotated[str, StringConstraints(strip_whitespace=True, max_length=500, pattern=r"^https?://\S+$")]
+
 
 class _TurnoverHours(BaseModel):
     @model_validator(mode="after")
@@ -28,6 +34,22 @@ class _TurnoverHours(BaseModel):
         out, into = getattr(self, "check_out_hour", None), getattr(self, "check_in_hour", None)
         if out is not None and into is not None and out > into:
             raise ValueError("Check-out hour must not be later than the check-in hour")
+        return self
+
+    @model_validator(mode="after")
+    def _no_listing_both_nightly_and_hourly(self):
+        # The CRM tells the stay by the list the guest's link is in.
+        both = set(getattr(self, "listing_urls", None) or []) & set(getattr(self, "hourly_listing_urls", None) or [])
+        if both:
+            raise ValueError(f"A listing link cannot be both nightly and hourly: {sorted(both)[0]}")
+        return self
+
+    @model_validator(mode="after")
+    def _most_nights_not_below_fewest(self):
+        # No stay could pass both; a PATCH with one side is checked against the saved one.
+        fewest, most = getattr(self, "min_nights", None), getattr(self, "max_nights", None)
+        if fewest is not None and most is not None and most < fewest:
+            raise ValueError("max_nights must not be below min_nights")
         return self
 
 
@@ -45,6 +67,18 @@ class PropertyCreate(_TurnoverHours):
     entrance: str | None = None
     block: str | None = None
     floor: int | None = None
+    complex_name: str | None = Field(default=None, max_length=255)
+    floors_total: int | None = Field(default=None, ge=1, le=200)
+    map_url: WebLink | None = None
+    whatsapp_product_url: WebLink | None = None
+    video_url: WebLink | None = None
+    listing_urls: list[ListingLink] = Field(default_factory=list, max_length=20)
+    hourly_listing_urls: list[ListingLink] = Field(default_factory=list, max_length=20)
+    # Stay rules for bookings made in Day; null is no rule.
+    min_nights: int | None = Field(default=None, ge=1, le=365)
+    max_nights: int | None = Field(default=None, ge=1, le=365)
+    buffer_hours: int | None = Field(default=None, ge=1, le=24)
+    min_lead_hours: int | None = Field(default=None, ge=1, le=24 * 30)
     rooms: int | None = None
     beds: int | None = None
     max_guests: int | None = Field(default=None, ge=1, le=50)
@@ -75,6 +109,18 @@ class PropertyUpdate(_TurnoverHours):
     entrance: str | None = None
     block: str | None = None
     floor: int | None = None
+    complex_name: str | None = Field(default=None, max_length=255)
+    floors_total: int | None = Field(default=None, ge=1, le=200)
+    map_url: WebLink | None = None
+    whatsapp_product_url: WebLink | None = None
+    video_url: WebLink | None = None
+    listing_urls: list[ListingLink] = Field(default_factory=list, max_length=20)
+    hourly_listing_urls: list[ListingLink] = Field(default_factory=list, max_length=20)
+    # Stay rules for bookings made in Day; null is no rule.
+    min_nights: int | None = Field(default=None, ge=1, le=365)
+    max_nights: int | None = Field(default=None, ge=1, le=365)
+    buffer_hours: int | None = Field(default=None, ge=1, le=24)
+    min_lead_hours: int | None = Field(default=None, ge=1, le=24 * 30)
     rooms: int | None = None
     beds: int | None = None
     max_guests: int | None = Field(default=None, ge=1, le=50)
@@ -98,6 +144,8 @@ class PropertyResponse(BaseModel):
     company_id: uuid.UUID
     name: str
     internal_name: str
+    # The code of the flat's page for guests (/s/<code>).
+    public_code: str | None = None
     type: PropertyType
     status: PropertyStatus
     rental_mode: RentalMode = RentalMode.DAILY
@@ -110,6 +158,17 @@ class PropertyResponse(BaseModel):
     entrance: str | None = None
     block: str | None = None
     floor: int | None = None
+    complex_name: str | None = None
+    floors_total: int | None = None
+    map_url: str | None = None
+    whatsapp_product_url: str | None = None
+    video_url: str | None = None
+    listing_urls: list[str] = []
+    hourly_listing_urls: list[str] = []
+    min_nights: int | None = None
+    max_nights: int | None = None
+    buffer_hours: int | None = None
+    min_lead_hours: int | None = None
     rooms: int | None = None
     beds: int | None = None
     max_guests: int | None = None
@@ -171,6 +230,7 @@ class PropertyPhotoResponse(BaseModel):
     sort_order: int
     is_cover: bool
     caption: str | None = None
+    audience: FactAudience = FactAudience.PUBLIC
     created_at: datetime | None = None
 
 
@@ -179,6 +239,8 @@ class PhotoCreate(BaseModel):
     sort_order: int = 0
     is_cover: bool = False
     caption: str | None = Field(default=None, max_length=500)
+    # guest: a check-in instruction (the entrance, the lock, the parking).
+    audience: FactAudience = FactAudience.PUBLIC
 
 
 class PhotoCaption(BaseModel):
@@ -220,6 +282,8 @@ class PricingConfigCreate(BaseModel):
     hourly_price: Decimal = Field(default=Decimal("0"), ge=0)
     weekend_markup: Decimal = Field(default=Decimal("0"), ge=0)
     default_deposit: Decimal = Field(default=Decimal("0"), ge=0)
+    # A stay by the hour has its own deposit; 0 is "not set", not the nightly one.
+    hourly_deposit: Decimal = Field(default=Decimal("0"), ge=0)
     extra_adult_price: Decimal = Field(default=Decimal("0"), ge=0)
     extra_child_price: Decimal = Field(default=Decimal("0"), ge=0)
     base_guests: int = Field(default=1, ge=1)
@@ -263,6 +327,7 @@ class PricingConfigResponse(BaseModel):
     hourly_price: Decimal
     weekend_markup: Decimal
     default_deposit: Decimal
+    hourly_deposit: Decimal
     extra_adult_price: Decimal
     extra_child_price: Decimal
     base_guests: int
@@ -409,3 +474,22 @@ class TagAssign(BaseModel):
 
 class BatchPricingUpdate(BaseModel):
     base_price: Decimal = Field(..., ge=0)
+
+
+class DayPriceSet(BaseModel):
+    """A price for the nights from start_date to the night before end_date (as a stay's)."""
+
+    start_date: date
+    end_date: date
+    price: Decimal = Field(gt=0, le=Decimal("99999999.99"), decimal_places=2)
+
+    @model_validator(mode="after")
+    def _at_least_one_night(self):
+        if self.end_date <= self.start_date:
+            raise ValueError("end_date must be after start_date")
+        return self
+
+
+class DayPriceResponse(BaseModel):
+    date: date
+    price: float

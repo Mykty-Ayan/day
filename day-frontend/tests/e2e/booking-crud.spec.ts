@@ -21,15 +21,18 @@ test.describe('Booking CRUD - E2E', () => {
   ) {
     const data = createTestProperty()
     const res = await request.post(`${API_BASE}/properties`, { data })
+    expect(res.ok(), `POST properties: ${res.status()}`).toBeTruthy()
     const prop = await res.json()
     propertyIdsToCleanup.push(prop.id)
 
-    await request.post(`${API_BASE}/properties/${prop.id}/status`, {
+    const statusRes = await request.post(`${API_BASE}/properties/${prop.id}/status`, {
       data: { status: 'active' },
     })
-    await request.put(`${API_BASE}/properties/${prop.id}/pricing`, {
+    expect(statusRes.ok(), `POST property status: ${statusRes.status()}`).toBeTruthy()
+    const pricingRes = await request.put(`${API_BASE}/properties/${prop.id}/pricing`, {
       data: createTestPricing(),
     })
+    expect(pricingRes.ok(), `PUT pricing: ${pricingRes.status()}`).toBeTruthy()
 
     return prop
   }
@@ -41,6 +44,7 @@ test.describe('Booking CRUD - E2E', () => {
   ) {
     const data = createTestBooking(propId, overrides)
     const res = await request.post(`${API_BASE}/bookings`, { data })
+    expect(res.ok(), `POST bookings: ${res.status()}`).toBeTruthy()
     const booking = await res.json()
     bookingIdsToCleanup.push(booking.id)
     return { ...booking, guest_name: data.guest_name }
@@ -191,7 +195,7 @@ test.describe('Booking CRUD - E2E', () => {
     await page.goto('/bookings/new')
     await page.waitForLoadState('networkidle')
 
-    await page.getByRole('button', { name: /select dates/i }).first().click()
+    await page.getByRole('button', { name: /^dates$/i }).click()
     const calendarGrids = page.locator('[role="dialog"] [role="grid"]')
     await expect(calendarGrids.first()).toBeVisible({ timeout: 5000 })
     await expect(calendarGrids).toHaveCount(1)
@@ -235,20 +239,44 @@ test.describe('Booking CRUD - E2E', () => {
 
   test('filter bookings by status', async ({ page, request }) => {
     const prop = await setupActiveProperty(request)
-    await createBookingViaApi(request, prop.id, { guest_name: `PendingFilter-${Date.now()}` })
+    const pendingGuest = `PendingFilter-${Date.now()}`
+    const confirmedGuest = `ConfirmedFilter-${Date.now()}`
+    await createBookingViaApi(request, prop.id, {
+      guest_name: pendingGuest,
+      check_in: futureDate(30),
+      check_out: futureDate(33),
+    })
+    const confirmed = await createBookingViaApi(request, prop.id, {
+      guest_name: confirmedGuest,
+      check_in: futureDate(40),
+      check_out: futureDate(43),
+    })
+    const confirmRes = await request.post(`${API_BASE}/bookings/${confirmed.id}/status`, {
+      data: { status: 'confirmed' },
+    })
+    expect(confirmRes.ok()).toBeTruthy()
 
     await page.goto('/bookings')
     await page.waitForLoadState('networkidle')
+    await expect(page.getByText(pendingGuest)).toBeVisible()
+    await expect(page.getByText(confirmedGuest)).toBeVisible()
 
-    const pendingFilter = page.getByRole('button', { name: /pending|в ожидании|күту/i }).first()
-    if (await pendingFilter.isVisible({ timeout: 3000 }).catch(() => false)) {
+    // The status filter is a group of radio buttons; the backend filters the list.
+    // The list is replaced by a spinner while the new page loads, so wait for the
+    // response first, and only then check which bookings are on screen.
+    for (const [label, status, shown, hidden] of [
+      ['Pending', 'pending', pendingGuest, confirmedGuest],
+      ['Confirmed', 'confirmed', confirmedGuest, pendingGuest],
+    ]) {
       await Promise.all([
-        page.waitForResponse((resp) => resp.url().includes('/api/v1/bookings') && resp.url().includes('status=pending')),
-        pendingFilter.click(),
+        page.waitForResponse(
+          (resp) => resp.url().includes('/api/v1/bookings') && resp.url().includes(`status=${status}`),
+        ),
+        page.getByRole('radio', { name: label }).click(),
       ])
+      await expect(page.getByText(shown)).toBeVisible()
+      await expect(page.getByText(hidden)).toHaveCount(0)
     }
-
-    await expect(page.locator('tbody tr').first()).toBeVisible({ timeout: 5000 })
   })
 
   test('filter bookings by property', async ({ page, request }) => {

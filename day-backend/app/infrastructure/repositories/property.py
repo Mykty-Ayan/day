@@ -2,15 +2,17 @@ from __future__ import annotations
 
 import uuid
 from collections.abc import Sequence
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
 
 from sqlalchemy import delete, func, select, update
+from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.domain.booking.value_objects import RentalMode
 from app.domain.property.entities import (
     Amenity,
+    DayPrice,
     DiscountRule,
     PricingConfig,
     Property,
@@ -22,6 +24,7 @@ from app.domain.property.entities import (
 )
 from app.domain.property.repositories import (
     AmenityRepository,
+    DayPriceRepository,
     DiscountRuleRepository,
     PricingConfigRepository,
     PropertyAuditLogRepository,
@@ -47,9 +50,12 @@ from app.infrastructure.models.property import (
     PropertyAmenityModel,
     PropertyAuditLogModel,
     PropertyCostsModel,
+    PropertyDayPriceModel,
     PropertyFactModel,
     PropertyModel,
     PropertyPhotoModel,
+    PropertyTagAssociationModel,
+    PropertyTagModel,
     SeasonalPriceModel,
 )
 
@@ -62,6 +68,7 @@ def _model_to_property(m: PropertyModel) -> Property:
         company_id=m.company_id,
         name=m.name,
         internal_name=m.internal_name,
+        public_code=m.public_code,
         type=PropertyType(m.type),
         status=PropertyStatus(m.status),
         rental_mode=RentalMode(m.rental_mode),
@@ -74,6 +81,17 @@ def _model_to_property(m: PropertyModel) -> Property:
         entrance=m.entrance,
         block=m.block,
         floor=m.floor,
+        complex_name=m.complex_name,
+        floors_total=m.floors_total,
+        map_url=m.map_url,
+        whatsapp_product_url=m.whatsapp_product_url,
+        video_url=m.video_url,
+        listing_urls=list(m.listing_urls or []),
+        hourly_listing_urls=list(m.hourly_listing_urls or []),
+        min_nights=m.min_nights,
+        max_nights=m.max_nights,
+        buffer_hours=m.buffer_hours,
+        min_lead_hours=m.min_lead_hours,
         rooms=m.rooms,
         beds=m.beds,
         max_guests=m.max_guests,
@@ -98,6 +116,7 @@ def _property_to_dict(p: Property) -> dict:
         "company_id": p.company_id,
         "name": p.name,
         "internal_name": p.internal_name,
+        "public_code": p.public_code,
         "type": p.type.value,
         "status": p.status.value,
         "rental_mode": p.rental_mode.value,
@@ -110,6 +129,17 @@ def _property_to_dict(p: Property) -> dict:
         "entrance": p.entrance,
         "block": p.block,
         "floor": p.floor,
+        "complex_name": p.complex_name,
+        "floors_total": p.floors_total,
+        "map_url": p.map_url,
+        "whatsapp_product_url": p.whatsapp_product_url,
+        "video_url": p.video_url,
+        "listing_urls": list(p.listing_urls),
+        "hourly_listing_urls": list(p.hourly_listing_urls),
+        "min_nights": p.min_nights,
+        "max_nights": p.max_nights,
+        "buffer_hours": p.buffer_hours,
+        "min_lead_hours": p.min_lead_hours,
         "rooms": p.rooms,
         "beds": p.beds,
         "max_guests": p.max_guests,
@@ -135,6 +165,7 @@ def _model_to_photo(m: PropertyPhotoModel) -> PropertyPhoto:
         sort_order=m.sort_order,
         is_cover=m.is_cover,
         caption=m.caption,
+        audience=FactAudience(m.audience),
         created_at=m.created_at,
     )
 
@@ -156,6 +187,7 @@ def _model_to_pricing(m: PricingConfigModel) -> PricingConfig:
         hourly_price=Decimal(str(m.hourly_price)),
         weekend_markup=Decimal(str(m.weekend_markup)),
         default_deposit=Decimal(str(m.default_deposit)),
+        hourly_deposit=Decimal(str(m.hourly_deposit)),
         extra_adult_price=Decimal(str(m.extra_adult_price)),
         extra_child_price=Decimal(str(m.extra_child_price)),
         base_guests=m.base_guests,
@@ -203,12 +235,38 @@ def _model_to_audit(m: PropertyAuditLogModel) -> PropertyAuditLog:
 # ---------- implementations ----------
 
 
+def _wearing_tag(company_id: uuid.UUID, tag_id: uuid.UUID):
+    # The tag must be the company's own: another company's tag matches no flat,
+    # even if a stray row links it to one of ours.
+    return (
+        select(PropertyTagAssociationModel.property_id)
+        .join(PropertyTagModel, PropertyTagModel.id == PropertyTagAssociationModel.tag_id)
+        .where(PropertyTagModel.id == tag_id, PropertyTagModel.company_id == company_id)
+    )
+
+
+def _listed(stmt, company_id: uuid.UUID, *, status, search, tag_id):
+    """The flat list's filters, shared by the page and its count so the pager adds up."""
+    stmt = stmt.where(PropertyModel.company_id == company_id)
+    if status is not None:
+        stmt = stmt.where(PropertyModel.status == status.value)
+    if search:
+        stmt = stmt.where(PropertyModel.internal_name.ilike(f"%{search}%"))
+    if tag_id is not None:
+        stmt = stmt.where(PropertyModel.id.in_(_wearing_tag(company_id, tag_id)))
+    return stmt
+
+
 class SqlPropertyRepository(PropertyRepository):
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
 
     async def get_by_id(self, property_id: uuid.UUID) -> Property | None:
         result = await self._session.get(PropertyModel, property_id)
+        return _model_to_property(result) if result else None
+
+    async def get_by_public_code(self, code: str) -> Property | None:
+        result = await self._session.scalar(select(PropertyModel).where(PropertyModel.public_code == code))
         return _model_to_property(result) if result else None
 
     async def list_by_company(
@@ -219,18 +277,24 @@ class SqlPropertyRepository(PropertyRepository):
         limit: int = 50,
         status: PropertyStatus | None = None,
         search: str | None = None,
+        tag_id: uuid.UUID | None = None,
     ) -> list[Property]:
-        stmt = select(PropertyModel).where(PropertyModel.company_id == company_id)
-        if status is not None:
-            stmt = stmt.where(PropertyModel.status == status.value)
-        if search:
-            stmt = stmt.where(PropertyModel.internal_name.ilike(f"%{search}%"))
+        stmt = _listed(select(PropertyModel), company_id, status=status, search=search, tag_id=tag_id)
         stmt = stmt.order_by(PropertyModel.created_at.desc()).offset(offset).limit(limit)
         result = await self._session.scalars(stmt)
         return [_model_to_property(m) for m in result.all()]
 
-    async def count_by_company(self, company_id: uuid.UUID) -> int:
-        stmt = select(func.count()).select_from(PropertyModel).where(PropertyModel.company_id == company_id)
+    async def count_by_company(
+        self,
+        company_id: uuid.UUID,
+        *,
+        status: PropertyStatus | None = None,
+        search: str | None = None,
+        tag_id: uuid.UUID | None = None,
+    ) -> int:
+        stmt = _listed(
+            select(func.count()).select_from(PropertyModel), company_id, status=status, search=search, tag_id=tag_id
+        )
         result = await self._session.scalar(stmt)
         return result or 0
 
@@ -306,7 +370,8 @@ class SqlPropertyPhotoRepository(PropertyPhotoRepository):
         stmt = (
             select(PropertyPhotoModel)
             .where(PropertyPhotoModel.property_id == property_id)
-            .order_by(PropertyPhotoModel.sort_order)
+            # Ties (photos added by URL all start at 0) keep the order they were added in.
+            .order_by(PropertyPhotoModel.sort_order, PropertyPhotoModel.created_at, PropertyPhotoModel.id)
         )
         result = await self._session.scalars(stmt)
         return [_model_to_photo(m) for m in result.all()]
@@ -319,6 +384,7 @@ class SqlPropertyPhotoRepository(PropertyPhotoRepository):
             sort_order=photo.sort_order,
             is_cover=photo.is_cover,
             caption=photo.caption,
+            audience=photo.audience.value,
         )
         self._session.add(model)
         await self._session.flush()
@@ -460,6 +526,7 @@ class SqlPricingConfigRepository(PricingConfigRepository):
             hourly_price=float(config.hourly_price),
             weekend_markup=float(config.weekend_markup),
             default_deposit=float(config.default_deposit),
+            hourly_deposit=float(config.hourly_deposit),
             extra_adult_price=float(config.extra_adult_price),
             extra_child_price=float(config.extra_child_price),
             base_guests=config.base_guests,
@@ -478,6 +545,7 @@ class SqlPricingConfigRepository(PricingConfigRepository):
                 hourly_price=float(config.hourly_price),
                 weekend_markup=float(config.weekend_markup),
                 default_deposit=float(config.default_deposit),
+                hourly_deposit=float(config.hourly_deposit),
                 extra_adult_price=float(config.extra_adult_price),
                 extra_child_price=float(config.extra_child_price),
                 base_guests=config.base_guests,
@@ -488,6 +556,59 @@ class SqlPricingConfigRepository(PricingConfigRepository):
         await self._session.flush()
         result = await self._session.get(PricingConfigModel, config.id)
         return _model_to_pricing(result)  # type: ignore[arg-type]
+
+
+class SqlDayPriceRepository(DayPriceRepository):
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+
+    async def list_for_property(self, property_id: uuid.UUID, date_from: date, date_to: date) -> list[DayPrice]:
+        stmt = select(PropertyDayPriceModel).where(
+            PropertyDayPriceModel.property_id == property_id,
+            PropertyDayPriceModel.date >= date_from,
+            PropertyDayPriceModel.date < date_to,
+        ).order_by(PropertyDayPriceModel.date)
+        return [_model_to_day_price(m) for m in (await self._session.scalars(stmt)).all()]
+
+    async def list_for_company(self, company_id: uuid.UUID, date_from: date, date_to: date) -> list[DayPrice]:
+        stmt = select(PropertyDayPriceModel).where(
+            PropertyDayPriceModel.company_id == company_id,
+            PropertyDayPriceModel.date >= date_from,
+            PropertyDayPriceModel.date < date_to,
+        ).order_by(PropertyDayPriceModel.property_id, PropertyDayPriceModel.date)
+        return [_model_to_day_price(m) for m in (await self._session.scalars(stmt)).all()]
+
+    async def set_prices(
+        self, company_id: uuid.UUID, property_id: uuid.UUID, nights: Sequence[date], price: Decimal
+    ) -> None:
+        if not nights:
+            return
+        stmt = insert(PropertyDayPriceModel).values(
+            [
+                {
+                    "id": uuid.uuid4(),
+                    "company_id": company_id,
+                    "property_id": property_id,
+                    "date": night,
+                    "price": price,
+                }
+                for night in nights
+            ]
+        )
+        stmt = stmt.on_conflict_do_update(
+            constraint="uq_property_day_prices_night",
+            set_={"price": stmt.excluded.price, "updated_at": func.now()},
+        )
+        await self._session.execute(stmt)
+
+    async def clear(self, property_id: uuid.UUID, date_from: date, date_to: date) -> None:
+        await self._session.execute(
+            delete(PropertyDayPriceModel).where(
+                PropertyDayPriceModel.property_id == property_id,
+                PropertyDayPriceModel.date >= date_from,
+                PropertyDayPriceModel.date < date_to,
+            )
+        )
 
 
 class SqlSeasonalPriceRepository(SeasonalPriceRepository):
@@ -755,3 +876,7 @@ class SqlPropertyFactRepository(PropertyFactRepository):
     async def delete(self, fact_id: uuid.UUID) -> None:
         await self._session.execute(delete(PropertyFactModel).where(PropertyFactModel.id == fact_id))
         await self._session.flush()
+
+
+def _model_to_day_price(m: PropertyDayPriceModel) -> DayPrice:
+    return DayPrice(company_id=m.company_id, property_id=m.property_id, date=m.date, price=Decimal(str(m.price)))

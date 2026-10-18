@@ -3,6 +3,8 @@ import {
   useMutation,
   useQueryClient,
 } from '@tanstack/react-query'
+import { blockNights, bookedNights } from '../lib/booking-dates'
+import { listBlocks } from '../api/properties'
 import type {
   BookingFilters,
   BookingCreateInput,
@@ -55,6 +57,37 @@ export function useBookings(filters: BookingFilters = {}) {
   return useQuery({
     queryKey: [BOOKINGS_KEY, filters],
     queryFn: () => listBookings(filters),
+  })
+}
+
+/** The nights a flat's stays take between `from` and `to` (yyyy-MM-dd; see
+ *  nightsWindow), every page of them: a short page would leave nights open. */
+export function useBookedNights(
+  propertyId: string,
+  from: string,
+  to: string,
+  exceptBookingId?: string,
+  /** The booking's source: its own platform's calendar does not close nights for it. */
+  source?: string,
+) {
+  return useQuery({
+    queryKey: [BOOKINGS_KEY, 'booked-nights', propertyId, from, to],
+    queryFn: async () => {
+      const filters = { property_id: propertyId, date_from: from, date_to: to, per_page: 100 }
+      const first = await listBookings(filters)
+      const rest = await Promise.all(
+        Array.from({ length: Math.max(0, first.pages - 1) }, (_, i) => listBookings({ ...filters, page: i + 2 })),
+      )
+      const blocks = await listBlocks(propertyId, from, to)
+      return { stays: [first, ...rest].flatMap((page) => page.items), blocks }
+    },
+    enabled: !!propertyId,
+    // Closed nights take the calendar like booked ones.
+    select: ({ stays, blocks }) =>
+      new Set([
+        ...bookedNights(stays, exceptBookingId),
+        ...blockNights(blocks.filter((block) => !source || block.source !== source)),
+      ]),
   })
 }
 

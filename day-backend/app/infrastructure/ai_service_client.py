@@ -3,6 +3,8 @@ import time
 
 import httpx
 
+from app.domain.ai_migration.exceptions import AIServiceUnavailable
+
 logger = logging.getLogger("app.ai_client")
 
 
@@ -65,6 +67,9 @@ class AIServiceClient:
                     }
                 },
             )
+            # Refused, unresolved or silent: the service is not there to ask.
+            if isinstance(exc, httpx.TransportError):
+                raise AIServiceUnavailable() from exc
             raise
 
     @staticmethod

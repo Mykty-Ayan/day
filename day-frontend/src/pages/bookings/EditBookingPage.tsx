@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { motion } from 'framer-motion'
 import { ArrowLeft, Check, Loader2 } from 'lucide-react'
 import { useNavigate, useParams } from '@tanstack/react-router'
-import { useBooking, useUpdateBooking } from '../../hooks/useBookings'
+import { useBookedNights, useBooking, useUpdateBooking } from '../../hooks/useBookings'
 import { useProperty } from '../../hooks/useProperties'
 import type { BookingDetail, BookingSource, BookingUpdateInput, RentalMode } from '../../types/booking'
 import DateRangePicker from '../../components/ui/date-range-picker'
@@ -14,7 +14,15 @@ import { ToggleGroup, ToggleGroupItem } from '../../components/ui/toggle-group'
 import NumberInput from '../../components/ui/number-input'
 import Spinner from '../../components/ui/Spinner'
 import { showToast } from '../../components/ui/Toast'
-import { getBookingApiErrorMessage, getBookingFieldError } from '../../lib/booking-errors'
+import {
+  currentBreaches,
+  getBookingApiErrorMessage,
+  getBookingFieldError,
+  stayRuleBreaches,
+  type RulesRefusal,
+} from '../../lib/booking-errors'
+import StayRulesAlert from '../../components/booking/StayRulesAlert'
+import { nightsWindow, switchRentalMode } from '../../lib/booking-dates'
 
 interface FormData {
   check_in: string
@@ -85,6 +93,10 @@ function EditBookingForm({ detail, bookingId }: { detail: BookingDetail; booking
   const { data: property } = useProperty(detail.booking.property_id)
   const [form, setForm] = useState<FormData>(() => detailToForm(detail))
   const [errors, setErrors] = useState<Record<string, string>>({})
+  // Other stays of the flat, struck through in the calendar; this booking's own nights stay open.
+  const [calendarMonth, setCalendarMonth] = useState(() => new Date())
+  const nights = nightsWindow(calendarMonth, form.check_in && !form.check_out ? form.check_in : null)
+  const booked = useBookedNights(detail.booking.property_id, nights.from, nights.to, bookingId, detail.booking.source)
 
   const isHourly = form.rental_mode === 'hourly'
   const effectiveCheckIn = isHourly
@@ -116,11 +128,26 @@ function EditBookingForm({ detail, bookingId }: { detail: BookingDetail; booking
     { value: '#06B6D4', label: t('bookings.colors.cyan') },
   ]
 
+  // The save the stay rules refused; "save anyway" sends exactly it again.
+  const [refused, setRefused] = useState<RulesRefusal<BookingUpdateInput> | null>(null)
+
   function updateField<K extends keyof FormData>(key: K, value: FormData[K]) {
     setForm((f) => ({ ...f, [key]: value }))
     setErrors((e) => {
       const next = { ...e }
       delete next[key]
+      return next
+    })
+  }
+
+  // The picked date moves to the other mode's field instead of disappearing.
+  function switchMode(mode: RentalMode) {
+    setForm((f) => switchRentalMode(f, mode))
+    setErrors((e) => {
+      const next = { ...e }
+      delete next.rental_mode
+      delete next.check_in
+      delete next.check_out
       return next
     })
   }
@@ -146,10 +173,8 @@ function EditBookingForm({ detail, bookingId }: { detail: BookingDetail; booking
     return Object.keys(errs).length === 0
   }
 
-  function handleSubmit() {
-    if (!validate()) return
-
-    const payload: BookingUpdateInput = {
+  function updatePayload(): BookingUpdateInput {
+    return {
       check_in: effectiveCheckIn,
       check_out: effectiveCheckOut,
       rental_mode: form.rental_mode,
@@ -159,13 +184,18 @@ function EditBookingForm({ detail, bookingId }: { detail: BookingDetail; booking
       gantt_color: form.gantt_color,
       notes: form.notes || undefined,
     }
+  }
 
+  function send(payload: BookingUpdateInput) {
     updateBooking.mutate(payload, {
       onSuccess: () => {
         showToast('success', t('bookings.bookingUpdated'))
         navigate({ to: '/bookings/$bookingId', params: { bookingId } })
       },
       onError: (err) => {
+        const broken = stayRuleBreaches(err)
+        setRefused(broken ? { payload, breaches: broken } : null)
+        if (broken) return
         const fieldError = getBookingFieldError(err, t)
         if (fieldError) {
           setErrors((prev) => ({ ...prev, [fieldError.field]: fieldError.message }))
@@ -174,6 +204,15 @@ function EditBookingForm({ detail, bookingId }: { detail: BookingDetail; booking
       },
     })
   }
+
+  function handleSubmit() {
+    if (!validate()) return
+    send(updatePayload())
+  }
+
+
+  // Shown only while the form still says what was refused.
+  const breaches = currentBreaches(refused, updatePayload())
 
   return (
     <div className="px-4 py-4 sm:px-6 sm:py-6 max-w-3xl mx-auto w-full">
@@ -214,7 +253,7 @@ function EditBookingForm({ detail, bookingId }: { detail: BookingDetail; booking
                 value={form.rental_mode}
                 onValueChange={(value) => {
                   if (!value) return
-                  updateField('rental_mode', value as RentalMode)
+                  switchMode(value as RentalMode)
                 }}
               >
                 <ToggleGroupItem value="daily">{t('bookings.rentalMode.daily')}</ToggleGroupItem>
@@ -290,6 +329,11 @@ function EditBookingForm({ detail, bookingId }: { detail: BookingDetail; booking
                   }}
                   placeholder={t('bookings.selectDates')}
                   error={!!errors.check_in || !!errors.check_out}
+                  booked={booked.data}
+                  bookedLoading={booked.isLoading}
+                  bookedFailed={booked.isError}
+                  onBookedRetry={() => booked.refetch()}
+                  onMonthChange={setCalendarMonth}
                 />
                 {errors.check_in && (
                   <p className="text-xs text-red-500 mt-1">{errors.check_in}</p>
@@ -410,12 +454,21 @@ function EditBookingForm({ detail, bookingId }: { detail: BookingDetail; booking
           </div>
         </div>
 
+        {breaches && refused && (
+          <StayRulesAlert
+            breaches={breaches}
+            action={t('bookings.stayRules.saveAnyway')}
+            busy={updateBooking.isPending}
+            onOverride={() => send({ ...refused.payload, override_rules: true })}
+          />
+        )}
+
         {/* Submit */}
         <div className="mt-6 flex justify-end">
           <motion.button
             whileTap={{ scale: 0.97 }}
             type="button"
-            onClick={handleSubmit}
+            onClick={() => handleSubmit()}
             disabled={updateBooking.isPending}
             className="flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl bg-black px-6 py-2.5 font-semibold text-white shadow-lg transition-colors hover:bg-gray-800 disabled:opacity-50 sm:w-auto"
           >

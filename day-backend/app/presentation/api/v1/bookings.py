@@ -42,9 +42,12 @@ from app.domain.booking.exceptions import (
     IdempotencyKeyReusedError,
     IdempotencyKeyTakenError,
     IdempotencyKeyVoidedError,
+    PropertyBlockedError,
+    StayRulesError,
 )
 from app.domain.booking.value_objects import BookingSource, BookingStatus, PaymentStatus, RentalMode
 from app.domain.messaging.value_objects import NotificationEvent
+from app.domain.property.value_objects import FactAudience
 from app.domain.settings.entities import CompanySettings
 from app.infrastructure.database import get_session
 from app.infrastructure.messaging.booking_notice import notify_booking
@@ -59,6 +62,7 @@ from app.infrastructure.repositories.booking import (
     SqlGuestRepository,
 )
 from app.infrastructure.repositories.property import (
+    SqlDayPriceRepository,
     SqlDiscountRuleRepository,
     SqlPricingConfigRepository,
     SqlPropertyPhotoRepository,
@@ -93,8 +97,10 @@ from app.presentation.schemas.booking import (
     DepositAction,
     DepositCreate,
     DepositResponse,
+    GanttBlockResponse,
     GanttBookingResponse,
     GanttDataResponse,
+    GanttDayPriceResponse,
     GanttPropertyResponse,
     GuestListResponse,
     GuestResponse,
@@ -129,6 +135,7 @@ def _repos(session: AsyncSession):
         "pricing": SqlPricingConfigRepository(session),
         "seasonal": SqlSeasonalPriceRepository(session),
         "discount": SqlDiscountRuleRepository(session),
+        "day_price": SqlDayPriceRepository(session),
         "settings": SqlCompanySettingsRepository(session),
         "photo": SqlPropertyPhotoRepository(session),
     }
@@ -146,12 +153,17 @@ def _naive_utc(value: datetime) -> datetime:
 
 
 def _request_hash(body) -> str:
-    """What an Idempotency-Key retry must repeat: the body, defaults filled in."""
-    return hashlib.sha256(json.dumps(body.model_dump(mode="json"), sort_keys=True).encode()).hexdigest()
+    """What an Idempotency-Key retry must repeat: the body, defaults filled in.
+
+    Not override_rules: a request refused for the rules made nothing, and a key
+    saved before the flag existed must still match its retry.
+    """
+    dump = body.model_dump(mode="json", exclude={"override_rules"})
+    return hashlib.sha256(json.dumps(dump, sort_keys=True).encode()).hexdigest()
 
 
 def _price_calculator(repos):
-    return PriceCalculatorService(repos["pricing"], repos["seasonal"], repos["discount"])
+    return PriceCalculatorService(repos["pricing"], repos["seasonal"], repos["discount"], repos["day_price"])
 
 
 def _to_booking_response(
@@ -234,6 +246,19 @@ def _content_disposition(filename: str) -> str:
 # ---------- Booking CRUD ----------
 
 
+def _stay_rules_refused(error: StayRulesError) -> HTTPException:
+    """422 that names every broken rule: the client shows them and may send the
+    same request again with override_rules once the operator confirms."""
+    return HTTPException(
+        status_code=422,
+        detail={
+            "code": "stay_rules",
+            "message": str(error),
+            "breaches": [{"rule": b.rule, "limit": b.limit, "actual": b.actual} for b in error.breaches],
+        },
+    )
+
+
 async def _notify_booking(
     session: AsyncSession,
     company_id: uuid.UUID,
@@ -271,6 +296,7 @@ async def create_booking(
         repos["property"],
         repos["audit"],
         _price_calculator(repos),
+        repos["settings"],
     )
     request_hash = _request_hash(body) if idempotency_key else None
 
@@ -312,6 +338,7 @@ async def create_booking(
                 idempotency_key=idempotency_key,
                 idempotency_hash=request_hash,
                 expires_at=_naive_utc(body.expires_at) if body.expires_at else None,
+                override_rules=body.override_rules,
             )
         )
         await _notify_booking(session, company_id, NotificationEvent.BOOKING_CREATED, result, repos)
@@ -324,6 +351,12 @@ async def create_booking(
         if (answer := await replayed()) is not None:
             return answer
         raise HTTPException(status_code=409, detail=str(e) or "Conflict")
+    except StayRulesError as e:
+        await session.rollback()
+        raise _stay_rules_refused(e)
+    except PropertyBlockedError as e:
+        await session.rollback()
+        raise HTTPException(status_code=409, detail=str(e))
     except ValueError as e:
         await session.rollback()
         raise HTTPException(status_code=400, detail=str(e))
@@ -629,7 +662,7 @@ async def update_booking(
 ):
     repos = _repos(session)
     svc = UpdateBookingService(
-        repos["booking"], repos["property"], repos["audit"], _price_calculator(repos)
+        repos["booking"], repos["property"], repos["audit"], _price_calculator(repos), repos["settings"]
     )
 
     provided = body.model_dump(exclude_unset=True)
@@ -644,6 +677,12 @@ async def update_booking(
         await session.commit()
         return _to_booking_response(result)
     except BookingOverlapError as e:
+        await session.rollback()
+        raise HTTPException(status_code=409, detail=str(e))
+    except StayRulesError as e:
+        await session.rollback()
+        raise _stay_rules_refused(e)
+    except PropertyBlockedError as e:
         await session.rollback()
         raise HTTPException(status_code=409, detail=str(e))
     except ValueError as e:
@@ -693,10 +732,18 @@ async def move_booking(
     repos = _repos(session)
     svc = MoveBookingService(repos["booking"], repos["property"], repos["audit"])
     try:
-        result = await svc.execute(booking_id, company_id, body.target_property_id, changed_by=user_id)
+        result = await svc.execute(
+            booking_id, company_id, body.target_property_id, changed_by=user_id, override_rules=body.override_rules
+        )
         await session.commit()
         return _to_booking_response(result)
     except BookingOverlapError as e:
+        await session.rollback()
+        raise HTTPException(status_code=409, detail=str(e))
+    except StayRulesError as e:
+        await session.rollback()
+        raise _stay_rules_refused(e)
+    except PropertyBlockedError as e:
         await session.rollback()
         raise HTTPException(status_code=409, detail=str(e))
     except ValueError as e:
@@ -763,6 +810,8 @@ async def get_availability(
                 photos=[
                     AvailablePhotoResponse(url=p.url, caption=p.caption, is_cover=p.is_cover, sort_order=p.sort_order)
                     for p in sorted(flat_photos, key=lambda p: (not p.is_cover, p.sort_order))
+                    # Offered to people who have not booked: never a check-in photo.
+                    if p.audience != FactAudience.GUEST
                 ],
             )
             for item, flat_photos in zip(available, photos)
@@ -1282,6 +1331,14 @@ def _build_gantt_response(result) -> GanttDataResponse:
                     )
                     for b in p.bookings
                 ],
+                blocks=[
+                    GanttBlockResponse(
+                        id=b.id, start_date=b.start_date, end_date=b.end_date, reason=b.reason, clash=b.clash
+                    )
+                    for b in p.blocks
+                ],
+                rental_mode=p.rental_mode,
+                day_prices=[GanttDayPriceResponse(date=d.date, price=float(d.price)) for d in p.day_prices],
             )
             for p in result.properties
         ]
@@ -1301,7 +1358,7 @@ async def get_gantt_data(
     company_id: uuid.UUID = Depends(get_company_id),
 ):
     repos = _repos(session)
-    svc = GetGanttDataService(repos["property"], repos["booking"], repos["guest"])
+    svc = GetGanttDataService(repos["property"], repos["booking"], repos["guest"], repos["day_price"])
     result = await svc.execute(company_id, start_date, end_date)
     return _build_gantt_response(result)
 

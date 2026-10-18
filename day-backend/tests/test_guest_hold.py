@@ -1,0 +1,274 @@
+"""A guest books from a personal link: Day holds the dates for 30 minutes and asks
+the host to send a Kaspi invoice for the deposit. One link makes one booking at a
+time; a hold that lapses lets the guest book again."""
+
+import uuid
+from datetime import date, datetime, timedelta
+from decimal import Decimal
+
+import pytest
+
+from app.application.booking.create_booking import CreateBookingService
+from app.application.booking.guest_hold import GuestHoldService, OfferBooking, OfferTakenError
+from app.application.booking.guest_offers import GuestOffersService, OfferExpiredError
+from app.application.messaging.notifications import render
+from app.domain.auth.permissions import Permission
+from app.domain.booking.entities import Booking, Guest
+from app.domain.booking.exceptions import BookingOverlapError
+from app.domain.booking.value_objects import BookingStatus, DepositStatus, RentalMode
+from app.domain.messaging.value_objects import NotificationEvent
+from app.domain.property.entities import PricingConfig, Property
+from app.domain.property.value_objects import PropertyStatus
+from tests.test_booking_services import (
+    COMPANY_ID,
+    FakeBookingAuditLogRepository,
+    FakeBookingDepositRepository,
+    FakeBookingRepository,
+    FakeGuestRepository,
+    FakePricingConfigRepository,
+    FakePropertyRepository,
+    _build_price_calculator,
+)
+from tests.test_property_facts import flat  # noqa: F401  (a fixture)
+
+NOW = datetime(2030, 10, 1, 9, 15)
+
+
+class FakeOfferRepository:
+    def __init__(self):
+        self._offers = {}
+
+    async def add(self, offer):
+        self._offers[offer.code] = offer
+        return offer
+
+    async def get_by_code(self, code, *, lock=False):
+        return self._offers.get(code)
+
+    async def set_booking(self, offer_id, booking_id):
+        for offer in self._offers.values():
+            if offer.id == offer_id:
+                offer.booking_id = booking_id
+
+
+class _Photos:
+    async def list_by_property(self, property_id):
+        return []
+
+
+class Holds:
+    def __init__(self):
+        self.today = NOW.date()
+        self.now = NOW
+        self.props = FakePropertyRepository()
+        self.pricing = FakePricingConfigRepository()
+        self.bookings = FakeBookingRepository()
+        self.guests = FakeGuestRepository()
+        self.deposits = FakeBookingDepositRepository()
+        self.offers = FakeOfferRepository()
+        prices = _build_price_calculator(pricing_repo=self.pricing)
+        self.made = GuestOffersService(
+            self.offers, self.props, _Photos(), self.bookings, prices, today=lambda: self.today
+        )
+        create = CreateBookingService(
+            self.bookings, self.guests, self.props, FakeBookingAuditLogRepository(), prices
+        )
+        self.service = GuestHoldService(
+            self.offers, self.props, self.bookings, self.guests, self.pricing, self.deposits, create,
+            now=lambda: self.now,
+        )
+
+    async def flat(self, name="Студия", deposit="10000", status=PropertyStatus.ACTIVE):
+        prop = Property(company_id=COMPANY_ID, name=name, internal_name=uuid.uuid4().hex[:6], status=status,
+                        rooms=1, max_guests=3, check_in_hour=14, check_out_hour=12)
+        await self.props.save(prop)
+        await self.pricing.save(PricingConfig(property_id=prop.id, base_price=Decimal("25000"),
+                                              default_deposit=Decimal(deposit)))
+        return prop
+
+    async def offer(self, *flats):
+        return await self.made.create(
+            COMPANY_ID, guest_name="Ерлан Сапаров", guest_phone="+7 701 234 56 78",
+            check_in=date(2030, 10, 20), check_out=date(2030, 10, 22), guests=2,
+            property_ids=[f.id for f in flats],
+        )
+
+
+async def test_a_guest_books_a_flat_of_the_link_and_it_is_held_half_an_hour():
+    h = Holds()
+    studio, family = await h.flat(), await h.flat("Двухкомнатная")
+    offer = await h.offer(studio, family)
+
+    held = await h.service.book(offer.code, flat=family.public_code, guests=2)
+    booking = held.booking
+    assert (booking.property_id, booking.status, booking.expires_at) == (
+        family.id, BookingStatus.PENDING, NOW + timedelta(minutes=30)
+    )
+    assert (booking.check_in, booking.check_out, booking.adults_count) == (
+        datetime(2030, 10, 20, 14), datetime(2030, 10, 22, 12), 2
+    )
+    assert (await h.guests.get_by_id(booking.guest_id)).phone == "+7 701 234 56 78"
+    [deposit] = await h.deposits.get_by_booking(booking.id)
+    assert (deposit.amount, deposit.status) == (Decimal("10000"), DepositStatus.PENDING)
+
+    # What the page shows the guest who comes back to the link.
+    now = await h.service.current(offer)
+    assert (now.flat, now.booking.id, now.deposit, now.phone) == (
+        family.public_code, booking.id, Decimal("10000"), "+7 701 234 56 78"
+    )
+
+
+async def test_the_invoice_goes_to_another_number_when_the_guest_gives_one():
+    h = Holds()
+    studio = await h.flat()
+    offer = await h.offer(studio)
+    held = await h.service.book(offer.code, flat=studio.public_code, guests=1, name="Айгерим", phone="+77770001122")
+    guest = await h.guests.get_by_id(held.booking.guest_id)
+    assert (guest.name, guest.phone, held.phone, held.name) == ("Айгерим", "+77770001122", "+77770001122", "Айгерим")
+
+
+async def test_who_booked_is_told_even_when_the_phone_finds_an_older_guest():
+    h = Holds()
+    studio = await h.flat()
+    offer = await h.offer(studio)
+    await h.guests.create(Guest(company_id=COMPANY_ID, name="Старое имя", phone="+77770001122"))
+    held = await h.service.book(offer.code, flat=studio.public_code, guests=1, name="Айгерим", phone="+77770001122")
+    assert (await h.guests.get_by_id(held.booking.guest_id)).name == "Старое имя"
+    assert held.name == "Айгерим" and "Айгерим, +77770001122" in held.booking.notes
+
+
+async def test_one_link_makes_one_booking_at_a_time():
+    h = Holds()
+    studio, family = await h.flat(), await h.flat("Двухкомнатная")
+    offer = await h.offer(studio, family)
+    held = await h.service.book(offer.code, flat=studio.public_code, guests=2)
+    with pytest.raises(OfferTakenError):
+        await h.service.book(offer.code, flat=family.public_code, guests=2)
+
+    # Not paid in time: the sweep cancels the hold, and the link books again.
+    held.booking.status = BookingStatus.CANCELLED
+    await h.bookings.update(held.booking)
+    assert await h.service.current(offer) is None
+    assert (await h.service.book(offer.code, flat=family.public_code, guests=2)).booking.property_id == family.id
+
+
+async def test_a_guest_books_only_a_flat_of_the_link_still_on_sale():
+    h = Holds()
+    studio, other, paused = await h.flat(), await h.flat("Чужая"), await h.flat("Снятая")
+    offer = await h.offer(studio, paused)
+    paused.status = PropertyStatus.PAUSED
+    await h.props.save(paused)
+    for code in (other.public_code, paused.public_code, "nosuchflat"):
+        with pytest.raises(ValueError, match="Not found"):
+            await h.service.book(offer.code, flat=code, guests=2)
+    with pytest.raises(ValueError, match="up to 3 guests"):
+        await h.service.book(offer.code, flat=studio.public_code, guests=4)
+    with pytest.raises(ValueError, match="Not found"):
+        await h.service.book("nosuchcode", flat=studio.public_code, guests=2)
+    # 00:30 on the 21st in Almaty, still the 20th by UTC: the stay has begun.
+    h.now = datetime(2030, 10, 20, 19, 30)
+    with pytest.raises(OfferExpiredError):
+        await h.service.book(offer.code, flat=studio.public_code, guests=2)
+
+
+async def test_a_flat_let_by_the_hour_since_the_link_was_made_is_not_held_for_nights():
+    # The page shows such a flat no nightly deposit: the link must not take one either.
+    h = Holds()
+    studio = await h.flat()
+    offer = await h.offer(studio)
+    studio.rental_mode = RentalMode.HOURLY
+    await h.props.save(studio)
+    with pytest.raises(ValueError, match="by the hour only"):
+        await h.service.book(offer.code, flat=studio.public_code, guests=2)
+    assert offer.booking_id is None
+
+
+async def test_a_flat_taken_meanwhile_is_not_held():
+    h = Holds()
+    studio = await h.flat()
+    offer = await h.offer(studio)
+    await h.bookings.create(Booking(company_id=COMPANY_ID, property_id=studio.id, status=BookingStatus.CONFIRMED,
+                                    check_in=datetime(2030, 10, 21, 14), check_out=datetime(2030, 10, 23, 12)))
+    with pytest.raises(BookingOverlapError):
+        await h.service.book(offer.code, flat=studio.public_code, guests=2)
+    assert offer.booking_id is None
+
+
+async def test_a_flat_with_no_deposit_is_held_with_none_to_pay():
+    h = Holds()
+    studio = await h.flat(deposit="0")
+    offer = await h.offer(studio)
+    held = await h.service.book(offer.code, flat=studio.public_code, guests=2)
+    assert held.deposit is None and await h.deposits.get_by_booking(held.booking.id) == []
+
+
+async def test_the_notice_tells_the_deadline_on_the_company_clock(monkeypatch):
+    from app.infrastructure.messaging import booking_notice
+
+    queued = []
+
+    class _Notices:
+        async def notify_company(self, company_id, event, payload):
+            queued.append((event, payload))
+
+    class _NoSettings:
+        async def get_by_company(self, company_id):
+            return None
+
+    monkeypatch.setattr(booking_notice, "build_notification_service", lambda session: _Notices())
+    h = Holds()
+    studio = await h.flat()
+    booking = Booking(company_id=COMPANY_ID, property_id=studio.id, check_in=datetime(2030, 10, 20, 14),
+                      check_out=datetime(2030, 10, 22, 12), adults_count=2, total_price=Decimal("50000"),
+                      expires_at=datetime(2030, 10, 1, 9, 45))
+    held = OfferBooking(booking=booking, flat=studio.public_code, deposit=Decimal("10000"),
+                        phone="+77012345678", name="Айгерим")
+    await booking_notice.notify_guest_hold(None, held, h.props, _NoSettings())
+    [(event, payload)] = queued
+    assert event == NotificationEvent.GUEST_HOLD
+    # 09:45 UTC is 14:45 in Almaty, the company's default clock.
+    assert (payload["until"], payload["guest_name"], payload["deposit"], payload["total_price"]) == (
+        "14:45", "Айгерим", "10000", "50000"
+    )
+
+
+def test_the_host_is_asked_to_send_the_kaspi_invoice():
+    payload = {
+        "property_name": "Двухкомнатная", "guest_name": "Ерлан Сапаров", "phone": "+7 701 234 56 78",
+        "check_in": "20.10.2030 14:00", "check_out": "22.10.2030 12:00", "guests": 2,
+        "deposit": "10000", "total_price": "50000", "until": "14:45", "booking_id": str(uuid.uuid4()),
+    }
+    text = render(NotificationEvent.GUEST_HOLD, payload)
+    for part in ("счёт Kaspi", "10 000 ₸", "+7 701 234 56 78", "Ерлан Сапаров", "до 14:45", "50 000 ₸"):
+        assert part in text, part
+    no_deposit = render(NotificationEvent.GUEST_HOLD, {**payload, "deposit": None})
+    assert "Kaspi" not in no_deposit and "подтвердите" in no_deposit
+
+
+@pytest.mark.integration
+async def test_booking_from_a_link_through_the_api(flat):  # noqa: F811  (the imported fixture)
+    client, prop, use = flat
+    soon = date.today() + timedelta(days=10)
+    use(Permission.BOOKINGS_READ, Permission.BOOKINGS_WRITE, Permission.PROPERTIES_READ)
+    created = await client.post("/api/v1/offers", json={
+        "guest_name": "Ерлан Сапаров", "guest_phone": "+77012345678", "check_in": soon.isoformat(),
+        "check_out": (soon + timedelta(days=2)).isoformat(), "guests": 2, "property_ids": [str(prop)],
+    })
+    assert created.status_code == 201, created.text
+    code = created.json()["code"]
+    flat_code = (await client.get(f"/api/v1/properties/{prop}")).json()["public_code"]
+
+    use()  # the guest: no credential at all
+    wrong = await client.post(f"/api/v1/public/offers/{code}/book", json={"flat": "nosuchflat", "guests": 2})
+    assert wrong.status_code == 404
+    booked = await client.post(f"/api/v1/public/offers/{code}/book", json={"flat": flat_code, "guests": 2})
+    assert booked.status_code == 201, booked.text
+    assert booked.json()["flat"] == flat_code and booked.json()["phone"] == "+7 701 ••• •• 78"
+    assert booked.json()["expires_at"] and (booked.json()["guests"], booked.json()["total"]) == (2, 40000.0)
+    again = await client.post(f"/api/v1/public/offers/{code}/book", json={"flat": flat_code, "guests": 2})
+    assert again.status_code == 409
+    no_link = await client.post("/api/v1/public/offers/nosuchcode/book", json={"flat": flat_code, "guests": 2})
+    assert no_link.status_code == 404
+    page = (await client.get(f"/api/v1/public/offers/{code}")).json()
+    assert page["booking"]["flat"] == flat_code and page["booking"]["status"] == "pending"
+    assert "2345678" not in str(page)

@@ -19,6 +19,7 @@ class PricingConfigInput:
     hourly_price: Decimal = Decimal("0")
     weekend_markup: Decimal = Decimal("0")
     default_deposit: Decimal = Decimal("0")
+    hourly_deposit: Decimal = Decimal("0")
     extra_adult_price: Decimal = Decimal("0")
     extra_child_price: Decimal = Decimal("0")
     base_guests: int = 1
@@ -57,6 +58,7 @@ class ManagePricingService:
             existing.hourly_price = inp.hourly_price
             existing.weekend_markup = inp.weekend_markup
             existing.default_deposit = inp.default_deposit
+            existing.hourly_deposit = inp.hourly_deposit
             existing.extra_adult_price = inp.extra_adult_price
             existing.extra_child_price = inp.extra_child_price
             existing.base_guests = inp.base_guests
@@ -67,6 +69,7 @@ class ManagePricingService:
             hourly_price=inp.hourly_price,
             weekend_markup=inp.weekend_markup,
             default_deposit=inp.default_deposit,
+            hourly_deposit=inp.hourly_deposit,
             extra_adult_price=inp.extra_adult_price,
             extra_child_price=inp.extra_child_price,
             base_guests=inp.base_guests,
@@ -101,6 +104,12 @@ class ManagePricingService:
         price_id: uuid.UUID,
     ) -> None:
         await self._check_property(property_id, company_id)
+        # The id must be one of this flat's: the flat check alone would let any
+        # company delete another's season by its id.
+        pricing = await self._pricing_repo.get_by_property(property_id)
+        own = await self._seasonal_repo.list_by_pricing_config(pricing.id) if pricing else []
+        if price_id not in {s.id for s in own}:
+            raise ValueError("Seasonal price not found")
         await self._seasonal_repo.delete(price_id)
 
     async def list_seasonal_prices(
@@ -134,6 +143,11 @@ class ManagePricingService:
         rule_id: uuid.UUID,
     ) -> None:
         await self._check_property(property_id, company_id)
+        # As for seasons: only one of this flat's own rules.
+        pricing = await self._pricing_repo.get_by_property(property_id)
+        own = await self._discount_repo.list_by_pricing_config(pricing.id) if pricing else []
+        if rule_id not in {r.id for r in own}:
+            raise ValueError("Discount rule not found")
         await self._discount_repo.delete(rule_id)
 
     async def list_discount_rules(

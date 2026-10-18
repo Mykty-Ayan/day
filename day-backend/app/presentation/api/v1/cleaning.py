@@ -160,7 +160,11 @@ def _forbid_other_cleaner(scope: uuid.UUID | None, cleaner_id: uuid.UUID | None)
 
 
 async def _assert_company_cleaner(session: AsyncSession, cleaner_id: uuid.UUID, company_id: uuid.UUID) -> None:
-    """Guard the cleaner-id path params, which would otherwise cross tenants."""
+    """Guard a cleaner id from the path or the body, which would otherwise cross tenants.
+
+    404 for an unknown id and for another company's alike, so the reply does not
+    say which ids exist elsewhere.
+    """
     user = await SqlUserRepository(session).get_by_id(cleaner_id)
     if user is None or user.company_id != company_id:
         raise HTTPException(status_code=404, detail="Cleaner not found")
@@ -180,6 +184,8 @@ async def create_cleaning_task(
     session: AsyncSession = Depends(get_session),
     company_id: uuid.UUID = Depends(get_company_id),
 ):
+    if body.cleaner_id is not None:
+        await _assert_company_cleaner(session, body.cleaner_id, company_id)
     repos = _repos(session)
     svc = CreateCleaningTaskService(repos["task"], repos["property"])
     try:
@@ -354,6 +360,7 @@ async def assign_cleaner(
     session: AsyncSession = Depends(get_session),
     company_id: uuid.UUID = Depends(get_company_id),
 ):
+    await _assert_company_cleaner(session, body.cleaner_id, company_id)
     repos = _repos(session)
     svc = AssignCleanerService(repos["task"])
     try:
@@ -401,7 +408,12 @@ async def submit_report(
     session: AsyncSession = Depends(get_session),
     company_id: uuid.UUID = Depends(get_company_id),
     scope: uuid.UUID | None = Depends(cleaner_scope),
+    principal: Principal = Depends(get_principal),
 ):
+    # A report finishes the task, so it is writing: cleaning:write, or a cleaner
+    # on their own task. cleaning:read alone, or "own" on a key, files nothing.
+    if scope is None and not principal.has(Permission.CLEANING_WRITE):
+        raise HTTPException(status_code=403, detail="Insufficient permissions")
     repos = _repos(session)
     if scope is not None:
         task = await repos["task"].get_by_id(task_id)
@@ -410,6 +422,7 @@ async def submit_report(
         _forbid_other_cleaner(scope, task.cleaner_id)
         if body.cleaner_id != scope:
             raise HTTPException(status_code=403, detail="A report can only be filed under your own account")
+    await _assert_company_cleaner(session, body.cleaner_id, company_id)
     svc = SubmitReportService(
         repos["task"], repos["report"], repos["photo"], repos["report_checklist"]
     )
@@ -649,6 +662,7 @@ async def rate_cleaner(
     company_id: uuid.UUID = Depends(get_company_id),
     user_id: uuid.UUID | None = Depends(get_user_id),
 ):
+    await _assert_company_cleaner(session, body.cleaner_id, company_id)
     repos = _repos(session)
     svc = RateCleanerService(repos["rating"], repos["task"])
     try:

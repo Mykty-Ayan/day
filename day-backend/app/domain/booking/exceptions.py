@@ -1,5 +1,7 @@
 """Errors the booking domain raises on purpose."""
 
+from app.domain.booking.stay_rules import RuleBreach
+
 
 class BookingOverlapError(ValueError):
     """The stay shares a night with an active booking of the same property.
@@ -35,3 +37,39 @@ class IdempotencyKeyVoidedError(ValueError):
 
     def __init__(self) -> None:
         super().__init__("Idempotency-Key was voided")
+
+
+class StayRulesError(ValueError):
+    """The booking breaks the apartment's stay rules (nights, cleaning buffer, lead time).
+
+    A ValueError, so the assistant and the guest bot keep catching it; the HTTP
+    layer answers 422 with the breaches, and the operator may send the same
+    request again with override_rules.
+    """
+
+    def __init__(self, breaches: list[RuleBreach]) -> None:
+        self.breaches = breaches
+        broken = ", ".join(f"{b.rule} {b.limit} (booking: {b.actual})" for b in breaches)
+        super().__init__(f"Booking breaks the apartment's stay rules: {broken}")
+
+
+class PropertyBlockedError(ValueError):
+    """The stay falls on nights the flat is closed (a block). The HTTP layer answers 409."""
+
+    def __init__(self) -> None:
+        super().__init__("Dates are blocked")
+
+
+class BlockOverlapsBookingError(ValueError):
+    """A block would close nights a booking already holds. The HTTP layer answers 409."""
+
+    def __init__(self) -> None:
+        super().__init__("Dates have bookings")
+
+
+class BlockFromCalendarError(ValueError):
+    """A block taken from a platform's calendar: that calendar keeps it, and it comes
+    back on the next read if removed by hand. The HTTP layer answers 409."""
+
+    def __init__(self) -> None:
+        super().__init__("The block comes from a platform calendar")

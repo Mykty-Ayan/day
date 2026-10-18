@@ -30,6 +30,7 @@ import type { Booking } from '../../types/booking'
 import type { Property } from '../../types/property'
 import AskScreen from './AskScreen'
 import BookSheet from './BookSheet'
+import { attemptSheet, companyFromToken, loadBookingAttempt, phoneStorage } from './book-attempt'
 import BookingSheet from './BookingSheet'
 import CleanerScreen from './CleanerScreen'
 import CleaningSheet from './CleaningSheet'
@@ -77,6 +78,12 @@ export default function MiniAppPage() {
   const [offerOpen, setOfferOpen] = useState(false)
   const [booking, setBooking] = useState<Booking | null>(null)
   const [toBook, setToBook] = useState<{ unit: AvailableProperty; range: SellRange } | null>(null)
+  // A booking whose answer was lost, kept on the phone until it is settled. Read on
+  // every render of the sell tab: the book sheet saves and clears it.
+  const stuck =
+    tab === 'sell'
+      ? loadBookingAttempt(phoneStorage(), companyFromToken(phoneStorage()?.getItem('access_token') ?? null) ?? 'unknown')
+      : null
   const [cleaningFor, setCleaningFor] = useState<Booking | null>(null)
   const [unitId, setUnitId] = useState<string | null>(null)
   // A bot notice's "Open booking" button lands here with ?booking=<id>.
@@ -328,12 +335,24 @@ export default function MiniAppPage() {
         )}
 
         {tab === 'sell' && (
-          <SellScreen
-            enabled={enabled}
-            today={today}
-            onOffer={() => setOfferOpen(true)}
-            onPick={(unit, range) => setToBook({ unit, range })}
-          />
+          <>
+            {stuck && !toBook && (
+              // Here, not only in a flat's sheet: the lost answer may be the booking
+              // that took the last free flat, and then no flat is left to open.
+              <div role="alert" className="tg-surface space-y-2 rounded-xl px-3 py-3">
+                <p className="text-sm">{t('miniapp.book.pending', { unit: stuck.unit, guest: stuck.body.guest_name })}</p>
+                <ActionButton tone="primary" onClick={() => setToBook(attemptSheet(stuck))}>
+                  {t('miniapp.book.settle')}
+                </ActionButton>
+              </div>
+            )}
+            <SellScreen
+              enabled={enabled}
+              today={today}
+              onOffer={() => setOfferOpen(true)}
+              onPick={(unit, range) => setToBook({ unit, range })}
+            />
+          </>
         )}
 
         {tab === 'units' && (

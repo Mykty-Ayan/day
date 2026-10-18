@@ -44,8 +44,9 @@ from app.domain.booking.value_objects import (
     PaymentType,
     RentalMode,
 )
-from app.domain.property.entities import DiscountRule, PricingConfig, Property, SeasonalPrice
+from app.domain.property.entities import DayPrice, DiscountRule, PricingConfig, Property, SeasonalPrice
 from app.domain.property.repositories import (
+    DayPriceRepository,
     DiscountRuleRepository,
     PricingConfigRepository,
     PropertyRepository,
@@ -69,6 +70,9 @@ class FakePropertyRepository(PropertyRepository):
 
     async def get_by_id(self, property_id: uuid.UUID) -> Property | None:
         return self._properties.get(property_id)
+
+    async def get_by_public_code(self, code):
+        return next((p for p in self._properties.values() if p.public_code == code), None)
 
     async def list_by_company(self, company_id, *, offset=0, limit=50, status=None, search=None):
         return [p for p in self._properties.values() if p.company_id == company_id]
@@ -98,6 +102,32 @@ class FakeBookingRepository(BookingRepository):
     def __init__(self) -> None:
         self._bookings: dict[uuid.UUID, Booking] = {}
         self._voided: set[tuple[uuid.UUID, str]] = set()
+        self._blocks: dict[uuid.UUID, object] = {}
+
+    async def list_blocks(self, property_id, date_from, date_to):
+        return [
+            b for b in self._blocks.values()
+            if b.property_id == property_id and b.start_date < date_to and b.end_date > date_from
+        ]
+
+    async def list_company_blocks(self, company_id, date_from, date_to):
+        return [
+            b for b in self._blocks.values()
+            if b.company_id == company_id and b.start_date < date_to and b.end_date > date_from
+        ]
+
+    async def add_block(self, block):
+        self._blocks[block.id] = block
+        return block
+
+    async def get_block(self, block_id):
+        return self._blocks.get(block_id)
+
+    async def delete_block(self, block_id):
+        self._blocks.pop(block_id, None)
+
+    async def list_feed_blocks(self, feed_id):
+        return [b for b in self._blocks.values() if b.feed_id == feed_id]
 
     async def create(self, booking: Booking) -> Booking:
         self._bookings[booking.id] = booking
@@ -135,7 +165,9 @@ class FakeBookingRepository(BookingRepository):
     async def idempotency_key_voided(self, company_id, key):
         return (company_id, key) in self._voided
 
-    async def get_by_property_and_dates(self, property_id, check_in, check_out, *, exclude_id=None) -> list[Booking]:
+    async def get_by_property_and_dates(
+        self, property_id, check_in, check_out, *, exclude_id=None, include_completed=False
+    ) -> list[Booking]:
         result = []
         for b in self._bookings.values():
             if b.property_id != property_id:
@@ -403,6 +435,30 @@ class FakeSeasonalPriceRepository(SeasonalPriceRepository):
         self._prices.pop(price_id, None)
 
 
+class FakeDayPriceRepository(DayPriceRepository):
+    def __init__(self) -> None:
+        self._prices: dict[tuple[uuid.UUID, date], DayPrice] = {}
+
+    async def list_for_property(self, property_id, date_from, date_to):
+        return sorted(
+            (p for p in self._prices.values() if p.property_id == property_id and date_from <= p.date < date_to),
+            key=lambda p: p.date,
+        )
+
+    async def list_for_company(self, company_id, date_from, date_to):
+        return [p for p in self._prices.values() if p.company_id == company_id and date_from <= p.date < date_to]
+
+    async def set_prices(self, company_id, property_id, nights, price):
+        for night in nights:
+            self._prices[(property_id, night)] = DayPrice(
+                company_id=company_id, property_id=property_id, date=night, price=price
+            )
+
+    async def clear(self, property_id, date_from, date_to):
+        for key in [k for k in self._prices if k[0] == property_id and date_from <= k[1] < date_to]:
+            del self._prices[key]
+
+
 class FakeDiscountRuleRepository(DiscountRuleRepository):
     def __init__(self) -> None:
         self._rules: dict[uuid.UUID, DiscountRule] = {}
@@ -477,11 +533,14 @@ def _make_pricing_config(property_id: uuid.UUID, base_price: Decimal = Decimal("
     return PricingConfig(property_id=property_id, base_price=base_price)
 
 
-def _build_price_calculator(pricing_repo=None, seasonal_repo=None, discount_repo=None) -> PriceCalculatorService:
+def _build_price_calculator(
+    pricing_repo=None, seasonal_repo=None, discount_repo=None, day_price_repo=None
+) -> PriceCalculatorService:
     return PriceCalculatorService(
         pricing_repo or FakePricingConfigRepository(),
         seasonal_repo or FakeSeasonalPriceRepository(),
         discount_repo or FakeDiscountRuleRepository(),
+        day_price_repo or FakeDayPriceRepository(),
     )
 
 

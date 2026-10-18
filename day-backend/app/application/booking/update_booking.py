@@ -4,6 +4,7 @@ import uuid
 from dataclasses import dataclass, field
 from decimal import Decimal
 
+from app.application.booking.blocks import ensure_not_blocked
 from app.application.booking.create_booking import (
     apply_default_times,
     settle_boundary,
@@ -11,8 +12,9 @@ from app.application.booking.create_booking import (
     validate_rental_mode_allowed,
 )
 from app.application.booking.price_calculator import PriceCalculatorService
+from app.application.booking.stay_rules import overridden_rules, stay_rule_breaches
 from app.domain.booking.entities import Booking, BookingAuditLog
-from app.domain.booking.exceptions import BookingOverlapError
+from app.domain.booking.exceptions import BookingOverlapError, StayRulesError
 from app.domain.booking.repositories import (
     BookingAuditLogRepository,
     BookingRepository,
@@ -24,6 +26,7 @@ from app.domain.booking.value_objects import (
     RentalMode,
 )
 from app.domain.property.repositories import PropertyRepository
+from app.domain.settings.repositories import CompanySettingsRepository
 
 _UNSET = object()
 
@@ -45,6 +48,8 @@ class UpdateBookingInput:
     notes: object = field(default=_UNSET)
     # Naive UTC; None releases the hold.
     expires_at: object = field(default=_UNSET)
+    # The operator confirmed new dates that break the apartment's stay rules.
+    override_rules: bool = False
 
 
 class UpdateBookingService:
@@ -54,14 +59,19 @@ class UpdateBookingService:
         property_repo: PropertyRepository,
         audit_repo: BookingAuditLogRepository,
         price_calculator: PriceCalculatorService,
+        settings_repo: CompanySettingsRepository | None = None,
     ) -> None:
         self._booking_repo = booking_repo
         self._property_repo = property_repo
         self._audit_repo = audit_repo
         self._price_calculator = price_calculator
+        # The company's clock for the lead-time rule; without it, the default zone.
+        self._settings_repo = settings_repo
 
     async def execute(self, inp: UpdateBookingInput) -> Booking:
-        booking = await self._booking_repo.get_by_id(inp.booking_id)
+        # Locked: the save below writes the whole row, and a stale read would put
+        # back whatever another request changed meanwhile.
+        booking = await self._booking_repo.get_for_update(inp.booking_id)
         if booking is None:
             raise ValueError("Booking not found")
         if booking.company_id != inp.company_id:
@@ -77,6 +87,7 @@ class UpdateBookingService:
         # The web form sends the saved dates and mode back with any edit; only
         # a value that differs from these is new and gets the flat's hours.
         saved_in, saved_out, saved_mode = booking.check_in, booking.check_out, booking.rental_mode
+        saved_guests = (booking.adults_count, booking.children_count)
         # A price the operator typed in by hand is their number and survives a
         # date change; one the system worked out should follow the new dates.
         price_was_system_set = booking.total_price == booking.calculated_price
@@ -157,27 +168,54 @@ class UpdateBookingService:
             )
             if overlapping:
                 raise BookingOverlapError()
-            # The new dates clash with nothing, so an OTA overbooking is resolved.
-            booking.overbooking = False
-
-            # Recalculate price
-            try:
-                breakdown = await self._price_calculator.calculate(
+            # The form sends the saved dates back with any edit: only a stay that
+            # really moved is checked, and the lead time only for a new check-in.
+            moved = (booking.check_in, booking.check_out, booking.rental_mode) != (saved_in, saved_out, saved_mode)
+            if moved and prop is not None:
+                await ensure_not_blocked(
+                    self._booking_repo, prop, booking.check_in, booking.check_out, booking.source.value
+                )
+                breaches = await stay_rule_breaches(
+                    prop,
                     booking.property_id,
                     booking.check_in,
                     booking.check_out,
-                    booking.adults_count,
-                    booking.children_count,
                     booking.rental_mode,
+                    company_id=inp.company_id,
+                    booking_repo=self._booking_repo,
+                    settings_repo=self._settings_repo,
+                    exclude_id=booking.id,
+                    with_lead_time=booking.check_in != saved_in,
                 )
-                booking.calculated_price = breakdown.total
-                # Without this an extra night is added for free: the charge
-                # stays on the old dates while the stay grows.
-                if price_was_system_set and inp.total_price is _UNSET:
-                    _track("total_price", str(booking.total_price), str(breakdown.total))
-                    booking.total_price = breakdown.total
-            except ValueError:
-                pass  # No pricing config, keep existing calculated_price
+                if breaches and not inp.override_rules:
+                    raise StayRulesError(breaches)
+                if breaches:
+                    changes.append(("stay_rules_overridden", None, overridden_rules(breaches)))
+            # The new dates clash with nothing, so an OTA overbooking is resolved.
+            booking.overbooking = False
+
+            # Recalculate price, only for new dates or guests: the form sends the saved
+            # ones back with any edit, and a price set since (a calendar price) must
+            # not change a stay booked before it.
+            repriced = moved or (booking.adults_count, booking.children_count) != saved_guests
+            if repriced:
+                try:
+                    breakdown = await self._price_calculator.calculate(
+                        booking.property_id,
+                        booking.check_in,
+                        booking.check_out,
+                        booking.adults_count,
+                        booking.children_count,
+                        booking.rental_mode,
+                    )
+                    booking.calculated_price = breakdown.total
+                    # Without this an extra night is added for free: the charge
+                    # stays on the old dates while the stay grows.
+                    if price_was_system_set and inp.total_price is _UNSET:
+                        _track("total_price", str(booking.total_price), str(breakdown.total))
+                        booking.total_price = breakdown.total
+                except ValueError:
+                    pass  # No pricing config, keep existing calculated_price
 
         updated = await self._booking_repo.update(booking)
 

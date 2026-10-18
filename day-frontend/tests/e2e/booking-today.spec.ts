@@ -6,6 +6,18 @@ import {
   API_BASE,
 } from '../fixtures/test-data'
 
+/**
+ * The calendar day as the page sees it: the Today page asks the backend for the day
+ * of the browser's time zone, which need not be the time zone of this Node process.
+ */
+async function browserDate(page: import('@playwright/test').Page, offsetDays = 0): Promise<string> {
+  return page.evaluate((offset) => {
+    const d = new Date()
+    d.setDate(d.getDate() + offset)
+    return d.toLocaleDateString('en-CA') // yyyy-mm-dd
+  }, offsetDays)
+}
+
 test.describe('Booking Today View - E2E', () => {
   let bookingIdsToCleanup: string[] = []
   let propertyIdsToCleanup: string[] = []
@@ -15,15 +27,18 @@ test.describe('Booking Today View - E2E', () => {
   ) {
     const data = createTestProperty()
     const res = await request.post(`${API_BASE}/properties`, { data })
+    expect(res.ok(), `POST properties: ${res.status()}`).toBeTruthy()
     const prop = await res.json()
     propertyIdsToCleanup.push(prop.id)
 
-    await request.post(`${API_BASE}/properties/${prop.id}/status`, {
+    const statusRes = await request.post(`${API_BASE}/properties/${prop.id}/status`, {
       data: { status: 'active' },
     })
-    await request.put(`${API_BASE}/properties/${prop.id}/pricing`, {
+    expect(statusRes.ok(), `POST property status: ${statusRes.status()}`).toBeTruthy()
+    const pricingRes = await request.put(`${API_BASE}/properties/${prop.id}/pricing`, {
       data: createTestPricing(),
     })
+    expect(pricingRes.ok(), `PUT pricing: ${pricingRes.status()}`).toBeTruthy()
 
     return prop
   }
@@ -35,6 +50,7 @@ test.describe('Booking Today View - E2E', () => {
   ) {
     const data = createTestBooking(propId, overrides)
     const res = await request.post(`${API_BASE}/bookings`, { data })
+    expect(res.ok(), `POST bookings: ${res.status()}`).toBeTruthy()
     const booking = await res.json()
     bookingIdsToCleanup.push(booking.id)
     return { ...booking, guest_name: data.guest_name }
@@ -45,9 +61,21 @@ test.describe('Booking Today View - E2E', () => {
     bookingId: string,
     status: string,
   ) {
-    await request.post(`${API_BASE}/bookings/${bookingId}/status`, {
+    const res = await request.post(`${API_BASE}/bookings/${bookingId}/status`, {
       data: { status },
     })
+    expect(res.ok(), `POST status ${status}: ${res.status()}`).toBeTruthy()
+  }
+
+  /** The status from the API. A failed request becomes a value, not a throw: a throw would stop expect.poll at once. */
+  async function bookingStatus(
+    request: import('@playwright/test').APIRequestContext,
+    bookingId: string,
+  ): Promise<string> {
+    // maxRetries: the dev backend sometimes resets a kept-alive connection
+    const res = await request.get(`${API_BASE}/bookings/${bookingId}`, { maxRetries: 3 })
+    if (!res.ok()) return `HTTP ${res.status()}`
+    return (await res.json()).booking.status
   }
 
   test.afterEach(async ({ request }) => {
@@ -63,50 +91,30 @@ test.describe('Booking Today View - E2E', () => {
 
   test('today page shows check-ins', async ({ page, request }) => {
     const prop = await setupActiveProperty(request)
-    const today = new Date().toISOString().slice(0, 10)
 
-    // Create a booking that checks in today
     const booking = await createBookingViaApi(request, prop.id, {
-      check_in: today,
-      check_out: (() => {
-        const d = new Date()
-        d.setDate(d.getDate() + 3)
-        return d.toISOString().slice(0, 10)
-      })(),
+      check_in: await browserDate(page),
+      check_out: await browserDate(page, 3),
       guest_name: 'CheckIn Today Guest',
     })
-
-    // Confirm it so it shows in today's check-ins
     await transitionViaApi(request, booking.id, 'confirmed')
 
-    await page.goto('/today')
+    await page.goto('/bookings/today')
     await page.waitForLoadState('networkidle')
 
-    // Check-ins section
-    const checkInsSection = page.locator(
-      '[data-testid="check-ins"], [class*="check-in"]',
-    ).first()
-
-    if (await checkInsSection.isVisible({ timeout: 5000 }).catch(() => false)) {
-      await expect(page.getByText('CheckIn Today Guest')).toBeVisible({ timeout: 5000 })
-    } else {
-      // Might be a combined list - just verify the guest name appears
-      await expect(page.getByText('CheckIn Today Guest')).toBeVisible({ timeout: 5000 })
-    }
+    // The guest is the only one in the check-ins column, and in no other column
+    await expect(page.getByRole('heading', { name: /check-ins today\s*\(1\)/i })).toBeVisible()
+    await expect(page.getByRole('heading', { name: /check-outs today\s*\(0\)/i })).toBeVisible()
+    await expect(page.getByRole('heading', { name: /in-house\s*\(0\)/i })).toBeVisible()
+    await expect(page.getByText('CheckIn Today Guest')).toBeVisible()
   })
 
   test('today page shows check-outs', async ({ page, request }) => {
     const prop = await setupActiveProperty(request)
-    const today = new Date().toISOString().slice(0, 10)
-
-    // Create a booking that checks out today
-    const checkInDate = new Date()
-    checkInDate.setDate(checkInDate.getDate() - 3)
-    const checkIn = checkInDate.toISOString().slice(0, 10)
 
     const booking = await createBookingViaApi(request, prop.id, {
-      check_in: checkIn,
-      check_out: today,
+      check_in: await browserDate(page, -3),
+      check_out: await browserDate(page),
       guest_name: 'CheckOut Today Guest',
     })
 
@@ -114,84 +122,60 @@ test.describe('Booking Today View - E2E', () => {
     await transitionViaApi(request, booking.id, 'confirmed')
     await transitionViaApi(request, booking.id, 'checked_in')
 
-    await page.goto('/today')
+    await page.goto('/bookings/today')
     await page.waitForLoadState('networkidle')
 
-    const checkOutsSection = page.locator(
-      '[data-testid="check-outs"], [class*="check-out"]',
-    ).first()
-
-    if (await checkOutsSection.isVisible({ timeout: 5000 }).catch(() => false)) {
-      await expect(page.getByText('CheckOut Today Guest')).toBeVisible({ timeout: 5000 })
-    } else {
-      await expect(page.getByText('CheckOut Today Guest')).toBeVisible({ timeout: 5000 })
-    }
+    // The guest leaves today: they are in the check-outs column and no longer in-house
+    await expect(page.getByRole('heading', { name: /check-outs today\s*\(1\)/i })).toBeVisible()
+    await expect(page.getByRole('heading', { name: /check-ins today\s*\(0\)/i })).toBeVisible()
+    await expect(page.getByRole('heading', { name: /in-house\s*\(0\)/i })).toBeVisible()
+    await expect(page.getByText('CheckOut Today Guest')).toBeVisible()
   })
 
   test('quick check-in action works', async ({ page, request }) => {
     const prop = await setupActiveProperty(request)
-    const today = new Date().toISOString().slice(0, 10)
 
     const booking = await createBookingViaApi(request, prop.id, {
-      check_in: today,
-      check_out: (() => {
-        const d = new Date()
-        d.setDate(d.getDate() + 3)
-        return d.toISOString().slice(0, 10)
-      })(),
+      check_in: await browserDate(page),
+      check_out: await browserDate(page, 3),
       guest_name: 'Quick CheckIn Guest',
     })
-
     await transitionViaApi(request, booking.id, 'confirmed')
 
-    await page.goto('/today')
+    await page.goto('/bookings/today')
     await page.waitForLoadState('networkidle')
 
-    // Find quick check-in button near the booking
-    const checkInBtn = page.getByRole('button', { name: /check.?in/i }).first()
-    if (await checkInBtn.isVisible({ timeout: 5000 }).catch(() => false)) {
-      await checkInBtn.click()
+    // The button acts at once (there is no confirmation dialog)
+    await page.getByRole('button', { name: 'Check In' }).click()
 
-      const confirmBtn = page.getByRole('button', { name: /confirm|yes/i })
-      if (await confirmBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
-        await confirmBtn.click()
-      }
-
-      // Status should update
-      await expect(page.getByText(/checked.?in/i).first()).toBeVisible({ timeout: 5000 })
-    }
+    await expect.poll(() => bookingStatus(request, booking.id)).toBe('checked_in')
+    // A checked-in guest moves from the check-ins column to the in-house one
+    await expect(page.getByRole('heading', { name: /in-house\s*\(1\)/i })).toBeVisible()
+    await expect(page.getByRole('heading', { name: /check-ins today\s*\(0\)/i })).toBeVisible()
+    await expect(page.getByText('Checked In', { exact: true })).toBeVisible()
   })
 
   test('quick check-out action works', async ({ page, request }) => {
     const prop = await setupActiveProperty(request)
-    const today = new Date().toISOString().slice(0, 10)
-
-    const checkInDate = new Date()
-    checkInDate.setDate(checkInDate.getDate() - 3)
-    const checkIn = checkInDate.toISOString().slice(0, 10)
 
     const booking = await createBookingViaApi(request, prop.id, {
-      check_in: checkIn,
-      check_out: today,
+      check_in: await browserDate(page, -3),
+      check_out: await browserDate(page),
       guest_name: 'Quick CheckOut Guest',
     })
 
     await transitionViaApi(request, booking.id, 'confirmed')
     await transitionViaApi(request, booking.id, 'checked_in')
 
-    await page.goto('/today')
+    await page.goto('/bookings/today')
     await page.waitForLoadState('networkidle')
 
-    const checkOutBtn = page.getByRole('button', { name: /check.?out/i }).first()
-    if (await checkOutBtn.isVisible({ timeout: 5000 }).catch(() => false)) {
-      await checkOutBtn.click()
+    // The button acts at once (there is no confirmation dialog)
+    await page.getByRole('button', { name: 'Check Out' }).click()
 
-      const confirmBtn = page.getByRole('button', { name: /confirm|yes/i })
-      if (await confirmBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
-        await confirmBtn.click()
-      }
-
-      await expect(page.getByText(/checked.?out/i).first()).toBeVisible({ timeout: 5000 })
-    }
+    await expect.poll(() => bookingStatus(request, booking.id)).toBe('checked_out')
+    // A guest who has left stays in the check-outs column: the flat still needs a cleaning
+    await expect(page.getByText('Checked Out', { exact: true })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Check Out' })).toBeHidden()
   })
 })

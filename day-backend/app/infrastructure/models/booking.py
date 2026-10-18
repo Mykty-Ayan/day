@@ -1,14 +1,18 @@
 import uuid
-from datetime import datetime
+from datetime import date, datetime
 
 from sqlalchemy import (
+    JSON,
     Boolean,
+    CheckConstraint,
+    Date,
     DateTime,
     ForeignKey,
     Integer,
     Numeric,
     String,
     Text,
+    UniqueConstraint,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -238,3 +242,73 @@ class BookingAuditLogModel(Base):
     created_at: Mapped[datetime] = mapped_column(default=datetime.utcnow)
 
     booking: Mapped["BookingModel"] = relationship(back_populates="audit_logs")
+
+
+class PropertyBlockModel(Base):
+    """Nights a flat is closed without a booking (migration 037)."""
+
+    __tablename__ = "property_blocks"
+    __table_args__ = (
+        CheckConstraint("end_date > start_date", name="ck_property_blocks_nights"),
+        UniqueConstraint("feed_id", "external_uid", name="uq_property_blocks_feed_event"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    company_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("companies.id"), index=True)
+    property_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("properties.id", ondelete="CASCADE"), index=True)
+    start_date: Mapped[date] = mapped_column(Date)
+    end_date: Mapped[date] = mapped_column(Date)
+    # The span itself, fixed when the block is made (see PropertyBlock).
+    starts_at: Mapped[datetime] = mapped_column(DateTime)
+    ends_at: Mapped[datetime] = mapped_column(DateTime)
+    reason: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    # Who closed the nights; like the audit log's changed_by, a plain id.
+    created_by: Mapped[uuid.UUID | None] = mapped_column(nullable=True)
+    created_at: Mapped[datetime] = mapped_column(default=datetime.utcnow)
+    # Taken from a platform calendar (migration 039): that calendar and its event.
+    feed_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("calendar_feeds.id", ondelete="CASCADE"), nullable=True, index=True
+    )
+    external_uid: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    source: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    reserved: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+
+
+class CalendarFeedModel(Base):
+    """A platform's iCal calendar of a flat, read on a timer (migration 039)."""
+
+    __tablename__ = "calendar_feeds"
+    __table_args__ = (UniqueConstraint("property_id", "url", name="uq_calendar_feeds_url"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    company_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("companies.id"), index=True)
+    property_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("properties.id", ondelete="CASCADE"), index=True)
+    name: Mapped[str] = mapped_column(String(100))
+    url: Mapped[str] = mapped_column(Text)
+    source: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    last_synced_at: Mapped[datetime | None] = mapped_column(nullable=True)
+    last_error: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(default=datetime.utcnow)
+
+
+class GuestOfferModel(Base):
+    """A personal link for a guest: flats for the guest's dates (migration 041)."""
+
+    __tablename__ = "guest_offers"
+    __table_args__ = (CheckConstraint("check_out > check_in", name="ck_guest_offers_nights"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    company_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("companies.id"), index=True)
+    code: Mapped[str] = mapped_column(String(16), unique=True)
+    guest_name: Mapped[str] = mapped_column(String(255))
+    guest_phone: Mapped[str] = mapped_column(String(50))
+    check_in: Mapped[date] = mapped_column(Date)
+    check_out: Mapped[date] = mapped_column(Date)
+    guests: Mapped[int] = mapped_column(Integer)
+    property_ids: Mapped[list] = mapped_column(JSON)
+    created_by: Mapped[uuid.UUID | None] = mapped_column(nullable=True)
+    # Migration 042.
+    booking_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("bookings.id", name="fk_guest_offers_booking_id", ondelete="SET NULL"), nullable=True
+    )
+    created_at: Mapped[datetime] = mapped_column(default=datetime.utcnow)

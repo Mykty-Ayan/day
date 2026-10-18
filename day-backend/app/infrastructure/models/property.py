@@ -2,7 +2,9 @@ import uuid
 from datetime import date, datetime
 
 from sqlalchemy import (
+    JSON,
     Boolean,
+    CheckConstraint,
     Date,
     Float,
     ForeignKey,
@@ -14,6 +16,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from app.domain.property.entities import new_public_code
 from app.infrastructure.database import Base
 
 
@@ -24,6 +27,8 @@ class PropertyModel(Base):
     company_id: Mapped[uuid.UUID] = mapped_column(index=True)
     name: Mapped[str] = mapped_column(String(255))
     internal_name: Mapped[str] = mapped_column(String(255))
+    # Any flat written without one (a script, a test) still gets its code.
+    public_code: Mapped[str] = mapped_column(String(16), unique=True, default=new_public_code)
     type: Mapped[str] = mapped_column(String(50))
     status: Mapped[str] = mapped_column(String(50), default="new")
     rental_mode: Mapped[str] = mapped_column(String(20), default="daily")
@@ -38,6 +43,17 @@ class PropertyModel(Base):
     entrance: Mapped[str | None] = mapped_column(String(50), nullable=True)
     block: Mapped[str | None] = mapped_column(String(50), nullable=True)
     floor: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    complex_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    floors_total: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    map_url: Mapped[str | None] = mapped_column(String(1024), nullable=True)
+    whatsapp_product_url: Mapped[str | None] = mapped_column(String(1024), nullable=True)
+    video_url: Mapped[str | None] = mapped_column(String(1024), nullable=True)
+    listing_urls: Mapped[list] = mapped_column(JSON, nullable=False, default=list, server_default="[]")
+    hourly_listing_urls: Mapped[list] = mapped_column(JSON, nullable=False, default=list, server_default="[]")
+    min_nights: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    max_nights: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    buffer_hours: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    min_lead_hours: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
     # Details
     rooms: Mapped[int | None] = mapped_column(Integer, nullable=True)
@@ -89,6 +105,7 @@ class PropertyPhotoModel(Base):
     sort_order: Mapped[int] = mapped_column(Integer, default=0)
     is_cover: Mapped[bool] = mapped_column(Boolean, default=False)
     caption: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    audience: Mapped[str] = mapped_column(String(20), default="public", server_default="public")
     created_at: Mapped[datetime] = mapped_column(default=datetime.utcnow)
 
     property: Mapped["PropertyModel"] = relationship(back_populates="photos")
@@ -126,6 +143,7 @@ class PricingConfigModel(Base):
     hourly_price: Mapped[float] = mapped_column(Numeric(12, 2), default=0)
     weekend_markup: Mapped[float] = mapped_column(Numeric(12, 2), default=0)
     default_deposit: Mapped[float] = mapped_column(Numeric(12, 2), default=0)
+    hourly_deposit: Mapped[float] = mapped_column(Numeric(12, 2), default=0, server_default="0")
     extra_adult_price: Mapped[float] = mapped_column(Numeric(12, 2), default=0)
     extra_child_price: Mapped[float] = mapped_column(Numeric(12, 2), default=0)
     base_guests: Mapped[int] = mapped_column(Integer, default=1)
@@ -155,6 +173,23 @@ class PropertyCostsModel(Base):
     cleaning_cost: Mapped[float] = mapped_column(Numeric(12, 2), default=0)
     consumables_per_night: Mapped[float] = mapped_column(Numeric(12, 2), default=0)
     created_at: Mapped[datetime] = mapped_column(default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class PropertyDayPriceModel(Base):
+    """A price for one night set on the calendar (migration 038)."""
+
+    __tablename__ = "property_day_prices"
+    __table_args__ = (
+        UniqueConstraint("property_id", "date", name="uq_property_day_prices_night"),
+        CheckConstraint("price > 0", name="ck_property_day_prices_price"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    company_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("companies.id"), index=True)
+    property_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("properties.id", ondelete="CASCADE"))
+    date: Mapped[date] = mapped_column(Date)
+    price: Mapped[float] = mapped_column(Numeric(12, 2))
     updated_at: Mapped[datetime] = mapped_column(default=datetime.utcnow, onupdate=datetime.utcnow)
 
 

@@ -3,9 +3,12 @@ from __future__ import annotations
 import abc
 import uuid
 from collections.abc import Sequence
+from datetime import date
+from decimal import Decimal
 
 from app.domain.property.entities import (
     Amenity,
+    DayPrice,
     DiscountRule,
     PricingConfig,
     Property,
@@ -23,6 +26,10 @@ class PropertyRepository(abc.ABC):
     @abc.abstractmethod
     async def get_by_id(self, property_id: uuid.UUID) -> Property | None: ...
 
+    async def get_by_public_code(self, code: str) -> Property | None:
+        """The flat behind a guest page's code, of any company: the code is the key."""
+        return None
+
     @abc.abstractmethod
     async def list_by_company(
         self,
@@ -32,10 +39,18 @@ class PropertyRepository(abc.ABC):
         limit: int = 50,
         status: PropertyStatus | None = None,
         search: str | None = None,
+        tag_id: uuid.UUID | None = None,
     ) -> list[Property]: ...
 
     @abc.abstractmethod
-    async def count_by_company(self, company_id: uuid.UUID) -> int: ...
+    async def count_by_company(
+        self,
+        company_id: uuid.UUID,
+        *,
+        status: PropertyStatus | None = None,
+        search: str | None = None,
+        tag_id: uuid.UUID | None = None,
+    ) -> int: ...
 
     @abc.abstractmethod
     async def save(self, prop: Property) -> Property: ...
@@ -125,6 +140,25 @@ class SeasonalPriceRepository(abc.ABC):
 
     @abc.abstractmethod
     async def delete(self, price_id: uuid.UUID) -> None: ...
+
+
+class DayPriceRepository(abc.ABC):
+    """Calendar prices by night. Dates are [date_from, date_to), like nights of a stay."""
+
+    @abc.abstractmethod
+    async def list_for_property(self, property_id: uuid.UUID, date_from: date, date_to: date) -> list[DayPrice]: ...
+
+    @abc.abstractmethod
+    async def list_for_company(self, company_id: uuid.UUID, date_from: date, date_to: date) -> list[DayPrice]: ...
+
+    @abc.abstractmethod
+    async def set_prices(
+        self, company_id: uuid.UUID, property_id: uuid.UUID, nights: Sequence[date], price: Decimal
+    ) -> None:
+        """Set the price of each night, replacing one already set."""
+
+    @abc.abstractmethod
+    async def clear(self, property_id: uuid.UUID, date_from: date, date_to: date) -> None: ...
 
 
 class DiscountRuleRepository(abc.ABC):

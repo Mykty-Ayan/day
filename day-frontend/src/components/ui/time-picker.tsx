@@ -1,8 +1,9 @@
-import { useEffect, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
 import { Clock } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { cn } from '../../lib/utils'
 import { Popover, PopoverContent, PopoverTrigger } from './popover'
+import { TIME_OPTIONS, nearestOption } from './time-options'
 
 interface TimePickerProps {
   id?: string
@@ -11,23 +12,6 @@ interface TimePickerProps {
   placeholder?: string
   disabled?: boolean
   className?: string
-}
-
-const TIME_INTERVAL_MINUTES = 15
-const TIME_OPTIONS = Array.from(
-  { length: (24 * 60) / TIME_INTERVAL_MINUTES },
-  (_, index) => {
-    const totalMinutes = index * TIME_INTERVAL_MINUTES
-    const hours = Math.floor(totalMinutes / 60)
-    const minutes = totalMinutes % 60
-    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`
-  },
-)
-
-// Convert an HH:mm string into minutes-since-midnight for nearest-option matching.
-function toMinutes(time: string): number {
-  const [h, m] = time.split(':').map(Number)
-  return (h || 0) * 60 + (m || 0)
 }
 
 // Accepts "9", "930", "9:3", "09.30" and returns a canonical "HH:MM", or null
@@ -44,18 +28,6 @@ function parseTypedTime(input: string): string | null {
   const minutes = Number(digits.slice(-2))
   if (hours > 23 || minutes > 59) return null
   return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`
-}
-
-// The option to scroll to on open: the exact value, or the nearest slot to it.
-function nearestOption(value?: string): string {
-  if (!value) return TIME_OPTIONS[0]
-  if (TIME_OPTIONS.includes(value)) return value
-  const target = toMinutes(value)
-  return TIME_OPTIONS.reduce((best, option) =>
-    Math.abs(toMinutes(option) - target) < Math.abs(toMinutes(best) - target)
-      ? option
-      : best,
-  )
 }
 
 export default function TimePicker({
@@ -85,11 +57,15 @@ export default function TimePicker({
     setOpen(false)
   }
 
-  // On open, bring the selected (or nearest) time into view instead of 00:00.
-  useEffect(() => {
-    if (!open) return
-    activeRef.current?.scrollIntoView({ block: 'center' })
-  }, [open])
+  // On open, centre the selected (or nearest) time in the list. This runs when
+  // the content has mounted: the portal renders a frame after `open` flips, so
+  // an effect on `open` found no element and the list stayed at 00:00.
+  function scrollToActive() {
+    const item = activeRef.current
+    const list = item?.parentElement
+    if (!item || !list) return
+    list.scrollTop = item.offsetTop - list.offsetTop - (list.clientHeight - item.offsetHeight) / 2
+  }
 
   function handleOpenChange(next: boolean) {
     // Clear the filter here rather than in an effect so closing does not queue
@@ -116,8 +92,8 @@ export default function TimePicker({
           <Clock className="h-4 w-4 text-gray-400" />
         </button>
       </PopoverTrigger>
-      <PopoverContent className="w-56 p-2" align="start">
-        {/* Typing beats scrolling 96 options: the field filters the list and
+      <PopoverContent className="w-56 p-2" align="start" onOpenAutoFocus={scrollToActive}>
+        {/* Typing beats scrolling 48 options: the field filters the list and
             Enter commits any valid HH:MM, including off-interval times. */}
         <input
           type="text"

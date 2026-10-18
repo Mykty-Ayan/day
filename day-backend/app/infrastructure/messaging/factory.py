@@ -35,11 +35,13 @@ from app.infrastructure.repositories.messaging import (
     SqlOutboundNotificationRepository,
 )
 from app.infrastructure.repositories.property import (
+    SqlDayPriceRepository,
     SqlDiscountRuleRepository,
     SqlPricingConfigRepository,
     SqlPropertyRepository,
     SqlSeasonalPriceRepository,
 )
+from app.infrastructure.repositories.settings import SqlCompanySettingsRepository
 
 # Providers are stateless HTTP clients, so one instance each is enough.
 _PROVIDERS: dict[Channel, MessageProvider] = {
@@ -61,6 +63,7 @@ def build_price_calculator(session: AsyncSession) -> PriceCalculatorService:
         SqlPricingConfigRepository(session),
         SqlSeasonalPriceRepository(session),
         SqlDiscountRuleRepository(session),
+        SqlDayPriceRepository(session),
     )
 
 
@@ -116,6 +119,7 @@ def build_guest_bot(session: AsyncSession) -> GuestBotService:
         SqlPropertyRepository(session),
         SqlBookingAuditLogRepository(session),
         build_price_calculator(session),
+        SqlCompanySettingsRepository(session),
     )
     return GuestBotService(build_availability(session), create_booking)
 

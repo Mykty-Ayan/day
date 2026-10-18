@@ -1,11 +1,15 @@
 import { useMemo, useRef, useState, useCallback, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { useNavigate } from '@tanstack/react-router'
+import { Link, useNavigate } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
-import type { Booking, BookingStatus, GanttPropertySummary } from '../../types/booking'
+import type { Booking, BookingStatus, GanttBlock, GanttDayPrice, GanttPropertySummary } from '../../types/booking'
 import type { PricingConfig } from '../../types/property'
 import { showToast } from '../ui/Toast'
 import { moveBooking } from '../../api/bookings'
+import { stayRuleBreaches, stayRuleText, type StayRuleBreach } from '../../lib/booking-errors'
+import { blockNights, isDayBlocked } from '../../lib/booking-dates'
+import ConfirmDialog from '../ui/ConfirmDialog'
+import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover'
 import { useQueryClient } from '@tanstack/react-query'
 import { useCurrency } from '../../hooks/useCurrency'
 import { useMediaQuery } from '../../hooks/useMediaQuery'
@@ -13,6 +17,10 @@ import { useMediaQuery } from '../../hooks/useMediaQuery'
 export interface GanttRow {
   property: GanttPropertySummary
   bookings: Booking[]
+  /** Nights closed without a booking. */
+  blocks?: GanttBlock[]
+  /** Nights priced on the calendar. */
+  dayPrices?: GanttDayPrice[]
 }
 
 interface Props {
@@ -29,6 +37,8 @@ interface Props {
     propertyId: string
     checkIn: string
   } | null
+  /** Clicks pick nights to price (first and last, inclusive), not a stay. */
+  priceMode?: boolean
 }
 
 function getDaysInRange(start: Date, end: Date): Date[] {
@@ -76,6 +86,9 @@ function getBookingDayRange(checkIn: string, checkOut: string): { start: Date; e
   }
   return { start, end }
 }
+
+// As the server and the booking calendar count them: these hold no night.
+const FREES_NIGHTS_STATUSES: BookingStatus[] = ['cancelled', 'completed']
 
 function isBookedOnDate(bookings: Booking[], day: Date): boolean {
   const dayStart = new Date(day.getFullYear(), day.getMonth(), day.getDate())
@@ -148,6 +161,37 @@ function getBookingNights(checkIn: string, checkOut: string): number {
 
 function isHourlyBooking(booking: Booking): boolean {
   return booking.rental_mode === 'hourly'
+}
+
+// An hourly booking that fits in one day cell (a few hours, even past midnight).
+function isShortHourly(booking: Booking): boolean {
+  if (!isHourlyBooking(booking)) return false
+  const { start, end } = getBookingDayRange(booking.check_in, booking.check_out)
+  return Math.round((end.getTime() - start.getTime()) / 86400000) === 1
+}
+
+// A row's short hourly bookings by their day, by the hour. Each takes the whole
+// day cell, so two or more on one day would cover each other: they show as one plate.
+function hourlyByDay(bookings: Booking[]): Map<string, Booking[]> {
+  const byDay = new Map<string, Booking[]>()
+  for (const booking of bookings.filter(isShortHourly).sort((a, b) => a.check_in.localeCompare(b.check_in))) {
+    const day = booking.check_in.slice(0, 10)
+    byDay.set(day, [...(byDay.get(day) ?? []), booking])
+  }
+  return byDay
+}
+
+// The days a row's other bars cover: stays by the night and hourly ones over several days.
+function longBarDays(bookings: Booking[]): Set<string> {
+  const days = new Set<string>()
+  for (const booking of bookings) {
+    if (isShortHourly(booking)) continue
+    const { start, end } = getBookingDayRange(booking.check_in, booking.check_out)
+    for (let day = start; day < end; day = new Date(day.getFullYear(), day.getMonth(), day.getDate() + 1)) {
+      days.add(toDateStr(day))
+    }
+  }
+  return days
 }
 
 // Whole hours (ceil, matching the backend hourly billing) between two datetimes.
@@ -246,6 +290,7 @@ export default function GanttChart({
   pricingByProperty,
   onCellClick,
   pendingSelection,
+  priceMode = false,
 }: Props) {
   const { t } = useTranslation()
   const navigate = useNavigate()
@@ -345,6 +390,10 @@ export default function GanttChart({
 
   // Touch fallback for the drag-only move feature: a bottom-sheet property picker.
   const [moveSheetBooking, setMoveSheetBooking] = useState<Booking | null>(null)
+  // The open plate of several hourly bookings: `${propertyId}:${day}`.
+  const [openPlate, setOpenPlate] = useState<string | null>(null)
+  // A move the target flat's stay rules refused, waiting for the operator's word.
+  const [ruleMove, setRuleMove] = useState<{ bookingId: string; targetPropertyId: string; breaches: StayRuleBreach[] } | null>(null)
 
   // Horizontal-scroll affordance: edge fades that appear when the track can scroll.
   const [scrollShadow, setScrollShadow] = useState<{ start: boolean; end: boolean }>({
@@ -407,6 +456,21 @@ export default function GanttChart({
     setDragOverPropertyId(null)
   }, [])
 
+  // One move, by drag or by the picker. The target flat's stay rules may refuse
+  // it; the operator then confirms and the same move goes again with override_rules.
+  const runMove = useCallback(async (bookingId: string, targetPropertyId: string, overrideRules = false) => {
+    try {
+      await moveBooking(bookingId, { target_property_id: targetPropertyId, override_rules: overrideRules || undefined })
+      queryClient.invalidateQueries({ queryKey: ['gantt-data'] })
+      queryClient.invalidateQueries({ queryKey: ['bookings'] })
+      showToast('success', t('gantt.bookingMoved'))
+    } catch (error) {
+      const breaches = stayRuleBreaches(error)
+      if (breaches) setRuleMove({ bookingId, targetPropertyId, breaches })
+      else showToast('error', t('gantt.failedMoveBooking'))
+    }
+  }, [queryClient, t])
+
   const handleDrop = useCallback(async (e: React.DragEvent, targetPropertyId: string) => {
     e.preventDefault()
     setDragOverPropertyId(null)
@@ -424,17 +488,9 @@ export default function GanttChart({
       return
     }
 
-    try {
-      await moveBooking(dragBooking.booking.id, { target_property_id: targetPropertyId })
-      queryClient.invalidateQueries({ queryKey: ['gantt-data'] })
-      queryClient.invalidateQueries({ queryKey: ['bookings'] })
-      showToast('success', t('gantt.bookingMoved'))
-    } catch {
-      showToast('error', t('gantt.failedMoveBooking'))
-    }
-
+    await runMove(dragBooking.booking.id, targetPropertyId)
     setDragBooking(null)
-  }, [dragBooking, propertyStatusById, queryClient, t])
+  }, [dragBooking, propertyStatusById, runMove, t])
 
   // Touch-friendly move: same semantics as drag-and-drop, driven by the picker.
   const handleMoveBookingTo = useCallback(async (
@@ -449,28 +505,34 @@ export default function GanttChart({
       setMoveSheetBooking(null)
       return
     }
-    try {
-      await moveBooking(booking.id, { target_property_id: targetPropertyId })
-      queryClient.invalidateQueries({ queryKey: ['gantt-data'] })
-      queryClient.invalidateQueries({ queryKey: ['bookings'] })
-      showToast('success', t('gantt.bookingMoved'))
-    } catch {
-      showToast('error', t('gantt.failedMoveBooking'))
-    }
+    await runMove(booking.id, targetPropertyId)
     setMoveSheetBooking(null)
     setTouchTooltipBooking(null)
-  }, [propertyStatusById, queryClient, t])
+  }, [propertyStatusById, runMove, t])
 
   // Active preview end date while hovering after selecting check-in.
   const pendingPreviewEnd = useMemo(() => {
     if (!pendingSelection || !hoverPreview) return null
     if (hoverPreview.propertyId !== pendingSelection.propertyId) return null
+    // Picking prices, the hovered night is the last one and counts.
+    if (priceMode) {
+      if (hoverPreview.date < pendingSelection.checkIn) return null
+      const last = parseDateOnly(hoverPreview.date)
+      return toDateStr(new Date(last.getFullYear(), last.getMonth(), last.getDate() + 1))
+    }
     if (hoverPreview.date <= pendingSelection.checkIn) return null
     return hoverPreview.date
-  }, [hoverPreview, pendingSelection])
+  }, [hoverPreview, pendingSelection, priceMode])
 
   function getBarPosition(booking: Booking): { left: number; width: number } | null {
     const { start: checkIn, end: checkOut } = getBookingDayRange(booking.check_in, booking.check_out)
+    // Hourly / same-day bookings collapse to a sub-cell span; keep them at a full
+    // cell so they stay tappable and identifiable (see the distinct pill styling).
+    return getSpanPosition(checkIn, checkOut, isHourlyBooking(booking) ? cellW : cellW * 0.5)
+  }
+
+  // [checkIn, checkOut) in whole days, clipped to the visible range.
+  function getSpanPosition(checkIn: Date, checkOut: Date, minWidth: number): { left: number; width: number } | null {
     const rangeEndExclusive = new Date(
       rangeEndDate.getFullYear(),
       rangeEndDate.getMonth(),
@@ -491,9 +553,6 @@ export default function GanttChart({
     )
 
     const left = startDayOffset * cellW
-    // Hourly / same-day bookings collapse to a sub-cell span; keep them at a full
-    // cell so they stay tappable and identifiable (see the distinct pill styling).
-    const minWidth = isHourlyBooking(booking) ? cellW : cellW * 0.5
     const width = Math.max((endDayOffset - startDayOffset) * cellW, minWidth)
 
     return { left, width }
@@ -548,9 +607,11 @@ export default function GanttChart({
       {pendingSelection && (
         <div className="border-b border-blue-100 bg-blue-50 px-3 py-2">
           <p className="text-xs font-semibold text-blue-700">
-            {t('gantt.tapCheckoutHint', {
-              checkIn: formatPreviewDate(pendingSelection.checkIn, shortMonthNames),
-            })}
+            {priceMode
+              ? t('gantt.priceLastHint', { first: formatPreviewDate(pendingSelection.checkIn, shortMonthNames) })
+              : t('gantt.tapCheckoutHint', {
+                  checkIn: formatPreviewDate(pendingSelection.checkIn, shortMonthNames),
+                })}
           </p>
         </div>
       )}
@@ -674,6 +735,14 @@ export default function GanttChart({
             {/* Grid rows with booking bars */}
             {sortedRows.map((row) => {
               const isPaused = row.property.status === 'paused'
+              const closedNights = blockNights(row.blocks ?? [])
+              const priced = new Map((row.dayPrices ?? []).map((night) => [night.date, night.price]))
+              const hourly = hourlyByDay(row.bookings)
+              const plates = [...hourly].filter(([, group]) => group.length > 1)
+              const grouped = new Set(plates.flatMap(([, group]) => group.map((booking) => booking.id)))
+              // On a day a longer bar also covers, the hourly ones take the cell's left
+              // half (they come before a 14:00 check-in) and sit above it.
+              const sharedDays = longBarDays(row.bookings)
               return (
                 <div
                   key={row.property.id}
@@ -716,14 +785,17 @@ export default function GanttChart({
                       && dayKey < pendingPreviewEnd,
                   )
                   const isPendingCheckOutCandidate = Boolean(
-                    isPendingRow
+                    !priceMode
+                      && isPendingRow
                       && pendingPreviewEnd
                       && dayKey === pendingPreviewEnd,
                   )
                   const hasBooking = isBookedOnDate(row.bookings, day)
-                  const nightlyRate = hasBooking
+                  const closed = closedNights.has(dayKey)
+                  const custom = priced.get(dayKey)
+                  const nightlyRate = hasBooking || closed
                     ? null
-                    : getNightlyRateForDate(pricingByProperty?.[row.property.id], day)
+                    : custom ?? getNightlyRateForDate(pricingByProperty?.[row.property.id], day)
                   return (
                     <button
                       key={dayKey}
@@ -766,7 +838,7 @@ export default function GanttChart({
                             ? prev
                             : { propertyId: row.property.id, date: dayKey }
                         ))
-                        if (dayKey > pendingSelection.checkIn) {
+                        if (!priceMode && dayKey > pendingSelection.checkIn) {
                           const checkInDate = parseDateOnly(pendingSelection.checkIn)
                           const checkOutDate = parseDateOnly(dayKey)
                           const nights = Math.max(
@@ -806,11 +878,34 @@ export default function GanttChart({
                           setRangePreviewTooltip(null)
                         }
                       }}
-                      onClick={() => handleCellClick(row.property, day)}
+                      onClick={() => {
+                        // Picking nights to price: any night, closed or booked, as on Airbnb.
+                        if (priceMode) {
+                          onCellClick?.(row.property.id, dayKey)
+                          return
+                        }
+                        // An hourly flat goes by the hour: a block's first and last days keep
+                        // their morning or afternoon, so only a day closed around the clock is
+                        // refused. Otherwise the booking calendar's rule: a closed night starts
+                        // no stay, and a stay picked before it ends on its morning at the latest.
+                        const refused = row.property.rental_mode === 'hourly'
+                          ? closedNights.has(dayKey)
+                            && closedNights.has(toDateStr(new Date(day.getFullYear(), day.getMonth(), day.getDate() - 1)))
+                          : isDayBlocked(dayKey, closedNights, isPendingRow ? pendingSelection.checkIn : null)
+                        if (refused) {
+                          showToast('error', t('gantt.closedDay'))
+                          return
+                        }
+                        handleCellClick(row.property, day)
+                      }}
                     >
                       {nightlyRate !== null && (
                         <div className="pointer-events-none flex h-full items-end justify-center pb-1">
-                          <span className={`text-[10px] font-semibold ${isPaused ? 'text-gray-500' : 'text-emerald-700'}`}>
+                          <span
+                            className={`text-[10px] font-semibold ${
+                              isPaused ? 'text-gray-500' : custom !== undefined ? 'text-violet-700' : 'text-emerald-700'
+                            }`}
+                          >
                             {formatCellPrice(nightlyRate, currencySymbol)}
                           </span>
                         </div>
@@ -819,10 +914,76 @@ export default function GanttChart({
                   )
                 })}
 
+                {/* Closed nights: hatched, under the booking bars */}
+                {(row.blocks ?? []).map((block) => {
+                  const pos = getSpanPosition(parseDateOnly(block.start_date), parseDateOnly(block.end_date), cellW * 0.5)
+                  if (!pos) return null
+                  const label = block.reason || t('gantt.closed')
+                  return (
+                    <div
+                      key={block.id}
+                      role="img"
+                      aria-label={`${t('gantt.closed')}: ${label}`}
+                      title={label}
+                      className="pointer-events-none absolute rounded-lg text-[11px] font-semibold text-gray-600"
+                      style={{
+                        left: pos.left,
+                        width: pos.width,
+                        top: BAR_Y,
+                        height: BAR_H,
+                        zIndex: 4,
+                        background: 'repeating-linear-gradient(45deg, #e5e7eb 0 6px, #f3f4f6 6px 12px)',
+                      }}
+                    >
+                      <div className="flex h-full items-center overflow-hidden whitespace-nowrap px-2">{label}</div>
+                    </div>
+                  )
+                })}
+
+                {/* A platform's booking over a Day booking (the server tells which): the
+                    nights sold twice, in red over the booking, until one is cancelled. */}
+                {(row.blocks ?? []).filter((block) => block.clash).flatMap((block) =>
+                  row.bookings
+                    .filter((booking) => !FREES_NIGHTS_STATUSES.includes(booking.status))
+                    .map((booking) => {
+                      const { start: checkIn, end: checkOut } = getBookingDayRange(booking.check_in, booking.check_out)
+                      const blockStart = parseDateOnly(block.start_date)
+                      const blockEnd = parseDateOnly(block.end_date)
+                      const from = checkIn > blockStart ? checkIn : blockStart
+                      const to = checkOut < blockEnd ? checkOut : blockEnd
+                      if (from >= to) return null
+                      const pos = getSpanPosition(from, to, cellW * 0.5)
+                      if (!pos) return null
+                      const label = `${t('gantt.doubleSale')} · ${block.reason || t('gantt.closed')}`
+                      return (
+                        <div
+                          key={`${block.id}:${booking.id}`}
+                          role="img"
+                          aria-label={`${t('gantt.doubleSale')}: ${block.reason || t('gantt.closed')}`}
+                          title={label}
+                          className="pointer-events-none absolute rounded-lg text-[11px] font-semibold text-red-800 outline outline-2 outline-red-600"
+                          style={{
+                            left: pos.left,
+                            width: pos.width,
+                            top: BAR_Y,
+                            height: BAR_H,
+                            zIndex: 7,
+                            background: 'repeating-linear-gradient(45deg, rgba(254,202,202,0.85) 0 6px, rgba(254,226,226,0.6) 6px 12px)',
+                          }}
+                        >
+                          <div className="flex h-full items-center overflow-hidden whitespace-nowrap px-2">{label}</div>
+                        </div>
+                      )
+                    }),
+                )}
+
                 {/* Booking bars overlaid */}
                 {row.bookings.map((booking) => {
-                  const pos = getBarPosition(booking)
-                  if (!pos) return null
+                  if (grouped.has(booking.id)) return null
+                  const bar = getBarPosition(booking)
+                  if (!bar) return null
+                  const shared = isShortHourly(booking) && sharedDays.has(booking.check_in.slice(0, 10))
+                  const pos = shared ? { left: bar.left, width: cellW / 2 } : bar
 
                   return (
                     <button
@@ -866,7 +1027,9 @@ export default function GanttChart({
                         top: BAR_Y,
                         height: BAR_H,
                         backgroundColor: booking.gantt_color || '#3B82F6',
-                        zIndex: 5,
+                        zIndex: shared ? 6 : 5,
+                        // Picking prices: a booked night is picked through its bar.
+                        pointerEvents: priceMode ? 'none' : undefined,
                       }}
                     >
                       <div className="flex items-center h-full px-2 overflow-hidden">
@@ -907,6 +1070,88 @@ export default function GanttChart({
                         </div>
                       )}
                     </button>
+                  )
+                })}
+
+                {/* Several hourly bookings on one day: one plate, listed by the hour */}
+                {plates.map(([day, group]) => {
+                  const start = parseDateOnly(day)
+                  const cell = getSpanPosition(start, new Date(start.getFullYear(), start.getMonth(), start.getDate() + 1), cellW)
+                  if (!cell) return null
+                  const shared = sharedDays.has(day)
+                  const pos = shared ? { left: cell.left, width: cellW / 2 } : cell
+                  const key = `${row.property.id}:${day}`
+                  // A clash inside the plate shows on it, as on a bar.
+                  const clash = group.some((booking) => booking.overbooking)
+                  return (
+                    <Popover
+                      key={`hourly-${day}`}
+                      open={openPlate === key}
+                      onOpenChange={(open) => setOpenPlate(open ? key : null)}
+                    >
+                      <PopoverTrigger asChild>
+                        <button
+                          type="button"
+                          aria-label={`${clash ? `${t('bookings.overbooking.short')}: ` : ''}${t('gantt.hourlyMany', { flat: row.property.internal_name, n: group.length })}`}
+                          onClick={(e) => e.stopPropagation()}
+                          className={`absolute rounded-full text-[11px] font-semibold text-white shadow-sm ring-1 ring-white/70 transition-shadow hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
+                            clash ? 'outline outline-2 outline-red-600 outline-offset-1' : ''
+                          }`}
+                          style={{
+                            left: pos.left,
+                            width: pos.width,
+                            top: BAR_Y,
+                            height: BAR_H,
+                            backgroundColor: group[0].gantt_color || '#3B82F6',
+                            zIndex: shared ? 6 : 5,
+                            pointerEvents: priceMode ? 'none' : undefined,
+                          }}
+                        >
+                          ×{group.length}
+                        </button>
+                      </PopoverTrigger>
+                      <PopoverContent align="start" className="w-auto min-w-[200px] p-1.5">
+                        <ul>
+                          {group.map((booking) => (
+                            <li key={booking.id}>
+                              <Link
+                                to="/bookings/$bookingId"
+                                params={{ bookingId: booking.id }}
+                                search={{ from: 'gantt' } as Record<string, string>}
+                                // Moved like a bar: dragged onto another flat's row, or on a
+                                // touch screen through the booking card and its "Move".
+                                draggable
+                                onDragStart={(e) => handleDragStart(e, booking, row.property.id)}
+                                onDragEnd={() => {
+                                  handleDragEnd()
+                                  setOpenPlate(null)
+                                }}
+                                onClick={(e) => {
+                                  if (!isCoarsePointer) return
+                                  e.preventDefault()
+                                  setOpenPlate(null)
+                                  setTouchTooltipBooking(booking)
+                                }}
+                                className="flex min-h-[44px] items-center gap-2 rounded-lg px-2 text-sm hover:bg-gray-50"
+                              >
+                                {booking.overbooking && (
+                                  <>
+                                    <span className="sr-only">{t('bookings.overbooking.short')}: </span>
+                                    <span aria-hidden className="shrink-0 rounded bg-red-600 px-1 text-[10px] font-bold text-white">
+                                      !
+                                    </span>
+                                  </>
+                                )}
+                                <span className="font-semibold tabular-nums text-gray-900">
+                                  {booking.check_in.slice(11, 16)}–{booking.check_out.slice(11, 16)}
+                                </span>{' '}
+                                <span className="truncate text-gray-600">{booking.guest_name}</span>
+                              </Link>
+                            </li>
+                          ))}
+                        </ul>
+                      </PopoverContent>
+                    </Popover>
                   )
                 })}
                 </div>
@@ -1119,6 +1364,17 @@ export default function GanttChart({
           </motion.div>
         )}
       </AnimatePresence>
+      <ConfirmDialog
+        open={ruleMove !== null}
+        title={t('bookings.stayRules.title')}
+        message={(ruleMove?.breaches ?? []).map((breach) => stayRuleText(breach, t)).join('; ')}
+        confirmLabel={t('bookings.stayRules.moveAnyway')}
+        onConfirm={() => {
+          if (ruleMove) void runMove(ruleMove.bookingId, ruleMove.targetPropertyId, true)
+          setRuleMove(null)
+        }}
+        onCancel={() => setRuleMove(null)}
+      />
     </motion.div>
   )
 }

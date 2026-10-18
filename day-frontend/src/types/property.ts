@@ -10,12 +10,17 @@ export type AmenityCategory =
   | 'comfort'
   | 'outdoor'
 
+/** guest: a check-in photo (the entrance, the lock): never in the listing. */
+export type PhotoAudience = 'public' | 'guest'
+
 export interface PropertyPhoto {
   id: string
   url: string
   thumbnail_url: string
   is_cover: boolean
   sort_order: number
+  caption: string | null
+  audience: PhotoAudience
   created_at: string
 }
 
@@ -53,6 +58,8 @@ export interface PricingConfig {
   hourly_price: number
   weekend_markup: number
   default_deposit: number
+  /** The deposit of a stay by the hour; 0 is "not set", never the nightly one. */
+  hourly_deposit: number
   extra_adult_price: number
   extra_child_price: number
   base_guests: number
@@ -90,6 +97,20 @@ export interface Property {
   entrance: string
   block: string
   floor: number | null
+  complex_name: string | null
+  floors_total: number | null
+  map_url: string | null
+  whatsapp_product_url: string | null
+  video_url: string | null
+  /** Stay rules for bookings made in Day; null is no rule. */
+  min_nights: number | null
+  max_nights: number | null
+  buffer_hours: number | null
+  min_lead_hours: number | null
+  /** The flat's listings (Krisha, Booking, Airbnb, OLX); the CRM finds the flat by a guest's link. */
+  listing_urls: string[]
+  /** Listings to rent by the hour: the guest's link tells the CRM the kind of stay. */
+  hourly_listing_urls: string[]
   rooms: number
   beds: number
   max_guests: number | null
@@ -127,6 +148,17 @@ export interface PropertyCreateInput {
   entrance?: string
   block?: string
   floor?: number | null
+  complex_name?: string | null
+  floors_total?: number | null
+  map_url?: string | null
+  whatsapp_product_url?: string | null
+  video_url?: string | null
+  min_nights?: number | null
+  max_nights?: number | null
+  buffer_hours?: number | null
+  min_lead_hours?: number | null
+  listing_urls?: string[]
+  hourly_listing_urls?: string[]
   rooms?: number
   beds?: number
   max_guests?: number | null
@@ -143,13 +175,15 @@ export interface PropertyCreateInput {
   wifi_password?: string
 }
 
-export type PropertyUpdateInput = Partial<PropertyCreateInput>
+/** null clears a field; a missing field stays as it was. */
+export type PropertyUpdateInput = { [K in keyof PropertyCreateInput]?: PropertyCreateInput[K] | null }
 
 export interface PricingInput {
   base_price: number
   hourly_price?: number
   weekend_markup: number
   default_deposit: number
+  hourly_deposit?: number
   extra_adult_price: number
   extra_child_price: number
   base_guests: number
@@ -210,3 +244,28 @@ export interface TagCreateInput {
 
 /** How the guest gets in — the choices Airbnb and Booking.com offer. */
 export type CheckInMethod = 'lockbox' | 'keypad' | 'smart_lock' | 'building_staff' | 'host_greets' | 'other'
+
+/** Nights a flat is closed without a booking: start_date the first, end_date the day after the last. */
+export interface PropertyBlock {
+  id: string
+  property_id: string
+  start_date: string
+  end_date: string
+  reason: string | null
+  created_at: string | null
+  /** Read from a platform's calendar: that calendar keeps it. */
+  feed_id?: string | null
+  /** That platform, as bookings name it (airbnb, booking). */
+  source?: string | null
+}
+
+/** A platform's iCal calendar of the flat, read by Day every half hour. */
+export interface CalendarFeed {
+  id: string
+  name: string
+  url: string
+  last_synced_at: string | null
+  last_error: string | null
+  /** Day's link for this same platform: without the nights read from it. */
+  export_url: string | null
+}

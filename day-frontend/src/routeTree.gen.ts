@@ -22,9 +22,11 @@ import { Route as BookingsIndexRouteImport } from './routes/bookings/index'
 import { Route as AnalyticsIndexRouteImport } from './routes/analytics/index'
 import { Route as AiImportIndexRouteImport } from './routes/ai-import/index'
 import { Route as SettingsTeamRouteImport } from './routes/settings/team'
+import { Route as SCodeRouteImport } from './routes/s/$code'
 import { Route as PropertiesNewRouteImport } from './routes/properties/new'
 import { Route as PropertiesGanttRouteImport } from './routes/properties/gantt'
 import { Route as PropertiesPropertyIdRouteImport } from './routes/properties/$propertyId'
+import { Route as OCodeRouteImport } from './routes/o/$code'
 import { Route as CleaningNewRouteImport } from './routes/cleaning/new'
 import { Route as CleaningChecklistsRouteImport } from './routes/cleaning/checklists'
 import { Route as CleaningTaskIdRouteImport } from './routes/cleaning/$taskId'
@@ -103,6 +105,11 @@ const SettingsTeamRoute = SettingsTeamRouteImport.update({
   path: '/settings/team',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SCodeRoute = SCodeRouteImport.update({
+  id: '/s/$code',
+  path: '/s/$code',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PropertiesNewRoute = PropertiesNewRouteImport.update({
   id: '/properties/new',
   path: '/properties/new',
@@ -116,6 +123,11 @@ const PropertiesGanttRoute = PropertiesGanttRouteImport.update({
 const PropertiesPropertyIdRoute = PropertiesPropertyIdRouteImport.update({
   id: '/properties/$propertyId',
   path: '/properties/$propertyId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OCodeRoute = OCodeRouteImport.update({
+  id: '/o/$code',
+  path: '/o/$code',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CleaningNewRoute = CleaningNewRouteImport.update({
@@ -195,9 +207,11 @@ export interface FileRoutesByFullPath {
   '/cleaning/$taskId': typeof CleaningTaskIdRoute
   '/cleaning/checklists': typeof CleaningChecklistsRoute
   '/cleaning/new': typeof CleaningNewRoute
+  '/o/$code': typeof OCodeRoute
   '/properties/$propertyId': typeof PropertiesPropertyIdRouteWithChildren
   '/properties/gantt': typeof PropertiesGanttRoute
   '/properties/new': typeof PropertiesNewRoute
+  '/s/$code': typeof SCodeRoute
   '/settings/team': typeof SettingsTeamRoute
   '/ai-import/': typeof AiImportIndexRoute
   '/analytics/': typeof AnalyticsIndexRoute
@@ -224,8 +238,10 @@ export interface FileRoutesByTo {
   '/cleaning/$taskId': typeof CleaningTaskIdRoute
   '/cleaning/checklists': typeof CleaningChecklistsRoute
   '/cleaning/new': typeof CleaningNewRoute
+  '/o/$code': typeof OCodeRoute
   '/properties/gantt': typeof PropertiesGanttRoute
   '/properties/new': typeof PropertiesNewRoute
+  '/s/$code': typeof SCodeRoute
   '/settings/team': typeof SettingsTeamRoute
   '/ai-import': typeof AiImportIndexRoute
   '/analytics': typeof AnalyticsIndexRoute
@@ -254,9 +270,11 @@ export interface FileRoutesById {
   '/cleaning/$taskId': typeof CleaningTaskIdRoute
   '/cleaning/checklists': typeof CleaningChecklistsRoute
   '/cleaning/new': typeof CleaningNewRoute
+  '/o/$code': typeof OCodeRoute
   '/properties/$propertyId': typeof PropertiesPropertyIdRouteWithChildren
   '/properties/gantt': typeof PropertiesGanttRoute
   '/properties/new': typeof PropertiesNewRoute
+  '/s/$code': typeof SCodeRoute
   '/settings/team': typeof SettingsTeamRoute
   '/ai-import/': typeof AiImportIndexRoute
   '/analytics/': typeof AnalyticsIndexRoute
@@ -286,9 +304,11 @@ export interface FileRouteTypes {
     | '/cleaning/$taskId'
     | '/cleaning/checklists'
     | '/cleaning/new'
+    | '/o/$code'
     | '/properties/$propertyId'
     | '/properties/gantt'
     | '/properties/new'
+    | '/s/$code'
     | '/settings/team'
     | '/ai-import/'
     | '/analytics/'
@@ -315,8 +335,10 @@ export interface FileRouteTypes {
     | '/cleaning/$taskId'
     | '/cleaning/checklists'
     | '/cleaning/new'
+    | '/o/$code'
     | '/properties/gantt'
     | '/properties/new'
+    | '/s/$code'
     | '/settings/team'
     | '/ai-import'
     | '/analytics'
@@ -344,9 +366,11 @@ export interface FileRouteTypes {
     | '/cleaning/$taskId'
     | '/cleaning/checklists'
     | '/cleaning/new'
+    | '/o/$code'
     | '/properties/$propertyId'
     | '/properties/gantt'
     | '/properties/new'
+    | '/s/$code'
     | '/settings/team'
     | '/ai-import/'
     | '/analytics/'
@@ -375,9 +399,11 @@ export interface RootRouteChildren {
   CleaningTaskIdRoute: typeof CleaningTaskIdRoute
   CleaningChecklistsRoute: typeof CleaningChecklistsRoute
   CleaningNewRoute: typeof CleaningNewRoute
+  OCodeRoute: typeof OCodeRoute
   PropertiesPropertyIdRoute: typeof PropertiesPropertyIdRouteWithChildren
   PropertiesGanttRoute: typeof PropertiesGanttRoute
   PropertiesNewRoute: typeof PropertiesNewRoute
+  SCodeRoute: typeof SCodeRoute
   SettingsTeamRoute: typeof SettingsTeamRoute
   AiImportIndexRoute: typeof AiImportIndexRoute
   AnalyticsIndexRoute: typeof AnalyticsIndexRoute
@@ -481,6 +507,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsTeamRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/s/$code': {
+      id: '/s/$code'
+      path: '/s/$code'
+      fullPath: '/s/$code'
+      preLoaderRoute: typeof SCodeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/properties/new': {
       id: '/properties/new'
       path: '/properties/new'
@@ -500,6 +533,13 @@ declare module '@tanstack/react-router' {
       path: '/properties/$propertyId'
       fullPath: '/properties/$propertyId'
       preLoaderRoute: typeof PropertiesPropertyIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/o/$code': {
+      id: '/o/$code'
+      path: '/o/$code'
+      fullPath: '/o/$code'
+      preLoaderRoute: typeof OCodeRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/cleaning/new': {
@@ -629,9 +669,11 @@ const rootRouteChildren: RootRouteChildren = {
   CleaningTaskIdRoute: CleaningTaskIdRoute,
   CleaningChecklistsRoute: CleaningChecklistsRoute,
   CleaningNewRoute: CleaningNewRoute,
+  OCodeRoute: OCodeRoute,
   PropertiesPropertyIdRoute: PropertiesPropertyIdRouteWithChildren,
   PropertiesGanttRoute: PropertiesGanttRoute,
   PropertiesNewRoute: PropertiesNewRoute,
+  SCodeRoute: SCodeRoute,
   SettingsTeamRoute: SettingsTeamRoute,
   AiImportIndexRoute: AiImportIndexRoute,
   AnalyticsIndexRoute: AnalyticsIndexRoute,

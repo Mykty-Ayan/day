@@ -150,8 +150,26 @@ export interface GanttData {
   properties: GanttPropertyRow[]
 }
 
+/** Nights a flat is closed without a booking: start_date the first, end_date the day after the last. */
+export interface GanttBlock {
+  id: string
+  start_date: string
+  end_date: string
+  reason: string | null
+  /** A platform's booking over a Day booking: the same night sold twice. */
+  clash?: boolean
+}
+
+/** A night priced on the calendar, replacing the flat's usual price. */
+export interface GanttDayPrice {
+  date: string
+  price: number
+}
+
 export interface GanttPropertyRow extends GanttPropertySummary {
   bookings: Booking[]
+  blocks?: GanttBlock[]
+  day_prices?: GanttDayPrice[]
 }
 
 export interface TodayChecks {
@@ -175,6 +193,8 @@ export interface BookingCreateInput {
   notes?: string
   /** A hold: the booking cancels itself at this instant unless confirmed. With its zone. */
   expires_at?: string
+  /** Book it although it breaks the apartment's stay rules: the operator confirmed. */
+  override_rules?: boolean
 }
 
 export interface BookingUpdateInput {
@@ -186,6 +206,7 @@ export interface BookingUpdateInput {
   children_count?: number
   gantt_color?: string
   notes?: string
+  override_rules?: boolean
 }
 
 export interface BookingFilters {
@@ -235,6 +256,7 @@ export interface PriceCalculateInput {
 
 export interface MoveBookingInput {
   target_property_id: string
+  override_rules?: boolean
 }
 
 export interface GuestFilters {

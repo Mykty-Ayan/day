@@ -1,22 +1,5 @@
 import apiClient from './client'
-import type {
-  Property,
-  PropertyCreateInput,
-  PropertyUpdateInput,
-  PropertyFilters,
-  PaginatedResponse,
-  PricingConfig,
-  PricingInput,
-  SeasonalPrice,
-  SeasonalPriceInput,
-  DiscountRule,
-  DiscountRuleInput,
-  Amenity,
-  PropertyAuditLog,
-  PropertyStatus,
-  Tag,
-  TagCreateInput,
-} from '../types/property'
+import type { Property, PropertyCreateInput, PropertyUpdateInput, PropertyFilters, PaginatedResponse, PricingConfig, PricingInput, SeasonalPrice, SeasonalPriceInput, DiscountRule, DiscountRuleInput, Amenity, PropertyAuditLog, PropertyStatus, PhotoAudience, Tag, TagCreateInput, PropertyBlock, CalendarFeed } from '../types/property'
 
 // --- Properties ---
 
@@ -91,12 +74,13 @@ export async function changePropertyStatus(
 export async function uploadPhoto(
   propertyId: string,
   file: File,
-  options: { sortOrder?: number; isCover?: boolean } = {},
+  options: { sortOrder?: number; isCover?: boolean; audience?: PhotoAudience } = {},
 ): Promise<void> {
   const formData = new FormData()
   formData.append('file', file)
   formData.append('sort_order', String(options.sortOrder ?? 0))
   formData.append('is_cover', String(options.isCover ?? false))
+  formData.append('audience', options.audience ?? 'public')
   await apiClient.post(`/properties/${propertyId}/photos/upload`, formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
   })
@@ -108,16 +92,22 @@ export async function uploadPhotos(
   propertyId: string,
   photos: { file: File; isCover?: boolean }[],
   startAt = 0,
+  audience: PhotoAudience = 'public',
 ): Promise<number> {
   let failed = 0
   for (const [index, photo] of photos.entries()) {
     try {
-      await uploadPhoto(propertyId, photo.file, { sortOrder: startAt + index, isCover: photo.isCover })
+      await uploadPhoto(propertyId, photo.file, { sortOrder: startAt + index, isCover: photo.isCover, audience })
     } catch {
       failed += 1
     }
   }
   return failed
+}
+
+/** null removes the caption. */
+export async function setPhotoCaption(propertyId: string, photoId: string, caption: string | null): Promise<void> {
+  await apiClient.patch(`/properties/${propertyId}/photos/${photoId}`, { caption })
 }
 
 export async function deletePhoto(
@@ -289,4 +279,56 @@ export async function assignTags(
 export async function getCalendarLink(propertyId: string): Promise<string> {
   const res = await apiClient.get<{ url: string }>(`/properties/${propertyId}/calendar-link`)
   return res.data.url
+}
+
+// --- Closed nights (blocks) ---
+
+export async function listBlocks(propertyId: string, dateFrom: string, dateTo: string): Promise<PropertyBlock[]> {
+  const res = await apiClient.get(`/properties/${propertyId}/blocks`, { params: { date_from: dateFrom, date_to: dateTo } })
+  return res.data
+}
+
+export async function createBlock(
+  propertyId: string,
+  body: { start_date: string; end_date: string; reason?: string },
+): Promise<PropertyBlock> {
+  const res = await apiClient.post(`/properties/${propertyId}/blocks`, body)
+  return res.data
+}
+
+export async function deleteBlock(propertyId: string, blockId: string): Promise<void> {
+  await apiClient.delete(`/properties/${propertyId}/blocks/${blockId}`)
+}
+
+export async function listCalendarFeeds(propertyId: string): Promise<CalendarFeed[]> {
+  const res = await apiClient.get(`/properties/${propertyId}/calendar-feeds`)
+  return res.data
+}
+
+export async function addCalendarFeed(propertyId: string, body: { name: string; url: string }): Promise<CalendarFeed> {
+  const res = await apiClient.post(`/properties/${propertyId}/calendar-feeds`, body)
+  return res.data
+}
+
+export async function syncCalendarFeed(propertyId: string, feedId: string): Promise<CalendarFeed> {
+  const res = await apiClient.post(`/properties/${propertyId}/calendar-feeds/${feedId}/sync`)
+  return res.data
+}
+
+export async function removeCalendarFeed(propertyId: string, feedId: string): Promise<void> {
+  await apiClient.delete(`/properties/${propertyId}/calendar-feeds/${feedId}`)
+}
+
+/** Nights from start_date to the night before end_date, as a stay's. */
+export interface DayPriceRange {
+  start_date: string
+  end_date: string
+}
+
+export async function setDayPrices(propertyId: string, body: DayPriceRange & { price: number }): Promise<void> {
+  await apiClient.put(`/properties/${propertyId}/day-prices`, body)
+}
+
+export async function clearDayPrices(propertyId: string, range: DayPriceRange): Promise<void> {
+  await apiClient.delete(`/properties/${propertyId}/day-prices`, { params: range })
 }

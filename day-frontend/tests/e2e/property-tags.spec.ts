@@ -15,6 +15,7 @@ test.describe('Property Tags - E2E', () => {
   ) {
     const data = createTestProperty(overrides)
     const res = await request.post(`${API_BASE}/properties`, { data })
+    expect(res.ok()).toBeTruthy()
     const prop = await res.json()
     propertyIdsToCleanup.push(prop.id)
     return prop
@@ -27,12 +28,10 @@ test.describe('Property Tags - E2E', () => {
     const res = await request.post(`${API_BASE}/tags`, {
       data: { name },
     })
-    if (res.ok()) {
-      const tag = await res.json()
-      tagIdsToCleanup.push(tag.id)
-      return tag
-    }
-    return null
+    expect(res.ok()).toBeTruthy()
+    const tag = await res.json()
+    tagIdsToCleanup.push(tag.id)
+    return tag
   }
 
   test.afterEach(async ({ request }) => {
@@ -52,12 +51,6 @@ test.describe('Property Tags - E2E', () => {
       data: { name: tagName },
     })
 
-    // Skip if tags API not yet available
-    if (res.status() === 404) {
-      test.skip()
-      return
-    }
-
     expect(res.ok()).toBeTruthy()
     const tag = await res.json()
     tagIdsToCleanup.push(tag.id)
@@ -69,46 +62,30 @@ test.describe('Property Tags - E2E', () => {
     const tagName = `AssignTag-${Date.now()}`
     const tag = await createTagViaApi(request, tagName)
 
-    if (!tag) {
-      test.skip()
-      return
-    }
-
     const res = await request.post(`${API_BASE}/properties/${prop.id}/tags`, {
       data: { tag_id: tag.id },
     })
-
-    if (res.status() === 404) {
-      test.skip()
-      return
-    }
 
     expect(res.ok()).toBeTruthy()
   })
 
   test('filter properties by tag via API', async ({ request }) => {
-    const prop = await createPropertyViaApi(request)
+    const tagged = await createPropertyViaApi(request)
+    const untagged = await createPropertyViaApi(request)
     const tagName = `FilterTag-${Date.now()}`
     const tag = await createTagViaApi(request, tagName)
 
-    if (!tag) {
-      test.skip()
-      return
-    }
-
-    await request.post(`${API_BASE}/properties/${prop.id}/tags`, {
+    const assignRes = await request.post(`${API_BASE}/properties/${tagged.id}/tags`, {
       data: { tag_id: tag.id },
     })
+    expect(assignRes.ok()).toBeTruthy()
 
     const res = await request.get(`${API_BASE}/properties?tag_id=${tag.id}`)
-    if (res.status() === 404 || !res.ok()) {
-      test.skip()
-      return
-    }
+    expect(res.ok()).toBeTruthy()
 
-    const body = await res.json()
-    expect(body.items.length).toBeGreaterThanOrEqual(1)
-    expect(body.items.some((p: { id: string }) => p.id === prop.id)).toBeTruthy()
+    const ids = ((await res.json()).items as { id: string }[]).map((p) => p.id)
+    expect(ids).toContain(tagged.id)
+    expect(ids).not.toContain(untagged.id)
   })
 
   test('remove tag from property via API', async ({ request }) => {
@@ -116,23 +93,14 @@ test.describe('Property Tags - E2E', () => {
     const tagName = `RemoveTag-${Date.now()}`
     const tag = await createTagViaApi(request, tagName)
 
-    if (!tag) {
-      test.skip()
-      return
-    }
-
     // Assign tag
-    await request.post(`${API_BASE}/properties/${prop.id}/tags`, {
+    const assignRes = await request.post(`${API_BASE}/properties/${prop.id}/tags`, {
       data: { tag_id: tag.id },
     })
+    expect(assignRes.ok()).toBeTruthy()
 
     // Remove tag
     const res = await request.delete(`${API_BASE}/properties/${prop.id}/tags/${tag.id}`)
-    if (res.status() === 404) {
-      test.skip()
-      return
-    }
-
     expect(res.ok()).toBeTruthy()
   })
 
@@ -140,10 +108,13 @@ test.describe('Property Tags - E2E', () => {
     const tagName = `DeleteTag-${Date.now()}`
     const tag = await createTagViaApi(request, tagName)
 
-    if (!tag) {
-      test.skip()
-      return
+    // There is no GET /tags/:id (it answers 405): a tag is looked up in the list
+    const listedIds = async (): Promise<string[]> => {
+      const listRes = await request.get(`${API_BASE}/tags`)
+      expect(listRes.ok()).toBeTruthy()
+      return ((await listRes.json()) as { id: string }[]).map((t) => t.id)
     }
+    expect(await listedIds()).toContain(tag.id)
 
     const res = await request.delete(`${API_BASE}/tags/${tag.id}`)
     expect(res.ok()).toBeTruthy()
@@ -152,8 +123,7 @@ test.describe('Property Tags - E2E', () => {
     tagIdsToCleanup = tagIdsToCleanup.filter((id) => id !== tag.id)
 
     // Verify it's gone
-    const getRes = await request.get(`${API_BASE}/tags/${tag.id}`)
-    expect([404, 200]).toContain(getRes.status())
+    expect(await listedIds()).not.toContain(tag.id)
   })
 
   test('batch pricing update via tag', async ({ request }) => {
@@ -171,67 +141,61 @@ test.describe('Property Tags - E2E', () => {
     const tagName = `BatchTag-${Date.now()}`
     const tag = await createTagViaApi(request, tagName)
 
-    if (!tag) {
-      test.skip()
-      return
-    }
-
     // Assign tag to both properties
-    const assign1 = await request.post(`${API_BASE}/properties/${prop1.id}/tags`, {
-      data: { tag_id: tag.id },
-    })
-    if (assign1.status() === 404) {
-      test.skip()
-      return
+    for (const prop of [prop1, prop2]) {
+      const assignRes = await request.post(`${API_BASE}/properties/${prop.id}/tags`, {
+        data: { tag_id: tag.id },
+      })
+      expect(assignRes.ok()).toBeTruthy()
     }
-    await request.post(`${API_BASE}/properties/${prop2.id}/tags`, {
-      data: { tag_id: tag.id },
-    })
 
-    // Attempt batch pricing update via tag
+    // Batch pricing update via tag
     const batchRes = await request.post(`${API_BASE}/tags/${tag.id}/batch-pricing`, {
       data: { base_price: 200 },
     })
-
-    if (batchRes.status() === 404) {
-      // Batch pricing endpoint may not be implemented yet
-      test.skip()
-      return
-    }
-
     expect(batchRes.ok()).toBeTruthy()
 
     // Verify pricing was updated on both properties
-    const pricing1Res = await request.get(`${API_BASE}/properties/${prop1.id}/pricing`)
-    if (pricing1Res.ok()) {
-      const pricing1 = await pricing1Res.json()
-      expect(pricing1.base_price).toBe(200)
-    }
-
-    const pricing2Res = await request.get(`${API_BASE}/properties/${prop2.id}/pricing`)
-    if (pricing2Res.ok()) {
-      const pricing2 = await pricing2Res.json()
-      expect(pricing2.base_price).toBe(200)
+    for (const prop of [prop1, prop2]) {
+      const pricingRes = await request.get(`${API_BASE}/properties/${prop.id}/pricing`)
+      expect(pricingRes.ok()).toBeTruthy()
+      expect(Number((await pricingRes.json()).base_price)).toBe(200)
     }
   })
 
-  test('tags UI - create and see tag on property page', async ({ page, request }) => {
-    const prop = await createPropertyViaApi(request)
+  test('tags UI - filter the property list by tag', async ({ page, request }) => {
+    const tagged = await createPropertyViaApi(request)
+    const untagged = await createPropertyViaApi(request)
+    const tag = await createTagViaApi(request, `UiTag-${Date.now()}`)
+    const assignRes = await request.post(`${API_BASE}/properties/${tagged.id}/tags`, {
+      data: { tag_id: tag.id },
+    })
+    expect(assignRes.ok()).toBeTruthy()
 
-    await page.goto(`/properties/${prop.id}`)
-    await page.waitForLoadState('networkidle')
+    await page.goto('/properties')
+    await expect(page.getByText(tagged.name)).toBeVisible()
+    await expect(page.getByText(untagged.name)).toBeVisible()
 
-    // Look for tags section or button
-    const addTagBtn = page.getByRole('button', { name: /add tag|tag/i })
-    if (await addTagBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await addTagBtn.click()
+    // The tag chips filter the list. The list is replaced by a spinner while it loads,
+    // so the tagged property is awaited first: a hidden one proves nothing until the
+    // filtered list is on screen
+    const filtered = page.waitForResponse((r) => r.url().includes('/properties?') && r.url().includes(`tag_id=${tag.id}`))
+    await page.getByRole('button', { name: tag.name, exact: true }).click()
+    await filtered
+    await expect(page.getByText(tagged.name)).toBeVisible()
+    await expect(page.getByText(untagged.name)).toHaveCount(0)
 
-      const tagInput = page.getByPlaceholder(/tag name/i)
-      if (await tagInput.isVisible({ timeout: 2000 }).catch(() => false)) {
-        await tagInput.fill(`UI-Tag-${Date.now()}`)
-        await page.getByRole('button', { name: /add|create|save/i }).last().click()
-        await page.waitForTimeout(1000)
-      }
-    }
+    // "All" shows both again
+    await page.getByRole('button', { name: 'All', exact: true }).click()
+    await expect(page.getByText(untagged.name)).toBeVisible()
+    await expect(page.getByText(tagged.name)).toBeVisible()
+  })
+
+  test('tags UI - create a tag and see it on the property page', async () => {
+    test.fixme(
+      true,
+      'No such UI: TagSelector (create a tag, assign it to a flat) is not used on any page. ' +
+        'Tags are only filter chips on the property list, and tags are created through the API',
+    )
   })
 })

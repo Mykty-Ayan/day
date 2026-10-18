@@ -6,7 +6,7 @@ from datetime import date, datetime
 import pytest
 
 from app.application.booking.ical_export import blocked_nights, render_calendar
-from app.domain.booking.entities import Booking
+from app.domain.booking.entities import Booking, PropertyBlock
 from app.domain.booking.value_objects import BookingStatus
 
 PROPERTY_ID = uuid.UUID("00000000-0000-0000-0000-0000000000aa")
@@ -14,6 +14,21 @@ PROPERTY_ID = uuid.UUID("00000000-0000-0000-0000-0000000000aa")
 
 def _booking(check_in, check_out, status=BookingStatus.CONFIRMED):
     return Booking(property_id=PROPERTY_ID, check_in=check_in, check_out=check_out, status=status)
+
+
+# Closed 10–12 Nov while guests left at noon.
+CLOSED = PropertyBlock(
+    property_id=PROPERTY_ID,
+    start_date=date(2026, 11, 10),
+    end_date=date(2026, 11, 12),
+    starts_at=datetime(2026, 11, 10, 12),
+    ends_at=datetime(2026, 11, 12, 12),
+)
+
+
+def test_closed_nights_are_taken_like_a_stay():
+    # Closed in Day without a booking: the platforms must not sell those nights either.
+    assert blocked_nights([], 14, 12, blocks=[CLOSED]) == [(date(2026, 11, 10), date(2026, 11, 12))]
 
 
 def test_a_stay_blocks_its_nights():
@@ -78,15 +93,19 @@ class _Properties:
 class _Bookings:
     asked: list = []
 
-    def __init__(self, rows=None):
+    def __init__(self, rows=None, blocks=()):
         self._rows = rows or [_booking(datetime(2026, 11, 1, 14), datetime(2026, 11, 3, 12))]
+        self._blocks = list(blocks)
 
-    async def get_by_property_and_dates(self, property_id, start, end, *, exclude_id=None):
+    async def list_blocks(self, property_id, date_from, date_to):
+        return self._blocks
+
+    async def get_by_property_and_dates(self, property_id, start, end, *, exclude_id=None, include_completed=False):
         _Bookings.asked.append((start, end))
         return self._rows
 
 
-async def _get(monkeypatch, token: str, *, hours=(None, None), rows=None):
+async def _get(monkeypatch, token: str, *, hours=(None, None), rows=None, blocks=(), **params):
     from httpx import ASGITransport, AsyncClient
 
     from app.domain.property.entities import Property
@@ -95,11 +114,11 @@ async def _get(monkeypatch, token: str, *, hours=(None, None), rows=None):
     from app.presentation.api.v1 import ical
 
     flat = Property(id=PROPERTY_ID, check_in_hour=hours[0], check_out_hour=hours[1])
-    monkeypatch.setattr(ical, "_repos", lambda session: (_Properties(flat), _Bookings(rows)))
+    monkeypatch.setattr(ical, "_repos", lambda session: (_Properties(flat), _Bookings(rows, blocks)))
     app.dependency_overrides[get_session] = lambda: None
     try:
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-            return await client.get(f"/api/v1/calendar/{PROPERTY_ID}.ics", params={"token": token})
+            return await client.get(f"/api/v1/calendar/{PROPERTY_ID}.ics", params={"token": token, **params})
     finally:
         app.dependency_overrides.pop(get_session, None)
 
@@ -114,6 +133,50 @@ async def test_the_feed_opens_with_the_right_token_only(monkeypatch):
     assert "DTSTART;VALUE=DATE:20261101" in good.text
 
     assert (await _get(monkeypatch, "0" * 32)).status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_a_platforms_link_leaves_out_what_came_from_that_platform(monkeypatch):
+    # Airbnb's own nights sent back to Airbnb would close them a second time and
+    # keep them closed after the guest cancels there: its link leaves them out.
+    from dataclasses import replace
+
+    from app.infrastructure.security import calendar_token
+
+    airbnb, booking = uuid.uuid4(), uuid.uuid4()
+    from_airbnb = replace(CLOSED, id=uuid.uuid4(), feed_id=airbnb, source="airbnb", reserved=True)
+    from_booking = replace(
+        CLOSED, id=uuid.uuid4(), feed_id=booking, source="booking", reserved=True,
+        start_date=date(2026, 11, 20), end_date=date(2026, 11, 21),
+        starts_at=datetime(2026, 11, 20, 12), ends_at=datetime(2026, 11, 21, 12),
+    )
+    blocks = [from_airbnb, from_booking]
+    for_airbnb = await _get(monkeypatch, calendar_token(PROPERTY_ID), blocks=blocks, exclude=str(airbnb))
+    assert "DTSTART;VALUE=DATE:20261110" not in for_airbnb.text
+    assert "DTSTART;VALUE=DATE:20261120" in for_airbnb.text
+    everything = await _get(monkeypatch, calendar_token(PROPERTY_ID), blocks=blocks)
+    assert "DTSTART;VALUE=DATE:20261110" in everything.text and "DTSTART;VALUE=DATE:20261120" in everything.text
+
+
+@pytest.mark.asyncio
+async def test_a_platforms_unavailable_nights_are_not_passed_on(monkeypatch):
+    # Only a platform's bookings go on to the other platforms: its "Not available"
+    # nights may be another's echo, and passing them on would keep both closed.
+    from dataclasses import replace
+
+    from app.infrastructure.security import calendar_token
+
+    echo = replace(CLOSED, id=uuid.uuid4(), feed_id=uuid.uuid4(), source="airbnb", reserved=False)
+    feed = await _get(monkeypatch, calendar_token(PROPERTY_ID), blocks=[echo])
+    assert "DTSTART;VALUE=DATE:20261110" not in feed.text
+
+
+@pytest.mark.asyncio
+async def test_the_feed_shows_closed_nights(monkeypatch):
+    from app.infrastructure.security import calendar_token
+
+    feed = await _get(monkeypatch, calendar_token(PROPERTY_ID), blocks=[CLOSED])
+    assert "DTSTART;VALUE=DATE:20261110" in feed.text and "DTEND;VALUE=DATE:20261112" in feed.text
 
 
 @pytest.mark.asyncio

@@ -6,6 +6,8 @@ interface AddressData {
   entrance: string
   block: string
   floor: string
+  complex_name: string
+  floors_total: string
   latitude: string
   longitude: string
 }
@@ -34,6 +36,34 @@ export default function PropertyFormStepAddress({ data, onChange }: Props) {
           placeholder={t('properties.form.fullAddressPlaceholder')}
           className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 outline-none focus:ring-2 focus:ring-black/10 text-gray-800 text-sm"
         />
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div>
+          <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">
+            {t('properties.form.complexName')}
+          </label>
+          <input
+            type="text"
+            value={data.complex_name}
+            onChange={(e) => update('complex_name', e.target.value)}
+            placeholder={t('properties.form.complexNamePlaceholder')}
+            className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 outline-none focus:ring-2 focus:ring-black/10 text-gray-800 text-sm"
+          />
+        </div>
+        <div>
+          <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">
+            {t('properties.form.floorsTotal')}
+          </label>
+          <input
+            type="number"
+            min={1}
+            value={data.floors_total}
+            onChange={(e) => update('floors_total', e.target.value)}
+            placeholder={t('properties.form.floorsTotalPlaceholder')}
+            className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 outline-none focus:ring-2 focus:ring-black/10 text-gray-800 text-sm"
+          />
+        </div>
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">

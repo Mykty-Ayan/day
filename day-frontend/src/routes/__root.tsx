@@ -5,17 +5,23 @@ import MobileShell from '../components/layout/MobileShell'
 import ToastContainer from '../components/ui/Toast'
 import { useCurrentUser, useLogout } from '../hooks/useAuth'
 import { useMediaQuery } from '../hooks/useMediaQuery'
+import { AI_IMPORT_ENABLED } from '../lib/features'
 
 const PUBLIC_ROUTES = ['/login', '/register', '/forgot-password']
 const CLEANER_ROUTE_PREFIX = '/cleaner'
 // The Mini App authenticates itself from Telegram's signed initData, so it must
 // not be bounced to /login before it has had the chance.
 const MINIAPP_ROUTE = '/tma'
+// Guest pages, opened by a link, nobody signs in: a flat's page and a personal link.
+const GUEST_PAGE_PREFIXES = ['/s/', '/o/']
+const isGuestPage = (pathname: string) => GUEST_PAGE_PREFIXES.some((prefix) => pathname.startsWith(prefix))
 
 export const Route = createRootRoute({
   beforeLoad: ({ location }) => {
-    const token = localStorage.getItem('access_token')
     if (location.pathname === MINIAPP_ROUTE) return
+    // Before the token: a guest's browser may refuse storage, and reading it throws.
+    if (isGuestPage(location.pathname)) return
+    const token = localStorage.getItem('access_token')
     if (!token && !PUBLIC_ROUTES.includes(location.pathname)) {
       throw redirect({ to: '/login' })
     }
@@ -26,7 +32,7 @@ export const Route = createRootRoute({
 function RootLayout() {
   const pathname = useRouterState({ select: (s) => s.location.pathname })
 
-  if (PUBLIC_ROUTES.includes(pathname)) {
+  if (PUBLIC_ROUTES.includes(pathname) || isGuestPage(pathname)) {
     return (
       <>
         <Outlet />
@@ -71,7 +77,7 @@ function AuthenticatedLayout() {
     { to: '/cleaning', label: t('nav.cleaning'), icon: SprayCan },
     { to: '/cleaning/checklists', label: t('nav.checklists'), icon: ClipboardList },
     { to: '/analytics', label: t('nav.analytics'), icon: BarChart3 },
-    { to: '/ai-import', label: t('nav.aiImport'), icon: Sparkles },
+    ...(AI_IMPORT_ENABLED ? [{ to: '/ai-import', label: t('nav.aiImport'), icon: Sparkles }] : []),
     { to: '/settings', label: t('nav.settings'), icon: Settings },
   ] as const
 

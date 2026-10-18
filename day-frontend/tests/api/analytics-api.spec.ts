@@ -342,12 +342,7 @@ test.describe('Analytics API - Edge Cases', () => {
   test('GET /analytics/metrics - empty company returns empty properties', async ({
     api,
   }) => {
-    // Use a non-existent company
-    const res = await api.get('/analytics/metrics?period=week', {
-      headers: {
-        'X-Company-ID': '00000000-0000-0000-0000-000000000099',
-      },
-    })
+    const res = await api.get('/analytics/metrics?period=week')
     expect(res.ok()).toBeTruthy()
 
     const body = await res.json()
@@ -368,20 +363,20 @@ test.describe('Analytics API - Edge Cases', () => {
     expect(body.properties).toHaveLength(0)
   })
 
-  test('GET /analytics/time-series - empty data returns empty array', async ({
+  test('GET /analytics/time-series - empty company still has empty time buckets', async ({
     api,
   }) => {
-    const res = await api.get('/analytics/time-series?period=week', {
-      headers: {
-        'X-Company-ID': '00000000-0000-0000-0000-000000000099',
-      },
-    })
+    const res = await api.get('/analytics/time-series?period=week')
     expect(res.ok()).toBeTruthy()
 
     const body = await res.json()
     expect(body.data).toBeInstanceOf(Array)
-    // Even empty data should have time buckets
+    // Even an empty company has time buckets, and every one of them is empty
     expect(body.data.length).toBeGreaterThan(0)
+    for (const point of body.data) {
+      expect(point.revenue).toBe(0)
+      expect(point.bookings_count).toBe(0)
+    }
   })
 
   test('GET /analytics/metrics - all period presets are valid', async ({

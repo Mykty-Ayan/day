@@ -47,3 +47,7 @@ class NotificationEvent(str, enum.Enum):
     BOOKING_CANCELLED = "booking_cancelled"
     GUEST_INQUIRY = "guest_inquiry"
     GUEST_HANDOFF = "guest_handoff"
+    # A platform calendar closed nights a Day booking holds: a double sale.
+    CALENDAR_CLASH = "calendar_clash"
+    # A guest booked by a personal link: the host sends the Kaspi invoice by hand.
+    GUEST_HOLD = "guest_hold"

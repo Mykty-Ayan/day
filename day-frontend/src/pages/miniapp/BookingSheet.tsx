@@ -34,6 +34,7 @@ import {
   saveAttempt,
   settlement,
   storedAttempt,
+  suggestedDeposit,
   withMoneyLock,
   type MoneyAttempt,
 } from './booking-card'
@@ -549,7 +550,7 @@ export default function BookingSheet({
 
       <DepositRow
         bookingId={booking.id}
-        suggestedAmount={property.data?.pricing?.default_deposit || booking.total_price}
+        suggestedAmount={suggestedDeposit(booking.rental_mode, property.data?.pricing ?? undefined, booking.total_price)}
         onError={fail}
         locked={moneyBusy}
       />

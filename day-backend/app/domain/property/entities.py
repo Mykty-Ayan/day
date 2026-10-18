@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import secrets
 import uuid
 from dataclasses import dataclass, field
 from datetime import date, datetime
@@ -16,6 +17,13 @@ from app.domain.property.value_objects import (
     PropertyType,
 )
 
+# Lower case letters and digits a reader cannot mix up (no 0/o, 1/l/i).
+_CODE_ALPHABET = "abcdefghjkmnpqrstuvwxyz23456789"
+
+
+def new_public_code() -> str:
+    return "".join(secrets.choice(_CODE_ALPHABET) for _ in range(7))
+
 
 @dataclass
 class Property:
@@ -25,6 +33,9 @@ class Property:
     company_id: uuid.UUID = field(default_factory=uuid.uuid4)
     name: str = ""
     internal_name: str = ""
+    # The flat's code on its page for guests (/s/<code>): random, so the link tells
+    # nothing of the flat — the internal name often holds its number.
+    public_code: str = field(default_factory=lambda: new_public_code())
     type: PropertyType = PropertyType.APARTMENT
     status: PropertyStatus = PropertyStatus.NEW
     rental_mode: RentalMode = RentalMode.DAILY
@@ -39,6 +50,29 @@ class Property:
     entrance: str | None = None
     block: str | None = None
     floor: int | None = None
+    # Guests look a flat up by its residential complex; "5 of 9" needs the floors.
+    complex_name: str | None = None
+    floors_total: int | None = None
+
+    # Links the CRM hands to guests: the map pin, the product in the WhatsApp
+    # Business catalog, a video tour.
+    map_url: str | None = None
+    whatsapp_product_url: str | None = None
+    video_url: str | None = None
+    # The flat's listings on Krisha, Booking, Airbnb, OLX: a guest sends one,
+    # and the CRM finds the flat by it.
+    listing_urls: list[str] = field(default_factory=list)
+    # The same, for the flat's listings to rent by the hour: the link the guest
+    # sends tells the CRM which stay they mean.
+    hourly_listing_urls: list[str] = field(default_factory=list)
+
+    # Stay rules for bookings made in Day; empty is no rule. The fewest and most
+    # nights of a daily stay; hours kept free around an hourly booking for
+    # cleaning; hours a stay must be booked ahead of its check-in.
+    min_nights: int | None = None
+    max_nights: int | None = None
+    buffer_hours: int | None = None
+    min_lead_hours: int | None = None
 
     # Details
     rooms: int | None = None
@@ -82,6 +116,9 @@ class PropertyPhoto:
     is_cover: bool = False
     # What the picture shows ("entrance from the yard"), for whoever sends it on.
     caption: str | None = None
+    # guest: a check-in instruction (the entrance, the lock): never in the
+    # listing, only for those who hand codes to guests.
+    audience: FactAudience = FactAudience.PUBLIC
     created_at: datetime | None = None
 
 
@@ -101,6 +138,8 @@ class PricingConfig:
     hourly_price: Decimal = Decimal("0")
     weekend_markup: Decimal = Decimal("0")
     default_deposit: Decimal = Decimal("0")
+    # The deposit of a stay by the hour; 0 is "not set", never the nightly one.
+    hourly_deposit: Decimal = Decimal("0")
     extra_adult_price: Decimal = Decimal("0")
     extra_child_price: Decimal = Decimal("0")
     base_guests: int = 1
@@ -165,6 +204,18 @@ class SeasonalPrice:
     end_date: date | None = None
     price_per_night: Decimal = Decimal("0")
     created_at: datetime | None = None
+
+
+@dataclass
+class DayPrice:
+    """A price for one night set on the calendar, as Airbnb's custom nightly price:
+    it replaces the flat's price for that night (base, season and weekend markup),
+    and a long-stay discount does not cut it."""
+
+    company_id: uuid.UUID = field(default_factory=uuid.uuid4)
+    property_id: uuid.UUID = field(default_factory=uuid.uuid4)
+    date: date = field(default_factory=date.today)
+    price: Decimal = Decimal("0")
 
 
 @dataclass

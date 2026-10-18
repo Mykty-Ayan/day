@@ -1,10 +1,12 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ArrowLeft, ArrowRight, Check, Loader2 } from 'lucide-react'
 import { useNavigate } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
+import { isWebLink } from '../../lib/utils'
+import { listingInBoth, listingLines, listingLinksValid, saveWizard, wizardToUpdate } from './propertyForm'
 import { useCreateProperty } from '../../hooks/useProperties'
-import { createOrUpdatePricing, linkAmenities, uploadPhotos } from '../../api/properties'
+import { createOrUpdatePricing, linkAmenities, updateProperty, uploadPhotos } from '../../api/properties'
 import type { CheckInMethod, PropertyType, PropertyCreateInput, PricingInput } from '../../types/property'
 import type { RentalMode } from '../../types/booking'
 import PropertyFormStepBasic from '../../components/property/PropertyFormStepBasic'
@@ -26,6 +28,11 @@ interface FormData {
     type: PropertyType
     description: string
     source_url: string
+    map_url: string
+    whatsapp_product_url: string
+    video_url: string
+    listing_urls: string
+    hourly_listing_urls: string
   }
   address: {
     address_full: string
@@ -33,6 +40,8 @@ interface FormData {
     entrance: string
     block: string
     floor: string
+    complex_name: string
+    floors_total: string
     latitude: string
     longitude: string
   }
@@ -50,6 +59,7 @@ interface FormData {
     hourly_price: string
     weekend_markup: string
     default_deposit: string
+    hourly_deposit: string
     extra_adult_price: string
     extra_child_price: string
     base_guests: string
@@ -64,16 +74,41 @@ interface FormData {
     house_rules: string
     wifi_name: string
     wifi_password: string
+    min_nights: string
+    max_nights: string
+    buffer_hours: string
+    min_lead_hours: string
   }
   amenityIds: string[]
 }
 
 const initialForm: FormData = {
-  basic: { name: '', internal_name: '', type: 'apartment', description: '', source_url: '' },
-  address: { address_full: '', apartment_number: '', entrance: '', block: '', floor: '', latitude: '', longitude: '' },
+  basic: {
+    name: '',
+    internal_name: '',
+    type: 'apartment',
+    description: '',
+    source_url: '',
+    map_url: '',
+    whatsapp_product_url: '',
+    video_url: '',
+    listing_urls: '',
+    hourly_listing_urls: '',
+  },
+  address: {
+    address_full: '',
+    apartment_number: '',
+    entrance: '',
+    block: '',
+    floor: '',
+    complex_name: '',
+    floors_total: '',
+    latitude: '',
+    longitude: '',
+  },
   details: { rooms: '', beds: '', max_guests: '', bathrooms: '', area_living: '', area_total: '' },
   rental_mode: 'daily',
-  pricing: { base_price: '', hourly_price: '', weekend_markup: '', default_deposit: '', extra_adult_price: '', extra_child_price: '', base_guests: '' },
+  pricing: { base_price: '', hourly_price: '', weekend_markup: '', default_deposit: '', hourly_deposit: '', extra_adult_price: '', extra_child_price: '', base_guests: '' },
   photos: [],
   rules: {
     check_in_hour: '',
@@ -84,6 +119,10 @@ const initialForm: FormData = {
     house_rules: '',
     wifi_name: '',
     wifi_password: '',
+    min_nights: '',
+    max_nights: '',
+    buffer_hours: '',
+    min_lead_hours: '',
   },
   amenityIds: [],
 }
@@ -108,6 +147,7 @@ function toPricingInput(pricing: FormData['pricing']): PricingInput {
     hourly_price: toNumber(pricing.hourly_price, 0),
     weekend_markup: toNumber(pricing.weekend_markup, 0),
     default_deposit: toNumber(pricing.default_deposit, 0),
+    hourly_deposit: toNumber(pricing.hourly_deposit, 0),
     extra_adult_price: toNumber(pricing.extra_adult_price, 0),
     extra_child_price: toNumber(pricing.extra_child_price, 0),
     base_guests: Math.max(1, toInt(pricing.base_guests, 1)),
@@ -122,12 +162,24 @@ export default function CreatePropertyPage() {
   const [form, setForm] = useState<FormData>(initialForm)
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [direction, setDirection] = useState(1)
+  // The flat this wizard already created; a retry finishes it instead of making a second one.
+  const created = useRef<string | null>(null)
+  const [saving, setSaving] = useState(false)
 
   function validateStep(): boolean {
     const newErrors: Record<string, string> = {}
     if (step === 0) {
       if (!form.basic.name.trim()) newErrors.name = t('properties.validation.nameRequired')
       if (!form.basic.internal_name.trim()) newErrors.internal_name = t('properties.validation.internalNameRequired')
+      for (const key of ['map_url', 'whatsapp_product_url', 'video_url'] as const) {
+        if (form.basic[key].trim() && !isWebLink(form.basic[key])) newErrors[key] = t('properties.validation.webLink')
+      }
+      if (!listingLinksValid(form.basic.listing_urls)) newErrors.listing_urls = t('properties.validation.listingLinks')
+      if (!listingLinksValid(form.basic.hourly_listing_urls)) {
+        newErrors.hourly_listing_urls = t('properties.validation.listingLinks')
+      } else if (listingInBoth(form.basic.listing_urls, form.basic.hourly_listing_urls)) {
+        newErrors.hourly_listing_urls = t('properties.validation.listingInBoth')
+      }
     }
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
@@ -154,11 +206,18 @@ export default function CreatePropertyPage() {
       rental_mode: form.rental_mode,
       description: form.basic.description || undefined,
       source_url: form.basic.source_url || undefined,
+      map_url: form.basic.map_url.trim() || undefined,
+      whatsapp_product_url: form.basic.whatsapp_product_url.trim() || undefined,
+      video_url: form.basic.video_url.trim() || undefined,
+      listing_urls: listingLines(form.basic.listing_urls),
+      hourly_listing_urls: listingLines(form.basic.hourly_listing_urls),
       address_full: form.address.address_full || undefined,
       apartment_number: form.address.apartment_number || undefined,
       entrance: form.address.entrance || undefined,
       block: form.address.block || undefined,
       floor: form.address.floor ? parseInt(form.address.floor) : undefined,
+      complex_name: form.address.complex_name.trim() || undefined,
+      floors_total: form.address.floors_total ? parseInt(form.address.floors_total) : undefined,
       latitude: form.address.latitude ? parseFloat(form.address.latitude) : undefined,
       longitude: form.address.longitude ? parseFloat(form.address.longitude) : undefined,
       rooms: form.details.rooms ? parseInt(form.details.rooms) : undefined,
@@ -175,28 +234,44 @@ export default function CreatePropertyPage() {
       house_rules: form.rules.house_rules || undefined,
       wifi_name: form.rules.wifi_name || undefined,
       wifi_password: form.rules.wifi_password || undefined,
+      min_nights: form.rules.min_nights ? parseInt(form.rules.min_nights) : undefined,
+      max_nights: form.rules.max_nights ? parseInt(form.rules.max_nights) : undefined,
+      buffer_hours: form.rules.buffer_hours ? parseInt(form.rules.buffer_hours) : undefined,
+      min_lead_hours: form.rules.min_lead_hours ? parseInt(form.rules.min_lead_hours) : undefined,
     }
 
+    setSaving(true)
+    let failedPhotos = 0
     try {
-      const property = await createProperty.mutateAsync(payload)
-
-      if (hasPricingInput(form.pricing)) {
-        await createOrUpdatePricing(property.id, toPricingInput(form.pricing))
-      }
-      if (form.amenityIds.length > 0) {
-        await linkAmenities(property.id, form.amenityIds)
-      }
-      // The photos step used to collect files and drop them on save.
-      const failedPhotos = form.photos.length > 0 ? await uploadPhotos(property.id, form.photos) : 0
+      const propertyId = await saveWizard(
+        created,
+        async () => (await createProperty.mutateAsync(payload)).id,
+        async (id) => {
+          await updateProperty(id, wizardToUpdate(payload))
+        },
+        async (id) => {
+          if (hasPricingInput(form.pricing)) {
+            await createOrUpdatePricing(id, toPricingInput(form.pricing))
+          }
+          if (form.amenityIds.length > 0) {
+            await linkAmenities(id, form.amenityIds)
+          }
+          // The photos step used to collect files and drop them on save.
+          failedPhotos = form.photos.length > 0 ? await uploadPhotos(id, form.photos) : 0
+        },
+      )
 
       if (failedPhotos > 0) {
         showToast('error', t('properties.photosFailed', { count: failedPhotos }))
       } else {
         showToast('success', t('properties.propertyCreated'))
       }
-      navigate({ to: '/properties/$propertyId', params: { propertyId: property.id } })
+      navigate({ to: '/properties/$propertyId', params: { propertyId } })
     } catch {
-      showToast('error', t('properties.failedCreate'))
+      // Once the flat exists, the next click only finishes it.
+      showToast('error', created.current ? t('properties.failedFinishCreate') : t('properties.failedCreate'))
+    } finally {
+      setSaving(false)
     }
   }
 
@@ -308,10 +383,10 @@ export default function CreatePropertyPage() {
           <motion.button
             whileTap={{ scale: 0.97 }}
             onClick={isLast ? handleSubmit : goNext}
-            disabled={createProperty.isPending}
+            disabled={saving}
             className="flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl bg-black px-6 py-2.5 font-semibold text-white shadow-lg transition-colors hover:bg-gray-800 disabled:opacity-50 sm:w-auto"
           >
-            {createProperty.isPending ? (
+            {saving ? (
               <Loader2 className="w-4 h-4 animate-spin" />
             ) : isLast ? (
               <>

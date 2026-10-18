@@ -1,6 +1,8 @@
 /** One press of "Book", and what is left of it when the answer is lost. */
 
+import type { AvailableProperty } from '../../api/miniapp'
 import type { BookingCreateInput } from '../../types/booking'
+import type { SellRange } from './sell'
 import { loadStored, saveStored, withAttemptLock, type AttemptLocks, type AttemptStore } from './booking-card'
 
 /** The form as it was at the press, under one Idempotency-Key. */
@@ -92,4 +94,52 @@ export async function startBooking(
   if (claimed !== 'kept') return claimed
   steps.send(attempt)
   return 'sent'
+}
+
+/** The book sheet for a stored attempt, opened from the sell screen: the flat may
+ *  no longer be free (its booking may be the one that took it), and the attempt
+ *  must still be retried or checked. The range is the body's own, so a retry
+ *  sends the same body under the same key. */
+export function attemptSheet(attempt: BookingAttempt): { unit: AvailableProperty; range: SellRange } {
+  const body = attempt.body
+  return {
+    unit: {
+      property_id: body.property_id,
+      name: attempt.unit,
+      internal_name: attempt.unit,
+      rental_mode: body.rental_mode ?? 'daily',
+      rooms: null,
+      beds: null,
+      max_guests: null,
+      bathrooms: null,
+      total_price: null,
+      price_error: null,
+    },
+    range: {
+      checkIn: body.check_in,
+      checkOut: body.check_out,
+      rentalMode: body.rental_mode === 'hourly' ? 'hourly' : 'daily',
+      guests: body.adults_count,
+    },
+  }
+}
+
+/** The phone's storage, or none where the WebView refuses it. */
+export function phoneStorage(): Storage | undefined {
+  try {
+    return window.localStorage
+  } catch {
+    return undefined
+  }
+}
+
+/** Whether two bodies book the same stay for the same guest. The hold's end is
+ *  counted from each press, so only holding or not counts; override_rules is
+ *  the operator's word on the stay, not a different stay. */
+export function sameBooking(a: BookingCreateInput, b: BookingCreateInput): boolean {
+  const essence = ({ expires_at, override_rules, ...stay }: BookingCreateInput) => {
+    void override_rules
+    return JSON.stringify({ ...stay, held: Boolean(expires_at) })
+  }
+  return essence(a) === essence(b)
 }

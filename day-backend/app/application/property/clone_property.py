@@ -74,6 +74,15 @@ class ClonePropertyService:
             entrance=source.entrance,
             block=source.block,
             floor=source.floor,
+            complex_name=source.complex_name,
+            floors_total=source.floors_total,
+            map_url=source.map_url,
+            whatsapp_product_url=source.whatsapp_product_url,
+            video_url=source.video_url,
+            min_nights=source.min_nights,
+            max_nights=source.max_nights,
+            buffer_hours=source.buffer_hours,
+            min_lead_hours=source.min_lead_hours,
             rooms=source.rooms,
             beds=source.beds,
             max_guests=source.max_guests,
@@ -101,6 +110,8 @@ class ClonePropertyService:
                     url=photo.url,
                     sort_order=photo.sort_order,
                     is_cover=photo.is_cover,
+                    caption=photo.caption,
+                    audience=photo.audience,
                 )
             )
 
@@ -120,6 +131,7 @@ class ClonePropertyService:
                     hourly_price=pricing.hourly_price,
                     weekend_markup=pricing.weekend_markup,
                     default_deposit=pricing.default_deposit,
+                    hourly_deposit=pricing.hourly_deposit,
                     extra_adult_price=pricing.extra_adult_price,
                     extra_child_price=pricing.extra_child_price,
                     base_guests=pricing.base_guests,
