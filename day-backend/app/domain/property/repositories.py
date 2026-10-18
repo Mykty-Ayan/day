@@ -43,7 +43,14 @@ class PropertyRepository(abc.ABC):
     ) -> list[Property]: ...
 
     @abc.abstractmethod
-    async def count_by_company(self, company_id: uuid.UUID, *, tag_id: uuid.UUID | None = None) -> int: ...
+    async def count_by_company(
+        self,
+        company_id: uuid.UUID,
+        *,
+        status: PropertyStatus | None = None,
+        search: str | None = None,
+        tag_id: uuid.UUID | None = None,
+    ) -> int: ...
 
     @abc.abstractmethod
     async def save(self, prop: Property) -> Property: ...

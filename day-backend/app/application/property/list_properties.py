@@ -33,7 +33,7 @@ class ListPropertiesService:
         items = await self._property_repo.list_by_company(
             company_id, offset=offset, limit=limit, status=status, search=search, tag_id=tag_id
         )
-        total = await self._property_repo.count_by_company(company_id, tag_id=tag_id)
+        total = await self._property_repo.count_by_company(company_id, status=status, search=search, tag_id=tag_id)
         return ListPropertiesResult(
             items=items, total=total, offset=offset, limit=limit
         )

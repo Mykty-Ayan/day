@@ -79,8 +79,18 @@ class FakePropertyRepository(PropertyRepository):
             result = [p for p in result if q in p.name.lower() or q in p.internal_name.lower()]
         return result[offset : offset + limit]
 
-    async def count_by_company(self, company_id: uuid.UUID, *, tag_id: uuid.UUID | None = None) -> int:
-        return len(self._visible(company_id, tag_id))
+    async def count_by_company(
+        self,
+        company_id: uuid.UUID,
+        *,
+        status: PropertyStatus | None = None,
+        search: str | None = None,
+        tag_id: uuid.UUID | None = None,
+    ) -> int:
+        everything = await self.list_by_company(
+            company_id, limit=len(self._properties), status=status, search=search, tag_id=tag_id
+        )
+        return len(everything)
 
     async def save(self, prop: Property) -> Property:
         self._properties[prop.id] = prop
@@ -816,6 +826,7 @@ class TestListPropertiesService:
 
         assert len(result.items) == 1
         assert result.items[0].name == "Active"
+        assert result.total == 1
 
     @pytest.mark.asyncio
     async def test_search_filter(self):
@@ -830,6 +841,7 @@ class TestListPropertiesService:
 
         assert len(result.items) == 1
         assert result.items[0].name == "Beach Villa"
+        assert result.total == 1
 
     @pytest.mark.asyncio
     async def test_pagination(self):
