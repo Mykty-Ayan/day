@@ -1,3 +1,4 @@
+import type { Locator, Page } from '@playwright/test'
 import { test, expect } from '../fixtures/e2e-auth'
 import {
   createTestProperty,
@@ -6,6 +7,36 @@ import {
   createTestDiscountRule,
   API_BASE,
 } from '../fixtures/test-data'
+
+// The Pricing card of the property page. Its labels are not tied to their inputs,
+// so a field is the input that follows its label.
+function pricingCard(page: Page): Locator {
+  return page.locator('div.rounded-xl', { has: page.getByRole('heading', { name: 'Pricing', exact: true }) }).last()
+}
+
+function priceField(card: Locator, label: string): Locator {
+  return card.getByText(label, { exact: true }).locator('xpath=following-sibling::div[1]//input')
+}
+
+/** The row of a seasonal price or a discount rule: the nearest rounded box around its text. */
+function pricingRow(card: Locator, text: string | RegExp): Locator {
+  return card.getByText(text).locator('xpath=ancestor::div[contains(@class, "rounded-xl")][1]')
+}
+
+/** A day of the current month as the API writes it, and as the date picker shows it. */
+function day(dayOfMonth: number): { iso: string; shown: string } {
+  const now = new Date()
+  const year = String(now.getFullYear())
+  const month = String(now.getMonth() + 1).padStart(2, '0')
+  const date = String(dayOfMonth).padStart(2, '0')
+  return { iso: `${year}-${month}-${date}`, shown: `${date}.${month}.${year}` }
+}
+
+/** Opens a date picker (it opens on the current month) and picks a day of that month. */
+async function pickDay(page: Page, picker: Locator, dayOfMonth: number) {
+  await picker.click()
+  await page.locator(`[data-day="${day(dayOfMonth).iso}"] button`).click()
+}
 
 test.describe('Property Pricing - E2E', () => {
   let propertyIdsToCleanup: string[] = []
@@ -33,66 +64,40 @@ test.describe('Property Pricing - E2E', () => {
 
   test('set base pricing configuration', async ({ page, request }) => {
     const prop = await createPropertyViaApi(request)
-    const pricing = createTestPricing()
+    const pricing = createTestPricing({ base_price: 130 })
 
     await page.goto(`/properties/${prop.id}`)
-    await page.waitForLoadState('networkidle')
-
-    // Navigate to pricing section or tab
-    const pricingTab = page.getByRole('tab', { name: /pricing/i })
-    if (await pricingTab.isVisible({ timeout: 2000 }).catch(() => false)) {
-      await pricingTab.click()
-    } else {
-      // May be a button or link instead
-      const pricingLink = page.getByRole('link', { name: /pricing/i })
-      if (await pricingLink.isVisible({ timeout: 1000 }).catch(() => false)) {
-        await pricingLink.click()
-      }
-    }
+    const card = pricingCard(page)
 
     // Fill pricing fields
-    const basePriceField = page.getByLabel(/base.?price/i)
-    if (await basePriceField.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await basePriceField.clear()
-      await basePriceField.fill(String(pricing.base_price))
-    }
-
-    const weekendField = page.getByLabel(/weekend.?markup/i)
-    if (await weekendField.isVisible({ timeout: 1000 }).catch(() => false)) {
-      await weekendField.clear()
-      await weekendField.fill(String(pricing.weekend_markup))
-    }
-
-    const depositField = page.getByLabel(/deposit/i)
-    if (await depositField.isVisible({ timeout: 1000 }).catch(() => false)) {
-      await depositField.clear()
-      await depositField.fill(String(pricing.default_deposit))
-    }
-
-    const extraAdultField = page.getByLabel(/extra.?adult/i)
-    if (await extraAdultField.isVisible({ timeout: 1000 }).catch(() => false)) {
-      await extraAdultField.clear()
-      await extraAdultField.fill(String(pricing.extra_adult_price))
-    }
-
-    const extraChildField = page.getByLabel(/extra.?child/i)
-    if (await extraChildField.isVisible({ timeout: 1000 }).catch(() => false)) {
-      await extraChildField.clear()
-      await extraChildField.fill(String(pricing.extra_child_price))
-    }
-
-    const baseGuestsField = page.getByLabel(/base.?guests/i)
-    if (await baseGuestsField.isVisible({ timeout: 1000 }).catch(() => false)) {
-      await baseGuestsField.clear()
-      await baseGuestsField.fill(String(pricing.base_guests))
-    }
+    await priceField(card, 'Base Price').fill(String(pricing.base_price))
+    await priceField(card, 'Weekend Markup (%)').fill(String(pricing.weekend_markup))
+    await priceField(card, 'Default Deposit').fill(String(pricing.default_deposit))
+    await priceField(card, 'Base Guests').fill(String(pricing.base_guests))
+    await priceField(card, 'Extra Adult Price').fill(String(pricing.extra_adult_price))
+    await priceField(card, 'Extra Child Price').fill(String(pricing.extra_child_price))
 
     // Save pricing
-    await page.getByRole('button', { name: /save|update/i }).click()
+    await card.getByRole('button', { name: 'Save Pricing' }).click()
+    await expect(page.getByText('Pricing saved')).toBeVisible()
 
-    // Verify success message or that pricing values are displayed
-    const success = page.getByText(/saved|success|updated/i)
-    await expect(success.first()).toBeVisible({ timeout: 5000 })
+    // Every value reached the server
+    const saved = await (await request.get(`${API_BASE}/properties/${prop.id}/pricing`)).json()
+    expect({
+      base_price: Number(saved.base_price),
+      weekend_markup: Number(saved.weekend_markup),
+      default_deposit: Number(saved.default_deposit),
+      base_guests: Number(saved.base_guests),
+      extra_adult_price: Number(saved.extra_adult_price),
+      extra_child_price: Number(saved.extra_child_price),
+    }).toEqual({
+      base_price: pricing.base_price,
+      weekend_markup: pricing.weekend_markup,
+      default_deposit: pricing.default_deposit,
+      base_guests: pricing.base_guests,
+      extra_adult_price: pricing.extra_adult_price,
+      extra_child_price: pricing.extra_child_price,
+    })
   })
 
   test('add seasonal prices with date ranges', async ({ page, request }) => {
@@ -106,78 +111,61 @@ test.describe('Property Pricing - E2E', () => {
     })
 
     await page.goto(`/properties/${prop.id}`)
-    await page.waitForLoadState('networkidle')
+    const card = pricingCard(page)
+    // The form is rebuilt when the saved pricing arrives and drops what was typed: wait for it
+    await expect(priceField(card, 'Base Price')).toHaveValue(String(pricing.base_price))
 
-    // Navigate to pricing section
-    const pricingTab = page.getByRole('tab', { name: /pricing/i })
-    if (await pricingTab.isVisible({ timeout: 2000 }).catch(() => false)) {
-      await pricingTab.click()
-    }
+    // Fill the seasonal price form: name, a date range from the pickers, price
+    await card.getByPlaceholder('Name', { exact: true }).fill(seasonal.name)
+    await pickDay(page, card.getByRole('button', { name: 'Start date' }), 10)
+    await pickDay(page, card.getByRole('button', { name: 'End date' }), 20)
+    await card.getByPlaceholder('Price', { exact: true }).fill(String(seasonal.price))
+    await card.getByRole('button', { name: 'Add seasonal price' }).click()
 
-    // Click add seasonal price
-    await page.getByRole('button', { name: /add.?seasonal|new.?season/i }).click()
+    // The seasonal price appears with its dates and price
+    await expect(page.getByText('Seasonal price added')).toBeVisible()
+    const row = pricingRow(card, seasonal.name)
+    await expect(row).toContainText(`${day(10).shown} - ${day(20).shown}`)
+    await expect(row).toHaveText(new RegExp(`${seasonal.price}$`))
 
-    // Fill seasonal price form
-    const nameField = page.getByLabel(/name|season.?name/i).last()
-    await nameField.fill(seasonal.name)
-
-    const startField = page.getByLabel(/start.?date/i)
-    await startField.fill(seasonal.start_date)
-
-    const endField = page.getByLabel(/end.?date/i)
-    await endField.fill(seasonal.end_date)
-
-    const priceField = page.getByLabel(/price/i).last()
-    await priceField.fill(String(seasonal.price))
-
-    // Save
-    await page.getByRole('button', { name: /save|add|create/i }).last().click()
-
-    // Verify seasonal price appears
-    await expect(page.getByText(seasonal.name)).toBeVisible({ timeout: 5000 })
+    const saved = await (await request.get(`${API_BASE}/properties/${prop.id}/pricing/seasonal`)).json()
+    expect(saved).toHaveLength(1)
+    expect(saved[0]).toMatchObject({ name: seasonal.name, start_date: day(10).iso, end_date: day(20).iso })
+    expect(Number(saved[0].price)).toBe(seasonal.price)
   })
 
   test('add discount rules', async ({ page, request }) => {
     const prop = await createPropertyViaApi(request)
-    const discount = createTestDiscountRule()
+    const discount = createTestDiscountRule({ type: 'fixed', value: 500 })
 
     // Set base pricing via API
+    const pricing = createTestPricing()
     await request.put(`${API_BASE}/properties/${prop.id}/pricing`, {
-      data: createTestPricing(),
+      data: pricing,
     })
 
     await page.goto(`/properties/${prop.id}`)
-    await page.waitForLoadState('networkidle')
+    const card = pricingCard(page)
+    // The form is rebuilt when the saved pricing arrives and drops what was typed: wait for it
+    await expect(priceField(card, 'Base Price')).toHaveValue(String(pricing.base_price))
 
-    const pricingTab = page.getByRole('tab', { name: /pricing/i })
-    if (await pricingTab.isVisible({ timeout: 2000 }).catch(() => false)) {
-      await pricingTab.click()
-    }
+    // Fill the discount form: min nights, type from the select, value
+    await card.getByPlaceholder('Min nights').fill(String(discount.min_nights))
+    await card.getByRole('combobox').click()
+    await page.getByRole('option', { name: 'Fixed' }).click()
+    await card.getByPlaceholder('Value').fill(String(discount.value))
+    await card.getByRole('button', { name: 'Add discount rule' }).click()
 
-    // Click add discount
-    await page.getByRole('button', { name: /add.?discount|new.?discount/i }).click()
+    // The rule appears
+    await expect(page.getByText('Discount rule added')).toBeVisible()
+    await expect(pricingRow(card, `${discount.min_nights}+ nights`)).toHaveText(
+      new RegExp(`^${discount.min_nights}\\+ nights: .*${discount.value} off$`),
+    )
 
-    // Fill discount form
-    const minNightsField = page.getByLabel(/min.?nights/i)
-    await minNightsField.fill(String(discount.min_nights))
-
-    // Select discount type
-    const typeSelect = page.getByLabel(/type/i).last()
-    if (await typeSelect.isVisible({ timeout: 1000 }).catch(() => false)) {
-      await typeSelect.selectOption(discount.type)
-    } else {
-      await page.getByText(discount.type, { exact: false }).click()
-    }
-
-    const valueField = page.getByLabel(/value|amount/i).last()
-    await valueField.fill(String(discount.value))
-
-    await page.getByRole('button', { name: /save|add|create/i }).last().click()
-
-    // Verify discount appears
-    await expect(
-      page.getByText(String(discount.min_nights)),
-    ).toBeVisible({ timeout: 5000 })
+    const saved = await (await request.get(`${API_BASE}/properties/${prop.id}/pricing/discounts`)).json()
+    expect(saved).toHaveLength(1)
+    expect(saved[0]).toMatchObject({ min_nights: discount.min_nights, type: 'fixed' })
+    expect(Number(saved[0].value)).toBe(discount.value)
   })
 
   test('delete seasonal price', async ({ page, request }) => {
@@ -191,40 +179,21 @@ test.describe('Property Pricing - E2E', () => {
       `${API_BASE}/properties/${prop.id}/pricing/seasonal`,
       { data: createTestSeasonalPrice({ name: 'Delete-Me-Season' }) },
     )
-    await seasonalRes.json()
+    expect(seasonalRes.ok()).toBeTruthy()
 
     await page.goto(`/properties/${prop.id}`)
-    await page.waitForLoadState('networkidle')
+    const card = pricingCard(page)
 
-    const pricingTab = page.getByRole('tab', { name: /pricing/i })
-    if (await pricingTab.isVisible({ timeout: 2000 }).catch(() => false)) {
-      await pricingTab.click()
-    }
+    await expect(card.getByText('Delete-Me-Season')).toBeVisible()
 
-    // Find and delete the seasonal price
-    await expect(page.getByText('Delete-Me-Season')).toBeVisible({ timeout: 5000 })
-
-    // Click delete button near the seasonal price
-    const seasonalRow = page.getByText('Delete-Me-Season').locator('..')
-    const deleteBtn = seasonalRow.getByRole('button', { name: /delete|remove/i })
-    if (await deleteBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
-      await deleteBtn.click()
-    } else {
-      // Fallback: look for a trash icon button
-      const trashBtn = seasonalRow.locator('button').last()
-      await trashBtn.click()
-    }
-
-    // Confirm deletion if dialog appears
-    const confirmBtn = page.getByRole('button', { name: /confirm|yes|delete/i })
-    if (await confirmBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
-      await confirmBtn.click()
-    }
+    // The row has one button, the cross. There is no confirmation: it deletes at once
+    await pricingRow(card, 'Delete-Me-Season').getByRole('button').click()
 
     // Verify seasonal price is removed
-    await expect(page.getByText('Delete-Me-Season')).not.toBeVisible({
-      timeout: 5000,
-    })
+    await expect(page.getByText('Seasonal price removed')).toBeVisible()
+    await expect(card.getByText('Delete-Me-Season')).toHaveCount(0)
+    const saved = await (await request.get(`${API_BASE}/properties/${prop.id}/pricing/seasonal`)).json()
+    expect(saved).toHaveLength(0)
   })
 
   test('delete discount rule', async ({ page, request }) => {
@@ -238,32 +207,17 @@ test.describe('Property Pricing - E2E', () => {
     })
 
     await page.goto(`/properties/${prop.id}`)
-    await page.waitForLoadState('networkidle')
+    const card = pricingCard(page)
 
-    const pricingTab = page.getByRole('tab', { name: /pricing/i })
-    if (await pricingTab.isVisible({ timeout: 2000 }).catch(() => false)) {
-      await pricingTab.click()
-    }
+    // Find the discount row. Its one button, the cross, deletes it at once
+    await expect(card.getByText('14+ nights')).toBeVisible()
+    await pricingRow(card, '14+ nights').getByRole('button').click()
 
-    // Find discount row (look for "14" nights)
-    await expect(page.getByText('14')).toBeVisible({ timeout: 5000 })
-
-    const discountRow = page.getByText('14').locator('..')
-    const deleteBtn = discountRow.getByRole('button', { name: /delete|remove/i })
-    if (await deleteBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
-      await deleteBtn.click()
-    } else {
-      const trashBtn = discountRow.locator('button').last()
-      await trashBtn.click()
-    }
-
-    const confirmBtn = page.getByRole('button', { name: /confirm|yes|delete/i })
-    if (await confirmBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
-      await confirmBtn.click()
-    }
-
-    // Verify discount is removed (check the "14" text is gone from the discount section)
-    await page.waitForTimeout(1000)
+    // Verify discount is removed
+    await expect(page.getByText('Discount rule removed')).toBeVisible()
+    await expect(card.getByText('14+ nights')).toHaveCount(0)
+    const saved = await (await request.get(`${API_BASE}/properties/${prop.id}/pricing/discounts`)).json()
+    expect(saved).toHaveLength(0)
   })
 
   test('pricing displays correctly on property detail page', async ({
@@ -284,22 +238,17 @@ test.describe('Property Pricing - E2E', () => {
     })
 
     await page.goto(`/properties/${prop.id}`)
-    await page.waitForLoadState('networkidle')
+    const card = pricingCard(page)
 
-    // Navigate to pricing section
-    const pricingTab = page.getByRole('tab', { name: /pricing/i })
-    if (await pricingTab.isVisible({ timeout: 2000 }).catch(() => false)) {
-      await pricingTab.click()
-    }
-
-    // Verify base pricing values are displayed
-    await expect(page.getByText('120')).toBeVisible({ timeout: 5000 })
-    await expect(page.getByText('25')).toBeVisible()
+    // Verify base pricing values are displayed (they are the values of the inputs)
+    await expect(priceField(card, 'Base Price')).toHaveValue('120')
+    await expect(priceField(card, 'Weekend Markup (%)')).toHaveValue('25')
+    await expect(priceField(card, 'Default Deposit')).toHaveValue('50')
 
     // Verify seasonal price
-    await expect(page.getByText('Winter Prices')).toBeVisible()
+    await expect(pricingRow(card, 'Winter Prices')).toHaveText(/80$/)
 
     // Verify discount
-    await expect(page.getByText('10')).toBeVisible()
+    await expect(pricingRow(card, '7+ nights')).toHaveText('7+ nights: 10% off')
   })
 })

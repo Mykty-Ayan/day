@@ -1,3 +1,4 @@
+import type { APIRequestContext, Locator, Page } from '@playwright/test'
 import { test, expect } from '../fixtures/e2e-auth'
 import { createTestProperty, API_BASE } from '../fixtures/test-data'
 import path from 'path'
@@ -6,6 +7,22 @@ import { fileURLToPath } from 'url'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
+
+interface Photo {
+  id: string
+  url: string
+  audience: 'public' | 'guest'
+}
+
+async function photosOf(request: APIRequestContext, propertyId: string): Promise<Photo[]> {
+  const res = await request.get(`${API_BASE}/properties/${propertyId}`)
+  return (await res.json()).photos
+}
+
+/** The picture of a photo on the page: the image whose source is the URL the API gave. */
+function photoImage(page: Page, photo: Photo): Locator {
+  return page.locator(`img[src="${photo.url}"]`)
+}
 
 test.describe('Property Photos - E2E', () => {
   let propertyIdsToCleanup: string[] = []
@@ -54,39 +71,15 @@ test.describe('Property Photos - E2E', () => {
     const prop = await createPropertyViaApi(request)
 
     await page.goto(`/properties/${prop.id}`)
-    await page.waitForLoadState('networkidle')
 
-    // Navigate to photos section if tabbed
-    const photosTab = page.getByRole('tab', { name: /photos/i })
-    if (await photosTab.isVisible({ timeout: 2000 }).catch(() => false)) {
-      await photosTab.click()
-    }
+    // The "Add photos" tile of the gallery holds a hidden file input
+    await page.locator('#add-photos').setInputFiles(TEST_IMAGE_PATH)
+    await expect(page.getByText('Photos added: 1')).toBeVisible()
 
-    // Trigger file upload
-    const fileInput = page.locator('input[type="file"]')
-    if (await fileInput.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await fileInput.setInputFiles(TEST_IMAGE_PATH)
-    } else {
-      // May need to click an upload button first
-      const uploadBtn = page.getByRole('button', { name: /upload|add.?photo/i })
-      await uploadBtn.click()
-
-      // Handle file chooser
-      const [fileChooser] = await Promise.all([
-        page.waitForEvent('filechooser'),
-        page.locator('input[type="file"]').click().catch(() => {}),
-      ])
-      if (fileChooser) {
-        await fileChooser.setFiles(TEST_IMAGE_PATH)
-      }
-    }
-
-    // Wait for upload to complete
-    await page.waitForTimeout(2000)
-
-    // Verify photo appears (should see an img element or thumbnail)
-    const images = page.locator('img[src*="photo"], img[src*="upload"], img[alt*="property"]')
-    await expect(images.first()).toBeVisible({ timeout: 10000 })
+    // The photo is saved and the gallery shows it
+    const photos = await photosOf(request, prop.id)
+    expect(photos).toHaveLength(1)
+    await expect(photoImage(page, photos[0])).toBeVisible()
   })
 
   test('upload multiple photos', async ({ page, request }) => {
@@ -103,24 +96,16 @@ test.describe('Property Photos - E2E', () => {
     }
 
     await page.goto(`/properties/${prop.id}`)
-    await page.waitForLoadState('networkidle')
 
-    const photosTab = page.getByRole('tab', { name: /photos/i })
-    if (await photosTab.isVisible({ timeout: 2000 }).catch(() => false)) {
-      await photosTab.click()
+    await page.locator('#add-photos').setInputFiles([TEST_IMAGE_PATH, testImage2])
+    await expect(page.getByText('Photos added: 2')).toBeVisible()
+
+    // Both photos are saved and the gallery shows both
+    const photos = await photosOf(request, prop.id)
+    expect(photos).toHaveLength(2)
+    for (const photo of photos) {
+      await expect(photoImage(page, photo)).toBeVisible()
     }
-
-    const fileInput = page.locator('input[type="file"]')
-    if (await fileInput.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await fileInput.setInputFiles([TEST_IMAGE_PATH, testImage2])
-    }
-
-    await page.waitForTimeout(3000)
-
-    // Verify multiple photos appear
-    const images = page.locator('img[src*="photo"], img[src*="upload"], img[alt*="property"]')
-    const count = await images.count()
-    expect(count).toBeGreaterThanOrEqual(2)
   })
 
   test('set cover photo', async ({ page, request }) => {
@@ -159,48 +144,26 @@ test.describe('Property Photos - E2E', () => {
     const prop = await createPropertyViaApi(request)
 
     await page.goto(`/properties/${prop.id}`)
-    await page.waitForLoadState('networkidle')
 
-    const photosTab = page.getByRole('tab', { name: /photos/i })
-    if (await photosTab.isVisible({ timeout: 2000 }).catch(() => false)) {
-      await photosTab.click()
-    }
+    // Only a check-in photo can be deleted on this page: the gallery has no delete button
+    await page
+      .locator('label', { hasText: 'Add a check-in photo' })
+      .locator('input[type="file"]')
+      .setInputFiles(TEST_IMAGE_PATH)
+    await expect(page.getByText('Photos added: 1')).toBeVisible()
+    const [photo] = await photosOf(request, prop.id)
+    expect(photo.audience).toBe('guest')
+    await expect(photoImage(page, photo)).toBeVisible()
 
-    // Upload a photo
-    const fileInput = page.locator('input[type="file"]')
-    if (await fileInput.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await fileInput.setInputFiles(TEST_IMAGE_PATH)
-    }
-    await page.waitForTimeout(2000)
+    // The trash button asks for confirmation
+    await page.getByRole('button', { name: 'Delete', exact: true }).click()
+    const dialog = page
+      .getByRole('heading', { name: 'Delete the photo?' })
+      .locator('xpath=ancestor::div[contains(@class, "rounded-2xl")][1]')
+    await dialog.getByRole('button', { name: 'Delete', exact: true }).click()
 
-    // Count photos before delete
-    const images = page.locator('img[src*="photo"], img[src*="upload"], img[alt*="property"]')
-    const countBefore = await images.count()
-
-    // Find and click delete button on the photo
-    const deleteBtn = page.getByRole('button', { name: /delete.?photo|remove.?photo/i })
-    if (await deleteBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
-      await deleteBtn.first().click()
-    } else {
-      // Look for a trash icon within photo thumbnails
-      const photoContainer = images.first().locator('..')
-      const trashBtn = photoContainer.locator('button').first()
-      if (await trashBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
-        await trashBtn.click()
-      }
-    }
-
-    // Confirm deletion
-    const confirmBtn = page.getByRole('button', { name: /confirm|yes|delete/i })
-    if (await confirmBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
-      await confirmBtn.click()
-    }
-
-    await page.waitForTimeout(1000)
-
-    // Count should decrease
-    const countAfter = await images.count()
-    expect(countAfter).toBeLessThan(countBefore)
+    await expect(photoImage(page, photo)).toHaveCount(0)
+    expect(await photosOf(request, prop.id)).toHaveLength(0)
   })
 
   test('photo gallery displays on detail page', async ({ page, request }) => {
