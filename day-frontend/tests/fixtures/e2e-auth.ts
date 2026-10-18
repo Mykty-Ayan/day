@@ -39,6 +39,9 @@ async function register(request: APIRequestContext): Promise<AuthTokens> {
         password: 'PlaywrightE2E123!',
         company_name: 'Playwright E2E',
       },
+      // The dev backend now and then resets a connection (ECONNRESET), which is
+      // the one network error Playwright retries on its own
+      maxRetries: 3,
     })
     if (response.ok()) return (await response.json()) as AuthTokens
 
