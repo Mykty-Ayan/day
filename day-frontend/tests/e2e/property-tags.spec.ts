@@ -70,10 +70,6 @@ test.describe('Property Tags - E2E', () => {
   })
 
   test('filter properties by tag via API', async ({ request }) => {
-    test.fixme(
-      true,
-      'GET /properties ignores tag_id: the list comes back whole, tagged or not (the backend has no tag filter)',
-    )
     const tagged = await createPropertyViaApi(request)
     const untagged = await createPropertyViaApi(request)
     const tagName = `FilterTag-${Date.now()}`
@@ -168,10 +164,6 @@ test.describe('Property Tags - E2E', () => {
   })
 
   test('tags UI - filter the property list by tag', async ({ page, request }) => {
-    test.fixme(
-      true,
-      'The tag chips send tag_id, but GET /properties ignores it and returns every property, so nothing is filtered',
-    )
     const tagged = await createPropertyViaApi(request)
     const untagged = await createPropertyViaApi(request)
     const tag = await createTagViaApi(request, `UiTag-${Date.now()}`)
