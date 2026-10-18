@@ -21,15 +21,18 @@ test.describe('Booking CRUD - E2E', () => {
   ) {
     const data = createTestProperty()
     const res = await request.post(`${API_BASE}/properties`, { data })
+    expect(res.ok(), `POST properties: ${res.status()}`).toBeTruthy()
     const prop = await res.json()
     propertyIdsToCleanup.push(prop.id)
 
-    await request.post(`${API_BASE}/properties/${prop.id}/status`, {
+    const statusRes = await request.post(`${API_BASE}/properties/${prop.id}/status`, {
       data: { status: 'active' },
     })
-    await request.put(`${API_BASE}/properties/${prop.id}/pricing`, {
+    expect(statusRes.ok(), `POST property status: ${statusRes.status()}`).toBeTruthy()
+    const pricingRes = await request.put(`${API_BASE}/properties/${prop.id}/pricing`, {
       data: createTestPricing(),
     })
+    expect(pricingRes.ok(), `PUT pricing: ${pricingRes.status()}`).toBeTruthy()
 
     return prop
   }
@@ -41,6 +44,7 @@ test.describe('Booking CRUD - E2E', () => {
   ) {
     const data = createTestBooking(propId, overrides)
     const res = await request.post(`${API_BASE}/bookings`, { data })
+    expect(res.ok(), `POST bookings: ${res.status()}`).toBeTruthy()
     const booking = await res.json()
     bookingIdsToCleanup.push(booking.id)
     return { ...booking, guest_name: data.guest_name }
@@ -257,14 +261,22 @@ test.describe('Booking CRUD - E2E', () => {
     await expect(page.getByText(pendingGuest)).toBeVisible()
     await expect(page.getByText(confirmedGuest)).toBeVisible()
 
-    // The status filter is a group of radio buttons; the list is filtered by the backend
-    await page.getByRole('radio', { name: 'Pending' }).click()
-    await expect(page.getByText(confirmedGuest)).toBeHidden()
-    await expect(page.getByText(pendingGuest)).toBeVisible()
-
-    await page.getByRole('radio', { name: 'Confirmed' }).click()
-    await expect(page.getByText(pendingGuest)).toBeHidden()
-    await expect(page.getByText(confirmedGuest)).toBeVisible()
+    // The status filter is a group of radio buttons; the backend filters the list.
+    // The list is replaced by a spinner while the new page loads, so wait for the
+    // response first, and only then check which bookings are on screen.
+    for (const [label, status, shown, hidden] of [
+      ['Pending', 'pending', pendingGuest, confirmedGuest],
+      ['Confirmed', 'confirmed', confirmedGuest, pendingGuest],
+    ]) {
+      await Promise.all([
+        page.waitForResponse(
+          (resp) => resp.url().includes('/api/v1/bookings') && resp.url().includes(`status=${status}`),
+        ),
+        page.getByRole('radio', { name: label }).click(),
+      ])
+      await expect(page.getByText(shown)).toBeVisible()
+      await expect(page.getByText(hidden)).toHaveCount(0)
+    }
   })
 
   test('filter bookings by property', async ({ page, request }) => {

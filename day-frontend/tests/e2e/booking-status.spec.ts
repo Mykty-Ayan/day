@@ -15,15 +15,18 @@ test.describe('Booking Status Transitions - E2E', () => {
   ) {
     const data = createTestProperty()
     const res = await request.post(`${API_BASE}/properties`, { data })
+    expect(res.ok(), `POST properties: ${res.status()}`).toBeTruthy()
     const prop = await res.json()
     propertyIdsToCleanup.push(prop.id)
 
-    await request.post(`${API_BASE}/properties/${prop.id}/status`, {
+    const statusRes = await request.post(`${API_BASE}/properties/${prop.id}/status`, {
       data: { status: 'active' },
     })
-    await request.put(`${API_BASE}/properties/${prop.id}/pricing`, {
+    expect(statusRes.ok(), `POST property status: ${statusRes.status()}`).toBeTruthy()
+    const pricingRes = await request.put(`${API_BASE}/properties/${prop.id}/pricing`, {
       data: createTestPricing(),
     })
+    expect(pricingRes.ok(), `PUT pricing: ${pricingRes.status()}`).toBeTruthy()
 
     return prop
   }
@@ -35,6 +38,7 @@ test.describe('Booking Status Transitions - E2E', () => {
   ) {
     const data = createTestBooking(propId, overrides)
     const res = await request.post(`${API_BASE}/bookings`, { data })
+    expect(res.ok(), `POST bookings: ${res.status()}`).toBeTruthy()
     const booking = await res.json()
     bookingIdsToCleanup.push(booking.id)
     return booking
@@ -51,13 +55,14 @@ test.describe('Booking Status Transitions - E2E', () => {
     expect(res.ok(), `POST status ${status}: ${res.status()}`).toBeTruthy()
   }
 
+  /** The status from the API. A failed request becomes a value, not a throw: a throw would stop expect.poll at once. */
   async function bookingStatus(
     request: import('@playwright/test').APIRequestContext,
     bookingId: string,
   ): Promise<string> {
     // maxRetries: the dev backend sometimes resets a kept-alive connection
     const res = await request.get(`${API_BASE}/bookings/${bookingId}`, { maxRetries: 3 })
-    expect(res.ok()).toBeTruthy()
+    if (!res.ok()) return `HTTP ${res.status()}`
     return (await res.json()).booking.status
   }
 

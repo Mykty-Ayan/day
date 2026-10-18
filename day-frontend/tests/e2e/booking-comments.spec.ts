@@ -17,15 +17,18 @@ test.describe('Booking Comments - E2E', () => {
   ) {
     const data = createTestProperty()
     const res = await request.post(`${API_BASE}/properties`, { data })
+    expect(res.ok(), `POST properties: ${res.status()}`).toBeTruthy()
     const prop = await res.json()
     propertyIdsToCleanup.push(prop.id)
 
-    await request.post(`${API_BASE}/properties/${prop.id}/status`, {
+    const statusRes = await request.post(`${API_BASE}/properties/${prop.id}/status`, {
       data: { status: 'active' },
     })
-    await request.put(`${API_BASE}/properties/${prop.id}/pricing`, {
+    expect(statusRes.ok(), `POST property status: ${statusRes.status()}`).toBeTruthy()
+    const pricingRes = await request.put(`${API_BASE}/properties/${prop.id}/pricing`, {
       data: createTestPricing(),
     })
+    expect(pricingRes.ok(), `PUT pricing: ${pricingRes.status()}`).toBeTruthy()
 
     return prop
   }
@@ -36,9 +39,19 @@ test.describe('Booking Comments - E2E', () => {
   ) {
     const data = createTestBooking(propId)
     const res = await request.post(`${API_BASE}/bookings`, { data })
+    expect(res.ok(), `POST bookings: ${res.status()}`).toBeTruthy()
     const booking = await res.json()
     bookingIdsToCleanup.push(booking.id)
     return booking
+  }
+
+  async function addCommentViaApi(
+    request: import('@playwright/test').APIRequestContext,
+    bookingId: string,
+    content: string,
+  ) {
+    const res = await request.post(`${API_BASE}/bookings/${bookingId}/comments`, { data: { content } })
+    expect(res.ok(), `POST comments: ${res.status()}`).toBeTruthy()
   }
 
   async function openFilesCommentsTab(page: import('@playwright/test').Page) {
@@ -78,12 +91,8 @@ test.describe('Booking Comments - E2E', () => {
     const booking = await createBookingViaApi(request, prop.id)
 
     // Create comments via API
-    await request.post(`${API_BASE}/bookings/${booking.id}/comments`, {
-      data: { content: 'First API comment' },
-    })
-    await request.post(`${API_BASE}/bookings/${booking.id}/comments`, {
-      data: { content: 'Second API comment' },
-    })
+    await addCommentViaApi(request, booking.id, 'First API comment')
+    await addCommentViaApi(request, booking.id, 'Second API comment')
 
     await page.goto(`/bookings/${booking.id}`)
     await page.waitForLoadState('networkidle')
@@ -98,15 +107,9 @@ test.describe('Booking Comments - E2E', () => {
     const booking = await createBookingViaApi(request, prop.id)
 
     // Create comments via API with distinct content
-    await request.post(`${API_BASE}/bookings/${booking.id}/comments`, {
-      data: { content: 'Comment Alpha' },
-    })
-    await request.post(`${API_BASE}/bookings/${booking.id}/comments`, {
-      data: { content: 'Comment Beta' },
-    })
-    await request.post(`${API_BASE}/bookings/${booking.id}/comments`, {
-      data: { content: 'Comment Gamma' },
-    })
+    await addCommentViaApi(request, booking.id, 'Comment Alpha')
+    await addCommentViaApi(request, booking.id, 'Comment Beta')
+    await addCommentViaApi(request, booking.id, 'Comment Gamma')
 
     await page.goto(`/bookings/${booking.id}`)
     await page.waitForLoadState('networkidle')
