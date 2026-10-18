@@ -266,8 +266,13 @@ test.describe('the deposit the card suggests', () => {
     expect(suggestedDeposit('daily', pricing, 50000)).toBe(10000)
   })
 
-  test('never names the nightly deposit for hours: an unset one leaves the total', () => {
-    expect(suggestedDeposit('hourly', { ...pricing, hourly_deposit: 0 }, 18000)).toBe(18000)
+  test('never names the nightly deposit, nor the total, for hours: the operator types it', () => {
+    expect(suggestedDeposit('hourly', { ...pricing, hourly_deposit: 0 }, 18000)).toBeNull()
+    // Still loading the flat: nothing to offer for hours either.
+    expect(suggestedDeposit('hourly', undefined, 18000)).toBeNull()
+  })
+
+  test('a night with no deposit set offers the total, as before', () => {
     expect(suggestedDeposit('daily', { ...pricing, default_deposit: 0 }, 50000)).toBe(50000)
     expect(suggestedDeposit('daily', undefined, 50000)).toBe(50000)
   })

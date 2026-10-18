@@ -15,6 +15,7 @@
     "perNight": "kechasiga",
     "hourly": "Soatbay: soatiga {{price}}",
     "deposit": "Garov {{price}}, chiqib ketgandan keyin qaytariladi",
+    "nightDeposit": "Sutkalik turish uchun garov {{price}}, chiqib ketgandan keyin qaytariladi",
     "hourDeposit": "Soatbay turish uchun garov {{price}}, chiqib ketgandan keyin qaytariladi",
     "freeDates": "Bo‘sh sanalar",
     "weekdays": "Du Se Ch Pa Ju Sh Ya",
