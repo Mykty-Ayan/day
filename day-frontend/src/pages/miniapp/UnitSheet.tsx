@@ -128,8 +128,12 @@ export default function UnitSheet({ unitId, onClose }: { unitId: string | null; 
                   flat.rental_mode !== 'daily' &&
                     flat.pricing.hourly_price > 0 &&
                     t('miniapp.unit.perHour', { value: money(flat.pricing.hourly_price) }),
-                  flat.pricing.default_deposit > 0 &&
+                  flat.rental_mode !== 'hourly' &&
+                    flat.pricing.default_deposit > 0 &&
                     t('miniapp.unit.deposit', { value: money(flat.pricing.default_deposit) }),
+                  flat.rental_mode !== 'daily' &&
+                    flat.pricing.hourly_deposit > 0 &&
+                    t('miniapp.unit.hourDeposit', { value: money(flat.pricing.hourly_deposit) }),
                 ]
                   .filter(Boolean)
                   .join(' · ')}

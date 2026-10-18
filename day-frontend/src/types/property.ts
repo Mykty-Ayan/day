@@ -58,6 +58,8 @@ export interface PricingConfig {
   hourly_price: number
   weekend_markup: number
   default_deposit: number
+  /** The deposit of a stay by the hour; 0 is "not set", never the nightly one. */
+  hourly_deposit: number
   extra_adult_price: number
   extra_child_price: number
   base_guests: number
@@ -181,6 +183,7 @@ export interface PricingInput {
   hourly_price?: number
   weekend_markup: number
   default_deposit: number
+  hourly_deposit?: number
   extra_adult_price: number
   extra_child_price: number
   base_guests: number

@@ -143,7 +143,17 @@ function StayView({ stay, locale, today }: { stay: PublicStay; locale: string; t
             <span className="text-sm text-gray-600">{t('guest.minNights', { count: stay.min_nights })}</span>
           )}
           {stay.prices.deposit != null && (
-            <span className="text-sm text-gray-600">{t('guest.deposit', { price: money(stay.prices.deposit, locale) })}</span>
+            <span className="text-sm text-gray-600">
+              {/* Next to the deposit for hours, the nightly one says which it is. */}
+              {t(stay.prices.hour_deposit != null ? 'guest.nightDeposit' : 'guest.deposit', {
+                price: money(stay.prices.deposit, locale),
+              })}
+            </span>
+          )}
+          {stay.prices.hour_deposit != null && (
+            <span className="text-sm text-gray-600">
+              {t('guest.hourDeposit', { price: money(stay.prices.hour_deposit, locale) })}
+            </span>
           )}
         </section>
       )}

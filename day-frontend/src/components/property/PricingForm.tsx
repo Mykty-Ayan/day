@@ -36,6 +36,7 @@ interface Props {
     rental_mode: RentalMode
     weekend_markup: number
     default_deposit: number
+    hourly_deposit: number
     extra_adult_price: number
     extra_child_price: number
     base_guests: number
@@ -86,6 +87,7 @@ function PricingFormInner({
   const [hourlyPrice, setHourlyPrice] = useState(String(pricing?.hourly_price ?? ''))
   const [weekendMarkup, setWeekendMarkup] = useState(String(pricing?.weekend_markup ?? ''))
   const [deposit, setDeposit] = useState(String(pricing?.default_deposit ?? ''))
+  const [hourlyDeposit, setHourlyDeposit] = useState(String(pricing?.hourly_deposit ?? ''))
   const [extraAdult, setExtraAdult] = useState(String(pricing?.extra_adult_price ?? ''))
   const [extraChild, setExtraChild] = useState(String(pricing?.extra_child_price ?? ''))
   const [baseGuests, setBaseGuests] = useState(String(pricing?.base_guests ?? ''))
@@ -155,6 +157,7 @@ function PricingFormInner({
       rental_mode: rentalMode,
       weekend_markup: parseNumber(weekendMarkup, 0),
       default_deposit: parseNumber(deposit, 0),
+      hourly_deposit: parseNumber(hourlyDeposit, 0),
       extra_adult_price: parseNumber(extraAdult, 0),
       extra_child_price: parseNumber(extraChild, 0),
       base_guests: Math.max(1, parseInt(baseGuests) || 1),
@@ -250,17 +253,33 @@ function PricingFormInner({
               />
             </div>
           )}
-          <div>
-            <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">
-              {t('properties.pricing.defaultDeposit')}
-            </label>
-            <NumberInput
-              value={deposit}
-              onChange={setDeposit}
-              min={0}
-              step={1000}
-            />
-          </div>
+          {/* Each kind of stay has its own deposit: hours never take the nightly one. */}
+          {nightly && (
+            <div>
+              <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">
+                {t('properties.pricing.defaultDeposit')}
+              </label>
+              <NumberInput
+                value={deposit}
+                onChange={setDeposit}
+                min={0}
+                step={1000}
+              />
+            </div>
+          )}
+          {rentalMode !== 'daily' && (
+            <div>
+              <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">
+                {t('properties.pricing.hourlyDeposit')}
+              </label>
+              <NumberInput
+                value={hourlyDeposit}
+                onChange={setHourlyDeposit}
+                min={0}
+                step={1000}
+              />
+            </div>
+          )}
           {nightly && (
             <>
               <div>

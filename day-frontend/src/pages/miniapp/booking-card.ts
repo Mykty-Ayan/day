@@ -28,6 +28,19 @@ export function extendedCheckOut(
   return next.toISOString().slice(0, 19)
 }
 
+/** The deposit to offer for a booking: the flat's deposit for its kind of stay.
+ *  Hours never borrow the nightly deposit, nor the total: with no deposit for
+ *  hours set, nothing is offered and the operator types the amount. A night
+ *  with none set offers the booking's total, as before. */
+export function suggestedDeposit(
+  rentalMode: Booking['rental_mode'],
+  pricing: { default_deposit: number; hourly_deposit: number } | undefined,
+  total: number,
+): number | null {
+  if (rentalMode === 'hourly') return pricing?.hourly_deposit || null
+  return pricing?.default_deposit || total
+}
+
 /** What arrived, what is still owed, and payments recorded but not yet received. */
 export function settlement(total: number, payments: BookingPayment[]) {
   const paid = payments
