@@ -11,6 +11,7 @@ interface BasicData {
   whatsapp_product_url: string
   video_url: string
   listing_urls: string
+  hourly_listing_urls: string
 }
 
 interface Props {
@@ -20,6 +21,12 @@ interface Props {
 }
 
 const propertyTypeValues: PropertyType[] = ['apartment', 'house', 'room']
+
+// The flat's listings by the kind of stay: field, input id, translation key.
+const listingFields = [
+  ['listing_urls', 'listing-urls', 'listingUrls'],
+  ['hourly_listing_urls', 'hourly-listing-urls', 'hourlyListingUrls'],
+] as const
 
 // The links the CRM hands to guests, with their translation keys.
 const linkFields = [
@@ -138,26 +145,30 @@ export default function PropertyFormStepBasic({ data, onChange, errors }: Props)
         </div>
       ))}
 
-      <div>
-        <label htmlFor="listing-urls" className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">
-          {t('properties.form.listingUrls')}
-        </label>
-        <textarea
-          id="listing-urls"
-          rows={3}
-          value={data.listing_urls}
-          onChange={(e) => update('listing_urls', e.target.value)}
-          placeholder={t('properties.form.listingUrlsPlaceholder')}
-          className={`w-full resize-none bg-gray-50 border rounded-xl p-3 outline-none focus:ring-2 focus:ring-black/10 text-gray-800 text-sm ${
-            errors.listing_urls ? 'border-red-300 bg-red-50' : 'border-gray-200'
-          }`}
-        />
-        {errors.listing_urls ? (
-          <p className="text-red-600 text-xs mt-1">{errors.listing_urls}</p>
-        ) : (
-          <p className="text-gray-500 text-xs mt-1">{t('properties.form.listingUrlsHint')}</p>
-        )}
-      </div>
+      {/* Krisha lists a flat once to rent by the night and once by the hour: the
+          list the guest's link is in tells the CRM which stay they mean. */}
+      {listingFields.map(([key, id, label]) => (
+        <div key={key}>
+          <label htmlFor={id} className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">
+            {t(`properties.form.${label}`)}
+          </label>
+          <textarea
+            id={id}
+            rows={3}
+            value={data[key]}
+            onChange={(e) => update(key, e.target.value)}
+            placeholder={t(`properties.form.${label}Placeholder`)}
+            className={`w-full resize-none bg-gray-50 border rounded-xl p-3 outline-none focus:ring-2 focus:ring-black/10 text-gray-800 text-sm ${
+              errors[key] ? 'border-red-300 bg-red-50' : 'border-gray-200'
+            }`}
+          />
+          {errors[key] ? (
+            <p className="text-red-600 text-xs mt-1">{errors[key]}</p>
+          ) : (
+            <p className="text-gray-500 text-xs mt-1">{t(`properties.form.${label}Hint`)}</p>
+          )}
+        </div>
+      ))}
     </div>
   )
 }

@@ -24,6 +24,14 @@ def check_stay_nights(min_nights: int | None, max_nights: int | None) -> None:
         raise ValueError("max_nights must not be below min_nights")
 
 
+def check_listing_kinds(listing_urls: list[str], hourly_listing_urls: list[str]) -> None:
+    """Refuse a link that is both a nightly and an hourly listing: the CRM tells the
+    guest's stay by the list their link is in."""
+    both = set(listing_urls) & set(hourly_listing_urls)
+    if both:
+        raise ValueError(f"A listing link cannot be both nightly and hourly: {sorted(both)[0]}")
+
+
 @dataclass
 class CreatePropertyInput:
     company_id: uuid.UUID
@@ -46,6 +54,7 @@ class CreatePropertyInput:
     whatsapp_product_url: str | None = None
     video_url: str | None = None
     listing_urls: list[str] = field(default_factory=list)
+    hourly_listing_urls: list[str] = field(default_factory=list)
     min_nights: int | None = None
     max_nights: int | None = None
     buffer_hours: int | None = None
@@ -81,6 +90,7 @@ class CreatePropertyService:
     async def execute(self, inp: CreatePropertyInput) -> Property:
         check_turnover_hours(inp.check_in_hour, inp.check_out_hour)
         check_stay_nights(inp.min_nights, inp.max_nights)
+        check_listing_kinds(inp.listing_urls, inp.hourly_listing_urls)
         if await self._property_repo.exists_internal_name(
             inp.company_id, inp.internal_name
         ):
@@ -111,6 +121,7 @@ class CreatePropertyService:
             whatsapp_product_url=inp.whatsapp_product_url,
             video_url=inp.video_url,
             listing_urls=list(inp.listing_urls),
+            hourly_listing_urls=list(inp.hourly_listing_urls),
             min_nights=inp.min_nights,
             max_nights=inp.max_nights,
             buffer_hours=inp.buffer_hours,

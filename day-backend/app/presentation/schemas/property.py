@@ -37,6 +37,14 @@ class _TurnoverHours(BaseModel):
         return self
 
     @model_validator(mode="after")
+    def _no_listing_both_nightly_and_hourly(self):
+        # The CRM tells the stay by the list the guest's link is in.
+        both = set(getattr(self, "listing_urls", None) or []) & set(getattr(self, "hourly_listing_urls", None) or [])
+        if both:
+            raise ValueError(f"A listing link cannot be both nightly and hourly: {sorted(both)[0]}")
+        return self
+
+    @model_validator(mode="after")
     def _most_nights_not_below_fewest(self):
         # No stay could pass both; a PATCH with one side is checked against the saved one.
         fewest, most = getattr(self, "min_nights", None), getattr(self, "max_nights", None)
@@ -65,6 +73,7 @@ class PropertyCreate(_TurnoverHours):
     whatsapp_product_url: WebLink | None = None
     video_url: WebLink | None = None
     listing_urls: list[ListingLink] = Field(default_factory=list, max_length=20)
+    hourly_listing_urls: list[ListingLink] = Field(default_factory=list, max_length=20)
     # Stay rules for bookings made in Day; null is no rule.
     min_nights: int | None = Field(default=None, ge=1, le=365)
     max_nights: int | None = Field(default=None, ge=1, le=365)
@@ -106,6 +115,7 @@ class PropertyUpdate(_TurnoverHours):
     whatsapp_product_url: WebLink | None = None
     video_url: WebLink | None = None
     listing_urls: list[ListingLink] = Field(default_factory=list, max_length=20)
+    hourly_listing_urls: list[ListingLink] = Field(default_factory=list, max_length=20)
     # Stay rules for bookings made in Day; null is no rule.
     min_nights: int | None = Field(default=None, ge=1, le=365)
     max_nights: int | None = Field(default=None, ge=1, le=365)
@@ -154,6 +164,7 @@ class PropertyResponse(BaseModel):
     whatsapp_product_url: str | None = None
     video_url: str | None = None
     listing_urls: list[str] = []
+    hourly_listing_urls: list[str] = []
     min_nights: int | None = None
     max_nights: int | None = None
     buffer_hours: int | None = None

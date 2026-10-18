@@ -62,6 +62,9 @@ class Property:
     # The flat's listings on Krisha, Booking, Airbnb, OLX: a guest sends one,
     # and the CRM finds the flat by it.
     listing_urls: list[str] = field(default_factory=list)
+    # The same, for the flat's listings to rent by the hour: the link the guest
+    # sends tells the CRM which stay they mean.
+    hourly_listing_urls: list[str] = field(default_factory=list)
 
     # Stay rules for bookings made in Day; empty is no rule. The fewest and most
     # nights of a daily stay; hours kept free around an hourly booking for
