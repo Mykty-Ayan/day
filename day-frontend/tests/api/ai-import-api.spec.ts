@@ -1,5 +1,14 @@
 import { test, expect } from '../fixtures/api-helpers'
-import { createTestImport, createTestBatchImport } from '../fixtures/test-data'
+import { aiServiceIsUp, createTestImport, createTestBatchImport } from '../fixtures/test-data'
+
+const NEEDS_AI_SERVICE = 'needs ai-service on :8001 (AI_SERVICE_URL): without it every import job fails at once'
+
+let aiServiceUp = false
+test.beforeAll(async ({ playwright }) => {
+  const request = await playwright.request.newContext()
+  aiServiceUp = await aiServiceIsUp(request)
+  await request.dispose()
+})
 
 test.describe('AI Import API - Start Import', () => {
   test('POST /ai/import - starts import job', async ({ api }) => {
@@ -191,6 +200,7 @@ test.describe('AI Import API - List Imports', () => {
 
 test.describe('AI Import API - Confirm Import', () => {
   test('POST /ai/import/:id/confirm - creates property from completed job', async ({ api }) => {
+    test.skip(!aiServiceUp, NEEDS_AI_SERVICE)
     const createRes = await api.post('/ai/import', { data: createTestImport() })
     const created = await createRes.json()
 
@@ -203,11 +213,7 @@ test.describe('AI Import API - Confirm Import', () => {
       job = await pollRes.json()
     }
 
-    // Skip test if job did not complete (e.g. AI service unavailable)
-    if (job.status !== 'completed') {
-      test.skip()
-      return
-    }
+    test.skip(job.status !== 'completed', `the import job ended as "${job.status}", the made-up listing URL cannot be read`)
 
     const timestamp = Date.now()
     const confirmRes = await api.post(`/ai/import/${created.id}/confirm`, {
@@ -325,6 +331,7 @@ test.describe('AI Import API - Batch Import', () => {
 
 test.describe('AI Import API - Job Status Polling', () => {
   test('import job status transitions from pending', async ({ api }) => {
+    test.skip(!aiServiceUp, NEEDS_AI_SERVICE)
     const data = createTestImport()
     const createRes = await api.post('/ai/import', { data })
     const created = await createRes.json()
@@ -346,6 +353,7 @@ test.describe('AI Import API - Job Status Polling', () => {
   })
 
   test('completed job has mapped_property data', async ({ api }) => {
+    test.skip(!aiServiceUp, NEEDS_AI_SERVICE)
     const data = createTestImport()
     const createRes = await api.post('/ai/import', { data })
     const created = await createRes.json()
@@ -359,10 +367,7 @@ test.describe('AI Import API - Job Status Polling', () => {
       job = await pollRes.json()
     }
 
-    if (job.status !== 'completed') {
-      test.skip()
-      return
-    }
+    test.skip(job.status !== 'completed', `the import job ended as "${job.status}", the made-up listing URL cannot be read`)
 
     // Completed job should have mapped property data
     expect(job.mapped_property).toBeTruthy()
@@ -376,10 +381,7 @@ test.describe('AI Import API - Job Status Polling', () => {
     })
     const createRes = await api.post('/ai/import', { data })
 
-    if (createRes.status() !== 201) {
-      test.skip()
-      return
-    }
+    test.skip(createRes.status() !== 201, `POST /ai/import answered ${createRes.status()}, not 201`)
 
     const created = await createRes.json()
 
@@ -392,10 +394,7 @@ test.describe('AI Import API - Job Status Polling', () => {
       job = await pollRes.json()
     }
 
-    if (job.status !== 'failed') {
-      test.skip()
-      return
-    }
+    test.skip(job.status !== 'failed', `the import job ended as "${job.status}", not "failed"`)
 
     expect(job.error_message).toBeTruthy()
   })

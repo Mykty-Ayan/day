@@ -340,14 +340,9 @@ test.describe('Analytics API - Export', () => {
 
 test.describe('Analytics API - Edge Cases', () => {
   test('GET /analytics/metrics - empty company returns empty properties', async ({
-    api,
+    freshApi,
   }) => {
-    // Use a non-existent company
-    const res = await api.get('/analytics/metrics?period=week', {
-      headers: {
-        'X-Company-ID': '00000000-0000-0000-0000-000000000099',
-      },
-    })
+    const res = await freshApi.get('/analytics/metrics?period=week')
     expect(res.ok()).toBeTruthy()
 
     const body = await res.json()
