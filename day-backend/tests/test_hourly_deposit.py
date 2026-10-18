@@ -93,6 +93,20 @@ async def test_the_guest_page_shows_the_deposit_of_each_kind_of_stay_the_flat_ta
     assert (prices.deposit, prices.hour_deposit) == deposits
 
 
+async def test_a_flat_priced_by_its_calendar_still_shows_its_nightly_deposit():
+    # No base price, the nights are priced day by day: the link still takes the
+    # deposit, so the page must show it.
+    s = Stay()
+    prop = await s.flat(default_deposit=Decimal("10000"))
+    (await s.pricing.get_by_property(prop.id)).base_price = Decimal("0")
+    prop.rental_mode = RentalMode.DAILY
+    await s.props.save(prop)
+
+    found = await s.service().execute(prop.public_code, date(2030, 10, 1), date(2030, 10, 3))
+
+    assert PublicStayResponse.from_stay(found).prices.deposit == 10000.0
+
+
 async def test_an_unset_hourly_deposit_is_not_the_nightly_one():
     s = Stay()
     prop = await s.flat(hourly_price=Decimal("3000"), default_deposit=Decimal("10000"))

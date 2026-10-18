@@ -24,7 +24,7 @@ from app.domain.booking.repositories import (
     GuestOfferRepository,
     GuestRepository,
 )
-from app.domain.booking.value_objects import BookingStatus, DepositStatus
+from app.domain.booking.value_objects import BookingStatus, DepositStatus, RentalMode
 from app.domain.property.repositories import PricingConfigRepository, PropertyRepository
 from app.domain.property.value_objects import PropertyStatus
 from app.domain.settings.entities import DEFAULT_TIME_ZONE
@@ -97,6 +97,9 @@ class GuestHoldService:
             raise ValueError("Not found")
         if prop.max_guests is not None and guests > prop.max_guests:
             raise ValueError(f"The flat takes up to {prop.max_guests} guests")
+        # Let by the hour since the link was made: a link books nights, with their deposit.
+        if prop.rental_mode == RentalMode.HOURLY:
+            raise ValueError(f"{prop.name} lets by the hour only")
 
         pricing = await self._pricing.get_by_property(prop.id)
         deposit = pricing.default_deposit if pricing and pricing.default_deposit > 0 else None
