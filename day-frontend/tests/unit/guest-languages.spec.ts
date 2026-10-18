@@ -54,6 +54,16 @@ test("a guest's phone language picks the page's, and any other gets English", ()
   expect(guestLanguage(null, 'zh-CN')).toBe('zh')
   expect(guestLanguage(null, 'tr-TR')).toBe('tr')
   expect(guestLanguage(null, 'de-AT')).toBe('de')
+  expect(guestLanguage(null, 'ko-KR')).toBe('ko')
+  expect(guestLanguage(null, 'uz-Latn-UZ')).toBe('uz')
+  expect(guestLanguage(null, 'ar-AE')).toBe('ar')
   expect(guestLanguage(null, 'fr-FR')).toBe('en')
   expect(guestLanguage('de', 'ru-RU')).toBe('de')
+})
+
+test('a phone number in a right-to-left sentence keeps reading left to right', () => {
+  // Unwrapped, "+7 701 ••• •• 78" turns into "78 •• ••• 701 7+": the guest checks the
+  // number the Kaspi invoice goes to backwards.
+  const arabic = flat(read('../../src/locales/guest/ar.json'))
+  expect(arabic['guestBook.invoice']).toContain('⁦{{phone}}⁩')
 })
