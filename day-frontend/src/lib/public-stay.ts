@@ -53,15 +53,20 @@ export function retryNetwork(count: number, error: unknown): boolean {
   return !(isAxiosError(error) && error.response && error.response.status < 500) && count < 2
 }
 
-export type GuestLanguage = 'ru' | 'kz' | 'en'
+/** The app's three, and the guest pages' own: those come as bundles of the guest
+ *  pages' strings (locales/guest/), loaded when picked. */
+export const GUEST_LANGUAGES = ['ru', 'kz', 'en', 'zh', 'tr', 'de'] as const
+export type GuestLanguage = (typeof GUEST_LANGUAGES)[number]
+
+const isGuestLanguage = (value: string | null): value is GuestLanguage =>
+  (GUEST_LANGUAGES as readonly string[]).includes(value ?? '')
 
 /** A guest's page follows the phone, unlike the operator's app: someone picking a
  *  flat reads it in their own language. A pick on the page wins; a language the
  *  page has not got yet falls to English, which a tourist reads sooner than Russian. */
 export function guestLanguage(saved: string | null, browser: string | null): GuestLanguage {
-  if (saved === 'ru' || saved === 'kz' || saved === 'en') return saved
+  if (isGuestLanguage(saved)) return saved
   const phone = (browser ?? '').slice(0, 2).toLowerCase()
-  if (phone === 'ru') return 'ru'
   if (phone === 'kk') return 'kz'
-  return 'en'
+  return phone !== 'kz' && isGuestLanguage(phone) ? phone : 'en'
 }

@@ -63,6 +63,24 @@ test('a guest with the link sees the flat, its free nights and what a stay costs
   await guest.close()
 })
 
+test('a guest whose phone speaks Chinese reads the page in Chinese, and can pick German', async ({ browser, request }) => {
+  const { id } = await (await request.post(`${API_BASE}/properties`, { data: createTestProperty({ name: 'Студия для туриста' }) })).json()
+  await request.post(`${API_BASE}/properties/${id}/status`, { data: { target_status: 'active' } })
+  await request.put(`${API_BASE}/properties/${id}/pricing`, {
+    data: { base_price: 10000, weekend_markup: 0, default_deposit: 0, extra_adult_price: 0, extra_child_price: 0, base_guests: 2 },
+  })
+  const code = (await (await request.get(`${API_BASE}/properties/${id}`)).json()).public_code as string
+
+  const guest = await browser.newContext({ locale: 'zh-CN', baseURL: test.info().project.use.baseURL })
+  const page = await guest.newPage()
+  await page.goto(`/s/${code}`)
+  await expect(page.getByRole('heading', { name: '可订日期' })).toBeVisible()
+  await page.getByRole('button', { name: /语言/ }).click()
+  await page.getByRole('radio', { name: 'Deutsch' }).click()
+  await expect(page.getByRole('heading', { name: 'Freie Termine' })).toBeVisible()
+  await guest.close()
+})
+
 test('a wrong link says so instead of asking to sign in', async ({ browser }) => {
   const guest = await browser.newContext({ locale: 'en-US', baseURL: test.info().project.use.baseURL })
   const page = await guest.newPage()
