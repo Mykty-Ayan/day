@@ -15,7 +15,7 @@ from app.application.messaging.notifications import render
 from app.domain.auth.permissions import Permission
 from app.domain.booking.entities import Booking, Guest
 from app.domain.booking.exceptions import BookingOverlapError
-from app.domain.booking.value_objects import BookingStatus, DepositStatus
+from app.domain.booking.value_objects import BookingStatus, DepositStatus, RentalMode
 from app.domain.messaging.value_objects import NotificationEvent
 from app.domain.property.entities import PricingConfig, Property
 from app.domain.property.value_objects import PropertyStatus
@@ -169,6 +169,18 @@ async def test_a_guest_books_only_a_flat_of_the_link_still_on_sale():
     h.now = datetime(2030, 10, 20, 19, 30)
     with pytest.raises(OfferExpiredError):
         await h.service.book(offer.code, flat=studio.public_code, guests=2)
+
+
+async def test_a_flat_let_by_the_hour_since_the_link_was_made_is_not_held_for_nights():
+    # The page shows such a flat no nightly deposit: the link must not take one either.
+    h = Holds()
+    studio = await h.flat()
+    offer = await h.offer(studio)
+    studio.rental_mode = RentalMode.HOURLY
+    await h.props.save(studio)
+    with pytest.raises(ValueError, match="by the hour only"):
+        await h.service.book(offer.code, flat=studio.public_code, guests=2)
+    assert offer.booking_id is None
 
 
 async def test_a_flat_taken_meanwhile_is_not_held():
