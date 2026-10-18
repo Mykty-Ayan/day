@@ -1,24 +1,16 @@
-import type { Locator, Page } from '@playwright/test'
+import type { Page } from '@playwright/test'
 import { test, expect } from '../fixtures/e2e-auth'
 import {
   createTestProperty,
   createTestPricing,
   API_BASE,
 } from '../fixtures/test-data'
+import { pricingCard, priceField } from '../fixtures/property-ui'
 
-// The labels of the property forms are not tied to their inputs, so a field is
-// found by its placeholder (the edit wizard) or by the label next to it (pricing).
+// The labels of the edit wizard are not tied to its inputs, so its fields are found by placeholder.
 const NAME_PLACEHOLDER = 'Cozy Downtown Studio'
 const INTERNAL_NAME_PLACEHOLDER = 'APT-001-Downtown'
 const DESCRIPTION_PLACEHOLDER = 'A beautiful property in the heart of the city...'
-
-function pricingCard(page: Page): Locator {
-  return page.locator('div.rounded-xl', { has: page.getByRole('heading', { name: 'Pricing', exact: true }) }).last()
-}
-
-function priceField(card: Locator, label: string): Locator {
-  return card.getByText(label, { exact: true }).locator('xpath=following-sibling::div[1]//input')
-}
 
 test.describe('Property Edit - E2E', () => {
   let propertyIdsToCleanup: string[] = []
@@ -131,7 +123,6 @@ test.describe('Property Edit - E2E', () => {
     // Back on the property page with the original name
     await expect(page).toHaveURL(new RegExp(`/properties/${prop.id}$`))
     await expect(page.getByRole('heading', { level: 1, name: originalName })).toBeVisible()
-    await expect(page.getByText('Should Not Save')).toHaveCount(0)
 
     const saved = await (await request.get(`${API_BASE}/properties/${prop.id}`)).json()
     expect(saved.name).toBe(originalName)

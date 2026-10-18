@@ -1,22 +1,6 @@
-import type { Locator, Page } from '@playwright/test'
 import { test, expect } from '../fixtures/e2e-auth'
 import { createTestProperty, API_BASE } from '../fixtures/test-data'
-
-/**
- * The labels of the wizard are not tied to their inputs, so a field is the
- * control that follows its label.
- */
-function field(page: Page, label: string): Locator {
-  return page
-    .getByText(label, { exact: true })
-    .locator('xpath=following-sibling::*[1]/descendant-or-self::*[self::input or self::textarea]')
-}
-
-/** Presses "Next" and waits for the heading of the step it opens. */
-async function next(page: Page, step: string) {
-  await page.getByRole('button', { name: 'Next', exact: true }).click()
-  await expect(page.getByRole('heading', { level: 2, name: step, exact: true })).toBeVisible()
-}
+import { wizardField as field, nextStep as next } from '../fixtures/property-ui'
 
 test.describe('Property CRUD - E2E', () => {
   let propertyIdsToCleanup: string[] = []
@@ -138,7 +122,8 @@ test.describe('Property CRUD - E2E', () => {
     await expect(page).toHaveURL(new RegExp(`/properties/${created.id}$`))
     await expect(page.getByRole('heading', { level: 1, name: 'Updated Test Property' })).toBeVisible()
     await expect(page.getByText('Floor 7')).toBeVisible()
-    await expect(page.getByText('Quiet after 22:00')).toBeVisible()
+    const rulesCard = page.locator('div.rounded-xl', { has: page.getByRole('heading', { name: 'Rules', exact: true }) }).last()
+    await expect(rulesCard.getByText('Quiet after 22:00')).toBeVisible()
 
     const saved = await (await request.get(`${API_BASE}/properties/${created.id}`)).json()
     expect(saved).toMatchObject({ name: 'Updated Test Property', floor: 7, rooms: 4, house_rules: 'Quiet after 22:00' })
@@ -153,18 +138,23 @@ test.describe('Property CRUD - E2E', () => {
     const created = await res.json()
     propertyIdsToCleanup.push(created.id)
 
+    // A second property that the search must hide
+    const other = createTestProperty()
+    const otherRes = await request.post(`${API_BASE}/properties`, { data: other })
+    propertyIdsToCleanup.push((await otherRes.json()).id)
+
     await page.goto('/properties')
-    await page.waitForLoadState('networkidle')
+    await expect(page.getByText(data.name)).toBeVisible()
+    await expect(page.getByText(other.name)).toBeVisible()
 
-    // Find search input
-    const searchInput = page.getByPlaceholder(/search/i)
-    await searchInput.fill(data.internal_name)
-
-    // Wait for filtered results
-    await page.waitForTimeout(500) // debounce
-
-    // Should show matching property
-    await expect(page.getByText(data.name)).toBeVisible({ timeout: 5000 })
+    // Search by the internal name (it is not in the public name). The list is
+    // replaced by a spinner while it loads, so the property that must stay is
+    // awaited first: a hidden one proves nothing until the filtered list is on screen
+    const searched = page.waitForResponse((r) => r.url().includes('/properties?') && r.url().includes('search='))
+    await page.getByPlaceholder('Search by name...').fill(data.internal_name)
+    await searched
+    await expect(page.getByText(data.name)).toBeVisible()
+    await expect(page.getByText(other.name)).toHaveCount(0)
   })
 
   test('filter by status tabs', async ({ page, request }) => {
@@ -189,8 +179,12 @@ test.describe('Property CRUD - E2E', () => {
     await expect(page.getByText(newProp.name)).toBeVisible()
     await expect(page.getByText(activeProp.name)).toBeVisible()
 
-    // The status filter is a group of radio buttons. "Active" keeps only the active property
+    // The status filter is a group of radio buttons. "Active" keeps only the active property.
+    // The list is replaced by a spinner while it loads, so the property that must stay is
+    // awaited first: a hidden one proves nothing until the filtered list is on screen
+    const filtered = page.waitForResponse((r) => r.url().includes('/properties?') && r.url().includes('status=active'))
     await page.getByRole('radio', { name: 'Active', exact: true }).click()
+    await filtered
     await expect(page.getByText(activeProp.name)).toBeVisible()
     await expect(page.getByText(newProp.name)).toHaveCount(0)
 

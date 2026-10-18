@@ -7,16 +7,7 @@ import {
   createTestDiscountRule,
   API_BASE,
 } from '../fixtures/test-data'
-
-// The Pricing card of the property page. Its labels are not tied to their inputs,
-// so a field is the input that follows its label.
-function pricingCard(page: Page): Locator {
-  return page.locator('div.rounded-xl', { has: page.getByRole('heading', { name: 'Pricing', exact: true }) }).last()
-}
-
-function priceField(card: Locator, label: string): Locator {
-  return card.getByText(label, { exact: true }).locator('xpath=following-sibling::div[1]//input')
-}
+import { pricingCard, priceField } from '../fixtures/property-ui'
 
 /** The row of a seasonal price or a discount rule: the nearest rounded box around its text. */
 function pricingRow(card: Locator, text: string | RegExp): Locator {
