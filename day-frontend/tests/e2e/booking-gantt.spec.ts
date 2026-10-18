@@ -6,296 +6,166 @@ import {
   API_BASE,
 } from '../fixtures/test-data'
 
-test.describe('Booking Gantt Chart - E2E', () => {
-  let bookingIdsToCleanup: string[] = []
-  let propertyIdsToCleanup: string[] = []
+const SHORT_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
-  async function setupActiveProperty(
+// The chessboard's days are the browser's local days.
+const local = (d: Date) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+const inDays = (n: number) => {
+  const d = new Date()
+  d.setDate(d.getDate() + n)
+  return local(d)
+}
+
+// The chart is at /properties/gantt; a booking is a button named "guest, dates".
+test.describe('Booking Gantt Chart - E2E', () => {
+  async function activeFlat(
     request: import('@playwright/test').APIRequestContext,
     overrides: Partial<import('../fixtures/test-data').TestPropertyInput> = {},
   ) {
     const data = createTestProperty(overrides)
     const res = await request.post(`${API_BASE}/properties`, { data })
-    const prop = await res.json()
-    propertyIdsToCleanup.push(prop.id)
-
-    await request.post(`${API_BASE}/properties/${prop.id}/status`, {
-      data: { status: 'active' },
-    })
-    await request.put(`${API_BASE}/properties/${prop.id}/pricing`, {
-      data: createTestPricing(),
-    })
-
-    return prop
+    const { id } = await res.json()
+    await request.post(`${API_BASE}/properties/${id}/status`, { data: { target_status: 'active' } })
+    await request.put(`${API_BASE}/properties/${id}/pricing`, { data: createTestPricing() })
+    return { id: id as string, internalName: data.internal_name }
   }
 
-  async function createBookingViaApi(
+  async function book(
     request: import('@playwright/test').APIRequestContext,
-    propId: string,
+    propertyId: string,
     overrides: Partial<Omit<import('../fixtures/test-data').TestBookingInput, 'property_id'>> = {},
   ) {
-    const data = createTestBooking(propId, overrides)
+    const data = createTestBooking(propertyId, overrides)
     const res = await request.post(`${API_BASE}/bookings`, { data })
-    const booking = await res.json()
-    bookingIdsToCleanup.push(booking.id)
-    return { ...booking, guest_name: data.guest_name }
+    expect(res.status(), await res.text()).toBe(201)
+    return { id: (await res.json()).id as string, guest: data.guest_name }
   }
 
-  test.afterEach(async ({ request }) => {
-    for (const id of bookingIdsToCleanup) {
-      try { await request.delete(`${API_BASE}/bookings/${id}`) } catch { /* cleanup */ }
-    }
-    for (const id of propertyIdsToCleanup) {
-      try { await request.delete(`${API_BASE}/properties/${id}`) } catch { /* cleanup */ }
-    }
-    bookingIdsToCleanup = []
-    propertyIdsToCleanup = []
-  })
+  const bar = (page: import('@playwright/test').Page, guest: string) =>
+    page.getByRole('button', { name: new RegExp(`^${guest},`) })
 
-  test('gantt chart shows booking bars', async ({ page, request }) => {
-    const prop = await setupActiveProperty(request, { name: 'Gantt Bar Test' })
-
-    // Create a booking within the current month
-    const today = new Date()
-    const checkIn = today.toISOString().slice(0, 10)
-    const checkOutDate = new Date(today)
-    checkOutDate.setDate(checkOutDate.getDate() + 3)
-    const checkOut = checkOutDate.toISOString().slice(0, 10)
-
-    await createBookingViaApi(request, prop.id, {
-      check_in: checkIn,
-      check_out: checkOut,
+  test('a booking is a bar on the chart', async ({ page, request }) => {
+    const flat = await activeFlat(request)
+    const { guest } = await book(request, flat.id, {
+      check_in: inDays(0),
+      check_out: inDays(1),
       guest_name: 'Gantt Bar Guest',
     })
 
-    await page.goto('/gantt')
-    await page.waitForLoadState('networkidle')
+    await page.goto('/properties/gantt')
 
-    // Look for booking bar elements
-    const bookingBar = page.locator(
-      '[data-testid="booking-bar"], .booking-bar, [class*="booking-bar"], ' +
-        '[data-booking-id], [class*="gantt-booking"]',
-    ).first()
-
-    await expect(bookingBar).toBeVisible({ timeout: 5000 })
+    await expect(bar(page, guest)).toBeVisible()
   })
 
-  test('booking bars have colors', async ({ page, request }) => {
-    const prop = await setupActiveProperty(request)
-
-    const today = new Date()
-    const checkIn = today.toISOString().slice(0, 10)
-    const checkOutDate = new Date(today)
-    checkOutDate.setDate(checkOutDate.getDate() + 3)
-    const checkOut = checkOutDate.toISOString().slice(0, 10)
-
-    await createBookingViaApi(request, prop.id, {
-      check_in: checkIn,
-      check_out: checkOut,
+  test('the bar has the colour of the booking', async ({ page, request }) => {
+    const flat = await activeFlat(request)
+    const { guest } = await book(request, flat.id, {
+      check_in: inDays(0),
+      check_out: inDays(1),
+      guest_name: 'Gantt Colour Guest',
       gantt_color: '#EF4444',
     })
 
-    await page.goto('/gantt')
-    await page.waitForLoadState('networkidle')
+    await page.goto('/properties/gantt')
 
-    const bookingBar = page.locator(
-      '[data-testid="booking-bar"], .booking-bar, [class*="booking-bar"], ' +
-        '[data-booking-id], [class*="gantt-booking"]',
-    ).first()
-
-    if (await bookingBar.isVisible({ timeout: 5000 }).catch(() => false)) {
-      const bgColor = await bookingBar.evaluate(
-        (el) => window.getComputedStyle(el).backgroundColor,
-      )
-      // Should have some color applied (not transparent/empty)
-      expect(bgColor).not.toBe('')
-      expect(bgColor).not.toBe('transparent')
-    }
+    await expect(bar(page, guest)).toHaveCSS('background-color', 'rgb(239, 68, 68)')
   })
 
-  test('hover on bar shows tooltip with details', async ({ page, request }) => {
-    const prop = await setupActiveProperty(request)
-
-    const today = new Date()
-    const checkIn = today.toISOString().slice(0, 10)
-    const checkOutDate = new Date(today)
-    checkOutDate.setDate(checkOutDate.getDate() + 3)
-    const checkOut = checkOutDate.toISOString().slice(0, 10)
-
-    await createBookingViaApi(request, prop.id, {
-      check_in: checkIn,
-      check_out: checkOut,
+  test('hover on a bar shows the guest in a tooltip', async ({ page, request }) => {
+    const flat = await activeFlat(request)
+    const { guest } = await book(request, flat.id, {
+      check_in: inDays(0),
+      check_out: inDays(1),
       guest_name: 'Tooltip Test Guest',
     })
 
-    await page.goto('/gantt')
-    await page.waitForLoadState('networkidle')
+    await page.goto('/properties/gantt')
+    // The bar prints the name itself; the tooltip adds it as a line of its own
+    const tooltip = page.locator('p').filter({ hasText: guest })
+    await expect(bar(page, guest)).toBeVisible()
+    await expect(tooltip).toHaveCount(0)
+    await bar(page, guest).hover()
 
-    const bookingBar = page.locator(
-      '[data-testid="booking-bar"], .booking-bar, [class*="booking-bar"], ' +
-        '[data-booking-id], [class*="gantt-booking"]',
-    ).first()
-
-    if (await bookingBar.isVisible({ timeout: 5000 }).catch(() => false)) {
-      await bookingBar.hover()
-
-      // Tooltip should show guest name or booking details
-      const tooltip = page.locator(
-        '[data-testid="booking-tooltip"], .tooltip, [role="tooltip"], [class*="tooltip"]',
-      ).first()
-      await expect(tooltip).toBeVisible({ timeout: 3000 })
-    }
+    await expect(tooltip).toBeVisible()
   })
 
-  test('click bar navigates to booking detail', async ({ page, request }) => {
-    const prop = await setupActiveProperty(request)
+  test('click on a bar opens the booking', async ({ page, request }) => {
+    const flat = await activeFlat(request)
+    const { id, guest } = await book(request, flat.id, { check_in: inDays(0), check_out: inDays(1) })
 
-    const today = new Date()
-    const checkIn = today.toISOString().slice(0, 10)
-    const checkOutDate = new Date(today)
-    checkOutDate.setDate(checkOutDate.getDate() + 3)
-    const checkOut = checkOutDate.toISOString().slice(0, 10)
+    await page.goto('/properties/gantt')
+    await bar(page, guest).click()
 
-    await createBookingViaApi(request, prop.id, {
-      check_in: checkIn,
-      check_out: checkOut,
+    await expect(page).toHaveURL(new RegExp(`/bookings/${id}`))
+  })
+
+  test('drag a bar onto another flat moves the booking', async ({ page, request }) => {
+    const source = await activeFlat(request, { internal_name: 'gantt-drag-from' })
+    const target = await activeFlat(request, { internal_name: 'gantt-drag-to' })
+    const { id, guest } = await book(request, source.id, { check_in: inDays(0), check_out: inDays(1) })
+
+    await page.goto('/properties/gantt')
+    await bar(page, guest).dragTo(page.getByText(target.internalName, { exact: true }).first())
+
+    await expect
+      .poll(async () => (await (await request.get(`${API_BASE}/bookings/${id}`)).json()).booking.property_id)
+      .toBe(target.id)
+  })
+
+  test('two clicks on empty cells start a booking for that range', async ({ page, request }) => {
+    const flat = await activeFlat(request)
+    const now = new Date()
+    // Next month: always ahead, and always on the screen after the arrow
+    const from = new Date(now.getFullYear(), now.getMonth() + 1, 10)
+    const to = new Date(now.getFullYear(), now.getMonth() + 1, 12)
+    const cell = (d: Date) =>
+      page.getByRole('button', {
+        name: `${flat.internalName}, ${WEEKDAYS[d.getDay()]} ${d.getDate()} ${SHORT_MONTHS[d.getMonth()]}`,
+      })
+
+    await page.goto('/properties/gantt')
+    await page.locator('button:has(svg.lucide-chevron-right)').first().click()
+    await cell(from).click()
+    await cell(to).click()
+
+    await expect(page).toHaveURL(/\/bookings\/new\?/)
+    const url = new URL(page.url())
+    expect(url.searchParams.get('property_id')).toBe(flat.id)
+    expect(url.searchParams.get('check_in')).toBe(local(from))
+    expect(url.searchParams.get('check_out')).toBe(local(to))
+  })
+
+  test('month navigation shows the bookings of that month', async ({ page, request }) => {
+    const flat = await activeFlat(request)
+    const now = new Date()
+    // The chart shows the month before, the month and the month after: three
+    // months ahead is out of the first screen and comes in on the second arrow.
+    const { guest } = await book(request, flat.id, {
+      check_in: local(new Date(now.getFullYear(), now.getMonth() + 3, 10)),
+      check_out: local(new Date(now.getFullYear(), now.getMonth() + 3, 12)),
+      guest_name: 'Far Month Guest',
     })
+    const next = page.locator('button:has(svg.lucide-chevron-right)').first()
+    const previous = page.locator('button:has(svg.lucide-chevron-left)').first()
 
-    await page.goto('/gantt')
-    await page.waitForLoadState('networkidle')
+    await page.goto('/properties/gantt')
+    await expect(page.getByText(flat.internalName, { exact: true }).first()).toBeVisible()
+    await expect(bar(page, guest)).toHaveCount(0)
 
-    const bookingBar = page.locator(
-      '[data-testid="booking-bar"], .booking-bar, [class*="booking-bar"], ' +
-        '[data-booking-id], [class*="gantt-booking"]',
-    ).first()
+    // A month that is not loaded yet shows a spinner instead of the chart, on which
+    // "no bar" would hold too: wait for the chart's rows before saying a bar is not there.
+    const rows = page.getByText(flat.internalName, { exact: true }).first()
+    await next.click()
+    await expect(rows).toBeVisible()
+    await expect(bar(page, guest)).toHaveCount(0)
+    await next.click()
+    await expect(bar(page, guest)).toBeVisible()
 
-    if (await bookingBar.isVisible({ timeout: 5000 }).catch(() => false)) {
-      await bookingBar.click()
-
-      // Should navigate to booking detail page
-      await page.waitForURL(/\/bookings\//, { timeout: 5000 })
-    }
-  })
-
-  test('drag booking to another property', async ({ page, request }) => {
-    const prop1 = await setupActiveProperty(request, { name: 'Drag Source Prop' })
-    const prop2 = await setupActiveProperty(request, { name: 'Drag Target Prop' })
-
-    const today = new Date()
-    const checkIn = today.toISOString().slice(0, 10)
-    const checkOutDate = new Date(today)
-    checkOutDate.setDate(checkOutDate.getDate() + 3)
-    const checkOut = checkOutDate.toISOString().slice(0, 10)
-
-    await createBookingViaApi(request, prop1.id, {
-      check_in: checkIn,
-      check_out: checkOut,
-    })
-
-    await page.goto('/gantt')
-    await page.waitForLoadState('networkidle')
-
-    // Find the booking bar on source property row
-    const sourceRow = page.locator(
-      `[data-property-id="${prop1.id}"], [data-testid="property-row"]:has-text("Drag Source Prop")`,
-    ).first()
-    const targetRow = page.locator(
-      `[data-property-id="${prop2.id}"], [data-testid="property-row"]:has-text("Drag Target Prop")`,
-    ).first()
-
-    const bookingBar = sourceRow.locator(
-      '[data-testid="booking-bar"], .booking-bar, [class*="booking-bar"]',
-    ).first()
-
-    if (
-      await bookingBar.isVisible({ timeout: 5000 }).catch(() => false) &&
-      await targetRow.isVisible({ timeout: 2000 }).catch(() => false)
-    ) {
-      // Perform drag
-      await bookingBar.dragTo(targetRow)
-      await page.waitForTimeout(1000)
-
-      // Verify booking moved - the bar should now be in the target row
-      const targetBookingBar = targetRow.locator(
-        '[data-testid="booking-bar"], .booking-bar, [class*="booking-bar"]',
-      ).first()
-      await expect(targetBookingBar).toBeVisible({ timeout: 5000 })
-    }
-  })
-
-  test('click empty cell opens create form', async ({ page, request }) => {
-    const prop = await setupActiveProperty(request, { name: 'Empty Cell Prop' })
-
-    await page.goto('/gantt')
-    await page.waitForLoadState('networkidle')
-
-    // Find an empty cell in the property row
-    const emptyCell = page.locator(
-      `[data-property-id="${prop.id}"] [data-testid="gantt-cell"]:not(:has([data-testid="booking-bar"])), ` +
-        `[data-testid="property-row"]:has-text("Empty Cell Prop") td:not(:has(.booking-bar))`,
-    ).first()
-
-    if (await emptyCell.isVisible({ timeout: 5000 }).catch(() => false)) {
-      await emptyCell.click()
-
-      // Should open booking creation form/modal
-      await expect(
-        page.locator('[data-testid="booking-form"], .booking-form, [class*="booking-create"]').first(),
-      ).toBeVisible({ timeout: 5000 })
-    }
-  })
-
-  test('month navigation shows different bookings', async ({ page, request }) => {
-    const prop = await setupActiveProperty(request)
-
-    // Create booking in current month
-    const today = new Date()
-    const checkIn = today.toISOString().slice(0, 10)
-    const checkOutDate = new Date(today)
-    checkOutDate.setDate(checkOutDate.getDate() + 2)
-    const checkOut = checkOutDate.toISOString().slice(0, 10)
-    await createBookingViaApi(request, prop.id, {
-      check_in: checkIn,
-      check_out: checkOut,
-      guest_name: 'Current Month Guest',
-    })
-
-    await page.goto('/gantt')
-    await page.waitForLoadState('networkidle')
-
-    // Booking should be visible
-    const bookingBar = page.locator(
-      '[data-testid="booking-bar"], .booking-bar, [class*="booking-bar"]',
-    ).first()
-    const barVisible = await bookingBar.isVisible({ timeout: 5000 }).catch(() => false)
-
-    // Navigate to next month
-    const nextBtn = page.getByRole('button', { name: /next|forward|>/i })
-    if (await nextBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
-      await nextBtn.click()
-      await page.waitForTimeout(500)
-
-      // Navigate back
-      const prevBtn = page.getByRole('button', { name: /prev|back|</i })
-      await prevBtn.click()
-      await page.waitForTimeout(500)
-
-      // Bar should be visible again
-      if (barVisible) {
-        await expect(bookingBar).toBeVisible({ timeout: 5000 })
-      }
-    }
-  })
-
-  test('today indicator visible', async ({ page }) => {
-    await page.goto('/gantt')
-    await page.waitForLoadState('networkidle')
-
-    const todayIndicator = page.locator(
-      '[data-testid="today-indicator"], .today-indicator, ' +
-        '[class*="today"], [data-today="true"]',
-    )
-
-    await expect(todayIndicator.first()).toBeVisible({ timeout: 5000 })
+    await previous.click()
+    await previous.click()
+    await expect(rows).toBeVisible()
+    await expect(bar(page, guest)).toHaveCount(0)
   })
 })

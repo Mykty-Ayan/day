@@ -80,16 +80,10 @@ test.describe('Navigation - E2E', () => {
     await page.goto('/')
     await page.waitForLoadState('networkidle')
 
-    // Find Gantt/Calendar link
-    const ganttLink = page.getByRole('link', { name: /gantt|calendar|chart/i })
-    if (await ganttLink.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await ganttLink.click()
-      await page.waitForURL(/\/(gantt|calendar|chart)/, { timeout: 5000 })
-    } else {
-      await page.goto('/gantt')
-    }
+    await page.getByRole('link', { name: 'Gantt Chart' }).click()
 
-    await expect(page).toHaveURL(/\/(gantt|calendar|chart)/)
+    await expect(page).toHaveURL(/\/properties\/gantt$/)
+    await expect(page.getByRole('heading', { name: 'Gantt Chart' })).toBeVisible()
   })
 
   test('URL routing works - direct navigation to property detail', async ({
@@ -119,10 +113,11 @@ test.describe('Navigation - E2E', () => {
     await expect(page.locator('body')).not.toContainText('Not Found')
   })
 
-  test('URL routing works - direct navigation to /gantt', async ({ page }) => {
-    await page.goto('/gantt')
+  test('URL routing works - direct navigation to /properties/gantt', async ({ page }) => {
+    await page.goto('/properties/gantt')
     await page.waitForLoadState('networkidle')
 
+    await expect(page.getByRole('heading', { name: 'Gantt Chart' })).toBeVisible()
     await expect(page.locator('body')).not.toContainText('Not Found')
   })
 
@@ -161,14 +156,14 @@ test.describe('Navigation - E2E', () => {
   })
 
   test('header is visible on all pages', async ({ page }) => {
-    const routes = ['/', '/properties', '/gantt']
+    const routes = ['/', '/properties', '/properties/gantt']
 
     for (const route of routes) {
       await page.goto(route)
       await page.waitForLoadState('networkidle')
 
       // Header with "Day" should be visible
-      await expect(page.getByText('Day').first()).toBeVisible({ timeout: 3000 })
+      await expect(page.getByRole('link', { name: 'Day', exact: true })).toBeVisible({ timeout: 3000 })
     }
   })
 })

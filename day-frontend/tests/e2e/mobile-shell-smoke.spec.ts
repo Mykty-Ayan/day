@@ -109,7 +109,10 @@ test.describe('Mobile shell/nav smoke', () => {
       await expect(page.getByRole('link', { name: /^Gantt Chart$/i })).toBeVisible()
       await expect(page.getByRole('link', { name: /^Today$/i })).toBeVisible()
       await expect(page.getByRole('link', { name: /^Checklists$/i })).toBeVisible()
-      await expect(page.getByRole('link', { name: /^AI Import$/i })).toBeVisible()
+      // Only in a build that has the ai-service: the dev server reads the same env.
+      await expect(page.getByRole('link', { name: /^AI Import$/i })).toHaveCount(
+        process.env.VITE_AI_IMPORT === 'on' ? 1 : 0,
+      )
       await expect(page.getByRole('link', { name: /^Settings$/i })).toBeVisible()
 
       await page.getByRole('link', { name: /^Settings$/i }).click()
