@@ -45,6 +45,17 @@ def test_one_link_is_not_both_a_nightly_and_an_hourly_listing():
         PropertyUpdate(listing_urls=HOURLY, hourly_listing_urls=[f"{HOURLY[0]} "])
 
 
+async def test_a_patch_of_one_list_is_checked_against_the_other_as_saved():
+    # The web sends both lists; an API client may send one.
+    props = FakePropertyRepository()
+    prop = _make_property(listing_urls=NIGHTLY)
+    await props.save(prop)
+    svc = UpdatePropertyService(props, FakePropertyAuditLogRepository())
+    with pytest.raises(ValueError, match="both"):
+        await svc.execute(UpdatePropertyInput(property_id=prop.id, company_id=COMPANY_ID, hourly_listing_urls=NIGHTLY))
+    assert prop.hourly_listing_urls == []
+
+
 async def test_hourly_links_are_saved_apart_and_a_clone_starts_without_them():
     props = FakePropertyRepository()
     prop = _make_property()
@@ -72,8 +83,11 @@ async def test_the_crm_key_reads_the_hourly_listing_links(flat):  # noqa: F811  
     assert (await client.get(path)).json()["hourly_listing_urls"] == []
 
     use(Permission.PROPERTIES_READ, Permission.PROPERTIES_WRITE)
+    assert (await client.patch(path, json={"listing_urls": HOURLY, "hourly_listing_urls": HOURLY})).status_code == 422
     response = await client.patch(path, json={"listing_urls": NIGHTLY, "hourly_listing_urls": HOURLY})
     assert response.status_code == 200, response.text
+    # One list alone is checked against the other as saved.
+    assert (await client.patch(path, json={"hourly_listing_urls": NIGHTLY})).status_code == 400
 
     # The key of the CRM reads both, in the card and in the list.
     use(Permission.PROPERTIES_READ)

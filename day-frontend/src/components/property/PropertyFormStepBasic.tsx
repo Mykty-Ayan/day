@@ -157,7 +157,7 @@ export default function PropertyFormStepBasic({ data, onChange, errors }: Props)
             rows={3}
             value={data[key]}
             onChange={(e) => update(key, e.target.value)}
-            placeholder={t('properties.form.listingUrlsPlaceholder')}
+            placeholder={t(`properties.form.${label}Placeholder`)}
             className={`w-full resize-none bg-gray-50 border rounded-xl p-3 outline-none focus:ring-2 focus:ring-black/10 text-gray-800 text-sm ${
               errors[key] ? 'border-red-300 bg-red-50' : 'border-gray-200'
             }`}

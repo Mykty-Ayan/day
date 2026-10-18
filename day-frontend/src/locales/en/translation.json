@@ -273,6 +273,7 @@
       "listingUrlsPlaceholder": "https://krisha.kz/a/show/…\nhttps://www.booking.com/hotel/…",
       "listingUrlsHint": "One per line: Krisha, Booking, Airbnb, OLX listings to rent by the night. When a guest sends such a link, the CRM finds the flat by it.",
       "hourlyListingUrls": "Hourly listings",
+      "hourlyListingUrlsPlaceholder": "https://krisha.kz/a/show/…",
       "hourlyListingUrlsHint": "Listings to rent by the hour, one per line. When a guest comes by such a link, the CRM names the hourly price and the deposit for hourly stays.",
       "stayRules": "Booking rules",
       "min_nights": "Minimum nights",

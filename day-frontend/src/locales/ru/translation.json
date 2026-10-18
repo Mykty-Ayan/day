@@ -279,6 +279,7 @@
       "listingUrlsPlaceholder": "https://krisha.kz/a/show/…\nhttps://www.booking.com/hotel/…",
       "listingUrlsHint": "По одной в строке: Krisha, Booking, Airbnb, OLX — объявления посуточной аренды. Гость присылает такую ссылку — CRM находит по ней квартиру.",
       "hourlyListingUrls": "Объявления почасово",
+      "hourlyListingUrlsPlaceholder": "https://krisha.kz/a/show/…",
       "hourlyListingUrlsHint": "Объявления почасовой аренды, по одной в строке. Гость пришёл по такой ссылке — CRM называет цену за час и залог при почасовой аренде.",
       "stayRules": "Правила бронирования",
       "min_nights": "Минимум ночей",

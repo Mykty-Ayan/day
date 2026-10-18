@@ -273,6 +273,7 @@
       "listingUrlsPlaceholder": "https://krisha.kz/a/show/…\nhttps://www.booking.com/hotel/…",
       "listingUrlsHint": "Әр жолға біреуден: Krisha, Booking, Airbnb, OLX — тәуліктік жалға хабарландырулар. Қонақ осындай сілтеме жіберсе, CRM пәтерді сол бойынша табады.",
       "hourlyListingUrls": "Сағаттық хабарландырулар",
+      "hourlyListingUrlsPlaceholder": "https://krisha.kz/a/show/…",
       "hourlyListingUrlsHint": "Сағаттық жалға хабарландырулар, әр жолға біреуден. Қонақ осындай сілтемемен келсе, CRM сағаттық бағаны және сағаттық жалға кепілді айтады.",
       "stayRules": "Брондау ережелері",
       "min_nights": "Ең аз түн",
