@@ -1,5 +1,6 @@
 import { test, expect } from '../fixtures/e2e-auth'
 import { createTestProperty, API_BASE } from '../fixtures/test-data'
+import { wizardField as field, nextStep as next } from '../fixtures/property-ui'
 
 test.describe('Property CRUD - E2E', () => {
   let propertyIdsToCleanup: string[] = []
@@ -16,96 +17,63 @@ test.describe('Property CRUD - E2E', () => {
   })
 
   test('create property through multi-step form', async ({ page, request }) => {
-    const data = createTestProperty()
+    const data = createTestProperty({ type: 'house' })
 
-    await page.goto('/properties/create')
+    // The wizard opens at /properties/new; /properties/create is read as a property id
+    await page.goto('/properties/new')
 
-    // --- Step 1: Basic Info ---
-    await page.getByLabel(/name/i).first().fill(data.name)
-    await page.getByLabel(/internal name/i).fill(data.internal_name)
-    // Select property type
-    const typeSelect = page.getByRole('combobox', { name: /type/i })
-    if (await typeSelect.isVisible()) {
-      await typeSelect.selectOption(data.type)
-    } else {
-      // Could be radio buttons or custom selector
-      await page.getByText(data.type, { exact: false }).first().click()
-    }
-    await page.getByRole('button', { name: /next|continue/i }).click()
+    // --- Basic Info ---
+    await field(page, 'Public Name').fill(data.name)
+    await field(page, 'Internal Name').fill(data.internal_name)
+    await page.getByRole('button', { name: 'House', exact: true }).click()
+    await field(page, 'Description').fill(data.description ?? '')
+    await next(page, 'Address')
 
-    // --- Step 2: Location ---
-    const addressField = page.getByLabel(/address/i)
-    if (await addressField.isVisible({ timeout: 2000 }).catch(() => false)) {
-      await addressField.fill(data.address_full ?? '')
-    }
-    const floorField = page.getByLabel(/floor/i)
-    if (await floorField.isVisible({ timeout: 1000 }).catch(() => false)) {
-      await floorField.fill(String(data.floor ?? ''))
-    }
-    await page.getByRole('button', { name: /next|continue/i }).click()
+    // --- Address ---
+    await field(page, 'Full Address').fill(data.address_full ?? '')
+    await field(page, 'Floor').fill(String(data.floor))
+    await next(page, 'Details')
 
-    // --- Step 3: Details ---
-    const roomsField = page.getByLabel(/rooms/i)
-    if (await roomsField.isVisible({ timeout: 2000 }).catch(() => false)) {
-      await roomsField.fill(String(data.rooms ?? ''))
-    }
-    const bedsField = page.getByLabel(/beds/i)
-    if (await bedsField.isVisible({ timeout: 1000 }).catch(() => false)) {
-      await bedsField.fill(String(data.beds ?? ''))
-    }
-    await page.getByRole('button', { name: /next|continue/i }).click()
+    // --- Details ---
+    await field(page, 'Rooms').fill(String(data.rooms))
+    await field(page, 'Beds').fill(String(data.beds))
+    await next(page, 'Pricing')
 
-    // --- Step 4: Description ---
-    const descField = page.getByLabel(/description/i)
-    if (await descField.isVisible({ timeout: 2000 }).catch(() => false)) {
-      await descField.fill(data.description ?? '')
-    }
-    await page.getByRole('button', { name: /next|continue/i }).click()
+    // --- Pricing and Photos are optional ---
+    await next(page, 'Photos')
+    await next(page, 'Rules')
 
-    // --- Step 5: Rules ---
-    const checkInField = page.getByLabel(/check.?in/i)
-    if (await checkInField.isVisible({ timeout: 2000 }).catch(() => false)) {
-      await checkInField.fill(data.check_in_instructions ?? '')
-    }
-    const checkOutField = page.getByLabel(/check.?out/i)
-    if (await checkOutField.isVisible({ timeout: 1000 }).catch(() => false)) {
-      await checkOutField.fill(data.check_out_instructions ?? '')
-    }
-    const houseRulesField = page.getByLabel(/house.?rules/i)
-    if (await houseRulesField.isVisible({ timeout: 1000 }).catch(() => false)) {
-      await houseRulesField.fill(data.house_rules ?? '')
-    }
-    await page.getByRole('button', { name: /next|continue/i }).click()
+    // --- Rules ---
+    await field(page, 'Check-in Instructions').fill(data.check_in_instructions ?? '')
+    await field(page, 'Check-out Instructions').fill(data.check_out_instructions ?? '')
+    await field(page, 'House Rules').fill(data.house_rules ?? '')
+    await next(page, 'Amenities')
 
-    // --- Step 6: Photos (skip for now) ---
-    const skipPhotos = page.getByRole('button', { name: /next|continue|skip/i })
-    if (await skipPhotos.isVisible({ timeout: 2000 }).catch(() => false)) {
-      await skipPhotos.click()
-    }
+    // --- Last step: the button creates the property ---
+    await page.getByRole('button', { name: 'Create Property' }).click()
 
-    // --- Step 7: Review & Submit ---
-    // Verify review page shows entered data
-    await expect(page.getByText(data.name)).toBeVisible({ timeout: 5000 })
-    await expect(page.getByText(data.internal_name)).toBeVisible()
+    // Redirects to the page of the new property
+    await expect(page).toHaveURL(/\/properties\/[0-9a-f-]{36}$/)
+    await expect(page.getByRole('heading', { level: 1, name: data.name })).toBeVisible()
+    const id = page.url().split('/').pop() as string
+    propertyIdsToCleanup.push(id)
 
-    await page.getByRole('button', { name: /create|submit|save/i }).click()
-
-    // Should redirect to property detail or list
-    await page.waitForURL(/\/properties/, { timeout: 10000 })
-
-    // Verify the property appears
-    await expect(page.getByText(data.name)).toBeVisible({ timeout: 5000 })
-
-    // Cleanup: find the property ID from URL or API
-    const res = await request.get(
-      `${API_BASE}/properties?search=${encodeURIComponent(data.internal_name)}`,
-    )
-    if (res.ok()) {
-      const body = await res.json()
-      for (const p of body.items) {
-        propertyIdsToCleanup.push(p.id)
-      }
-    }
+    // Everything typed in the wizard reached the server
+    const res = await request.get(`${API_BASE}/properties/${id}`)
+    expect(res.ok()).toBeTruthy()
+    expect(await res.json()).toMatchObject({
+      name: data.name,
+      internal_name: data.internal_name,
+      type: 'house',
+      description: data.description,
+      address_full: data.address_full,
+      floor: data.floor,
+      rooms: data.rooms,
+      beds: data.beds,
+      check_in_instructions: data.check_in_instructions,
+      check_out_instructions: data.check_out_instructions,
+      house_rules: data.house_rules,
+    })
   })
 
   test('property appears in list after creation via API', async ({
@@ -129,30 +97,36 @@ test.describe('Property CRUD - E2E', () => {
 
   test('edit property fields', async ({ page, request }) => {
     // Create via API
-    const data = createTestProperty()
+    const data = createTestProperty({ floor: 5, rooms: 2 })
     const res = await request.post(`${API_BASE}/properties`, { data })
     const created = await res.json()
     propertyIdsToCleanup.push(created.id)
 
-    // Navigate to property detail
+    // Navigate to property detail and open the edit wizard ("Edit" is a link)
     await page.goto(`/properties/${created.id}`)
-    await page.waitForLoadState('networkidle')
+    await page.getByRole('link', { name: 'Edit', exact: true }).click()
 
-    // Click edit button
-    await page.getByRole('button', { name: /edit/i }).click()
-
-    // Update the name
-    const nameField = page.getByLabel(/^name/i).first()
-    await nameField.clear()
-    await nameField.fill('Updated Test Property')
+    // Basic Info -> Address -> Details -> Rules: one field on each of four steps
+    await field(page, 'Public Name').fill('Updated Test Property')
+    await next(page, 'Address')
+    await field(page, 'Floor').fill('7')
+    await next(page, 'Details')
+    await field(page, 'Rooms').fill('4')
+    await next(page, 'Rules')
+    await field(page, 'House Rules').fill('Quiet after 22:00')
 
     // Save
-    await page.getByRole('button', { name: /save|update/i }).click()
+    await page.getByRole('button', { name: 'Save Changes' }).click()
 
-    // Verify the updated name
-    await expect(page.getByText('Updated Test Property')).toBeVisible({
-      timeout: 5000,
-    })
+    // Back on the property page with the new values
+    await expect(page).toHaveURL(new RegExp(`/properties/${created.id}$`))
+    await expect(page.getByRole('heading', { level: 1, name: 'Updated Test Property' })).toBeVisible()
+    await expect(page.getByText('Floor 7')).toBeVisible()
+    const rulesCard = page.locator('div.rounded-xl', { has: page.getByRole('heading', { name: 'Rules', exact: true }) }).last()
+    await expect(rulesCard.getByText('Quiet after 22:00')).toBeVisible()
+
+    const saved = await (await request.get(`${API_BASE}/properties/${created.id}`)).json()
+    expect(saved).toMatchObject({ name: 'Updated Test Property', floor: 7, rooms: 4, house_rules: 'Quiet after 22:00' })
   })
 
   test('search/filter properties by internal_name', async ({
@@ -164,18 +138,23 @@ test.describe('Property CRUD - E2E', () => {
     const created = await res.json()
     propertyIdsToCleanup.push(created.id)
 
+    // A second property that the search must hide
+    const other = createTestProperty()
+    const otherRes = await request.post(`${API_BASE}/properties`, { data: other })
+    propertyIdsToCleanup.push((await otherRes.json()).id)
+
     await page.goto('/properties')
-    await page.waitForLoadState('networkidle')
+    await expect(page.getByText(data.name)).toBeVisible()
+    await expect(page.getByText(other.name)).toBeVisible()
 
-    // Find search input
-    const searchInput = page.getByPlaceholder(/search/i)
-    await searchInput.fill(data.internal_name)
-
-    // Wait for filtered results
-    await page.waitForTimeout(500) // debounce
-
-    // Should show matching property
-    await expect(page.getByText(data.name)).toBeVisible({ timeout: 5000 })
+    // Search by the internal name (it is not in the public name). The list is
+    // replaced by a spinner while it loads, so the property that must stay is
+    // awaited first: a hidden one proves nothing until the filtered list is on screen
+    const searched = page.waitForResponse((r) => r.url().includes('/properties?') && r.url().includes('search='))
+    await page.getByPlaceholder('Search by name...').fill(data.internal_name)
+    await searched
+    await expect(page.getByText(data.name)).toBeVisible()
+    await expect(page.getByText(other.name)).toHaveCount(0)
   })
 
   test('filter by status tabs', async ({ page, request }) => {
@@ -197,44 +176,40 @@ test.describe('Property CRUD - E2E', () => {
     })
 
     await page.goto('/properties')
-    await page.waitForLoadState('networkidle')
+    await expect(page.getByText(newProp.name)).toBeVisible()
+    await expect(page.getByText(activeProp.name)).toBeVisible()
 
-    // Click "Active" tab
-    await page.getByRole('tab', { name: /active/i }).click()
-    await page.waitForTimeout(500)
+    // The status filter is a group of radio buttons. "Active" keeps only the active property.
+    // The list is replaced by a spinner while it loads, so the property that must stay is
+    // awaited first: a hidden one proves nothing until the filtered list is on screen
+    const filtered = page.waitForResponse((r) => r.url().includes('/properties?') && r.url().includes('status=active'))
+    await page.getByRole('radio', { name: 'Active', exact: true }).click()
+    await filtered
+    await expect(page.getByText(activeProp.name)).toBeVisible()
+    await expect(page.getByText(newProp.name)).toHaveCount(0)
 
-    // Active property should be visible
-    await expect(page.getByText(activeProp.name)).toBeVisible({ timeout: 5000 })
+    // "New" keeps only the property that was never activated
+    await page.getByRole('radio', { name: 'New', exact: true }).click()
+    await expect(page.getByText(newProp.name)).toBeVisible()
+    await expect(page.getByText(activeProp.name)).toHaveCount(0)
 
-    // Click "New" tab
-    await page.getByRole('tab', { name: /new/i }).click()
-    await page.waitForTimeout(500)
-
-    // New property should be visible
-    await expect(page.getByText(newProp.name)).toBeVisible({ timeout: 5000 })
-
-    // Click "All" tab
-    await page.getByRole('tab', { name: /all/i }).click()
-    await page.waitForTimeout(500)
-
-    // Both should be visible
-    await expect(page.getByText(newProp.name)).toBeVisible({ timeout: 5000 })
-    await expect(page.getByText(activeProp.name)).toBeVisible({ timeout: 5000 })
+    // "All" shows both again
+    await page.getByRole('radio', { name: 'All', exact: true }).click()
+    await expect(page.getByText(newProp.name)).toBeVisible()
+    await expect(page.getByText(activeProp.name)).toBeVisible()
   })
 
   test('form validation prevents submission with empty required fields', async ({
     page,
   }) => {
-    await page.goto('/properties/create')
+    await page.goto('/properties/new')
 
     // Try to proceed without filling required fields
-    const nextButton = page.getByRole('button', { name: /next|continue/i })
-    if (await nextButton.isVisible({ timeout: 2000 }).catch(() => false)) {
-      await nextButton.click()
-    }
+    await page.getByRole('button', { name: 'Next', exact: true }).click()
 
-    // Validation errors should appear
-    const error = page.getByText(/required|cannot be empty/i)
-    await expect(error.first()).toBeVisible({ timeout: 3000 })
+    // Validation errors appear and the wizard stays on the first step
+    await expect(page.getByText('Name is required', { exact: true })).toBeVisible()
+    await expect(page.getByText('Internal name is required', { exact: true })).toBeVisible()
+    await expect(page.getByText('Step 1 of 7')).toBeVisible()
   })
 })
