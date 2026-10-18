@@ -86,6 +86,10 @@ def parse_events(text: str) -> list[FeedEvent]:
     strict where a night would be lost: an event it cannot place is an error."""
     if "BEGIN:VCALENDAR" not in text.upper():
         raise FeedError("Not an iCal calendar")
+    # A download that broke midway would read as fewer events, and the missing
+    # nights would open: only a calendar that reached its end is the platform's word.
+    if "END:VCALENDAR" not in text.upper():
+        raise FeedError("The calendar was cut short")
     lines: list[str] = []
     for raw in re.split(r"\r\n|\n|\r", text):
         if raw[:1] in (" ", "\t") and lines:
