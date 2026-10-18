@@ -4,12 +4,6 @@ test.describe('Settings API', () => {
   test('GET /settings - returns current settings', async ({ api }) => {
     const res = await api.get('/settings')
 
-    // Skip if settings API not available
-    if (res.status() === 404) {
-      test.skip()
-      return
-    }
-
     expect(res.ok()).toBeTruthy()
     const body = await res.json()
     // A company that has never touched its settings runs on the defaults
@@ -23,11 +17,6 @@ test.describe('Settings API', () => {
       data: { default_currency: 'USD' },
     })
 
-    if (res.status() === 404) {
-      test.skip()
-      return
-    }
-
     expect(res.ok()).toBeTruthy()
     const body = await res.json()
     expect(body.default_currency).toBe('USD')
@@ -37,11 +26,6 @@ test.describe('Settings API', () => {
     const res = await api.patch('/settings', {
       data: { default_language: 'en' },
     })
-
-    if (res.status() === 404) {
-      test.skip()
-      return
-    }
 
     expect(res.ok()).toBeTruthy()
     const body = await res.json()
@@ -53,11 +37,6 @@ test.describe('Settings API', () => {
       data: { default_currency: 'INVALID_CURRENCY_123' },
     })
 
-    if (res.status() === 404) {
-      test.skip()
-      return
-    }
-
     expect([400, 422]).toContain(res.status())
   })
 
@@ -66,11 +45,7 @@ test.describe('Settings API', () => {
     const patchRes = await api.patch('/settings', {
       data: { default_currency: 'EUR', default_language: 'kz' },
     })
-
-    if (patchRes.status() === 404) {
-      test.skip()
-      return
-    }
+    expect(patchRes.ok()).toBeTruthy()
 
     // A second PATCH goes through the update path: the first one created the row
     await api.patch('/settings', { data: { default_currency: 'USD' } })

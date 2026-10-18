@@ -19,12 +19,6 @@ test.describe('Text Import API', () => {
       },
     })
 
-    // Skip if text import API not available
-    if (res.status() === 404) {
-      test.skip()
-      return
-    }
-
     expect([200, 201]).toContain(res.status())
     const body = await res.json()
     expect(body).toBeTruthy()
@@ -44,11 +38,6 @@ test.describe('Text Import API', () => {
       data: {},
     })
 
-    if (res.status() === 404) {
-      test.skip()
-      return
-    }
-
     expect([400, 422]).toContain(res.status())
   })
 
@@ -56,11 +45,6 @@ test.describe('Text Import API', () => {
     const res = await api.post('/ai/import/text', {
       data: { text: '' },
     })
-
-    if (res.status() === 404) {
-      test.skip()
-      return
-    }
 
     expect([400, 422]).toContain(res.status())
   })
@@ -79,11 +63,6 @@ test.describe('Text Import API', () => {
       data: { text: sampleText },
     })
 
-    if (res.status() === 404) {
-      test.skip()
-      return
-    }
-
     expect([200, 201]).toContain(res.status())
     const body = await res.json()
     expect(body).toBeTruthy()
@@ -98,11 +77,6 @@ test.describe('Text Import API', () => {
         user_prompt: 'This is a short-term rental in Almaty center',
       },
     })
-
-    if (res.status() === 404) {
-      test.skip()
-      return
-    }
 
     expect([200, 201]).toContain(res.status())
     const body = await res.json()
@@ -121,18 +95,9 @@ test.describe('Text Import API', () => {
       data: { text: sampleText },
     })
 
-    if (importRes.status() === 404) {
-      test.skip()
-      return
-    }
-
     expect([200, 201]).toContain(importRes.status())
     const importJob = await importRes.json()
-
-    if (!importJob.id) {
-      // Direct parse mode - no confirm step needed
-      return
-    }
+    expect(importJob.id).toBeTruthy()
 
     // Poll for completion
     let job = importJob
@@ -158,12 +123,11 @@ test.describe('Text Import API', () => {
       },
     })
 
-    if (confirmRes.ok()) {
-      const property = await confirmRes.json()
-      expect(property.id).toBeTruthy()
+    expect(confirmRes.status()).toBe(201)
+    const property = await confirmRes.json()
+    expect(property.id).toBeTruthy()
 
-      // Cleanup
-      await api.delete(`/properties/${property.id}`)
-    }
+    // Cleanup
+    await api.delete(`/properties/${property.id}`)
   })
 })
