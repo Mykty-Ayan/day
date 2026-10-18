@@ -326,6 +326,9 @@ test.describe('Cleaning API - Reports', () => {
     createActivePropertyWithPricing,
   }) => {
     const prop = await createActivePropertyWithPricing()
+    // A real cleaner: a made-up id is refused earlier, with 404, and the
+    // pending rule would go untested.
+    const { id: cleanerId } = await createTestCleaner(api)
     const r = await api.post('/cleaning', {
       data: { property_id: prop.id, type: 'post_checkout' },
     })
@@ -334,7 +337,7 @@ test.describe('Cleaning API - Reports', () => {
 
     const res = await api.post(`/cleaning/${task.id}/report`, {
       data: {
-        cleaner_id: '00000000-0000-0000-0000-000000000042',
+        cleaner_id: cleanerId,
         notes: 'Should fail',
       },
     })
