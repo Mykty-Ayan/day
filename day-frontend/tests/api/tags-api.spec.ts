@@ -16,12 +16,6 @@ test.describe('Tags API - CRUD', () => {
     const name = `Tag ${uniqueName('tag')}`
     const res = await api.post('/tags', { data: { name } })
 
-    // Skip if tags API not available
-    if (res.status() === 404) {
-      test.skip()
-      return
-    }
-
     expect(res.ok()).toBeTruthy()
     const body = await res.json()
     tagIdsToCleanup.push(body.id)
@@ -32,11 +26,6 @@ test.describe('Tags API - CRUD', () => {
   test('GET /tags - list tags', async ({ api }) => {
     const name = `Tag ${uniqueName('tag')}`
     const createRes = await api.post('/tags', { data: { name } })
-
-    if (createRes.status() === 404) {
-      test.skip()
-      return
-    }
 
     const tag = await createRes.json()
     tagIdsToCleanup.push(tag.id)
@@ -51,11 +40,6 @@ test.describe('Tags API - CRUD', () => {
   test('DELETE /tags/:id - delete tag', async ({ api }) => {
     const name = `Tag ${uniqueName('tag')}`
     const createRes = await api.post('/tags', { data: { name } })
-
-    if (createRes.status() === 404) {
-      test.skip()
-      return
-    }
 
     const tag = await createRes.json()
 
@@ -77,22 +61,12 @@ test.describe('Tags API - CRUD', () => {
     const name = `Tag ${uniqueName('tag')}`
     const tagRes = await api.post('/tags', { data: { name } })
 
-    if (tagRes.status() === 404) {
-      test.skip()
-      return
-    }
-
     const tag = await tagRes.json()
     tagIdsToCleanup.push(tag.id)
 
     const res = await api.post(`/properties/${prop.id}/tags`, {
       data: { tag_id: tag.id },
     })
-
-    if (res.status() === 404) {
-      test.skip()
-      return
-    }
 
     expect(res.ok()).toBeTruthy()
   })
@@ -105,11 +79,6 @@ test.describe('Tags API - CRUD', () => {
     const name = `Tag ${uniqueName('tag')}`
     const tagRes = await api.post('/tags', { data: { name } })
 
-    if (tagRes.status() === 404) {
-      test.skip()
-      return
-    }
-
     const tag = await tagRes.json()
     tagIdsToCleanup.push(tag.id)
 
@@ -117,11 +86,7 @@ test.describe('Tags API - CRUD', () => {
     const assignRes = await api.post(`/properties/${prop.id}/tags`, {
       data: { tag_id: tag.id },
     })
-
-    if (assignRes.status() === 404) {
-      test.skip()
-      return
-    }
+    expect(assignRes.ok()).toBeTruthy()
 
     // Remove tag
     const res = await api.delete(`/properties/${prop.id}/tags/${tag.id}`)
@@ -131,22 +96,12 @@ test.describe('Tags API - CRUD', () => {
   test('POST /tags - validates name required', async ({ api }) => {
     const res = await api.post('/tags', { data: {} })
 
-    if (res.status() === 404) {
-      test.skip()
-      return
-    }
-
     expect([400, 422]).toContain(res.status())
   })
 
   test('POST /tags - rejects duplicate name', async ({ api }) => {
     const name = `Dup ${uniqueName('tag')}`
     const res1 = await api.post('/tags', { data: { name } })
-
-    if (res1.status() === 404) {
-      test.skip()
-      return
-    }
 
     const tag = await res1.json()
     tagIdsToCleanup.push(tag.id)

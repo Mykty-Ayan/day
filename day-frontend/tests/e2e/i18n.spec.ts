@@ -1,135 +1,87 @@
-import { test, expect } from '../fixtures/e2e-auth'
+import { test, expect, type Page } from '../fixtures/e2e-auth'
+
+type Lang = 'ru' | 'kz' | 'en'
+
+// The menu's first item and the settings title in each language
+// (nav.properties and settings.title in src/locales/*/translation.json).
+const MENU: Record<Lang, string> = { ru: 'Объекты', kz: 'Нысандар', en: 'Properties' }
+const SETTINGS: Record<Lang, string> = { ru: 'Настройки', kz: 'Баптаулар', en: 'Settings' }
+// The language buttons on the settings page, each in its own language.
+const BUTTON: Record<Lang, string> = { ru: 'Русский', kz: 'Қазақша', en: 'English' }
+
+/**
+ * The fixture starts every test in English. This starts one in another language
+ * (or in none, as a person who never chose has) — once: the script runs again on
+ * every page load, and must not undo a choice the test makes.
+ */
+async function startIn(page: Page, lang: Lang | null) {
+  await page.addInitScript((value) => {
+    if (sessionStorage.getItem('e2e-language-seeded')) return
+    sessionStorage.setItem('e2e-language-seeded', '1')
+    if (value) localStorage.setItem('language', value)
+    else localStorage.removeItem('language')
+  }, lang)
+}
+
+const menu = (page: Page, lang: Lang) => page.getByRole('link', { name: MENU[lang], exact: true })
+const title = (page: Page, lang: Lang) => page.getByRole('heading', { name: SETTINGS[lang], level: 1 })
 
 test.describe('Internationalization (i18n) - E2E', () => {
   test('default language is Russian', async ({ page }) => {
+    await startIn(page, null)
     await page.goto('/')
-    await page.waitForLoadState('networkidle')
 
-    // Check for Russian text in navigation or page content
-    const russianText = page.getByText(/объекты|бронирования|уборка|аналитика|настройки/i)
-    const englishText = page.getByText(/properties|bookings|cleaning|analytics|settings/i)
-
-    const hasRussian = await russianText.first().isVisible({ timeout: 3000 }).catch(() => false)
-    const hasEnglish = await englishText.first().isVisible({ timeout: 3000 }).catch(() => false)
-
-    // If neither is visible, i18n might not be implemented yet
-    if (!hasRussian && !hasEnglish) {
-      test.skip()
-      return
-    }
-
-    // Default should be Russian (or at least one language should be active)
-    expect(hasRussian || hasEnglish).toBeTruthy()
+    await expect(menu(page, 'ru')).toBeVisible()
+    await expect(menu(page, 'en')).toHaveCount(0)
   })
 
   test('switch to English - all text in English', async ({ page }) => {
+    await startIn(page, 'ru')
     await page.goto('/settings')
-    await page.waitForLoadState('networkidle')
+    await expect(title(page, 'ru')).toBeVisible()
 
-    // Find language selector
-    const languageSelect = page.getByRole('combobox', { name: /language/i })
-    if (await languageSelect.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await languageSelect.selectOption('en')
-    } else {
-      const englishBtn = page.getByText(/english|en/i).first()
-      if (await englishBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
-        await englishBtn.click()
-      } else {
-        test.skip()
-        return
-      }
-    }
+    await page.getByRole('button', { name: BUTTON.en }).click()
+    await expect(title(page, 'en')).toBeVisible()
 
-    await page.waitForTimeout(1000)
-
-    // Navigate to main page
     await page.goto('/')
-    await page.waitForLoadState('networkidle')
-
-    // Check for English navigation
-    const englishNav = page.getByText(/properties|bookings|cleaning/i).first()
-    await expect(englishNav).toBeVisible({ timeout: 5000 })
+    await expect(menu(page, 'en')).toBeVisible()
+    await expect(menu(page, 'ru')).toHaveCount(0)
   })
 
   test('switch to Kazakh - all text in Kazakh', async ({ page }) => {
+    await startIn(page, 'ru')
     await page.goto('/settings')
-    await page.waitForLoadState('networkidle')
 
-    const languageSelect = page.getByRole('combobox', { name: /language/i })
-    if (await languageSelect.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await languageSelect.selectOption('kk')
-    } else {
-      const kazakhBtn = page.getByText(/kazakh|қазақша|kk/i).first()
-      if (await kazakhBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
-        await kazakhBtn.click()
-      } else {
-        test.skip()
-        return
-      }
-    }
+    await page.getByRole('button', { name: BUTTON.kz }).click()
+    await expect(title(page, 'kz')).toBeVisible()
 
-    await page.waitForTimeout(1000)
-
-    // Navigate to main page
     await page.goto('/')
-    await page.waitForLoadState('networkidle')
-
-    // Check for Kazakh text in navigation
-    const kazakhNav = page.getByText(/нысандар|брондау|тазалау/i).first()
-    if (await kazakhNav.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await expect(kazakhNav).toBeVisible()
-    }
-    // If Kazakh text not found, it's ok - feature may not be fully translated
+    await expect(menu(page, 'kz')).toBeVisible()
+    await expect(menu(page, 'ru')).toHaveCount(0)
   })
 
   test('language persists across page reload', async ({ page }) => {
+    await startIn(page, 'en')
     await page.goto('/settings')
-    await page.waitForLoadState('networkidle')
 
-    const languageSelect = page.getByRole('combobox', { name: /language/i })
-    if (!(await languageSelect.isVisible({ timeout: 3000 }).catch(() => false))) {
-      test.skip()
-      return
-    }
+    await page.getByRole('button', { name: BUTTON.kz }).click()
+    await expect(title(page, 'kz')).toBeVisible()
 
-    // Set to English
-    await languageSelect.selectOption('en')
-    await page.waitForTimeout(1000)
-
-    // Reload page
     await page.reload()
-    await page.waitForLoadState('networkidle')
-
-    // Language should still be English
-    await expect(languageSelect).toHaveValue('en', { timeout: 5000 })
+    await expect(title(page, 'kz')).toBeVisible()
+    await expect(title(page, 'en')).toHaveCount(0)
   })
 
   test('switch language back to Russian', async ({ page }) => {
+    await startIn(page, 'en')
     await page.goto('/settings')
-    await page.waitForLoadState('networkidle')
 
-    const languageSelect = page.getByRole('combobox', { name: /language/i })
-    if (!(await languageSelect.isVisible({ timeout: 3000 }).catch(() => false))) {
-      test.skip()
-      return
-    }
+    await page.getByRole('button', { name: BUTTON.kz }).click()
+    await expect(title(page, 'kz')).toBeVisible()
+    await page.getByRole('button', { name: BUTTON.ru }).click()
+    await expect(title(page, 'ru')).toBeVisible()
 
-    // Set to English first
-    await languageSelect.selectOption('en')
-    await page.waitForTimeout(500)
-
-    // Switch back to Russian
-    await languageSelect.selectOption('ru')
-    await page.waitForTimeout(1000)
-
-    // Navigate to main page
     await page.goto('/')
-    await page.waitForLoadState('networkidle')
-
-    // Should see Russian navigation
-    const russianNav = page.getByText(/объекты|бронирования/i).first()
-    if (await russianNav.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await expect(russianNav).toBeVisible()
-    }
+    await expect(menu(page, 'ru')).toBeVisible()
   })
 })

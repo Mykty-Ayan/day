@@ -204,10 +204,7 @@ test.describe('AI Import - E2E', () => {
     const data = createTestImport()
     const res = await request.post(`${API_BASE}/ai/import`, { data })
 
-    if (!res.ok()) {
-      test.skip()
-      return
-    }
+    expect(res.status()).toBe(201)
 
     const created = await res.json()
     importJobIdsToCleanup.push(created.id)
@@ -241,56 +238,18 @@ test.describe('AI Import - E2E', () => {
     await page.goto('/ai-import')
     await page.waitForLoadState('networkidle')
 
-    // Look for a batch tab or toggle
-    const batchTab = page.getByRole('tab', { name: /batch/i })
-    const batchButton = page.getByRole('button', { name: /batch/i })
-    const batchLink = page.getByText(/batch/i)
+    await page.getByRole('button', { name: 'Batch Import' }).click()
 
-    let hasBatchMode = false
-
-    if (await batchTab.isVisible({ timeout: 2000 }).catch(() => false)) {
-      await batchTab.click()
-      hasBatchMode = true
-    } else if (await batchButton.isVisible({ timeout: 1000 }).catch(() => false)) {
-      await batchButton.click()
-      hasBatchMode = true
-    } else if (await batchLink.first().isVisible({ timeout: 1000 }).catch(() => false)) {
-      await batchLink.first().click()
-      hasBatchMode = true
-    }
-
-    if (hasBatchMode) {
-      // Batch mode should show a textarea for multiple URLs
-      const batchTextarea = page.locator('#batch-urls, textarea[placeholder*="booking"]').first()
-      await expect(batchTextarea).toBeVisible({ timeout: 3000 })
-    }
+    await expect(page.locator('#batch-urls')).toBeVisible({ timeout: 3000 })
   })
 
   test('batch import textarea shows valid URL count', async ({ page }) => {
     await page.goto('/ai-import')
     await page.waitForLoadState('networkidle')
 
-    // Switch to batch mode
-    const batchTab = page.getByRole('tab', { name: /batch/i })
-    const batchButton = page.getByRole('button', { name: /batch/i })
-    const batchLink = page.getByText(/batch/i)
-
-    if (await batchTab.isVisible({ timeout: 2000 }).catch(() => false)) {
-      await batchTab.click()
-    } else if (await batchButton.isVisible({ timeout: 1000 }).catch(() => false)) {
-      await batchButton.click()
-    } else if (await batchLink.first().isVisible({ timeout: 1000 }).catch(() => false)) {
-      await batchLink.first().click()
-    } else {
-      test.skip()
-      return
-    }
-
-    const batchTextarea = page.locator('#batch-urls, textarea[placeholder*="booking"]').first()
-    if (!await batchTextarea.isVisible({ timeout: 2000 }).catch(() => false)) {
-      test.skip()
-      return
-    }
+    await page.getByRole('button', { name: 'Batch Import' }).click()
+    const batchTextarea = page.locator('#batch-urls')
+    await expect(batchTextarea).toBeVisible({ timeout: 3000 })
 
     // Enter multiple URLs
     await batchTextarea.fill(
@@ -305,24 +264,9 @@ test.describe('AI Import - E2E', () => {
     await page.goto('/ai-import')
     await page.waitForLoadState('networkidle')
 
-    // Switch to batch mode
-    const batchTab = page.getByRole('tab', { name: /batch/i })
-    const batchButton = page.getByRole('button', { name: /batch/i })
-
-    if (await batchTab.isVisible({ timeout: 2000 }).catch(() => false)) {
-      await batchTab.click()
-    } else if (await batchButton.isVisible({ timeout: 1000 }).catch(() => false)) {
-      await batchButton.click()
-    } else {
-      test.skip()
-      return
-    }
-
-    const batchTextarea = page.locator('#batch-urls, textarea[placeholder*="booking"]').first()
-    if (!await batchTextarea.isVisible({ timeout: 2000 }).catch(() => false)) {
-      test.skip()
-      return
-    }
+    await page.getByRole('button', { name: 'Batch Import' }).click()
+    const batchTextarea = page.locator('#batch-urls')
+    await expect(batchTextarea).toBeVisible({ timeout: 3000 })
 
     await batchTextarea.fill('https://booking.com/hotel/kz/test.html\nnot-a-url\nalso-not-a-url')
 
@@ -334,10 +278,7 @@ test.describe('AI Import - E2E', () => {
     const data = createTestImport()
     const createRes = await request.post(`${API_BASE}/ai/import`, { data })
 
-    if (!createRes.ok()) {
-      test.skip()
-      return
-    }
+    expect(createRes.status()).toBe(201)
 
     const created = await createRes.json()
     importJobIdsToCleanup.push(created.id)
@@ -366,10 +307,7 @@ test.describe('AI Import - E2E', () => {
     })
     const res = await request.post(`${API_BASE}/ai/import`, { data })
 
-    if (!res.ok()) {
-      test.skip()
-      return
-    }
+    expect(res.status()).toBe(201)
 
     const created = await res.json()
     importJobIdsToCleanup.push(created.id)
@@ -388,10 +326,7 @@ test.describe('AI Import - E2E', () => {
     const data = createTestImport()
     const res = await request.post(`${API_BASE}/ai/import`, { data })
 
-    if (!res.ok()) {
-      test.skip()
-      return
-    }
+    expect(res.status()).toBe(201)
 
     const created = await res.json()
     importJobIdsToCleanup.push(created.id)
@@ -410,10 +345,7 @@ test.describe('AI Import - E2E', () => {
     const data = createTestImport()
     const createRes = await request.post(`${API_BASE}/ai/import`, { data })
 
-    if (!createRes.ok()) {
-      test.skip()
-      return
-    }
+    expect(createRes.status()).toBe(201)
 
     const created = await createRes.json()
     importJobIdsToCleanup.push(created.id)
@@ -427,10 +359,7 @@ test.describe('AI Import - E2E', () => {
       job = await pollRes.json()
     }
 
-    if (job.status !== 'completed') {
-      test.skip()
-      return
-    }
+    test.skip(job.status !== 'completed', `the import job ended as "${job.status}": needs ai-service on :8001 and a listing it can read`)
 
     await page.goto('/ai-import')
     await page.waitForLoadState('networkidle')
@@ -469,51 +398,24 @@ test.describe('AI Import - E2E', () => {
     await page.goto('/ai-import')
     await page.waitForLoadState('networkidle')
 
-    // Switch to batch mode
-    const batchTab = page.getByRole('tab', { name: /batch/i })
-    const batchButton = page.getByRole('button', { name: /batch/i })
+    await page.getByRole('button', { name: 'Batch Import' }).click()
 
-    if (await batchTab.isVisible({ timeout: 2000 }).catch(() => false)) {
-      await batchTab.click()
-    } else if (await batchButton.isVisible({ timeout: 1000 }).catch(() => false)) {
-      await batchButton.click()
-    } else {
-      test.skip()
-      return
-    }
-
-    const batchTextarea = page.locator('#batch-urls, textarea[placeholder*="booking"]').first()
-    if (!await batchTextarea.isVisible({ timeout: 2000 }).catch(() => false)) {
-      test.skip()
-      return
-    }
-
-    // Enter batch URLs
     const urls = [
       `https://www.booking.com/hotel/kz/batch-test-1-${Date.now()}.html`,
       `https://www.booking.com/hotel/kz/batch-test-2-${Date.now()}.html`,
     ]
-    await batchTextarea.fill(urls.join('\n'))
+    await page.locator('#batch-urls').fill(urls.join('\n'))
+    await page.locator('#batch-prompt').fill('Batch test instructions')
 
-    // Fill optional shared instructions
-    const batchPrompt = page.locator('#batch-prompt, textarea[placeholder*="instructions"], textarea[placeholder*="applies"]').first()
-    if (await batchPrompt.isVisible({ timeout: 1000 }).catch(() => false)) {
-      await batchPrompt.fill('Batch test instructions')
-    }
+    // The form posts both URLs in one request
+    const posted = page.waitForRequest(
+      (r) => r.method() === 'POST' && r.url().endsWith('/ai/import/batch'),
+    )
+    await page.getByRole('button', { name: 'Import All (2)' }).click()
 
-    // Submit
-    const submitBtn = page.getByRole('button', { name: /import all|start batch|import/i })
-    if (await submitBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
-      await submitBtn.click()
-
-      // Should show loading, results, or redirect
-      const result = await Promise.race([
-        page.getByText(/importing.*url/i).waitFor({ timeout: 5000 }).then(() => 'loading'),
-        page.getByText(/pending|processing|completed/i).waitFor({ timeout: 10000 }).then(() => 'done'),
-      ]).catch(() => 'timeout')
-
-      expect(['loading', 'done', 'timeout']).toContain(result)
-    }
+    const body = (await posted).postDataJSON()
+    expect(body.urls).toEqual(urls)
+    expect(body.user_prompt).toBe('Batch test instructions')
   })
 
   test('multiple import jobs display in list order', async ({ page, request }) => {
@@ -532,10 +434,7 @@ test.describe('AI Import - E2E', () => {
       }
     }
 
-    if (jobs.length < 2) {
-      test.skip()
-      return
-    }
+    expect(jobs).toHaveLength(3)
 
     await page.goto('/ai-import')
     await page.waitForLoadState('networkidle')
