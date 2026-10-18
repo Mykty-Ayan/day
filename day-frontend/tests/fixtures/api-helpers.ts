@@ -1,9 +1,12 @@
-import { test as base, type APIRequestContext } from '@playwright/test'
+import { type APIRequestContext, type PlaywrightWorkerArgs } from '@playwright/test'
+import { test as authTest } from './e2e-auth'
 import {
   API_BASE,
   createTestProperty,
   createTestBooking,
+  createTestCleaner,
   createTestPricing,
+  uniqueName,
   type TestPropertyInput,
   type TestBookingInput,
 } from './test-data'
@@ -12,6 +15,12 @@ let backendPreflightDone = false
 
 interface ApiFixtures {
   api: APIRequestContext
+  /**
+   * Signed in to a brand-new company with nothing in it. For tests that change
+   * company-wide state (settings) or assert that a company is empty, which the
+   * shared E2E company never is.
+   */
+  freshApi: APIRequestContext
   createProperty: (overrides?: Partial<TestPropertyInput>) => Promise<{ id: string; [key: string]: unknown }>
   createdPropertyIds: string[]
   /** Creates an active property with pricing set up, ready for bookings */
@@ -22,6 +31,8 @@ interface ApiFixtures {
     overrides?: Partial<Omit<TestBookingInput, 'property_id'>>,
   ) => Promise<{ id: string; [key: string]: unknown }>
   createdBookingIds: string[]
+  /** Creates a cleaner in the company. Deactivated after the test (users are never deleted). */
+  createCleaner: () => Promise<{ id: string; email: string }>
 }
 
 function normalizeApiPath(url: string): string {
@@ -39,6 +50,21 @@ function normalizeApiContextPaths(ctx: APIRequestContext): void {
     ;(ctx as unknown as Record<string, unknown>)[method] = (url: string, options?: Options) =>
       original(normalizeApiPath(url), options)
   }
+}
+
+async function newApiContext(
+  playwright: PlaywrightWorkerArgs['playwright'],
+  accessToken: string,
+): Promise<APIRequestContext> {
+  const ctx = await playwright.request.newContext({
+    baseURL: `${API_BASE}/`,
+    extraHTTPHeaders: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${accessToken}`,
+    },
+  })
+  normalizeApiContextPaths(ctx)
+  return ctx
 }
 
 async function failIf404(
@@ -85,21 +111,16 @@ async function verifyBackendRoutes(api: APIRequestContext): Promise<void> {
 
 /**
  * Extended test fixture that provides:
- * - `api`: Playwright APIRequestContext targeting the backend
+ * - `api`: Playwright APIRequestContext targeting the backend, signed in as the
+ *   shared E2E account (the token comes from `e2e-auth`, one login per worker)
  * - `createProperty()`: Helper to create a property and auto-register for cleanup
  * - `createActivePropertyWithPricing()`: Creates an active property with base pricing
  * - `createBooking()`: Creates a booking and auto-registers for cleanup
  * - Auto-cleanup of all created bookings and properties after each test
  */
-export const test = base.extend<ApiFixtures>({
-  api: async ({ playwright }, use) => {
-    const ctx = await playwright.request.newContext({
-      baseURL: `${API_BASE}/`,
-      extraHTTPHeaders: {
-        'Content-Type': 'application/json',
-      },
-    })
-    normalizeApiContextPaths(ctx)
+export const test = authTest.extend<ApiFixtures>({
+  api: async ({ playwright, authTokens }, use) => {
+    const ctx = await newApiContext(playwright, authTokens.access_token)
 
     if (!backendPreflightDone) {
       await verifyBackendRoutes(ctx)
@@ -110,9 +131,50 @@ export const test = base.extend<ApiFixtures>({
     await ctx.dispose()
   },
 
+  freshApi: async ({ playwright }, use) => {
+    const bootstrap = await playwright.request.newContext()
+    let tokens: { access_token: string }
+    try {
+      const response = await bootstrap.post(`${API_BASE}/auth/register`, {
+        data: {
+          email: `${uniqueName('fresh')}@gmail.com`,
+          password: 'PlaywrightFresh123!',
+          company_name: 'Playwright fresh company',
+        },
+      })
+      if (!response.ok()) {
+        throw new Error(`Failed to register a fresh company: ${response.status()} ${await response.text()}`)
+      }
+      tokens = await response.json()
+    } finally {
+      await bootstrap.dispose()
+    }
+
+    const ctx = await newApiContext(playwright, tokens.access_token)
+    await use(ctx)
+    await ctx.dispose()
+  },
+
   createdPropertyIds: async ({}, use) => {
     const ids: string[] = []
     await use(ids)
+  },
+
+  createCleaner: async ({ api }, use) => {
+    const ids: string[] = []
+    await use(async () => {
+      const cleaner = await createTestCleaner(api)
+      ids.push(cleaner.id)
+      return cleaner
+    })
+
+    for (const id of ids) {
+      try {
+        await api.delete(`users/${id}`)
+      } catch {
+        // Best-effort cleanup
+      }
+    }
   },
 
   createdBookingIds: async ({}, use) => {

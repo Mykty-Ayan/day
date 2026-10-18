@@ -62,9 +62,11 @@ test.describe('Tags API - CRUD', () => {
     const res = await api.delete(`/tags/${tag.id}`)
     expect(res.ok()).toBeTruthy()
 
-    // Verify deleted
-    const getRes = await api.get(`/tags/${tag.id}`)
-    expect([404, 200]).toContain(getRes.status())
+    // Verify deleted: there is no GET /tags/:id, so look for it in the list
+    const listRes = await api.get('/tags')
+    expect(listRes.ok()).toBeTruthy()
+    const tags: { id: string }[] = await listRes.json()
+    expect(tags.map((t) => t.id)).not.toContain(tag.id)
   })
 
   test('POST /properties/:id/tags - assign tag to property', async ({

@@ -1,6 +1,7 @@
 /**
  * Test data factories and helpers for Day PMS E2E tests.
  */
+import type { APIRequestContext } from '@playwright/test'
 
 export function uniqueName(prefix: string): string {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
@@ -275,3 +276,32 @@ export function createTestBatchImport(count: number = 3): { urls: string[]; user
 }
 
 export const API_BASE = 'http://localhost:8000/api/v1'
+
+export const AI_SERVICE_URL = process.env.AI_SERVICE_URL ?? 'http://localhost:8001'
+
+/** Whether ai-service is running. Without it every import job fails at once. */
+export async function aiServiceIsUp(request: APIRequestContext): Promise<boolean> {
+  try {
+    return (await request.get(`${AI_SERVICE_URL}/api/v1/health`)).ok()
+  } catch {
+    return false
+  }
+}
+
+/**
+ * A real cleaner in the caller's company. The API refuses a `cleaner_id` that is
+ * not a user of that company, so a made-up UUID no longer works.
+ */
+export async function createTestCleaner(
+  request: APIRequestContext,
+): Promise<{ id: string; email: string }> {
+  const email = `${uniqueName('cleaner')}@gmail.com`
+  const response = await request.post(`${API_BASE}/users`, {
+    data: { email, password: 'PlaywrightCleaner123!', role: 'cleaner', full_name: 'Test Cleaner' },
+  })
+  if (!response.ok()) {
+    throw new Error(`Failed to create cleaner: ${response.status()} ${await response.text()}`)
+  }
+  const body = await response.json()
+  return { id: body.id, email }
+}

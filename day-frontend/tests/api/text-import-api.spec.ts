@@ -143,10 +143,7 @@ test.describe('Text Import API', () => {
       job = await pollRes.json()
     }
 
-    if (job.status !== 'completed') {
-      test.skip()
-      return
-    }
+    test.skip(job.status !== 'completed', `the import job ended as "${job.status}": needs ai-service on :8001`)
 
     // Confirm the import
     const timestamp = Date.now()
