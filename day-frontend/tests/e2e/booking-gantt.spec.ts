@@ -154,13 +154,18 @@ test.describe('Booking Gantt Chart - E2E', () => {
     await expect(page.getByText(flat.internalName, { exact: true }).first()).toBeVisible()
     await expect(bar(page, guest)).toHaveCount(0)
 
+    // A month that is not loaded yet shows a spinner instead of the chart, on which
+    // "no bar" would hold too: wait for the chart's rows before saying a bar is not there.
+    const rows = page.getByText(flat.internalName, { exact: true }).first()
     await next.click()
+    await expect(rows).toBeVisible()
     await expect(bar(page, guest)).toHaveCount(0)
     await next.click()
     await expect(bar(page, guest)).toBeVisible()
 
     await previous.click()
     await previous.click()
+    await expect(rows).toBeVisible()
     await expect(bar(page, guest)).toHaveCount(0)
   })
 })

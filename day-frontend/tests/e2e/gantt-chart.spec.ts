@@ -95,9 +95,9 @@ test.describe('Gantt/Chess Chart - E2E', () => {
     await page.goto('/properties/gantt')
 
     const weekendCells = page.getByRole('button', { name: new RegExp(`^${flat.internalName}, (Sat|Sun) `) })
-    // A month has 8 to 10 Saturdays and Sundays
+    // The chart shows three months, each with 8 to 10 Saturdays and Sundays
     await expect(weekendCells.first()).toBeVisible()
-    expect(await weekendCells.count()).toBeGreaterThanOrEqual(8)
+    expect(await weekendCells.count()).toBeGreaterThanOrEqual(24)
 
     // Each is shaded (blue when it is today), and a weekday is not shaded grey
     for (const cell of await weekendCells.all()) await expect(cell).toHaveClass(/bg-(gray|blue)-50/)

@@ -163,7 +163,7 @@ test.describe('Navigation - E2E', () => {
       await page.waitForLoadState('networkidle')
 
       // Header with "Day" should be visible
-      await expect(page.getByText('Day').first()).toBeVisible({ timeout: 3000 })
+      await expect(page.getByRole('link', { name: 'Day', exact: true })).toBeVisible({ timeout: 3000 })
     }
   })
 })
