@@ -1,4 +1,5 @@
-import { test as base, type APIRequestContext } from '@playwright/test'
+import { type APIRequestContext, type PlaywrightWorkerArgs } from '@playwright/test'
+import { test as authTest } from './e2e-auth'
 import {
   API_BASE,
   createTestProperty,
@@ -39,6 +40,21 @@ function normalizeApiContextPaths(ctx: APIRequestContext): void {
     ;(ctx as unknown as Record<string, unknown>)[method] = (url: string, options?: Options) =>
       original(normalizeApiPath(url), options)
   }
+}
+
+async function newApiContext(
+  playwright: PlaywrightWorkerArgs['playwright'],
+  accessToken: string,
+): Promise<APIRequestContext> {
+  const ctx = await playwright.request.newContext({
+    baseURL: `${API_BASE}/`,
+    extraHTTPHeaders: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${accessToken}`,
+    },
+  })
+  normalizeApiContextPaths(ctx)
+  return ctx
 }
 
 async function failIf404(
@@ -85,29 +101,26 @@ async function verifyBackendRoutes(api: APIRequestContext): Promise<void> {
 
 /**
  * Extended test fixture that provides:
- * - `api`: Playwright APIRequestContext targeting the backend
+ * - `api`: Playwright APIRequestContext targeting the backend, signed in to a
+ *   company of the test's own (the token comes from `e2e-auth`)
  * - `createProperty()`: Helper to create a property and auto-register for cleanup
  * - `createActivePropertyWithPricing()`: Creates an active property with base pricing
  * - `createBooking()`: Creates a booking and auto-registers for cleanup
  * - Auto-cleanup of all created bookings and properties after each test
  */
-export const test = base.extend<ApiFixtures>({
-  api: async ({ playwright }, use) => {
-    const ctx = await playwright.request.newContext({
-      baseURL: `${API_BASE}/`,
-      extraHTTPHeaders: {
-        'Content-Type': 'application/json',
-      },
-    })
-    normalizeApiContextPaths(ctx)
+export const test = authTest.extend<ApiFixtures>({
+  api: async ({ playwright, authTokens }, use) => {
+    const ctx = await newApiContext(playwright, authTokens.access_token)
+    try {
+      if (!backendPreflightDone) {
+        await verifyBackendRoutes(ctx)
+        backendPreflightDone = true
+      }
 
-    if (!backendPreflightDone) {
-      await verifyBackendRoutes(ctx)
-      backendPreflightDone = true
+      await use(ctx)
+    } finally {
+      await ctx.dispose()
     }
-
-    await use(ctx)
-    await ctx.dispose()
   },
 
   createdPropertyIds: async ({}, use) => {
