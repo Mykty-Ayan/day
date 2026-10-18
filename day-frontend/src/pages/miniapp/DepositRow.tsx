@@ -24,7 +24,8 @@ export default function DepositRow({
   locked = false,
 }: {
   bookingId: string
-  suggestedAmount: number
+  /** null: nothing to offer, the operator types the amount. */
+  suggestedAmount: number | null
   onError: (error: unknown) => void
   /** The card has not reread the booking yet: no money moves on old figures. */
   locked?: boolean
@@ -113,9 +114,12 @@ export default function DepositRow({
           onChange={setAmount}
           type="number"
           inputMode="numeric"
-          placeholder={String(suggestedAmount)}
+          placeholder={suggestedAmount == null ? '' : String(suggestedAmount)}
         />
-        <ActionButton disabled={blocked || take.isPending} onClick={() => take.mutate()}>
+        <ActionButton
+          disabled={blocked || take.isPending || (!amount && suggestedAmount == null)}
+          onClick={() => take.mutate()}
+        >
           <ShieldCheck className="h-4 w-4" />
           {t('miniapp.deposit.take')}
         </ActionButton>

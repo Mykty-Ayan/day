@@ -18,6 +18,8 @@
     "perNight": "pro Nacht",
     "hourly": "Stundenweise: {{price}} pro Stunde",
     "deposit": "Kaution {{price}}, Rückzahlung nach dem Check-out",
+    "nightDeposit": "Kaution für Übernachtungen {{price}}, Rückzahlung nach dem Check-out",
+    "hourDeposit": "Kaution für stundenweise Aufenthalte {{price}}, Rückzahlung nach dem Check-out",
     "freeDates": "Freie Termine",
     "weekdays": "Mo Di Mi Do Fr Sa So",
     "taken": "belegt",

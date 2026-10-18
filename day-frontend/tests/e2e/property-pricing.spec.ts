@@ -63,7 +63,7 @@ test.describe('Property Pricing - E2E', () => {
     // Fill pricing fields
     await priceField(card, 'Base Price').fill(String(pricing.base_price))
     await priceField(card, 'Weekend Markup (%)').fill(String(pricing.weekend_markup))
-    await priceField(card, 'Default Deposit').fill(String(pricing.default_deposit))
+    await priceField(card, 'Deposit for nightly stays').fill(String(pricing.default_deposit))
     await priceField(card, 'Base Guests').fill(String(pricing.base_guests))
     await priceField(card, 'Extra Adult Price').fill(String(pricing.extra_adult_price))
     await priceField(card, 'Extra Child Price').fill(String(pricing.extra_child_price))
@@ -234,7 +234,7 @@ test.describe('Property Pricing - E2E', () => {
     // Verify base pricing values are displayed (they are the values of the inputs)
     await expect(priceField(card, 'Base Price')).toHaveValue('120')
     await expect(priceField(card, 'Weekend Markup (%)')).toHaveValue('25')
-    await expect(priceField(card, 'Default Deposit')).toHaveValue('50')
+    await expect(priceField(card, 'Deposit for nightly stays')).toHaveValue('50')
 
     // Verify seasonal price
     await expect(pricingRow(card, 'Winter Prices')).toHaveText(/80$/)
