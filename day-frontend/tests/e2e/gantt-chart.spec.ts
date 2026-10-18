@@ -1,187 +1,119 @@
 import { test, expect } from '../fixtures/e2e-auth'
 import { createTestProperty, API_BASE } from '../fixtures/test-data'
 
+const MONTHS = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December',
+]
+const SHORT_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+
+// The chart is at /properties/gantt and its rows go by the flat's internal name.
 test.describe('Gantt/Chess Chart - E2E', () => {
-  let propertyIdsToCleanup: string[] = []
-
-  test.afterEach(async ({ request }) => {
-    for (const id of propertyIdsToCleanup) {
-      try {
-        await request.delete(`${API_BASE}/properties/${id}`)
-      } catch {
-        // best-effort
-      }
-    }
-    propertyIdsToCleanup = []
-  })
-
-  async function createPropertyViaApi(
+  async function activeFlat(
     request: import('@playwright/test').APIRequestContext,
     overrides: Partial<import('../fixtures/test-data').TestPropertyInput> = {},
   ) {
     const data = createTestProperty(overrides)
     const res = await request.post(`${API_BASE}/properties`, { data })
-    const body = await res.json()
-    propertyIdsToCleanup.push(body.id)
-    return body
+    const { id } = await res.json()
+    await request.post(`${API_BASE}/properties/${id}/status`, { data: { target_status: 'active' } })
+    return { id: id as string, internalName: data.internal_name }
   }
 
   test('chart page loads', async ({ page }) => {
-    await page.goto('/gantt')
-    await page.waitForLoadState('networkidle')
+    await page.goto('/properties/gantt')
 
-    // Verify the page loaded (not a 404)
+    await expect(page.getByRole('heading', { name: 'Gantt Chart' })).toBeVisible()
     await expect(page.locator('body')).not.toContainText('Not Found')
   })
 
-  test('chart loads with property list on Y-axis', async ({
-    page,
-    request,
-  }) => {
-    // Create some properties
-    const prop1 = await createPropertyViaApi(request, { name: 'Gantt Alpha' })
-    const prop2 = await createPropertyViaApi(request, { name: 'Gantt Beta' })
+  test('every active flat is a row, labelled by its internal name', async ({ page, request }) => {
+    const alpha = await activeFlat(request, { internal_name: 'gantt-alpha' })
+    const beta = await activeFlat(request, { internal_name: 'gantt-beta' })
 
-    // Activate them so they show on gantt
-    await request.post(`${API_BASE}/properties/${prop1.id}/status`, {
-      data: { status: 'active' },
-    })
-    await request.post(`${API_BASE}/properties/${prop2.id}/status`, {
-      data: { status: 'active' },
-    })
+    await page.goto('/properties/gantt')
 
-    await page.goto('/gantt')
-    await page.waitForLoadState('networkidle')
-
-    // Properties should appear as row labels on the Y-axis
-    await expect(page.getByText('Gantt Alpha')).toBeVisible({ timeout: 5000 })
-    await expect(page.getByText('Gantt Beta')).toBeVisible({ timeout: 5000 })
+    await expect(page.getByText(alpha.internalName, { exact: true }).first()).toBeVisible()
+    await expect(page.getByText(beta.internalName, { exact: true }).first()).toBeVisible()
   })
 
-  test('properties sorted alphabetically', async ({ page, request }) => {
-    const propC = await createPropertyViaApi(request, { name: 'Charlie Hotel' })
-    const propA = await createPropertyViaApi(request, { name: 'Alpha Suites' })
-    const propB = await createPropertyViaApi(request, { name: 'Bravo Rooms' })
+  test('rows are sorted by internal name', async ({ page, request }) => {
+    // Made out of order, so the order on the page is the chart's, not the creation's.
+    await activeFlat(request, { internal_name: 'gantt-charlie' })
+    await activeFlat(request, { internal_name: 'gantt-alpha' })
+    await activeFlat(request, { internal_name: 'gantt-bravo' })
 
-    // Activate all
-    for (const p of [propC, propA, propB]) {
-      await request.post(`${API_BASE}/properties/${p.id}/status`, {
-        data: { status: 'active' },
+    await page.goto('/properties/gantt')
+    await expect(page.getByText('gantt-alpha', { exact: true }).first()).toBeVisible()
+
+    const labels = await page.getByText(/^gantt-(alpha|bravo|charlie)$/).allTextContents()
+    expect([...new Set(labels)]).toEqual(['gantt-alpha', 'gantt-bravo', 'gantt-charlie'])
+  })
+
+  test('the arrows turn the month and Today brings it back', async ({ page }) => {
+    const now = new Date()
+    const next = new Date(now.getFullYear(), now.getMonth() + 1, 1)
+    const label = (d: Date) => `${MONTHS[d.getMonth()]} ${d.getFullYear()}`
+
+    await page.goto('/properties/gantt')
+    await expect(page.getByText(label(now), { exact: true })).toBeVisible()
+
+    // The arrows are icons without a name: the toolbar's right one turns the month on
+    await page.locator('button:has(svg.lucide-chevron-right)').first().click()
+    await expect(page.getByText(label(next), { exact: true })).toBeVisible()
+    await expect(page.getByText(label(now), { exact: true })).toHaveCount(0)
+
+    await page.locator('button:has(svg.lucide-chevron-left)').first().click()
+    await expect(page.getByText(label(now), { exact: true })).toBeVisible()
+
+    await page.locator('button:has(svg.lucide-chevron-right)').first().click()
+    await page.getByRole('button', { name: 'Today' }).click()
+    await expect(page.getByText(label(now), { exact: true })).toBeVisible()
+  })
+
+  test('today is highlighted', async ({ page, request }) => {
+    const flat = await activeFlat(request)
+    const now = new Date()
+
+    await page.goto('/properties/gantt')
+
+    const cell = (day: Date) =>
+      page.getByRole('button', {
+        name: `${flat.internalName}, ${WEEKDAYS[day.getDay()]} ${day.getDate()} ${SHORT_MONTHS[day.getMonth()]}`,
       })
-    }
+    await expect(cell(now)).toHaveClass(/bg-blue-50/)
 
-    await page.goto('/gantt')
-    await page.waitForLoadState('networkidle')
+    // Another day of the month is not
+    const other = new Date(now.getFullYear(), now.getMonth(), now.getDate() === 1 ? 2 : 1)
+    await expect(cell(other)).not.toHaveClass(/bg-blue-50/)
+  })
 
-    // Get all property labels from the chart
-    const labels = page.locator(
-      '[data-testid="property-row"] [data-testid="property-name"], ' +
-        '.gantt-row .property-name, ' +
-        '[class*="gantt"] [class*="property"]',
+  test('weekend columns highlighted', async ({ page, request }) => {
+    const flat = await activeFlat(request)
+
+    await page.goto('/properties/gantt')
+
+    const weekendCells = page.getByRole('button', { name: new RegExp(`^${flat.internalName}, (Sat|Sun) `) })
+    // A month has 8 to 10 Saturdays and Sundays
+    await expect(weekendCells.first()).toBeVisible()
+    expect(await weekendCells.count()).toBeGreaterThanOrEqual(8)
+
+    // Each is shaded (blue when it is today), and a weekday is not shaded grey
+    for (const cell of await weekendCells.all()) await expect(cell).toHaveClass(/bg-(gray|blue)-50/)
+    await expect(page.getByRole('button', { name: new RegExp(`^${flat.internalName}, Wed `) }).first()).not.toHaveClass(
+      /bg-gray-50/,
     )
-
-    // If we can find structured labels, verify order
-    const count = await labels.count()
-    if (count >= 3) {
-      const texts: string[] = []
-      for (let i = 0; i < count; i++) {
-        texts.push((await labels.nth(i).textContent()) ?? '')
-      }
-      const relevantTexts = texts.filter(
-        (t) => t.includes('Alpha') || t.includes('Bravo') || t.includes('Charlie'),
-      )
-      // Verify alphabetical order
-      const alphaIdx = relevantTexts.findIndex((t) => t.includes('Alpha'))
-      const bravoIdx = relevantTexts.findIndex((t) => t.includes('Bravo'))
-      const charlieIdx = relevantTexts.findIndex((t) => t.includes('Charlie'))
-      if (alphaIdx >= 0 && bravoIdx >= 0 && charlieIdx >= 0) {
-        expect(alphaIdx).toBeLessThan(bravoIdx)
-        expect(bravoIdx).toBeLessThan(charlieIdx)
-      }
-    }
   })
 
-  test('month navigation (prev/next)', async ({ page }) => {
-    await page.goto('/gantt')
-    await page.waitForLoadState('networkidle')
+  test('chart is scrollable horizontally', async ({ page, request }) => {
+    await activeFlat(request)
 
-    // Get current month text
-    const monthHeader = page.locator(
-      '[data-testid="month-header"], .month-header, [class*="month"]',
-    ).first()
+    await page.goto('/properties/gantt')
 
-    let initialMonth = ''
-    if (await monthHeader.isVisible({ timeout: 3000 }).catch(() => false)) {
-      initialMonth = (await monthHeader.textContent()) ?? ''
-    }
-
-    // Click next month
-    const nextBtn = page.getByRole('button', { name: /next|forward|>/i })
-    if (await nextBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
-      await nextBtn.click()
-      await page.waitForTimeout(500)
-
-      // Month should change
-      if (initialMonth) {
-        const newMonth = (await monthHeader.textContent()) ?? ''
-        expect(newMonth).not.toBe(initialMonth)
-      }
-
-      // Click previous month
-      const prevBtn = page.getByRole('button', { name: /prev|back|</i })
-      await prevBtn.click()
-      await page.waitForTimeout(500)
-
-      // Should be back to initial month
-      if (initialMonth) {
-        const restoredMonth = (await monthHeader.textContent()) ?? ''
-        expect(restoredMonth).toBe(initialMonth)
-      }
-    }
-  })
-
-  test('today indicator visible', async ({ page }) => {
-    await page.goto('/gantt')
-    await page.waitForLoadState('networkidle')
-
-    // Look for today indicator
-    const todayIndicator = page.locator(
-      '[data-testid="today-indicator"], .today-indicator, ' +
-        '[class*="today"], [data-today="true"]',
-    )
-
-    await expect(todayIndicator.first()).toBeVisible({ timeout: 5000 })
-  })
-
-  test('weekend columns highlighted', async ({ page }) => {
-    await page.goto('/gantt')
-    await page.waitForLoadState('networkidle')
-
-    // Weekend columns should have a different background
-    const weekendCols = page.locator(
-      '[data-testid="weekend-column"], .weekend-column, ' +
-        '[class*="weekend"], [data-weekend="true"]',
-    )
-
-    const count = await weekendCols.count()
-    // A month view should have at least 8 weekend days (4 weekends)
-    expect(count).toBeGreaterThanOrEqual(4)
-  })
-
-  test('chart is scrollable horizontally', async ({ page }) => {
-    await page.goto('/gantt')
-    await page.waitForLoadState('networkidle')
-
-    const chartContainer = page.locator(
-      '[data-testid="gantt-container"], .gantt-container, [class*="gantt"]',
-    ).first()
-
-    if (await chartContainer.isVisible({ timeout: 3000 }).catch(() => false)) {
-      // Check that the container has overflow-x: auto or scroll
-      const overflowX = await chartContainer.evaluate(
-        (el) => window.getComputedStyle(el).overflowX,
-      )
-      expect(['auto', 'scroll']).toContain(overflowX)
-    }
+    const scroller = page.locator('div.overflow-x-auto').first()
+    await expect(scroller).toBeVisible()
+    expect(await scroller.evaluate((el) => window.getComputedStyle(el).overflowX)).toBe('auto')
+    expect(await scroller.evaluate((el) => el.scrollWidth > el.clientWidth)).toBe(true)
   })
 })
