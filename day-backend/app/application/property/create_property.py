@@ -46,6 +46,7 @@ class CreatePropertyInput:
     whatsapp_product_url: str | None = None
     video_url: str | None = None
     listing_urls: list[str] = field(default_factory=list)
+    hourly_listing_urls: list[str] = field(default_factory=list)
     min_nights: int | None = None
     max_nights: int | None = None
     buffer_hours: int | None = None
@@ -111,6 +112,7 @@ class CreatePropertyService:
             whatsapp_product_url=inp.whatsapp_product_url,
             video_url=inp.video_url,
             listing_urls=list(inp.listing_urls),
+            hourly_listing_urls=list(inp.hourly_listing_urls),
             min_nights=inp.min_nights,
             max_nights=inp.max_nights,
             buffer_hours=inp.buffer_hours,

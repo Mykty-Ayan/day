@@ -7,7 +7,7 @@ import { isWebLink } from '../../lib/utils'
 import Spinner from '../../components/ui/Spinner'
 import { useProperty, useUpdateProperty } from '../../hooks/useProperties'
 import type { Property } from '../../types/property'
-import { formToUpdate, listingLinksValid, propertyToForm, type PropertyEditForm } from './propertyForm'
+import { formToUpdate, listingInBoth, listingLinksValid, propertyToForm, type PropertyEditForm } from './propertyForm'
 import PropertyFormStepBasic from '../../components/property/PropertyFormStepBasic'
 import PropertyFormStepAddress from '../../components/property/PropertyFormStepAddress'
 import PropertyFormStepDetails from '../../components/property/PropertyFormStepDetails'
@@ -56,6 +56,11 @@ function EditPropertyForm({ property, propertyId }: { property: Property; proper
         if (form.basic[key].trim() && !isWebLink(form.basic[key])) newErrors[key] = t('properties.validation.webLink')
       }
       if (!listingLinksValid(form.basic.listing_urls)) newErrors.listing_urls = t('properties.validation.listingLinks')
+      if (!listingLinksValid(form.basic.hourly_listing_urls)) {
+        newErrors.hourly_listing_urls = t('properties.validation.listingLinks')
+      } else if (listingInBoth(form.basic.listing_urls, form.basic.hourly_listing_urls)) {
+        newErrors.hourly_listing_urls = t('properties.validation.listingInBoth')
+      }
     }
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0

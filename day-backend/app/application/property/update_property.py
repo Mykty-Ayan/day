@@ -36,6 +36,7 @@ class UpdatePropertyInput:
     whatsapp_product_url: object = _UNSET
     video_url: object = _UNSET
     listing_urls: object = _UNSET
+    hourly_listing_urls: object = _UNSET
     min_nights: object = _UNSET
     max_nights: object = _UNSET
     buffer_hours: object = _UNSET
@@ -63,7 +64,8 @@ _UPDATABLE_FIELDS = {
     "name", "internal_name", "type", "rental_mode", "description", "source_url",
     "latitude", "longitude", "address_full", "apartment_number",
     "entrance", "block", "floor", "rooms", "beds", "max_guests", "bathrooms",
-    "complex_name", "floors_total", "map_url", "whatsapp_product_url", "video_url", "listing_urls",
+    "complex_name", "floors_total", "map_url", "whatsapp_product_url", "video_url",
+    "listing_urls", "hourly_listing_urls",
     "min_nights", "max_nights", "buffer_hours", "min_lead_hours",
     "check_in_hour", "check_out_hour", "check_in_method",
     "area_living", "area_total",

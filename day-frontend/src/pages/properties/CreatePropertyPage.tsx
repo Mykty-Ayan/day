@@ -4,7 +4,7 @@ import { ArrowLeft, ArrowRight, Check, Loader2 } from 'lucide-react'
 import { useNavigate } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 import { isWebLink } from '../../lib/utils'
-import { listingLines, listingLinksValid, saveWizard, wizardToUpdate } from './propertyForm'
+import { listingInBoth, listingLines, listingLinksValid, saveWizard, wizardToUpdate } from './propertyForm'
 import { useCreateProperty } from '../../hooks/useProperties'
 import { createOrUpdatePricing, linkAmenities, updateProperty, uploadPhotos } from '../../api/properties'
 import type { CheckInMethod, PropertyType, PropertyCreateInput, PricingInput } from '../../types/property'
@@ -32,6 +32,7 @@ interface FormData {
     whatsapp_product_url: string
     video_url: string
     listing_urls: string
+    hourly_listing_urls: string
   }
   address: {
     address_full: string
@@ -91,6 +92,7 @@ const initialForm: FormData = {
     whatsapp_product_url: '',
     video_url: '',
     listing_urls: '',
+    hourly_listing_urls: '',
   },
   address: {
     address_full: '',
@@ -171,6 +173,11 @@ export default function CreatePropertyPage() {
         if (form.basic[key].trim() && !isWebLink(form.basic[key])) newErrors[key] = t('properties.validation.webLink')
       }
       if (!listingLinksValid(form.basic.listing_urls)) newErrors.listing_urls = t('properties.validation.listingLinks')
+      if (!listingLinksValid(form.basic.hourly_listing_urls)) {
+        newErrors.hourly_listing_urls = t('properties.validation.listingLinks')
+      } else if (listingInBoth(form.basic.listing_urls, form.basic.hourly_listing_urls)) {
+        newErrors.hourly_listing_urls = t('properties.validation.listingInBoth')
+      }
     }
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
@@ -201,6 +208,7 @@ export default function CreatePropertyPage() {
       whatsapp_product_url: form.basic.whatsapp_product_url.trim() || undefined,
       video_url: form.basic.video_url.trim() || undefined,
       listing_urls: listingLines(form.basic.listing_urls),
+      hourly_listing_urls: listingLines(form.basic.hourly_listing_urls),
       address_full: form.address.address_full || undefined,
       apartment_number: form.address.apartment_number || undefined,
       entrance: form.address.entrance || undefined,

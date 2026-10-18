@@ -8,6 +8,7 @@
 import { expect, test } from '@playwright/test'
 import {
   formToUpdate,
+  listingInBoth,
   listingLines,
   listingLinksValid,
   propertyToForm,
@@ -201,4 +202,21 @@ test('listing links must be web addresses, twenty at most', () => {
   const at = (length: number) => 'https://krisha.kz/' + 'a'.repeat(length - 'https://krisha.kz/'.length)
   expect(listingLinksValid(at(500))).toBe(true)
   expect(listingLinksValid(at(501))).toBe(false)
+})
+
+test('hourly listing links are a list of their own, and one link is not both kinds', () => {
+  const listed = {
+    ...flat,
+    listing_urls: ['https://krisha.kz/a/show/1'],
+    hourly_listing_urls: ['https://krisha.kz/a/show/2'],
+  } as unknown as Property
+  const form = propertyToForm(listed)
+  expect(form.basic.hourly_listing_urls).toBe('https://krisha.kz/a/show/2')
+  form.basic.hourly_listing_urls = ''
+  expect(formToUpdate(form, propertyToForm(listed)).hourly_listing_urls).toEqual([])
+
+  // The CRM tells the stay by the list the guest's link is in.
+  expect(listingInBoth('https://krisha.kz/a/show/1', ' https://krisha.kz/a/show/1 ')).toBe(true)
+  expect(listingInBoth('https://krisha.kz/a/show/1', 'https://krisha.kz/a/show/2')).toBe(false)
+  expect(listingInBoth('', '')).toBe(false)
 })

@@ -14,6 +14,7 @@ export interface PropertyEditForm {
     video_url: string
     /** One link per line. */
     listing_urls: string
+    hourly_listing_urls: string
   }
   address: {
     address_full: string
@@ -65,6 +66,7 @@ export function propertyToForm(property: Property): PropertyEditForm {
       whatsapp_product_url: asText(property.whatsapp_product_url),
       video_url: asText(property.video_url),
       listing_urls: (property.listing_urls ?? []).join('\n'),
+      hourly_listing_urls: (property.hourly_listing_urls ?? []).join('\n'),
     },
     address: {
       address_full: asText(property.address_full),
@@ -114,6 +116,12 @@ export function listingLines(value: string): string[] {
 const MAX_LISTING_LINKS = 20
 const MAX_LISTING_LINK_LENGTH = 500
 
+/** A link typed in both lists: the CRM could not tell which stay the guest means. */
+export function listingInBoth(nightly: string, hourly: string): boolean {
+  const hours = new Set(listingLines(hourly))
+  return listingLines(nightly).some((line) => hours.has(line))
+}
+
 export function listingLinksValid(value: string): boolean {
   const lines = listingLines(value)
   return (
@@ -144,6 +152,7 @@ export function formToUpdate(form: PropertyEditForm, opened: PropertyEditForm): 
     video_url: text(form.basic.video_url),
     // Always sent: an emptied field clears the links.
     listing_urls: listingLines(form.basic.listing_urls),
+    hourly_listing_urls: listingLines(form.basic.hourly_listing_urls),
     address_full: text(form.address.address_full),
     apartment_number: text(form.address.apartment_number),
     entrance: text(form.address.entrance),
