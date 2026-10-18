@@ -19,9 +19,12 @@ async function photosOf(request: APIRequestContext, propertyId: string): Promise
   return (await res.json()).photos
 }
 
-/** The picture of a photo on the page: the image whose source is the URL the API gave. */
+/**
+ * The picture of a photo on the page: the image whose source is the URL the API gave.
+ * A check-in photo's URL is signed anew on every request, so only the part before `?` is compared.
+ */
 function photoImage(page: Page, photo: Photo): Locator {
-  return page.locator(`img[src="${photo.url}"]`)
+  return page.locator(`img[src^="${photo.url.split('?')[0]}"]`)
 }
 
 test.describe('Property Photos - E2E', () => {

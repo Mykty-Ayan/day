@@ -145,6 +145,14 @@ test.describe('Property Tags - E2E', () => {
       return
     }
 
+    // There is no GET /tags/:id (it answers 405): a tag is looked up in the list
+    const listedIds = async (): Promise<string[]> => {
+      const listRes = await request.get(`${API_BASE}/tags`)
+      expect(listRes.ok()).toBeTruthy()
+      return ((await listRes.json()) as { id: string }[]).map((t) => t.id)
+    }
+    expect(await listedIds()).toContain(tag.id)
+
     const res = await request.delete(`${API_BASE}/tags/${tag.id}`)
     expect(res.ok()).toBeTruthy()
 
@@ -152,8 +160,7 @@ test.describe('Property Tags - E2E', () => {
     tagIdsToCleanup = tagIdsToCleanup.filter((id) => id !== tag.id)
 
     // Verify it's gone
-    const getRes = await request.get(`${API_BASE}/tags/${tag.id}`)
-    expect([404, 200]).toContain(getRes.status())
+    expect(await listedIds()).not.toContain(tag.id)
   })
 
   test('batch pricing update via tag', async ({ request }) => {
