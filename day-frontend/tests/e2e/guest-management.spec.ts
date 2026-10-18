@@ -22,15 +22,18 @@ test.describe('Guest Management - E2E', () => {
   ) {
     const data = createTestProperty()
     const res = await request.post(`${API_BASE}/properties`, { data })
+    expect(res.ok(), `POST properties: ${res.status()}`).toBeTruthy()
     const prop = await res.json()
     propertyIdsToCleanup.push(prop.id)
 
-    await request.post(`${API_BASE}/properties/${prop.id}/status`, {
+    const statusRes = await request.post(`${API_BASE}/properties/${prop.id}/status`, {
       data: { status: 'active' },
     })
-    await request.put(`${API_BASE}/properties/${prop.id}/pricing`, {
+    expect(statusRes.ok(), `POST property status: ${statusRes.status()}`).toBeTruthy()
+    const pricingRes = await request.put(`${API_BASE}/properties/${prop.id}/pricing`, {
       data: createTestPricing(),
     })
+    expect(pricingRes.ok(), `PUT pricing: ${pricingRes.status()}`).toBeTruthy()
 
     return prop
   }
@@ -51,6 +54,14 @@ test.describe('Guest Management - E2E', () => {
   /** A booking row (table) or card, named by the guest it holds. */
   function bookingsOf(page: import('@playwright/test').Page, guestName: string) {
     return page.getByRole('button', { name: guestName })
+  }
+
+  /** Types in the search box and waits for the filtered list: while it loads, the list is a spinner. */
+  async function searchFor(page: import('@playwright/test').Page, text: string) {
+    await Promise.all([
+      page.waitForResponse((resp) => resp.url().includes('/api/v1/bookings') && resp.url().includes('search=')),
+      page.getByPlaceholder(/search/i).fill(text),
+    ])
   }
 
   test.afterEach(async ({ request }) => {
@@ -98,7 +109,7 @@ test.describe('Guest Management - E2E', () => {
     await expect(page.getByText('+15551230002')).toBeVisible()
 
     // The registry holds the company's guests, each one once
-    const res = await request.get(`${API_BASE}/guests`)
+    const res = await request.get(`${API_BASE}/guests`, { maxRetries: 3 })
     expect(res.ok()).toBeTruthy()
     const registry = await res.json()
     expect(registry.total).toBe(2)
@@ -124,10 +135,10 @@ test.describe('Guest Management - E2E', () => {
     await page.waitForLoadState('networkidle')
     await expect(bookingsOf(page, otherName)).toBeVisible()
 
-    await page.getByPlaceholder(/search/i).fill(guestName)
+    await searchFor(page, guestName)
 
-    await expect(bookingsOf(page, otherName)).toBeHidden()
     await expect(bookingsOf(page, guestName)).toHaveCount(1)
+    await expect(bookingsOf(page, otherName)).toHaveCount(0)
   })
 
   test('search guests by phone', async ({ page, request }) => {
@@ -151,18 +162,19 @@ test.describe('Guest Management - E2E', () => {
     await page.waitForLoadState('networkidle')
     await expect(bookingsOf(page, otherName)).toBeVisible()
 
-    await page.getByPlaceholder(/search/i).fill('9876543')
+    await searchFor(page, '9876543')
 
-    await expect(bookingsOf(page, otherName)).toBeHidden()
     await expect(bookingsOf(page, guestName)).toHaveCount(1)
+    await expect(bookingsOf(page, otherName)).toHaveCount(0)
   })
 
-  test('view guest booking history', async ({ page, request }) => {
+  test("guest's bookings are listed together and open their page", async ({ page, request }) => {
     const prop = await setupActiveProperty(request)
     const guestName = `HistoryGuest-${Date.now()}`
+    const otherName = `StrangerGuest-${Date.now()}`
     const guestPhone = '+15551112222'
 
-    // Create multiple bookings for the same guest
+    // Two bookings of one guest, and one of another
     const first = await createBookingViaApi(request, prop.id, {
       guest_name: guestName,
       guest_phone: guestPhone,
@@ -175,13 +187,22 @@ test.describe('Guest Management - E2E', () => {
       check_in: futureDate(20),
       check_out: futureDate(23),
     })
+    await createBookingViaApi(request, prop.id, {
+      guest_name: otherName,
+      guest_phone: '+15553334444',
+      check_in: futureDate(30),
+      check_out: futureDate(33),
+    })
 
     await page.goto('/bookings')
     await page.waitForLoadState('networkidle')
-    await page.getByPlaceholder(/search/i).fill(guestName)
+    await expect(bookingsOf(page, otherName)).toHaveCount(1)
 
-    // The guest's stays are listed together
+    await searchFor(page, guestName)
+
+    // The guest's stays are listed together, and the other guest's stay is not among them
     await expect(bookingsOf(page, guestName)).toHaveCount(2)
+    await expect(bookingsOf(page, otherName)).toHaveCount(0)
 
     // A stay opens on its page, with the guest's details
     await bookingsOf(page, guestName).first().click()
