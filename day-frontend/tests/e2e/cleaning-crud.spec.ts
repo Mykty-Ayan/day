@@ -87,7 +87,7 @@ test.describe('Cleaning Task CRUD - E2E', () => {
     await page.getByRole('link', { name: /cleaning/i }).first().click()
     await page.waitForURL(/\/cleaning/, { timeout: 5000 })
 
-    await expect(page.getByText(/cleaning tasks/i)).toBeVisible({ timeout: 5000 })
+    await expect(page.getByRole('heading', { name: /cleaning tasks/i })).toBeVisible({ timeout: 5000 })
   })
 
   test('navigate to checklists via nav bar', async ({ page }) => {
@@ -97,7 +97,7 @@ test.describe('Cleaning Task CRUD - E2E', () => {
     await page.getByRole('link', { name: /checklists/i }).click()
     await page.waitForURL(/\/cleaning\/checklists/, { timeout: 5000 })
 
-    await expect(page.getByText(/checklist templates/i)).toBeVisible({ timeout: 5000 })
+    await expect(page.getByRole('heading', { name: /checklist templates/i })).toBeVisible({ timeout: 5000 })
   })
 
   // ── Task Creation via Form ────────────────────────────────────────
