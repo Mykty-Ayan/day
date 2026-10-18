@@ -56,6 +56,14 @@ def test_a_calendar_cut_short_is_an_error_not_fewer_nights():
         parse_events(cut)
     with pytest.raises(FeedError, match="cut short"):
         parse_events(AIRBNB[:-30])
+    # An event that never ended was cut too, even if the calendar's end came after it.
+    with pytest.raises(FeedError, match="cut short"):
+        parse_events("BEGIN:VCALENDAR\nBEGIN:VEVENT\nUID:a\nDTSTART;VALUE=DATE:20301010\nEND:VCALENDAR\n")
+    with pytest.raises(FeedError, match="cut short"):
+        parse_events(
+            "BEGIN:VCALENDAR\nBEGIN:VEVENT\nUID:a\nDTSTART;VALUE=DATE:20301010\n"
+            "BEGIN:VEVENT\nUID:b\nDTSTART;VALUE=DATE:20301020\nEND:VEVENT\nEND:VCALENDAR\n"
+        )
     # Empty and whole is true: every booking there is gone.
     assert parse_events("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nEND:VCALENDAR\r\n") == []
 

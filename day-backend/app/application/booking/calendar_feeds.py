@@ -103,6 +103,8 @@ def parse_events(text: str) -> list[FeedEvent]:
     for line in lines:
         mark = line.strip().upper()
         if mark == "BEGIN:VEVENT":
+            if current is not None:
+                raise FeedError("The calendar was cut short: an event did not end")
             current = {}
         elif mark == "END:VEVENT" and current is not None:
             if current.get("STATUS", "").upper() != "CANCELLED":
@@ -115,6 +117,8 @@ def parse_events(text: str) -> list[FeedEvent]:
         elif current is not None and ":" in line:
             name, value = line.split(":", 1)
             current[name.split(";", 1)[0].strip().upper()] = value.strip()
+    if current is not None:
+        raise FeedError("The calendar was cut short: an event did not end")
     return events
 
 
