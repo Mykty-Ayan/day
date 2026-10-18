@@ -1,5 +1,6 @@
 import { test, expect } from '../fixtures/e2e-auth'
 import {
+  createTestCleaner,
   createTestProperty,
   createTestPricing,
   futureDate,
@@ -49,16 +50,6 @@ test.describe('Cleaning Task CRUD - E2E', () => {
     const task = await res.json()
     taskIdsToCleanup.push(task.id)
     return task
-  }
-
-  async function transitionTaskViaApi(
-    request: import('@playwright/test').APIRequestContext,
-    taskId: string,
-    status: string,
-  ) {
-    await request.post(`${API_BASE}/cleaning/${taskId}/status`, {
-      data: { status, target_status: status },
-    })
   }
 
   function transitionButton(page: Page, status: 'assigned' | 'in_progress' | 'done' | 'verified') {
@@ -215,39 +206,32 @@ test.describe('Cleaning Task CRUD - E2E', () => {
   })
 
   test('filter tasks by status tabs', async ({ page, request }) => {
-    const prop = await setupActiveProperty(request)
+    // One flat per task, so the property name says which task a row is.
+    const pendingProp = await setupActiveProperty(request)
+    const assignedProp = await setupActiveProperty(request)
+    const { id: cleanerId } = await createTestCleaner(request)
 
-    // Create a pending task
-    await createTaskViaApi(request, prop.id)
-
-    // Create a task and assign it (make it assigned)
-    const assignableTask = await createTaskViaApi(request, prop.id, {
-      cleaner_id: '00000000-0000-0000-0000-000000000099',
-    })
-    await transitionTaskViaApi(request, assignableTask.id, 'assigned')
+    await createTaskViaApi(request, pendingProp.id)
+    // A task made with a cleaner starts as assigned
+    await createTaskViaApi(request, assignedProp.id, { cleaner_id: cleanerId })
 
     await page.goto('/cleaning')
     await page.waitForLoadState('networkidle')
 
-    // Click Pending tab
+    const pendingRow = page.getByText(pendingProp.name as string)
+    const assignedRow = page.getByText(assignedProp.name as string)
+
     await page.getByRole('radio', { name: /^pending$/i }).click()
-    await page.waitForTimeout(500)
+    await expect(pendingRow.first()).toBeVisible({ timeout: 5000 })
+    await expect(assignedRow).toHaveCount(0)
 
-    // Should see "pending" badges
-    const pendingBadges = page.getByText(/pending/i)
-    await expect(pendingBadges.first()).toBeVisible({ timeout: 5000 })
-
-    // Click Assigned tab
     await page.getByRole('radio', { name: /^assigned$/i }).click()
-    await page.waitForTimeout(500)
+    await expect(assignedRow.first()).toBeVisible({ timeout: 5000 })
+    await expect(pendingRow).toHaveCount(0)
 
-    // Should see assigned badge or property name of assigned task
-    const assignedBadges = page.getByText(/assigned/i)
-    await expect(assignedBadges.first()).toBeVisible({ timeout: 5000 })
-
-    // Click All tab to show everything again
     await page.getByRole('radio', { name: /^all$/i }).click()
-    await page.waitForTimeout(500)
+    await expect(pendingRow.first()).toBeVisible({ timeout: 5000 })
+    await expect(assignedRow.first()).toBeVisible({ timeout: 5000 })
   })
 
   test('empty state shown when no tasks', async ({ page }) => {
@@ -283,7 +267,7 @@ test.describe('Cleaning Task CRUD - E2E', () => {
     await expect(page.getByText(/task details/i)).toBeVisible({ timeout: 3000 })
 
     // Should show type
-    await expect(page.getByText(/post_checkout/i).first()).toBeVisible({ timeout: 3000 })
+    await expect(page.getByText(/post[\s_-]?checkout/i).first()).toBeVisible({ timeout: 3000 })
 
     // Should show status
     await expect(page.getByText(/pending/i).first()).toBeVisible({ timeout: 3000 })
@@ -300,18 +284,18 @@ test.describe('Cleaning Task CRUD - E2E', () => {
     await page.waitForLoadState('networkidle')
 
     // Both tabs should be visible
-    await expect(page.getByRole('button', { name: /overview/i })).toBeVisible({ timeout: 5000 })
-    await expect(page.getByRole('button', { name: /report/i })).toBeVisible({ timeout: 5000 })
+    await expect(page.getByRole('tab', { name: /overview/i })).toBeVisible({ timeout: 5000 })
+    await expect(page.getByRole('tab', { name: /report/i })).toBeVisible({ timeout: 5000 })
 
     // Click Report tab
-    await page.getByRole('button', { name: /report/i }).click()
+    await page.getByRole('tab', { name: /report/i }).click()
     await page.waitForTimeout(300)
 
     // Should show no report message
     await expect(page.getByText(/no report submitted/i)).toBeVisible({ timeout: 3000 })
 
     // Switch back to Overview
-    await page.getByRole('button', { name: /overview/i }).click()
+    await page.getByRole('tab', { name: /overview/i }).click()
     await page.waitForTimeout(300)
 
     await expect(page.getByText(/task details/i)).toBeVisible({ timeout: 3000 })

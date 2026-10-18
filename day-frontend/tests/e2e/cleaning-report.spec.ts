@@ -1,5 +1,6 @@
 import { test, expect } from '../fixtures/e2e-auth'
 import {
+  createTestCleaner,
   createTestProperty,
   createTestPricing,
   futureDate,
@@ -51,10 +52,11 @@ test.describe('Cleaning Reports - E2E', () => {
     request: import('@playwright/test').APIRequestContext,
     taskId: string,
   ) {
-    const cleanerId = '00000000-0000-0000-0000-000000000042'
+    const { id: cleanerId } = await createTestCleaner(request)
     await request.post(`${API_BASE}/cleaning/${taskId}/assign`, {
       data: { cleaner_id: cleanerId },
     })
+    return cleanerId
   }
 
   async function transitionTaskViaApi(
@@ -168,8 +170,8 @@ test.describe('Cleaning Reports - E2E', () => {
     await page.waitForLoadState('networkidle')
 
     // Should show Overview and Report tabs
-    await expect(page.getByRole('button', { name: /overview/i })).toBeVisible({ timeout: 5000 })
-    await expect(page.getByRole('button', { name: /report/i })).toBeVisible({ timeout: 5000 })
+    await expect(page.getByRole('tab', { name: /overview/i })).toBeVisible({ timeout: 5000 })
+    await expect(page.getByRole('tab', { name: /report/i })).toBeVisible({ timeout: 5000 })
 
     // Task details should be visible
     await expect(page.getByText(/task details/i)).toBeVisible({ timeout: 3000 })
@@ -182,43 +184,25 @@ test.describe('Cleaning Reports - E2E', () => {
     await assignTaskViaApi(request, task.id)
     await transitionTaskViaApi(request, task.id, 'in_progress')
 
-    await page.goto(`/cleaning/${task.id}`)
-    await page.waitForLoadState('networkidle')
+    // The cleaner's page: finishing a cleaning asks for the report first
+    await page.goto(`/cleaner/${task.id}`)
+    await page.getByRole('button', { name: /mark as done/i }).click()
+    await page.getByPlaceholder(/any issues or comments/i).fill('All rooms cleaned and inspected')
+    await page.getByRole('button', { name: /^submit report$/i }).click()
 
-    // Click Report tab
-    await page.getByRole('button', { name: /report/i }).click()
-    await page.waitForTimeout(500)
-
-    // Fill report notes if visible
-    const notesField = page.getByPlaceholder(/notes|comment/i)
-    if (await notesField.isVisible({ timeout: 2000 }).catch(() => false)) {
-      await notesField.fill('All rooms cleaned and inspected')
-    }
-
-    // Submit report
-    const submitBtn = page.getByRole('button', { name: /submit.*report|save.*report/i })
-    if (await submitBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
-      await submitBtn.click()
-    } else {
-      // Transition to done
-      await page.getByRole('button', { name: /overview/i }).click()
-      await page.waitForTimeout(300)
-      await transitionButton(page, 'done').click()
-    }
-
-    await page.waitForTimeout(1000)
-
-    // Verify task became done
-    await expect(page.getByText(/done/i).first()).toBeVisible({ timeout: 5000 })
+    await expect
+      .poll(async () => (await (await request.get(`${API_BASE}/cleaning/${task.id}`)).json()).task.status)
+      .toBe('done')
+    const detail = await (await request.get(`${API_BASE}/cleaning/${task.id}`)).json()
+    expect(detail.report.report.notes).toBe('All rooms cleaned and inspected')
   })
 
   test('view report history on property', async ({ page, request }) => {
     const prop = await setupActiveProperty(request)
-    const cleanerId = '00000000-0000-0000-0000-000000000042'
 
     // Create task and submit report via API
     const task = await createTaskViaApi(request, prop.id)
-    await assignTaskViaApi(request, task.id)
+    const cleanerId = await assignTaskViaApi(request, task.id)
     await transitionTaskViaApi(request, task.id, 'in_progress')
     await request.post(`${API_BASE}/cleaning/${task.id}/report`, {
       data: {
@@ -233,10 +217,10 @@ test.describe('Cleaning Reports - E2E', () => {
     await page.goto(`/cleaning/${task.id}`)
     await page.waitForLoadState('networkidle')
 
-    await page.getByRole('button', { name: /report/i }).click()
-    await page.waitForTimeout(500)
+    await page.getByRole('tab', { name: /report/i }).click()
 
-    // Report should be visible (not "no report submitted")
-    await expect(page.getByText(/no report submitted/i)).not.toBeVisible({ timeout: 3000 })
+    // The report is there: its notes are shown, not "no report submitted"
+    await expect(page.getByText('Completed cleaning')).toBeVisible({ timeout: 5000 })
+    await expect(page.getByText(/no report submitted/i)).toHaveCount(0)
   })
 })
