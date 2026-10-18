@@ -192,6 +192,19 @@ def _to_property_response(p, photos: list | None = None, *, sees_secrets: bool) 
 # ---------- Property CRUD ----------
 
 
+def _name_taken(e: IntegrityError, internal_name: str | None) -> HTTPException:
+    """409 when the database refused a taken internal name; anything else goes up as it was.
+
+    The services check the name first, but two requests can pass that check together.
+    A clone picks its name itself, so it has none to quote.
+    """
+    if "uq_property_company_internal_name" not in str(e.orig):
+        raise e
+    if internal_name is None:
+        return HTTPException(status_code=409, detail="Another flat took this internal name just now; try again")
+    return HTTPException(status_code=409, detail=f"Property with internal name '{internal_name}' already exists")
+
+
 @router.post(
     "",
     response_model=PropertyResponse,
@@ -257,6 +270,9 @@ async def create_property(
         await session.rollback()
         status_code = 409 if "already exists" in str(e).lower() else 400
         raise HTTPException(status_code=status_code, detail=str(e))
+    except IntegrityError as e:
+        await session.rollback()
+        raise _name_taken(e, body.internal_name)
 
 
 @router.get("", response_model=PropertyListResponse, dependencies=[Depends(require(Permission.PROPERTIES_READ))])
@@ -449,7 +465,11 @@ async def update_property(
         return _to_property_response(result, sees_secrets=_sees_secrets(principal))
     except ValueError as e:
         await session.rollback()
-        raise HTTPException(status_code=400, detail=str(e))
+        status_code = 409 if "already exists" in str(e).lower() else 400
+        raise HTTPException(status_code=status_code, detail=str(e))
+    except IntegrityError as e:
+        await session.rollback()
+        raise _name_taken(e, provided.get("internal_name", ""))
 
 
 @router.post(
@@ -511,6 +531,9 @@ async def clone_property(
     except ValueError as e:
         await session.rollback()
         raise HTTPException(status_code=404, detail=str(e))
+    except IntegrityError as e:
+        await session.rollback()
+        raise _name_taken(e, None)
 
 
 # ---------- Photos ----------
