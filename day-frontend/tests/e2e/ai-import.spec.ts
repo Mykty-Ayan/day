@@ -367,15 +367,11 @@ test.describe('AI Import - E2E', () => {
 
     // Completed job cards should have role="button" and be clickable
     const completedCard = page.locator('[role="button"]').filter({ hasText: /completed/i }).first()
-    if (await completedCard.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await completedCard.click()
-      // Should navigate to the job detail/preview page
-      await page.waitForTimeout(2000)
-      const currentUrl = page.url()
-      expect(
-        currentUrl.includes(created.id) || currentUrl.includes('ai-import'),
-      ).toBeTruthy()
-    }
+    await expect(completedCard).toBeVisible({ timeout: 5000 })
+    await completedCard.click()
+
+    // The preview page of that job
+    await expect(page).toHaveURL(new RegExp(`/ai-import/${created.id}$`))
   })
 
   test('loading skeleton appears while jobs are fetching', async ({ page }) => {

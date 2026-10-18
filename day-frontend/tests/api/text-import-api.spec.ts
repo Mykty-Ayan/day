@@ -97,11 +97,7 @@ test.describe('Text Import API', () => {
 
     expect([200, 201]).toContain(importRes.status())
     const importJob = await importRes.json()
-
-    if (!importJob.id) {
-      // Direct parse mode - no confirm step needed
-      return
-    }
+    expect(importJob.id).toBeTruthy()
 
     // Poll for completion
     let job = importJob
@@ -127,12 +123,11 @@ test.describe('Text Import API', () => {
       },
     })
 
-    if (confirmRes.ok()) {
-      const property = await confirmRes.json()
-      expect(property.id).toBeTruthy()
+    expect(confirmRes.status()).toBe(201)
+    const property = await confirmRes.json()
+    expect(property.id).toBeTruthy()
 
-      // Cleanup
-      await api.delete(`/properties/${property.id}`)
-    }
+    // Cleanup
+    await api.delete(`/properties/${property.id}`)
   })
 })
