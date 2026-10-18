@@ -19,6 +19,7 @@ class PricingConfigInput:
     hourly_price: Decimal = Decimal("0")
     weekend_markup: Decimal = Decimal("0")
     default_deposit: Decimal = Decimal("0")
+    hourly_deposit: Decimal = Decimal("0")
     extra_adult_price: Decimal = Decimal("0")
     extra_child_price: Decimal = Decimal("0")
     base_guests: int = 1
@@ -57,6 +58,7 @@ class ManagePricingService:
             existing.hourly_price = inp.hourly_price
             existing.weekend_markup = inp.weekend_markup
             existing.default_deposit = inp.default_deposit
+            existing.hourly_deposit = inp.hourly_deposit
             existing.extra_adult_price = inp.extra_adult_price
             existing.extra_child_price = inp.extra_child_price
             existing.base_guests = inp.base_guests
@@ -67,6 +69,7 @@ class ManagePricingService:
             hourly_price=inp.hourly_price,
             weekend_markup=inp.weekend_markup,
             default_deposit=inp.default_deposit,
+            hourly_deposit=inp.hourly_deposit,
             extra_adult_price=inp.extra_adult_price,
             extra_child_price=inp.extra_child_price,
             base_guests=inp.base_guests,

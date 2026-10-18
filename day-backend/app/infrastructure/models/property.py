@@ -142,6 +142,7 @@ class PricingConfigModel(Base):
     hourly_price: Mapped[float] = mapped_column(Numeric(12, 2), default=0)
     weekend_markup: Mapped[float] = mapped_column(Numeric(12, 2), default=0)
     default_deposit: Mapped[float] = mapped_column(Numeric(12, 2), default=0)
+    hourly_deposit: Mapped[float] = mapped_column(Numeric(12, 2), default=0, server_default="0")
     extra_adult_price: Mapped[float] = mapped_column(Numeric(12, 2), default=0)
     extra_child_price: Mapped[float] = mapped_column(Numeric(12, 2), default=0)
     base_guests: Mapped[int] = mapped_column(Integer, default=1)

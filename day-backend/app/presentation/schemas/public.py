@@ -19,10 +19,17 @@ class PublicAmenity(BaseModel):
     category: str
 
 
+def _set(amount) -> float | None:
+    """A deposit the host filled in; 0 is "not set"."""
+    return float(amount) if amount > 0 else None
+
+
 class PublicPrices(BaseModel):
     night: float | None = None
     hour: float | None = None
+    # The deposit of a stay by the night and by the hour, each only where the flat takes it.
     deposit: float | None = None
+    hour_deposit: float | None = None
 
 
 class PublicNightResponse(BaseModel):
@@ -87,7 +94,8 @@ class PublicStayResponse(BaseModel):
             prices=PublicPrices(
                 night=float(pricing.base_price) if stay.by_night and pricing else None,
                 hour=float(pricing.hourly_price) if stay.by_hour and pricing else None,
-                deposit=float(pricing.default_deposit) if pricing and pricing.default_deposit > 0 else None,
+                deposit=_set(pricing.default_deposit) if stay.by_night and pricing else None,
+                hour_deposit=_set(pricing.hourly_deposit) if stay.by_hour and pricing else None,
             ),
             nights=[PublicNightResponse(date=n.date, price=float(n.price), free=n.free) for n in stay.nights],
         )
