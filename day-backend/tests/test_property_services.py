@@ -826,6 +826,7 @@ class TestListPropertiesService:
 
         assert len(result.items) == 1
         assert result.items[0].name == "Active"
+        assert result.total == 1
 
     @pytest.mark.asyncio
     async def test_search_filter(self):
@@ -840,6 +841,7 @@ class TestListPropertiesService:
 
         assert len(result.items) == 1
         assert result.items[0].name == "Beach Villa"
+        assert result.total == 1
 
     @pytest.mark.asyncio
     async def test_pagination(self):
