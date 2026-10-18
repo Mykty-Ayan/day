@@ -1,8 +1,8 @@
 import { test, expect } from '../fixtures/api-helpers'
 
 test.describe('Settings API', () => {
-  test('GET /settings - returns current settings', async ({ freshApi }) => {
-    const res = await freshApi.get('/settings')
+  test('GET /settings - returns current settings', async ({ api }) => {
+    const res = await api.get('/settings')
 
     // Skip if settings API not available
     if (res.status() === 404) {
@@ -18,8 +18,8 @@ test.describe('Settings API', () => {
     expect(body.time_zone).toBe('Asia/Almaty')
   })
 
-  test('PATCH /settings - update currency', async ({ freshApi }) => {
-    const res = await freshApi.patch('/settings', {
+  test('PATCH /settings - update currency', async ({ api }) => {
+    const res = await api.patch('/settings', {
       data: { default_currency: 'USD' },
     })
 
@@ -33,8 +33,8 @@ test.describe('Settings API', () => {
     expect(body.default_currency).toBe('USD')
   })
 
-  test('PATCH /settings - update language', async ({ freshApi }) => {
-    const res = await freshApi.patch('/settings', {
+  test('PATCH /settings - update language', async ({ api }) => {
+    const res = await api.patch('/settings', {
       data: { default_language: 'en' },
     })
 
@@ -48,8 +48,8 @@ test.describe('Settings API', () => {
     expect(body.default_language).toBe('en')
   })
 
-  test('PATCH /settings - invalid currency returns 422', async ({ freshApi }) => {
-    const res = await freshApi.patch('/settings', {
+  test('PATCH /settings - invalid currency returns 422', async ({ api }) => {
+    const res = await api.patch('/settings', {
       data: { default_currency: 'INVALID_CURRENCY_123' },
     })
 
@@ -61,9 +61,9 @@ test.describe('Settings API', () => {
     expect([400, 422]).toContain(res.status())
   })
 
-  test('GET /settings - preserves updated values', async ({ freshApi }) => {
+  test('GET /settings - preserves updated values', async ({ api }) => {
     // First set values
-    const patchRes = await freshApi.patch('/settings', {
+    const patchRes = await api.patch('/settings', {
       data: { default_currency: 'EUR', default_language: 'kz' },
     })
 
@@ -73,10 +73,10 @@ test.describe('Settings API', () => {
     }
 
     // A second PATCH goes through the update path: the first one created the row
-    await freshApi.patch('/settings', { data: { default_currency: 'USD' } })
+    await api.patch('/settings', { data: { default_currency: 'USD' } })
 
     // Then verify persisted
-    const getRes = await freshApi.get('/settings')
+    const getRes = await api.get('/settings')
     expect(getRes.ok()).toBeTruthy()
     const body = await getRes.json()
     expect(body.default_currency).toBe('USD')

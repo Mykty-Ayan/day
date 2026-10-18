@@ -340,9 +340,9 @@ test.describe('Analytics API - Export', () => {
 
 test.describe('Analytics API - Edge Cases', () => {
   test('GET /analytics/metrics - empty company returns empty properties', async ({
-    freshApi,
+    api,
   }) => {
-    const res = await freshApi.get('/analytics/metrics?period=week')
+    const res = await api.get('/analytics/metrics?period=week')
     expect(res.ok()).toBeTruthy()
 
     const body = await res.json()
@@ -364,9 +364,9 @@ test.describe('Analytics API - Edge Cases', () => {
   })
 
   test('GET /analytics/time-series - empty company still has empty time buckets', async ({
-    freshApi,
+    api,
   }) => {
-    const res = await freshApi.get('/analytics/time-series?period=week')
+    const res = await api.get('/analytics/time-series?period=week')
     expect(res.ok()).toBeTruthy()
 
     const body = await res.json()

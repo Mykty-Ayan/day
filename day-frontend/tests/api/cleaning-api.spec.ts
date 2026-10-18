@@ -1,5 +1,5 @@
 import { test, expect } from '../fixtures/api-helpers'
-import { futureDate, uniqueName } from '../fixtures/test-data'
+import { createTestCleaner, futureDate, uniqueName } from '../fixtures/test-data'
 
 // Track cleaning task IDs for cleanup
 const cleaningIdsToCleanup: string[] = []
@@ -159,10 +159,9 @@ test.describe('Cleaning API - Status Transitions', () => {
   test('valid transitions: pending -> assigned -> in_progress -> done -> verified', async ({
     api,
     createActivePropertyWithPricing,
-    createCleaner,
   }) => {
     const prop = await createActivePropertyWithPricing()
-    const { id: cleanerId } = await createCleaner()
+    const { id: cleanerId } = await createTestCleaner(api)
 
     // Create task
     const r = await api.post('/cleaning', {
@@ -248,10 +247,9 @@ test.describe('Cleaning API - Status Transitions', () => {
   test('assign cleaner to non-pending task should fail', async ({
     api,
     createActivePropertyWithPricing,
-    createCleaner,
   }) => {
     const prop = await createActivePropertyWithPricing()
-    const { id: cleanerId } = await createCleaner()
+    const { id: cleanerId } = await createTestCleaner(api)
 
     const r = await api.post('/cleaning', {
       data: { property_id: prop.id, type: 'post_checkout' },
@@ -278,10 +276,9 @@ test.describe('Cleaning API - Reports', () => {
   test('POST /cleaning/:id/report - submit report', async ({
     api,
     createActivePropertyWithPricing,
-    createCleaner,
   }) => {
     const prop = await createActivePropertyWithPricing()
-    const { id: cleanerId } = await createCleaner()
+    const { id: cleanerId } = await createTestCleaner(api)
 
     // Create and progress task to in_progress
     const r = await api.post('/cleaning', {
@@ -534,9 +531,8 @@ test.describe('Cleaning API - Ratings', () => {
   test('POST /cleaner-ratings - rate a cleaner', async ({
     api,
     createActivePropertyWithPricing,
-    createCleaner,
   }) => {
-    const { id: cleanerId } = await createCleaner()
+    const { id: cleanerId } = await createTestCleaner(api)
     const prop = await createActivePropertyWithPricing()
 
     // Create a task for reference
@@ -587,9 +583,8 @@ test.describe('Cleaning API - Ratings', () => {
   test('GET /cleaner-ratings/:cleanerId - list ratings', async ({
     api,
     createActivePropertyWithPricing,
-    createCleaner,
   }) => {
-    const { id: cleanerId } = await createCleaner()
+    const { id: cleanerId } = await createTestCleaner(api)
     const prop = await createActivePropertyWithPricing()
     const r = await api.post('/cleaning', {
       data: { property_id: prop.id, type: 'post_checkout' },
@@ -619,9 +614,8 @@ test.describe('Cleaning API - Ratings', () => {
   test('GET /cleaner-ratings/:cleanerId/kpi - get KPI', async ({
     api,
     createActivePropertyWithPricing,
-    createCleaner,
   }) => {
-    const { id: cleanerId } = await createCleaner()
+    const { id: cleanerId } = await createTestCleaner(api)
     const prop = await createActivePropertyWithPricing()
     const r = await api.post('/cleaning', {
       data: { property_id: prop.id, type: 'post_checkout' },
@@ -652,10 +646,9 @@ test.describe('Cleaning API - Auto-assign on create with cleaner_id', () => {
   test('task with cleaner_id starts as assigned', async ({
     api,
     createActivePropertyWithPricing,
-    createCleaner,
   }) => {
     const prop = await createActivePropertyWithPricing()
-    const { id: cleanerId } = await createCleaner()
+    const { id: cleanerId } = await createTestCleaner(api)
 
     const res = await api.post('/cleaning', {
       data: {
