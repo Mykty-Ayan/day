@@ -121,3 +121,16 @@ async def test_a_cleaner_starts_and_finishes_their_task_and_the_manager_checks_i
     assert self_checked.status_code == 403
     assert checked.status_code == 200, checked.text
     assert checked.json()["status"] == "verified"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("scopes", [("cleaning:read", "cleaning:own"), ("cleaning:read",)])
+async def test_a_key_without_cleaning_write_cannot_file_a_report(scopes):
+    # A report finishes the task, so it is writing too: same rule as a status step.
+    status = await _request(
+        "POST",
+        f"/api/v1/cleaning/{uuid.uuid4()}/report",
+        _api_key_principal(*scopes),
+        json={"cleaner_id": str(uuid.uuid4())},
+    )
+    assert status == 403

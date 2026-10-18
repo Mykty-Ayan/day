@@ -408,7 +408,12 @@ async def submit_report(
     session: AsyncSession = Depends(get_session),
     company_id: uuid.UUID = Depends(get_company_id),
     scope: uuid.UUID | None = Depends(cleaner_scope),
+    principal: Principal = Depends(get_principal),
 ):
+    # A report finishes the task, so it is writing: cleaning:write, or a cleaner
+    # on their own task. cleaning:read alone, or "own" on a key, files nothing.
+    if scope is None and not principal.has(Permission.CLEANING_WRITE):
+        raise HTTPException(status_code=403, detail="Insufficient permissions")
     repos = _repos(session)
     if scope is not None:
         task = await repos["task"].get_by_id(task_id)
