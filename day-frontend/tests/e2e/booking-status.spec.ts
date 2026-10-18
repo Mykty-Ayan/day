@@ -15,15 +15,18 @@ test.describe('Booking Status Transitions - E2E', () => {
   ) {
     const data = createTestProperty()
     const res = await request.post(`${API_BASE}/properties`, { data })
+    expect(res.ok(), `POST properties: ${res.status()}`).toBeTruthy()
     const prop = await res.json()
     propertyIdsToCleanup.push(prop.id)
 
-    await request.post(`${API_BASE}/properties/${prop.id}/status`, {
+    const statusRes = await request.post(`${API_BASE}/properties/${prop.id}/status`, {
       data: { status: 'active' },
     })
-    await request.put(`${API_BASE}/properties/${prop.id}/pricing`, {
+    expect(statusRes.ok(), `POST property status: ${statusRes.status()}`).toBeTruthy()
+    const pricingRes = await request.put(`${API_BASE}/properties/${prop.id}/pricing`, {
       data: createTestPricing(),
     })
+    expect(pricingRes.ok(), `PUT pricing: ${pricingRes.status()}`).toBeTruthy()
 
     return prop
   }
@@ -35,6 +38,7 @@ test.describe('Booking Status Transitions - E2E', () => {
   ) {
     const data = createTestBooking(propId, overrides)
     const res = await request.post(`${API_BASE}/bookings`, { data })
+    expect(res.ok(), `POST bookings: ${res.status()}`).toBeTruthy()
     const booking = await res.json()
     bookingIdsToCleanup.push(booking.id)
     return booking
@@ -45,9 +49,33 @@ test.describe('Booking Status Transitions - E2E', () => {
     bookingId: string,
     status: string,
   ) {
-    await request.post(`${API_BASE}/bookings/${bookingId}/status`, {
+    const res = await request.post(`${API_BASE}/bookings/${bookingId}/status`, {
       data: { status },
     })
+    expect(res.ok(), `POST status ${status}: ${res.status()}`).toBeTruthy()
+  }
+
+  /** The status from the API. A failed request becomes a value, not a throw: a throw would stop expect.poll at once. */
+  async function bookingStatus(
+    request: import('@playwright/test').APIRequestContext,
+    bookingId: string,
+  ): Promise<string> {
+    // maxRetries: the dev backend sometimes resets a kept-alive connection
+    const res = await request.get(`${API_BASE}/bookings/${bookingId}`, { maxRetries: 3 })
+    if (!res.ok()) return `HTTP ${res.status()}`
+    return (await res.json()).booking.status
+  }
+
+  /** The status button acts at once (there is no confirmation dialog): wait for the new state in the API and in the badge. */
+  async function expectStatus(
+    page: import('@playwright/test').Page,
+    request: import('@playwright/test').APIRequestContext,
+    bookingId: string,
+    status: string,
+    badge: string,
+  ) {
+    await expect.poll(() => bookingStatus(request, bookingId)).toBe(status)
+    await expect(page.getByText(badge, { exact: true })).toBeVisible()
   }
 
   test.afterEach(async ({ request }) => {
@@ -70,12 +98,7 @@ test.describe('Booking Status Transitions - E2E', () => {
 
     await page.getByRole('button', { name: /confirm/i }).click()
 
-    const confirmBtn = page.getByRole('button', { name: /confirm|yes/i })
-    if (await confirmBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
-      await confirmBtn.click()
-    }
-
-    await expect(page.getByText(/confirmed/i).first()).toBeVisible({ timeout: 5000 })
+    await expectStatus(page, request, booking.id, 'confirmed', 'Confirmed')
   })
 
   test('check in (confirmed -> checked_in)', async ({ page, request }) => {
@@ -88,12 +111,7 @@ test.describe('Booking Status Transitions - E2E', () => {
 
     await page.getByRole('button', { name: /check.?in/i }).click()
 
-    const confirmBtn = page.getByRole('button', { name: /confirm|yes/i })
-    if (await confirmBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
-      await confirmBtn.click()
-    }
-
-    await expect(page.getByText(/checked.?in/i).first()).toBeVisible({ timeout: 5000 })
+    await expectStatus(page, request, booking.id, 'checked_in', 'Checked In')
   })
 
   test('check out (checked_in -> checked_out)', async ({ page, request }) => {
@@ -107,12 +125,7 @@ test.describe('Booking Status Transitions - E2E', () => {
 
     await page.getByRole('button', { name: /check.?out/i }).click()
 
-    const confirmBtn = page.getByRole('button', { name: /confirm|yes/i })
-    if (await confirmBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
-      await confirmBtn.click()
-    }
-
-    await expect(page.getByText(/checked.?out/i).first()).toBeVisible({ timeout: 5000 })
+    await expectStatus(page, request, booking.id, 'checked_out', 'Checked Out')
   })
 
   test('complete booking (checked_out -> completed)', async ({ page, request }) => {
@@ -127,12 +140,7 @@ test.describe('Booking Status Transitions - E2E', () => {
 
     await page.getByRole('button', { name: /complete/i }).click()
 
-    const confirmBtn = page.getByRole('button', { name: /confirm|yes/i })
-    if (await confirmBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
-      await confirmBtn.click()
-    }
-
-    await expect(page.getByText(/completed/i).first()).toBeVisible({ timeout: 5000 })
+    await expectStatus(page, request, booking.id, 'completed', 'Completed')
   })
 
   test('cancel pending booking', async ({ page, request }) => {
@@ -144,12 +152,7 @@ test.describe('Booking Status Transitions - E2E', () => {
 
     await page.getByRole('button', { name: /cancel/i }).click()
 
-    const confirmBtn = page.getByRole('button', { name: /confirm|yes/i })
-    if (await confirmBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
-      await confirmBtn.click()
-    }
-
-    await expect(page.getByText(/cancelled/i).first()).toBeVisible({ timeout: 5000 })
+    await expectStatus(page, request, booking.id, 'cancelled', 'Cancelled')
   })
 
   test('cancel confirmed booking', async ({ page, request }) => {
@@ -162,12 +165,7 @@ test.describe('Booking Status Transitions - E2E', () => {
 
     await page.getByRole('button', { name: /cancel/i }).click()
 
-    const confirmBtn = page.getByRole('button', { name: /confirm|yes/i })
-    if (await confirmBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
-      await confirmBtn.click()
-    }
-
-    await expect(page.getByText(/cancelled/i).first()).toBeVisible({ timeout: 5000 })
+    await expectStatus(page, request, booking.id, 'cancelled', 'Cancelled')
   })
 
   test('action buttons match current status', async ({ page, request }) => {
