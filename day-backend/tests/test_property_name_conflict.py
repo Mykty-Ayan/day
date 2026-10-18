@@ -6,9 +6,11 @@ the caller got a 500.
 """
 
 import pytest
+from sqlalchemy.exc import IntegrityError
 
 from app.domain.auth.permissions import Permission
 from app.infrastructure.repositories.property import SqlPropertyRepository
+from app.presentation.api.v1.properties import _name_taken
 from tests.test_property_facts import flat  # noqa: F401  (a fixture)
 from tests.test_property_tag_filter import _company_of, _flat, _seed
 
@@ -23,6 +25,16 @@ def check_missed(monkeypatch):
         return False
 
     monkeypatch.setattr(SqlPropertyRepository, "exists_internal_name", _free)
+
+
+def test_another_integrity_error_is_not_called_a_taken_name():
+    """Only the name constraint becomes a 409: any other refusal goes up as it was."""
+    # The flat's public link code is unique too, and has nothing to do with the name.
+    refused = Exception('duplicate key value violates unique constraint "uq_properties_public_code"')
+    other = IntegrityError("INSERT INTO properties ...", {}, refused)
+
+    with pytest.raises(IntegrityError):
+        _name_taken(other, "t13")
 
 
 @pytest.mark.integration
