@@ -49,6 +49,25 @@ def test_the_platforms_calendars_read_as_nights():
         parse_events("<html>Sign in</html>")
 
 
+def test_a_calendar_cut_short_is_an_error_not_fewer_nights():
+    # The download broke after the first event: the rest of the nights are not free.
+    cut = AIRBNB[: AIRBNB.index("BEGIN:VEVENT", AIRBNB.index("END:VEVENT"))]
+    with pytest.raises(FeedError, match="cut short"):
+        parse_events(cut)
+    with pytest.raises(FeedError, match="cut short"):
+        parse_events(AIRBNB[:-30])
+    # An event that never ended was cut too, even if the calendar's end came after it.
+    with pytest.raises(FeedError, match="cut short"):
+        parse_events("BEGIN:VCALENDAR\nBEGIN:VEVENT\nUID:a\nDTSTART;VALUE=DATE:20301010\nEND:VCALENDAR\n")
+    with pytest.raises(FeedError, match="cut short"):
+        parse_events(
+            "BEGIN:VCALENDAR\nBEGIN:VEVENT\nUID:a\nDTSTART;VALUE=DATE:20301010\n"
+            "BEGIN:VEVENT\nUID:b\nDTSTART;VALUE=DATE:20301020\nEND:VEVENT\nEND:VCALENDAR\n"
+        )
+    # Empty and whole is true: every booking there is gone.
+    assert parse_events("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nEND:VCALENDAR\r\n") == []
+
+
 def test_the_parser_keeps_every_event_or_says_why_not():
     # Lower case and trailing spaces, a DURATION for the end, two events with one UID.
     text = (
@@ -173,6 +192,16 @@ async def test_a_calendar_that_cannot_be_read_changes_nothing():
     f.text = FeedError("HTTP 503")
     await f.sync(COMPANY_ID, prop.id, feed.id)
     assert feed.last_error == "HTTP 503"
+    assert len(await f.blocks(prop)) == 2
+
+
+async def test_a_calendar_cut_short_changes_nothing():
+    f = Feeds()
+    prop = await f.flat()
+    feed = await f.add(COMPANY_ID, prop.id, "Airbnb", "https://www.airbnb.com/calendar/ical/1.ics?s=x")
+    f.text = AIRBNB[: AIRBNB.index("BEGIN:VEVENT", AIRBNB.index("END:VEVENT"))]
+    await f.sync(COMPANY_ID, prop.id, feed.id)
+    assert "cut short" in feed.last_error
     assert len(await f.blocks(prop)) == 2
 
 
