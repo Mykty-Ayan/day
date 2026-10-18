@@ -56,7 +56,7 @@ async def test_a_key_without_cleaning_write_cannot_change_a_status(scopes):
 
 @pytest.fixture
 async def cleaning():
-    """A company with a flat, a cleaner and a task assigned to them; a client per role."""
+    """A company with a flat, a cleaner and a task assigned to them; status steps and a report per role."""
     from app.domain.auth.permissions import permissions_for_role
     from app.infrastructure.database import get_session
     from app.infrastructure.models.auth import CompanyModel, UserModel
@@ -99,8 +99,13 @@ async def cleaning():
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             return await client.post(f"/api/v1/cleaning/{task_id}/status", json={"target_status": target})
 
+    async def report(who, filed_under):
+        current["principal"] = principal(*who)
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            return await client.post(f"/api/v1/cleaning/{task_id}/report", json={"cleaner_id": str(filed_under)})
+
     try:
-        yield step, (cleaner_id, UserRole.CLEANER), (manager_id, UserRole.MANAGER)
+        yield step, (cleaner_id, UserRole.CLEANER), (manager_id, UserRole.MANAGER), report
     finally:
         app.dependency_overrides.pop(get_session, None)
         app.dependency_overrides.pop(get_principal, None)
@@ -109,7 +114,7 @@ async def cleaning():
 
 @pytest.mark.integration
 async def test_a_cleaner_starts_and_finishes_their_task_and_the_manager_checks_it(cleaning):
-    step, cleaner, manager = cleaning
+    step, cleaner, manager, _ = cleaning
 
     started = await step(cleaner, "in_progress")
     done = await step(cleaner, "done")
@@ -134,3 +139,15 @@ async def test_a_key_without_cleaning_write_cannot_file_a_report(scopes):
         json={"cleaner_id": str(uuid.uuid4())},
     )
     assert status == 403
+
+
+@pytest.mark.integration
+async def test_a_cleaner_still_files_the_report_on_their_own_task(cleaning):
+    step, cleaner, manager, report = cleaning
+    await step(cleaner, "in_progress")
+
+    under_the_manager = await report(cleaner, manager[0])
+    own = await report(cleaner, cleaner[0])
+
+    assert under_the_manager.status_code == 403
+    assert own.status_code == 201, own.text
