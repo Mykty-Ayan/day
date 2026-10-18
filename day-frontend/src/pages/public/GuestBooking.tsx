@@ -112,14 +112,14 @@ export function BookForm({
         disabled={book.isPending}
         className="flex h-11 items-center gap-2 self-start text-sm font-semibold disabled:opacity-50"
       >
-        <ArrowLeft className="h-4 w-4" aria-hidden />
+        <ArrowLeft className="h-4 w-4 rtl:rotate-180" aria-hidden />
         {t('guestBook.back')}
       </button>
       <section className="flex flex-col gap-1">
         <h1 ref={heading} tabIndex={-1} className="text-2xl font-bold leading-tight tracking-tight outline-none">
           {t('guestBook.title')}
         </h1>
-        <p className="text-base text-gray-700">{flat.name}</p>
+        <p dir="auto" className="text-base text-gray-700">{flat.name}</p>
       </section>
 
       <div className="grid grid-cols-2 gap-2">
@@ -160,7 +160,8 @@ export function BookForm({
         <span className="text-sm font-semibold">{t('guestBook.phone')}</span>
         {otherPhone === null ? (
           <div className="flex items-center justify-between gap-3">
-            <span className="text-base">{offer.phone}</span>
+            {/* A number reads left to right in every language, or the guest checks it backwards. */}
+            <span dir="ltr" className="text-base">{offer.phone}</span>
             <button type="button" onClick={() => setOtherPhone('')} className="h-11 px-1 text-sm font-semibold text-emerald-800">
               {t('guestBook.otherPhone')}
             </button>
@@ -231,7 +232,7 @@ export function BookForm({
       {rules && (
         <details className="rounded-2xl bg-gray-50 p-4">
           <summary className="cursor-pointer text-sm font-semibold">{t('guest.rules')}</summary>
-          <p className="mt-2 whitespace-pre-line text-sm leading-relaxed">{rules}</p>
+          <p dir="auto" className="mt-2 whitespace-pre-line text-sm leading-relaxed">{rules}</p>
         </details>
       )}
       {rules && (
@@ -316,7 +317,7 @@ export function Waiting({ offer, booking, locale }: { offer: PublicOffer; bookin
       )}
 
       <section className="flex flex-col gap-1 rounded-2xl border border-gray-200 p-4">
-        {flat && <h2 className="text-base font-bold">{flat.name}</h2>}
+        {flat && <h2 dir="auto" className="text-base font-bold">{flat.name}</h2>}
         <p className="text-sm text-gray-600">
           {dates} · {t('guest.nights', { count: offer.nights })} · {t('guestOffer.guests', { count: booking.guests })}
         </p>

@@ -156,7 +156,7 @@ function FlatCard({
         <div className="aspect-[4/3] w-full bg-gray-100" aria-hidden />
       )}
       <div className="flex flex-col gap-2 p-4">
-        <h2 className="text-lg font-bold leading-snug">{flat.name}</h2>
+        <h2 dir="auto" className="text-lg font-bold leading-snug">{flat.name}</h2>
         {(flat.complex_name || facts.length > 0) && (
           <p className="text-sm text-gray-600">{[flat.complex_name, ...facts].filter(Boolean).join(' · ')}</p>
         )}

@@ -12,7 +12,13 @@ const LANGUAGES: { code: GuestLanguage; name: string; locale: string }[] = [
   { code: 'zh', name: '中文', locale: 'zh-CN' },
   { code: 'tr', name: 'Türkçe', locale: 'tr-TR' },
   { code: 'de', name: 'Deutsch', locale: 'de-DE' },
+  { code: 'ko', name: '한국어', locale: 'ko-KR' },
+  { code: 'uz', name: 'Oʻzbekcha', locale: 'uz-Latn-UZ' },
+  // Latin digits: a price and a date read as on the guest's Kaspi invoice.
+  { code: 'ar', name: 'العربية', locale: 'ar-u-nu-latn' },
 ]
+// Written right to left: the page turns with the text.
+const RIGHT_TO_LEFT: GuestLanguage[] = ['ar']
 
 // The guest pages' own languages, a chunk each: the operator's app never loads them.
 const BUNDLES = import.meta.glob<{ default: object }>('../../locales/guest/*.json')
@@ -58,6 +64,7 @@ export function GuestFrame({ children }: { children: (locale: string) => ReactNo
         if (!done) return
         setShown(language)
         document.documentElement.lang = language === 'kz' ? 'kk' : language
+        document.documentElement.dir = RIGHT_TO_LEFT.includes(language) ? 'rtl' : 'ltr'
       })
       // A bundle that did not load (the network): English, which every page has, and
       // the picker says so; a pick again tries the bundle again.
@@ -129,7 +136,7 @@ export function GuestFrame({ children }: { children: (locale: string) => ReactNo
                   aria-checked={l.code === language}
                   autoFocus={l.code === language}
                   onClick={() => choose(l.code)}
-                  className={`flex min-h-[48px] items-center justify-between rounded-xl px-3 text-left text-base ${l.code === language ? 'bg-emerald-50 font-semibold' : ''}`}
+                  className={`flex min-h-[48px] items-center justify-between rounded-xl px-3 text-start text-base ${l.code === language ? 'bg-emerald-50 font-semibold' : ''}`}
                 >
                   {l.name}
                   {l.code === language && <span aria-hidden className="text-emerald-700">✓</span>}

@@ -55,7 +55,7 @@ export function retryNetwork(count: number, error: unknown): boolean {
 
 /** The app's three, and the guest pages' own: those come as bundles of the guest
  *  pages' strings (locales/guest/), loaded when picked. */
-export const GUEST_LANGUAGES = ['ru', 'kz', 'en', 'zh', 'tr', 'de'] as const
+export const GUEST_LANGUAGES = ['ru', 'kz', 'en', 'zh', 'tr', 'de', 'ko', 'uz', 'ar'] as const
 export type GuestLanguage = (typeof GUEST_LANGUAGES)[number]
 
 const isGuestLanguage = (value: string | null): value is GuestLanguage =>
