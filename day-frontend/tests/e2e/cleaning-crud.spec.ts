@@ -1,5 +1,7 @@
 import { test, expect } from '../fixtures/e2e-auth'
 import {
+  cleaningStatus,
+  createTestCleaner,
   createTestProperty,
   createTestPricing,
   futureDate,
@@ -51,16 +53,6 @@ test.describe('Cleaning Task CRUD - E2E', () => {
     return task
   }
 
-  async function transitionTaskViaApi(
-    request: import('@playwright/test').APIRequestContext,
-    taskId: string,
-    status: string,
-  ) {
-    await request.post(`${API_BASE}/cleaning/${taskId}/status`, {
-      data: { status, target_status: status },
-    })
-  }
-
   function transitionButton(page: Page, status: 'assigned' | 'in_progress' | 'done' | 'verified') {
     const statusPattern =
       status === 'in_progress'
@@ -96,7 +88,7 @@ test.describe('Cleaning Task CRUD - E2E', () => {
     await page.getByRole('link', { name: /cleaning/i }).first().click()
     await page.waitForURL(/\/cleaning/, { timeout: 5000 })
 
-    await expect(page.getByText(/cleaning tasks/i)).toBeVisible({ timeout: 5000 })
+    await expect(page.getByRole('heading', { name: /cleaning tasks/i })).toBeVisible({ timeout: 5000 })
   })
 
   test('navigate to checklists via nav bar', async ({ page }) => {
@@ -106,7 +98,7 @@ test.describe('Cleaning Task CRUD - E2E', () => {
     await page.getByRole('link', { name: /checklists/i }).click()
     await page.waitForURL(/\/cleaning\/checklists/, { timeout: 5000 })
 
-    await expect(page.getByText(/checklist templates/i)).toBeVisible({ timeout: 5000 })
+    await expect(page.getByRole('heading', { name: /checklist templates/i })).toBeVisible({ timeout: 5000 })
   })
 
   // ── Task Creation via Form ────────────────────────────────────────
@@ -215,54 +207,46 @@ test.describe('Cleaning Task CRUD - E2E', () => {
   })
 
   test('filter tasks by status tabs', async ({ page, request }) => {
-    const prop = await setupActiveProperty(request)
+    // One flat per task, so the property name says which task a row is.
+    const pendingProp = await setupActiveProperty(request)
+    const assignedProp = await setupActiveProperty(request)
+    const { id: cleanerId } = await createTestCleaner(request)
 
-    // Create a pending task
-    await createTaskViaApi(request, prop.id)
-
-    // Create a task and assign it (make it assigned)
-    const assignableTask = await createTaskViaApi(request, prop.id, {
-      cleaner_id: '00000000-0000-0000-0000-000000000099',
-    })
-    await transitionTaskViaApi(request, assignableTask.id, 'assigned')
+    await createTaskViaApi(request, pendingProp.id)
+    // A task made with a cleaner starts as assigned
+    await createTaskViaApi(request, assignedProp.id, { cleaner_id: cleanerId })
 
     await page.goto('/cleaning')
     await page.waitForLoadState('networkidle')
 
-    // Click Pending tab
+    const pendingRow = page.getByText(pendingProp.name as string)
+    const assignedRow = page.getByText(assignedProp.name as string)
+
     await page.getByRole('radio', { name: /^pending$/i }).click()
-    await page.waitForTimeout(500)
+    await expect(pendingRow.first()).toBeVisible({ timeout: 5000 })
+    await expect(assignedRow).toHaveCount(0)
 
-    // Should see "pending" badges
-    const pendingBadges = page.getByText(/pending/i)
-    await expect(pendingBadges.first()).toBeVisible({ timeout: 5000 })
-
-    // Click Assigned tab
     await page.getByRole('radio', { name: /^assigned$/i }).click()
-    await page.waitForTimeout(500)
+    await expect(assignedRow.first()).toBeVisible({ timeout: 5000 })
+    await expect(pendingRow).toHaveCount(0)
 
-    // Should see assigned badge or property name of assigned task
-    const assignedBadges = page.getByText(/assigned/i)
-    await expect(assignedBadges.first()).toBeVisible({ timeout: 5000 })
-
-    // Click All tab to show everything again
     await page.getByRole('radio', { name: /^all$/i }).click()
-    await page.waitForTimeout(500)
+    await expect(pendingRow.first()).toBeVisible({ timeout: 5000 })
+    await expect(assignedRow.first()).toBeVisible({ timeout: 5000 })
   })
 
-  test('empty state shown when no tasks', async ({ page }) => {
+  test('empty state shown when no tasks', async ({ page, request }) => {
+    const prop = await setupActiveProperty(request)
+    await createTaskViaApi(request, prop.id)
+
     await page.goto('/cleaning')
-    await page.waitForLoadState('networkidle')
+    await expect(page.getByText(prop.name as string).first()).toBeVisible({ timeout: 5000 })
 
-    // Click a filter that likely has no results (e.g. Verified)
+    // The only task is pending: no task is verified, so that filter is empty
     await page.getByRole('radio', { name: /^verified$/i }).click()
-    await page.waitForTimeout(500)
 
-    // May or may not show empty state depending on data/view mode
-    const emptyMsg = page.getByText(/no cleaning tasks found/i)
-    const tableRows = page.locator('tbody tr').first()
-    const cards = page.locator('div.space-y-3 > button').first()
-    await expect(emptyMsg.or(tableRows).or(cards).first()).toBeVisible({ timeout: 5000 })
+    await expect(page.getByText(/no cleaning tasks found/i)).toBeVisible({ timeout: 5000 })
+    await expect(page.getByText(prop.name as string)).toHaveCount(0)
   })
 
   // ── Task Detail ──────────────────────────────────────────────────
@@ -283,7 +267,7 @@ test.describe('Cleaning Task CRUD - E2E', () => {
     await expect(page.getByText(/task details/i)).toBeVisible({ timeout: 3000 })
 
     // Should show type
-    await expect(page.getByText(/post_checkout/i).first()).toBeVisible({ timeout: 3000 })
+    await expect(page.getByText(/post[\s_-]?checkout/i).first()).toBeVisible({ timeout: 3000 })
 
     // Should show status
     await expect(page.getByText(/pending/i).first()).toBeVisible({ timeout: 3000 })
@@ -300,18 +284,18 @@ test.describe('Cleaning Task CRUD - E2E', () => {
     await page.waitForLoadState('networkidle')
 
     // Both tabs should be visible
-    await expect(page.getByRole('button', { name: /overview/i })).toBeVisible({ timeout: 5000 })
-    await expect(page.getByRole('button', { name: /report/i })).toBeVisible({ timeout: 5000 })
+    await expect(page.getByRole('tab', { name: /overview/i })).toBeVisible({ timeout: 5000 })
+    await expect(page.getByRole('tab', { name: /report/i })).toBeVisible({ timeout: 5000 })
 
     // Click Report tab
-    await page.getByRole('button', { name: /report/i }).click()
+    await page.getByRole('tab', { name: /report/i }).click()
     await page.waitForTimeout(300)
 
     // Should show no report message
     await expect(page.getByText(/no report submitted/i)).toBeVisible({ timeout: 3000 })
 
     // Switch back to Overview
-    await page.getByRole('button', { name: /overview/i }).click()
+    await page.getByRole('tab', { name: /overview/i }).click()
     await page.waitForTimeout(300)
 
     await expect(page.getByText(/task details/i)).toBeVisible({ timeout: 3000 })
@@ -344,8 +328,8 @@ test.describe('Cleaning Task CRUD - E2E', () => {
     await expect(assignBtn).toBeVisible({ timeout: 5000 })
     await assignBtn.click()
 
-    // Should show success or updated status
-    await expect(page.getByText(/assigned/i).first()).toBeVisible({ timeout: 5000 })
+    // The button's own label says "assigned", so the status is read from the API
+    await expect.poll(() => cleaningStatus(request, task.id)).toBe('assigned')
   })
 
   test('full lifecycle via UI: pending -> assigned -> in_progress -> done -> verified', async ({ page, request }) => {
@@ -355,24 +339,15 @@ test.describe('Cleaning Task CRUD - E2E', () => {
     await page.goto(`/cleaning/${task.id}`)
     await page.waitForLoadState('networkidle')
 
-    // pending -> assigned
+    // Each step's button is there only once the step before it went through
     await transitionButton(page, 'assigned').click()
-    await page.waitForTimeout(1000)
-
-    // assigned -> in_progress
     await transitionButton(page, 'in_progress').click()
-    await page.waitForTimeout(1000)
-
-    // in_progress -> done
     await transitionButton(page, 'done').click()
-    await page.waitForTimeout(1000)
-
-    // done -> verified
     await transitionButton(page, 'verified').click()
-    await page.waitForTimeout(1000)
 
-    // Final state: verified - no more transition buttons
-    await expect(page.getByText(/verified/i).first()).toBeVisible({ timeout: 5000 })
+    // Final state: verified, with no more transition buttons
+    await expect.poll(() => cleaningStatus(request, task.id)).toBe('verified')
+    await expect(page.getByTestId(/^cleaning-transition-/)).toHaveCount(0)
   })
 
   test('action buttons match current status', async ({ page, request }) => {
@@ -545,10 +520,8 @@ test.describe('Checklist Templates - E2E', () => {
     await page.goto('/cleaning/checklists')
     await page.waitForLoadState('networkidle')
 
-    // Either shows templates or empty state
-    const emptyMsg = page.getByText(/no templates yet/i)
-    const templateList = page.locator('.cursor-pointer')
-    await expect(emptyMsg.or(templateList.first()).first()).toBeVisible({ timeout: 5000 })
+    // The company has no templates
+    await expect(page.getByText(/no templates yet/i)).toBeVisible({ timeout: 5000 })
   })
 
   test('add item via Enter key', async ({ page, request }) => {

@@ -288,6 +288,12 @@ export async function aiServiceIsUp(request: APIRequestContext): Promise<boolean
   }
 }
 
+/** The status the API holds for a cleaning task: what a click on the page must have changed. */
+export async function cleaningStatus(request: APIRequestContext, taskId: string): Promise<string> {
+  const res = await request.get(`${API_BASE}/cleaning/${taskId}`)
+  return (await res.json()).task.status
+}
+
 /**
  * A real cleaner in the caller's company. The API refuses a `cleaner_id` that is
  * not a user of that company, so a made-up UUID no longer works.
