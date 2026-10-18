@@ -111,14 +111,16 @@ async function verifyBackendRoutes(api: APIRequestContext): Promise<void> {
 export const test = authTest.extend<ApiFixtures>({
   api: async ({ playwright, authTokens }, use) => {
     const ctx = await newApiContext(playwright, authTokens.access_token)
+    try {
+      if (!backendPreflightDone) {
+        await verifyBackendRoutes(ctx)
+        backendPreflightDone = true
+      }
 
-    if (!backendPreflightDone) {
-      await verifyBackendRoutes(ctx)
-      backendPreflightDone = true
+      await use(ctx)
+    } finally {
+      await ctx.dispose()
     }
-
-    await use(ctx)
-    await ctx.dispose()
   },
 
   createdPropertyIds: async ({}, use) => {

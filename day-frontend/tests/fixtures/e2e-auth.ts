@@ -16,56 +16,42 @@ type AuthTokens = {
  * other flat, which turns one page load into thousands of requests.
  *
  * Needs the backend without Redis (`REDIS_URL=redis://localhost:1/0`): with it
- * `/auth/register` is limited to 10 a minute per address, and every test would
- * wait its turn.
+ * `/auth/register` is limited to 10 a minute per address and tests fail on it.
  */
 interface AuthFixtures {
   authTokens: AuthTokens
 }
 
-const AUTH_ATTEMPTS = 6
+const AUTH_ATTEMPTS = 4
 
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
-function backoff(attempt: number): number {
-  const base = Math.min(250 * 2 ** (attempt - 1), 2500)
-  return base + Math.floor(Math.random() * 200)
-}
-
-function shouldRetry(status: number): boolean {
-  return status === 429 || status >= 500
-}
-
-async function acquireTokens(
-  request: APIRequestContext,
-  path: 'auth/login' | 'auth/register',
-  data: Record<string, string>,
-): Promise<AuthTokens> {
+async function register(request: APIRequestContext): Promise<AuthTokens> {
   let last = ''
   for (let attempt = 1; attempt <= AUTH_ATTEMPTS; attempt++) {
-    const response = await request.post(`${API_BASE}/${path}`, { data })
+    // A new address each time: a try that the server did commit but we never
+    // heard back from must not turn the next one into "already registered".
+    const response = await request.post(`${API_BASE}/auth/register`, {
+      data: {
+        email: `${uniqueName('e2e')}@gmail.com`,
+        password: 'PlaywrightE2E123!',
+        company_name: 'Playwright E2E',
+      },
+    })
     if (response.ok()) return (await response.json()) as AuthTokens
 
     last = `${response.status()} ${await response.text()}`
-    if (!shouldRetry(response.status())) break
-    await sleep(backoff(attempt))
+    if (response.status() === 429) {
+      throw new Error(
+        `POST /auth/register is rate limited (${last}). Run the backend without Redis: REDIS_URL=redis://localhost:1/0`,
+      )
+    }
+    if (response.status() < 500) break
+    if (attempt < AUTH_ATTEMPTS) await sleep(250 * 2 ** (attempt - 1))
   }
-  throw new Error(`Failed to acquire auth tokens for Playwright E2E tests: POST /${path} answered ${last}`)
-}
-
-async function loginOrRegister(request: APIRequestContext): Promise<AuthTokens> {
-  // An existing account, for running the suite against a company that is kept.
-  const email = process.env.E2E_TEST_EMAIL ?? process.env.SMOKE_TEST_EMAIL
-  const password = process.env.E2E_TEST_PASSWORD ?? process.env.SMOKE_TEST_PASSWORD
-  if (email && password) return acquireTokens(request, 'auth/login', { email, password })
-
-  return acquireTokens(request, 'auth/register', {
-    email: `${uniqueName('e2e')}@gmail.com`,
-    password: 'PlaywrightE2E123!',
-    company_name: 'Playwright E2E',
-  })
+  throw new Error(`Failed to register a company for a Playwright E2E test: POST /auth/register answered ${last}`)
 }
 
 export const test = base.extend<AuthFixtures>({
@@ -73,7 +59,7 @@ export const test = base.extend<AuthFixtures>({
     const bootstrap = await playwright.request.newContext()
     let tokens: AuthTokens
     try {
-      tokens = await loginOrRegister(bootstrap)
+      tokens = await register(bootstrap)
     } finally {
       await bootstrap.dispose()
     }
