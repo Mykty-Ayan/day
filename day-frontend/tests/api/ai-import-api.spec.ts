@@ -330,26 +330,18 @@ test.describe('AI Import API - Batch Import', () => {
 })
 
 test.describe('AI Import API - Job Status Polling', () => {
-  test('import job status transitions from pending', async ({ api }) => {
-    test.skip(!aiServiceUp, NEEDS_AI_SERVICE)
+  test('import job comes back already finished and stays that way', async ({ api }) => {
     const data = createTestImport()
     const createRes = await api.post('/ai/import', { data })
     const created = await createRes.json()
 
-    // Initial status should be pending or processing
-    expect(['pending', 'processing']).toContain(created.status)
+    // The import runs inside the POST (StartImportService awaits ai-service), so
+    // the job is never seen as pending or processing.
+    expect(['completed', 'failed']).toContain(created.status)
 
-    // Poll a few times and ensure status is always a valid value
-    for (let i = 0; i < 5; i++) {
-      await new Promise((r) => setTimeout(r, 1000))
-      const pollRes = await api.get(`/ai/import/${created.id}`)
-      const job = await pollRes.json()
-      expect(['pending', 'processing', 'completed', 'failed']).toContain(job.status)
-
-      if (job.status === 'completed' || job.status === 'failed') {
-        break
-      }
-    }
+    const pollRes = await api.get(`/ai/import/${created.id}`)
+    const job = await pollRes.json()
+    expect(job.status).toBe(created.status)
   })
 
   test('completed job has mapped_property data', async ({ api }) => {
@@ -381,7 +373,7 @@ test.describe('AI Import API - Job Status Polling', () => {
     })
     const createRes = await api.post('/ai/import', { data })
 
-    test.skip(createRes.status() !== 201, `POST /ai/import answered ${createRes.status()}, not 201`)
+    expect(createRes.status()).toBe(201)
 
     const created = await createRes.json()
 

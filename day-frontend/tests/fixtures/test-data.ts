@@ -282,7 +282,7 @@ export const AI_SERVICE_URL = process.env.AI_SERVICE_URL ?? 'http://localhost:80
 /** Whether ai-service is running. Without it every import job fails at once. */
 export async function aiServiceIsUp(request: APIRequestContext): Promise<boolean> {
   try {
-    return (await request.get(`${AI_SERVICE_URL}/api/v1/health`)).ok()
+    return (await request.get(`${AI_SERVICE_URL}/api/v1/health`, { timeout: 3000 })).ok()
   } catch {
     return false
   }

@@ -12,7 +12,10 @@ test.describe('Settings API', () => {
 
     expect(res.ok()).toBeTruthy()
     const body = await res.json()
-    expect(body).toBeTruthy()
+    // A company that has never touched its settings runs on the defaults
+    expect(body.default_currency).toBe('KZT')
+    expect(body.default_language).toBe('ru')
+    expect(body.time_zone).toBe('Asia/Almaty')
   })
 
   test('PATCH /settings - update currency', async ({ freshApi }) => {
@@ -69,11 +72,14 @@ test.describe('Settings API', () => {
       return
     }
 
+    // A second PATCH goes through the update path: the first one created the row
+    await freshApi.patch('/settings', { data: { default_currency: 'USD' } })
+
     // Then verify persisted
     const getRes = await freshApi.get('/settings')
     expect(getRes.ok()).toBeTruthy()
     const body = await getRes.json()
-    expect(body.default_currency).toBe('EUR')
+    expect(body.default_currency).toBe('USD')
     expect(body.default_language).toBe('kz')
   })
 })

@@ -260,9 +260,10 @@ test.describe('Cleaning API - Status Transitions', () => {
     cleaningIdsToCleanup.push(task.id)
 
     // Assign once (valid)
-    await api.post(`/cleaning/${task.id}/assign`, {
+    const first = await api.post(`/cleaning/${task.id}/assign`, {
       data: { cleaner_id: cleanerId },
     })
+    expect(first.ok()).toBeTruthy()
 
     // Try to assign again (should fail - already assigned)
     const res = await api.post(`/cleaning/${task.id}/assign`, {
