@@ -57,41 +57,33 @@ test.describe('Booking Payments - E2E', () => {
     await page.goto(`/bookings/${booking.id}`)
     await page.waitForLoadState('networkidle')
 
-    // Navigate to payments tab if tabs exist
-    const paymentsTab = page.getByRole('tab', { name: /payment/i })
-    if (await paymentsTab.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await paymentsTab.click()
-    }
-
-    // Click add payment button
+    await page.getByRole('tab', { name: /payment/i }).click()
     await page.getByRole('button', { name: /add payment/i }).click()
 
-    // Fill payment form
-    const amountField = page.getByLabel(/amount/i)
-    await amountField.fill('150')
+    await page.getByLabel(/amount/i).fill('120')
 
-    // Select method
-    const methodSelect = page.getByRole('combobox', { name: /method/i })
-    if (await methodSelect.isVisible({ timeout: 2000 }).catch(() => false)) {
-      await methodSelect.selectOption('cash')
-    } else {
-      const cashOption = page.getByText(/cash/i).first()
-      if (await cashOption.isVisible({ timeout: 1000 }).catch(() => false)) {
-        await cashOption.click()
-      }
-    }
+    // The method is a custom select: open the list and pick an option
+    await page.getByRole('combobox').click()
+    await page.getByRole('option', { name: 'Card' }).click()
 
-    // Add note
-    const noteField = page.getByLabel(/note/i)
-    if (await noteField.isVisible({ timeout: 1000 }).catch(() => false)) {
-      await noteField.fill('First payment')
-    }
+    await page.getByLabel(/note/i).fill('First payment')
+    await page.getByRole('button', { name: 'Save' }).click()
 
-    // Submit
-    await page.getByRole('button', { name: /save|submit|add/i }).last().click()
+    // The payment is listed (a table on desktop, cards on a phone) and stored
+    await expect(page.getByText('First payment')).toBeVisible()
+    await expect(page.getByText(/^\D*120\.00$/)).toBeVisible()
+    await expect(page.getByText(/no payments yet/i)).toBeHidden()
 
-    // Verify payment appears in list
-    await expect(page.getByText('150')).toBeVisible({ timeout: 5000 })
+    await expect.poll(async () => {
+      const res = await request.get(`${API_BASE}/bookings/${booking.id}`, { maxRetries: 3 })
+      const { payments } = await res.json()
+      return payments.map((p: { amount: string | number; type: string; method: string; note: string }) => ({
+        amount: Number(p.amount),
+        type: p.type,
+        method: p.method,
+        note: p.note,
+      }))
+    }).toEqual([{ amount: 120, type: 'payment', method: 'card', note: 'First payment' }])
   })
 
   test('add refund', async ({ page, request }) => {
@@ -99,36 +91,30 @@ test.describe('Booking Payments - E2E', () => {
     const booking = await createBookingViaApi(request, prop.id)
 
     // Add a payment first via API
-    await request.post(`${API_BASE}/bookings/${booking.id}/payments`, {
+    const paymentRes = await request.post(`${API_BASE}/bookings/${booking.id}/payments`, {
       data: { amount: 200, type: 'payment', method: 'cash' },
     })
+    expect(paymentRes.ok(), `POST payments: ${paymentRes.status()}`).toBeTruthy()
 
     await page.goto(`/bookings/${booking.id}`)
     await page.waitForLoadState('networkidle')
 
-    const paymentsTab = page.getByRole('tab', { name: /payment/i })
-    if (await paymentsTab.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await paymentsTab.click()
-    }
+    await page.getByRole('tab', { name: /payment/i }).click()
+    await page.getByRole('button', { name: /add refund/i }).click()
+    await page.getByLabel(/amount/i).fill('50')
+    await page.getByRole('button', { name: 'Save' }).click()
 
-    // Click add refund or toggle type to refund
-    const addRefundBtn = page.getByRole('button', { name: /refund/i })
-    if (await addRefundBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
-      await addRefundBtn.click()
-    } else {
-      await page.getByRole('button', { name: /add payment/i }).click()
-      const typeSelect = page.getByRole('combobox', { name: /type/i })
-      if (await typeSelect.isVisible({ timeout: 2000 }).catch(() => false)) {
-        await typeSelect.selectOption('refund')
-      }
-    }
+    // A refund is listed with a minus sign, next to the payment it takes back from
+    await expect(page.getByText(/^-\D*50\.00$/)).toBeVisible()
+    await expect(page.getByText(/^\D*200\.00$/)).toBeVisible()
 
-    const amountField = page.getByLabel(/amount/i)
-    await amountField.fill('50')
-
-    await page.getByRole('button', { name: /save|submit|add/i }).last().click()
-
-    await expect(page.getByText('50')).toBeVisible({ timeout: 5000 })
+    await expect.poll(async () => {
+      const res = await request.get(`${API_BASE}/bookings/${booking.id}`, { maxRetries: 3 })
+      const { payments } = await res.json()
+      return payments
+        .map((p: { amount: string | number; type: string }) => `${p.type}:${Number(p.amount)}`)
+        .sort()
+    }).toEqual(['payment:200', 'refund:50'])
   })
 
   test('create deposit', async ({ page, request }) => {
@@ -151,8 +137,13 @@ test.describe('Booking Payments - E2E', () => {
 
     await page.getByRole('button', { name: /save|submit|create|add/i }).last().click()
 
-    await expect(page.getByText('75')).toBeVisible({ timeout: 5000 })
-    await expect(page.getByText(/pending/i).first()).toBeVisible({ timeout: 3000 })
+    // Match the whole amount: a bare "75" also matches digits in the guest's name
+    await expect(page.getByText(/^\D*75\.00$/)).toBeVisible()
+    await expect.poll(async () => {
+      const res = await request.get(`${API_BASE}/bookings/${booking.id}`, { maxRetries: 3 })
+      const { deposits } = await res.json()
+      return deposits.map((d: { status: string; amount: string | number }) => `${d.status}:${Number(d.amount)}`)
+    }).toEqual(['pending:75'])
   })
 
   test('pay deposit', async ({ page, request }) => {

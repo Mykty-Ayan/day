@@ -42,15 +42,7 @@ test.describe('Booking Comments - E2E', () => {
   }
 
   async function openFilesCommentsTab(page: import('@playwright/test').Page) {
-    const localizedTab = page.getByRole('button', { name: filesCommentsTabName })
-    if (await localizedTab.count()) {
-      await localizedTab.first().click()
-    } else {
-      // Fallback to the 4th tab button in booking details if text lookup fails.
-      const fallbackTabs = page.locator('div.bg-gray-50.rounded-xl.p-1.flex.gap-1 button')
-      await expect(fallbackTabs.nth(3)).toBeVisible()
-      await fallbackTabs.nth(3).click()
-    }
+    await page.getByRole('tab', { name: filesCommentsTabName }).click()
     await expect(page.getByPlaceholder(addCommentPlaceholder)).toBeVisible()
   }
 
@@ -101,7 +93,7 @@ test.describe('Booking Comments - E2E', () => {
     await expect(page.getByText('Second API comment')).toBeVisible({ timeout: 5000 })
   })
 
-  test('multiple comments in chronological order', async ({ page, request }) => {
+  test('multiple comments are listed newest first', async ({ page, request }) => {
     const prop = await setupActiveProperty(request)
     const booking = await createBookingViaApi(request, prop.id)
 
@@ -120,9 +112,11 @@ test.describe('Booking Comments - E2E', () => {
     await page.waitForLoadState('networkidle')
     await openFilesCommentsTab(page)
 
-    // All three comments should be visible
-    await expect(page.getByText('Comment Alpha')).toBeVisible({ timeout: 5000 })
-    await expect(page.getByText('Comment Beta')).toBeVisible({ timeout: 5000 })
-    await expect(page.getByText('Comment Gamma')).toBeVisible({ timeout: 5000 })
+    // The backend lists comments by created_at DESC, so the last one added is on top
+    await expect(page.getByText(/^Comment (Alpha|Beta|Gamma)$/)).toHaveText([
+      'Comment Gamma',
+      'Comment Beta',
+      'Comment Alpha',
+    ])
   })
 })
