@@ -1,5 +1,6 @@
 import { test, expect } from '../fixtures/e2e-auth'
 import {
+  cleaningStatus,
   createTestCleaner,
   createTestProperty,
   createTestPricing,
@@ -152,16 +153,13 @@ test.describe('Cleaner Dashboard - E2E', () => {
     const startBtn = transitionButton(page, 'in_progress')
     await expect(startBtn).toBeVisible({ timeout: 5000 })
     await startBtn.click()
-    await page.waitForTimeout(1000)
 
-    // in_progress -> done
+    // in_progress -> done (the button is there once the start went through)
     const doneBtn = transitionButton(page, 'done')
     await expect(doneBtn).toBeVisible({ timeout: 5000 })
     await doneBtn.click()
-    await page.waitForTimeout(1000)
 
-    // Should show done status
-    await expect(page.getByText(/done/i).first()).toBeVisible({ timeout: 5000 })
+    await expect.poll(() => cleaningStatus(request, task.id)).toBe('done')
   })
 
   test('submit report marks task as done', async ({ page, request }) => {

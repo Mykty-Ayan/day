@@ -1,5 +1,6 @@
 import { test, expect } from '../fixtures/e2e-auth'
 import {
+  cleaningStatus,
   createTestCleaner,
   createTestProperty,
   createTestPricing,
@@ -159,7 +160,8 @@ test.describe('Cleaning Reports - E2E', () => {
     await expect(assignBtn).toBeVisible({ timeout: 5000 })
     await assignBtn.click()
 
-    await expect(page.getByText(/assigned/i).first()).toBeVisible({ timeout: 5000 })
+    // The button's own label says "assigned", so the status is read from the API
+    await expect.poll(() => cleaningStatus(request, task.id)).toBe('assigned')
   })
 
   test('open task detail - checklist visible', async ({ page, request }) => {
