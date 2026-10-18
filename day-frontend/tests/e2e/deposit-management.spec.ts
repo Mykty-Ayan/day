@@ -231,8 +231,10 @@ test.describe('Deposit Management - E2E', () => {
       await depositsTab.click()
     }
 
-    // Both deposit amounts should be visible
-    await expect(page.getByText('100')).toBeVisible({ timeout: 5000 })
-    await expect(page.getByText('200')).toBeVisible({ timeout: 5000 })
+    // Both deposit amounts should be visible. The whole text of the amount, as
+    // the card writes it (₸100.00): a bare '100' also matches the random digits
+    // in the names of the test flat and guest.
+    await expect(page.getByText(/^\D*100\.00$/)).toBeVisible({ timeout: 5000 })
+    await expect(page.getByText(/^\D*200\.00$/)).toBeVisible({ timeout: 5000 })
   })
 })
