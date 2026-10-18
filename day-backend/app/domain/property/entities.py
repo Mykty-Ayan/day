@@ -135,6 +135,8 @@ class PricingConfig:
     hourly_price: Decimal = Decimal("0")
     weekend_markup: Decimal = Decimal("0")
     default_deposit: Decimal = Decimal("0")
+    # The deposit of a stay by the hour; 0 is "not set", never the nightly one.
+    hourly_deposit: Decimal = Decimal("0")
     extra_adult_price: Decimal = Decimal("0")
     extra_child_price: Decimal = Decimal("0")
     base_guests: int = 1

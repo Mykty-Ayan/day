@@ -11,6 +11,7 @@ from app.application.booking.guest_hold import OfferBooking
 from app.application.booking.guest_offers import PublicOffer, greeting, mask_phone
 from app.application.property.public_stay import PublicStay
 from app.config import settings
+from app.domain.booking.value_objects import RentalMode
 from app.presentation.schemas.offers import full_phone
 
 
@@ -19,10 +20,17 @@ class PublicAmenity(BaseModel):
     category: str
 
 
+def _set(amount) -> float | None:
+    """A deposit the host filled in; 0 is "not set"."""
+    return float(amount) if amount > 0 else None
+
+
 class PublicPrices(BaseModel):
     night: float | None = None
     hour: float | None = None
+    # The deposit of a stay by the night and by the hour, each only where the flat takes it.
     deposit: float | None = None
+    hour_deposit: float | None = None
 
 
 class PublicNightResponse(BaseModel):
@@ -87,7 +95,10 @@ class PublicStayResponse(BaseModel):
             prices=PublicPrices(
                 night=float(pricing.base_price) if stay.by_night and pricing else None,
                 hour=float(pricing.hourly_price) if stay.by_hour and pricing else None,
-                deposit=float(pricing.default_deposit) if pricing and pricing.default_deposit > 0 else None,
+                # By the kind of stay the flat takes, not by its price: a flat priced by its
+                # calendar alone still takes the nightly deposit when booked by a link.
+                deposit=_set(pricing.default_deposit) if pricing and p.rental_mode != RentalMode.HOURLY else None,
+                hour_deposit=_set(pricing.hourly_deposit) if pricing and p.rental_mode != RentalMode.DAILY else None,
             ),
             nights=[PublicNightResponse(date=n.date, price=float(n.price), free=n.free) for n in stay.nights],
         )

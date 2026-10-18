@@ -131,6 +131,7 @@ class ClonePropertyService:
                     hourly_price=pricing.hourly_price,
                     weekend_markup=pricing.weekend_markup,
                     default_deposit=pricing.default_deposit,
+                    hourly_deposit=pricing.hourly_deposit,
                     extra_adult_price=pricing.extra_adult_price,
                     extra_child_price=pricing.extra_child_price,
                     base_guests=pricing.base_guests,

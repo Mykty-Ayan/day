@@ -844,6 +844,7 @@ async def upsert_pricing(
                 hourly_price=body.hourly_price,
                 weekend_markup=body.weekend_markup,
                 default_deposit=body.default_deposit,
+                hourly_deposit=body.hourly_deposit,
                 extra_adult_price=body.extra_adult_price,
                 extra_child_price=body.extra_child_price,
                 base_guests=body.base_guests,

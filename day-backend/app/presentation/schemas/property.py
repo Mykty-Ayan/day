@@ -271,6 +271,8 @@ class PricingConfigCreate(BaseModel):
     hourly_price: Decimal = Field(default=Decimal("0"), ge=0)
     weekend_markup: Decimal = Field(default=Decimal("0"), ge=0)
     default_deposit: Decimal = Field(default=Decimal("0"), ge=0)
+    # A stay by the hour has its own deposit; 0 is "not set", not the nightly one.
+    hourly_deposit: Decimal = Field(default=Decimal("0"), ge=0)
     extra_adult_price: Decimal = Field(default=Decimal("0"), ge=0)
     extra_child_price: Decimal = Field(default=Decimal("0"), ge=0)
     base_guests: int = Field(default=1, ge=1)
@@ -314,6 +316,7 @@ class PricingConfigResponse(BaseModel):
     hourly_price: Decimal
     weekend_markup: Decimal
     default_deposit: Decimal
+    hourly_deposit: Decimal
     extra_adult_price: Decimal
     extra_child_price: Decimal
     base_guests: int
