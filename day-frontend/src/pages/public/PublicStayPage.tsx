@@ -145,6 +145,11 @@ function StayView({ stay, locale, today }: { stay: PublicStay; locale: string; t
           {stay.prices.deposit != null && (
             <span className="text-sm text-gray-600">{t('guest.deposit', { price: money(stay.prices.deposit, locale) })}</span>
           )}
+          {stay.prices.hour_deposit != null && (
+            <span className="text-sm text-gray-600">
+              {t('guest.hourDeposit', { price: money(stay.prices.hour_deposit, locale) })}
+            </span>
+          )}
         </section>
       )}
 

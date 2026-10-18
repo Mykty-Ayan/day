@@ -19,6 +19,7 @@ import {
   saveAttempt,
   settlement,
   storedAttempt,
+  suggestedDeposit,
   withMoneyLock,
   type MoneyAttempt,
 } from '../../src/pages/miniapp/booking-card'
@@ -254,5 +255,20 @@ test.describe('an unsettled money attempt outlives the card', () => {
     expect(saveAttempt(full, 'b-1', attempt)).toBe(false)
     expect(saveAttempt(undefined, 'b-1', attempt)).toBe(false)
     expect(saveAttempt(memory(), 'b-1', attempt)).toBe(true)
+  })
+})
+
+test.describe('the deposit the card suggests', () => {
+  const pricing = { default_deposit: 10000, hourly_deposit: 7000 }
+
+  test('is the deposit of the kind of stay the booking is', () => {
+    expect(suggestedDeposit('hourly', pricing, 18000)).toBe(7000)
+    expect(suggestedDeposit('daily', pricing, 50000)).toBe(10000)
+  })
+
+  test('never names the nightly deposit for hours: an unset one leaves the total', () => {
+    expect(suggestedDeposit('hourly', { ...pricing, hourly_deposit: 0 }, 18000)).toBe(18000)
+    expect(suggestedDeposit('daily', { ...pricing, default_deposit: 0 }, 50000)).toBe(50000)
+    expect(suggestedDeposit('daily', undefined, 50000)).toBe(50000)
   })
 })

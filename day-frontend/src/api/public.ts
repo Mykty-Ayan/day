@@ -28,7 +28,7 @@ export interface PublicStay {
   min_nights: number | null
   photos: string[]
   amenities: { name: string; category: string }[]
-  prices: { night: number | null; hour: number | null; deposit: number | null }
+  prices: { night: number | null; hour: number | null; deposit: number | null; hour_deposit: number | null }
   nights: PublicNight[]
 }
 

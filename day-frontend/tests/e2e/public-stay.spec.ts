@@ -93,6 +93,27 @@ test('a guest whose phone speaks Chinese reads the page in Chinese, and can pick
   await arab.close()
 })
 
+test('a flat let by the night and by the hour shows the deposit of each, never one for both', async ({ browser, request }) => {
+  const { id } = await (await request.post(`${API_BASE}/properties`, {
+    data: { ...createTestProperty({ name: 'Квартира на сутки и часы' }), rental_mode: 'both' },
+  })).json()
+  await request.post(`${API_BASE}/properties/${id}/status`, { data: { target_status: 'active' } })
+  await request.put(`${API_BASE}/properties/${id}/pricing`, {
+    data: {
+      base_price: 25000, hourly_price: 3000, weekend_markup: 0, default_deposit: 10000, hourly_deposit: 7000,
+      extra_adult_price: 0, extra_child_price: 0, base_guests: 2,
+    },
+  })
+  const code = (await (await request.get(`${API_BASE}/properties/${id}`)).json()).public_code as string
+
+  const guest = await browser.newContext({ locale: 'ru-RU', baseURL: test.info().project.use.baseURL })
+  const page = await guest.newPage()
+  await page.goto(`/s/${code}`)
+  await expect(page.getByText('Залог 10 000 ₸ — вернём после выезда')).toBeVisible()
+  await expect(page.getByText('Залог за часы 7 000 ₸ — вернём после выезда')).toBeVisible()
+  await guest.close()
+})
+
 test('a wrong link says so instead of asking to sign in', async ({ browser }) => {
   const guest = await browser.newContext({ locale: 'en-US', baseURL: test.info().project.use.baseURL })
   const page = await guest.newPage()

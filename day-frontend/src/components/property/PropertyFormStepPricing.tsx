@@ -8,6 +8,7 @@ interface PricingData {
   hourly_price: string
   weekend_markup: string
   default_deposit: string
+  hourly_deposit: string
   extra_adult_price: string
   extra_child_price: string
   base_guests: string
@@ -94,17 +95,36 @@ export default function PropertyFormStepPricing({ data, onChange, rentalMode, on
         )}
       </div>
 
-      <div>
-        <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">
-          {t('properties.form.defaultDeposit')}
-        </label>
-        <NumberInput
-          value={data.default_deposit}
-          onChange={(value) => update('default_deposit', value)}
-          min={0}
-          step={1000}
-          placeholder="5000"
-        />
+      {/* Each kind of stay has its own deposit: hours never take the nightly one. */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        {nightly && (
+          <div>
+            <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">
+              {t('properties.form.defaultDeposit')}
+            </label>
+            <NumberInput
+              value={data.default_deposit}
+              onChange={(value) => update('default_deposit', value)}
+              min={0}
+              step={1000}
+              placeholder="5000"
+            />
+          </div>
+        )}
+        {rentalMode !== 'daily' && (
+          <div>
+            <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">
+              {t('properties.form.hourlyDeposit')}
+            </label>
+            <NumberInput
+              value={data.hourly_deposit}
+              onChange={(value) => update('hourly_deposit', value)}
+              min={0}
+              step={1000}
+              placeholder="5000"
+            />
+          </div>
+        )}
       </div>
 
       {nightly && (

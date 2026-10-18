@@ -58,6 +58,7 @@ interface FormData {
     hourly_price: string
     weekend_markup: string
     default_deposit: string
+    hourly_deposit: string
     extra_adult_price: string
     extra_child_price: string
     base_guests: string
@@ -105,7 +106,7 @@ const initialForm: FormData = {
   },
   details: { rooms: '', beds: '', max_guests: '', bathrooms: '', area_living: '', area_total: '' },
   rental_mode: 'daily',
-  pricing: { base_price: '', hourly_price: '', weekend_markup: '', default_deposit: '', extra_adult_price: '', extra_child_price: '', base_guests: '' },
+  pricing: { base_price: '', hourly_price: '', weekend_markup: '', default_deposit: '', hourly_deposit: '', extra_adult_price: '', extra_child_price: '', base_guests: '' },
   photos: [],
   rules: {
     check_in_hour: '',
@@ -144,6 +145,7 @@ function toPricingInput(pricing: FormData['pricing']): PricingInput {
     hourly_price: toNumber(pricing.hourly_price, 0),
     weekend_markup: toNumber(pricing.weekend_markup, 0),
     default_deposit: toNumber(pricing.default_deposit, 0),
+    hourly_deposit: toNumber(pricing.hourly_deposit, 0),
     extra_adult_price: toNumber(pricing.extra_adult_price, 0),
     extra_child_price: toNumber(pricing.extra_child_price, 0),
     base_guests: Math.max(1, toInt(pricing.base_guests, 1)),
