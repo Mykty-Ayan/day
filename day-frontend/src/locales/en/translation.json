@@ -540,6 +540,11 @@
       "bookAnyway": "Book anyway",
       "saveAnyway": "Save anyway",
       "moveAnyway": "Move anyway"
+    },
+    "priceChoice": {
+      "ask": "The new dates make it {{now}}; it is {{was}} now. How to save?",
+      "reprice": "Reprice: {{now}}",
+      "keep": "Keep {{was}}"
     }
   },
   "today": {
