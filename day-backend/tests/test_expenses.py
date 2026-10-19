@@ -236,8 +236,8 @@ async def test_an_expense_may_name_a_booking_of_the_company_only():
     from types import SimpleNamespace
 
     agent = SimpleNamespace(id=uuid.uuid4(), company_id=COMPANY_ID)
-    mine = SimpleNamespace(id=uuid.uuid4(), company_id=COMPANY_ID)
-    theirs = SimpleNamespace(id=uuid.uuid4(), company_id=uuid.uuid4())
+    mine = SimpleNamespace(id=uuid.uuid4(), company_id=COMPANY_ID, agent_id=None)
+    theirs = SimpleNamespace(id=uuid.uuid4(), company_id=uuid.uuid4(), agent_id=None)
     svc = await _service(agents=(agent,), bookings=(mine, theirs))
     commission = dict(category=ExpenseCategory.AGENT_COMMISSION, agent_id=agent.id)
 
@@ -246,6 +246,19 @@ async def test_an_expense_may_name_a_booking_of_the_company_only():
             await svc.add(_new(**commission, booking_id=wrong))
     paid = await svc.add(_new(**commission, booking_id=mine.id))
     assert paid.booking_id == mine.id
+
+
+async def test_a_commission_cannot_name_a_booking_another_agent_brought():
+    from types import SimpleNamespace
+
+    ermek, other = (SimpleNamespace(id=uuid.uuid4(), company_id=COMPANY_ID) for _ in range(2))
+    by_other = SimpleNamespace(id=uuid.uuid4(), company_id=COMPANY_ID, agent_id=other.id)
+    svc = await _service(agents=(ermek, other), bookings=(by_other,))
+
+    with pytest.raises(ValueError, match="another agent"):
+        await svc.add(_new(category=ExpenseCategory.AGENT_COMMISSION, agent_id=ermek.id, booking_id=by_other.id))
+    paid = await svc.add(_new(category=ExpenseCategory.AGENT_COMMISSION, agent_id=other.id, booking_id=by_other.id))
+    assert paid.agent_id == other.id
 
 
 @pytest.mark.integration

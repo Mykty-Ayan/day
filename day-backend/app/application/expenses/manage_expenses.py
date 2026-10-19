@@ -62,6 +62,9 @@ class ManageExpensesService:
             booking = await self._bookings.get_by_id(new.booking_id)
             if booking is None or booking.company_id != new.company_id:
                 raise ValueError("No such booking in the company")
+            # A commission for a guest another agent brought is a slip of the hand.
+            if new.agent_id is not None and booking.agent_id not in (None, new.agent_id):
+                raise ValueError("The booking was brought by another agent")
         return await self._expenses.add(
             Expense(
                 company_id=new.company_id,
