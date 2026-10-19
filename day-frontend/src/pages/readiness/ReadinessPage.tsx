@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { Link } from '@tanstack/react-router'
 import { Plus, Trash2 } from 'lucide-react'
 import { showToast } from '../../components/ui/Toast'
+import { useCurrentUser } from '../../hooks/useAuth'
 import { useAddCompanyFact, useCompanyFacts, useDeleteCompanyFact, useReadiness } from '../../hooks/useReadiness'
 import type { FactAudience } from '../../api/readiness'
 
@@ -11,6 +12,9 @@ const field =
 
 export default function ReadinessPage() {
   const { t } = useTranslation()
+  const { data: user } = useCurrentUser()
+  // A cleaner reads the rules; the owner and the manager write them.
+  const canWrite = user?.role === 'owner' || user?.role === 'manager'
   const { data: facts = [] } = useCompanyFacts()
   const { data: readiness, isLoading } = useReadiness()
   const addFact = useAddCompanyFact()
@@ -19,7 +23,7 @@ export default function ReadinessPage() {
   const [audience, setAudience] = useState<FactAudience>('public')
 
   async function submit() {
-    if (!text.trim()) return
+    if (!text.trim() || addFact.isPending) return
     try {
       await addFact.mutateAsync({ text: text.trim(), audience })
       setText('')
@@ -59,54 +63,58 @@ export default function ReadinessPage() {
                     {t('readiness.audience.guest')}
                   </span>
                 )}
-                <button
-                  type="button"
-                  onClick={() => remove(f.id)}
-                  aria-label={t('readiness.delete')}
-                  title={t('readiness.delete')}
-                  className="flex min-h-11 min-w-11 items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-red-600"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </button>
+                {canWrite && (
+                  <button
+                    type="button"
+                    onClick={() => remove(f.id)}
+                    aria-label={t('readiness.delete')}
+                    title={t('readiness.delete')}
+                    className="flex min-h-11 min-w-11 items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-red-600"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                )}
               </li>
             ))}
           </ul>
         )}
-        <div className="flex flex-col gap-2 sm:flex-row">
-          <label htmlFor="rule-text" className="sr-only">
-            {t('readiness.ruleText')}
-          </label>
-          <input
-            id="rule-text"
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && submit()}
-            placeholder={t('readiness.rulePlaceholder')}
-            maxLength={1000}
-            className={field}
-          />
-          <label htmlFor="rule-audience" className="sr-only">
-            {t('readiness.audienceLabel')}
-          </label>
-          <select
-            id="rule-audience"
-            value={audience}
-            onChange={(e) => setAudience(e.target.value as FactAudience)}
-            className={`${field} sm:w-56`}
-          >
-            <option value="public">{t('readiness.audience.public')}</option>
-            <option value="guest">{t('readiness.audience.guest')}</option>
-          </select>
-          <button
-            type="button"
-            onClick={submit}
-            disabled={addFact.isPending || !text.trim()}
-            className="inline-flex items-center justify-center gap-2 rounded-xl bg-black px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
-          >
-            <Plus className="h-4 w-4" />
-            {t('readiness.add')}
-          </button>
-        </div>
+        {canWrite && (
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <label htmlFor="rule-text" className="sr-only">
+              {t('readiness.ruleText')}
+            </label>
+            <input
+              id="rule-text"
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && !e.nativeEvent.isComposing && submit()}
+              placeholder={t('readiness.rulePlaceholder')}
+              maxLength={1000}
+              className={field}
+            />
+            <label htmlFor="rule-audience" className="sr-only">
+              {t('readiness.audienceLabel')}
+            </label>
+            <select
+              id="rule-audience"
+              value={audience}
+              onChange={(e) => setAudience(e.target.value as FactAudience)}
+              className={`${field} sm:w-56`}
+            >
+              <option value="public">{t('readiness.audience.public')}</option>
+              <option value="guest">{t('readiness.audience.guest')}</option>
+            </select>
+            <button
+              type="button"
+              onClick={submit}
+              disabled={addFact.isPending || !text.trim()}
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-black px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
+            >
+              <Plus className="h-4 w-4" />
+              {t('readiness.add')}
+            </button>
+          </div>
+        )}
       </section>
 
       <section className="rounded-xl border border-gray-200 bg-white shadow-sm">
