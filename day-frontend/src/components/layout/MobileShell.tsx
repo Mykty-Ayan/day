@@ -13,6 +13,7 @@ import {
   Sparkles,
   SprayCan,
   Clock,
+  Wallet,
 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { AI_IMPORT_ENABLED } from '../../lib/features'
@@ -20,6 +21,8 @@ import { AI_IMPORT_ENABLED } from '../../lib/features'
 type MobileShellProps = {
   pathname: string
   userEmail?: string
+  /** The owner also sees the company's expenses. */
+  isOwner?: boolean
   onLogout: () => void
   children: ReactNode
 }
@@ -31,6 +34,7 @@ function isRouteActive(pathname: string, route: string): boolean {
 export default function MobileShell({
   pathname,
   userEmail,
+  isOwner = false,
   onLogout,
   children,
 }: MobileShellProps) {
@@ -52,10 +56,11 @@ export default function MobileShell({
       { to: '/properties/gantt', label: t('nav.chessChart'), icon: CalendarRange },
       { to: '/bookings/today', label: t('nav.today'), icon: Clock },
       { to: '/cleaning/checklists', label: t('nav.checklists'), icon: ClipboardList },
+      ...(isOwner ? [{ to: '/expenses', label: t('nav.expenses'), icon: Wallet }] : []),
       ...(AI_IMPORT_ENABLED ? [{ to: '/ai-import', label: t('nav.aiImport'), icon: Sparkles }] : []),
       { to: '/settings', label: t('nav.settings'), icon: Settings },
     ],
-    [t],
+    [t, isOwner],
   )
 
   const morePrefixes = useMemo(() => moreLinks.map((item) => item.to), [moreLinks])

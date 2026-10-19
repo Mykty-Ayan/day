@@ -16,6 +16,7 @@ import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as SettingsIndexRouteImport } from './routes/settings/index'
 import { Route as PropertiesIndexRouteImport } from './routes/properties/index'
+import { Route as ExpensesIndexRouteImport } from './routes/expenses/index'
 import { Route as CleaningIndexRouteImport } from './routes/cleaning/index'
 import { Route as CleanerIndexRouteImport } from './routes/cleaner/index'
 import { Route as BookingsIndexRouteImport } from './routes/bookings/index'
@@ -73,6 +74,11 @@ const SettingsIndexRoute = SettingsIndexRouteImport.update({
 const PropertiesIndexRoute = PropertiesIndexRouteImport.update({
   id: '/properties/',
   path: '/properties/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ExpensesIndexRoute = ExpensesIndexRouteImport.update({
+  id: '/expenses/',
+  path: '/expenses/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CleaningIndexRoute = CleaningIndexRouteImport.update({
@@ -218,6 +224,7 @@ export interface FileRoutesByFullPath {
   '/bookings/': typeof BookingsIndexRoute
   '/cleaner/': typeof CleanerIndexRoute
   '/cleaning/': typeof CleaningIndexRoute
+  '/expenses/': typeof ExpensesIndexRoute
   '/properties/': typeof PropertiesIndexRoute
   '/settings/': typeof SettingsIndexRoute
   '/bookings/$bookingId/edit': typeof BookingsBookingIdEditRoute
@@ -248,6 +255,7 @@ export interface FileRoutesByTo {
   '/bookings': typeof BookingsIndexRoute
   '/cleaner': typeof CleanerIndexRoute
   '/cleaning': typeof CleaningIndexRoute
+  '/expenses': typeof ExpensesIndexRoute
   '/properties': typeof PropertiesIndexRoute
   '/settings': typeof SettingsIndexRoute
   '/bookings/$bookingId/edit': typeof BookingsBookingIdEditRoute
@@ -281,6 +289,7 @@ export interface FileRoutesById {
   '/bookings/': typeof BookingsIndexRoute
   '/cleaner/': typeof CleanerIndexRoute
   '/cleaning/': typeof CleaningIndexRoute
+  '/expenses/': typeof ExpensesIndexRoute
   '/properties/': typeof PropertiesIndexRoute
   '/settings/': typeof SettingsIndexRoute
   '/bookings/$bookingId/edit': typeof BookingsBookingIdEditRoute
@@ -315,6 +324,7 @@ export interface FileRouteTypes {
     | '/bookings/'
     | '/cleaner/'
     | '/cleaning/'
+    | '/expenses/'
     | '/properties/'
     | '/settings/'
     | '/bookings/$bookingId/edit'
@@ -345,6 +355,7 @@ export interface FileRouteTypes {
     | '/bookings'
     | '/cleaner'
     | '/cleaning'
+    | '/expenses'
     | '/properties'
     | '/settings'
     | '/bookings/$bookingId/edit'
@@ -377,6 +388,7 @@ export interface FileRouteTypes {
     | '/bookings/'
     | '/cleaner/'
     | '/cleaning/'
+    | '/expenses/'
     | '/properties/'
     | '/settings/'
     | '/bookings/$bookingId/edit'
@@ -410,6 +422,7 @@ export interface RootRouteChildren {
   BookingsIndexRoute: typeof BookingsIndexRoute
   CleanerIndexRoute: typeof CleanerIndexRoute
   CleaningIndexRoute: typeof CleaningIndexRoute
+  ExpensesIndexRoute: typeof ExpensesIndexRoute
   PropertiesIndexRoute: typeof PropertiesIndexRoute
   SettingsIndexRoute: typeof SettingsIndexRoute
 }
@@ -463,6 +476,13 @@ declare module '@tanstack/react-router' {
       path: '/properties'
       fullPath: '/properties/'
       preLoaderRoute: typeof PropertiesIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/expenses/': {
+      id: '/expenses/'
+      path: '/expenses'
+      fullPath: '/expenses/'
+      preLoaderRoute: typeof ExpensesIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/cleaning/': {
@@ -680,6 +700,7 @@ const rootRouteChildren: RootRouteChildren = {
   BookingsIndexRoute: BookingsIndexRoute,
   CleanerIndexRoute: CleanerIndexRoute,
   CleaningIndexRoute: CleaningIndexRoute,
+  ExpensesIndexRoute: ExpensesIndexRoute,
   PropertiesIndexRoute: PropertiesIndexRoute,
   SettingsIndexRoute: SettingsIndexRoute,
 }
