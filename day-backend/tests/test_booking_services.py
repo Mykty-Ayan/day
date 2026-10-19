@@ -1788,6 +1788,18 @@ class TestManageDepositsService:
         assert result.status == DepositStatus.PENDING
 
     @pytest.mark.asyncio
+    async def test_every_deposit_change_moves_the_booking_in_the_feed(self):
+        # The CRM reads changes from the feed, ordered by the booking's updated_at:
+        # a deposit taken, paid or returned is news about the booking.
+        booking_repo, _, svc, booking = await self._setup()
+
+        deposit = await svc.create_deposit(booking.id, COMPANY_ID, Decimal("500"))
+        await svc.perform_action(booking.id, deposit.id, COMPANY_ID, "pay")
+        await svc.perform_action(booking.id, deposit.id, COMPANY_ID, "return")
+
+        assert getattr(booking_repo, "touched", []) == [booking.id] * 3
+
+    @pytest.mark.asyncio
     async def test_pay_deposit(self):
         _, _, svc, booking = await self._setup()
         deposit = await svc.create_deposit(booking.id, COMPANY_ID, Decimal("500"))
