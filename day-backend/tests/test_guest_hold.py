@@ -274,3 +274,30 @@ async def test_booking_from_a_link_through_the_api(flat):  # noqa: F811  (the im
     page = (await client.get(f"/api/v1/public/offers/{code}")).json()
     assert page["booking"]["flat"] == flat_code and page["booking"]["status"] == "pending"
     assert "2345678" not in str(page)
+
+
+@pytest.mark.integration
+async def test_a_booking_from_a_link_carries_the_crms_conversation_to_the_feed(flat):  # noqa: F811  (the imported fixture)
+    client, prop, use = flat
+    soon = date.today() + timedelta(days=12)
+    conversation = str(uuid.uuid4())
+    use(Permission.BOOKINGS_READ, Permission.BOOKINGS_WRITE, Permission.PROPERTIES_READ)
+    offer = {"guest_name": "Ерлан", "guest_phone": "+77012345679", "check_in": soon.isoformat(),
+             "check_out": (soon + timedelta(days=1)).isoformat(), "guests": 1, "property_ids": [str(prop)]}
+    assert (await client.post("/api/v1/offers", json={**offer, "external_id": "x" * 256})).status_code == 422
+    created = await client.post("/api/v1/offers", json={**offer, "external_id": conversation})
+    assert created.status_code == 201, created.text
+    assert created.json()["external_id"] == conversation
+    code = created.json()["code"]
+    flat_code = (await client.get(f"/api/v1/properties/{prop}")).json()["public_code"]
+
+    use()  # the guest
+    assert conversation not in (await client.get(f"/api/v1/public/offers/{code}")).text
+    booked = await client.post(f"/api/v1/public/offers/{code}/book", json={"flat": flat_code, "guests": 1})
+    assert booked.status_code == 201, booked.text
+    assert conversation not in booked.text
+
+    # The feed shows a change some 30 s later, from the same booking's external_id.
+    use(Permission.BOOKINGS_READ)
+    listed = (await client.get("/api/v1/bookings", params={"source": "offer"})).json()["items"]
+    assert [(b["external_id"], b["status"]) for b in listed] == [(conversation, "pending")]

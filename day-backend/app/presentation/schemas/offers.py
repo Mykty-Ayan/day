@@ -22,6 +22,9 @@ class OfferCreate(BaseModel):
     check_out: date
     guests: int = Field(ge=1, le=50)
     property_ids: list[uuid.UUID] = Field(min_length=1, max_length=10)
+    # The asking system's id (the CRM's conversation). The booking made by the link
+    # carries it as its external_id, in GET /bookings/feed too. Never shown to the guest.
+    external_id: str | None = Field(default=None, max_length=255)
 
     @field_validator("guest_phone")
     @classmethod
@@ -42,3 +45,4 @@ class OfferResponse(BaseModel):
     check_in: date
     check_out: date
     property_ids: list[uuid.UUID]
+    external_id: str | None = None

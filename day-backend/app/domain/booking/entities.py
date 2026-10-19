@@ -233,3 +233,5 @@ class GuestOffer:
     created_at: datetime | None = None
     # The booking the guest made by this link; a cancelled one frees the link again.
     booking_id: uuid.UUID | None = None
+    # The asking system's id, e.g. the CRM's conversation: the booking made by the link carries it.
+    external_id: str | None = None
