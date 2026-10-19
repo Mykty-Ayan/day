@@ -55,6 +55,9 @@ class Permission:
 
     MESSAGING_SEND = "messaging:send"
 
+    # The company's money out: rent, utilities, staff. The owner's by default.
+    EXPENSES_MANAGE = "expenses:manage"
+
 
 ALL_PERMISSIONS: frozenset[str] = frozenset(
     value for name, value in vars(Permission).items() if not name.startswith("_") and isinstance(value, str)
