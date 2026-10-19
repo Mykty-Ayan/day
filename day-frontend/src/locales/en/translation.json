@@ -11,7 +11,8 @@
     "settings": "Settings",
     "more": "More",
     "expenses": "Expenses",
-    "agents": "Agents"
+    "agents": "Agents",
+    "readiness": "Readiness"
   },
   "common": {
     "save": "Save",
@@ -1387,5 +1388,43 @@
     "resume": "Working again",
     "nobody": "Nobody, the guest came directly",
     "stoppedName": "{{name}} (stopped)"
+  },
+  "readiness": {
+    "title": "Flats readiness",
+    "hint": "What is filled for answering guests: the company's rules and each flat's fields.",
+    "rules": "Rules for every flat",
+    "rulesHint": "Documents, early check-in and late check-out, pets, smoking, parties, quiet hours. The CRM's AI answers guests of any flat by them.",
+    "ruleText": "Rule",
+    "rulePlaceholder": "E.g. check-in with an ID card",
+    "audienceLabel": "Who sees it",
+    "audience": {
+      "public": "Everyone, before booking",
+      "guest": "Staying guests only"
+    },
+    "add": "Add",
+    "delete": "Delete",
+    "deleteConfirm": "Delete the rule?",
+    "failed": "Could not save",
+    "flats": "Flats",
+    "noFlats": "No flats",
+    "allFilled": "All filled",
+    "emptyCount_one": "{{count}} empty",
+    "emptyCount_other": "{{count}} empty",
+    "fields": {
+      "address": "Address",
+      "map_url": "Map link",
+      "description": "Description",
+      "max_guests": "Max guests",
+      "check_in_hour": "Check-in hour",
+      "check_out_hour": "Check-out hour",
+      "check_in_instructions": "Check-in instructions",
+      "check_out_instructions": "Check-out instructions",
+      "house_rules": "House rules",
+      "wifi": "Wi-Fi",
+      "listing_urls": "Listing links",
+      "photos": "Photos",
+      "pricing": "Prices",
+      "facts": "Facts for guests"
+    }
   }
 }
