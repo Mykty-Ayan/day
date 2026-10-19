@@ -31,9 +31,10 @@ const STAY_RULES = [
 interface Props {
   data: RulesData
   onChange: (data: RulesData) => void
+  errors?: Partial<Record<keyof RulesData, string>>
 }
 
-export default function PropertyFormStepRules({ data, onChange }: Props) {
+export default function PropertyFormStepRules({ data, onChange, errors = {} }: Props) {
   const { t } = useTranslation()
   function update<K extends keyof RulesData>(key: K, value: string) {
     onChange({ ...data, [key]: value })
@@ -108,6 +109,7 @@ export default function PropertyFormStepRules({ data, onChange }: Props) {
                 placeholder={t('properties.form.noRule')}
                 className={`mt-1.5 ${select}`}
               />
+              {errors[key] && <p className="mt-1 text-xs font-normal normal-case tracking-normal text-red-600">{errors[key]}</p>}
             </label>
           ))}
         </div>

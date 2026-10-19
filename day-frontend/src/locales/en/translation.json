@@ -290,7 +290,8 @@
       "internalNameRequired": "Internal name is required",
       "webLink": "The link must start with https://",
       "listingLinks": "One link per line, each starting with http:// or https://, no spaces, up to 500 characters; at most 20",
-      "listingInBoth": "One link cannot be both a nightly and an hourly listing"
+      "listingInBoth": "One link cannot be both a nightly and an hourly listing",
+      "bufferMinutes": "15 to 1440 minutes, in steps of 15"
     },
     "amenityCategories": {
       "bathroom": "Bathroom",

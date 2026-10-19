@@ -4,7 +4,7 @@ import { ArrowLeft, ArrowRight, Check, Loader2 } from 'lucide-react'
 import { useNavigate } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 import { isWebLink } from '../../lib/utils'
-import { listingInBoth, listingLines, listingLinksValid, saveWizard, wizardToUpdate } from './propertyForm'
+import { bufferMinutesValid, listingInBoth, listingLines, listingLinksValid, saveWizard, wizardToUpdate } from './propertyForm'
 import { useCreateProperty } from '../../hooks/useProperties'
 import { createOrUpdatePricing, linkAmenities, updateProperty, uploadPhotos } from '../../api/properties'
 import type { CheckInMethod, PropertyType, PropertyCreateInput, PricingInput } from '../../types/property'
@@ -182,6 +182,9 @@ export default function CreatePropertyPage() {
         newErrors.hourly_listing_urls = t('properties.validation.listingInBoth')
       }
     }
+    if (STEPS[step] === 'rules' && !bufferMinutesValid(form.rules.buffer_minutes)) {
+      newErrors.buffer_minutes = t('properties.validation.bufferMinutes')
+    }
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
   }
@@ -358,6 +361,7 @@ export default function CreatePropertyPage() {
                 <PropertyFormStepRules
                   data={form.rules}
                   onChange={(rules) => setForm((f) => ({ ...f, rules }))}
+                  errors={errors}
                 />
               )}
               {step === 6 && (

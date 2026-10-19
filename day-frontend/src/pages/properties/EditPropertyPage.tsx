@@ -7,7 +7,7 @@ import { isWebLink } from '../../lib/utils'
 import Spinner from '../../components/ui/Spinner'
 import { useProperty, useUpdateProperty } from '../../hooks/useProperties'
 import type { Property } from '../../types/property'
-import { formToUpdate, listingInBoth, listingLinksValid, propertyToForm, type PropertyEditForm } from './propertyForm'
+import { bufferMinutesValid, formToUpdate, listingInBoth, listingLinksValid, propertyToForm, type PropertyEditForm } from './propertyForm'
 import PropertyFormStepBasic from '../../components/property/PropertyFormStepBasic'
 import PropertyFormStepAddress from '../../components/property/PropertyFormStepAddress'
 import PropertyFormStepDetails from '../../components/property/PropertyFormStepDetails'
@@ -61,6 +61,9 @@ function EditPropertyForm({ property, propertyId }: { property: Property; proper
       } else if (listingInBoth(form.basic.listing_urls, form.basic.hourly_listing_urls)) {
         newErrors.hourly_listing_urls = t('properties.validation.listingInBoth')
       }
+    }
+    if (STEPS[step] === 'rules' && !bufferMinutesValid(form.rules.buffer_minutes)) {
+      newErrors.buffer_minutes = t('properties.validation.bufferMinutes')
     }
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
@@ -161,6 +164,7 @@ function EditPropertyForm({ property, propertyId }: { property: Property; proper
                 <PropertyFormStepRules
                   data={form.rules}
                   onChange={(rules) => setForm((f) => ({ ...f, rules }))}
+                  errors={errors}
                 />
               )}
             </motion.div>
