@@ -22,6 +22,7 @@ import { Route as CleanerIndexRouteImport } from './routes/cleaner/index'
 import { Route as BookingsIndexRouteImport } from './routes/bookings/index'
 import { Route as AnalyticsIndexRouteImport } from './routes/analytics/index'
 import { Route as AiImportIndexRouteImport } from './routes/ai-import/index'
+import { Route as AgentsIndexRouteImport } from './routes/agents/index'
 import { Route as SettingsTeamRouteImport } from './routes/settings/team'
 import { Route as SCodeRouteImport } from './routes/s/$code'
 import { Route as PropertiesNewRouteImport } from './routes/properties/new'
@@ -104,6 +105,11 @@ const AnalyticsIndexRoute = AnalyticsIndexRouteImport.update({
 const AiImportIndexRoute = AiImportIndexRouteImport.update({
   id: '/ai-import/',
   path: '/ai-import/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AgentsIndexRoute = AgentsIndexRouteImport.update({
+  id: '/agents/',
+  path: '/agents/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SettingsTeamRoute = SettingsTeamRouteImport.update({
@@ -219,6 +225,7 @@ export interface FileRoutesByFullPath {
   '/properties/new': typeof PropertiesNewRoute
   '/s/$code': typeof SCodeRoute
   '/settings/team': typeof SettingsTeamRoute
+  '/agents/': typeof AgentsIndexRoute
   '/ai-import/': typeof AiImportIndexRoute
   '/analytics/': typeof AnalyticsIndexRoute
   '/bookings/': typeof BookingsIndexRoute
@@ -250,6 +257,7 @@ export interface FileRoutesByTo {
   '/properties/new': typeof PropertiesNewRoute
   '/s/$code': typeof SCodeRoute
   '/settings/team': typeof SettingsTeamRoute
+  '/agents': typeof AgentsIndexRoute
   '/ai-import': typeof AiImportIndexRoute
   '/analytics': typeof AnalyticsIndexRoute
   '/bookings': typeof BookingsIndexRoute
@@ -284,6 +292,7 @@ export interface FileRoutesById {
   '/properties/new': typeof PropertiesNewRoute
   '/s/$code': typeof SCodeRoute
   '/settings/team': typeof SettingsTeamRoute
+  '/agents/': typeof AgentsIndexRoute
   '/ai-import/': typeof AiImportIndexRoute
   '/analytics/': typeof AnalyticsIndexRoute
   '/bookings/': typeof BookingsIndexRoute
@@ -319,6 +328,7 @@ export interface FileRouteTypes {
     | '/properties/new'
     | '/s/$code'
     | '/settings/team'
+    | '/agents/'
     | '/ai-import/'
     | '/analytics/'
     | '/bookings/'
@@ -350,6 +360,7 @@ export interface FileRouteTypes {
     | '/properties/new'
     | '/s/$code'
     | '/settings/team'
+    | '/agents'
     | '/ai-import'
     | '/analytics'
     | '/bookings'
@@ -383,6 +394,7 @@ export interface FileRouteTypes {
     | '/properties/new'
     | '/s/$code'
     | '/settings/team'
+    | '/agents/'
     | '/ai-import/'
     | '/analytics/'
     | '/bookings/'
@@ -417,6 +429,7 @@ export interface RootRouteChildren {
   PropertiesNewRoute: typeof PropertiesNewRoute
   SCodeRoute: typeof SCodeRoute
   SettingsTeamRoute: typeof SettingsTeamRoute
+  AgentsIndexRoute: typeof AgentsIndexRoute
   AiImportIndexRoute: typeof AiImportIndexRoute
   AnalyticsIndexRoute: typeof AnalyticsIndexRoute
   BookingsIndexRoute: typeof BookingsIndexRoute
@@ -518,6 +531,13 @@ declare module '@tanstack/react-router' {
       path: '/ai-import'
       fullPath: '/ai-import/'
       preLoaderRoute: typeof AiImportIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/agents/': {
+      id: '/agents/'
+      path: '/agents'
+      fullPath: '/agents/'
+      preLoaderRoute: typeof AgentsIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/settings/team': {
@@ -695,6 +715,7 @@ const rootRouteChildren: RootRouteChildren = {
   PropertiesNewRoute: PropertiesNewRoute,
   SCodeRoute: SCodeRoute,
   SettingsTeamRoute: SettingsTeamRoute,
+  AgentsIndexRoute: AgentsIndexRoute,
   AiImportIndexRoute: AiImportIndexRoute,
   AnalyticsIndexRoute: AnalyticsIndexRoute,
   BookingsIndexRoute: BookingsIndexRoute,
