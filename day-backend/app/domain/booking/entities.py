@@ -235,3 +235,8 @@ class GuestOffer:
     booking_id: uuid.UUID | None = None
     # The asking system's id, e.g. the CRM's conversation: the booking made by the link carries it.
     external_id: str | None = None
+    # By the hour: the stay's local start and end; check_in is its day (check_out the next,
+    # only to keep one shape of dates), and the link lasts until that day, as by the night.
+    rental_mode: RentalMode = RentalMode.DAILY
+    starts_at: datetime | None = None
+    ends_at: datetime | None = None

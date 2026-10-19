@@ -13,23 +13,29 @@ import secrets
 import uuid
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import date, timedelta
+from datetime import date, datetime, time, timedelta
 from decimal import Decimal
 
 from app.application.booking.price_calculator import PriceCalculatorService
+from app.application.booking.stay_rules import company_now
 from app.application.property.public_stay import taken_nights
+from app.config import settings
 from app.domain.booking.entities import GuestOffer
 from app.domain.booking.repositories import BookingRepository, GuestOfferRepository
+from app.domain.booking.stay_rules import stay_breaches
 from app.domain.booking.value_objects import RentalMode
 from app.domain.property.entities import Property
 from app.domain.property.repositories import PropertyPhotoRepository, PropertyRepository
 from app.domain.property.value_objects import FactAudience, PropertyStatus
+from app.domain.settings.repositories import CompanySettingsRepository
 
 _ALPHABET = "abcdefghjkmnpqrstuvwxyz23456789"
 MAX_FLATS = 10
 # As a flat's page: every night of the stay is priced and checked on each visit.
 MAX_NIGHTS = 120
 HORIZON_DAYS = 730
+# An hourly stay ends within a day; longer is a night.
+MAX_HOURS = 24
 
 
 class OfferExpiredError(ValueError):
@@ -76,15 +82,23 @@ class GuestOffersService:
         photo_repo: PropertyPhotoRepository,
         booking_repo: BookingRepository,
         prices: PriceCalculatorService,
+        settings_repo: CompanySettingsRepository | None = None,
         *,
         today: Callable[[], date] = date.today,
+        now: Callable[[], datetime] | None = None,
     ) -> None:
         self._offers = offer_repo
         self._properties = property_repo
         self._photos = photo_repo
         self._bookings = booking_repo
         self._prices = prices
+        self._settings = settings_repo
         self._today = today
+        self._now = now
+
+    async def _company_now(self, company_id: uuid.UUID) -> datetime:
+        """The company's local time, as an hourly stay's hours are written."""
+        return self._now() if self._now is not None else await company_now(self._settings, company_id)
 
     async def create(
         self,
@@ -92,15 +106,34 @@ class GuestOffersService:
         *,
         guest_name: str,
         guest_phone: str,
-        check_in: date,
-        check_out: date,
+        check_in: date | None = None,
+        check_out: date | None = None,
         guests: int,
         property_ids: list[uuid.UUID],
         created_by: uuid.UUID | None = None,
         external_id: str | None = None,
+        rental_mode: RentalMode = RentalMode.DAILY,
+        starts_at: datetime | None = None,
+        ends_at: datetime | None = None,
     ) -> GuestOffer:
         if not 1 <= len(property_ids) <= MAX_FLATS:
             raise ValueError(f"An offer holds 1 to {MAX_FLATS} flats")
+        hourly = rental_mode == RentalMode.HOURLY
+        if hourly:
+            if starts_at is None or ends_at is None:
+                raise ValueError("An hourly offer needs starts_at and ends_at")
+            if ends_at <= starts_at:
+                raise ValueError("ends_at must be after starts_at")
+            if ends_at - starts_at > timedelta(hours=MAX_HOURS):
+                raise ValueError(f"An hourly offer covers at most {MAX_HOURS} hours")
+            if starts_at <= await self._company_now(company_id):
+                raise ValueError("starts_at is in the past")
+            check_in = starts_at.date()
+            check_out = check_in + timedelta(days=1)
+        elif rental_mode != RentalMode.DAILY:
+            raise ValueError("An offer is by the night or by the hour")
+        elif check_in is None or check_out is None:
+            raise ValueError("A nightly offer needs check_in and check_out")
         if check_out <= check_in:
             raise ValueError("check_out must be after check_in")
         today, nights = self._today(), (check_out - check_in).days
@@ -114,7 +147,10 @@ class GuestOffersService:
             prop = await self._properties.get_by_id(property_id)
             if prop is None or prop.company_id != company_id or prop.status != PropertyStatus.ACTIVE:
                 raise ValueError("Property not found")
-            _check_takes(prop, nights, guests)
+            if hourly:
+                _check_takes_hours(prop, guests)
+            else:
+                _check_takes(prop, nights, guests)
         return await self._offers.add(
             GuestOffer(
                 company_id=company_id,
@@ -127,6 +163,9 @@ class GuestOffersService:
                 property_ids=list(dict.fromkeys(property_ids)),
                 created_by=created_by,
                 external_id=(external_id or "").strip() or None,
+                rental_mode=rental_mode,
+                starts_at=starts_at if hourly else None,
+                ends_at=ends_at if hourly else None,
             )
         )
 
@@ -138,15 +177,24 @@ class GuestOffersService:
             raise ValueError("Not found")
         if self._today() > offer.check_in:
             raise OfferExpiredError("Expired")
+        hourly = offer.rental_mode == RentalMode.HOURLY
+        # By the hour the link ends when its hours begin, as booking from it does.
+        if hourly and offer.starts_at is not None and await self._company_now(offer.company_id) >= offer.starts_at:
+            raise OfferExpiredError("Expired")
         flats = []
         for property_id in offer.property_ids:
             prop = await self._properties.get_by_id(property_id)
             if prop is None or prop.company_id != offer.company_id or prop.status != PropertyStatus.ACTIVE:
                 continue
+            # Let otherwise since the link was made: booking it would be refused, so it leaves the link.
+            if prop.rental_mode == (RentalMode.DAILY if hourly else RentalMode.HOURLY):
+                continue
             flats.append(await self._flat(prop, offer))
         return PublicOffer(offer=offer, flats=flats)
 
     async def _flat(self, prop: Property, offer: GuestOffer) -> OfferFlat:
+        if offer.rental_mode == RentalMode.HOURLY:
+            return await self._hourly_flat(prop, offer)
         # As a flat's page: no price for a night is no sum, not 0 or the fees alone.
         photos = sorted(
             (p for p in await self._photos.list_by_property(prop.id) if p.audience == FactAudience.PUBLIC),
@@ -167,6 +215,54 @@ class GuestOffersService:
             total=total,
             free=not any(night in taken for night in nights),
         )
+
+
+    async def _hourly_flat(self, prop: Property, offer: GuestOffer) -> OfferFlat:
+        """As a booking finds the hours: no stay over them, no closed span, and the flat's
+        rules kept (the cleaning buffer, the hours before check-in), or booking is refused."""
+        photos = sorted(
+            (p for p in await self._photos.list_by_property(prop.id) if p.audience == FactAudience.PUBLIC),
+            key=lambda p: (not p.is_cover, p.sort_order),
+        )
+        start, end = offer.starts_at, offer.ends_at
+        try:
+            breakdown = await self._prices.calculate(prop.id, start, end, offer.guests, 0, RentalMode.HOURLY)
+            total = breakdown.total if breakdown.base_total > 0 else None
+        except ValueError:
+            total = None
+        taken = await self._bookings.get_by_property_and_dates(prop.id, start, end)
+        # A closed span runs from the check-out hour of its first day to that hour of its end day.
+        hour = settings.DEFAULT_CHECK_OUT_HOUR if prop.check_out_hour is None else prop.check_out_hour
+        day = timedelta(days=1)
+        blocks = await self._bookings.list_blocks(prop.id, start.date() - day, end.date() + day)
+        closed = [
+            b
+            for b in blocks
+            if datetime.combine(b.start_date, time(hour)) < end and datetime.combine(b.end_date, time(hour)) > start
+        ]
+        # Read only: the page takes no lock on the calendar, as a booking does.
+        neighbours = []
+        if prop.buffer_minutes is not None:
+            reach = timedelta(minutes=prop.buffer_minutes)
+            neighbours = await self._bookings.get_by_property_and_dates(
+                prop.id, start - reach, end + reach, include_completed=True
+            )
+        now = await self._company_now(offer.company_id) if prop.min_lead_hours is not None else None
+        breaches = stay_breaches(prop, start, end, RentalMode.HOURLY, now=now, neighbours=neighbours)
+        return OfferFlat(
+            property=prop,
+            photo=photos[0].url if photos else None,
+            total=total,
+            free=not taken and not closed and not breaches,
+        )
+
+
+def _check_takes_hours(prop: Property, guests: int) -> None:
+    """The flat is let by the hour and takes the party."""
+    if prop.rental_mode == RentalMode.DAILY:
+        raise ValueError(f"{prop.name} lets by the night only")
+    if prop.max_guests is not None and guests > prop.max_guests:
+        raise ValueError(f"{prop.name} takes up to {prop.max_guests} guests")
 
 
 def _check_takes(prop: Property, nights: int, guests: int) -> None:
