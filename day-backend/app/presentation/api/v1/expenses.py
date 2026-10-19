@@ -60,9 +60,12 @@ async def list_expenses(
     property_id: uuid.UUID | None = None,
     category: ExpenseCategory | None = None,
     include_voided: bool = Query(default=False),
+    limit: int = Query(default=500, ge=1, le=2000),
     session: AsyncSession = Depends(get_session),
     company_id: uuid.UUID = Depends(get_company_id),
 ):
+    if date_from is not None and date_to is not None and date_from > date_to:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="date_from is after date_to")
     rows = await _service(session).list(
         company_id,
         date_from=date_from,
@@ -71,7 +74,7 @@ async def list_expenses(
         category=category,
         include_voided=include_voided,
     )
-    return [ExpenseResponse.model_validate(e, from_attributes=True) for e in rows]
+    return [ExpenseResponse.model_validate(e, from_attributes=True) for e in rows[:limit]]
 
 
 @expense_router.post("/{expense_id}/void", response_model=ExpenseResponse, dependencies=_manage)
@@ -86,6 +89,7 @@ async def void_expense(
     except LookupError:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Expense not found")
     except ValueError as e:
+        await session.rollback()
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
     await session.commit()
     return ExpenseResponse.model_validate(expense, from_attributes=True)

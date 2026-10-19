@@ -3,7 +3,7 @@ from __future__ import annotations
 import abc
 import uuid
 from collections.abc import Sequence
-from datetime import date
+from datetime import date, datetime
 
 from app.domain.expenses.entities import Expense, ExpenseCategory
 
@@ -28,4 +28,7 @@ class ExpenseRepository(abc.ABC):
     ) -> Sequence[Expense]: ...
 
     @abc.abstractmethod
-    async def update(self, expense: Expense) -> Expense: ...
+    async def void(
+        self, company_id: uuid.UUID, expense_id: uuid.UUID, voided_by: uuid.UUID | None, at: datetime
+    ) -> Expense | None:
+        """Void it if it is the company's and not voided yet, in one step; None otherwise."""

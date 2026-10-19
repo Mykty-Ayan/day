@@ -74,11 +74,9 @@ class ManageExpensesService:
         )
 
     async def void(self, company_id: uuid.UUID, expense_id: uuid.UUID, voided_by: uuid.UUID | None) -> Expense:
-        expense = await self._expenses.get(company_id, expense_id)
-        if expense is None:
+        voided = await self._expenses.void(company_id, expense_id, voided_by, datetime.utcnow())
+        if voided is not None:
+            return voided
+        if await self._expenses.get(company_id, expense_id) is None:
             raise LookupError("Expense not found")
-        if expense.voided_at is not None:
-            raise ValueError("The expense is voided already")
-        expense.voided_at = datetime.utcnow()
-        expense.voided_by = voided_by
-        return await self._expenses.update(expense)
+        raise ValueError("The expense is voided already")

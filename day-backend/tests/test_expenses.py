@@ -46,9 +46,12 @@ class FakeExpenseRepository:
             and (category is None or e.category == category)
         ]
 
-    async def update(self, expense):
-        self.rows[expense.id] = expense
-        return expense
+    async def void(self, company_id, expense_id, voided_by, at):
+        found = await self.get(company_id, expense_id)
+        if found is None or found.voided_at is not None:
+            return None
+        found.voided_at, found.voided_by = at, voided_by
+        return found
 
 
 async def _service(*flats):
@@ -154,3 +157,45 @@ async def test_another_companys_expense_is_neither_seen_nor_voided(flat):  # noq
 
     assert (await client.get("/api/v1/expenses", params={"include_voided": True})).json() == []
     assert (await client.post(f"/api/v1/expenses/{their_expense}/void")).status_code == 404
+
+
+async def test_any_expense_with_a_flat_needs_a_flat_of_the_company():
+    archived, theirs = _make_property(status=PropertyStatus.ARCHIVED), _make_property()
+    theirs.company_id = uuid.uuid4()
+    svc = await _service(archived, theirs)
+    for wrong in (archived.id, theirs.id, uuid.uuid4()):
+        with pytest.raises(ValueError, match="flat"):
+            await svc.add(_new(category=ExpenseCategory.REPAIRS, property_id=wrong))
+
+
+async def test_two_voids_at_once_leave_the_first():
+    # The second finds the expense voided already and is refused, not written over.
+    svc = await _service()
+    expense = await svc.add(_new())
+    first, second = uuid.uuid4(), uuid.uuid4()
+    await svc.void(COMPANY_ID, expense.id, first)
+    with pytest.raises(ValueError, match="voided"):
+        await svc.void(COMPANY_ID, expense.id, second)
+    assert (await svc.list(COMPANY_ID, include_voided=True))[0].voided_by == first
+
+
+def test_a_day_far_from_today_is_a_typo():
+    from datetime import timedelta
+
+    from pydantic import ValidationError
+
+    from app.presentation.schemas.expenses import ExpenseCreate
+
+    today = date.today()
+    for wrong in (date(1, 1, 1), today + timedelta(days=400), today - timedelta(days=3 * 366)):
+        with pytest.raises(ValidationError):
+            ExpenseCreate(category="utilities", amount=1000, spent_on=wrong)
+    assert ExpenseCreate(category="utilities", amount=1000, spent_on=today).spent_on == today
+
+
+@pytest.mark.integration
+async def test_a_period_that_ends_before_it_starts_is_refused(flat):  # noqa: F811  (the imported fixture)
+    client, _, use = flat
+    use(Permission.EXPENSES_MANAGE)
+    res = await client.get("/api/v1/expenses", params={"date_from": "2026-10-31", "date_to": "2026-10-01"})
+    assert res.status_code == 422

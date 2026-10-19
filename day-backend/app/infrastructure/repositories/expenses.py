@@ -2,10 +2,10 @@ from __future__ import annotations
 
 import uuid
 from collections.abc import Sequence
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.domain.expenses.entities import Expense, ExpenseCategory
@@ -81,13 +81,18 @@ class SqlExpenseRepository(ExpenseRepository):
         stmt = stmt.order_by(ExpenseModel.spent_on.desc(), ExpenseModel.created_at.desc())
         return [_to_expense(m) for m in await self._session.scalars(stmt)]
 
-    async def update(self, expense: Expense) -> Expense:
+    async def void(
+        self, company_id: uuid.UUID, expense_id: uuid.UUID, voided_by: uuid.UUID | None, at: datetime
+    ) -> Expense | None:
+        # One conditional update: of two voids at once, the second changes nothing.
         model = await self._session.scalar(
-            select(ExpenseModel).where(ExpenseModel.id == expense.id, ExpenseModel.company_id == expense.company_id)
+            update(ExpenseModel)
+            .where(
+                ExpenseModel.id == expense_id,
+                ExpenseModel.company_id == company_id,
+                ExpenseModel.voided_at.is_(None),
+            )
+            .values(voided_at=at, voided_by=voided_by)
+            .returning(ExpenseModel)
         )
-        if model is None:
-            raise LookupError("Expense not found")
-        model.voided_at = expense.voided_at
-        model.voided_by = expense.voided_by
-        await self._session.flush()
-        return _to_expense(model)
+        return _to_expense(model) if model else None
