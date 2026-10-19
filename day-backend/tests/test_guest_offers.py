@@ -207,3 +207,57 @@ async def test_offers_through_the_api(flat):  # noqa: F811  (the imported fixtur
     assert page.json()["phone"] == "+7 701 ••• •• 78" and "2345678" not in page.text and "Сапаров" not in page.text
     assert page.json()["flats"][0]["total"] == 40000.0
     assert (await client.get("/api/v1/public/offers/nosuchcode")).status_code == 404
+
+
+async def _hourly(o, *flats, start=datetime(2030, 10, 20, 14), end=datetime(2030, 10, 20, 17), guests=2):
+    return await o.service.create(
+        COMPANY_ID, guest_name="Ерлан", guest_phone="+7 701 234 56 78", guests=guests,
+        property_ids=[f.id for f in flats], rental_mode=RentalMode.HOURLY, starts_at=start, ends_at=end,
+    )
+
+
+async def test_an_hourly_offer_shows_each_flat_for_the_hours():
+    o = Offers()
+    free = await o.flat("Студия", rental_mode=RentalMode.BOTH)
+    busy = await o.flat("Почасовая", rental_mode=RentalMode.HOURLY)
+    # Ends inside the guest's hours on the busy flat.
+    await o.bookings.create(Booking(company_id=COMPANY_ID, property_id=busy.id, status=BookingStatus.CONFIRMED,
+                                    rental_mode=RentalMode.HOURLY,
+                                    check_in=datetime(2030, 10, 20, 12), check_out=datetime(2030, 10, 20, 15)))
+    offer = await _hourly(o, free, busy)
+    assert (offer.check_in, offer.rental_mode) == (date(2030, 10, 20), RentalMode.HOURLY)
+
+    shown = PublicOfferResponse.from_offer(await o.service.public(offer.code))
+    assert (shown.rental_mode, shown.hours, shown.nights) == ("hourly", 3, 0)
+    # Three hours at 3 000, as an hourly booking counts them.
+    assert [(f.name, f.total, f.free) for f in shown.flats] == [("Студия", 9000.0, True), ("Почасовая", 9000.0, False)]
+
+
+async def test_an_hourly_offer_takes_only_flats_let_by_the_hour_and_up_to_a_day():
+    o = Offers()
+    nightly = await o.flat("Посуточная", rental_mode=RentalMode.DAILY)
+    with pytest.raises(ValueError, match="by the night only"):
+        await _hourly(o, nightly)
+    hourly = await o.flat("Почасовая", rental_mode=RentalMode.HOURLY)
+    with pytest.raises(ValueError, match="24 hours"):
+        await _hourly(o, hourly, end=datetime(2030, 10, 21, 15))
+    with pytest.raises(ValueError, match="after starts_at"):
+        await _hourly(o, hourly, end=datetime(2030, 10, 20, 14))
+    with pytest.raises(ValueError, match="past"):
+        await _hourly(o, hourly, start=datetime(2030, 9, 30, 14), end=datetime(2030, 9, 30, 16))
+    with pytest.raises(ValueError, match="up to 2 guests"):
+        await _hourly(o, hourly, guests=3)
+
+
+async def test_a_closed_span_takes_the_hours_it_covers():
+    from app.domain.booking.entities import PropertyBlock
+
+    o = Offers()
+    unit = await o.flat("Почасовая", rental_mode=RentalMode.HOURLY)
+    # Closed for the night of the 19th: from 12:00 on the 19th to 12:00 on the 20th.
+    await o.bookings.add_block(PropertyBlock(company_id=COMPANY_ID, property_id=unit.id,
+                                             start_date=date(2030, 10, 19), end_date=date(2030, 10, 20)))
+    morning = await _hourly(o, unit, start=datetime(2030, 10, 20, 9), end=datetime(2030, 10, 20, 11))
+    afternoon = await _hourly(o, unit)
+    assert (await o.service.public(morning.code)).flats[0].free is False
+    assert (await o.service.public(afternoon.code)).flats[0].free is True

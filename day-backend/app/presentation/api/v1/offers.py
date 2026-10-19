@@ -11,6 +11,7 @@ from app.application.booking.guest_offers import GuestOffersService
 from app.application.booking.price_calculator import PriceCalculatorService
 from app.config import settings
 from app.domain.auth.permissions import Permission
+from app.domain.booking.value_objects import RentalMode
 from app.infrastructure.database import get_session
 from app.infrastructure.repositories.booking import SqlBookingRepository, SqlGuestOfferRepository
 from app.infrastructure.repositories.property import (
@@ -68,6 +69,9 @@ async def create_offer(
             property_ids=body.property_ids,
             created_by=principal.actor_id,
             external_id=body.external_id,
+            rental_mode=RentalMode(body.rental_mode),
+            starts_at=body.starts_at,
+            ends_at=body.ends_at,
         )
     except ValueError as e:
         await session.rollback()
@@ -76,8 +80,11 @@ async def create_offer(
     return OfferResponse(
         code=offer.code,
         url=f"{settings.PUBLIC_APP_URL.rstrip('/')}/o/{offer.code}",
+        rental_mode=offer.rental_mode.value,
         check_in=offer.check_in,
         check_out=offer.check_out,
+        starts_at=offer.starts_at,
+        ends_at=offer.ends_at,
         property_ids=offer.property_ids,
         external_id=offer.external_id,
     )
