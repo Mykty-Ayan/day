@@ -39,7 +39,7 @@ class UpdatePropertyInput:
     hourly_listing_urls: object = _UNSET
     min_nights: object = _UNSET
     max_nights: object = _UNSET
-    buffer_hours: object = _UNSET
+    buffer_minutes: object = _UNSET
     min_lead_hours: object = _UNSET
     rooms: object = _UNSET
     beds: object = _UNSET
@@ -66,7 +66,7 @@ _UPDATABLE_FIELDS = {
     "entrance", "block", "floor", "rooms", "beds", "max_guests", "bathrooms",
     "complex_name", "floors_total", "map_url", "whatsapp_product_url", "video_url",
     "listing_urls", "hourly_listing_urls",
-    "min_nights", "max_nights", "buffer_hours", "min_lead_hours",
+    "min_nights", "max_nights", "buffer_minutes", "min_lead_hours",
     "check_in_hour", "check_out_hour", "check_in_method",
     "area_living", "area_total",
     "check_in_instructions", "check_out_instructions", "house_rules",

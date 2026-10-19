@@ -71,7 +71,7 @@ class Property:
     # cleaning; hours a stay must be booked ahead of its check-in.
     min_nights: int | None = None
     max_nights: int | None = None
-    buffer_hours: int | None = None
+    buffer_minutes: int | None = None
     min_lead_hours: int | None = None
 
     # Details

@@ -14,17 +14,18 @@ interface RulesData {
   wifi_password: string
   min_nights: string
   max_nights: string
-  buffer_hours: string
+  buffer_minutes: string
   min_lead_hours: string
 }
 
 // The apartment's stay rules: bookings made in Day keep to them unless the
 // operator confirms a breach. Empty is no rule.
 const STAY_RULES = [
-  { key: 'min_nights', min: 1, max: 365 },
-  { key: 'max_nights', min: 1, max: 365 },
-  { key: 'buffer_hours', min: 1, max: 24 },
-  { key: 'min_lead_hours', min: 1, max: 720 },
+  { key: 'min_nights', min: 1, max: 365, step: 1 },
+  { key: 'max_nights', min: 1, max: 365, step: 1 },
+  // Minutes, in steps of 15, as the server takes them.
+  { key: 'buffer_minutes', min: 15, max: 1440, step: 15 },
+  { key: 'min_lead_hours', min: 1, max: 720, step: 1 },
 ] as const
 
 interface Props {
@@ -92,7 +93,7 @@ export default function PropertyFormStepRules({ data, onChange }: Props) {
       <fieldset className="space-y-2">
         <legend className="text-xs font-bold uppercase tracking-wider text-gray-400">{t('properties.form.stayRules')}</legend>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          {STAY_RULES.map(({ key, min, max }) => (
+          {STAY_RULES.map(({ key, min, max, step }) => (
             <label key={key} className="block text-xs font-bold text-gray-400 uppercase tracking-wider">
               {t(`properties.form.${key}`)}
               <input
@@ -101,6 +102,7 @@ export default function PropertyFormStepRules({ data, onChange }: Props) {
                 inputMode="numeric"
                 min={min}
                 max={max}
+                step={step}
                 value={data[key]}
                 onChange={(e) => update(key, e.target.value)}
                 placeholder={t('properties.form.noRule')}

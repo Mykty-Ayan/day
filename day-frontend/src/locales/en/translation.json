@@ -280,7 +280,7 @@
       "stayRules": "Booking rules",
       "min_nights": "Minimum nights",
       "max_nights": "Maximum nights",
-      "buffer_hours": "Cleaning between hourly bookings, h",
+      "buffer_minutes": "Cleaning between hourly bookings, min",
       "min_lead_hours": "Book at least, h before check-in",
       "noRule": "No limit",
       "stayRulesHint": "Empty means no limit. The rules apply to bookings made in Day; bookings from Booking and Airbnb are not refused. A rule can be broken by confirming it when booking."
@@ -533,7 +533,7 @@
       "title": "The booking breaks the apartment rules",
       "min_nights": "Minimum nights: {{limit}}, this booking: {{actual}}",
       "max_nights": "Maximum nights: {{limit}}, this booking: {{actual}}",
-      "buffer_hours": "Cleaning hours between hourly bookings: {{limit}}, here: {{actual}}",
+      "buffer_minutes": "Cleaning minutes between hourly bookings: {{limit}}, here: {{actual}}",
       "min_lead_hours": "Book at least {{limit}} h before check-in; this check-in is {{actual}} h away",
       "bookAnyway": "Book anyway",
       "saveAnyway": "Save anyway",

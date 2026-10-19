@@ -46,7 +46,7 @@ export interface PropertyEditForm {
     wifi_password: string
     min_nights: string
     max_nights: string
-    buffer_hours: string
+    buffer_minutes: string
     min_lead_hours: string
   }
 }
@@ -98,7 +98,7 @@ export function propertyToForm(property: Property): PropertyEditForm {
       wifi_password: asText(property.wifi_password),
       min_nights: asNumberText(property.min_nights),
       max_nights: asNumberText(property.max_nights),
-      buffer_hours: asNumberText(property.buffer_hours),
+      buffer_minutes: asNumberText(property.buffer_minutes),
       min_lead_hours: asNumberText(property.min_lead_hours),
     },
   }
@@ -177,7 +177,7 @@ export function formToUpdate(form: PropertyEditForm, opened: PropertyEditForm): 
     wifi_name: exact(form.rules.wifi_name),
     min_nights: int(form.rules.min_nights),
     max_nights: int(form.rules.max_nights),
-    buffer_hours: int(form.rules.buffer_hours),
+    buffer_minutes: int(form.rules.buffer_minutes),
     min_lead_hours: int(form.rules.min_lead_hours),
   }
   // Those who may not see the password get it empty; sending that back would
