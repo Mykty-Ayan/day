@@ -17,6 +17,9 @@ class ExpenseCreate(BaseModel):
     property_id: uuid.UUID | None = None
     payee: str | None = Field(default=None, max_length=200)
     note: str | None = Field(default=None, max_length=2000)
+    # An agent's commission needs the agent; the booking is optional.
+    agent_id: uuid.UUID | None = None
+    booking_id: uuid.UUID | None = None
 
     @field_validator("spent_on")
     @classmethod
@@ -38,5 +41,7 @@ class ExpenseResponse(BaseModel):
     property_id: uuid.UUID | None = None
     payee: str | None = None
     note: str | None = None
+    agent_id: uuid.UUID | None = None
+    booking_id: uuid.UUID | None = None
     created_at: datetime | None = None
     voided_at: datetime | None = None

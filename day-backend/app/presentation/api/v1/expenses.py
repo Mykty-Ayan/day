@@ -12,6 +12,8 @@ from app.application.expenses.manage_expenses import ManageExpensesService, NewE
 from app.domain.auth.permissions import Permission
 from app.domain.expenses.entities import ExpenseCategory
 from app.infrastructure.database import get_session
+from app.infrastructure.repositories.agents import SqlAgentRepository
+from app.infrastructure.repositories.booking import SqlBookingRepository
 from app.infrastructure.repositories.expenses import SqlExpenseRepository
 from app.infrastructure.repositories.property import SqlPropertyRepository
 from app.presentation.api.deps import Principal, get_company_id, get_principal, require
@@ -23,7 +25,12 @@ _manage = [Depends(require(Permission.EXPENSES_MANAGE))]
 
 
 def _service(session: AsyncSession) -> ManageExpensesService:
-    return ManageExpensesService(SqlExpenseRepository(session), SqlPropertyRepository(session))
+    return ManageExpensesService(
+        SqlExpenseRepository(session),
+        SqlPropertyRepository(session),
+        SqlAgentRepository(session),
+        SqlBookingRepository(session),
+    )
 
 
 @expense_router.post("", response_model=ExpenseResponse, status_code=status.HTTP_201_CREATED, dependencies=_manage)
@@ -43,6 +50,8 @@ async def add_expense(
                 property_id=body.property_id,
                 payee=body.payee,
                 note=body.note,
+                agent_id=body.agent_id,
+                booking_id=body.booking_id,
                 created_by=principal.actor_id,
             )
         )
