@@ -51,7 +51,12 @@ export function offerDates(locale: string, offer: PublicOffer): string {
     return stayDates(locale, offer.check_in, offer.check_out)
   }
   const day = new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'long' })
-  return `${day.format(parseISO(offer.starts_at))}, ${clock(offer.starts_at)}–${clock(offer.ends_at)}`
+  const [start, end] = [parseISO(offer.starts_at), parseISO(offer.ends_at)]
+  // Hours past midnight end on the next day: both days are told.
+  if (offer.ends_at.slice(0, 10) !== offer.starts_at.slice(0, 10)) {
+    return `${day.format(start)}, ${clock(offer.starts_at)} – ${day.format(end)}, ${clock(offer.ends_at)}`
+  }
+  return `${day.format(start)}, ${clock(offer.starts_at)}–${clock(offer.ends_at)}`
 }
 
 /** "15:00" from a local time without a zone: read as written, never shifted. */

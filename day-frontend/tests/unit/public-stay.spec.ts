@@ -58,6 +58,9 @@ test('an hourly link shows its day and hours as written, never shifted by the zo
   expect(isHourly(offer)).toBe(true)
   expect(offerDates('ru', offer)).toBe('20 октября, 15:00–18:30')
   expect(offerDates('en', offer)).toBe('October 20, 15:00–18:30')
+  // Past midnight: both days.
+  const late = { ...offer, starts_at: '2030-10-20T22:00:00', ends_at: '2030-10-21T02:00:00' }
+  expect(offerDates('ru', late)).toBe('20 октября, 22:00 – 21 октября, 02:00')
   // A link by the night keeps its dates.
   const nightly = { ...offer, rental_mode: 'daily' as const, starts_at: null, ends_at: null }
   expect(isHourly(nightly)).toBe(false)
