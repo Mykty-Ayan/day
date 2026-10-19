@@ -108,6 +108,7 @@ async def test_a_read_only_key_reads_the_links(flat):  # noqa: F811  (the import
         ("https://wa.me/p/1234567890123456/77010000000", "1234567890123456"),
         ("https://wa.me/p/7654321098765", "7654321098765"),
         ("http://www.wa.me/p/1234567890/77010000000?ref=x", "1234567890"),
+        ("HTTPS://WA.ME/p/1234567890123/77010000000", "1234567890123"),
         ("https://wa.me/77010000000", None),  # a chat, not a product
         ("https://wa.me/p/123/77010000000", None),  # too short for a catalogue id
         ("https://evil.example/wa.me/p/1234567890123456", None),

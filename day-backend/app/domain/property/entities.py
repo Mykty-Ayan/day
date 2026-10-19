@@ -27,7 +27,7 @@ def new_public_code() -> str:
 
 
 # A WhatsApp Business catalogue product link: https://wa.me/p/<product id>/<phone>.
-_WA_PRODUCT = re.compile(r"^https?://(?:www\.)?wa\.me/p/(\d{10,18})(?:[/?#]|$)")
+_WA_PRODUCT = re.compile(r"^https?://(?:www\.)?wa\.me/p/(\d{10,18})(?:[/?#]|$)", re.IGNORECASE)
 
 
 def whatsapp_product_id(url: str | None) -> str | None:
