@@ -87,3 +87,42 @@ export function nightsWindow(month: Date, checkIn: string | null): { from: strin
   const from = checkIn && datePart(checkIn) < shown ? datePart(checkIn) : shown
   return { from, to: format(addDays(endOfMonth(addMonths(month, 1)), 1), 'yyyy-MM-dd') }
 }
+
+/** The booking as saved, and what the edit form is about to send. */
+interface PricedStay {
+  check_in: string
+  check_out: string
+  rental_mode: RentalMode
+  adults_count: number
+  children_count: number
+  total_price: number
+  calculated_price: number
+}
+interface StayEdit {
+  check_in?: string
+  check_out?: string
+  rental_mode?: RentalMode
+  adults_count?: number
+  children_count?: number
+}
+
+/** A sent date or time is new only if it differs from the saved one; a daily
+ *  stay comes back as its dates, which match the saved check-in day. */
+function moved(saved: string, sent: string | undefined): boolean {
+  if (sent === undefined) return false
+  return sent.length <= 10 ? saved.slice(0, 10) !== sent : saved.slice(0, 16) !== sent.slice(0, 16)
+}
+
+/** Whether saving would let the server reprice the stay: it does so for a price
+ *  it worked out itself (total equal to the calculated one) when the dates, the
+ *  mode or the party change. A price set by hand stays as it is. */
+export function wouldReprice(booking: PricedStay, edit: StayEdit): boolean {
+  if (booking.total_price !== booking.calculated_price) return false
+  return (
+    moved(booking.check_in, edit.check_in) ||
+    moved(booking.check_out, edit.check_out) ||
+    (edit.rental_mode !== undefined && edit.rental_mode !== booking.rental_mode) ||
+    (edit.adults_count !== undefined && edit.adults_count !== booking.adults_count) ||
+    (edit.children_count !== undefined && edit.children_count !== booking.children_count)
+  )
+}

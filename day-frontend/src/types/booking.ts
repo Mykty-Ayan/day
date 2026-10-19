@@ -207,6 +207,8 @@ export interface BookingUpdateInput {
   gantt_color?: string
   notes?: string
   override_rules?: boolean
+  /** Sent to keep the price as it is when the dates change. */
+  total_price?: number
 }
 
 export interface BookingFilters {
