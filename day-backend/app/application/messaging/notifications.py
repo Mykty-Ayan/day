@@ -28,7 +28,10 @@ from app.domain.messaging.value_objects import Channel, NotificationEvent
 logger = logging.getLogger(__name__)
 
 
-_SOURCES = {"direct": "Прямое", "booking": "Booking.com", "airbnb": "Airbnb", "other": "Другое", "crm": "CRM"}
+_SOURCES = {
+    "direct": "Прямое", "booking": "Booking.com", "airbnb": "Airbnb", "other": "Другое", "crm": "CRM",
+    "offer": "Личная ссылка",
+}
 
 _BOOKING_EVENTS = {NotificationEvent.BOOKING_CREATED, NotificationEvent.BOOKING_CANCELLED, NotificationEvent.GUEST_HOLD}
 

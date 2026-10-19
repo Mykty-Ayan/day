@@ -378,6 +378,10 @@ class TestNotifications:
         assert "Сумма: 25 000 ₸" in text
         assert "Источник: Прямое" in text
 
+    def test_a_booking_from_a_personal_link_says_so(self):
+        text = render(NotificationEvent.BOOKING_CREATED, {"total_price": "25000.00", "source": "offer"})
+        assert "Источник: Личная ссылка" in text
+
     @pytest.mark.asyncio
     async def test_booking_notice_carries_a_button_that_opens_the_booking(self):
         repo = FakeNotificationRepository()
