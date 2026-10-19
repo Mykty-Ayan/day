@@ -100,3 +100,38 @@ async def test_a_read_only_key_reads_the_links(flat):  # noqa: F811  (the import
 
     use(Permission.PROPERTIES_READ, Permission.PROPERTIES_WRITE)
     assert (await client.patch(path, json={"map_url": None})).json()["map_url"] is None
+
+
+@pytest.mark.parametrize(
+    ("url", "product_id"),
+    [
+        ("https://wa.me/p/1234567890123456/77010000000", "1234567890123456"),
+        ("https://wa.me/p/7654321098765", "7654321098765"),
+        ("http://www.wa.me/p/1234567890/77010000000?ref=x", "1234567890"),
+        ("https://wa.me/77010000000", None),  # a chat, not a product
+        ("https://wa.me/p/123/77010000000", None),  # too short for a catalogue id
+        ("https://evil.example/wa.me/p/1234567890123456", None),
+        (None, None),
+    ],
+)
+def test_the_product_id_is_read_from_the_catalogue_link(url, product_id):
+    from app.domain.property.entities import whatsapp_product_id
+
+    assert whatsapp_product_id(url) == product_id
+
+
+@pytest.mark.integration
+async def test_the_card_and_the_readiness_report_carry_the_product_id(flat):  # noqa: F811  (the imported fixture)
+    client, prop, use = flat
+    use(Permission.PROPERTIES_READ, Permission.PROPERTIES_WRITE)
+    before = (await client.get("/api/v1/properties/readiness")).json()["items"][0]
+    assert "whatsapp_product" in before["empty"]
+
+    await client.patch(f"/api/v1/properties/{prop}", json={"whatsapp_product_url": LINKS["whatsapp_product_url"]})
+
+    card = (await client.get(f"/api/v1/properties/{prop}")).json()
+    assert card["whatsapp_product_id"] == "1234567890123456"
+    listed = (await client.get("/api/v1/properties")).json()["items"]
+    assert [p["whatsapp_product_id"] for p in listed] == ["1234567890123456"]
+    after = (await client.get("/api/v1/properties/readiness")).json()["items"][0]
+    assert after["fields"]["whatsapp_product"] is True

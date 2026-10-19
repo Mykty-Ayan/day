@@ -101,6 +101,8 @@ export interface Property {
   floors_total: number | null
   map_url: string | null
   whatsapp_product_url: string | null
+  /** Read from the product link; the id the CRM sends the product by. */
+  whatsapp_product_id?: string | null
   video_url: string | null
   /** Stay rules for bookings made in Day; null is no rule. */
   min_nights: number | null

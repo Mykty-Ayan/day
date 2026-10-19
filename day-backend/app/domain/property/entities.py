@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 import secrets
 import uuid
 from dataclasses import dataclass, field
@@ -23,6 +24,16 @@ _CODE_ALPHABET = "abcdefghjkmnpqrstuvwxyz23456789"
 
 def new_public_code() -> str:
     return "".join(secrets.choice(_CODE_ALPHABET) for _ in range(7))
+
+
+# A WhatsApp Business catalogue product link: https://wa.me/p/<product id>/<phone>.
+_WA_PRODUCT = re.compile(r"^https?://(?:www\.)?wa\.me/p/(\d{10,18})(?:[/?#]|$)")
+
+
+def whatsapp_product_id(url: str | None) -> str | None:
+    """The catalogue product's id in its link, which Whapi sends by; None for any other link."""
+    found = _WA_PRODUCT.match(url or "")
+    return found.group(1) if found else None
 
 
 @dataclass
