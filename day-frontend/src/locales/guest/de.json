@@ -45,7 +45,9 @@
     "area": "{{area}} m²",
     "minNights_one": "Mindestens {{count}} Nacht",
     "minNights_other": "Mindestens {{count}} Nächte",
-    "totalHint": "Nur die Nächte, vor Rabatten und Aufpreisen für weitere Gäste."
+    "totalHint": "Nur die Nächte, vor Rabatten und Aufpreisen für weitere Gäste.",
+    "hours_one": "{{count}} Stunde",
+    "hours_other": "{{count}} Stunden"
   },
   "guestOffer": {
     "hello": "{{name}}, hier sind Wohnungen für Ihre Reisedaten",
@@ -100,7 +102,8 @@
     "sendFailed": "Senden fehlgeschlagen. Prüfen Sie die Verbindung und tippen Sie erneut.",
     "nameNeeded": "Ihre Telefonnummer stammt aus unserem Chat. Geben Sie den Namen an, auf den wir buchen.",
     "phoneWrong": "Eine Nummer hat 10 bis 15 Ziffern, mit Ländervorwahl.",
-    "ranOut": "Die Zeit ist um — wir prüfen die Zahlung"
+    "ranOut": "Die Zeit ist um — wir prüfen die Zahlung",
+    "hoursAtCheckIn": "Die Stunden, {{total}}, zahlen Sie bei Anreise"
   },
   "properties": {
     "checkInMethod": {

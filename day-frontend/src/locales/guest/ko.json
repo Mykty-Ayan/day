@@ -40,7 +40,8 @@
     "perHour": "시간당",
     "area": "{{area}}m²",
     "minNights": "최소 {{count}}박",
-    "totalHint": "숙박 요금만 표시되며, 할인과 추가 인원 요금은 제외됩니다."
+    "totalHint": "숙박 요금만 표시되며, 할인과 추가 인원 요금은 제외됩니다.",
+    "hours": "{{count}}시간"
   },
   "guestOffer": {
     "hello": "{{name}}님, 원하시는 날짜의 숙소입니다",
@@ -94,7 +95,8 @@
     "sendFailed": "전송하지 못했습니다. 연결을 확인하고 다시 눌러 주세요.",
     "nameNeeded": "전화번호는 채팅 내용에서 가져왔습니다. 예약자 이름을 입력해 주세요.",
     "phoneWrong": "번호는 국가 번호를 포함해 10~15자리여야 합니다.",
-    "ranOut": "시간이 끝났습니다 — 결제를 확인하고 있습니다"
+    "ranOut": "시간이 끝났습니다 — 결제를 확인하고 있습니다",
+    "hoursAtCheckIn": "이용 요금 {{total}}: 체크인 시 결제"
   },
   "properties": {
     "checkInMethod": {

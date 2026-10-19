@@ -1265,7 +1265,9 @@
     "area": "{{area}} m²",
     "minNights_one": "At least {{count}} night",
     "minNights_other": "At least {{count}} nights",
-    "totalHint": "The nights alone, before discounts and fees for extra guests."
+    "totalHint": "The nights alone, before discounts and fees for extra guests.",
+    "hours_one": "{{count}} hour",
+    "hours_other": "{{count}} hours"
   },
   "guestOffer": {
     "hello": "{{name}}, here are flats for your dates",
@@ -1320,7 +1322,8 @@
     "sendFailed": "Could not send. Check the connection and press again.",
     "nameNeeded": "Your phone comes from our chat. Write the name we book for.",
     "phoneWrong": "A number has 10 to 15 digits, with the country code.",
-    "ranOut": "Time is up — checking the payment"
+    "ranOut": "Time is up — checking the payment",
+    "hoursAtCheckIn": "The hours, {{total}}, are paid at check-in"
   },
   "expenses": {
     "title": "Expenses",
@@ -1424,7 +1427,8 @@
       "listing_urls": "Listing links",
       "photos": "Photos",
       "pricing": "Prices",
-      "facts": "Facts for guests"
+      "facts": "Facts for guests",
+      "whatsapp_product": "WhatsApp catalogue product"
     }
   }
 }

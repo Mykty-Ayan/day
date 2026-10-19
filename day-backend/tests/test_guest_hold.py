@@ -3,7 +3,7 @@ the host to send a Kaspi invoice for the deposit. One link makes one booking at 
 time; a hold that lapses lets the guest book again."""
 
 import uuid
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, time, timedelta
 from decimal import Decimal
 
 import pytest
@@ -274,3 +274,90 @@ async def test_booking_from_a_link_through_the_api(flat):  # noqa: F811  (the im
     page = (await client.get(f"/api/v1/public/offers/{code}")).json()
     assert page["booking"]["flat"] == flat_code and page["booking"]["status"] == "pending"
     assert "2345678" not in str(page)
+
+
+@pytest.mark.integration
+async def test_a_booking_from_a_link_carries_the_crms_conversation_to_the_feed(flat):  # noqa: F811  (the imported fixture)
+    client, prop, use = flat
+    soon = date.today() + timedelta(days=12)
+    conversation = str(uuid.uuid4())
+    use(Permission.BOOKINGS_READ, Permission.BOOKINGS_WRITE, Permission.PROPERTIES_READ)
+    offer = {"guest_name": "Ерлан", "guest_phone": "+77012345679", "check_in": soon.isoformat(),
+             "check_out": (soon + timedelta(days=1)).isoformat(), "guests": 1, "property_ids": [str(prop)]}
+    assert (await client.post("/api/v1/offers", json={**offer, "external_id": "x" * 256})).status_code == 422
+    created = await client.post("/api/v1/offers", json={**offer, "external_id": conversation})
+    assert created.status_code == 201, created.text
+    assert created.json()["external_id"] == conversation
+    code = created.json()["code"]
+    flat_code = (await client.get(f"/api/v1/properties/{prop}")).json()["public_code"]
+
+    use()  # the guest
+    assert conversation not in (await client.get(f"/api/v1/public/offers/{code}")).text
+    booked = await client.post(f"/api/v1/public/offers/{code}/book", json={"flat": flat_code, "guests": 1})
+    assert booked.status_code == 201, booked.text
+    assert conversation not in booked.text
+
+    # The feed shows a change some 30 s later, from the same booking's external_id.
+    use(Permission.BOOKINGS_READ)
+    listed = (await client.get("/api/v1/bookings", params={"source": "offer"})).json()["items"]
+    assert [(b["external_id"], b["status"]) for b in listed] == [(conversation, "pending")]
+
+
+@pytest.mark.integration
+async def test_an_hourly_link_books_the_hours_with_the_hourly_deposit(flat):  # noqa: F811  (the imported fixture)
+    client, prop, use = flat
+    day = date.today() + timedelta(days=14)
+    use(Permission.BOOKINGS_READ, Permission.BOOKINGS_WRITE, Permission.PROPERTIES_READ, Permission.PROPERTIES_WRITE)
+    assert (await client.patch(f"/api/v1/properties/{prop}", json={"rental_mode": "both"})).status_code == 200
+    priced = await client.put(f"/api/v1/properties/{prop}/pricing", json={
+        "base_price": 20000, "hourly_price": 3000, "default_deposit": 10000, "hourly_deposit": 5000,
+    })
+    assert priced.status_code == 200, priced.text
+    offer = {"guest_name": "Ерлан", "guest_phone": "+77012345670", "guests": 2, "property_ids": [str(prop)],
+             "rental_mode": "hourly", "starts_at": f"{day}T15:00:00", "ends_at": f"{day}T18:00:00"}
+    assert (await client.post("/api/v1/offers", json={**offer, "ends_at": None})).status_code == 422
+    zoned = {**offer, "starts_at": f"{day}T15:00:00+05:00"}
+    assert (await client.post("/api/v1/offers", json=zoned)).status_code == 422
+    created = await client.post("/api/v1/offers", json=offer)
+    assert created.status_code == 201, created.text
+    body = created.json()
+    assert (body["rental_mode"], body["check_in"], body["starts_at"]) == ("hourly", str(day), f"{day}T15:00:00")
+    code = body["code"]
+    flat_code = (await client.get(f"/api/v1/properties/{prop}")).json()["public_code"]
+
+    use()  # the guest
+    page = (await client.get(f"/api/v1/public/offers/{code}")).json()
+    assert (page["rental_mode"], page["hours"], page["flats"][0]["total"], page["flats"][0]["free"]) == (
+        "hourly", 3, 9000.0, True
+    )
+    booked = await client.post(f"/api/v1/public/offers/{code}/book", json={"flat": flat_code, "guests": 2})
+    assert booked.status_code == 201, booked.text
+    assert (booked.json()["deposit"], booked.json()["total"]) == (5000.0, 9000.0)
+
+    use(Permission.BOOKINGS_READ)
+    [made] = (await client.get("/api/v1/bookings", params={"source": "offer"})).json()["items"]
+    assert (made["rental_mode"], made["check_in"], made["check_out"], made["status"]) == (
+        "hourly", f"{day}T15:00:00", f"{day}T18:00:00", "pending"
+    )
+
+
+async def test_an_hourly_link_is_not_booked_once_its_hours_began():
+    from app.application.booking.guest_offers import OfferExpiredError
+
+    h = Holds()
+    unit = await h.flat()
+    unit.rental_mode = RentalMode.HOURLY
+    day = NOW.date() + timedelta(days=1)
+    offer = await h.made.create(
+        COMPANY_ID, guest_name="Ерлан", guest_phone="+7 701 234 56 78", guests=2, property_ids=[unit.id],
+        rental_mode=RentalMode.HOURLY,
+        starts_at=datetime.combine(day, time(15)),
+        ends_at=datetime.combine(day, time(18)),
+    )
+    # 10:30 UTC is 15:30 in Almaty: the hours began half an hour ago, the same day.
+    h.now = datetime.combine(day, time(10, 30))
+    with pytest.raises(OfferExpiredError):
+        await h.service.book(offer.code, flat=unit.public_code, guests=2)
+    h.now = datetime.combine(day, time(9, 30))  # 14:30 in Almaty
+    held = await h.service.book(offer.code, flat=unit.public_code, guests=2)
+    assert (held.booking.rental_mode, held.booking.check_in) == (RentalMode.HOURLY, datetime.combine(day, time(15)))

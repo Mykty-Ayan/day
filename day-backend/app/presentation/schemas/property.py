@@ -162,6 +162,8 @@ class PropertyResponse(BaseModel):
     floors_total: int | None = None
     map_url: str | None = None
     whatsapp_product_url: str | None = None
+    # Read from the product link (wa.me/p/<id>/<phone>): the id Whapi sends a catalogue product by.
+    whatsapp_product_id: str | None = None
     video_url: str | None = None
     listing_urls: list[str] = []
     hourly_listing_urls: list[str] = []

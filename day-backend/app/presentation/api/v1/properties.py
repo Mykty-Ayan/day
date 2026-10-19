@@ -33,7 +33,7 @@ from app.application.property.update_property import (
 from app.config import settings
 from app.domain.auth.permissions import Permission
 from app.domain.booking.exceptions import BlockFromCalendarError, BlockOverlapsBookingError
-from app.domain.property.entities import DiscountRule, PropertyCosts, SeasonalPrice
+from app.domain.property.entities import DiscountRule, PropertyCosts, SeasonalPrice, whatsapp_product_id
 from app.domain.property.value_objects import FactAudience, FactSource, PropertyStatus
 from app.infrastructure.calendar_feeds import build_calendar_feeds
 from app.infrastructure.calendar_fetch import fetch_calendar
@@ -168,6 +168,7 @@ def _to_property_response(p, photos: list | None = None, *, sees_secrets: bool) 
         floors_total=p.floors_total,
         map_url=p.map_url,
         whatsapp_product_url=p.whatsapp_product_url,
+        whatsapp_product_id=whatsapp_product_id(p.whatsapp_product_url),
         video_url=p.video_url,
         listing_urls=p.listing_urls,
         hourly_listing_urls=p.hourly_listing_urls,
@@ -330,6 +331,7 @@ _READINESS_FIELDS = {
     "house_rules": lambda p, x: bool(p.house_rules),
     "wifi": lambda p, x: bool(p.wifi_name),
     "listing_urls": lambda p, x: bool(p.listing_urls or p.hourly_listing_urls),
+    "whatsapp_product": lambda p, x: whatsapp_product_id(p.whatsapp_product_url) is not None,
     "photos": lambda p, x: x["photos"],
     "pricing": lambda p, x: x["pricing"],
     "facts": lambda p, x: x["facts"],

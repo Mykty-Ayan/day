@@ -1164,6 +1164,10 @@ class SqlGuestOfferRepository(GuestOfferRepository):
             guests=offer.guests,
             property_ids=[str(p) for p in offer.property_ids],
             created_by=offer.created_by,
+            external_id=offer.external_id,
+            rental_mode=offer.rental_mode.value,
+            starts_at=offer.starts_at,
+            ends_at=offer.ends_at,
         )
         self._session.add(model)
         await self._session.flush()
@@ -1194,4 +1198,8 @@ def _model_to_offer(m: GuestOfferModel) -> GuestOffer:
         created_by=m.created_by,
         created_at=m.created_at,
         booking_id=m.booking_id,
+        external_id=m.external_id,
+        rental_mode=RentalMode(m.rental_mode),
+        starts_at=m.starts_at,
+        ends_at=m.ends_at,
     )
