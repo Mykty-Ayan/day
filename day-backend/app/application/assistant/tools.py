@@ -74,7 +74,7 @@ _OVERRIDE_RULES = {
 _RULE_WORDS = {
     "min_nights": "минимум ночей {limit}, в брони {actual}",
     "max_nights": "максимум ночей {limit}, в брони {actual}",
-    "buffer_hours": "часов на уборку между почасовыми бронями {limit}, здесь {actual}",
+    "buffer_minutes": "минут на уборку между почасовыми бронями {limit}, здесь {actual}",
     "min_lead_hours": "бронировать не позже чем за {limit} ч до заезда, а до заезда {actual} ч",
 }
 

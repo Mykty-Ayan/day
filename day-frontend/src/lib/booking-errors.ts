@@ -80,7 +80,7 @@ export function getBookingFieldError(error: unknown, t: Translate): BookingField
 
 /** One stay rule of the apartment a booking breaks (see the property's rules). */
 export interface StayRuleBreach {
-  rule: 'min_nights' | 'max_nights' | 'buffer_hours' | 'min_lead_hours'
+  rule: 'min_nights' | 'max_nights' | 'buffer_minutes' | 'min_lead_hours'
   limit: number
   actual: number
 }

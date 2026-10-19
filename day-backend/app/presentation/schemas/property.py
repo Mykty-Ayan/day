@@ -77,7 +77,7 @@ class PropertyCreate(_TurnoverHours):
     # Stay rules for bookings made in Day; null is no rule.
     min_nights: int | None = Field(default=None, ge=1, le=365)
     max_nights: int | None = Field(default=None, ge=1, le=365)
-    buffer_hours: int | None = Field(default=None, ge=1, le=24)
+    buffer_minutes: int | None = Field(default=None, ge=15, le=1440, multiple_of=15)
     min_lead_hours: int | None = Field(default=None, ge=1, le=24 * 30)
     rooms: int | None = None
     beds: int | None = None
@@ -119,7 +119,7 @@ class PropertyUpdate(_TurnoverHours):
     # Stay rules for bookings made in Day; null is no rule.
     min_nights: int | None = Field(default=None, ge=1, le=365)
     max_nights: int | None = Field(default=None, ge=1, le=365)
-    buffer_hours: int | None = Field(default=None, ge=1, le=24)
+    buffer_minutes: int | None = Field(default=None, ge=15, le=1440, multiple_of=15)
     min_lead_hours: int | None = Field(default=None, ge=1, le=24 * 30)
     rooms: int | None = None
     beds: int | None = None
@@ -167,7 +167,7 @@ class PropertyResponse(BaseModel):
     hourly_listing_urls: list[str] = []
     min_nights: int | None = None
     max_nights: int | None = None
-    buffer_hours: int | None = None
+    buffer_minutes: int | None = None
     min_lead_hours: int | None = None
     rooms: int | None = None
     beds: int | None = None

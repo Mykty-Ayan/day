@@ -81,7 +81,7 @@ class ClonePropertyService:
             video_url=source.video_url,
             min_nights=source.min_nights,
             max_nights=source.max_nights,
-            buffer_hours=source.buffer_hours,
+            buffer_minutes=source.buffer_minutes,
             min_lead_hours=source.min_lead_hours,
             rooms=source.rooms,
             beds=source.beds,

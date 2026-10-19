@@ -105,7 +105,7 @@ export interface Property {
   /** Stay rules for bookings made in Day; null is no rule. */
   min_nights: number | null
   max_nights: number | null
-  buffer_hours: number | null
+  buffer_minutes: number | null
   min_lead_hours: number | null
   /** The flat's listings (Krisha, Booking, Airbnb, OLX); the CRM finds the flat by a guest's link. */
   listing_urls: string[]
@@ -155,7 +155,7 @@ export interface PropertyCreateInput {
   video_url?: string | null
   min_nights?: number | null
   max_nights?: number | null
-  buffer_hours?: number | null
+  buffer_minutes?: number | null
   min_lead_hours?: number | null
   listing_urls?: string[]
   hourly_listing_urls?: string[]

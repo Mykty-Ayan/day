@@ -22,7 +22,7 @@ from tests.test_property_services import (
     _make_property,
 )
 
-RULES = {"min_nights": 2, "max_nights": 28, "buffer_hours": 2, "min_lead_hours": 3}
+RULES = {"min_nights": 2, "max_nights": 28, "buffer_minutes": 120, "min_lead_hours": 3}
 
 
 def test_stay_rules_are_accepted():
@@ -37,8 +37,10 @@ def test_stay_rules_are_accepted():
         ("min_nights", 0),
         ("min_nights", 366),
         ("max_nights", 0),
-        ("buffer_hours", 0),
-        ("buffer_hours", 25),
+        ("buffer_minutes", 0),
+        ("buffer_minutes", 1455),
+        # Steps of 15 minutes.
+        ("buffer_minutes", 20),
         ("min_lead_hours", 0),
         ("min_lead_hours", 24 * 30 + 1),
     ],
@@ -112,4 +114,4 @@ async def test_stay_rules_are_read_and_written_through_the_api(flat):  # noqa: F
     assert {k: (await client.get(path)).json()[k] for k in RULES} == RULES
 
     use(Permission.PROPERTIES_READ, Permission.PROPERTIES_WRITE)
-    assert (await client.patch(path, json={"buffer_hours": None})).json()["buffer_hours"] is None
+    assert (await client.patch(path, json={"buffer_minutes": None})).json()["buffer_minutes"] is None
