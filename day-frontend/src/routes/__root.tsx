@@ -1,5 +1,5 @@
 import { createRootRoute, Outlet, Link, useRouterState, redirect } from '@tanstack/react-router'
-import { Building2, CalendarRange, CalendarDays, Clock, SprayCan, ClipboardList, BarChart3, Sparkles, Settings, LogOut } from 'lucide-react'
+import { Building2, CalendarRange, CalendarDays, Clock, SprayCan, ClipboardList, BarChart3, Sparkles, Settings, LogOut, Wallet } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import MobileShell from '../components/layout/MobileShell'
 import ToastContainer from '../components/ui/Toast'
@@ -77,6 +77,8 @@ function AuthenticatedLayout() {
     { to: '/cleaning', label: t('nav.cleaning'), icon: SprayCan },
     { to: '/cleaning/checklists', label: t('nav.checklists'), icon: ClipboardList },
     { to: '/analytics', label: t('nav.analytics'), icon: BarChart3 },
+    // The company's money out: the owner's only.
+    ...(user?.role === 'owner' ? [{ to: '/expenses', label: t('nav.expenses'), icon: Wallet }] : []),
     ...(AI_IMPORT_ENABLED ? [{ to: '/ai-import', label: t('nav.aiImport'), icon: Sparkles }] : []),
     { to: '/settings', label: t('nav.settings'), icon: Settings },
   ] as const
@@ -93,7 +95,7 @@ function AuthenticatedLayout() {
   if (isMobileShell) {
     return (
       <>
-        <MobileShell key={pathname} pathname={pathname} userEmail={user?.email} onLogout={logout}>
+        <MobileShell key={pathname} pathname={pathname} userEmail={user?.email} isOwner={user?.role === 'owner'} onLogout={logout}>
           <Outlet />
         </MobileShell>
         <ToastContainer />

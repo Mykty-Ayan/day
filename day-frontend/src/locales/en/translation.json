@@ -9,7 +9,8 @@
     "analytics": "Analytics",
     "aiImport": "AI Import",
     "settings": "Settings",
-    "more": "More"
+    "more": "More",
+    "expenses": "Expenses"
   },
   "common": {
     "save": "Save",
@@ -1312,5 +1313,50 @@
     "nameNeeded": "Your phone comes from our chat. Write the name we book for.",
     "phoneWrong": "A number has 10 to 15 digits, with the country code.",
     "ranOut": "Time is up — checking the payment"
+  },
+  "expenses": {
+    "title": "Expenses",
+    "month": "Month",
+    "add": "New expense",
+    "category": "Category",
+    "amount": "Amount",
+    "day": "Day",
+    "flat": "Flat",
+    "flatNone": "Whole company",
+    "flatChoose": "Choose the flat",
+    "payee": "Paid to",
+    "note": "Note",
+    "save": "Record",
+    "list": "This month's expenses",
+    "total": "Total: {{amount}}",
+    "empty": "No expenses this month",
+    "void": "Void",
+    "voidConfirm": "Void this expense? It stays in the history but leaves the totals.",
+    "voided": "Expense voided",
+    "saved": "Expense recorded",
+    "failed": "Could not save",
+    "ownerOnly": "Only the owner sees and records expenses.",
+    "errors": {
+      "rentNeedsFlat": "Rent is paid for a flat: choose it",
+      "amount": "The amount must be above zero",
+      "day": "Choose the day"
+    },
+    "categories": {
+      "rent": "Rent",
+      "utilities": "Utilities",
+      "internet": "Internet",
+      "cleaning": "Cleaning",
+      "laundry": "Laundry and linen",
+      "supplies": "Supplies",
+      "repairs": "Repairs",
+      "furniture": "Furniture and appliances",
+      "advertising": "Advertising",
+      "platform_commission": "Platform commission",
+      "payment_fees": "Payment fees",
+      "staff": "Staff",
+      "agent_commission": "Agent commission",
+      "software": "Software",
+      "other": "Other"
+    }
   }
 }
