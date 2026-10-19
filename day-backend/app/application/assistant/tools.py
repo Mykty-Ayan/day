@@ -15,6 +15,7 @@ from typing import Any, Awaitable, Callable
 
 from app.domain.assistant.value_objects import ToolEffect
 from app.domain.booking.exceptions import StayRulesError
+from app.domain.booking.stay_rules import describe_breach
 
 _DATE = {"type": "string", "description": "Дата в формате ГГГГ-ММ-ДД"}
 
@@ -71,12 +72,6 @@ _OVERRIDE_RULES = {
     ),
 }
 
-_RULE_WORDS = {
-    "min_nights": "минимум ночей {limit}, в брони {actual}",
-    "max_nights": "максимум ночей {limit}, в брони {actual}",
-    "buffer_minutes": "минут на уборку между почасовыми бронями {limit}, здесь {actual}",
-    "min_lead_hours": "бронировать не позже чем за {limit} ч до заезда, а до заезда {actual} ч",
-}
 
 
 def _overrides(value: Any) -> bool:
@@ -89,7 +84,7 @@ _AGAINST_RULES = " вопреки правилам квартиры"
 
 
 def _stay_rules_refused(refused: StayRulesError) -> ValueError:
-    broken = "; ".join(_RULE_WORDS[b.rule].format(limit=b.limit, actual=b.actual) for b in refused.breaches)
+    broken = "; ".join(describe_breach(b) for b in refused.breaches)
     return ValueError(
         f"Бронь нарушает правила квартиры: {broken}. Нарушить их можно только если пользователь явно "
         "согласится: тогда повтори с override_rules=true."
@@ -297,7 +292,7 @@ class ToolContext:
                     "price": float(item.total_price) if item.total_price is not None else None,
                     "no_price_reason": item.price_error,
                     "breaks_rules": [
-                        _RULE_WORDS[b.rule].format(limit=b.limit, actual=b.actual) for b in item.rule_breaches
+                        describe_breach(b) for b in item.rule_breaches
                     ],
                 }
                 for item in found

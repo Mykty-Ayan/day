@@ -95,3 +95,14 @@ async def test_the_api_leaves_out_a_breaking_flat_unless_asked(flat):  # noqa: F
     assert [(i["property_id"], i["rule_breaches"]) for i in asked["items"]] == [
         (str(prop), [{"rule": "min_nights", "limit": 2, "actual": 1}])
     ]
+
+
+@pytest.mark.asyncio
+async def test_the_buffer_reaches_a_booking_after_midnight():
+    # A stay to 23:00 and a guest at 00:30: two hours to clean are not there.
+    unit = _hourly_flat(buffer_minutes=120)
+    night = Booking(company_id=COMPANY_ID, property_id=unit.id, status=BookingStatus.CONFIRMED,
+                    rental_mode=RentalMode.HOURLY,
+                    check_in=datetime(2030, 10, 21, 0, 30), check_out=datetime(2030, 10, 21, 3))
+
+    assert await _search(unit, datetime(2030, 10, 20, 20), datetime(2030, 10, 20, 23), bookings=[night]) == []

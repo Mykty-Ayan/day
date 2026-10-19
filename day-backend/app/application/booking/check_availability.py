@@ -115,10 +115,10 @@ class CheckAvailabilityService:
         # The repository compares with midnight of end_date, and a flat's own
         # check-out can run past a booking that starts later that day; a day
         # wider catches it, and the exact check below decides.
-        # A day earlier too: a cleaning buffer (at most a day) reaches back to the
-        # bookings before the stay.
+        # A day wider on each side: a cleaning buffer (at most a day) reaches the
+        # bookings before the stay and past the midnight after it.
         bookings = await self._bookings.list_by_company_date_range(
-            company_id, start.date() - timedelta(days=1), end.date() + timedelta(days=1)
+            company_id, start.date() - timedelta(days=1), end.date() + timedelta(days=2)
         )
         now = self._now() if self._now is not None else await company_now(self._settings, company_id)
 

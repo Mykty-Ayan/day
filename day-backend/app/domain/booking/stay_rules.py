@@ -97,3 +97,16 @@ def stay_breaches(
             found.append(RuleBreach("min_lead_hours", rules.min_lead_hours, _hours(ahead)))
 
     return found
+
+
+_RULE_WORDS = {
+    "min_nights": "минимум ночей {limit}, в брони {actual}",
+    "max_nights": "максимум ночей {limit}, в брони {actual}",
+    "buffer_minutes": "минут на уборку между почасовыми бронями {limit}, здесь {actual}",
+    "min_lead_hours": "бронировать не позже чем за {limit} ч до заезда, а до заезда {actual} ч",
+}
+
+
+def describe_breach(breach: RuleBreach) -> str:
+    """The broken rule in words, for the operator in Telegram."""
+    return _RULE_WORDS[breach.rule].format(limit=breach.limit, actual=breach.actual)
