@@ -72,6 +72,7 @@ def build_availability(session: AsyncSession) -> CheckAvailabilityService:
         SqlPropertyRepository(session),
         SqlBookingRepository(session),
         build_price_calculator(session),
+        SqlCompanySettingsRepository(session),
     )
 
 

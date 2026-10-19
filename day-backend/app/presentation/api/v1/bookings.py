@@ -109,6 +109,7 @@ from app.presentation.schemas.booking import (
     PaymentResponse,
     PriceCalculateRequest,
     PriceCalculateResponse,
+    StayRuleBreachResponse,
     TodayBookingItem,
     TodayCheckResponse,
 )
@@ -765,16 +766,19 @@ async def get_availability(
     adults_count: int = Query(default=1, ge=1),
     children_count: int = Query(default=0, ge=0),
     rental_mode: RentalMode = Query(default=RentalMode.DAILY),
+    include_rule_breaches: bool = Query(default=False),
     session: AsyncSession = Depends(get_session),
     company_id: uuid.UUID = Depends(get_company_id),
 ):
     """Properties free for the period, cheapest first, with a quote each.
 
     Used by the Mini App and the bots, and available to any integration holding
-    a `bookings:read` key.
+    a `bookings:read` key. Only what booking would accept: a flat whose stay rules
+    the stay breaks is left out, unless include_rule_breaches asks for it with
+    the rules (an operator may book it by confirming).
     """
     repos = _repos(session)
-    svc = CheckAvailabilityService(repos["property"], repos["booking"], _price_calculator(repos))
+    svc = CheckAvailabilityService(repos["property"], repos["booking"], _price_calculator(repos), repos["settings"])
     try:
         available = await svc.execute(
             company_id,
@@ -783,6 +787,7 @@ async def get_availability(
             adults_count=adults_count,
             children_count=children_count,
             rental_mode=rental_mode,
+            with_rule_breaches=include_rule_breaches,
         )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -812,6 +817,9 @@ async def get_availability(
                     for p in sorted(flat_photos, key=lambda p: (not p.is_cover, p.sort_order))
                     # Offered to people who have not booked: never a check-in photo.
                     if p.audience != FactAudience.GUEST
+                ],
+                rule_breaches=[
+                    StayRuleBreachResponse(rule=b.rule, limit=b.limit, actual=b.actual) for b in item.rule_breaches
                 ],
             )
             for item, flat_photos in zip(available, photos)

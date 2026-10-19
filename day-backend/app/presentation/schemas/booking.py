@@ -352,6 +352,12 @@ class AvailablePhotoResponse(BaseModel):
     sort_order: int
 
 
+class StayRuleBreachResponse(BaseModel):
+    rule: str
+    limit: int
+    actual: int
+
+
 class AvailablePropertyResponse(BaseModel):
     model_config = ConfigDict(json_encoders={Decimal: float})
 
@@ -372,6 +378,8 @@ class AvailablePropertyResponse(BaseModel):
     check_out: datetime | None = None
     # Cover first, then in the host's order: one answer is enough to offer a flat.
     photos: list[AvailablePhotoResponse] = []
+    # Only with include_rule_breaches: the flat's stay rules this stay breaks.
+    rule_breaches: list[StayRuleBreachResponse] = []
 
 
 class AvailabilityResponse(BaseModel):

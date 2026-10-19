@@ -219,14 +219,18 @@ class FakeBookingRepository(BookingRepository):
         ]
 
     async def list_by_company_date_range(self, company_id, start_date, end_date):
+        # As the database compares: a date is its midnight, against stays with times.
+        def moment(value):
+            return value if isinstance(value, datetime) else datetime.combine(value, datetime.min.time())
+
         return [
             b
             for b in self._bookings.values()
             if b.company_id == company_id
             and b.check_in
             and b.check_out
-            and b.check_in < end_date
-            and b.check_out > start_date
+            and moment(b.check_in) < moment(end_date)
+            and moment(b.check_out) > moment(start_date)
         ]
 
     async def list_changed(self, company_id, *, after, until, limit):

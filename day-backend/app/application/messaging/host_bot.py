@@ -219,7 +219,8 @@ class HostBotService:
         check_in = date_range.check_in if date_range else today
         check_out = date_range.check_out if date_range else today + timedelta(days=1)
 
-        available = await self._availability.execute(company_id, check_in, check_out)
+        # The host may sell against a rule, so a flat that breaks one is still listed.
+        available = await self._availability.execute(company_id, check_in, check_out, with_rule_breaches=True)
         header = f"<b>Свободно {format_date(check_in)} — {format_date(check_out)}</b>"
         if not available:
             return BotReply(f"{header}\n\nСвободных объектов нет.")

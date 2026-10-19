@@ -283,8 +283,9 @@ class ToolContext:
     async def availability(self, check_in: str, check_out: str | None = None, guests: int = 2) -> Any:
         start = parse_date(check_in)
         end = parse_date(check_out, start + timedelta(days=1))
+        # The operator may book against a rule by confirming: such a flat is listed, with the rules.
         found = await self._availability.execute(
-            self._company_id, start, end, adults_count=max(1, guests), children_count=0
+            self._company_id, start, end, adults_count=max(1, guests), children_count=0, with_rule_breaches=True
         )
         return {
             "check_in": start.isoformat(),
@@ -295,6 +296,9 @@ class ToolContext:
                     "internal_name": item.property.internal_name,
                     "price": float(item.total_price) if item.total_price is not None else None,
                     "no_price_reason": item.price_error,
+                    "breaks_rules": [
+                        _RULE_WORDS[b.rule].format(limit=b.limit, actual=b.actual) for b in item.rule_breaches
+                    ],
                 }
                 for item in found
             ],

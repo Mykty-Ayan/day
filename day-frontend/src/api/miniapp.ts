@@ -49,6 +49,8 @@ export async function getAvailability(
       check_out: checkOut,
       adults_count: options.adults ?? MINIAPP_ADULTS,
       rental_mode: options.rentalMode ?? 'daily',
+      // The operator may sell against a flat's rule by confirming: list such flats too.
+      include_rule_breaches: true,
     },
   })
   return res.data
