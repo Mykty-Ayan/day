@@ -179,7 +179,8 @@ def _to_property_response(p, photos: list | None = None, *, sees_secrets: bool) 
         check_in_method=p.check_in_method,
         area_living=p.area_living,
         area_total=p.area_total,
-        check_in_instructions=p.check_in_instructions,
+        # How a guest gets in may hold a code: only for those who hand codes to guests.
+        check_in_instructions=p.check_in_instructions if sees_secrets else None,
         check_out_instructions=p.check_out_instructions,
         house_rules=p.house_rules,
         wifi_name=p.wifi_name,
@@ -457,6 +458,10 @@ async def update_property(
 
     # Build input, only setting fields that were explicitly provided
     provided = body.model_dump(exclude_unset=True)
+    # A writer who cannot see how a guest gets in got it as null: what it sends back
+    # is not an edit, and must not erase it.
+    if not _sees_secrets(principal):
+        provided.pop("check_in_instructions", None)
     inp = UpdatePropertyInput(property_id=property_id, company_id=company_id, changed_by=user_id)
     for field_name, value in provided.items():
         setattr(inp, field_name, value)
@@ -1044,6 +1049,7 @@ async def get_audit_log(
     limit: int = Query(default=50, ge=1, le=100),
     session: AsyncSession = Depends(get_session),
     company_id: uuid.UUID = Depends(get_company_id),
+    principal: Principal = Depends(get_principal),
 ):
     repos = _repos(session)
     # Check property belongs to company
@@ -1051,7 +1057,14 @@ async def get_audit_log(
     if prop is None or prop.company_id != company_id:
         raise HTTPException(status_code=404, detail="Property not found")
     logs = await repos["audit"].list_by_property(property_id, offset=offset, limit=limit)
-    return [PropertyAuditLogResponse.model_validate(entry, from_attributes=True) for entry in logs]
+    entries = [PropertyAuditLogResponse.model_validate(entry, from_attributes=True) for entry in logs]
+    if not _sees_secrets(principal):
+        # The history of how a guest gets in may hold a code, older rows included.
+        for entry in entries:
+            if entry.field_name == "check_in_instructions":
+                entry.old_value = "***" if entry.old_value else entry.old_value
+                entry.new_value = "***" if entry.new_value else entry.new_value
+    return entries
 
 
 # ---------- Property Tags ----------
