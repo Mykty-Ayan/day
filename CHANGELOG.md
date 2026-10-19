@@ -2,7 +2,7 @@
 
 ## 0.6.0 — 2026-10-20
 
-The owner keeps the company's expenses and the agents who bring guests, and writes the rules for guests once for every flat. The CRM gets what its AI needs to sell alone: a deposit moves the booking in the feed, a booking from a personal link says so, the free-dates search names the stay rules a stay would break, and a readiness report shows what each flat's card lacks. Migrations 045–049 run on start. No environment variable has to change.
+The owner keeps the company's expenses and the agents who bring guests, and writes the rules for guests once for every flat. The CRM gets what its AI needs to sell alone: a deposit moves the booking in the feed, a booking from a personal link says so, the free-dates search names the stay rules a stay would break, a readiness report shows what each flat's card lacks, a personal link can be by the hour and carries the CRM's conversation id to its booking, and a flat's card gives the WhatsApp catalogue product id. Migrations 045–051 run on start. No environment variable has to change.
 
 **Breaking for integrations:** a flat's cleaning buffer is now `buffer_minutes` (was `buffer_hours`); migration 045 turns the stored hours into minutes. The CRM was told before the release.
 
@@ -13,6 +13,9 @@ The owner keeps the company's expenses and the agents who bring guests, and writ
 - `GET /bookings/availability?include_rule_breaches=true` names the stay rules each free flat would break (#173)
 - The company's rules for guests (`/company-facts`), shown on every flat's card as `company_facts`; a rule for staying guests needs the secrets permission, as on a flat (#181)
 - A readiness report (`GET /properties/readiness`) and a "Readiness" page: which fields of each flat are filled, never their values (#181, #182)
+- `whatsapp_product_id` on a flat, read from its WhatsApp catalogue product link (`wa.me/p/<id>/<phone>`) (#184)
+- `external_id` on `POST /offers`: the booking made by the link carries it as its own `external_id`, also in the feed; the guest never sees it (#185)
+- A personal link by the hour (`rental_mode=hourly`, `starts_at`, `ends_at`): the page prices the hours, keeps the flat's buffer and notice, and the guest's booking is hourly with the hourly deposit (#186, #187)
 
 ### Changed
 - The cleaning buffer is set in minutes in 15-minute steps; a new flat's form suggests 30 (#172)
