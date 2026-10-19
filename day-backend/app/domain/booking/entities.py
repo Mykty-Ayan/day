@@ -72,6 +72,8 @@ class Booking:
     overbooking: bool = False
     # The id of this booking in the system that asked for it (a CRM deal).
     external_id: str | None = None
+    # The agent who brought the guest, for a cut the owner records as an expense.
+    agent_id: uuid.UUID | None = None
     # The Idempotency-Key of the create request and a hash of its body, so a
     # retry gets this booking back and a reused key with another body is caught.
     idempotency_key: str | None = None

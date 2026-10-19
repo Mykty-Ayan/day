@@ -131,6 +131,7 @@ class CreateBookingInput:
     notes: str | None = None
     changed_by: uuid.UUID | None = None
     external_id: str | None = None
+    agent_id: uuid.UUID | None = None
     idempotency_key: str | None = None
     idempotency_hash: str | None = None
     # Naive UTC. Makes the booking a hold that lapses at this moment.
@@ -282,6 +283,7 @@ class CreateBookingService:
                 children_count=inp.children_count,
                 notes=inp.notes,
                 external_id=inp.external_id,
+                agent_id=inp.agent_id,
                 idempotency_key=inp.idempotency_key,
                 idempotency_hash=inp.idempotency_hash,
                 expires_at=inp.expires_at,

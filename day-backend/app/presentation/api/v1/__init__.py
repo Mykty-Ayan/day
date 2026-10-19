@@ -1,5 +1,6 @@
 from fastapi import APIRouter
 
+from app.presentation.api.v1.agents import agent_router
 from app.presentation.api.v1.ai_migration import ai_migration_router
 from app.presentation.api.v1.analytics import analytics_router
 from app.presentation.api.v1.assistant import assistant_router
@@ -48,3 +49,4 @@ api_v1_router.include_router(ical_router)
 api_v1_router.include_router(public_router)
 api_v1_router.include_router(offers_router)
 api_v1_router.include_router(expense_router)
+api_v1_router.include_router(agent_router)
