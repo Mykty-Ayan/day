@@ -158,9 +158,12 @@ def _request_hash(body) -> str:
     """What an Idempotency-Key retry must repeat: the body, defaults filled in.
 
     Not override_rules: a request refused for the rules made nothing, and a key
-    saved before the flag existed must still match its retry.
+    saved before the flag existed must still match its retry. No agent is left
+    out too: a key saved before agents existed must still match its retry.
     """
     dump = body.model_dump(mode="json", exclude={"override_rules"})
+    if dump.get("agent_id") is None:
+        dump.pop("agent_id", None)
     return hashlib.sha256(json.dumps(dump, sort_keys=True).encode()).hexdigest()
 
 

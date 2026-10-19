@@ -117,7 +117,7 @@ class UpdateBookingService:
             _track("source", booking.source.value, inp.source)
             booking.source = BookingSource(inp.source)  # type: ignore[arg-type]
         if inp.agent_id is not _UNSET:
-            _track("agent_id", str(booking.agent_id) if booking.agent_id else None, inp.agent_id)
+            _track("agent_id", booking.agent_id, inp.agent_id)
             booking.agent_id = inp.agent_id  # type: ignore[assignment]
         if inp.gantt_color is not _UNSET:
             _track("gantt_color", booking.gantt_color, inp.gantt_color)
