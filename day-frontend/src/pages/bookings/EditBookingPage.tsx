@@ -138,8 +138,11 @@ function EditBookingForm({ detail, bookingId }: { detail: BookingDetail; booking
     null,
   )
   const { format: money } = useCurrency()
+  const [quoting, setQuoting] = useState(false)
 
   function updateField<K extends keyof FormData>(key: K, value: FormData[K]) {
+    // The question was about the form as it was; a change makes it stale.
+    setPriceChoice(null)
     setForm((f) => ({ ...f, [key]: value }))
     setErrors((e) => {
       const next = { ...e }
@@ -150,6 +153,7 @@ function EditBookingForm({ detail, bookingId }: { detail: BookingDetail; booking
 
   // The picked date moves to the other mode's field instead of disappearing.
   function switchMode(mode: RentalMode) {
+    setPriceChoice(null)
     setForm((f) => switchRentalMode(f, mode))
     setErrors((e) => {
       const next = { ...e }
@@ -218,6 +222,7 @@ function EditBookingForm({ detail, bookingId }: { detail: BookingDetail; booking
     const payload = updatePayload()
     const b = detail.booking
     if (wouldReprice(b, payload)) {
+      setQuoting(true)
       try {
         const quote = await calculatePrice({
           property_id: b.property_id,
@@ -233,6 +238,8 @@ function EditBookingForm({ detail, bookingId }: { detail: BookingDetail; booking
         }
       } catch {
         // No quote is no reason to stop the save; the server prices it as before.
+      } finally {
+        setQuoting(false)
       }
     }
     send(payload)
@@ -529,7 +536,7 @@ function EditBookingForm({ detail, bookingId }: { detail: BookingDetail; booking
             whileTap={{ scale: 0.97 }}
             type="button"
             onClick={() => handleSubmit()}
-            disabled={updateBooking.isPending}
+            disabled={updateBooking.isPending || quoting}
             className="flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl bg-black px-6 py-2.5 font-semibold text-white shadow-lg transition-colors hover:bg-gray-800 disabled:opacity-50 sm:w-auto"
           >
             {updateBooking.isPending ? (
