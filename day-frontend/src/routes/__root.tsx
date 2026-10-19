@@ -1,5 +1,5 @@
 import { createRootRoute, Outlet, Link, useRouterState, redirect } from '@tanstack/react-router'
-import { Building2, CalendarRange, CalendarDays, Clock, SprayCan, ClipboardList, BarChart3, Sparkles, Settings, LogOut, Wallet } from 'lucide-react'
+import { Building2, CalendarRange, CalendarDays, Clock, SprayCan, ClipboardList, BarChart3, Sparkles, Settings, LogOut, Wallet, Handshake } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import MobileShell from '../components/layout/MobileShell'
 import ToastContainer from '../components/ui/Toast'
@@ -74,6 +74,7 @@ function AuthenticatedLayout() {
     { to: '/properties/gantt', label: t('nav.chessChart'), icon: CalendarRange },
     { to: '/bookings', label: t('nav.bookings'), icon: CalendarDays },
     { to: '/bookings/today', label: t('nav.today'), icon: Clock },
+    { to: '/agents', label: t('nav.agents'), icon: Handshake },
     { to: '/cleaning', label: t('nav.cleaning'), icon: SprayCan },
     { to: '/cleaning/checklists', label: t('nav.checklists'), icon: ClipboardList },
     { to: '/analytics', label: t('nav.analytics'), icon: BarChart3 },
