@@ -134,10 +134,11 @@ class StubAvailability:
 
 
 class StubOption:
-    def __init__(self, name: str, price: Decimal | None) -> None:
+    def __init__(self, name: str, price: Decimal | None, rule_breaches=()) -> None:
         self.property = StubProperty(name)
         self.total_price = price
         self.price_error = None
+        self.rule_breaches = list(rule_breaches)
 
 
 class StubBooking:
@@ -596,6 +597,17 @@ class TestHostBot:
         assert "Loft" in reply.text
         _, check_in, check_out = availability.calls[0]
         assert (check_in, check_out) == (date(2026, 8, 12), date(2026, 8, 15))
+
+    @pytest.mark.asyncio
+    async def test_free_lists_a_flat_against_its_rule_with_the_rule(self):
+        from app.domain.booking.stay_rules import RuleBreach
+
+        availability = StubAvailability([StubOption("Studio", Decimal("25000"), [RuleBreach("min_nights", 2, 1)])])
+        identity = ChannelIdentity(company_id=COMPANY_ID, channel=Channel.TELEGRAM, external_id="555")
+
+        reply = await _host_bot(availability).handle(identity, "555", "/free", today=TODAY)
+
+        assert "минимум ночей 2, в брони 1" in reply.text
 
     @pytest.mark.asyncio
     async def test_free_escapes_flat_names(self):

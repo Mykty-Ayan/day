@@ -41,7 +41,7 @@ export const MINIAPP_ADULTS = 2
 export async function getAvailability(
   checkIn: string,
   checkOut: string,
-  options: { adults?: number; rentalMode?: RentalMode } = {},
+  options: { adults?: number; rentalMode?: RentalMode; withRuleBreaches?: boolean } = {},
 ): Promise<Availability> {
   const res = await apiClient.get<Availability>('/bookings/availability', {
     params: {
@@ -49,6 +49,9 @@ export async function getAvailability(
       check_out: checkOut,
       adults_count: options.adults ?? MINIAPP_ADULTS,
       rental_mode: options.rentalMode ?? 'daily',
+      // Selling, the operator may book against a flat's rule by confirming and sees such
+      // flats too; an offer to a guest lists only what Day would book.
+      include_rule_breaches: options.withRuleBreaches ?? false,
     },
   })
   return res.data
