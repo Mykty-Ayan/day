@@ -27,10 +27,13 @@ export interface ExpenseForm {
   property_id: string
   payee: string
   note: string
+  /** For an agent's commission: the agent paid, and the booking it was for ('' for none). */
+  agent_id: string
+  booking_id: string
 }
 
 export function emptyExpenseForm(today: string): ExpenseForm {
-  return { category: 'utilities', amount: '', spent_on: today, property_id: '', payee: '', note: '' }
+  return { category: 'utilities', amount: '', spent_on: today, property_id: '', payee: '', note: '', agent_id: '', booking_id: '' }
 }
 
 /** The amount as typed: "150 000", "1500,50", "1.500,50" or "1,500.50". The last
@@ -56,6 +59,7 @@ export function expenseFormError(form: ExpenseForm): string | null {
   }
   // Rent is always paid for one flat, as the server requires.
   if (form.category === 'rent' && !form.property_id) return 'expenses.errors.rentNeedsFlat'
+  if (form.category === 'agent_commission' && !form.agent_id) return 'expenses.errors.commissionNeedsAgent'
   return null
 }
 

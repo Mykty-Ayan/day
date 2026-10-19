@@ -53,10 +53,11 @@ const PRICE_KEY = 'price-calculation'
 
 // --- Bookings ---
 
-export function useBookings(filters: BookingFilters = {}) {
+export function useBookings(filters: BookingFilters = {}, enabled = true) {
   return useQuery({
     queryKey: [BOOKINGS_KEY, filters],
     queryFn: () => listBookings(filters),
+    enabled,
   })
 }
 

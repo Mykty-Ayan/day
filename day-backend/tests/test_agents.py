@@ -117,3 +117,19 @@ async def test_a_booking_cannot_be_moved_to_another_companys_agent(flat):  # noq
     refused = await client.patch(f"/api/v1/bookings/{booking['id']}", json={"agent_id": str(their_agent)})
 
     assert refused.status_code == 422
+
+
+@pytest.mark.integration
+async def test_the_bookings_an_agent_brought_are_listed_by_the_agent(flat):  # noqa: F811  (the imported fixture)
+    client, prop, use = flat
+    use(Permission.BOOKINGS_READ, Permission.BOOKINGS_WRITE, Permission.PROPERTIES_READ)
+    agent = (await client.post("/api/v1/agents", json={"name": "Ермек"})).json()
+    brought = (await client.post("/api/v1/bookings", json={**_STAY, "property_id": str(prop),
+                                                           "agent_id": agent["id"]})).json()
+    await client.post("/api/v1/bookings", json={**_STAY, "property_id": str(prop), "guest_phone": "+77079011163",
+                                               "check_in": "2030-11-05T14:00:00", "check_out": "2030-11-06T12:00:00"})
+
+    listed = (await client.get("/api/v1/bookings", params={"agent_id": agent["id"]})).json()
+
+    assert [b["id"] for b in listed["items"]] == [brought["id"]]
+    assert listed["total"] == 1

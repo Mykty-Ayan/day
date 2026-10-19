@@ -418,6 +418,8 @@ async def list_bookings(
     search: str | None = None,
     date_from: date | None = None,
     date_to: date | None = None,
+    # The bookings an agent brought: what their commission is paid for.
+    agent_id: uuid.UUID | None = None,
     session: AsyncSession = Depends(get_session),
     company_id: uuid.UUID = Depends(get_company_id),
 ):
@@ -434,6 +436,7 @@ async def list_bookings(
         search=search,
         date_from=date_from,
         date_to=date_to,
+        agent_id=agent_id,
     )
 
     # Enrich with guest and property names, plus what has been received —

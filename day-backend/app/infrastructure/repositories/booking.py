@@ -533,7 +533,10 @@ class SqlBookingRepository(BookingRepository):
         search=None,
         date_from=None,
         date_to=None,
+        agent_id=None,
     ):
+        if agent_id is not None:
+            stmt = stmt.where(BookingModel.agent_id == agent_id)
         if status is not None:
             stmt = stmt.where(BookingModel.status == status.value)
         if property_id is not None:
@@ -562,11 +565,12 @@ class SqlBookingRepository(BookingRepository):
         search: str | None = None,
         date_from: date | None = None,
         date_to: date | None = None,
+        agent_id: uuid.UUID | None = None,
     ) -> list[Booking]:
         stmt = select(BookingModel).where(BookingModel.company_id == company_id)
         stmt = self._apply_filters(
             stmt, status=status, property_id=property_id,
-            source=source, search=search, date_from=date_from, date_to=date_to,
+            source=source, search=search, date_from=date_from, date_to=date_to, agent_id=agent_id,
         )
         stmt = stmt.order_by(BookingModel.check_in.desc()).offset(offset).limit(limit)
         result = await self._session.scalars(stmt)
@@ -582,13 +586,14 @@ class SqlBookingRepository(BookingRepository):
         search: str | None = None,
         date_from: date | None = None,
         date_to: date | None = None,
+        agent_id: uuid.UUID | None = None,
     ) -> int:
         stmt = select(func.count()).select_from(BookingModel).where(
             BookingModel.company_id == company_id
         )
         stmt = self._apply_filters(
             stmt, status=status, property_id=property_id,
-            source=source, search=search, date_from=date_from, date_to=date_to,
+            source=source, search=search, date_from=date_from, date_to=date_to, agent_id=agent_id,
         )
         result = await self._session.scalar(stmt)
         return result or 0

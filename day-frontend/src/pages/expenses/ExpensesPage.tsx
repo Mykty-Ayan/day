@@ -7,6 +7,9 @@ import { useCurrentUser } from '../../hooks/useAuth'
 import { useCurrency } from '../../hooks/useCurrency'
 import { useCreateExpense, useExpenses, useVoidExpense } from '../../hooks/useExpenses'
 import { useAllProperties } from '../../hooks/useProperties'
+import { useAgents } from '../../hooks/useAgents'
+import { useBookings } from '../../hooks/useBookings'
+import AgentSelect from '../../components/agents/AgentSelect'
 import {
   EXPENSE_CATEGORIES,
   emptyExpenseForm,
@@ -49,10 +52,15 @@ export default function ExpensesPage() {
   const voidExpense = useVoidExpense()
   const [form, setForm] = useState<ExpenseForm>(() => emptyExpenseForm(today))
   const [formError, setFormError] = useState<string | null>(null)
+  const isCommission = form.category === 'agent_commission'
+  const { data: agents = [] } = useAgents()
+  // The commission is for a guest the agent brought: offer that agent's bookings.
+  const { data: agentBookings } = useBookings({ agent_id: form.agent_id, per_page: 100 }, isCommission && !!form.agent_id)
 
   // Rent may be paid for a flat on pause too; an archived one is gone.
   const flats = useMemo(() => (allFlats?.items ?? []).filter((p) => p.status !== 'archived'), [allFlats])
   const flatName = useMemo(() => new Map((allFlats?.items ?? []).map((p) => [p.id, p.internal_name || p.name])), [allFlats])
+  const agentName = useMemo(() => new Map(agents.map((a) => [a.id, a.name])), [agents])
   const total = expenses.reduce((sum, e) => sum + Number(e.amount), 0)
 
   if (!isOwner) {
@@ -78,6 +86,8 @@ export default function ExpensesPage() {
         property_id: form.property_id || null,
         payee: form.payee.trim() || null,
         note: form.note.trim() || null,
+        agent_id: isCommission ? form.agent_id || null : null,
+        booking_id: isCommission ? form.booking_id || null : null,
       })
       showToast('success', t('expenses.saved'))
       // Show the month the expense went to, or it seems to vanish.
@@ -172,6 +182,40 @@ export default function ExpensesPage() {
               ))}
             </select>
           </label>
+          {isCommission && (
+            <>
+              <label className={label}>
+                {t('expenses.agent')}
+                <AgentSelect
+                  id="expense-agent"
+                  value={form.agent_id}
+                  onChange={(agentId) => {
+                    setForm((f) => ({ ...f, agent_id: agentId, booking_id: '' }))
+                    setFormError(null)
+                  }}
+                  emptyLabel={t('expenses.agentChoose')}
+                  className={`mt-1.5 ${field}`}
+                />
+              </label>
+              <label className={label}>
+                {t('expenses.booking')}
+                <select
+                  id="expense-booking"
+                  value={form.booking_id}
+                  onChange={(e) => update('booking_id', e.target.value)}
+                  disabled={!form.agent_id}
+                  className={`mt-1.5 ${field}`}
+                >
+                  <option value="">{t('expenses.bookingNone')}</option>
+                  {(agentBookings?.items ?? []).map((b) => (
+                    <option key={b.id} value={b.id}>
+                      {[b.check_in.slice(0, 10), b.guest_name, b.property_internal_name || b.property_name].join(' · ')}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </>
+          )}
           <label className={label}>
             {t('expenses.payee')}
             <input
@@ -224,6 +268,7 @@ export default function ExpensesPage() {
                 <span className="min-w-0 flex-1">
                   <span className="font-medium text-gray-900">{t(`expenses.categories.${e.category}`)}</span>
                   {e.property_id && <span className="text-gray-500"> · {flatName.get(e.property_id) ?? '—'}</span>}
+                  {e.agent_id && <span className="text-gray-500"> · {agentName.get(e.agent_id) ?? '—'}</span>}
                   {(e.payee || e.note) && (
                     <span className="block truncate text-xs text-gray-500">
                       {[e.payee, e.note].filter(Boolean).join(' · ')}

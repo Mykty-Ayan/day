@@ -9,6 +9,8 @@ export interface Expense {
   property_id: string | null
   payee: string | null
   note: string | null
+  agent_id: string | null
+  booking_id: string | null
   created_at: string | null
   voided_at: string | null
 }
@@ -20,6 +22,8 @@ export interface ExpenseInput {
   property_id: string | null
   payee: string | null
   note: string | null
+  agent_id: string | null
+  booking_id: string | null
 }
 
 export interface ExpenseFilters {
