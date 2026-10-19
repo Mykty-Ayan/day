@@ -10,7 +10,8 @@
     "aiImport": "AI Import",
     "settings": "Settings",
     "more": "More",
-    "expenses": "Expenses"
+    "expenses": "Expenses",
+    "agents": "Agents"
   },
   "common": {
     "save": "Save",
@@ -545,7 +546,8 @@
       "ask": "The new dates make it {{now}}; it is {{was}} now. How to save?",
       "reprice": "Reprice: {{now}}",
       "keep": "Keep {{was}}"
-    }
+    },
+    "agent": "Brought by"
   },
   "today": {
     "title": "Today",
@@ -1368,5 +1370,22 @@
     "booking": "Booking",
     "bookingNone": "No booking",
     "agentChoose": "Choose the agent"
+  },
+  "agents": {
+    "title": "Agents",
+    "hint": "People who bring guests for a cut. Name the agent on the booking; record what they were paid as an “Agent commission” expense.",
+    "add": "New agent",
+    "name": "Name",
+    "phone": "Phone",
+    "note": "Note",
+    "save": "Add",
+    "saved": "Agent added",
+    "failed": "Could not save",
+    "nameRequired": "Enter a name",
+    "empty": "No agents yet",
+    "stop": "Stopped working",
+    "resume": "Working again",
+    "nobody": "Nobody, the guest came directly",
+    "stoppedName": "{{name}} (stopped)"
   }
 }
