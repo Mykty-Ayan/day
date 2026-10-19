@@ -15,6 +15,7 @@ import {
   Clock,
   Wallet,
   Handshake,
+  ClipboardCheck,
 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { AI_IMPORT_ENABLED } from '../../lib/features'
@@ -55,6 +56,7 @@ export default function MobileShell({
   const moreLinks = useMemo(
     () => [
       { to: '/properties/gantt', label: t('nav.chessChart'), icon: CalendarRange },
+      { to: '/readiness', label: t('nav.readiness'), icon: ClipboardCheck },
       { to: '/bookings/today', label: t('nav.today'), icon: Clock },
       { to: '/cleaning/checklists', label: t('nav.checklists'), icon: ClipboardList },
       { to: '/agents', label: t('nav.agents'), icon: Handshake },
