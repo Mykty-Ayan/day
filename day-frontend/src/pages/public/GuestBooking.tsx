@@ -11,7 +11,7 @@ import {
   type PublicOfferBooking,
   type PublicOfferFlat,
 } from '../../api/public'
-import { money, retryNetwork, stayDates } from '../../lib/public-stay'
+import { clock, isHourly, money, offerDates, retryNetwork } from '../../lib/public-stay'
 import { LoadFailed } from './GuestFrame'
 
 // As the server checks it: E.164 holds up to 15 digits, fewer than 10 is no full number.
@@ -57,7 +57,10 @@ export function BookForm({
   const [guests, setGuests] = useState(Math.min(offer.guests, most))
   const [agreed, setAgreed] = useState(false)
   const rules = stay.data?.house_rules
-  const deposit = stay.data?.prices.deposit ?? null
+  const hourly = isHourly(offer)
+  // The deposit of the link's kind of stay: by the hour, the hourly one.
+  const deposit = (hourly ? stay.data?.prices.hour_deposit : stay.data?.prices.deposit) ?? null
+  const length = hourly ? t('guest.hours', { count: offer.hours ?? 0 }) : t('guest.nights', { count: offer.nights })
   const day = new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'short' })
 
   const book = useMutation({
@@ -126,15 +129,19 @@ export function BookForm({
         <div className="flex flex-col gap-1 rounded-2xl bg-gray-50 p-3.5">
           <span className="text-sm text-gray-600">{t('guest.checkIn')}</span>
           <span className="text-base font-bold">
-            {day.format(parseISO(offer.check_in))}
-            {stay.data?.check_in_hour != null && `, ${t('guest.from', { hour: stay.data.check_in_hour })}`}
+            {hourly && offer.starts_at
+              ? `${day.format(parseISO(offer.starts_at))}, ${clock(offer.starts_at)}`
+              : day.format(parseISO(offer.check_in))}
+            {!hourly && stay.data?.check_in_hour != null && `, ${t('guest.from', { hour: stay.data.check_in_hour })}`}
           </span>
         </div>
         <div className="flex flex-col gap-1 rounded-2xl bg-gray-50 p-3.5">
           <span className="text-sm text-gray-600">{t('guest.checkOut')}</span>
           <span className="text-base font-bold">
-            {day.format(parseISO(offer.check_out))}
-            {stay.data?.check_out_hour != null && `, ${t('guest.until', { hour: stay.data.check_out_hour })}`}
+            {hourly && offer.ends_at
+              ? `${day.format(parseISO(offer.ends_at))}, ${clock(offer.ends_at)}`
+              : day.format(parseISO(offer.check_out))}
+            {!hourly && stay.data?.check_out_hour != null && `, ${t('guest.until', { hour: stay.data.check_out_hour })}`}
           </span>
         </div>
       </div>
@@ -223,7 +230,7 @@ export function BookForm({
           </>
         )}
         <div className="flex items-baseline justify-between gap-3">
-          <span className="text-sm text-gray-700">{t('guestBook.nightsLater', { nights: t('guest.nights', { count: offer.nights }) })}</span>
+          <span className="text-sm text-gray-700">{t('guestBook.nightsLater', { nights: length })}</span>
           {flat.total != null && guests === offer.guests && <span className="text-base font-semibold">{money(flat.total, locale)}</span>}
         </div>
         {guests !== offer.guests && <p className="text-xs text-gray-500">{t('guestBook.totalAfter')}</p>}
@@ -280,7 +287,8 @@ export function Waiting({ offer, booking, locale }: { offer: PublicOffer; bookin
     ? new Intl.DateTimeFormat(locale, { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date(booking.expires_at))
     : null
   const deposit = booking.deposit != null ? money(booking.deposit, locale) : null
-  const dates = stayDates(locale, offer.check_in, offer.check_out)
+  const dates = offerDates(locale, offer)
+  const hourly = isHourly(offer)
 
   return (
     <main className="flex flex-col gap-5 px-5 pb-10 pt-5">
@@ -319,10 +327,11 @@ export function Waiting({ offer, booking, locale }: { offer: PublicOffer; bookin
       <section className="flex flex-col gap-1 rounded-2xl border border-gray-200 p-4">
         {flat && <h2 dir="auto" className="text-base font-bold">{flat.name}</h2>}
         <p className="text-sm text-gray-600">
-          {dates} · {t('guest.nights', { count: offer.nights })} · {t('guestOffer.guests', { count: booking.guests })}
+          {dates} · {hourly ? t('guest.hours', { count: offer.hours ?? 0 }) : t('guest.nights', { count: offer.nights })} ·{' '}
+          {t('guestOffer.guests', { count: booking.guests })}
         </p>
         {booking.total != null && (
-          <p className="text-sm text-gray-700">{t('guestBook.nightsAtCheckIn', { total: money(booking.total, locale) })}</p>
+          <p className="text-sm text-gray-700">{t(hourly ? 'guestBook.hoursAtCheckIn' : 'guestBook.nightsAtCheckIn', { total: money(booking.total, locale) })}</p>
         )}
       </section>
     </main>

@@ -40,7 +40,8 @@
     "perHour": "saatlik",
     "area": "{{area}} m²",
     "minNights": "En az {{count}} gece",
-    "totalHint": "Yalnızca geceler; indirimler ve ek misafir ücretleri hariç."
+    "totalHint": "Yalnızca geceler; indirimler ve ek misafir ücretleri hariç.",
+    "hours": "{{count}} saat"
   },
   "guestOffer": {
     "hello": "{{name}}, tarihleriniz için daireler",
@@ -94,7 +95,8 @@
     "sendFailed": "Gönderilemedi. Bağlantıyı kontrol edip tekrar basın.",
     "nameNeeded": "Telefonunuz sohbetimizden alındı. Rezervasyonun kimin adına olduğunu yazın.",
     "phoneWrong": "Numara, ülke koduyla birlikte 10 ila 15 haneli olmalı.",
-    "ranOut": "Süre doldu — ödemeyi kontrol ediyoruz"
+    "ranOut": "Süre doldu — ödemeyi kontrol ediyoruz",
+    "hoursAtCheckIn": "Saatlerin tutarı ({{total}}) girişte ödenir"
   },
   "properties": {
     "checkInMethod": {

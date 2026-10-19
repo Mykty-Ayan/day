@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { Link } from '@tanstack/react-router'
 import { getPublicOffer, type PublicOffer, type PublicOfferFlat } from '../../api/public'
-import { money, retryNetwork, stayDates } from '../../lib/public-stay'
+import { isHourly, money, offerDates, retryNetwork } from '../../lib/public-stay'
 import { BookForm, Waiting } from './GuestBooking'
 import { GuestFrame, LoadFailed } from './GuestFrame'
 
@@ -57,8 +57,9 @@ function OfferView({ offer, locale, onRefresh }: { offer: PublicOffer; locale: s
     setLapsed(!held)
     setChosen(null)
   }
-  const dates = useMemo(() => stayDates(locale, offer.check_in, offer.check_out), [locale, offer.check_in, offer.check_out])
-  const nights = t('guest.nights', { count: offer.nights })
+  const dates = useMemo(() => offerDates(locale, offer), [locale, offer])
+  // The stay's length: hours by the hour, nights by the night.
+  const nights = isHourly(offer) ? t('guest.hours', { count: offer.hours ?? 0 }) : t('guest.nights', { count: offer.nights })
   const allFree = offer.flats.length > 0 && offer.flats.every((f) => f.free)
   const choice = offer.flats.find((f) => f.code === chosen)
 
