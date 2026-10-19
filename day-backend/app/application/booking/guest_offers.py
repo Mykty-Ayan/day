@@ -97,6 +97,7 @@ class GuestOffersService:
         guests: int,
         property_ids: list[uuid.UUID],
         created_by: uuid.UUID | None = None,
+        external_id: str | None = None,
     ) -> GuestOffer:
         if not 1 <= len(property_ids) <= MAX_FLATS:
             raise ValueError(f"An offer holds 1 to {MAX_FLATS} flats")
@@ -125,6 +126,7 @@ class GuestOffersService:
                 guests=guests,
                 property_ids=list(dict.fromkeys(property_ids)),
                 created_by=created_by,
+                external_id=(external_id or "").strip() or None,
             )
         )
 

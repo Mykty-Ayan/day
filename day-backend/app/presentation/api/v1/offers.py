@@ -67,6 +67,7 @@ async def create_offer(
             guests=body.guests,
             property_ids=body.property_ids,
             created_by=principal.actor_id,
+            external_id=body.external_id,
         )
     except ValueError as e:
         await session.rollback()
@@ -78,4 +79,5 @@ async def create_offer(
         check_in=offer.check_in,
         check_out=offer.check_out,
         property_ids=offer.property_ids,
+        external_id=offer.external_id,
     )

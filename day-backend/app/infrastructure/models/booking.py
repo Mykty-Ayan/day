@@ -314,4 +314,6 @@ class GuestOfferModel(Base):
     booking_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("bookings.id", name="fk_guest_offers_booking_id", ondelete="SET NULL"), nullable=True
     )
+    # Migration 050.
+    external_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
     created_at: Mapped[datetime] = mapped_column(default=datetime.utcnow)

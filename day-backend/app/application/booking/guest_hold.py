@@ -120,6 +120,8 @@ class GuestHoldService:
                 adults_count=guests,
                 source=BookingSource.OFFER,
                 notes=notes,
+                # The CRM finds its conversation by it in the feed.
+                external_id=offer.external_id,
                 expires_at=self._now() + timedelta(minutes=HOLD_MINUTES),
             )
         )
