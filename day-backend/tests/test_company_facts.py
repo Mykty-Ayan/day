@@ -25,8 +25,11 @@ class FakeCompanyFacts:
     async def list_by_company(self, company_id):
         return [f for f in self.rows.values() if f.company_id == company_id]
 
-    async def find_by_text(self, company_id, text):
-        return next((f for f in self.rows.values() if f.company_id == company_id and f.text == text), None)
+    async def find_by_text(self, company_id, text, audience):
+        return next(
+            (f for f in self.rows.values() if f.company_id == company_id and f.text == text and f.audience == audience),
+            None,
+        )
 
     async def get(self, company_id, fact_id):
         found = self.rows.get(fact_id)
@@ -54,6 +57,15 @@ async def test_a_rule_is_kept_once_trimmed_and_within_the_bound():
         await svc.add(COMPANY, f"Правило {n}")
     with pytest.raises(ValueError, match="at most"):
         await svc.add(COMPANY, "Ещё одно")
+
+
+async def test_a_public_rule_never_answers_for_a_guest_one():
+    svc = ManageCompanyFactsService(FakeCompanyFacts())
+    secret, _ = await svc.add(COMPANY, "Код сейфа 1234", FactAudience.GUEST)
+
+    public, created = await svc.add(COMPANY, "Код сейфа 1234")
+
+    assert created is True and public.id != secret.id and public.audience == FactAudience.PUBLIC
 
 
 async def test_another_companys_rule_cannot_be_deleted():
@@ -117,7 +129,8 @@ async def test_another_companys_rules_are_neither_seen_nor_deleted(flat):  # noq
 @pytest.mark.integration
 async def test_the_readiness_report_tells_filled_and_empty_never_the_values(flat):  # noqa: F811  (the imported fixture)
     client, prop, use = flat
-    use(Permission.PROPERTIES_READ, Permission.PROPERTIES_WRITE, Permission.PROPERTY_FACTS_WRITE)
+    use(Permission.PROPERTIES_READ, Permission.PROPERTIES_WRITE, Permission.PROPERTY_FACTS_WRITE,
+        Permission.PROPERTY_SECRETS_READ)
 
     first = (await client.get("/api/v1/properties/readiness")).json()
     assert first["company_facts"] is False
@@ -127,7 +140,8 @@ async def test_the_readiness_report_tells_filled_and_empty_never_the_values(flat
     assert {"address", "wifi", "photos", "facts", "check_in_instructions"} <= set(item["empty"])
 
     patched = await client.patch(f"/api/v1/properties/{prop}",
-                                 json={"address_full": "Астана, Туран 28", "wifi_name": "Munar"})
+                                 json={"address_full": "Астана, Туран 28", "wifi_name": "Munar",
+                                       "check_in_instructions": "Код двери 4321"})
     assert patched.status_code == 200, patched.text
     await client.post(f"/api/v1/properties/{prop}/facts", json={"text": "Парковка во дворе", "audience": "public"})
     await client.post("/api/v1/company-facts", json={"text": "Без вечеринок"})
@@ -136,4 +150,8 @@ async def test_the_readiness_report_tells_filled_and_empty_never_the_values(flat
     [item] = report["items"]
     assert report["company_facts"] is True
     assert (item["fields"]["address"], item["fields"]["wifi"], item["fields"]["facts"]) == (True, True, True)
-    assert "Munar" not in str(report) and "Туран" not in str(report)
+    assert item["fields"]["check_in_instructions"] is True
+    # Only filled or empty: a code written in the instructions never reaches the report.
+    use(Permission.PROPERTIES_READ)
+    report = (await client.get("/api/v1/properties/readiness")).json()
+    assert "4321" not in str(report) and "Munar" not in str(report) and "Туран" not in str(report)

@@ -31,7 +31,8 @@ class ManageCompanyFactsService:
         text = text.strip()
         if not text:
             raise ValueError("A fact needs text")
-        existing = await self._facts.find_by_text(company_id, text)
+        # Matched within the audience: a writer who may not see guest rules learns nothing of them.
+        existing = await self._facts.find_by_text(company_id, text, audience)
         if existing is not None:
             return existing, False
         if len(await self._facts.list_by_company(company_id)) >= MAX_COMPANY_FACTS:

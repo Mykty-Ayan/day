@@ -904,9 +904,13 @@ class SqlCompanyFactRepository(CompanyFactRepository):
         )
         return [_model_to_company_fact(m) for m in result.all()]
 
-    async def find_by_text(self, company_id: uuid.UUID, text: str) -> CompanyFact | None:
+    async def find_by_text(self, company_id: uuid.UUID, text: str, audience: FactAudience) -> CompanyFact | None:
         result = await self._session.scalar(
-            select(CompanyFactModel).where(CompanyFactModel.company_id == company_id, CompanyFactModel.text == text)
+            select(CompanyFactModel).where(
+                CompanyFactModel.company_id == company_id,
+                CompanyFactModel.text == text,
+                CompanyFactModel.audience == audience.value,
+            )
         )
         return _model_to_company_fact(result) if result else None
 

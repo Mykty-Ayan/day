@@ -345,7 +345,7 @@ async def property_readiness(
     session: AsyncSession = Depends(get_session),
     company_id: uuid.UUID = Depends(get_company_id),
 ):
-    """Which fields of each flat on sale are filled, and whether the company has rules for guests."""
+    """Which fields of each flat not archived are filled, and whether the company has rules for guests."""
     repos = _repos(session)
     flats = await repos["property"].list_by_company(company_id, limit=500)
     items = []

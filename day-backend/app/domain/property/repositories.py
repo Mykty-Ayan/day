@@ -20,7 +20,7 @@ from app.domain.property.entities import (
     PropertyTag,
     SeasonalPrice,
 )
-from app.domain.property.value_objects import PropertyStatus
+from app.domain.property.value_objects import FactAudience, PropertyStatus
 
 
 class PropertyRepository(abc.ABC):
@@ -225,7 +225,8 @@ class CompanyFactRepository(abc.ABC):
         """Oldest first."""
 
     @abc.abstractmethod
-    async def find_by_text(self, company_id: uuid.UUID, text: str) -> CompanyFact | None: ...
+    async def find_by_text(self, company_id: uuid.UUID, text: str, audience: FactAudience) -> CompanyFact | None:
+        """The same text for the same audience: a public rule never answers for a guest one."""
 
     @abc.abstractmethod
     async def get(self, company_id: uuid.UUID, fact_id: uuid.UUID) -> CompanyFact | None: ...
