@@ -104,6 +104,7 @@ def _model_to_booking(m: BookingModel) -> Booking:
         notes=m.notes,
         overbooking=m.overbooking,
         external_id=m.external_id,
+        agent_id=m.agent_id,
         idempotency_key=m.idempotency_key,
         idempotency_hash=m.idempotency_hash,
         expires_at=m.expires_at,
@@ -387,6 +388,7 @@ class SqlBookingRepository(BookingRepository):
             notes=booking.notes,
             overbooking=booking.overbooking,
             external_id=booking.external_id,
+            agent_id=booking.agent_id,
             idempotency_key=booking.idempotency_key,
             idempotency_hash=booking.idempotency_hash,
             expires_at=booking.expires_at,
@@ -721,6 +723,7 @@ class SqlBookingRepository(BookingRepository):
                 children_count=booking.children_count,
                 notes=booking.notes,
                 overbooking=booking.overbooking,
+                agent_id=booking.agent_id,
                 expires_at=booking.expires_at,
                 updated_at=datetime.utcnow(),
             )
