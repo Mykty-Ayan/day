@@ -116,6 +116,13 @@ export function listingLines(value: string): string[] {
 const MAX_LISTING_LINKS = 20
 const MAX_LISTING_LINK_LENGTH = 500
 
+/** As the server takes it: empty (no rule), or 15 to 1440 minutes in steps of 15. */
+export function bufferMinutesValid(value: string): boolean {
+  if (value.trim() === '') return true
+  const minutes = Number(value)
+  return Number.isInteger(minutes) && minutes >= 15 && minutes <= 1440 && minutes % 15 === 0
+}
+
 /** A link typed in both lists: the CRM could not tell which stay the guest means. */
 export function listingInBoth(nightly: string, hourly: string): boolean {
   const hours = new Set(listingLines(hourly))
