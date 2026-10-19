@@ -8,6 +8,7 @@ from decimal import Decimal
 
 from app.domain.property.entities import (
     Amenity,
+    CompanyFact,
     DayPrice,
     DiscountRule,
     PricingConfig,
@@ -19,7 +20,7 @@ from app.domain.property.entities import (
     PropertyTag,
     SeasonalPrice,
 )
-from app.domain.property.value_objects import PropertyStatus
+from app.domain.property.value_objects import FactAudience, PropertyStatus
 
 
 class PropertyRepository(abc.ABC):
@@ -216,6 +217,25 @@ class PropertyTagRepository(abc.ABC):
 
     @abc.abstractmethod
     async def get_property_ids_by_tag(self, tag_id: uuid.UUID) -> list[uuid.UUID]: ...
+
+
+class CompanyFactRepository(abc.ABC):
+    @abc.abstractmethod
+    async def list_by_company(self, company_id: uuid.UUID) -> list[CompanyFact]:
+        """Oldest first."""
+
+    @abc.abstractmethod
+    async def find_by_text(self, company_id: uuid.UUID, text: str, audience: FactAudience) -> CompanyFact | None:
+        """The same text for the same audience: a public rule never answers for a guest one."""
+
+    @abc.abstractmethod
+    async def get(self, company_id: uuid.UUID, fact_id: uuid.UUID) -> CompanyFact | None: ...
+
+    @abc.abstractmethod
+    async def create(self, fact: CompanyFact) -> CompanyFact: ...
+
+    @abc.abstractmethod
+    async def delete(self, company_id: uuid.UUID, fact_id: uuid.UUID) -> None: ...
 
 
 class PropertyFactRepository(abc.ABC):

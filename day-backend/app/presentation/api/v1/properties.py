@@ -41,6 +41,7 @@ from app.infrastructure.database import get_session
 from app.infrastructure.repositories.booking import SqlBookingRepository
 from app.infrastructure.repositories.property import (
     SqlAmenityRepository,
+    SqlCompanyFactRepository,
     SqlDayPriceRepository,
     SqlDiscountRuleRepository,
     SqlPricingConfigRepository,
@@ -62,6 +63,7 @@ from app.presentation.schemas.booking import (
 )
 from app.presentation.schemas.property import (
     AmenityResponse,
+    CompanyFactResponse,
     DayPriceResponse,
     DayPriceSet,
     DiscountRuleCreate,
@@ -81,6 +83,8 @@ from app.presentation.schemas.property import (
     PropertyFactResponse,
     PropertyListResponse,
     PropertyPhotoResponse,
+    PropertyReadinessItem,
+    PropertyReadinessResponse,
     PropertyResponse,
     PropertyStatusChange,
     PropertyUpdate,
@@ -107,6 +111,7 @@ def _repos(session: AsyncSession):
         "discount": SqlDiscountRuleRepository(session),
         "audit": SqlPropertyAuditLogRepository(session),
         "fact": SqlPropertyFactRepository(session),
+        "company_fact": SqlCompanyFactRepository(session),
     }
 
 
@@ -311,6 +316,64 @@ async def list_properties(
     )
 
 
+# What a flat's card says, for an integration to see what is missing before it answers guests.
+# Only filled or empty: the values themselves (codes among them) stay behind their own permissions.
+_READINESS_FIELDS = {
+    "address": lambda p, x: bool(p.address_full),
+    "map_url": lambda p, x: bool(p.map_url),
+    "description": lambda p, x: bool(p.description),
+    "max_guests": lambda p, x: p.max_guests is not None,
+    "check_in_hour": lambda p, x: p.check_in_hour is not None,
+    "check_out_hour": lambda p, x: p.check_out_hour is not None,
+    "check_in_instructions": lambda p, x: bool(p.check_in_instructions),
+    "check_out_instructions": lambda p, x: bool(p.check_out_instructions),
+    "house_rules": lambda p, x: bool(p.house_rules),
+    "wifi": lambda p, x: bool(p.wifi_name),
+    "listing_urls": lambda p, x: bool(p.listing_urls or p.hourly_listing_urls),
+    "photos": lambda p, x: x["photos"],
+    "pricing": lambda p, x: x["pricing"],
+    "facts": lambda p, x: x["facts"],
+}
+
+
+@router.get(
+    "/readiness",
+    response_model=PropertyReadinessResponse,
+    dependencies=[Depends(require(Permission.PROPERTIES_READ))],
+)
+async def property_readiness(
+    session: AsyncSession = Depends(get_session),
+    company_id: uuid.UUID = Depends(get_company_id),
+):
+    """Which fields of each flat not archived are filled, and whether the company has rules for guests."""
+    repos = _repos(session)
+    flats = await repos["property"].list_by_company(company_id, limit=500)
+    items = []
+    # One query per flat and field kind; a company has a handful of flats.
+    for prop in flats:
+        if prop.status == PropertyStatus.ARCHIVED:
+            continue
+        extra = {
+            "photos": bool(await repos["photo"].list_by_property(prop.id)),
+            "pricing": await repos["pricing"].get_by_property(prop.id) is not None,
+            "facts": bool(await repos["fact"].list_by_property(prop.id)),
+        }
+        filled = {name: check(prop, extra) for name, check in _READINESS_FIELDS.items()}
+        items.append(
+            PropertyReadinessItem(
+                property_id=prop.id,
+                name=prop.name,
+                internal_name=prop.internal_name,
+                status=prop.status,
+                fields=filled,
+                empty=[name for name, ok in filled.items() if not ok],
+            )
+        )
+    return PropertyReadinessResponse(
+        company_facts=bool(await repos["company_fact"].list_by_company(company_id)), items=items
+    )
+
+
 @router.get(
     "/{property_id}",
     response_model=PropertyDetailResponse,
@@ -339,11 +402,13 @@ async def get_property(
     sees_secrets = _sees_secrets(principal)
     prop = _to_property_response(detail.property, photos=detail.photos, sees_secrets=sees_secrets)
     facts = _visible_facts(await repos["fact"].list_by_property(property_id), sees_secrets=sees_secrets)
+    company_facts = _visible_facts(await repos["company_fact"].list_by_company(company_id), sees_secrets=sees_secrets)
     return PropertyDetailResponse(
         **prop.model_dump(),
         amenities=[AmenityResponse.model_validate(a, from_attributes=True) for a in detail.amenities],
         pricing=PricingConfigResponse.model_validate(detail.pricing, from_attributes=True) if detail.pricing else None,
         facts=[PropertyFactResponse.model_validate(f, from_attributes=True) for f in facts],
+        company_facts=[CompanyFactResponse.model_validate(f, from_attributes=True) for f in company_facts],
     )
 
 

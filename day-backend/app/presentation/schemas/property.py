@@ -437,12 +437,46 @@ class PropertyAuditLogResponse(BaseModel):
 # ---------- Full detail ----------
 
 
+class PropertyReadinessItem(BaseModel):
+    property_id: uuid.UUID
+    name: str
+    internal_name: str
+    status: PropertyStatus
+    # Field name -> filled; never the value.
+    fields: dict[str, bool]
+    empty: list[str]
+
+
+class PropertyReadinessResponse(BaseModel):
+    # Whether the company has any rules for guests (documents, pets, smoking).
+    company_facts: bool
+    items: list[PropertyReadinessItem]
+
+
+class CompanyFactCreate(BaseModel):
+    text: str = Field(..., min_length=1, max_length=1000)
+    # public: anyone may hear it; guest: only a guest with a confirmed stay.
+    audience: FactAudience = FactAudience.PUBLIC
+
+
+class CompanyFactResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    text: str
+    audience: FactAudience
+    source: FactSource
+    created_at: datetime | None = None
+
+
 class PropertyDetailResponse(PropertyResponse):
     photos: list[PropertyPhotoResponse] = []
     amenities: list[AmenityResponse] = []
     pricing: PricingConfigResponse | None = None
     # Every fact, each with its audience; the reader decides who hears which.
     facts: list[PropertyFactResponse] = []
+    # The company's rules, which hold in this flat too; the same audiences.
+    company_facts: list[CompanyFactResponse] = []
 
 
 # ---------- Tags ----------

@@ -265,6 +265,19 @@ class PropertyTagAssociationModel(Base):
     tag: Mapped["PropertyTagModel"] = relationship(back_populates="property_links")
 
 
+class CompanyFactModel(Base):
+    """A rule for every flat of the company."""
+
+    __tablename__ = "company_facts"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    company_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("companies.id", ondelete="CASCADE"), index=True)
+    text: Mapped[str] = mapped_column(Text)
+    audience: Mapped[str] = mapped_column(String(20), default="public")
+    source: Mapped[str] = mapped_column(String(20), default="user")
+    created_at: Mapped[datetime] = mapped_column(default=datetime.utcnow)
+
+
 class PropertyFactModel(Base):
     __tablename__ = "property_facts"
 

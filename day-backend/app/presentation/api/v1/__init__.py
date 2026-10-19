@@ -9,6 +9,7 @@ from app.presentation.api.v1.bookings import booking_router, gantt_router, guest
 from app.presentation.api.v1.channels import channel_router
 from app.presentation.api.v1.channex import channex_router
 from app.presentation.api.v1.cleaning import checklist_router, cleaning_router, rating_router
+from app.presentation.api.v1.company_facts import company_fact_router
 from app.presentation.api.v1.expenses import expense_router
 from app.presentation.api.v1.health import router as health_router
 from app.presentation.api.v1.ical import ical_router
@@ -50,3 +51,4 @@ api_v1_router.include_router(public_router)
 api_v1_router.include_router(offers_router)
 api_v1_router.include_router(expense_router)
 api_v1_router.include_router(agent_router)
+api_v1_router.include_router(company_fact_router)
