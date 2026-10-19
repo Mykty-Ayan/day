@@ -2,6 +2,7 @@
 
 import { addDays, format, parseISO } from 'date-fns'
 import { isAxiosError } from 'axios'
+import type { PublicOffer } from '../api/public'
 
 export interface PublicNight {
   date: string
@@ -42,6 +43,24 @@ export function stayDates(locale: string, checkIn: string, checkOut: string): st
   const day = new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'long' })
   const [from, to] = [parseISO(checkIn), parseISO(checkOut)]
   return typeof day.formatRange === 'function' ? day.formatRange(from, to) : `${day.format(from)} – ${day.format(to)}`
+}
+
+/** The link's stay as words: "20 октября, 15:00–18:00" by the hour, the dates by the night. */
+export function offerDates(locale: string, offer: PublicOffer): string {
+  if (offer.rental_mode !== 'hourly' || !offer.starts_at || !offer.ends_at) {
+    return stayDates(locale, offer.check_in, offer.check_out)
+  }
+  const day = new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'long' })
+  return `${day.format(parseISO(offer.starts_at))}, ${clock(offer.starts_at)}–${clock(offer.ends_at)}`
+}
+
+/** "15:00" from a local time without a zone: read as written, never shifted. */
+export function clock(localTime: string): string {
+  return localTime.slice(11, 16)
+}
+
+export function isHourly(offer: PublicOffer): boolean {
+  return offer.rental_mode === 'hourly'
 }
 
 export function money(value: number, locale: string): string {

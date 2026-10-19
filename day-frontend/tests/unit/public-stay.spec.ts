@@ -4,7 +4,7 @@
  */
 
 import { expect, test } from '@playwright/test'
-import { guestLanguage, monthCells, stayDates, stayQuote } from '../../src/lib/public-stay'
+import { guestLanguage, isHourly, monthCells, offerDates, stayDates, stayQuote } from '../../src/lib/public-stay'
 
 test('a month is laid out from Monday, with blanks before its first day', () => {
   // 1 October 2026 is a Thursday.
@@ -47,4 +47,19 @@ test("a stay's dates read as one range, and as two dates where the browser has n
   } finally {
     Object.defineProperty(Intl.DateTimeFormat.prototype, 'formatRange', { value: range, configurable: true, writable: true })
   }
+})
+
+test('an hourly link shows its day and hours as written, never shifted by the zone', () => {
+  const offer = {
+    code: 'abc', guest: null, phone: '', check_in: '2030-10-20', check_out: '2030-10-21', nights: 0,
+    rental_mode: 'hourly' as const, starts_at: '2030-10-20T15:00:00', ends_at: '2030-10-20T18:30:00', hours: 4,
+    guests: 2, flats: [], booking: null,
+  }
+  expect(isHourly(offer)).toBe(true)
+  expect(offerDates('ru', offer)).toBe('20 октября, 15:00–18:30')
+  expect(offerDates('en', offer)).toBe('October 20, 15:00–18:30')
+  // A link by the night keeps its dates.
+  const nightly = { ...offer, rental_mode: 'daily' as const, starts_at: null, ends_at: null }
+  expect(isHourly(nightly)).toBe(false)
+  expect(offerDates('ru', nightly)).toBe(stayDates('ru', '2030-10-20', '2030-10-21'))
 })

@@ -76,6 +76,11 @@ export interface PublicOffer {
   check_in: string
   check_out: string
   nights: number
+  /** hourly: the stay runs from starts_at to ends_at (the company's local time) on check_in's day. */
+  rental_mode?: 'daily' | 'hourly'
+  starts_at?: string | null
+  ends_at?: string | null
+  hours?: number | null
   guests: number
   flats: PublicOfferFlat[]
   booking: PublicOfferBooking | null
