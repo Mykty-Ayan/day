@@ -341,7 +341,7 @@ class ToolContext:
             "apartment": found.apartment_number,
             "wifi_name": found.wifi_name,
             "wifi_password": found.wifi_password if self._sees_secrets else None,
-            "check_in_instructions": found.check_in_instructions,
+            "check_in_instructions": found.check_in_instructions if self._sees_secrets else None,
             "check_in_from": f"{found.check_in_hour:02d}:00" if found.check_in_hour is not None else None,
             "check_out_until": f"{found.check_out_hour:02d}:00" if found.check_out_hour is not None else None,
             "check_in_method": found.check_in_method.value if found.check_in_method else None,

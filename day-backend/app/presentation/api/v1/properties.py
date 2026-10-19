@@ -179,7 +179,8 @@ def _to_property_response(p, photos: list | None = None, *, sees_secrets: bool) 
         check_in_method=p.check_in_method,
         area_living=p.area_living,
         area_total=p.area_total,
-        check_in_instructions=p.check_in_instructions,
+        # How a guest gets in may hold a code: only for those who hand codes to guests.
+        check_in_instructions=p.check_in_instructions if sees_secrets else None,
         check_out_instructions=p.check_out_instructions,
         house_rules=p.house_rules,
         wifi_name=p.wifi_name,
