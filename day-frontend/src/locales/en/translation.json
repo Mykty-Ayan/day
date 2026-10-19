@@ -1344,7 +1344,8 @@
     "errors": {
       "rentNeedsFlat": "Rent is paid for a flat: choose it",
       "amount": "The amount must be above zero, with two decimals at most",
-      "day": "Choose the day"
+      "day": "Choose the day",
+      "commissionNeedsAgent": "An agent's commission is paid to an agent — choose one"
     },
     "categories": {
       "rent": "Rent",
@@ -1362,6 +1363,10 @@
       "agent_commission": "Agent commission",
       "software": "Software",
       "other": "Other"
-    }
+    },
+    "agent": "Agent",
+    "booking": "Booking",
+    "bookingNone": "No booking",
+    "agentChoose": "Choose the agent"
   }
 }

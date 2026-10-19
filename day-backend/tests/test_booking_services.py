@@ -193,18 +193,24 @@ class FakeBookingRepository(BookingRepository):
         search=None,
         date_from=None,
         date_to=None,
+        agent_id=None,
     ):
         result = [b for b in self._bookings.values() if b.company_id == company_id]
         if status is not None:
             result = [b for b in result if b.status == status]
+        if agent_id is not None:
+            result = [b for b in result if b.agent_id == agent_id]
         return result[offset : offset + limit]
 
     async def count_by_company(
-        self, company_id, *, status=None, property_id=None, source=None, search=None, date_from=None, date_to=None
+        self, company_id, *, status=None, property_id=None, source=None, search=None, date_from=None, date_to=None,
+        agent_id=None,
     ):
         result = [b for b in self._bookings.values() if b.company_id == company_id]
         if status is not None:
             result = [b for b in result if b.status == status]
+        if agent_id is not None:
+            result = [b for b in result if b.agent_id == agent_id]
         return len(result)
 
     async def list_by_property_date_range(self, property_id, start_date, end_date, *, company_id=None):

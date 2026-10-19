@@ -220,6 +220,8 @@ export interface BookingFilters {
   search?: string
   date_from?: string
   date_to?: string
+  /** The bookings this agent brought. */
+  agent_id?: string
 }
 
 export interface PaymentInput {

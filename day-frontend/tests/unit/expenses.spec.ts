@@ -11,6 +11,13 @@ test('a month runs from its first day to its last', () => {
   expect(monthPeriod('2028-02')).toEqual({ date_from: '2028-02-01', date_to: '2028-02-29' })
 })
 
+test('an agent commission needs the agent; the booking is optional', () => {
+  const form = { ...emptyExpenseForm('2026-10-19'), category: 'agent_commission' as const, amount: '3000' }
+  expect(expenseFormError(form)).toBe('expenses.errors.commissionNeedsAgent')
+  expect(expenseFormError({ ...form, agent_id: 'a1' })).toBeNull()
+  expect(expenseFormError({ ...form, agent_id: 'a1', booking_id: 'b1' })).toBeNull()
+})
+
 test('rent needs a flat, every expense a positive amount and a day', () => {
   const form = { ...emptyExpenseForm('2026-10-19'), category: 'rent' as const, amount: '150000' }
   expect(expenseFormError(form)).toBe('expenses.errors.rentNeedsFlat')
