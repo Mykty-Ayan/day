@@ -507,7 +507,8 @@
       "booking": "Booking.com",
       "airbnb": "Airbnb",
       "other": "Другое",
-      "crm": "CRM"
+      "crm": "CRM",
+      "offer": "Личная ссылка"
     },
     "adultsCount_one": "{{count}} взрослый",
     "adultsCount_few": "{{count}} взрослых",

@@ -497,7 +497,8 @@
       "booking": "Booking.com",
       "airbnb": "Airbnb",
       "other": "Other",
-      "crm": "CRM"
+      "crm": "CRM",
+      "offer": "Personal link"
     },
     "adultsCount": "{{count}} adult",
     "adultsCount_other": "{{count}} adults",
