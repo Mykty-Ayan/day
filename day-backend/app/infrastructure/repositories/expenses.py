@@ -23,6 +23,8 @@ def _to_expense(m: ExpenseModel) -> Expense:
         spent_on=m.spent_on,
         payee=m.payee,
         note=m.note,
+        agent_id=m.agent_id,
+        booking_id=m.booking_id,
         created_by=m.created_by,
         created_at=m.created_at,
         voided_at=m.voided_at,
@@ -44,6 +46,8 @@ class SqlExpenseRepository(ExpenseRepository):
             spent_on=expense.spent_on,
             payee=expense.payee,
             note=expense.note,
+            agent_id=expense.agent_id,
+            booking_id=expense.booking_id,
             created_by=expense.created_by,
         )
         self._session.add(model)

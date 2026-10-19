@@ -54,11 +54,25 @@ class FakeExpenseRepository:
         return found
 
 
-async def _service(*flats):
+class _ByCompany:
+    """Agents and bookings, found only within their company."""
+
+    def __init__(self, *rows):
+        self.rows = {r.id: r for r in rows}
+
+    async def get(self, company_id, row_id):
+        found = self.rows.get(row_id)
+        return found if found is not None and found.company_id == company_id else None
+
+    async def get_by_id(self, row_id):
+        return self.rows.get(row_id)
+
+
+async def _service(*flats, agents=(), bookings=()):
     props = FakePropertyRepository()
     for unit in flats:
         await props.save(unit)
-    return ManageExpensesService(FakeExpenseRepository(), props)
+    return ManageExpensesService(FakeExpenseRepository(), props, _ByCompany(*agents), _ByCompany(*bookings))
 
 
 def _new(**kw):
@@ -199,3 +213,68 @@ async def test_a_period_that_ends_before_it_starts_is_refused(flat):  # noqa: F8
     use(Permission.EXPENSES_MANAGE)
     res = await client.get("/api/v1/expenses", params={"date_from": "2026-10-31", "date_to": "2026-10-01"})
     assert res.status_code == 422
+
+
+async def test_an_agents_commission_names_an_agent_of_the_company():
+    from types import SimpleNamespace
+
+    mine = SimpleNamespace(id=uuid.uuid4(), company_id=COMPANY_ID)
+    theirs = SimpleNamespace(id=uuid.uuid4(), company_id=uuid.uuid4())
+    svc = await _service(agents=(mine, theirs))
+
+    with pytest.raises(ValueError, match="agent"):
+        await svc.add(_new(category=ExpenseCategory.AGENT_COMMISSION))
+    for wrong in (theirs.id, uuid.uuid4()):
+        with pytest.raises(ValueError, match="agent"):
+            await svc.add(_new(category=ExpenseCategory.AGENT_COMMISSION, agent_id=wrong))
+
+    paid = await svc.add(_new(category=ExpenseCategory.AGENT_COMMISSION, agent_id=mine.id, amount=Decimal("3000")))
+    assert (paid.agent_id, paid.booking_id) == (mine.id, None)
+
+
+async def test_an_expense_may_name_a_booking_of_the_company_only():
+    from types import SimpleNamespace
+
+    agent = SimpleNamespace(id=uuid.uuid4(), company_id=COMPANY_ID)
+    mine = SimpleNamespace(id=uuid.uuid4(), company_id=COMPANY_ID, agent_id=None)
+    theirs = SimpleNamespace(id=uuid.uuid4(), company_id=uuid.uuid4(), agent_id=None)
+    svc = await _service(agents=(agent,), bookings=(mine, theirs))
+    commission = dict(category=ExpenseCategory.AGENT_COMMISSION, agent_id=agent.id)
+
+    for wrong in (theirs.id, uuid.uuid4()):
+        with pytest.raises(ValueError, match="booking"):
+            await svc.add(_new(**commission, booking_id=wrong))
+    paid = await svc.add(_new(**commission, booking_id=mine.id))
+    assert paid.booking_id == mine.id
+
+
+async def test_a_commission_cannot_name_a_booking_another_agent_brought():
+    from types import SimpleNamespace
+
+    ermek, other = (SimpleNamespace(id=uuid.uuid4(), company_id=COMPANY_ID) for _ in range(2))
+    by_other = SimpleNamespace(id=uuid.uuid4(), company_id=COMPANY_ID, agent_id=other.id)
+    svc = await _service(agents=(ermek, other), bookings=(by_other,))
+
+    with pytest.raises(ValueError, match="another agent"):
+        await svc.add(_new(category=ExpenseCategory.AGENT_COMMISSION, agent_id=ermek.id, booking_id=by_other.id))
+    paid = await svc.add(_new(category=ExpenseCategory.AGENT_COMMISSION, agent_id=other.id, booking_id=by_other.id))
+    assert paid.agent_id == other.id
+
+
+@pytest.mark.integration
+async def test_an_agents_commission_is_kept_with_its_agent_and_booking(flat):  # noqa: F811  (the imported fixture)
+    client, prop, use = flat
+    use(Permission.BOOKINGS_READ, Permission.BOOKINGS_WRITE, Permission.PROPERTIES_READ, Permission.EXPENSES_MANAGE)
+    agent = (await client.post("/api/v1/agents", json={"name": "Ермек"})).json()
+    stay = {"property_id": str(prop), "guest_name": "Жалгас", "guest_phone": "+77079011161",
+            "check_in": "2030-12-01T14:00:00", "check_out": "2030-12-02T12:00:00", "rental_mode": "daily",
+            "adults_count": 1, "agent_id": agent["id"]}
+    booking = (await client.post("/api/v1/bookings", json=stay)).json()
+    paid = {"category": "agent_commission", "amount": 3000, "spent_on": date.today().isoformat()}
+
+    assert (await client.post("/api/v1/expenses", json=paid)).status_code == 422
+    made = await client.post("/api/v1/expenses", json={**paid, "agent_id": agent["id"], "booking_id": booking["id"]})
+    assert made.status_code == 201, made.text
+    assert (made.json()["agent_id"], made.json()["booking_id"]) == (agent["id"], booking["id"])
+    listed = (await client.get("/api/v1/expenses", params={"category": "agent_commission"})).json()
+    assert [(e["agent_id"], e["booking_id"]) for e in listed] == [(agent["id"], booking["id"])]

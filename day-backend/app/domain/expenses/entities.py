@@ -40,6 +40,9 @@ class Expense:
     property_id: uuid.UUID | None = None
     payee: str | None = None
     note: str | None = None
+    # The agent paid, for an agent's commission; the booking the money was for, if one.
+    agent_id: uuid.UUID | None = None
+    booking_id: uuid.UUID | None = None
     created_by: uuid.UUID | None = None
     created_at: datetime | None = None
     # A wrong expense is voided, never deleted: the books keep what was said.
