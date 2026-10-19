@@ -39,7 +39,10 @@ class OfferCreate(BaseModel):
 
     @model_validator(mode="after")
     def _the_stay_of_its_kind(self):
+        # The other kind's fields are refused, not dropped: the caller meant something else.
         if self.rental_mode == "hourly":
+            if self.check_in is not None or self.check_out is not None:
+                raise ValueError("An hourly offer takes starts_at and ends_at, not check_in and check_out")
             if self.starts_at is None or self.ends_at is None:
                 raise ValueError("An hourly offer needs starts_at and ends_at")
             if self.starts_at.tzinfo is not None or self.ends_at.tzinfo is not None:
@@ -47,6 +50,8 @@ class OfferCreate(BaseModel):
             if self.ends_at <= self.starts_at:
                 raise ValueError("ends_at must be after starts_at")
         else:
+            if self.starts_at is not None or self.ends_at is not None:
+                raise ValueError("A nightly offer takes check_in and check_out; for hours set rental_mode=hourly")
             if self.check_in is None or self.check_out is None:
                 raise ValueError("A nightly offer needs check_in and check_out")
             if self.check_out <= self.check_in:

@@ -17,14 +17,17 @@ from datetime import date, datetime, time, timedelta
 from decimal import Decimal
 
 from app.application.booking.price_calculator import PriceCalculatorService
+from app.application.booking.stay_rules import company_now
 from app.application.property.public_stay import taken_nights
 from app.config import settings
 from app.domain.booking.entities import GuestOffer
 from app.domain.booking.repositories import BookingRepository, GuestOfferRepository
+from app.domain.booking.stay_rules import stay_breaches
 from app.domain.booking.value_objects import RentalMode
 from app.domain.property.entities import Property
 from app.domain.property.repositories import PropertyPhotoRepository, PropertyRepository
 from app.domain.property.value_objects import FactAudience, PropertyStatus
+from app.domain.settings.repositories import CompanySettingsRepository
 
 _ALPHABET = "abcdefghjkmnpqrstuvwxyz23456789"
 MAX_FLATS = 10
@@ -79,15 +82,23 @@ class GuestOffersService:
         photo_repo: PropertyPhotoRepository,
         booking_repo: BookingRepository,
         prices: PriceCalculatorService,
+        settings_repo: CompanySettingsRepository | None = None,
         *,
         today: Callable[[], date] = date.today,
+        now: Callable[[], datetime] | None = None,
     ) -> None:
         self._offers = offer_repo
         self._properties = property_repo
         self._photos = photo_repo
         self._bookings = booking_repo
         self._prices = prices
+        self._settings = settings_repo
         self._today = today
+        self._now = now
+
+    async def _company_now(self, company_id: uuid.UUID) -> datetime:
+        """The company's local time, as an hourly stay's hours are written."""
+        return self._now() if self._now is not None else await company_now(self._settings, company_id)
 
     async def create(
         self,
@@ -115,6 +126,8 @@ class GuestOffersService:
                 raise ValueError("ends_at must be after starts_at")
             if ends_at - starts_at > timedelta(hours=MAX_HOURS):
                 raise ValueError(f"An hourly offer covers at most {MAX_HOURS} hours")
+            if starts_at <= await self._company_now(company_id):
+                raise ValueError("starts_at is in the past")
             check_in = starts_at.date()
             check_out = check_in + timedelta(days=1)
         elif rental_mode != RentalMode.DAILY:
@@ -164,10 +177,17 @@ class GuestOffersService:
             raise ValueError("Not found")
         if self._today() > offer.check_in:
             raise OfferExpiredError("Expired")
+        hourly = offer.rental_mode == RentalMode.HOURLY
+        # By the hour the link ends when its hours begin, as booking from it does.
+        if hourly and offer.starts_at is not None and await self._company_now(offer.company_id) >= offer.starts_at:
+            raise OfferExpiredError("Expired")
         flats = []
         for property_id in offer.property_ids:
             prop = await self._properties.get_by_id(property_id)
             if prop is None or prop.company_id != offer.company_id or prop.status != PropertyStatus.ACTIVE:
+                continue
+            # Let otherwise since the link was made: booking it would be refused, so it leaves the link.
+            if prop.rental_mode == (RentalMode.DAILY if hourly else RentalMode.HOURLY):
                 continue
             flats.append(await self._flat(prop, offer))
         return PublicOffer(offer=offer, flats=flats)
@@ -198,8 +218,8 @@ class GuestOffersService:
 
 
     async def _hourly_flat(self, prop: Property, offer: GuestOffer) -> OfferFlat:
-        """As a booking finds the hours: no stay over them, no closed day. The cleaning
-        buffer and the lead time are the booking's to refuse, with their reason."""
+        """As a booking finds the hours: no stay over them, no closed span, and the flat's
+        rules kept (the cleaning buffer, the hours before check-in), or booking is refused."""
         photos = sorted(
             (p for p in await self._photos.list_by_property(prop.id) if p.audience == FactAudience.PUBLIC),
             key=lambda p: (not p.is_cover, p.sort_order),
@@ -220,11 +240,20 @@ class GuestOffersService:
             for b in blocks
             if datetime.combine(b.start_date, time(hour)) < end and datetime.combine(b.end_date, time(hour)) > start
         ]
+        # Read only: the page takes no lock on the calendar, as a booking does.
+        neighbours = []
+        if prop.buffer_minutes is not None:
+            reach = timedelta(minutes=prop.buffer_minutes)
+            neighbours = await self._bookings.get_by_property_and_dates(
+                prop.id, start - reach, end + reach, include_completed=True
+            )
+        now = await self._company_now(offer.company_id) if prop.min_lead_hours is not None else None
+        breaches = stay_breaches(prop, start, end, RentalMode.HOURLY, now=now, neighbours=neighbours)
         return OfferFlat(
             property=prop,
             photo=photos[0].url if photos else None,
             total=total,
-            free=not taken and not closed,
+            free=not taken and not closed and not breaches,
         )
 
 

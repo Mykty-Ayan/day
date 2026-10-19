@@ -22,6 +22,7 @@ from app.infrastructure.repositories.property import (
     SqlPropertyRepository,
     SqlSeasonalPriceRepository,
 )
+from app.infrastructure.repositories.settings import SqlCompanySettingsRepository
 from app.presentation.api.deps import Principal, get_company_id, get_principal, require
 from app.presentation.schemas.offers import OfferCreate, OfferResponse
 
@@ -40,6 +41,7 @@ def offers_service(session: AsyncSession) -> GuestOffersService:
             SqlDiscountRuleRepository(session),
             SqlDayPriceRepository(session),
         ),
+        SqlCompanySettingsRepository(session),
     )
 
 
