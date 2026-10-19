@@ -1338,7 +1338,7 @@
     "ownerOnly": "Only the owner sees and records expenses.",
     "errors": {
       "rentNeedsFlat": "Rent is paid for a flat: choose it",
-      "amount": "The amount must be above zero",
+      "amount": "The amount must be above zero, with two decimals at most",
       "day": "Choose the day"
     },
     "categories": {

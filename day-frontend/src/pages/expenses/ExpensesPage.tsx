@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { isAxiosError } from 'axios'
 import { useTranslation } from 'react-i18next'
 import { Ban, Plus } from 'lucide-react'
 import { showToast } from '../../components/ui/Toast'
@@ -19,6 +20,15 @@ import {
 const field =
   'w-full rounded-xl border border-gray-200 bg-gray-50 p-3 text-sm text-gray-800 outline-none focus:ring-2 focus:ring-black/10'
 const label = 'mb-1.5 block text-xs font-bold uppercase tracking-wider text-gray-400'
+
+/** The server's reason for refusing, when it gave one (a sentence, or pydantic's list). */
+function serverReason(error: unknown): string | null {
+  if (!isAxiosError(error)) return null
+  const detail = (error.response?.data as { detail?: unknown } | undefined)?.detail
+  if (typeof detail === 'string') return detail
+  if (Array.isArray(detail)) return detail.map((d: { msg?: string }) => d.msg).filter(Boolean).join('; ') || null
+  return null
+}
 
 /** Today on this device's calendar, as YYYY-MM-DD. */
 function localToday(): string {
@@ -70,8 +80,12 @@ export default function ExpensesPage() {
         note: form.note.trim() || null,
       })
       showToast('success', t('expenses.saved'))
+      // Show the month the expense went to, or it seems to vanish.
+      setMonth(form.spent_on.slice(0, 7))
       setForm(emptyExpenseForm(form.spent_on))
-    } catch {
+    } catch (error) {
+      const reason = serverReason(error)
+      if (reason) setFormError(reason)
       showToast('error', t('expenses.failed'))
     }
   }
@@ -222,7 +236,7 @@ export default function ExpensesPage() {
                   onClick={() => cancelExpense(e.id)}
                   aria-label={t('expenses.void')}
                   title={t('expenses.void')}
-                  className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-red-600"
+                  className="flex min-h-11 min-w-11 items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-red-600"
                 >
                   <Ban className="h-4 w-4" />
                 </button>

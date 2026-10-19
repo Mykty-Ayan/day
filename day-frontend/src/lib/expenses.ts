@@ -33,16 +33,27 @@ export function emptyExpenseForm(today: string): ExpenseForm {
   return { category: 'utilities', amount: '', spent_on: today, property_id: '', payee: '', note: '' }
 }
 
-/** The amount as typed: spaces and a comma allowed ("12 000", "1500,50"). */
+/** The amount as typed: "150 000", "1500,50", "1.500,50" or "1,500.50". The last
+ *  comma or dot is the decimal one; any other is a thousands separator. */
 export function expenseAmount(value: string): number {
-  return Number(value.replace(/\s+/g, '').replace(',', '.'))
+  return Number(plainAmount(value))
+}
+
+function plainAmount(value: string): string {
+  const compact = value.replace(/\s+/g, '')
+  const decimal = Math.max(compact.lastIndexOf(','), compact.lastIndexOf('.'))
+  if (decimal === -1) return compact
+  return `${compact.slice(0, decimal).replace(/[.,]/g, '')}.${compact.slice(decimal + 1)}`
 }
 
 /** The translation key of what is missing, or null when the form can be sent. */
 export function expenseFormError(form: ExpenseForm): string | null {
   if (!form.spent_on) return 'expenses.errors.day'
-  const amount = expenseAmount(form.amount)
-  if (!Number.isFinite(amount) || amount <= 0) return 'expenses.errors.amount'
+  // Kept to the tiyn, as the server does: no third decimal. Read from the text:
+  // 1.1 * 100 is not 110 in floating point.
+  if (!/^\d+(\.\d{1,2})?$/.test(plainAmount(form.amount)) || expenseAmount(form.amount) <= 0) {
+    return 'expenses.errors.amount'
+  }
   // Rent is always paid for one flat, as the server requires.
   if (form.category === 'rent' && !form.property_id) return 'expenses.errors.rentNeedsFlat'
   return null
