@@ -24,7 +24,7 @@ from app.domain.booking.repositories import (
     GuestOfferRepository,
     GuestRepository,
 )
-from app.domain.booking.value_objects import BookingStatus, DepositStatus, RentalMode
+from app.domain.booking.value_objects import BookingSource, BookingStatus, DepositStatus, RentalMode
 from app.domain.property.repositories import PricingConfigRepository, PropertyRepository
 from app.domain.property.value_objects import PropertyStatus
 from app.domain.settings.entities import DEFAULT_TIME_ZONE
@@ -118,6 +118,7 @@ class GuestHoldService:
                 check_in=offer.check_in,
                 check_out=offer.check_out,
                 adults_count=guests,
+                source=BookingSource.OFFER,
                 notes=notes,
                 expires_at=self._now() + timedelta(minutes=HOLD_MINUTES),
             )

@@ -497,7 +497,8 @@
       "booking": "Booking.com",
       "airbnb": "Airbnb",
       "other": "Басқа",
-      "crm": "CRM"
+      "crm": "CRM",
+      "offer": "Жеке сілтеме"
     },
     "adultsCount": "{{count}} ересек",
     "adultsCount_other": "{{count}} ересек",

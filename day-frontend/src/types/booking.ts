@@ -1,6 +1,6 @@
 
 export type BookingStatus = 'pending' | 'confirmed' | 'checked_in' | 'checked_out' | 'completed' | 'cancelled'
-export type BookingSource = 'direct' | 'booking' | 'airbnb' | 'other' | 'crm'
+export type BookingSource = 'direct' | 'booking' | 'airbnb' | 'other' | 'crm' | 'offer'
 export type PaymentType = 'payment' | 'refund'
 export type PaymentMethod = 'cash' | 'card' | 'transfer'
 export type PaymentStatus = 'pending' | 'completed' | 'failed'

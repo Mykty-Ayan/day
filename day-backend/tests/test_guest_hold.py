@@ -15,7 +15,7 @@ from app.application.messaging.notifications import render
 from app.domain.auth.permissions import Permission
 from app.domain.booking.entities import Booking, Guest
 from app.domain.booking.exceptions import BookingOverlapError
-from app.domain.booking.value_objects import BookingStatus, DepositStatus, RentalMode
+from app.domain.booking.value_objects import BookingSource, BookingStatus, DepositStatus, RentalMode
 from app.domain.messaging.value_objects import NotificationEvent
 from app.domain.property.entities import PricingConfig, Property
 from app.domain.property.value_objects import PropertyStatus
@@ -101,6 +101,8 @@ async def test_a_guest_books_a_flat_of_the_link_and_it_is_held_half_an_hour():
 
     held = await h.service.book(offer.code, flat=family.public_code, guests=2)
     booking = held.booking
+    # The CRM tells a booking made by the guest on a personal link from one it made itself.
+    assert booking.source == BookingSource.OFFER
     assert (booking.property_id, booking.status, booking.expires_at) == (
         family.id, BookingStatus.PENDING, NOW + timedelta(minutes=30)
     )

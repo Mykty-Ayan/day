@@ -33,6 +33,8 @@ class BookingSource(str, enum.Enum):
     AIRBNB = "airbnb"
     OTHER = "other"
     CRM = "crm"
+    # Booked by the guest on a personal link (/o/<code>).
+    OFFER = "offer"
 
 
 class PaymentType(str, enum.Enum):

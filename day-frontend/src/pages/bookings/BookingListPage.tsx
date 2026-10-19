@@ -65,6 +65,7 @@ export default function BookingListPage() {
     { value: 'airbnb', label: t('bookings.sources.airbnb') },
     { value: 'other', label: t('bookings.sources.other') },
     { value: 'crm', label: t('bookings.sources.crm') },
+    { value: 'offer', label: t('bookings.sources.offer') },
   ]
   const VIEW_OPTIONS: { value: ViewMode; label: string }[] = [
     { value: 'cards', label: t('common.cards') },
