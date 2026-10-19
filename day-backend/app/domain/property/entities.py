@@ -260,3 +260,15 @@ class PropertyFact:
     audience: FactAudience = FactAudience.GUEST
     source: FactSource = FactSource.USER
     created_at: datetime | None = None
+
+
+@dataclass
+class CompanyFact:
+    """A rule for every flat of the company: documents, pets, smoking, quiet hours."""
+
+    id: uuid.UUID = field(default_factory=uuid.uuid4)
+    company_id: uuid.UUID = field(default_factory=uuid.uuid4)
+    text: str = ""
+    audience: FactAudience = FactAudience.PUBLIC
+    source: FactSource = FactSource.USER
+    created_at: datetime | None = None
