@@ -77,7 +77,10 @@ def render(title: str, description: str, image: str | None, url: str) -> str:
 
 def _page(body: str, status: int = 200) -> HTMLResponse:
     # A robot caches what it saw; an hour keeps a changed price from lingering for days.
-    return HTMLResponse(body, status_code=status, headers={"Cache-Control": "public, max-age=3600"})
+    # One address answers a robot with this and a person with the app: a cache must tell them apart.
+    return HTMLResponse(
+        body, status_code=status, headers={"Cache-Control": "public, max-age=3600", "Vary": "User-Agent"}
+    )
 
 
 def _link(kind: str, code: str) -> str:
@@ -136,6 +139,6 @@ async def offer_preview(code: str, session: AsyncSession = Depends(get_session))
         when = f"{o.check_in.day} {_MONTHS[o.check_in.month - 1]} – {o.check_out.day} {_MONTHS[o.check_out.month - 1]}"
     count = len(public.flats)
     title = "Квартира на ваши даты" if count == 1 else "Квартиры на ваши даты"
-    description = f"{when} · гостей: {o.guests} · вариантов: {count}"
+    description = f"{when} · гостей: {o.guests} · " + (f"вариантов: {count}" if count else "свободных вариантов нет")
     photo = next((f.photo for f in public.flats if f.photo), None)
     return _page(render(title, description, preview_image(photo), _link("o", code)))
