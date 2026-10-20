@@ -937,7 +937,9 @@
       "nameAndScopes": "A name and at least one scope are required"
     },
     "telegramCode": "Telegram code",
-    "telegramCodeHint": "Send it to the team member. They send it to the Day bot and get Telegram with the “{{role}}” rights, not yours. The code works once, for 30 minutes."
+    "telegramCodeHint": "Send it to the team member. They send it to the Day bot and get Telegram with the “{{role}}” rights, not yours. The code works once, for 30 minutes.",
+    "scopesAll": "Select all",
+    "scopesNone": "Clear all"
   },
   "channels": {
     "title": "Bots",
