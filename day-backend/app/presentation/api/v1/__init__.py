@@ -19,6 +19,7 @@ from app.presentation.api.v1.properties import amenity_router
 from app.presentation.api.v1.properties import router as properties_router
 from app.presentation.api.v1.public import public_router
 from app.presentation.api.v1.settings import settings_router
+from app.presentation.api.v1.site import public_company_router, site_router
 from app.presentation.api.v1.tags import tag_router
 from app.presentation.api.v1.users import api_key_router, user_router
 from app.presentation.api.v1.webhooks import webhook_router
@@ -52,3 +53,5 @@ api_v1_router.include_router(offers_router)
 api_v1_router.include_router(expense_router)
 api_v1_router.include_router(agent_router)
 api_v1_router.include_router(company_fact_router)
+api_v1_router.include_router(site_router)
+api_v1_router.include_router(public_company_router)
