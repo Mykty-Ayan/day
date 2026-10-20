@@ -16,6 +16,8 @@ The owner keeps the company's expenses and the agents who bring guests, and writ
 - `whatsapp_product_id` on a flat, read from its WhatsApp catalogue product link (`wa.me/p/<id>/<phone>`) (#184)
 - `external_id` on `POST /offers`: the booking made by the link carries it as its own `external_id`, also in the feed; the guest never sees it (#185)
 - A personal link by the hour (`rental_mode=hourly`, `starts_at`, `ends_at`): the page prices the hours, keeps the flat's buffer and notice, and the guest's booking is hourly with the hourly deposit (#186, #187)
+- A flat's or a personal link pasted in WhatsApp, Telegram or Instagram shows a preview: the flat's photo, name and price; a personal link's dates, never the guest. Chat robots get Open Graph tags from `/public/preview/{s,o}/{code}`; people get the page as before (#189)
+- "Select all" scopes when creating an API key (#188)
 
 ### Changed
 - The cleaning buffer is set in minutes in 15-minute steps; a new flat's form suggests 30 (#172)
