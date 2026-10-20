@@ -25,6 +25,8 @@ def test_contacts_and_color_are_kept_in_one_form():
     assert (site.title, site.whatsapp, site.instagram, site.accent_color, site.about) == (
         "Munar", "77012345678", "munar.apart", "#0e7a5f", None
     )
+    for link in ("@munar.apart", "http://m.instagram.com/munar.apart?igsh=x"):
+        assert SiteUpdate(slug="munar", title="x", instagram=link).instagram == "munar.apart"
     for bad in ({"accent_color": "green"}, {"whatsapp": "123"}, {"instagram": "a b"}, {"logo_url": "ftp://x"}):
         with pytest.raises(ValidationError):
             SiteUpdate(slug="munar", title="x", **bad)

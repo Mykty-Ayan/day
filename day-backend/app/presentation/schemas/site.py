@@ -62,8 +62,9 @@ class SiteUpdate(BaseModel):
     def _a_handle(cls, value: str | None) -> str | None:
         if not value or not value.strip():
             return None
-        handle = value.strip().removeprefix("https://").removeprefix("www.").removeprefix("instagram.com/")
-        handle = handle.strip("/").lstrip("@")
+        # A handle, @handle or the profile's link as copied from the app.
+        handle = re.sub(r"^(https?://)?(www\.|m\.)?instagram\.com/", "", value.strip())
+        handle = handle.split("?")[0].strip("/").lstrip("@")
         if not re.fullmatch(r"[A-Za-z0-9._]{1,30}", handle):
             raise ValueError("An Instagram name: letters, digits, dots and underscores")
         return handle
