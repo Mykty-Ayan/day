@@ -42,16 +42,12 @@ function CompanyView({ company, locale }: { company: PublicCompany; locale: stri
   return (
     <main style={style} className="pb-10">
       <section className="relative">
-        <div
-          className="aspect-[16/9] w-full bg-cover bg-center"
-          style={
-            company.cover_url
-              ? { backgroundImage: `url("${company.cover_url}")` }
-              : { background: `linear-gradient(135deg, ${accent}, ${accent}99)` }
-          }
-          role={company.cover_url ? 'img' : undefined}
-          aria-label={company.cover_url ? company.title : undefined}
-        />
+        {/* An <img>, not a CSS url(): the owner's link never becomes style text. */}
+        {company.cover_url ? (
+          <img src={company.cover_url} alt="" fetchPriority="high" className="aspect-[16/9] w-full object-cover" />
+        ) : (
+          <div className="aspect-[16/9] w-full" style={{ background: `linear-gradient(135deg, ${accent}, ${accent}99)` }} />
+        )}
         {company.logo_url && (
           <img
             src={company.logo_url}
