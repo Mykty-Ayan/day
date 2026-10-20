@@ -14,6 +14,7 @@ from app.presentation.api.v1.expenses import expense_router
 from app.presentation.api.v1.health import router as health_router
 from app.presentation.api.v1.ical import ical_router
 from app.presentation.api.v1.leads import blacklist_router, lead_router
+from app.presentation.api.v1.link_preview import preview_router
 from app.presentation.api.v1.offers import offers_router
 from app.presentation.api.v1.properties import amenity_router
 from app.presentation.api.v1.properties import router as properties_router
@@ -48,6 +49,7 @@ api_v1_router.include_router(assistant_router)
 api_v1_router.include_router(webhook_router)
 api_v1_router.include_router(ical_router)
 api_v1_router.include_router(public_router)
+api_v1_router.include_router(preview_router)
 api_v1_router.include_router(offers_router)
 api_v1_router.include_router(expense_router)
 api_v1_router.include_router(agent_router)
