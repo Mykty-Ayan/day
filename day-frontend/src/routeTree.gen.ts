@@ -14,6 +14,7 @@ import { Route as RegisterRouteImport } from './routes/register'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as SiteIndexRouteImport } from './routes/site/index'
 import { Route as SettingsIndexRouteImport } from './routes/settings/index'
 import { Route as ReadinessIndexRouteImport } from './routes/readiness/index'
 import { Route as PropertiesIndexRouteImport } from './routes/properties/index'
@@ -34,6 +35,7 @@ import { Route as CleaningNewRouteImport } from './routes/cleaning/new'
 import { Route as CleaningChecklistsRouteImport } from './routes/cleaning/checklists'
 import { Route as CleaningTaskIdRouteImport } from './routes/cleaning/$taskId'
 import { Route as CleanerTaskIdRouteImport } from './routes/cleaner/$taskId'
+import { Route as CSlugRouteImport } from './routes/c/$slug'
 import { Route as BookingsTodayRouteImport } from './routes/bookings/today'
 import { Route as BookingsNewRouteImport } from './routes/bookings/new'
 import { Route as BookingsBookingIdRouteImport } from './routes/bookings/$bookingId'
@@ -66,6 +68,11 @@ const ForgotPasswordRoute = ForgotPasswordRouteImport.update({
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SiteIndexRoute = SiteIndexRouteImport.update({
+  id: '/site/',
+  path: '/site/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SettingsIndexRoute = SettingsIndexRouteImport.update({
@@ -168,6 +175,11 @@ const CleanerTaskIdRoute = CleanerTaskIdRouteImport.update({
   path: '/cleaner/$taskId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CSlugRoute = CSlugRouteImport.update({
+  id: '/c/$slug',
+  path: '/c/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const BookingsTodayRoute = BookingsTodayRouteImport.update({
   id: '/bookings/today',
   path: '/bookings/today',
@@ -221,6 +233,7 @@ export interface FileRoutesByFullPath {
   '/bookings/$bookingId': typeof BookingsBookingIdRouteWithChildren
   '/bookings/new': typeof BookingsNewRoute
   '/bookings/today': typeof BookingsTodayRoute
+  '/c/$slug': typeof CSlugRoute
   '/cleaner/$taskId': typeof CleanerTaskIdRoute
   '/cleaning/$taskId': typeof CleaningTaskIdRoute
   '/cleaning/checklists': typeof CleaningChecklistsRoute
@@ -241,6 +254,7 @@ export interface FileRoutesByFullPath {
   '/properties/': typeof PropertiesIndexRoute
   '/readiness/': typeof ReadinessIndexRoute
   '/settings/': typeof SettingsIndexRoute
+  '/site/': typeof SiteIndexRoute
   '/bookings/$bookingId/edit': typeof BookingsBookingIdEditRoute
   '/properties/$propertyId/edit': typeof PropertiesPropertyIdEditRoute
   '/bookings/$bookingId/': typeof BookingsBookingIdIndexRoute
@@ -255,6 +269,7 @@ export interface FileRoutesByTo {
   '/ai-import/$jobId': typeof AiImportJobIdRoute
   '/bookings/new': typeof BookingsNewRoute
   '/bookings/today': typeof BookingsTodayRoute
+  '/c/$slug': typeof CSlugRoute
   '/cleaner/$taskId': typeof CleanerTaskIdRoute
   '/cleaning/$taskId': typeof CleaningTaskIdRoute
   '/cleaning/checklists': typeof CleaningChecklistsRoute
@@ -274,6 +289,7 @@ export interface FileRoutesByTo {
   '/properties': typeof PropertiesIndexRoute
   '/readiness': typeof ReadinessIndexRoute
   '/settings': typeof SettingsIndexRoute
+  '/site': typeof SiteIndexRoute
   '/bookings/$bookingId/edit': typeof BookingsBookingIdEditRoute
   '/properties/$propertyId/edit': typeof PropertiesPropertyIdEditRoute
   '/bookings/$bookingId': typeof BookingsBookingIdIndexRoute
@@ -290,6 +306,7 @@ export interface FileRoutesById {
   '/bookings/$bookingId': typeof BookingsBookingIdRouteWithChildren
   '/bookings/new': typeof BookingsNewRoute
   '/bookings/today': typeof BookingsTodayRoute
+  '/c/$slug': typeof CSlugRoute
   '/cleaner/$taskId': typeof CleanerTaskIdRoute
   '/cleaning/$taskId': typeof CleaningTaskIdRoute
   '/cleaning/checklists': typeof CleaningChecklistsRoute
@@ -310,6 +327,7 @@ export interface FileRoutesById {
   '/properties/': typeof PropertiesIndexRoute
   '/readiness/': typeof ReadinessIndexRoute
   '/settings/': typeof SettingsIndexRoute
+  '/site/': typeof SiteIndexRoute
   '/bookings/$bookingId/edit': typeof BookingsBookingIdEditRoute
   '/properties/$propertyId/edit': typeof PropertiesPropertyIdEditRoute
   '/bookings/$bookingId/': typeof BookingsBookingIdIndexRoute
@@ -327,6 +345,7 @@ export interface FileRouteTypes {
     | '/bookings/$bookingId'
     | '/bookings/new'
     | '/bookings/today'
+    | '/c/$slug'
     | '/cleaner/$taskId'
     | '/cleaning/$taskId'
     | '/cleaning/checklists'
@@ -347,6 +366,7 @@ export interface FileRouteTypes {
     | '/properties/'
     | '/readiness/'
     | '/settings/'
+    | '/site/'
     | '/bookings/$bookingId/edit'
     | '/properties/$propertyId/edit'
     | '/bookings/$bookingId/'
@@ -361,6 +381,7 @@ export interface FileRouteTypes {
     | '/ai-import/$jobId'
     | '/bookings/new'
     | '/bookings/today'
+    | '/c/$slug'
     | '/cleaner/$taskId'
     | '/cleaning/$taskId'
     | '/cleaning/checklists'
@@ -380,6 +401,7 @@ export interface FileRouteTypes {
     | '/properties'
     | '/readiness'
     | '/settings'
+    | '/site'
     | '/bookings/$bookingId/edit'
     | '/properties/$propertyId/edit'
     | '/bookings/$bookingId'
@@ -395,6 +417,7 @@ export interface FileRouteTypes {
     | '/bookings/$bookingId'
     | '/bookings/new'
     | '/bookings/today'
+    | '/c/$slug'
     | '/cleaner/$taskId'
     | '/cleaning/$taskId'
     | '/cleaning/checklists'
@@ -415,6 +438,7 @@ export interface FileRouteTypes {
     | '/properties/'
     | '/readiness/'
     | '/settings/'
+    | '/site/'
     | '/bookings/$bookingId/edit'
     | '/properties/$propertyId/edit'
     | '/bookings/$bookingId/'
@@ -431,6 +455,7 @@ export interface RootRouteChildren {
   BookingsBookingIdRoute: typeof BookingsBookingIdRouteWithChildren
   BookingsNewRoute: typeof BookingsNewRoute
   BookingsTodayRoute: typeof BookingsTodayRoute
+  CSlugRoute: typeof CSlugRoute
   CleanerTaskIdRoute: typeof CleanerTaskIdRoute
   CleaningTaskIdRoute: typeof CleaningTaskIdRoute
   CleaningChecklistsRoute: typeof CleaningChecklistsRoute
@@ -451,6 +476,7 @@ export interface RootRouteChildren {
   PropertiesIndexRoute: typeof PropertiesIndexRoute
   ReadinessIndexRoute: typeof ReadinessIndexRoute
   SettingsIndexRoute: typeof SettingsIndexRoute
+  SiteIndexRoute: typeof SiteIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -488,6 +514,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/site/': {
+      id: '/site/'
+      path: '/site'
+      fullPath: '/site/'
+      preLoaderRoute: typeof SiteIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/settings/': {
@@ -630,6 +663,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CleanerTaskIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/c/$slug': {
+      id: '/c/$slug'
+      path: '/c/$slug'
+      fullPath: '/c/$slug'
+      preLoaderRoute: typeof CSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/bookings/today': {
       id: '/bookings/today'
       path: '/bookings/today'
@@ -725,6 +765,7 @@ const rootRouteChildren: RootRouteChildren = {
   BookingsBookingIdRoute: BookingsBookingIdRouteWithChildren,
   BookingsNewRoute: BookingsNewRoute,
   BookingsTodayRoute: BookingsTodayRoute,
+  CSlugRoute: CSlugRoute,
   CleanerTaskIdRoute: CleanerTaskIdRoute,
   CleaningTaskIdRoute: CleaningTaskIdRoute,
   CleaningChecklistsRoute: CleaningChecklistsRoute,
@@ -745,6 +786,7 @@ const rootRouteChildren: RootRouteChildren = {
   PropertiesIndexRoute: PropertiesIndexRoute,
   ReadinessIndexRoute: ReadinessIndexRoute,
   SettingsIndexRoute: SettingsIndexRoute,
+  SiteIndexRoute: SiteIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

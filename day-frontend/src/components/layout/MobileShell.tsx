@@ -16,6 +16,7 @@ import {
   Wallet,
   Handshake,
   ClipboardCheck,
+  Globe,
 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { AI_IMPORT_ENABLED } from '../../lib/features'
@@ -61,6 +62,7 @@ export default function MobileShell({
       { to: '/cleaning/checklists', label: t('nav.checklists'), icon: ClipboardList },
       { to: '/agents', label: t('nav.agents'), icon: Handshake },
       ...(isOwner ? [{ to: '/expenses', label: t('nav.expenses'), icon: Wallet }] : []),
+      ...(isOwner ? [{ to: '/site', label: t('nav.site'), icon: Globe }] : []),
       ...(AI_IMPORT_ENABLED ? [{ to: '/ai-import', label: t('nav.aiImport'), icon: Sparkles }] : []),
       { to: '/settings', label: t('nav.settings'), icon: Settings },
     ],

@@ -107,5 +107,12 @@
       "host_greets": "我们当面迎接",
       "other": "其他"
     }
+  },
+  "guestCompany": {
+    "notFound": "此链接未指向公司页面。",
+    "flats": "房源 · {{count}}",
+    "noFlats": "目前没有可预订的房源。",
+    "write": "通过 WhatsApp 联系",
+    "rules": "住客须知"
   }
 }

@@ -107,5 +107,12 @@
       "host_greets": "Sizi karşılıyoruz",
       "other": "Diğer"
     }
+  },
+  "guestCompany": {
+    "notFound": "Bu bağlantı bir şirket sayfasına gitmiyor.",
+    "flats": "Daireler · {{count}}",
+    "noFlats": "Şu anda satışta daire yok.",
+    "write": "WhatsApp'tan yazın",
+    "rules": "Misafir kuralları"
   }
 }

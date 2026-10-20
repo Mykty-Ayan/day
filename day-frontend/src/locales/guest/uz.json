@@ -107,5 +107,12 @@
       "host_greets": "O‘zimiz kutib olamiz",
       "other": "Boshqa"
     }
+  },
+  "guestCompany": {
+    "notFound": "Bu havola kompaniya saytiga olib bormaydi.",
+    "flats": "Kvartiralar · {{count}}",
+    "noFlats": "Hozir sotuvda kvartira yo‘q.",
+    "write": "WhatsApp’da yozish",
+    "rules": "Mehmonlar uchun qoidalar"
   }
 }

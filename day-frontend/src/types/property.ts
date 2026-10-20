@@ -85,6 +85,8 @@ export interface Property {
   company_id: string
   name: string
   internal_name: string
+  /** The flat's page for guests: /s/<public_code>. */
+  public_code?: string
   type: PropertyType
   status: PropertyStatus
   rental_mode: RentalMode
