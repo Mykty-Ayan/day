@@ -114,5 +114,12 @@
       "host_greets": "Wir empfangen Sie persönlich",
       "other": "Sonstiges"
     }
+  },
+  "guestCompany": {
+    "notFound": "Dieser Link führt nicht zur Seite eines Anbieters.",
+    "flats": "Wohnungen · {{count}}",
+    "noFlats": "Gerade sind keine Wohnungen frei.",
+    "write": "Auf WhatsApp schreiben",
+    "rules": "Hausregeln für Gäste"
   }
 }

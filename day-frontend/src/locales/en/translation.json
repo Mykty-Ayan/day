@@ -12,7 +12,8 @@
     "more": "More",
     "expenses": "Expenses",
     "agents": "Agents",
-    "readiness": "Readiness"
+    "readiness": "Readiness",
+    "site": "Site"
   },
   "common": {
     "save": "Save",
@@ -1432,5 +1433,38 @@
       "facts": "Facts for guests",
       "whatsapp_product": "WhatsApp catalogue product"
     }
+  },
+  "guestCompany": {
+    "notFound": "This link does not lead to a company's site.",
+    "flats": "Flats · {{count}}",
+    "noFlats": "No flats on sale right now.",
+    "write": "Write on WhatsApp",
+    "rules": "Rules for guests"
+  },
+  "site": {
+    "title": "Company site",
+    "hint": "The company's page for guests: every flat, the rules and contacts. Changes show at once, no Day update needed.",
+    "ownerOnly": "The owner sets up the company site.",
+    "slug": "Address",
+    "slugHint": "Latin letters, digits and hyphens, 3–40",
+    "name": "Name",
+    "about": "About",
+    "aboutPlaceholder": "A couple of lines: where the flats are, why guests like them, how check-in works",
+    "cover": "Cover (photo link)",
+    "logo": "Logo (image link)",
+    "whatsapp": "WhatsApp for guests",
+    "instagram": "Instagram",
+    "color": "Brand color",
+    "save": "Save",
+    "saved": "Site saved",
+    "failed": "Could not save",
+    "required": "Enter the address and the name",
+    "slugTaken": "Another company has this address",
+    "copy": "Copy",
+    "copied": "Link copied",
+    "open": "Open",
+    "flatLinks": "Flat links",
+    "flatLinksHint": "Each flat's lasting page — for the WhatsApp catalogue, Instagram and listings",
+    "noFlats": "No flats on sale"
   }
 }

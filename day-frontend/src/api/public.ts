@@ -99,3 +99,36 @@ export async function bookFromOffer(
   const res = await publicClient.post(`/public/offers/${encodeURIComponent(code)}/book`, body)
   return res.data
 }
+
+/** A company's page for guests (/c/<slug>): who it is, how to reach it, its rules and flats. */
+export interface PublicCompanyFlat {
+  /** The flat's own page: /s/<code>. */
+  code: string
+  name: string
+  complex_name: string | null
+  rooms: number | null
+  max_guests: number | null
+  area_total: number | null
+  photo: string | null
+  night_price: number | null
+  hour_price: number | null
+}
+
+export interface PublicCompany {
+  slug: string
+  title: string
+  about: string | null
+  logo_url: string | null
+  cover_url: string | null
+  accent_color: string | null
+  /** Digits for wa.me. */
+  whatsapp: string | null
+  instagram: string | null
+  rules: string[]
+  flats: PublicCompanyFlat[]
+}
+
+export async function getPublicCompany(slug: string): Promise<PublicCompany> {
+  const res = await publicClient.get(`/public/companies/${encodeURIComponent(slug)}`)
+  return res.data
+}
