@@ -21,6 +21,11 @@ FROM nginx:1.27-alpine
 COPY --from=build /app/dist /usr/share/nginx/html
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 COPY security-headers.conf /etc/nginx/snippets/security-headers.conf
+# Link previews ask the API by its public origin (https://api.example.com from
+# https://api.example.com/api/v1); without one, the compose service's name.
+ARG VITE_API_URL
+RUN origin="$(printf '%s' "$VITE_API_URL" | sed -nE 's#^(https?://[^/]+).*#\1#p')"; \
+    sed -i "s#__API_ORIGIN__#${origin:-http://backend:8000}#" /etc/nginx/conf.d/default.conf
 # Fail the build, not the deploy, on a config nginx cannot load.
 RUN nginx -t
 
