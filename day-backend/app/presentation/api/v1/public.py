@@ -14,6 +14,7 @@ from app.application.booking.guest_offers import OfferExpiredError
 from app.application.booking.price_calculator import PriceCalculatorService
 from app.application.property.public_stay import GetPublicStayService
 from app.domain.booking.exceptions import BookingOverlapError, PropertyBlockedError, StayRulesError
+from app.domain.booking.value_objects import RentalMode
 from app.infrastructure.database import get_session
 from app.infrastructure.messaging.booking_notice import notify_guest_hold
 from app.infrastructure.repositories.booking import (
@@ -38,6 +39,7 @@ from app.presentation.schemas.public import (
     PublicOfferBook,
     PublicOfferBooking,
     PublicOfferResponse,
+    PublicStayBook,
     PublicStayResponse,
 )
 
@@ -134,6 +136,40 @@ async def book_from_offer(code: str, body: PublicOfferBook, session: AsyncSessio
     except OfferExpiredError:
         await session.rollback()
         raise HTTPException(status_code=410, detail="Expired")
+    except OfferTakenError as e:
+        await session.rollback()
+        raise HTTPException(status_code=409, detail=str(e))
+    except (BookingOverlapError, PropertyBlockedError):
+        await session.rollback()
+        raise HTTPException(status_code=409, detail="The flat is taken for these dates")
+    except StayRulesError as e:
+        await session.rollback()
+        raise HTTPException(status_code=422, detail=str(e))
+    except ValueError as e:
+        await session.rollback()
+        raise HTTPException(status_code=404 if str(e) == "Not found" else 422, detail=str(e))
+    await session.commit()
+    return PublicOfferBooking.from_hold(held)
+
+
+@public_router.post("/stays/{code}/book", response_model=PublicOfferBooking, status_code=201)
+async def book_from_stay(code: str, body: PublicStayBook, session: AsyncSession = Depends(get_session)):
+    """The guest books the flat from its own page: the nights or hours are held for
+    30 minutes and the host is asked for the Kaspi invoice. 409 when the dates were
+    taken meanwhile or this phone holds a booking from a flat's page already."""
+    try:
+        held = await _holds(session).book_stay(
+            code,
+            rental_mode=RentalMode(body.rental_mode),
+            check_in=body.check_in,
+            check_out=body.check_out,
+            starts_at=body.starts_at,
+            ends_at=body.ends_at,
+            guests=body.guests,
+            name=body.name,
+            phone=body.phone,
+        )
+        await notify_guest_hold(session, held, SqlPropertyRepository(session), SqlCompanySettingsRepository(session))
     except OfferTakenError as e:
         await session.rollback()
         raise HTTPException(status_code=409, detail=str(e))

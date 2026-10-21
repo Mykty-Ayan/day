@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.application.booking.guest_hold import OfferBooking
 from app.domain.booking.entities import Booking
 from app.domain.booking.repositories import GuestRepository
+from app.domain.booking.value_objects import BookingSource
 from app.domain.messaging.value_objects import NotificationEvent
 from app.domain.property.repositories import PropertyRepository
 from app.domain.settings.entities import DEFAULT_TIME_ZONE
@@ -76,5 +77,6 @@ async def notify_guest_hold(
             "total_price": str(booking.total_price) if booking.total_price else None,
             "until": until.strftime("%H:%M") if until else "—",
             "booking_id": str(booking.id),
+            "source": BookingSource(booking.source).value,
         },
     )

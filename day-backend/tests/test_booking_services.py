@@ -181,6 +181,13 @@ class FakeBookingRepository(BookingRepository):
                 result.append(b)
         return result
 
+    async def has_live_hold(self, company_id, guest_ids, source, now):
+        return any(
+            b.company_id == company_id and b.guest_id in guest_ids and b.source == source
+            and b.status == BookingStatus.PENDING and b.expires_at is not None and b.expires_at > now
+            for b in self._bookings.values()
+        )
+
     async def list_by_company(
         self,
         company_id,

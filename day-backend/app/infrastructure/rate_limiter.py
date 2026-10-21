@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import logging
+import re
 import time
 
 from fastapi import Request, Response
@@ -33,6 +34,11 @@ _PASSWORD_ROUTES = (
 # Pages with no sign-in (guest pages, the iCal feed) ignore credentials: a made-up
 # one per request would buy a fresh bucket each time, so they count by address.
 _ANONYMOUS_PREFIXES = ("/api/v1/public/", "/api/v1/calendar/")
+
+# A guest booking from a link or a flat's page holds a flat's dates for half an hour:
+# a handful a minute from one address is a family, more is someone closing a calendar.
+_GUEST_BOOK_LIMIT = 5
+_GUEST_BOOK = re.compile(r"^/api/v1/public/(stays|offers)/[^/]+/book$")
 
 # Paths excluded from rate limiting
 _EXCLUDED_PATHS = {"/api/v1/health", "/health"}
@@ -77,6 +83,8 @@ def _limit_for(request: Request) -> tuple[str, int]:
     """The bucket name and per-minute limit for this request."""
     if request.url.path in _PASSWORD_ROUTES:
         return "auth", _AUTH_LIMIT
+    if request.method.upper() == "POST" and _GUEST_BOOK.match(request.url.path):
+        return "guestbook", _GUEST_BOOK_LIMIT
     if request.method.upper() == "GET":
         return "get", _GET_LIMIT
     return "mutate", _MUTATE_LIMIT

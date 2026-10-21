@@ -5,8 +5,9 @@ from __future__ import annotations
 
 import math
 from datetime import date, datetime, timezone
+from typing import Literal
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 from app.application.booking.guest_hold import OfferBooking
 from app.application.booking.guest_offers import PublicOffer, greeting, mask_phone
@@ -132,6 +133,41 @@ class PublicOfferBook(BaseModel):
     @classmethod
     def _a_phone_number(cls, value: str | None) -> str | None:
         return full_phone(value) if value else None
+
+
+class PublicStayBook(BaseModel):
+    """A guest books the flat from its own page: by the night (check_in, check_out) or
+    by the hour (starts_at, ends_at, the company's local time without a zone)."""
+
+    rental_mode: Literal["daily", "hourly"] = "daily"
+    check_in: date | None = None
+    check_out: date | None = None
+    starts_at: datetime | None = None
+    ends_at: datetime | None = None
+    guests: int = Field(ge=1, le=50)
+    name: str = Field(min_length=1, max_length=255)
+    phone: str = Field(min_length=5, max_length=50)
+
+    @field_validator("phone")
+    @classmethod
+    def _a_phone_number(cls, value: str) -> str:
+        return full_phone(value)
+
+    @model_validator(mode="after")
+    def _the_stay_of_its_kind(self):
+        if self.rental_mode == "hourly":
+            if self.check_in is not None or self.check_out is not None:
+                raise ValueError("An hourly stay takes starts_at and ends_at")
+            if self.starts_at is None or self.ends_at is None:
+                raise ValueError("An hourly stay needs starts_at and ends_at")
+            if self.starts_at.tzinfo is not None or self.ends_at.tzinfo is not None:
+                raise ValueError("starts_at and ends_at are the company's local time, without a zone")
+        else:
+            if self.starts_at is not None or self.ends_at is not None:
+                raise ValueError("A nightly stay takes check_in and check_out")
+            if self.check_in is None or self.check_out is None:
+                raise ValueError("A nightly stay needs check_in and check_out")
+        return self
 
 
 class PublicOfferBooking(BaseModel):
