@@ -94,3 +94,11 @@ export function guestLanguage(saved: string | null, browser: string | null): Gue
   if (phone === 'kk') return 'kz'
   return phone !== 'kz' && isGuestLanguage(phone) ? phone : 'en'
 }
+
+/** Text that reads on a button of the company's color: dark on a light one, white otherwise. */
+export function onAccent(color: string): string {
+  const m = /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(color)
+  if (!m) return '#ffffff'
+  const [r, g, b] = m.slice(1).map((h) => parseInt(h, 16) / 255).map((c) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4))
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b > 0.4 ? '#111827' : '#ffffff'
+}

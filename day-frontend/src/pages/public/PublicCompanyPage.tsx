@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { Check, ChevronRight, Instagram, LayoutGrid, MessageCircle, Ruler, Users } from 'lucide-react'
 import { getPublicCompany, type PublicCompany, type PublicCompanyFlat } from '../../api/public'
-import { money, retryNetwork } from '../../lib/public-stay'
+import { money, onAccent, retryNetwork } from '../../lib/public-stay'
 import { GuestFrame, LoadFailed } from './GuestFrame'
 
 // Day's own green when the company has no color of its own.
@@ -37,7 +37,7 @@ function CompanyView({ company, locale }: { company: PublicCompany; locale: stri
   const { t } = useTranslation()
   const accent = company.accent_color ?? DEFAULT_ACCENT
   // The company's color drives every button and link on the page.
-  const style = { '--accent': accent } as CSSProperties
+  const style = { '--accent': accent, '--on-accent': onAccent(accent) } as CSSProperties
 
   return (
     <main style={style} className="pb-10">
@@ -104,7 +104,7 @@ function Contacts({ company }: { company: PublicCompany }) {
           href={`https://wa.me/${company.whatsapp}`}
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex h-12 items-center gap-2 rounded-xl bg-[var(--accent)] px-5 text-base font-semibold text-white"
+          className="inline-flex h-12 items-center gap-2 rounded-xl bg-[var(--accent)] px-5 text-base font-semibold text-[var(--on-accent)]"
         >
           <MessageCircle className="h-5 w-5" aria-hidden />
           {t('guestCompany.write')}

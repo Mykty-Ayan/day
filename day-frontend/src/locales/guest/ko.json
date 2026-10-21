@@ -114,5 +114,14 @@
     "noFlats": "지금 예약 가능한 숙소가 없습니다.",
     "write": "WhatsApp으로 문의",
     "rules": "게스트 이용 규칙"
+  },
+  "guestStay": {
+    "pickDates": "날짜 선택",
+    "ask": "WhatsApp으로 문의",
+    "askText": "안녕하세요! 「{{flat}}」 숙소에 관심이 있습니다{{dates}}",
+    "allFlats": "모든 숙소",
+    "refused": "이 날짜를 잡지 못했습니다. 다른 날짜를 고르거나 문의해 주세요.",
+    "tooMany": "시도가 너무 많습니다. 1분 후 다시 시도하세요.",
+    "nameNeeded": "예약자 이름을 입력하세요."
   }
 }

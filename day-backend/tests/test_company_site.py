@@ -61,6 +61,9 @@ async def test_the_owner_sets_up_the_site_and_a_guest_opens_it(flat):  # noqa: F
     cards = [(f["code"], f["rooms"], f["night_price"], f["hour_price"]) for f in body["flats"]]
     assert cards == [(code, 2, 20000.0, None)]
     assert "9090" not in page.text
+    # The flat's own page names the company, to link back and to write to it.
+    stay = (await client.get(f"/api/v1/public/stays/{code}")).json()
+    assert (stay["company"]["slug"], stay["company"]["whatsapp"]) == (slug, "77012345678")
     assert (await client.get("/api/v1/public/companies/nosuchsite")).status_code == 404
 
 

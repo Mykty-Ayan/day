@@ -41,6 +41,17 @@ class PublicNightResponse(BaseModel):
     free: bool
 
 
+class PublicStayCompany(BaseModel):
+    """The company behind the flat, when it has set up its site: the page links to it."""
+
+    slug: str
+    title: str
+    logo_url: str | None = None
+    accent_color: str | None = None
+    # Digits for wa.me: the guest asks about the flat before booking.
+    whatsapp: str | None = None
+
+
 class PublicStayResponse(BaseModel):
     code: str
     name: str
@@ -66,6 +77,7 @@ class PublicStayResponse(BaseModel):
     amenities: list[PublicAmenity] = []
     prices: PublicPrices
     nights: list[PublicNightResponse] = []
+    company: PublicStayCompany | None = None
 
     @classmethod
     def from_stay(cls, stay: PublicStay) -> PublicStayResponse:

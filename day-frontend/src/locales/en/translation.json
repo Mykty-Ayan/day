@@ -1466,5 +1466,14 @@
     "flatLinks": "Flat links",
     "flatLinksHint": "Each flat's lasting page — for the WhatsApp catalogue, Instagram and listings",
     "noFlats": "No flats on sale"
+  },
+  "guestStay": {
+    "pickDates": "Pick dates",
+    "ask": "Ask on WhatsApp",
+    "askText": "Hello! I'm interested in the flat “{{flat}}”{{dates}}",
+    "allFlats": "All flats",
+    "refused": "We could not hold these dates. Pick others or write to us.",
+    "tooMany": "Too many tries. Try again in a minute.",
+    "nameNeeded": "Enter the name to book under."
   }
 }
