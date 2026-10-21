@@ -1,5 +1,5 @@
 import { createRootRoute, Outlet, Link, useRouterState, redirect } from '@tanstack/react-router'
-import { Building2, CalendarRange, CalendarDays, Clock, SprayCan, ClipboardList, BarChart3, Sparkles, Settings, LogOut, Wallet, Handshake, ClipboardCheck } from 'lucide-react'
+import { Building2, CalendarRange, CalendarDays, Clock, SprayCan, ClipboardList, BarChart3, Sparkles, Settings, LogOut, Wallet, Handshake, ClipboardCheck, Globe } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import MobileShell from '../components/layout/MobileShell'
 import ToastContainer from '../components/ui/Toast'
@@ -13,7 +13,7 @@ const CLEANER_ROUTE_PREFIX = '/cleaner'
 // not be bounced to /login before it has had the chance.
 const MINIAPP_ROUTE = '/tma'
 // Guest pages, opened by a link, nobody signs in: a flat's page and a personal link.
-const GUEST_PAGE_PREFIXES = ['/s/', '/o/']
+const GUEST_PAGE_PREFIXES = ['/s/', '/o/', '/c/']
 const isGuestPage = (pathname: string) => GUEST_PAGE_PREFIXES.some((prefix) => pathname.startsWith(prefix))
 
 export const Route = createRootRoute({
@@ -81,6 +81,8 @@ function AuthenticatedLayout() {
     { to: '/analytics', label: t('nav.analytics'), icon: BarChart3 },
     // The company's money out: the owner's only.
     ...(user?.role === 'owner' ? [{ to: '/expenses', label: t('nav.expenses'), icon: Wallet }] : []),
+    // The company's public site: the owner's to set up.
+    ...(user?.role === 'owner' ? [{ to: '/site', label: t('nav.site'), icon: Globe }] : []),
     ...(AI_IMPORT_ENABLED ? [{ to: '/ai-import', label: t('nav.aiImport'), icon: Sparkles }] : []),
     { to: '/settings', label: t('nav.settings'), icon: Settings },
   ] as const

@@ -56,6 +56,24 @@ class _Photos:
         return []
 
 
+class _Sites:
+    """The companies that set up their site."""
+
+    def __init__(self, companies):
+        self.companies = set(companies)
+
+    async def get(self, company_id):
+        return object() if company_id in self.companies else None
+
+
+class _Blacklist:
+    def __init__(self):
+        self.phones = set()
+
+    async def find(self, company_id, phone):
+        return object() if phone in self.phones else None
+
+
 class Holds:
     def __init__(self):
         self.today = NOW.date()
@@ -73,9 +91,11 @@ class Holds:
         create = CreateBookingService(
             self.bookings, self.guests, self.props, FakeBookingAuditLogRepository(), prices
         )
+        self.sites = _Sites({COMPANY_ID})
+        self.blacklist = _Blacklist()
         self.service = GuestHoldService(
             self.offers, self.props, self.bookings, self.guests, self.pricing, self.deposits, create,
-            now=lambda: self.now,
+            now=lambda: self.now, sites=self.sites, blacklist=self.blacklist,
         )
 
     async def flat(self, name="Студия", deposit="10000", status=PropertyStatus.ACTIVE):
@@ -243,6 +263,8 @@ def test_the_host_is_asked_to_send_the_kaspi_invoice():
     text = render(NotificationEvent.GUEST_HOLD, payload)
     for part in ("счёт Kaspi", "10 000 ₸", "+7 701 234 56 78", "Ерлан Сапаров", "до 14:45", "50 000 ₸"):
         assert part in text, part
+    from_site = render(NotificationEvent.GUEST_HOLD, {**payload, "source": "site"})
+    assert "по ссылке гостя" in text and "с сайта" in from_site
     no_deposit = render(NotificationEvent.GUEST_HOLD, {**payload, "deposit": None})
     assert "Kaspi" not in no_deposit and "подтвердите" in no_deposit
 
@@ -361,3 +383,119 @@ async def test_an_hourly_link_is_not_booked_once_its_hours_began():
     h.now = datetime.combine(day, time(9, 30))  # 14:30 in Almaty
     held = await h.service.book(offer.code, flat=unit.public_code, guests=2)
     assert (held.booking.rental_mode, held.booking.check_in) == (RentalMode.HOURLY, datetime.combine(day, time(15)))
+
+
+async def _site(h, unit, **kw):
+    base = dict(rental_mode=RentalMode.DAILY, check_in=date(2030, 10, 20), check_out=date(2030, 10, 22),
+                guests=2, name="Айгерим", phone="+7 701 555 44 33")
+    return await h.service.book_stay(unit.public_code, **{**base, **kw})
+
+
+async def test_a_guest_books_from_the_flats_page_and_it_is_held_half_an_hour():
+    h = Holds()
+    unit = await h.flat()
+
+    held = await _site(h, unit)
+
+    b = held.booking
+    assert (b.source, b.status, b.expires_at, b.property_id) == (
+        BookingSource.SITE, BookingStatus.PENDING, NOW + timedelta(minutes=30), unit.id
+    )
+    assert (b.check_in, b.check_out) == (datetime(2030, 10, 20, 14), datetime(2030, 10, 22, 12))
+    assert (held.deposit, held.name) == (Decimal("10000"), "Айгерим")
+    # The guest found by phone may carry an older name: who booked is in the notes.
+    assert "С формы: Айгерим, +7 701 555 44 33" in b.notes
+
+
+async def test_one_phone_holds_one_booking_from_a_flats_page():
+    h = Holds()
+    first, second = await h.flat(), await h.flat("Двухкомнатная")
+    await _site(h, first)
+    with pytest.raises(OfferTakenError, match="cannot be held"):
+        await _site(h, second)
+    # Once the hold lapses, the phone books again.
+    h.now = NOW + timedelta(minutes=31)
+    assert (await _site(h, second)).booking.property_id == second.id
+
+
+async def test_a_flats_page_books_only_for_a_company_with_its_site_set_up():
+    h = Holds()
+    unit = await h.flat()
+    h.sites.companies.clear()
+    with pytest.raises(ValueError, match="Not found"):
+        await _site(h, unit)
+
+
+async def test_a_flat_holds_three_unpaid_bookings_from_its_page_at_most():
+    h = Holds()
+    unit = await h.flat()
+    for n in range(3):
+        day = date(2030, 10, 20 + 2 * n)
+        await _site(h, unit, check_in=day, check_out=day + timedelta(days=1), phone=f"+7701555440{n}")
+    with pytest.raises(OfferTakenError, match="cannot be held"):
+        await _site(h, unit, check_in=date(2030, 11, 1), check_out=date(2030, 11, 2), phone="+77015554409")
+
+
+async def test_a_blacklisted_guest_is_refused_like_any_other():
+    h = Holds()
+    unit = await h.flat()
+    h.blacklist.phones.add("+77015554433")
+    with pytest.raises(OfferTakenError, match="cannot be held"):
+        await _site(h, unit, phone="8 701 555 44 33")
+
+
+async def test_a_flats_page_books_only_what_the_flat_takes():
+    h = Holds()
+    unit = await h.flat()
+    with pytest.raises(ValueError, match="by the night only"):
+        await _site(h, unit, rental_mode=RentalMode.HOURLY, check_in=None, check_out=None,
+                    starts_at=datetime(2030, 10, 20, 15), ends_at=datetime(2030, 10, 20, 18))
+    with pytest.raises(ValueError, match="past"):
+        await _site(h, unit, check_in=date(2030, 9, 1), check_out=date(2030, 9, 2))
+    with pytest.raises(ValueError, match="up to 3 guests"):
+        await _site(h, unit, guests=4)
+    with pytest.raises(ValueError, match="Not found"):
+        await h.service.book_stay("nosuch", rental_mode=RentalMode.DAILY, check_in=date(2030, 10, 20),
+                                  check_out=date(2030, 10, 21), guests=1, name="x", phone="+77010000000")
+
+
+def test_guest_booking_gets_the_tight_limit():
+    from starlette.requests import Request
+
+    from app.infrastructure.rate_limiter import _limit_for
+
+    for path in ("/api/v1/public/stays/abc/book", "/api/v1/public/offers/abc/book"):
+        assert _limit_for(Request({"type": "http", "method": "POST", "path": path, "headers": []})) == ("guestbook", 5)
+    page = Request({"type": "http", "method": "GET", "path": "/api/v1/public/stays/abc", "headers": []})
+    assert _limit_for(page)[0] == "get"
+
+
+@pytest.mark.integration
+async def test_booking_from_a_flats_page_through_the_api(flat):  # noqa: F811  (the imported fixture)
+    client, prop, use = flat
+    day = date.today() + timedelta(days=20)
+    use(Permission.PROPERTIES_READ)
+    code = (await client.get(f"/api/v1/properties/{prop}")).json()["public_code"]
+    stay = {"check_in": day.isoformat(), "check_out": (day + timedelta(days=2)).isoformat(), "guests": 2,
+            "name": "Айгерим", "phone": "+77015554431"}
+
+    use()  # a guest
+    # Before the company sets up its site, the page books nothing.
+    assert (await client.post(f"/api/v1/public/stays/{code}/book", json=stay)).status_code == 404
+    use(Permission.SETTINGS_WRITE)
+    await client.put("/api/v1/site", json={"slug": f"t-{uuid.uuid4().hex[:8]}", "title": "Munar"})
+    use()
+    assert (await client.post(f"/api/v1/public/stays/{code}/book", json={**stay, "phone": "12"})).status_code == 422
+    booked = await client.post(f"/api/v1/public/stays/{code}/book", json=stay)
+    assert booked.status_code == 201, booked.text
+    assert booked.json()["phone"] == "+7 701 ••• •• 31" and booked.json()["total"] == 40000.0
+    # The same number written another way is the same guest.
+    later = {**stay, "phone": "+7 (701) 555-44-31", "check_in": (day + timedelta(days=5)).isoformat(),
+             "check_out": (day + timedelta(days=6)).isoformat()}
+    assert (await client.post(f"/api/v1/public/stays/{code}/book", json=later)).status_code == 409
+    taken = {**stay, "phone": "+77015554432"}
+    assert (await client.post(f"/api/v1/public/stays/{code}/book", json=taken)).status_code == 409
+
+    use(Permission.BOOKINGS_READ)
+    [made] = (await client.get("/api/v1/bookings", params={"source": "site"})).json()["items"]
+    assert (made["status"], made["guest_name"]) == ("pending", "Айгерим")

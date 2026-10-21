@@ -35,6 +35,8 @@ class BookingSource(str, enum.Enum):
     CRM = "crm"
     # Booked by the guest on a personal link (/o/<code>).
     OFFER = "offer"
+    # Booked by the guest on the flat's page (/s/<code>), with no chat before.
+    SITE = "site"
 
 
 class PaymentType(str, enum.Enum):

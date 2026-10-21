@@ -107,5 +107,21 @@
       "host_greets": "Sizi karşılıyoruz",
       "other": "Diğer"
     }
+  },
+  "guestCompany": {
+    "notFound": "Bu bağlantı bir şirket sayfasına gitmiyor.",
+    "flats": "Daireler · {{count}}",
+    "noFlats": "Şu anda satışta daire yok.",
+    "write": "WhatsApp'tan yazın",
+    "rules": "Misafir kuralları"
+  },
+  "guestStay": {
+    "pickDates": "Tarih seçin",
+    "ask": "WhatsApp'tan sorun",
+    "askText": "Merhaba! “{{flat}}” (s/{{code}}) dairesiyle ilgileniyorum{{dates}}",
+    "allFlats": "Tüm daireler",
+    "refused": "Bu tarihler ayrılamadı. Başka tarih seçin ya da bize yazın.",
+    "tooMany": "Çok fazla deneme. Bir dakika sonra tekrar deneyin.",
+    "nameNeeded": "Rezervasyonun yapılacağı adı yazın."
   }
 }

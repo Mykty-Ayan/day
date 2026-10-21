@@ -61,3 +61,19 @@ async def test_a_personal_links_preview_tells_nothing_of_the_guest(flat):  # noq
     assert "Квартира на ваши даты" in page.text and "гостей: 2" in page.text
     for secret in ("Ерлан", "Сапаров", "2345672", offer["external_id"]):
         assert secret not in page.text, secret
+
+
+@pytest.mark.integration
+async def test_a_companys_link_shows_its_name_words_and_cover(flat):  # noqa: F811  (the imported fixture)
+    client, prop, use = flat
+    slug = f"t-{uuid.uuid4().hex[:8]}"
+    use(Permission.SETTINGS_WRITE)
+    await client.put("/api/v1/site", json={"slug": slug, "title": "Munar", "about": "Квартиры у Ауэзов Сити",
+                                           "cover_url": "https://a0.muscache.com/im/pictures/x/original/c.jpeg"})
+
+    use()
+    page = await client.get(f"/api/v1/public/preview/c/{slug}")
+    assert page.status_code == 200
+    for part in ('content="Munar"', "Квартиры у Ауэзов Сити", "c.jpeg?im_w=720", f"/c/{slug}"):
+        assert part in page.text, part
+    assert (await client.get("/api/v1/public/preview/c/nosuchsite")).status_code == 404
