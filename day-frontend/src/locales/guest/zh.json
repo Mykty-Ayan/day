@@ -118,7 +118,7 @@
   "guestStay": {
     "pickDates": "选择日期",
     "ask": "通过 WhatsApp 咨询",
-    "askText": "您好！我对房源「{{flat}}」感兴趣{{dates}}",
+    "askText": "您好！我对房源「{{flat}}」 (s/{{code}})感兴趣{{dates}}",
     "allFlats": "全部房源",
     "refused": "无法保留这些日期。请选择其他日期或联系我们。",
     "tooMany": "尝试次数过多，请一分钟后再试。",

@@ -1470,7 +1470,7 @@
   "guestStay": {
     "pickDates": "Pick dates",
     "ask": "Ask on WhatsApp",
-    "askText": "Hello! I'm interested in the flat “{{flat}}”{{dates}}",
+    "askText": "Hello! I'm interested in the flat “{{flat}}” (s/{{code}}){{dates}}",
     "allFlats": "All flats",
     "refused": "We could not hold these dates. Pick others or write to us.",
     "tooMany": "Too many tries. Try again in a minute.",
