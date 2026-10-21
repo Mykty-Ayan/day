@@ -29,6 +29,7 @@ const PLURAL = /_(zero|one|two|few|many|other)$/
 // The count does not bend a word here: an abbreviation, a count after a colon
 // or in brackets, or an indeclinable word.
 const INVARIANT = new Set([
+  'guestCompany.flats', // Квартиры · 3
   'properties.form.amenitiesSelected', // Выбрано удобств: 3
   'properties.roomsCount', // 3 комн.
   'properties.bedsCount', // 3 кров.
