@@ -17,6 +17,7 @@ from zoneinfo import ZoneInfo
 
 from app.application.booking.create_booking import CreateBookingInput, CreateBookingService
 from app.application.booking.guest_offers import OfferExpiredError
+from app.application.leads.check_guest import normalise_phone
 from app.domain.booking.entities import Booking, BookingDeposit, GuestOffer
 from app.domain.booking.repositories import (
     BookingDepositRepository,
@@ -25,16 +26,23 @@ from app.domain.booking.repositories import (
     GuestRepository,
 )
 from app.domain.booking.value_objects import BookingSource, BookingStatus, DepositStatus, RentalMode
+from app.domain.leads.repositories import BlacklistRepository
 from app.domain.property.repositories import PricingConfigRepository, PropertyRepository
 from app.domain.property.value_objects import PropertyStatus
 from app.domain.settings.entities import DEFAULT_TIME_ZONE
 from app.domain.settings.repositories import CompanySettingsRepository
+from app.domain.site.repositories import CompanySiteRepository
 
 HOLD_MINUTES = 30
 # A stay booked from a flat's page: as long and as far ahead as a personal link takes.
 SITE_MAX_NIGHTS = 120
 SITE_MAX_HOURS = 24
 SITE_HORIZON_DAYS = 730
+# Unpaid holds from a flat's page at once: real guests rarely wait on more, and
+# made-up numbers cannot close a whole calendar.
+SITE_LIVE_HOLDS_PER_FLAT = 3
+# One answer for every refusal: it must not tell a stranger whether a number holds a booking.
+SITE_REFUSED = "These dates cannot be held now"
 
 
 class OfferTakenError(Exception):
@@ -67,6 +75,8 @@ class GuestHoldService:
         settings_repo: CompanySettingsRepository | None = None,
         *,
         now: Callable[[], datetime] = datetime.utcnow,
+        sites: CompanySiteRepository | None = None,
+        blacklist: BlacklistRepository | None = None,
     ) -> None:
         self._offers = offer_repo
         self._properties = property_repo
@@ -77,6 +87,8 @@ class GuestHoldService:
         self._create = create_booking
         self._settings = settings_repo
         self._now = now
+        self._sites = sites
+        self._blacklist = blacklist
 
     async def book(
         self, code: str, *, flat: str, guests: int, name: str | None = None, phone: str | None = None
@@ -166,6 +178,9 @@ class GuestHoldService:
         prop = await self._properties.get_by_public_code(flat_code)
         if prop is None or prop.status != PropertyStatus.ACTIVE:
             raise ValueError("Not found")
+        # The company opts in by setting up its site: a flat's page books only then.
+        if self._sites is None or await self._sites.get(prop.company_id) is None:
+            raise ValueError("Not found")
         name, phone = name.strip(), phone.strip()
         if not name:
             raise ValueError("A name is needed")
@@ -197,8 +212,14 @@ class GuestHoldService:
             start, end = check_in, check_out
 
         same_phone = [g.id for g in await self._guests.list_by_phone(prop.company_id, phone)]
-        if await self._bookings.has_live_hold(prop.company_id, same_phone, BookingSource.SITE.value, self._now()):
-            raise OfferTakenError("This phone holds a booking already")
+        if (
+            await self._bookings.has_live_hold(prop.company_id, same_phone, BookingSource.SITE.value, self._now())
+            or await self._bookings.count_live_holds(prop.id, BookingSource.SITE.value, self._now())
+            >= SITE_LIVE_HOLDS_PER_FLAT
+            or (self._blacklist is not None
+                and await self._blacklist.find(prop.company_id, normalise_phone(phone)) is not None)
+        ):
+            raise OfferTakenError(SITE_REFUSED)
 
         pricing = await self._pricing.get_by_property(prop.id)
         amount = (pricing.hourly_deposit if hourly else pricing.default_deposit) if pricing else None
@@ -214,7 +235,8 @@ class GuestHoldService:
                 rental_mode=RentalMode.HOURLY if hourly else RentalMode.DAILY,
                 adults_count=guests,
                 source=BookingSource.SITE,
-                notes=f"Гость забронировал на странице квартиры /s/{prop.public_code}",
+                # The guest found by phone keeps its own name: who booked is told here.
+                notes=f"Гость забронировал на странице квартиры /s/{prop.public_code}. С формы: {name}, {phone}",
                 expires_at=self._now() + timedelta(minutes=HOLD_MINUTES),
             )
         )

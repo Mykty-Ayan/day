@@ -56,6 +56,24 @@ class _Photos:
         return []
 
 
+class _Sites:
+    """The companies that set up their site."""
+
+    def __init__(self, companies):
+        self.companies = set(companies)
+
+    async def get(self, company_id):
+        return object() if company_id in self.companies else None
+
+
+class _Blacklist:
+    def __init__(self):
+        self.phones = set()
+
+    async def find(self, company_id, phone):
+        return object() if phone in self.phones else None
+
+
 class Holds:
     def __init__(self):
         self.today = NOW.date()
@@ -73,9 +91,11 @@ class Holds:
         create = CreateBookingService(
             self.bookings, self.guests, self.props, FakeBookingAuditLogRepository(), prices
         )
+        self.sites = _Sites({COMPANY_ID})
+        self.blacklist = _Blacklist()
         self.service = GuestHoldService(
             self.offers, self.props, self.bookings, self.guests, self.pricing, self.deposits, create,
-            now=lambda: self.now,
+            now=lambda: self.now, sites=self.sites, blacklist=self.blacklist,
         )
 
     async def flat(self, name="Студия", deposit="10000", status=PropertyStatus.ACTIVE):
@@ -383,17 +403,45 @@ async def test_a_guest_books_from_the_flats_page_and_it_is_held_half_an_hour():
     )
     assert (b.check_in, b.check_out) == (datetime(2030, 10, 20, 14), datetime(2030, 10, 22, 12))
     assert (held.deposit, held.name) == (Decimal("10000"), "Айгерим")
+    # The guest found by phone may carry an older name: who booked is in the notes.
+    assert "С формы: Айгерим, +7 701 555 44 33" in b.notes
 
 
 async def test_one_phone_holds_one_booking_from_a_flats_page():
     h = Holds()
     first, second = await h.flat(), await h.flat("Двухкомнатная")
     await _site(h, first)
-    with pytest.raises(OfferTakenError):
+    with pytest.raises(OfferTakenError, match="cannot be held"):
         await _site(h, second)
     # Once the hold lapses, the phone books again.
     h.now = NOW + timedelta(minutes=31)
     assert (await _site(h, second)).booking.property_id == second.id
+
+
+async def test_a_flats_page_books_only_for_a_company_with_its_site_set_up():
+    h = Holds()
+    unit = await h.flat()
+    h.sites.companies.clear()
+    with pytest.raises(ValueError, match="Not found"):
+        await _site(h, unit)
+
+
+async def test_a_flat_holds_three_unpaid_bookings_from_its_page_at_most():
+    h = Holds()
+    unit = await h.flat()
+    for n in range(3):
+        day = date(2030, 10, 20 + 2 * n)
+        await _site(h, unit, check_in=day, check_out=day + timedelta(days=1), phone=f"+7701555440{n}")
+    with pytest.raises(OfferTakenError, match="cannot be held"):
+        await _site(h, unit, check_in=date(2030, 11, 1), check_out=date(2030, 11, 2), phone="+77015554409")
+
+
+async def test_a_blacklisted_guest_is_refused_like_any_other():
+    h = Holds()
+    unit = await h.flat()
+    h.blacklist.phones.add("+77015554433")
+    with pytest.raises(OfferTakenError, match="cannot be held"):
+        await _site(h, unit, phone="8 701 555 44 33")
 
 
 async def test_a_flats_page_books_only_what_the_flat_takes():
@@ -432,6 +480,11 @@ async def test_booking_from_a_flats_page_through_the_api(flat):  # noqa: F811  (
             "name": "Айгерим", "phone": "+77015554431"}
 
     use()  # a guest
+    # Before the company sets up its site, the page books nothing.
+    assert (await client.post(f"/api/v1/public/stays/{code}/book", json=stay)).status_code == 404
+    use(Permission.SETTINGS_WRITE)
+    await client.put("/api/v1/site", json={"slug": f"t-{uuid.uuid4().hex[:8]}", "title": "Munar"})
+    use()
     assert (await client.post(f"/api/v1/public/stays/{code}/book", json={**stay, "phone": "12"})).status_code == 422
     booked = await client.post(f"/api/v1/public/stays/{code}/book", json=stay)
     assert booked.status_code == 201, booked.text

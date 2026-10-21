@@ -682,6 +682,18 @@ class SqlBookingRepository(BookingRepository):
         )
         return found is not None
 
+    async def count_live_holds(self, property_id: uuid.UUID, source: str, now: datetime) -> int:
+        return await self._session.scalar(
+            select(func.count())
+            .select_from(BookingModel)
+            .where(
+                BookingModel.property_id == property_id,
+                BookingModel.source == source,
+                BookingModel.status == BookingStatus.PENDING.value,
+                BookingModel.expires_at > now,
+            )
+        ) or 0
+
     async def list_expired_holds(self, now: datetime, *, limit: int) -> list[Booking]:
         # A system sweep across every company: each hold is cancelled within
         # its own company, and nothing here is shown to a caller. Rows stay

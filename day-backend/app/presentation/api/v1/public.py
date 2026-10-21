@@ -24,6 +24,7 @@ from app.infrastructure.repositories.booking import (
     SqlGuestOfferRepository,
     SqlGuestRepository,
 )
+from app.infrastructure.repositories.leads import SqlBlacklistRepository
 from app.infrastructure.repositories.property import (
     SqlAmenityRepository,
     SqlDayPriceRepository,
@@ -34,6 +35,7 @@ from app.infrastructure.repositories.property import (
     SqlSeasonalPriceRepository,
 )
 from app.infrastructure.repositories.settings import SqlCompanySettingsRepository
+from app.infrastructure.repositories.site import SqlCompanySiteRepository
 from app.presentation.api.v1.offers import offers_service
 from app.presentation.schemas.public import (
     PublicOfferBook,
@@ -117,6 +119,8 @@ def _holds(session: AsyncSession) -> GuestHoldService:
         SqlBookingDepositRepository(session),
         CreateBookingService(bookings, guests, properties, audit, prices, settings_repo),
         settings_repo,
+        sites=SqlCompanySiteRepository(session),
+        blacklist=SqlBlacklistRepository(session),
     )
 
 
