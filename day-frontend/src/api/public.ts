@@ -30,6 +30,8 @@ export interface PublicStay {
   amenities: { name: string; category: string }[]
   prices: { night: number | null; hour: number | null; deposit: number | null; hour_deposit: number | null }
   nights: PublicNight[]
+  /** The company, once it has set up its site: the page links to it and books. */
+  company?: { slug: string; title: string; logo_url: string | null; accent_color: string | null; whatsapp: string | null } | null
 }
 
 export async function getPublicStay(code: string, dateFrom: string, dateTo: string): Promise<PublicStay> {
@@ -130,5 +132,14 @@ export interface PublicCompany {
 
 export async function getPublicCompany(slug: string): Promise<PublicCompany> {
   const res = await publicClient.get(`/public/companies/${encodeURIComponent(slug)}`)
+  return res.data
+}
+
+/** Book the flat from its own page: the nights are held for 30 minutes. */
+export async function bookStay(
+  code: string,
+  body: { check_in: string; check_out: string; guests: number; name: string; phone: string },
+): Promise<PublicOfferBooking> {
+  const res = await publicClient.post(`/public/stays/${encodeURIComponent(code)}/book`, { rental_mode: 'daily', ...body })
   return res.data
 }

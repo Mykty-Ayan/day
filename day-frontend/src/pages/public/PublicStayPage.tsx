@@ -1,12 +1,16 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, type CSSProperties } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { addDays, format, parseISO } from 'date-fns'
-import { BedDouble, Building2, KeyRound, LayoutGrid, MapPin, Ruler, Users } from 'lucide-react'
-import { getPublicStay, type PublicStay } from '../../api/public'
+import { BedDouble, Building2, KeyRound, LayoutGrid, MapPin, Ruler, Users, X } from 'lucide-react'
+import { getPublicStay, type PublicOfferBooking, type PublicStay } from '../../api/public'
 import { isDayBlocked } from '../../lib/booking-dates'
 import { money, monthCells, retryNetwork, stayQuote } from '../../lib/public-stay'
 import { GuestFrame, LoadFailed } from './GuestFrame'
+import { BookBar, BookSheet, HeldView } from './StayBooking'
+
+// Day's own green when the company has no color of its own.
+const DEFAULT_ACCENT = '#047857'
 
 // Two months on screen, one under the other, as a phone scrolls.
 const WINDOW_NIGHTS = 62
@@ -44,6 +48,10 @@ function Stay({ code, locale }: { code: string; locale: string }) {
 function StayView({ stay, locale, today }: { stay: PublicStay; locale: string; today: string }) {
   const { t } = useTranslation()
   const [photo, setPhoto] = useState(0)
+  // The photo open on the whole screen, by its place in the list.
+  const [zoomed, setZoomed] = useState<number | null>(null)
+  const [booking, setBooking] = useState(false)
+  const [held, setHeld] = useState<PublicOfferBooking | null>(null)
   const [{ checkIn, checkOut }, setStay] = useState<{ checkIn: string | null; checkOut: string | null }>({
     checkIn: null,
     checkOut: null,
@@ -94,8 +102,27 @@ function StayView({ stay, locale, today }: { stay: PublicStay; locale: string; t
       : null,
   ].filter(Boolean) as { icon: typeof Users; text: string }[]
 
+  const accent = { '--accent': stay.company?.accent_color ?? DEFAULT_ACCENT } as CSSProperties
+  const datesText = checkIn && checkOut ? `${shortDay.format(parseISO(checkIn))} – ${shortDay.format(parseISO(checkOut))}` : null
+  const bookable = quote && short == null ? quote : null
+
+  if (held) {
+    return (
+      <main style={accent}>
+        <HeldView booking={held} locale={locale} />
+      </main>
+    )
+  }
+
   return (
-    <main>
+    <main style={accent} className={stay.company ? 'pb-24' : undefined}>
+      {stay.company && (
+        <a href={`/c/${stay.company.slug}`} className="flex items-center gap-2.5 border-b border-gray-100 px-5 py-2.5">
+          {stay.company.logo_url && <img src={stay.company.logo_url} alt="" className="h-8 w-8 rounded-lg object-cover" />}
+          <span dir="auto" className="min-w-0 truncate text-sm font-semibold text-gray-800">{stay.company.title}</span>
+          <span className="ms-auto text-sm font-semibold text-[var(--accent)]">{t('guestStay.allFlats')}</span>
+        </a>
+      )}
       {stay.photos.length > 0 && (
         <section aria-label={t('guest.photos')} className="relative">
           <div
@@ -104,7 +131,9 @@ function StayView({ stay, locale, today }: { stay: PublicStay; locale: string; t
             onScroll={(e) => setPhoto(Math.round(Math.abs(e.currentTarget.scrollLeft) / e.currentTarget.clientWidth))}
           >
             {stay.photos.map((url, n) => (
-              <img key={url} src={url} alt={t('guest.photoOf', { n: n + 1, total: stay.photos.length })} loading={n === 0 ? 'eager' : 'lazy'} fetchPriority={n === 0 ? 'high' : 'auto'} decoding="async" className="h-full w-full flex-none snap-center object-cover" />
+              <button key={url} type="button" onClick={() => setZoomed(n)} className="h-full w-full flex-none snap-center">
+                <img src={url} alt={t('guest.photoOf', { n: n + 1, total: stay.photos.length })} loading={n === 0 ? 'eager' : 'lazy'} fetchPriority={n === 0 ? 'high' : 'auto'} decoding="async" className="h-full w-full object-cover" />
+              </button>
             ))}
           </div>
           <span dir="ltr" className="absolute bottom-3 end-3 rounded-full bg-black/70 px-2.5 py-1 text-xs font-semibold text-white">
@@ -159,7 +188,7 @@ function StayView({ stay, locale, today }: { stay: PublicStay; locale: string; t
       )}
 
       {stay.nights.length > 0 && (
-        <section className="flex flex-col gap-4 px-5 pt-7">
+        <section id="dates" className="flex flex-col gap-4 px-5 pt-7">
           <h2 className="text-xl font-bold">{t('guest.freeDates')}</h2>
           {months.map((month) => (
             <div key={month.getMonth()} className="flex flex-col gap-2">
@@ -188,7 +217,7 @@ function StayView({ stay, locale, today }: { stay: PublicStay; locale: string; t
                       aria-pressed={Boolean(edge || inside)}
                       aria-label={`${dayLabel.format(parseISO(day))}${taken.has(day) && day >= today ? `, ${t('guest.taken')}` : ''}`}
                       className={`flex h-12 flex-col items-center justify-center gap-0.5 rounded-lg text-[15px] ${
-                        edge ? 'bg-emerald-700 text-white' : inside ? 'bg-emerald-50' : ''
+                        edge ? 'bg-[var(--accent)] text-white' : inside ? 'bg-gray-100' : ''
                       } ${disabled ? (day < today ? 'text-gray-300' : 'text-gray-400 line-through') : ''}`}
                     >
                       {Number(day.slice(8))}
@@ -286,6 +315,57 @@ function StayView({ stay, locale, today }: { stay: PublicStay; locale: string; t
       </section>
 
       <footer className="px-5 pb-10 pt-8 text-xs text-gray-500">{t('guest.poweredBy')}</footer>
+
+      {stay.company && (
+        <BookBar
+          stay={stay}
+          locale={locale}
+          quote={bookable}
+          dates={datesText}
+          onPickDates={() => document.getElementById('dates')?.scrollIntoView({ behavior: 'smooth' })}
+          onBook={() => setBooking(true)}
+        />
+      )}
+      {booking && bookable && checkIn && checkOut && (
+        <BookSheet
+          stay={stay}
+          locale={locale}
+          checkIn={checkIn}
+          checkOut={checkOut}
+          total={bookable.total}
+          onClose={() => setBooking(false)}
+          onBooked={(made) => {
+            setBooking(false)
+            setHeld(made)
+            window.scrollTo(0, 0)
+          }}
+        />
+      )}
+      {zoomed !== null && (
+        <div role="dialog" aria-modal="true" aria-label={t('guest.photos')} className="fixed inset-0 z-overlay flex flex-col bg-black">
+          <div className="flex items-center justify-between p-3 text-white">
+            <span dir="ltr" className="text-sm">{zoomed + 1} / {stay.photos.length}</span>
+            <button type="button" onClick={() => setZoomed(null)} aria-label={t('guest.close')} className="flex h-11 w-11 items-center justify-center rounded-full bg-white/10">
+              <X className="h-5 w-5" aria-hidden />
+            </button>
+          </div>
+          <div
+            // Opened on the photo tapped, once: later scrolling is the guest's.
+            ref={(el) => {
+              if (el && !el.dataset.opened) {
+                el.dataset.opened = '1'
+                el.scrollTo({ left: zoomed * el.clientWidth * (document.documentElement.dir === 'rtl' ? -1 : 1) })
+              }
+            }}
+            onScroll={(e) => setZoomed(Math.round(Math.abs(e.currentTarget.scrollLeft) / e.currentTarget.clientWidth))}
+            className="flex flex-1 snap-x snap-mandatory overflow-x-auto"
+          >
+            {stay.photos.map((url, n) => (
+              <img key={url} src={url} alt={t('guest.photoOf', { n: n + 1, total: stay.photos.length })} className="h-full w-full flex-none snap-center object-contain" />
+            ))}
+          </div>
+        </div>
+      )}
     </main>
   )
 }

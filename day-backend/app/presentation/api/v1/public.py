@@ -42,6 +42,7 @@ from app.presentation.schemas.public import (
     PublicOfferBooking,
     PublicOfferResponse,
     PublicStayBook,
+    PublicStayCompany,
     PublicStayResponse,
 )
 
@@ -84,7 +85,14 @@ async def public_stay(
     except ValueError:
         # The same answer for a wrong code and a flat not on sale: the code is the key.
         raise HTTPException(status_code=404, detail="Not found")
-    return PublicStayResponse.from_stay(stay)
+    page = PublicStayResponse.from_stay(stay)
+    site = await SqlCompanySiteRepository(session).get(stay.property.company_id)
+    if site is not None:
+        page.company = PublicStayCompany(
+            slug=site.slug, title=site.title, logo_url=site.logo_url, accent_color=site.accent_color,
+            whatsapp=site.whatsapp,
+        )
+    return page
 
 
 @public_router.get("/offers/{code}", response_model=PublicOfferResponse)

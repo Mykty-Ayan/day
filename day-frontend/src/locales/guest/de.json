@@ -121,5 +121,14 @@
     "noFlats": "Gerade sind keine Wohnungen frei.",
     "write": "Auf WhatsApp schreiben",
     "rules": "Hausregeln für Gäste"
+  },
+  "guestStay": {
+    "pickDates": "Daten wählen",
+    "ask": "Auf WhatsApp fragen",
+    "askText": "Hallo! Ich interessiere mich für die Wohnung „{{flat}}“{{dates}}",
+    "allFlats": "Alle Wohnungen",
+    "refused": "Diese Daten konnten nicht reserviert werden. Wählen Sie andere oder schreiben Sie uns.",
+    "tooMany": "Zu viele Versuche. Bitte in einer Minute erneut.",
+    "nameNeeded": "Geben Sie den Namen für die Buchung ein."
   }
 }
