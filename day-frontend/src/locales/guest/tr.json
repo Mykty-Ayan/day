@@ -118,7 +118,7 @@
   "guestStay": {
     "pickDates": "Tarih seçin",
     "ask": "WhatsApp'tan sorun",
-    "askText": "Merhaba! “{{flat}}” dairesiyle ilgileniyorum{{dates}}",
+    "askText": "Merhaba! “{{flat}}” (s/{{code}}) dairesiyle ilgileniyorum{{dates}}",
     "allFlats": "Tüm daireler",
     "refused": "Bu tarihler ayrılamadı. Başka tarih seçin ya da bize yazın.",
     "tooMany": "Çok fazla deneme. Bir dakika sonra tekrar deneyin.",

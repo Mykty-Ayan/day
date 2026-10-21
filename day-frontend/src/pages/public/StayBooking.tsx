@@ -32,7 +32,7 @@ export function BookBar({
   onBook: () => void
 }) {
   const { t } = useTranslation()
-  const ask = askLink(stay, t('guestStay.askText', { flat: stay.name, dates: dates ? ` — ${dates}` : '' }))
+  const ask = askLink(stay, t('guestStay.askText', { flat: stay.name, code: stay.code, dates: dates ? ` — ${dates}` : '' }))
   // A flat let only by the hour has no nights to pick here: the guest writes instead.
   const byNight = stay.prices.night != null
   return (
