@@ -1403,8 +1403,6 @@
     "flats": "Пәтерлер",
     "noFlats": "Пәтерлер жоқ",
     "allFilled": "Барлығы толтырылған",
-    "emptyCount_one": "Толтырылмаған: {{count}}",
-    "emptyCount_other": "Толтырылмаған: {{count}}",
     "fields": {
       "address": "Мекенжай",
       "map_url": "Карта сілтемесі",
@@ -1421,7 +1419,8 @@
       "pricing": "Бағалар",
       "facts": "Қонақтарға арналған деректер",
       "whatsapp_product": "WhatsApp каталогындағы тауар"
-    }
+    },
+    "emptyCount": "Толтырылмаған: {{count}}"
   },
   "guestCompany": {
     "notFound": "Бұл сілтеме компания сайтына апармайды.",
