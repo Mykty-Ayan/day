@@ -5,7 +5,7 @@ import { addDays, format, parseISO } from 'date-fns'
 import { BedDouble, Building2, KeyRound, LayoutGrid, MapPin, Ruler, Users, X } from 'lucide-react'
 import { getPublicStay, type PublicOfferBooking, type PublicStay } from '../../api/public'
 import { isDayBlocked } from '../../lib/booking-dates'
-import { money, monthCells, retryNetwork, stayQuote } from '../../lib/public-stay'
+import { money, monthCells, onAccent, retryNetwork, stayQuote } from '../../lib/public-stay'
 import { GuestFrame, LoadFailed } from './GuestFrame'
 import { BookBar, BookSheet, HeldView } from './StayBooking'
 
@@ -102,7 +102,8 @@ function StayView({ stay, locale, today }: { stay: PublicStay; locale: string; t
       : null,
   ].filter(Boolean) as { icon: typeof Users; text: string }[]
 
-  const accent = { '--accent': stay.company?.accent_color ?? DEFAULT_ACCENT } as CSSProperties
+  const color = stay.company?.accent_color ?? DEFAULT_ACCENT
+  const accent = { '--accent': color, '--on-accent': onAccent(color) } as CSSProperties
   const datesText = checkIn && checkOut ? `${shortDay.format(parseISO(checkIn))} – ${shortDay.format(parseISO(checkOut))}` : null
   const bookable = quote && short == null ? quote : null
 
@@ -217,7 +218,7 @@ function StayView({ stay, locale, today }: { stay: PublicStay; locale: string; t
                       aria-pressed={Boolean(edge || inside)}
                       aria-label={`${dayLabel.format(parseISO(day))}${taken.has(day) && day >= today ? `, ${t('guest.taken')}` : ''}`}
                       className={`flex h-12 flex-col items-center justify-center gap-0.5 rounded-lg text-[15px] ${
-                        edge ? 'bg-[var(--accent)] text-white' : inside ? 'bg-gray-100' : ''
+                        edge ? 'bg-[var(--accent)] text-[var(--on-accent)]' : inside ? 'bg-gray-100' : ''
                       } ${disabled ? (day < today ? 'text-gray-300' : 'text-gray-400 line-through') : ''}`}
                     >
                       {Number(day.slice(8))}
@@ -322,6 +323,7 @@ function StayView({ stay, locale, today }: { stay: PublicStay; locale: string; t
           locale={locale}
           quote={bookable}
           dates={datesText}
+          canPickDates={stay.nights.length > 0}
           onPickDates={() => document.getElementById('dates')?.scrollIntoView({ behavior: 'smooth' })}
           onBook={() => setBooking(true)}
         />
@@ -342,10 +344,16 @@ function StayView({ stay, locale, today }: { stay: PublicStay; locale: string; t
         />
       )}
       {zoomed !== null && (
-        <div role="dialog" aria-modal="true" aria-label={t('guest.photos')} className="fixed inset-0 z-overlay flex flex-col bg-black">
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label={t('guest.photos')}
+          onKeyDown={(e) => e.key === 'Escape' && setZoomed(null)}
+          className="fixed inset-0 z-overlay flex flex-col bg-black"
+        >
           <div className="flex items-center justify-between p-3 text-white">
             <span dir="ltr" className="text-sm">{zoomed + 1} / {stay.photos.length}</span>
-            <button type="button" onClick={() => setZoomed(null)} aria-label={t('guest.close')} className="flex h-11 w-11 items-center justify-center rounded-full bg-white/10">
+            <button type="button" autoFocus onClick={() => setZoomed(null)} aria-label={t('guest.close')} className="flex h-11 w-11 items-center justify-center rounded-full bg-white/10">
               <X className="h-5 w-5" aria-hidden />
             </button>
           </div>

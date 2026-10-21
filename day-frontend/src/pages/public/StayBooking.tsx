@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { isAxiosError } from 'axios'
 import { useTranslation } from 'react-i18next'
 import { parseISO } from 'date-fns'
@@ -18,6 +18,7 @@ export function BookBar({
   locale,
   quote,
   dates,
+  canPickDates,
   onPickDates,
   onBook,
 }: {
@@ -25,6 +26,8 @@ export function BookBar({
   locale: string
   quote: { total: number; count: number } | null
   dates: string | null
+  /** False when the page has no nights to pick: the button would lead nowhere. */
+  canPickDates: boolean
   onPickDates: () => void
   onBook: () => void
 }) {
@@ -65,11 +68,11 @@ export function BookBar({
               <MessageCircle className="h-5 w-5" aria-hidden />
             </a>
           )}
-          {byNight && (
+          {byNight && (quote || canPickDates) && (
             <button
               type="button"
               onClick={quote ? onBook : onPickDates}
-              className="h-12 rounded-xl bg-[var(--accent)] px-5 text-base font-semibold text-white"
+              className="h-12 rounded-xl bg-[var(--accent)] px-5 text-base font-semibold text-[var(--on-accent)]"
             >
               {quote ? t('guestBook.book') : t('guestStay.pickDates')}
             </button>
@@ -109,15 +112,19 @@ export function BookSheet({
   const [phone, setPhone] = useState('')
   const [guests, setGuests] = useState(Math.min(2, most))
   const [sending, setSending] = useState(false)
+  // Two taps in one moment both see `sending` false; this does not wait for a render.
+  const inFlight = useRef(false)
   const [error, setError] = useState<string | null>(null)
   const day = new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'short' })
   const phoneWrong = phone.length > 0 && !phoneOk(phone)
 
   async function send() {
-    if (!name.trim() || !phoneOk(phone) || sending) {
+    if (inFlight.current) return
+    if (!name.trim() || !phoneOk(phone)) {
       setError(!name.trim() ? t('guestStay.nameNeeded') : t('guestBook.phoneWrong'))
       return
     }
+    inFlight.current = true
     setSending(true)
     setError(null)
     try {
@@ -135,6 +142,7 @@ export function BookSheet({
               : t('guestBook.sendFailed'),
       )
     } finally {
+      inFlight.current = false
       setSending(false)
     }
   }
@@ -238,7 +246,7 @@ export function BookSheet({
           type="button"
           onClick={send}
           disabled={sending}
-          className="h-12 rounded-xl bg-[var(--accent)] text-base font-semibold text-white disabled:opacity-60"
+          className="h-12 rounded-xl bg-[var(--accent)] text-base font-semibold text-[var(--on-accent)] disabled:opacity-60"
         >
           {sending ? t('guestBook.booking') : t('guestBook.book')}
         </button>
