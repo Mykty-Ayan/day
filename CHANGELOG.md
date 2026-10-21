@@ -1,5 +1,33 @@
 # Changelog
 
+## 0.6.0 — 2026-10-20
+
+The owner keeps the company's expenses and the agents who bring guests, and writes the rules for guests once for every flat. The CRM gets what its AI needs to sell alone: a deposit moves the booking in the feed, a booking from a personal link says so, the free-dates search names the stay rules a stay would break, a readiness report shows what each flat's card lacks, a personal link can be by the hour and carries the CRM's conversation id to its booking, and a flat's card gives the WhatsApp catalogue product id. Migrations 045–051 run on start. No environment variable has to change.
+
+**Breaking for integrations:** a flat's cleaning buffer is now `buffer_minutes` (was `buffer_hours`); migration 045 turns the stored hours into minutes. The CRM was told before the release.
+
+### Added
+- The company's expenses for the owner: a category, an amount, a day, the flat for rent; a wrong one is voided, never deleted (#174, #175)
+- Agents who bring guests: a list in the web, "brought by" on a booking, and an agent's commission as an expense naming the agent and the booking; `GET /bookings?agent_id=` (#176, #178–#180)
+- A booking made from a personal link has the source `offer` (#171)
+- `GET /bookings/availability?include_rule_breaches=true` names the stay rules each free flat would break (#173)
+- The company's rules for guests (`/company-facts`), shown on every flat's card as `company_facts`; a rule for staying guests needs the secrets permission, as on a flat (#181)
+- A readiness report (`GET /properties/readiness`) and a "Readiness" page: which fields of each flat are filled, never their values (#181, #182)
+- `whatsapp_product_id` on a flat, read from its WhatsApp catalogue product link (`wa.me/p/<id>/<phone>`) (#184)
+- `external_id` on `POST /offers`: the booking made by the link carries it as its own `external_id`, also in the feed; the guest never sees it (#185)
+- A personal link by the hour (`rental_mode=hourly`, `starts_at`, `ends_at`): the page prices the hours, keeps the flat's buffer and notice, and the guest's booking is hourly with the hourly deposit (#186, #187)
+- A flat's or a personal link pasted in WhatsApp, Telegram or Instagram shows a preview: the flat's photo, name and price; a personal link's dates, never the guest. Chat robots get Open Graph tags from `/public/preview/{s,o}/{code}`; people get the page as before (#189)
+- "Select all" scopes when creating an API key (#188)
+
+### Changed
+- The cleaning buffer is set in minutes in 15-minute steps; a new flat's form suggests 30 (#172)
+- Check-in instructions of a flat are read and written only with `property_secrets:read`, also in its history (#169)
+- A deposit action moves the booking in the CRM's feed (#170)
+- Editing a booking's dates asks first when the new dates would change an agreed price: "recalculate" or "keep" (#177)
+
+### Tests
+- Deposit sums in the e2e suite are found anywhere in the page text (#167)
+
 ## 0.5.0 — 2026-10-19
 
 A guest gets a page of the flat and a personal link to book it, in nine languages. Airbnb and Booking calendars close nights in Day. A flat gets stay rules, closed dates, a price for chosen nights, and a deposit and listing links for hourly stays apart from nightly ones. Migrations 033–044 run on start. No environment variable has to change.
