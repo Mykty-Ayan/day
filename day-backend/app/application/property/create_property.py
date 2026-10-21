@@ -57,7 +57,7 @@ class CreatePropertyInput:
     hourly_listing_urls: list[str] = field(default_factory=list)
     min_nights: int | None = None
     max_nights: int | None = None
-    buffer_hours: int | None = None
+    buffer_minutes: int | None = None
     min_lead_hours: int | None = None
     rooms: int | None = None
     beds: int | None = None
@@ -124,7 +124,7 @@ class CreatePropertyService:
             hourly_listing_urls=list(inp.hourly_listing_urls),
             min_nights=inp.min_nights,
             max_nights=inp.max_nights,
-            buffer_hours=inp.buffer_hours,
+            buffer_minutes=inp.buffer_minutes,
             min_lead_hours=inp.min_lead_hours,
             rooms=inp.rooms,
             beds=inp.beds,

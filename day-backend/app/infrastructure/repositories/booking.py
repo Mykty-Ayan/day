@@ -104,6 +104,7 @@ def _model_to_booking(m: BookingModel) -> Booking:
         notes=m.notes,
         overbooking=m.overbooking,
         external_id=m.external_id,
+        agent_id=m.agent_id,
         idempotency_key=m.idempotency_key,
         idempotency_hash=m.idempotency_hash,
         expires_at=m.expires_at,
@@ -387,6 +388,7 @@ class SqlBookingRepository(BookingRepository):
             notes=booking.notes,
             overbooking=booking.overbooking,
             external_id=booking.external_id,
+            agent_id=booking.agent_id,
             idempotency_key=booking.idempotency_key,
             idempotency_hash=booking.idempotency_hash,
             expires_at=booking.expires_at,
@@ -531,7 +533,10 @@ class SqlBookingRepository(BookingRepository):
         search=None,
         date_from=None,
         date_to=None,
+        agent_id=None,
     ):
+        if agent_id is not None:
+            stmt = stmt.where(BookingModel.agent_id == agent_id)
         if status is not None:
             stmt = stmt.where(BookingModel.status == status.value)
         if property_id is not None:
@@ -560,11 +565,12 @@ class SqlBookingRepository(BookingRepository):
         search: str | None = None,
         date_from: date | None = None,
         date_to: date | None = None,
+        agent_id: uuid.UUID | None = None,
     ) -> list[Booking]:
         stmt = select(BookingModel).where(BookingModel.company_id == company_id)
         stmt = self._apply_filters(
             stmt, status=status, property_id=property_id,
-            source=source, search=search, date_from=date_from, date_to=date_to,
+            source=source, search=search, date_from=date_from, date_to=date_to, agent_id=agent_id,
         )
         stmt = stmt.order_by(BookingModel.check_in.desc()).offset(offset).limit(limit)
         result = await self._session.scalars(stmt)
@@ -580,13 +586,14 @@ class SqlBookingRepository(BookingRepository):
         search: str | None = None,
         date_from: date | None = None,
         date_to: date | None = None,
+        agent_id: uuid.UUID | None = None,
     ) -> int:
         stmt = select(func.count()).select_from(BookingModel).where(
             BookingModel.company_id == company_id
         )
         stmt = self._apply_filters(
             stmt, status=status, property_id=property_id,
-            source=source, search=search, date_from=date_from, date_to=date_to,
+            source=source, search=search, date_from=date_from, date_to=date_to, agent_id=agent_id,
         )
         result = await self._session.scalar(stmt)
         return result or 0
@@ -721,6 +728,7 @@ class SqlBookingRepository(BookingRepository):
                 children_count=booking.children_count,
                 notes=booking.notes,
                 overbooking=booking.overbooking,
+                agent_id=booking.agent_id,
                 expires_at=booking.expires_at,
                 updated_at=datetime.utcnow(),
             )
@@ -1156,6 +1164,10 @@ class SqlGuestOfferRepository(GuestOfferRepository):
             guests=offer.guests,
             property_ids=[str(p) for p in offer.property_ids],
             created_by=offer.created_by,
+            external_id=offer.external_id,
+            rental_mode=offer.rental_mode.value,
+            starts_at=offer.starts_at,
+            ends_at=offer.ends_at,
         )
         self._session.add(model)
         await self._session.flush()
@@ -1186,4 +1198,8 @@ def _model_to_offer(m: GuestOfferModel) -> GuestOffer:
         created_by=m.created_by,
         created_at=m.created_at,
         booking_id=m.booking_id,
+        external_id=m.external_id,
+        rental_mode=RentalMode(m.rental_mode),
+        starts_at=m.starts_at,
+        ends_at=m.ends_at,
     )

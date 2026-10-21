@@ -100,12 +100,12 @@ async def test_a_stay_booked_too_close_to_its_check_in_is_refused():
 
 async def test_an_hourly_booking_keeps_the_cleaning_buffer():
     f = Flats()
-    prop = await f.flat(buffer_hours=2)
+    prop = await f.flat(buffer_minutes=120)
     morning = FAR.replace(hour=10)
     await f.book(prop, morning, morning + timedelta(hours=2), RentalMode.HOURLY)
     with pytest.raises(StayRulesError) as refused:
         await f.book(prop, morning + timedelta(hours=3), morning + timedelta(hours=5), RentalMode.HOURLY)
-    assert refused.value.breaches == [RuleBreach("buffer_hours", 2, 1)]
+    assert refused.value.breaches == [RuleBreach("buffer_minutes", 120, 60)]
     await f.book(prop, morning + timedelta(hours=4), morning + timedelta(hours=6), RentalMode.HOURLY)
 
 
@@ -197,7 +197,7 @@ async def test_the_api_names_the_broken_rules_and_takes_a_confirmed_stay(flat): 
 
 async def _hourly_flat(client, prop, use):
     use(Permission.PROPERTIES_READ, Permission.PROPERTIES_WRITE, Permission.BOOKINGS_READ, Permission.BOOKINGS_WRITE)
-    updated = await client.patch(f"/api/v1/properties/{prop}", json={"rental_mode": "both", "buffer_hours": 2})
+    updated = await client.patch(f"/api/v1/properties/{prop}", json={"rental_mode": "both", "buffer_minutes": 120})
     assert updated.status_code == 200, updated.text
 
 
@@ -242,4 +242,4 @@ async def test_a_completed_booking_still_needs_its_cleaning(flat):  # noqa: F811
         "/api/v1/bookings", json=_hourly(prop, "2030-04-02T13:00:00", "2030-04-02T15:00:00", "+77010001604")
     )
     assert after.status_code == 422, after.text
-    assert after.json()["detail"]["breaches"] == [{"rule": "buffer_hours", "limit": 2, "actual": 1}]
+    assert after.json()["detail"]["breaches"] == [{"rule": "buffer_minutes", "limit": 120, "actual": 60}]

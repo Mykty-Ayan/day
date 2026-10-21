@@ -18,6 +18,7 @@ import {
 } from '../../components/ui/select'
 import { ToggleGroup, ToggleGroupItem } from '../../components/ui/toggle-group'
 import NumberInput from '../../components/ui/number-input'
+import AgentSelect from '../../components/agents/AgentSelect'
 import { useCurrency } from '../../hooks/useCurrency'
 import {
   currentBreaches,
@@ -45,6 +46,8 @@ interface FormData {
   children_count: number
   gantt_color: string
   notes: string
+  /** '' when the guest came on their own. */
+  agent_id: string
 }
 
 const initialForm: FormData = {
@@ -63,6 +66,7 @@ const initialForm: FormData = {
   children_count: 0,
   gantt_color: '#3B82F6',
   notes: '',
+  agent_id: '',
 }
 
 // Split an ISO date-time (or bare date) into its date and HH:mm components.
@@ -289,6 +293,7 @@ export default function CreateBookingPage() {
       children_count: form.children_count,
       gantt_color: form.gantt_color,
       notes: form.notes || undefined,
+      agent_id: form.agent_id || undefined,
     }
   }
 
@@ -643,6 +648,19 @@ export default function CreateBookingPage() {
                     </ToggleGroupItem>
                   ))}
                 </ToggleGroup>
+              </div>
+
+              {/* Who brought the guest */}
+              <div className="border-t border-gray-100 pt-5">
+                <label htmlFor="create-agent" className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">
+                  {t('bookings.agent')}
+                </label>
+                <AgentSelect
+                  id="create-agent"
+                  value={form.agent_id}
+                  onChange={(agentId) => updateField('agent_id', agentId)}
+                  className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 outline-none focus:ring-2 focus:ring-black/10 text-sm"
+                />
               </div>
 
               {/* Guests Count */}

@@ -83,6 +83,8 @@ class BookingCreate(BaseModel):
     notes: str | None = None
     # The id of this booking in the system that asks for it, e.g. a CRM deal.
     external_id: str | None = Field(default=None, max_length=255)
+    # The agent who brought the guest (GET /agents).
+    agent_id: uuid.UUID | None = None
     # Makes the booking a hold that Day cancels at this moment unless it is
     # confirmed first. Must carry its zone: a hold set at night for "09:00"
     # means the company's morning, not UTC's.
@@ -93,6 +95,7 @@ class BookingCreate(BaseModel):
 
 
 class BookingUpdate(BaseModel):
+    agent_id: uuid.UUID | None = None
     check_in: datetime | None = None
     check_out: datetime | None = None
     rental_mode: RentalMode | None = None
@@ -140,6 +143,7 @@ class BookingResponse(BaseModel):
     property_name: str | None = None
     property_internal_name: str | None = None
     external_id: str | None = None
+    agent_id: uuid.UUID | None = None
     # UTC, with its zone.
     expires_at: datetime | None = None
     # An OTA booking that landed on nights already taken: kept, not dropped,
@@ -352,6 +356,12 @@ class AvailablePhotoResponse(BaseModel):
     sort_order: int
 
 
+class StayRuleBreachResponse(BaseModel):
+    rule: str
+    limit: int
+    actual: int
+
+
 class AvailablePropertyResponse(BaseModel):
     model_config = ConfigDict(json_encoders={Decimal: float})
 
@@ -372,6 +382,8 @@ class AvailablePropertyResponse(BaseModel):
     check_out: datetime | None = None
     # Cover first, then in the host's order: one answer is enough to offer a flat.
     photos: list[AvailablePhotoResponse] = []
+    # Only with include_rule_breaches: the flat's stay rules this stay breaks.
+    rule_breaches: list[StayRuleBreachResponse] = []
 
 
 class AvailabilityResponse(BaseModel):

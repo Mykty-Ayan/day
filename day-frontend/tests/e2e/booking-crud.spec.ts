@@ -214,6 +214,8 @@ test.describe('Booking CRUD - E2E', () => {
     await page.locator('input[type="number"]').first().fill('5')
 
     await page.getByRole('button', { name: /save/i }).click()
+    // More guests change the price Day worked out: the form asks first.
+    await page.getByRole('button', { name: /^Reprice/ }).click()
     await expect(page).toHaveURL(new RegExp(`/bookings/${booking.id}$`), { timeout: 10000 })
 
     const detailRes = await request.get(`${API_BASE}/bookings/${booking.id}`)

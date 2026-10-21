@@ -19,7 +19,7 @@ class StayRules(Protocol):
 
     min_nights: int | None
     max_nights: int | None
-    buffer_hours: int | None
+    buffer_minutes: int | None
     min_lead_hours: int | None
 
 
@@ -40,6 +40,10 @@ class RuleBreach:
 
 def _hours(span: timedelta) -> int:
     return math.floor(span.total_seconds() / 3600)
+
+
+def _minutes(span: timedelta) -> int:
+    return math.floor(span.total_seconds() / 60)
 
 
 def stay_breaches(
@@ -69,8 +73,8 @@ def stay_breaches(
 
     # Cleaning time around an hourly booking. Two daily stays turn over on the
     # flat's own hours (out at 12:00, in at 14:00): the buffer does not split them.
-    if rules.buffer_hours is not None:
-        buffer = timedelta(hours=rules.buffer_hours)
+    if rules.buffer_minutes is not None:
+        buffer = timedelta(minutes=rules.buffer_minutes)
         gaps = [
             check_in - other.check_out
             if other.check_out <= check_in
@@ -85,7 +89,7 @@ def stay_breaches(
         ]
         short = [gap for gap in gaps if gap < buffer]
         if short:
-            found.append(RuleBreach("buffer_hours", rules.buffer_hours, _hours(min(short))))
+            found.append(RuleBreach("buffer_minutes", rules.buffer_minutes, _minutes(min(short))))
 
     if now is not None and rules.min_lead_hours is not None:
         ahead = check_in - now
@@ -93,3 +97,16 @@ def stay_breaches(
             found.append(RuleBreach("min_lead_hours", rules.min_lead_hours, _hours(ahead)))
 
     return found
+
+
+_RULE_WORDS = {
+    "min_nights": "минимум ночей {limit}, в брони {actual}",
+    "max_nights": "максимум ночей {limit}, в брони {actual}",
+    "buffer_minutes": "минут на уборку между почасовыми бронями {limit}, здесь {actual}",
+    "min_lead_hours": "бронировать не позже чем за {limit} ч до заезда, а до заезда {actual} ч",
+}
+
+
+def describe_breach(breach: RuleBreach) -> str:
+    """The broken rule in words, for the operator in Telegram."""
+    return _RULE_WORDS[breach.rule].format(limit=breach.limit, actual=breach.actual)

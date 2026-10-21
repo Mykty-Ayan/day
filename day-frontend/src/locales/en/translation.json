@@ -9,7 +9,10 @@
     "analytics": "Analytics",
     "aiImport": "AI Import",
     "settings": "Settings",
-    "more": "More"
+    "more": "More",
+    "expenses": "Expenses",
+    "agents": "Agents",
+    "readiness": "Readiness"
   },
   "common": {
     "save": "Save",
@@ -280,7 +283,7 @@
       "stayRules": "Booking rules",
       "min_nights": "Minimum nights",
       "max_nights": "Maximum nights",
-      "buffer_hours": "Cleaning between hourly bookings, h",
+      "buffer_minutes": "Cleaning between hourly bookings, min",
       "min_lead_hours": "Book at least, h before check-in",
       "noRule": "No limit",
       "stayRulesHint": "Empty means no limit. The rules apply to bookings made in Day; bookings from Booking and Airbnb are not refused. A rule can be broken by confirming it when booking."
@@ -290,7 +293,8 @@
       "internalNameRequired": "Internal name is required",
       "webLink": "The link must start with https://",
       "listingLinks": "One link per line, each starting with http:// or https://, no spaces, up to 500 characters; at most 20",
-      "listingInBoth": "One link cannot be both a nightly and an hourly listing"
+      "listingInBoth": "One link cannot be both a nightly and an hourly listing",
+      "bufferMinutes": "15 to 1440 minutes, in steps of 15"
     },
     "amenityCategories": {
       "bathroom": "Bathroom",
@@ -497,7 +501,8 @@
       "booking": "Booking.com",
       "airbnb": "Airbnb",
       "other": "Other",
-      "crm": "CRM"
+      "crm": "CRM",
+      "offer": "Personal link"
     },
     "adultsCount": "{{count}} adult",
     "adultsCount_other": "{{count}} adults",
@@ -532,12 +537,18 @@
       "title": "The booking breaks the apartment rules",
       "min_nights": "Minimum nights: {{limit}}, this booking: {{actual}}",
       "max_nights": "Maximum nights: {{limit}}, this booking: {{actual}}",
-      "buffer_hours": "Cleaning hours between hourly bookings: {{limit}}, here: {{actual}}",
+      "buffer_minutes": "Cleaning minutes between hourly bookings: {{limit}}, here: {{actual}}",
       "min_lead_hours": "Book at least {{limit}} h before check-in; this check-in is {{actual}} h away",
       "bookAnyway": "Book anyway",
       "saveAnyway": "Save anyway",
       "moveAnyway": "Move anyway"
-    }
+    },
+    "priceChoice": {
+      "ask": "The new dates make it {{now}}; it is {{was}} now. How to save?",
+      "reprice": "Reprice: {{now}}",
+      "keep": "Keep {{was}}"
+    },
+    "agent": "Brought by"
   },
   "today": {
     "title": "Today",
@@ -926,7 +937,9 @@
       "nameAndScopes": "A name and at least one scope are required"
     },
     "telegramCode": "Telegram code",
-    "telegramCodeHint": "Send it to the team member. They send it to the Day bot and get Telegram with the “{{role}}” rights, not yours. The code works once, for 30 minutes."
+    "telegramCodeHint": "Send it to the team member. They send it to the Day bot and get Telegram with the “{{role}}” rights, not yours. The code works once, for 30 minutes.",
+    "scopesAll": "Select all",
+    "scopesNone": "Clear all"
   },
   "channels": {
     "title": "Bots",
@@ -1254,7 +1267,9 @@
     "area": "{{area}} m²",
     "minNights_one": "At least {{count}} night",
     "minNights_other": "At least {{count}} nights",
-    "totalHint": "The nights alone, before discounts and fees for extra guests."
+    "totalHint": "The nights alone, before discounts and fees for extra guests.",
+    "hours_one": "{{count}} hour",
+    "hours_other": "{{count}} hours"
   },
   "guestOffer": {
     "hello": "{{name}}, here are flats for your dates",
@@ -1309,6 +1324,113 @@
     "sendFailed": "Could not send. Check the connection and press again.",
     "nameNeeded": "Your phone comes from our chat. Write the name we book for.",
     "phoneWrong": "A number has 10 to 15 digits, with the country code.",
-    "ranOut": "Time is up — checking the payment"
+    "ranOut": "Time is up — checking the payment",
+    "hoursAtCheckIn": "The hours, {{total}}, are paid at check-in"
+  },
+  "expenses": {
+    "title": "Expenses",
+    "month": "Month",
+    "add": "New expense",
+    "category": "Category",
+    "amount": "Amount",
+    "day": "Day",
+    "flat": "Flat",
+    "flatNone": "Whole company",
+    "flatChoose": "Choose the flat",
+    "payee": "Paid to",
+    "note": "Note",
+    "save": "Record",
+    "list": "This month's expenses",
+    "total": "Total: {{amount}}",
+    "empty": "No expenses this month",
+    "void": "Void",
+    "voidConfirm": "Void this expense? It stays in the history but leaves the totals.",
+    "voided": "Expense voided",
+    "saved": "Expense recorded",
+    "failed": "Could not save",
+    "ownerOnly": "Only the owner sees and records expenses.",
+    "errors": {
+      "rentNeedsFlat": "Rent is paid for a flat: choose it",
+      "amount": "The amount must be above zero, with two decimals at most",
+      "day": "Choose the day",
+      "commissionNeedsAgent": "An agent's commission is paid to an agent — choose one"
+    },
+    "categories": {
+      "rent": "Rent",
+      "utilities": "Utilities",
+      "internet": "Internet",
+      "cleaning": "Cleaning",
+      "laundry": "Laundry and linen",
+      "supplies": "Supplies",
+      "repairs": "Repairs",
+      "furniture": "Furniture and appliances",
+      "advertising": "Advertising",
+      "platform_commission": "Platform commission",
+      "payment_fees": "Payment fees",
+      "staff": "Staff",
+      "agent_commission": "Agent commission",
+      "software": "Software",
+      "other": "Other"
+    },
+    "agent": "Agent",
+    "booking": "Booking",
+    "bookingNone": "No booking",
+    "agentChoose": "Choose the agent"
+  },
+  "agents": {
+    "title": "Agents",
+    "hint": "People who bring guests for a cut. Name the agent on the booking; record what they were paid as an “Agent commission” expense.",
+    "add": "New agent",
+    "name": "Name",
+    "phone": "Phone",
+    "note": "Note",
+    "save": "Add",
+    "saved": "Agent added",
+    "failed": "Could not save",
+    "nameRequired": "Enter a name",
+    "empty": "No agents yet",
+    "stop": "Stopped working",
+    "resume": "Working again",
+    "nobody": "Nobody, the guest came directly",
+    "stoppedName": "{{name}} (stopped)"
+  },
+  "readiness": {
+    "title": "Flats readiness",
+    "hint": "What is filled for answering guests: the company's rules and each flat's fields.",
+    "rules": "Rules for every flat",
+    "rulesHint": "Documents, early check-in and late check-out, pets, smoking, parties, quiet hours. The CRM's AI answers guests of any flat by them.",
+    "ruleText": "Rule",
+    "rulePlaceholder": "E.g. check-in with an ID card",
+    "audienceLabel": "Who sees it",
+    "audience": {
+      "public": "Everyone, before booking",
+      "guest": "Staying guests only"
+    },
+    "add": "Add",
+    "delete": "Delete",
+    "deleteConfirm": "Delete the rule?",
+    "failed": "Could not save",
+    "flats": "Flats",
+    "noFlats": "No flats",
+    "allFilled": "All filled",
+    "emptyCount_one": "{{count}} empty",
+    "emptyCount_other": "{{count}} empty",
+    "fields": {
+      "address": "Address",
+      "map_url": "Map link",
+      "description": "Description",
+      "max_guests": "Max guests",
+      "check_in_hour": "Check-in hour",
+      "check_out_hour": "Check-out hour",
+      "check_in_instructions": "Check-in instructions",
+      "check_out_instructions": "Check-out instructions",
+      "house_rules": "House rules",
+      "wifi": "Wi-Fi",
+      "listing_urls": "Listing links",
+      "photos": "Photos",
+      "pricing": "Prices",
+      "facts": "Facts for guests",
+      "whatsapp_product": "WhatsApp catalogue product"
+    }
   }
 }

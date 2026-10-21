@@ -40,7 +40,8 @@
     "perHour": "每小时",
     "area": "{{area}} 平方米",
     "minNights": "至少 {{count}} 晚",
-    "totalHint": "仅为住宿费用，未计折扣和额外客人费用。"
+    "totalHint": "仅为住宿费用，未计折扣和额外客人费用。",
+    "hours": "{{count}} 小时"
   },
   "guestOffer": {
     "hello": "{{name}}，这些是适合您日期的房源",
@@ -94,7 +95,8 @@
     "sendFailed": "发送失败。请检查网络后再按一次。",
     "nameNeeded": "电话来自我们的聊天记录。请填写预订人的姓名。",
     "phoneWrong": "号码应为 10 到 15 位数字，含国家代码。",
-    "ranOut": "时间已到——正在核实付款"
+    "ranOut": "时间已到——正在核实付款",
+    "hoursAtCheckIn": "使用费 {{total}}，入住时支付"
   },
   "properties": {
     "checkInMethod": {

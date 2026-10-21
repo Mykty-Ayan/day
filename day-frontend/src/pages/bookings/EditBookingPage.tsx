@@ -14,6 +14,7 @@ import { ToggleGroup, ToggleGroupItem } from '../../components/ui/toggle-group'
 import NumberInput from '../../components/ui/number-input'
 import Spinner from '../../components/ui/Spinner'
 import { showToast } from '../../components/ui/Toast'
+import AgentSelect from '../../components/agents/AgentSelect'
 import {
   currentBreaches,
   getBookingApiErrorMessage,
@@ -22,7 +23,9 @@ import {
   type RulesRefusal,
 } from '../../lib/booking-errors'
 import StayRulesAlert from '../../components/booking/StayRulesAlert'
-import { nightsWindow, switchRentalMode } from '../../lib/booking-dates'
+import { nightsWindow, switchRentalMode, wouldReprice } from '../../lib/booking-dates'
+import { calculatePrice } from '../../api/bookings'
+import { useCurrency } from '../../hooks/useCurrency'
 
 interface FormData {
   check_in: string
@@ -36,6 +39,8 @@ interface FormData {
   children_count: number
   gantt_color: string
   notes: string
+  /** '' when the guest came on their own. */
+  agent_id: string
 }
 
 function datePart(value: string): string {
@@ -63,6 +68,7 @@ function detailToForm(detail: BookingDetail): FormData {
     children_count: b.children_count,
     gantt_color: b.gantt_color || '#3B82F6',
     notes: b.notes ?? '',
+    agent_id: b.agent_id ?? '',
   }
 }
 
@@ -116,6 +122,7 @@ function EditBookingForm({ detail, bookingId }: { detail: BookingDetail; booking
     { value: 'airbnb', label: t('bookings.sources.airbnb') },
     { value: 'other', label: t('bookings.sources.other') },
     { value: 'crm', label: t('bookings.sources.crm') },
+    { value: 'offer', label: t('bookings.sources.offer') },
   ]
 
   const GANTT_COLORS = [
@@ -130,8 +137,16 @@ function EditBookingForm({ detail, bookingId }: { detail: BookingDetail; booking
 
   // The save the stay rules refused; "save anyway" sends exactly it again.
   const [refused, setRefused] = useState<RulesRefusal<BookingUpdateInput> | null>(null)
+  // New dates of a stay Day priced itself change its price: the operator chooses.
+  const [priceChoice, setPriceChoice] = useState<{ payload: BookingUpdateInput; was: number; now: number } | null>(
+    null,
+  )
+  const { format: money } = useCurrency()
+  const [quoting, setQuoting] = useState(false)
 
   function updateField<K extends keyof FormData>(key: K, value: FormData[K]) {
+    // The question was about the form as it was; a change makes it stale.
+    setPriceChoice(null)
     setForm((f) => ({ ...f, [key]: value }))
     setErrors((e) => {
       const next = { ...e }
@@ -142,6 +157,7 @@ function EditBookingForm({ detail, bookingId }: { detail: BookingDetail; booking
 
   // The picked date moves to the other mode's field instead of disappearing.
   function switchMode(mode: RentalMode) {
+    setPriceChoice(null)
     setForm((f) => switchRentalMode(f, mode))
     setErrors((e) => {
       const next = { ...e }
@@ -183,6 +199,7 @@ function EditBookingForm({ detail, bookingId }: { detail: BookingDetail; booking
       children_count: form.children_count,
       gantt_color: form.gantt_color,
       notes: form.notes || undefined,
+      agent_id: form.agent_id || null,
     }
   }
 
@@ -205,9 +222,32 @@ function EditBookingForm({ detail, bookingId }: { detail: BookingDetail; booking
     })
   }
 
-  function handleSubmit() {
+  async function handleSubmit() {
     if (!validate()) return
-    send(updatePayload())
+    const payload = updatePayload()
+    const b = detail.booking
+    if (wouldReprice(b, payload)) {
+      setQuoting(true)
+      try {
+        const quote = await calculatePrice({
+          property_id: b.property_id,
+          check_in: payload.check_in ?? b.check_in,
+          check_out: payload.check_out ?? b.check_out,
+          adults_count: payload.adults_count ?? b.adults_count,
+          children_count: payload.children_count ?? b.children_count,
+          rental_mode: payload.rental_mode ?? b.rental_mode,
+        })
+        if (Number(quote.total) !== Number(b.total_price)) {
+          setPriceChoice({ payload, was: Number(b.total_price), now: Number(quote.total) })
+          return
+        }
+      } catch {
+        // No quote is no reason to stop the save; the server prices it as before.
+      } finally {
+        setQuoting(false)
+      }
+    }
+    send(payload)
   }
 
 
@@ -367,6 +407,19 @@ function EditBookingForm({ detail, bookingId }: { detail: BookingDetail; booking
             </ToggleGroup>
           </div>
 
+          {/* Who brought the guest */}
+          <div className="border-t border-gray-100 pt-5">
+            <label htmlFor="edit-agent" className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">
+              {t('bookings.agent')}
+            </label>
+            <AgentSelect
+              id="edit-agent"
+              value={form.agent_id}
+              onChange={(agentId) => updateField('agent_id', agentId)}
+              className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 outline-none focus:ring-2 focus:ring-black/10 text-sm"
+            />
+          </div>
+
           {/* Guests Count */}
           <div className="border-t border-gray-100 pt-5">
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -463,13 +516,45 @@ function EditBookingForm({ detail, bookingId }: { detail: BookingDetail; booking
           />
         )}
 
+        {priceChoice && (
+          <div role="alert" className="mt-6 space-y-3 rounded-xl border border-amber-200 bg-amber-50 p-4">
+            <p className="text-sm text-gray-900">
+              {t('bookings.priceChoice.ask', { now: money(priceChoice.now), was: money(priceChoice.was) })}
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                disabled={updateBooking.isPending}
+                onClick={() => {
+                  send(priceChoice.payload)
+                  setPriceChoice(null)
+                }}
+                className="min-h-[44px] rounded-xl bg-black px-4 text-sm font-semibold text-white disabled:opacity-50"
+              >
+                {t('bookings.priceChoice.reprice', { now: money(priceChoice.now) })}
+              </button>
+              <button
+                type="button"
+                disabled={updateBooking.isPending}
+                onClick={() => {
+                  send({ ...priceChoice.payload, total_price: priceChoice.was })
+                  setPriceChoice(null)
+                }}
+                className="min-h-[44px] rounded-xl border border-gray-300 bg-white px-4 text-sm font-semibold text-gray-900 disabled:opacity-50"
+              >
+                {t('bookings.priceChoice.keep', { was: money(priceChoice.was) })}
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Submit */}
         <div className="mt-6 flex justify-end">
           <motion.button
             whileTap={{ scale: 0.97 }}
             type="button"
             onClick={() => handleSubmit()}
-            disabled={updateBooking.isPending}
+            disabled={updateBooking.isPending || quoting}
             className="flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl bg-black px-6 py-2.5 font-semibold text-white shadow-lg transition-colors hover:bg-gray-800 disabled:opacity-50 sm:w-auto"
           >
             {updateBooking.isPending ? (

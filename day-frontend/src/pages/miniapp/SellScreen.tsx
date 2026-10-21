@@ -90,7 +90,7 @@ export default function SellScreen({
 
   const availability = useQuery({
     queryKey: ['miniapp', 'availability', range?.rentalMode, range?.checkIn, range?.checkOut, guests],
-    queryFn: () => getAvailability(range!.checkIn, range!.checkOut, { adults: guests, rentalMode: range!.rentalMode }),
+    queryFn: () => getAvailability(range!.checkIn, range!.checkOut, { adults: guests, withRuleBreaches: true, rentalMode: range!.rentalMode }),
     enabled: enabled && range !== null,
   })
 

@@ -4,7 +4,7 @@ import { ArrowLeft, ArrowRight, Check, Loader2 } from 'lucide-react'
 import { useNavigate } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 import { isWebLink } from '../../lib/utils'
-import { listingInBoth, listingLines, listingLinksValid, saveWizard, wizardToUpdate } from './propertyForm'
+import { bufferMinutesValid, listingInBoth, listingLines, listingLinksValid, saveWizard, wizardToUpdate } from './propertyForm'
 import { useCreateProperty } from '../../hooks/useProperties'
 import { createOrUpdatePricing, linkAmenities, updateProperty, uploadPhotos } from '../../api/properties'
 import type { CheckInMethod, PropertyType, PropertyCreateInput, PricingInput } from '../../types/property'
@@ -76,7 +76,7 @@ interface FormData {
     wifi_password: string
     min_nights: string
     max_nights: string
-    buffer_hours: string
+    buffer_minutes: string
     min_lead_hours: string
   }
   amenityIds: string[]
@@ -121,7 +121,8 @@ const initialForm: FormData = {
     wifi_password: '',
     min_nights: '',
     max_nights: '',
-    buffer_hours: '',
+    // Thirty minutes to clean is the usual turnover; the owner may clear it.
+    buffer_minutes: '30',
     min_lead_hours: '',
   },
   amenityIds: [],
@@ -181,6 +182,9 @@ export default function CreatePropertyPage() {
         newErrors.hourly_listing_urls = t('properties.validation.listingInBoth')
       }
     }
+    if (STEPS[step] === 'rules' && !bufferMinutesValid(form.rules.buffer_minutes)) {
+      newErrors.buffer_minutes = t('properties.validation.bufferMinutes')
+    }
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
   }
@@ -236,7 +240,7 @@ export default function CreatePropertyPage() {
       wifi_password: form.rules.wifi_password || undefined,
       min_nights: form.rules.min_nights ? parseInt(form.rules.min_nights) : undefined,
       max_nights: form.rules.max_nights ? parseInt(form.rules.max_nights) : undefined,
-      buffer_hours: form.rules.buffer_hours ? parseInt(form.rules.buffer_hours) : undefined,
+      buffer_minutes: form.rules.buffer_minutes ? parseInt(form.rules.buffer_minutes) : undefined,
       min_lead_hours: form.rules.min_lead_hours ? parseInt(form.rules.min_lead_hours) : undefined,
     }
 
@@ -357,6 +361,7 @@ export default function CreatePropertyPage() {
                 <PropertyFormStepRules
                   data={form.rules}
                   onChange={(rules) => setForm((f) => ({ ...f, rules }))}
+                  errors={errors}
                 />
               )}
               {step === 6 && (

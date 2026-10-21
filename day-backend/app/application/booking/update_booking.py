@@ -40,6 +40,7 @@ class UpdateBookingInput:
     check_out: object = field(default=_UNSET)
     rental_mode: object = field(default=_UNSET)
     source: object = field(default=_UNSET)
+    agent_id: object = field(default=_UNSET)
     gantt_color: object = field(default=_UNSET)
     gantt_icon: object = field(default=_UNSET)
     adults_count: object = field(default=_UNSET)
@@ -115,6 +116,9 @@ class UpdateBookingService:
         if inp.source is not _UNSET:
             _track("source", booking.source.value, inp.source)
             booking.source = BookingSource(inp.source)  # type: ignore[arg-type]
+        if inp.agent_id is not _UNSET:
+            _track("agent_id", booking.agent_id, inp.agent_id)
+            booking.agent_id = inp.agent_id  # type: ignore[assignment]
         if inp.gantt_color is not _UNSET:
             _track("gantt_color", booking.gantt_color, inp.gantt_color)
             booking.gantt_color = inp.gantt_color  # type: ignore[assignment]

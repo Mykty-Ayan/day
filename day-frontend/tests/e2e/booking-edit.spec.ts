@@ -93,12 +93,33 @@ test.describe('Booking Edit - E2E', () => {
     await openEditPage(page, booking.id)
     await page.locator('input[type="number"]').first().fill('5')
     await page.getByRole('button', { name: /save/i }).click()
+    // More guests change the price Day worked out: the form asks before saving.
+    await page.getByRole('button', { name: /^Reprice/ }).click()
     await expect(page).toHaveURL(new RegExp(`/bookings/${booking.id}$`), { timeout: 10000 })
 
     const updatedRes = await request.get(`${API_BASE}/bookings/${booking.id}`)
     expect(updatedRes.ok()).toBeTruthy()
     const updatedDetail = await updatedRes.json()
     expect(updatedDetail.booking.adults_count).toBe(5)
+    expect(Number(updatedDetail.booking.total_price)).toBeGreaterThan(Number(booking.total_price))
+  })
+
+  test('a change that would reprice can keep the price already agreed', async ({ page, request }) => {
+    const prop = await setupActiveProperty(request)
+    const booking = await createBookingViaApi(request, prop.id, {
+      check_in: futureDate(40),
+      check_out: futureDate(43),
+    })
+
+    await openEditPage(page, booking.id)
+    await page.locator('input[type="number"]').first().fill('5')
+    await page.getByRole('button', { name: /save/i }).click()
+    await page.getByRole('button', { name: /^Keep/ }).click()
+    await expect(page).toHaveURL(new RegExp(`/bookings/${booking.id}$`), { timeout: 10000 })
+
+    const detail = await (await request.get(`${API_BASE}/bookings/${booking.id}`)).json()
+    expect(detail.booking.adults_count).toBe(5)
+    expect(Number(detail.booking.total_price)).toBe(Number(booking.total_price))
   })
 
   test('change guest info - save - verify', async ({ page, request }) => {
@@ -108,6 +129,8 @@ test.describe('Booking Edit - E2E', () => {
     await openEditPage(page, booking.id)
     await page.locator('input[type="number"]').nth(1).fill('2')
     await page.getByRole('button', { name: /save/i }).click()
+    // Children change the price Day worked out: the form asks first.
+    await page.getByRole('button', { name: /^Reprice/ }).click()
     await expect(page).toHaveURL(new RegExp(`/bookings/${booking.id}$`), { timeout: 10000 })
 
     const updatedRes = await request.get(`${API_BASE}/bookings/${booking.id}`)

@@ -7,6 +7,7 @@
 
 import { expect, test } from '@playwright/test'
 import {
+  bufferMinutesValid,
   formToUpdate,
   listingInBoth,
   listingLines,
@@ -167,15 +168,15 @@ test('a retry saves the form changed between attempts', () => {
 })
 
 test('stay rules go out as numbers, and a cleared one as null', () => {
-  const ruled = { ...flat, min_nights: 2, max_nights: null, buffer_hours: 2, min_lead_hours: 3 } as Property
+  const ruled = { ...flat, min_nights: 2, max_nights: null, buffer_minutes: 120, min_lead_hours: 3 } as Property
   const form = propertyToForm(ruled)
-  expect(form.rules).toMatchObject({ min_nights: '2', max_nights: '', buffer_hours: '2', min_lead_hours: '3' })
+  expect(form.rules).toMatchObject({ min_nights: '2', max_nights: '', buffer_minutes: '120', min_lead_hours: '3' })
   form.rules.max_nights = '28'
   form.rules.min_lead_hours = ''
   expect(formToUpdate(form, propertyToForm(ruled))).toMatchObject({
     min_nights: 2,
     max_nights: 28,
-    buffer_hours: 2,
+    buffer_minutes: 120,
     min_lead_hours: null,
   })
 })
@@ -219,4 +220,9 @@ test('hourly listing links are a list of their own, and one link is not both kin
   expect(listingInBoth('https://krisha.kz/a/show/1', ' https://krisha.kz/a/show/1 ')).toBe(true)
   expect(listingInBoth('https://krisha.kz/a/show/1', 'https://krisha.kz/a/show/2')).toBe(false)
   expect(listingInBoth('', '')).toBe(false)
+})
+
+test('the cleaning buffer is 15 to 1440 minutes in steps of 15, or empty', () => {
+  expect(['', '15', '30', '1440'].map(bufferMinutesValid)).toEqual([true, true, true, true])
+  expect(['20', '0', '1455', 'abc', '-15'].map(bufferMinutesValid)).toEqual([false, false, false, false, false])
 })

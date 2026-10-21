@@ -52,7 +52,7 @@ class PropertyModel(Base):
     hourly_listing_urls: Mapped[list] = mapped_column(JSON, nullable=False, default=list, server_default="[]")
     min_nights: Mapped[int | None] = mapped_column(Integer, nullable=True)
     max_nights: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    buffer_hours: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    buffer_minutes: Mapped[int | None] = mapped_column(Integer, nullable=True)
     min_lead_hours: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
     # Details
@@ -263,6 +263,19 @@ class PropertyTagAssociationModel(Base):
 
     property: Mapped["PropertyModel"] = relationship()
     tag: Mapped["PropertyTagModel"] = relationship(back_populates="property_links")
+
+
+class CompanyFactModel(Base):
+    """A rule for every flat of the company."""
+
+    __tablename__ = "company_facts"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    company_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("companies.id", ondelete="CASCADE"), index=True)
+    text: Mapped[str] = mapped_column(Text)
+    audience: Mapped[str] = mapped_column(String(20), default="public")
+    source: Mapped[str] = mapped_column(String(20), default="user")
+    created_at: Mapped[datetime] = mapped_column(default=datetime.utcnow)
 
 
 class PropertyFactModel(Base):

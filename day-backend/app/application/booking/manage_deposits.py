@@ -47,13 +47,16 @@ class ManageDepositsService:
         ):
             raise DepositAlreadyOpenError()
 
-        return await self._deposit_repo.create(
+        deposit = await self._deposit_repo.create(
             BookingDeposit(
                 booking_id=booking_id,
                 amount=amount,
                 status=DepositStatus.PENDING,
             )
         )
+        # The booking feed orders by the booking's updated_at: a deposit is news about it.
+        await self._booking_repo.touch(booking_id)
+        return deposit
 
     async def perform_action(
         self,
@@ -101,7 +104,9 @@ class ManageDepositsService:
             )
 
         deposit.status = target
-        return await self._deposit_repo.update(deposit)
+        updated = await self._deposit_repo.update(deposit)
+        await self._booking_repo.touch(booking_id)
+        return updated
 
     async def list_deposits(
         self, booking_id: uuid.UUID, company_id: uuid.UUID

@@ -28,6 +28,7 @@ async def test_list_bookings_passes_search_to_repository():
         search="aruzhan",
         date_from=None,
         date_to=None,
+        agent_id=None,
     )
     repo.count_by_company.assert_awaited_once_with(
         company_id,
@@ -37,6 +38,7 @@ async def test_list_bookings_passes_search_to_repository():
         search="aruzhan",
         date_from=None,
         date_to=None,
+        agent_id=None,
     )
     assert result.items == []
     assert result.total == 0

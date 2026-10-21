@@ -1,6 +1,6 @@
 
 export type BookingStatus = 'pending' | 'confirmed' | 'checked_in' | 'checked_out' | 'completed' | 'cancelled'
-export type BookingSource = 'direct' | 'booking' | 'airbnb' | 'other' | 'crm'
+export type BookingSource = 'direct' | 'booking' | 'airbnb' | 'other' | 'crm' | 'offer'
 export type PaymentType = 'payment' | 'refund'
 export type PaymentMethod = 'cash' | 'card' | 'transfer'
 export type PaymentStatus = 'pending' | 'completed' | 'failed'
@@ -42,6 +42,8 @@ export interface Booking {
   adults_count: number
   children_count: number
   notes?: string | null
+  /** The agent who brought the guest, if one did. */
+  agent_id?: string | null
   guest_name: string
   guest_phone?: string | null
   property_name: string
@@ -191,6 +193,7 @@ export interface BookingCreateInput {
   children_count: number
   gantt_color?: string
   notes?: string
+  agent_id?: string | null
   /** A hold: the booking cancels itself at this instant unless confirmed. With its zone. */
   expires_at?: string
   /** Book it although it breaks the apartment's stay rules: the operator confirmed. */
@@ -206,7 +209,11 @@ export interface BookingUpdateInput {
   children_count?: number
   gantt_color?: string
   notes?: string
+  /** null takes the agent off the booking. */
+  agent_id?: string | null
   override_rules?: boolean
+  /** Sent to keep the price as it is when the dates change. */
+  total_price?: number
 }
 
 export interface BookingFilters {
@@ -218,6 +225,8 @@ export interface BookingFilters {
   search?: string
   date_from?: string
   date_to?: string
+  /** The bookings this agent brought. */
+  agent_id?: string
 }
 
 export interface PaymentInput {

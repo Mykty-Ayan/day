@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.domain.booking.value_objects import RentalMode
 from app.domain.property.entities import (
     Amenity,
+    CompanyFact,
     DayPrice,
     DiscountRule,
     PricingConfig,
@@ -24,6 +25,7 @@ from app.domain.property.entities import (
 )
 from app.domain.property.repositories import (
     AmenityRepository,
+    CompanyFactRepository,
     DayPriceRepository,
     DiscountRuleRepository,
     PricingConfigRepository,
@@ -45,6 +47,7 @@ from app.domain.property.value_objects import (
 )
 from app.infrastructure.models.property import (
     AmenityModel,
+    CompanyFactModel,
     DiscountRuleModel,
     PricingConfigModel,
     PropertyAmenityModel,
@@ -90,7 +93,7 @@ def _model_to_property(m: PropertyModel) -> Property:
         hourly_listing_urls=list(m.hourly_listing_urls or []),
         min_nights=m.min_nights,
         max_nights=m.max_nights,
-        buffer_hours=m.buffer_hours,
+        buffer_minutes=m.buffer_minutes,
         min_lead_hours=m.min_lead_hours,
         rooms=m.rooms,
         beds=m.beds,
@@ -138,7 +141,7 @@ def _property_to_dict(p: Property) -> dict:
         "hourly_listing_urls": list(p.hourly_listing_urls),
         "min_nights": p.min_nights,
         "max_nights": p.max_nights,
-        "buffer_hours": p.buffer_hours,
+        "buffer_minutes": p.buffer_minutes,
         "min_lead_hours": p.min_lead_hours,
         "rooms": p.rooms,
         "beds": p.beds,
@@ -875,6 +878,65 @@ class SqlPropertyFactRepository(PropertyFactRepository):
 
     async def delete(self, fact_id: uuid.UUID) -> None:
         await self._session.execute(delete(PropertyFactModel).where(PropertyFactModel.id == fact_id))
+        await self._session.flush()
+
+
+def _model_to_company_fact(m: CompanyFactModel) -> CompanyFact:
+    return CompanyFact(
+        id=m.id,
+        company_id=m.company_id,
+        text=m.text,
+        audience=FactAudience(m.audience),
+        source=FactSource(m.source),
+        created_at=m.created_at,
+    )
+
+
+class SqlCompanyFactRepository(CompanyFactRepository):
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+
+    async def list_by_company(self, company_id: uuid.UUID) -> list[CompanyFact]:
+        result = await self._session.scalars(
+            select(CompanyFactModel)
+            .where(CompanyFactModel.company_id == company_id)
+            .order_by(CompanyFactModel.created_at, CompanyFactModel.id)
+        )
+        return [_model_to_company_fact(m) for m in result.all()]
+
+    async def find_by_text(self, company_id: uuid.UUID, text: str, audience: FactAudience) -> CompanyFact | None:
+        result = await self._session.scalar(
+            select(CompanyFactModel).where(
+                CompanyFactModel.company_id == company_id,
+                CompanyFactModel.text == text,
+                CompanyFactModel.audience == audience.value,
+            )
+        )
+        return _model_to_company_fact(result) if result else None
+
+    async def get(self, company_id: uuid.UUID, fact_id: uuid.UUID) -> CompanyFact | None:
+        result = await self._session.scalar(
+            select(CompanyFactModel).where(CompanyFactModel.id == fact_id, CompanyFactModel.company_id == company_id)
+        )
+        return _model_to_company_fact(result) if result else None
+
+    async def create(self, fact: CompanyFact) -> CompanyFact:
+        model = CompanyFactModel(
+            id=fact.id,
+            company_id=fact.company_id,
+            text=fact.text,
+            audience=fact.audience.value,
+            source=fact.source.value,
+        )
+        self._session.add(model)
+        await self._session.flush()
+        await self._session.refresh(model)
+        return _model_to_company_fact(model)
+
+    async def delete(self, company_id: uuid.UUID, fact_id: uuid.UUID) -> None:
+        await self._session.execute(
+            delete(CompanyFactModel).where(CompanyFactModel.id == fact_id, CompanyFactModel.company_id == company_id)
+        )
         await self._session.flush()
 
 

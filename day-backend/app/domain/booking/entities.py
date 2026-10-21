@@ -72,6 +72,8 @@ class Booking:
     overbooking: bool = False
     # The id of this booking in the system that asked for it (a CRM deal).
     external_id: str | None = None
+    # The agent who brought the guest, for a cut the owner records as an expense.
+    agent_id: uuid.UUID | None = None
     # The Idempotency-Key of the create request and a hash of its body, so a
     # retry gets this booking back and a reused key with another body is caught.
     idempotency_key: str | None = None
@@ -231,3 +233,10 @@ class GuestOffer:
     created_at: datetime | None = None
     # The booking the guest made by this link; a cancelled one frees the link again.
     booking_id: uuid.UUID | None = None
+    # The asking system's id, e.g. the CRM's conversation: the booking made by the link carries it.
+    external_id: str | None = None
+    # By the hour: the stay's local start and end; check_in is its day (check_out the next,
+    # only to keep one shape of dates), and the link lasts until that day, as by the night.
+    rental_mode: RentalMode = RentalMode.DAILY
+    starts_at: datetime | None = None
+    ends_at: datetime | None = None

@@ -5,10 +5,12 @@ from logging.config import fileConfig
 from sqlalchemy import pool
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
+import app.infrastructure.models.agents  # noqa: F401
 import app.infrastructure.models.auth  # noqa: F401
 import app.infrastructure.models.booking  # noqa: F401
 import app.infrastructure.models.channex  # noqa: F401
 import app.infrastructure.models.cleaning  # noqa: F401
+import app.infrastructure.models.expenses  # noqa: F401
 import app.infrastructure.models.leads  # noqa: F401
 import app.infrastructure.models.messaging  # noqa: F401
 

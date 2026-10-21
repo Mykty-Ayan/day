@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import date, datetime, timedelta, timezone
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from zoneinfo import ZoneInfo
 
@@ -24,7 +24,7 @@ from app.domain.booking.repositories import (
     GuestOfferRepository,
     GuestRepository,
 )
-from app.domain.booking.value_objects import BookingStatus, DepositStatus, RentalMode
+from app.domain.booking.value_objects import BookingSource, BookingStatus, DepositStatus, RentalMode
 from app.domain.property.repositories import PricingConfigRepository, PropertyRepository
 from app.domain.property.value_objects import PropertyStatus
 from app.domain.settings.entities import DEFAULT_TIME_ZONE
@@ -83,7 +83,11 @@ class GuestHoldService:
         offer = await self._offers.get_by_code(code, lock=True)
         if offer is None:
             raise ValueError("Not found")
-        if await self._company_today(offer.company_id) > offer.check_in:
+        now = await self._company_now(offer.company_id)
+        if now.date() > offer.check_in:
+            raise OfferExpiredError("Expired")
+        # By the hour the link ends when its hours begin, not with the day.
+        if offer.rental_mode == RentalMode.HOURLY and offer.starts_at is not None and now >= offer.starts_at:
             raise OfferExpiredError("Expired")
         if await self._live_booking(offer) is not None:
             raise OfferTakenError("This link has a booking already")
@@ -97,12 +101,17 @@ class GuestHoldService:
             raise ValueError("Not found")
         if prop.max_guests is not None and guests > prop.max_guests:
             raise ValueError(f"The flat takes up to {prop.max_guests} guests")
-        # Let by the hour since the link was made: a link books nights, with their deposit.
-        if prop.rental_mode == RentalMode.HOURLY:
+        hourly = offer.rental_mode == RentalMode.HOURLY
+        # Let otherwise since the link was made: a link books its own kind of stay, with its deposit.
+        if not hourly and prop.rental_mode == RentalMode.HOURLY:
             raise ValueError(f"{prop.name} lets by the hour only")
+        if hourly and prop.rental_mode == RentalMode.DAILY:
+            raise ValueError(f"{prop.name} lets by the night only")
 
         pricing = await self._pricing.get_by_property(prop.id)
-        deposit = pricing.default_deposit if pricing and pricing.default_deposit > 0 else None
+        amount = (pricing.hourly_deposit if hourly else pricing.default_deposit) if pricing else None
+        # 0 is not set, never the other kind's deposit.
+        deposit = amount if amount and amount > 0 else None
         name, phone = (name or "").strip(), (phone or "").strip()
         notes = f"Гость забронировал по личной ссылке /o/{offer.code}"
         if name or phone:
@@ -115,10 +124,14 @@ class GuestHoldService:
                 property_id=prop.id,
                 guest_name=name,
                 guest_phone=phone,
-                check_in=offer.check_in,
-                check_out=offer.check_out,
+                check_in=offer.starts_at if hourly else offer.check_in,
+                check_out=offer.ends_at if hourly else offer.check_out,
+                rental_mode=RentalMode.HOURLY if hourly else RentalMode.DAILY,
                 adults_count=guests,
+                source=BookingSource.OFFER,
                 notes=notes,
+                # The CRM finds its conversation by it in the feed.
+                external_id=offer.external_id,
                 expires_at=self._now() + timedelta(minutes=HOLD_MINUTES),
             )
         )
@@ -144,12 +157,13 @@ class GuestHoldService:
             phone=(guest.phone if guest and guest.phone else offer.guest_phone),
         )
 
-    async def _company_today(self, company_id) -> date:
-        """The company's date: from midnight to 05:00 in Almaty the server's UTC
-        date is still yesterday, and a link would book a stay already begun."""
+    async def _company_now(self, company_id) -> datetime:
+        """The company's local time, without a zone as a stay's times: from midnight to
+        05:00 in Almaty the server's UTC date is still yesterday, and a link would book a
+        stay already begun."""
         company = await self._settings.get_by_company(company_id) if self._settings else None
         zone = ZoneInfo(company.time_zone if company and company.time_zone else DEFAULT_TIME_ZONE)
-        return self._now().replace(tzinfo=timezone.utc).astimezone(zone).date()
+        return self._now().replace(tzinfo=timezone.utc).astimezone(zone).replace(tzinfo=None)
 
     async def _live_booking(self, offer: GuestOffer) -> Booking | None:
         if offer.booking_id is None:

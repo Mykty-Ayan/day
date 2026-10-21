@@ -88,6 +88,9 @@ class BookingModel(Base):
     # a moment of [check_in, check_out).
     overbooking: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
     external_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    agent_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("agents.id", name="fk_bookings_agent_id", ondelete="SET NULL"), nullable=True
+    )
     # Unique per company where set (uq_bookings_company_idempotency_key, migration 019).
     idempotency_key: Mapped[str | None] = mapped_column(String(255), nullable=True)
     idempotency_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
@@ -311,4 +314,10 @@ class GuestOfferModel(Base):
     booking_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("bookings.id", name="fk_guest_offers_booking_id", ondelete="SET NULL"), nullable=True
     )
+    # Migration 050.
+    external_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    # Migration 051: an hourly link's local start and end.
+    rental_mode: Mapped[str] = mapped_column(String(10), default="daily", server_default="daily")
+    starts_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    ends_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     created_at: Mapped[datetime] = mapped_column(default=datetime.utcnow)

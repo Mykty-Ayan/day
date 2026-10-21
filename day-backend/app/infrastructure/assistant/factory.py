@@ -131,7 +131,7 @@ def build_assistant_tools(
 
     context = ToolContext(
         company_id,
-        availability_service=CheckAvailabilityService(properties, bookings, prices),
+        availability_service=CheckAvailabilityService(properties, bookings, prices, company_settings),
         booking_repo=bookings,
         guest_repo=guests,
         property_repo=properties,

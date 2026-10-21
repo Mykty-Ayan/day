@@ -15,6 +15,7 @@ from typing import Any, Awaitable, Callable
 
 from app.domain.assistant.value_objects import ToolEffect
 from app.domain.booking.exceptions import StayRulesError
+from app.domain.booking.stay_rules import describe_breach
 
 _DATE = {"type": "string", "description": "Дата в формате ГГГГ-ММ-ДД"}
 
@@ -71,12 +72,6 @@ _OVERRIDE_RULES = {
     ),
 }
 
-_RULE_WORDS = {
-    "min_nights": "минимум ночей {limit}, в брони {actual}",
-    "max_nights": "максимум ночей {limit}, в брони {actual}",
-    "buffer_hours": "часов на уборку между почасовыми бронями {limit}, здесь {actual}",
-    "min_lead_hours": "бронировать не позже чем за {limit} ч до заезда, а до заезда {actual} ч",
-}
 
 
 def _overrides(value: Any) -> bool:
@@ -89,7 +84,7 @@ _AGAINST_RULES = " вопреки правилам квартиры"
 
 
 def _stay_rules_refused(refused: StayRulesError) -> ValueError:
-    broken = "; ".join(_RULE_WORDS[b.rule].format(limit=b.limit, actual=b.actual) for b in refused.breaches)
+    broken = "; ".join(describe_breach(b) for b in refused.breaches)
     return ValueError(
         f"Бронь нарушает правила квартиры: {broken}. Нарушить их можно только если пользователь явно "
         "согласится: тогда повтори с override_rules=true."
@@ -283,8 +278,9 @@ class ToolContext:
     async def availability(self, check_in: str, check_out: str | None = None, guests: int = 2) -> Any:
         start = parse_date(check_in)
         end = parse_date(check_out, start + timedelta(days=1))
+        # The operator may book against a rule by confirming: such a flat is listed, with the rules.
         found = await self._availability.execute(
-            self._company_id, start, end, adults_count=max(1, guests), children_count=0
+            self._company_id, start, end, adults_count=max(1, guests), children_count=0, with_rule_breaches=True
         )
         return {
             "check_in": start.isoformat(),
@@ -295,6 +291,9 @@ class ToolContext:
                     "internal_name": item.property.internal_name,
                     "price": float(item.total_price) if item.total_price is not None else None,
                     "no_price_reason": item.price_error,
+                    "breaks_rules": [
+                        describe_breach(b) for b in item.rule_breaches
+                    ],
                 }
                 for item in found
             ],
@@ -341,7 +340,7 @@ class ToolContext:
             "apartment": found.apartment_number,
             "wifi_name": found.wifi_name,
             "wifi_password": found.wifi_password if self._sees_secrets else None,
-            "check_in_instructions": found.check_in_instructions,
+            "check_in_instructions": found.check_in_instructions if self._sees_secrets else None,
             "check_in_from": f"{found.check_in_hour:02d}:00" if found.check_in_hour is not None else None,
             "check_out_until": f"{found.check_out_hour:02d}:00" if found.check_out_hour is not None else None,
             "check_in_method": found.check_in_method.value if found.check_in_method else None,

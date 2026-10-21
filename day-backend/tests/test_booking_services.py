@@ -193,18 +193,24 @@ class FakeBookingRepository(BookingRepository):
         search=None,
         date_from=None,
         date_to=None,
+        agent_id=None,
     ):
         result = [b for b in self._bookings.values() if b.company_id == company_id]
         if status is not None:
             result = [b for b in result if b.status == status]
+        if agent_id is not None:
+            result = [b for b in result if b.agent_id == agent_id]
         return result[offset : offset + limit]
 
     async def count_by_company(
-        self, company_id, *, status=None, property_id=None, source=None, search=None, date_from=None, date_to=None
+        self, company_id, *, status=None, property_id=None, source=None, search=None, date_from=None, date_to=None,
+        agent_id=None,
     ):
         result = [b for b in self._bookings.values() if b.company_id == company_id]
         if status is not None:
             result = [b for b in result if b.status == status]
+        if agent_id is not None:
+            result = [b for b in result if b.agent_id == agent_id]
         return len(result)
 
     async def list_by_property_date_range(self, property_id, start_date, end_date, *, company_id=None):
@@ -219,14 +225,18 @@ class FakeBookingRepository(BookingRepository):
         ]
 
     async def list_by_company_date_range(self, company_id, start_date, end_date):
+        # As the database compares: a date is its midnight, against stays with times.
+        def moment(value):
+            return value if isinstance(value, datetime) else datetime.combine(value, datetime.min.time())
+
         return [
             b
             for b in self._bookings.values()
             if b.company_id == company_id
             and b.check_in
             and b.check_out
-            and b.check_in < end_date
-            and b.check_out > start_date
+            and moment(b.check_in) < moment(end_date)
+            and moment(b.check_out) > moment(start_date)
         ]
 
     async def list_changed(self, company_id, *, after, until, limit):
@@ -1786,6 +1796,18 @@ class TestManageDepositsService:
         assert result.booking_id == booking.id
         assert result.amount == Decimal("500")
         assert result.status == DepositStatus.PENDING
+
+    @pytest.mark.asyncio
+    async def test_every_deposit_change_moves_the_booking_in_the_feed(self):
+        # The CRM reads changes from the feed, ordered by the booking's updated_at:
+        # a deposit taken, paid or returned is news about the booking.
+        booking_repo, _, svc, booking = await self._setup()
+
+        deposit = await svc.create_deposit(booking.id, COMPANY_ID, Decimal("500"))
+        await svc.perform_action(booking.id, deposit.id, COMPANY_ID, "pay")
+        await svc.perform_action(booking.id, deposit.id, COMPANY_ID, "return")
+
+        assert getattr(booking_repo, "touched", []) == [booking.id] * 3
 
     @pytest.mark.asyncio
     async def test_pay_deposit(self):

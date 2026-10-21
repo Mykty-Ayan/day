@@ -15,12 +15,15 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as SettingsIndexRouteImport } from './routes/settings/index'
+import { Route as ReadinessIndexRouteImport } from './routes/readiness/index'
 import { Route as PropertiesIndexRouteImport } from './routes/properties/index'
+import { Route as ExpensesIndexRouteImport } from './routes/expenses/index'
 import { Route as CleaningIndexRouteImport } from './routes/cleaning/index'
 import { Route as CleanerIndexRouteImport } from './routes/cleaner/index'
 import { Route as BookingsIndexRouteImport } from './routes/bookings/index'
 import { Route as AnalyticsIndexRouteImport } from './routes/analytics/index'
 import { Route as AiImportIndexRouteImport } from './routes/ai-import/index'
+import { Route as AgentsIndexRouteImport } from './routes/agents/index'
 import { Route as SettingsTeamRouteImport } from './routes/settings/team'
 import { Route as SCodeRouteImport } from './routes/s/$code'
 import { Route as PropertiesNewRouteImport } from './routes/properties/new'
@@ -70,9 +73,19 @@ const SettingsIndexRoute = SettingsIndexRouteImport.update({
   path: '/settings/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ReadinessIndexRoute = ReadinessIndexRouteImport.update({
+  id: '/readiness/',
+  path: '/readiness/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PropertiesIndexRoute = PropertiesIndexRouteImport.update({
   id: '/properties/',
   path: '/properties/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ExpensesIndexRoute = ExpensesIndexRouteImport.update({
+  id: '/expenses/',
+  path: '/expenses/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CleaningIndexRoute = CleaningIndexRouteImport.update({
@@ -98,6 +111,11 @@ const AnalyticsIndexRoute = AnalyticsIndexRouteImport.update({
 const AiImportIndexRoute = AiImportIndexRouteImport.update({
   id: '/ai-import/',
   path: '/ai-import/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AgentsIndexRoute = AgentsIndexRouteImport.update({
+  id: '/agents/',
+  path: '/agents/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SettingsTeamRoute = SettingsTeamRouteImport.update({
@@ -213,12 +231,15 @@ export interface FileRoutesByFullPath {
   '/properties/new': typeof PropertiesNewRoute
   '/s/$code': typeof SCodeRoute
   '/settings/team': typeof SettingsTeamRoute
+  '/agents/': typeof AgentsIndexRoute
   '/ai-import/': typeof AiImportIndexRoute
   '/analytics/': typeof AnalyticsIndexRoute
   '/bookings/': typeof BookingsIndexRoute
   '/cleaner/': typeof CleanerIndexRoute
   '/cleaning/': typeof CleaningIndexRoute
+  '/expenses/': typeof ExpensesIndexRoute
   '/properties/': typeof PropertiesIndexRoute
+  '/readiness/': typeof ReadinessIndexRoute
   '/settings/': typeof SettingsIndexRoute
   '/bookings/$bookingId/edit': typeof BookingsBookingIdEditRoute
   '/properties/$propertyId/edit': typeof PropertiesPropertyIdEditRoute
@@ -243,12 +264,15 @@ export interface FileRoutesByTo {
   '/properties/new': typeof PropertiesNewRoute
   '/s/$code': typeof SCodeRoute
   '/settings/team': typeof SettingsTeamRoute
+  '/agents': typeof AgentsIndexRoute
   '/ai-import': typeof AiImportIndexRoute
   '/analytics': typeof AnalyticsIndexRoute
   '/bookings': typeof BookingsIndexRoute
   '/cleaner': typeof CleanerIndexRoute
   '/cleaning': typeof CleaningIndexRoute
+  '/expenses': typeof ExpensesIndexRoute
   '/properties': typeof PropertiesIndexRoute
+  '/readiness': typeof ReadinessIndexRoute
   '/settings': typeof SettingsIndexRoute
   '/bookings/$bookingId/edit': typeof BookingsBookingIdEditRoute
   '/properties/$propertyId/edit': typeof PropertiesPropertyIdEditRoute
@@ -276,12 +300,15 @@ export interface FileRoutesById {
   '/properties/new': typeof PropertiesNewRoute
   '/s/$code': typeof SCodeRoute
   '/settings/team': typeof SettingsTeamRoute
+  '/agents/': typeof AgentsIndexRoute
   '/ai-import/': typeof AiImportIndexRoute
   '/analytics/': typeof AnalyticsIndexRoute
   '/bookings/': typeof BookingsIndexRoute
   '/cleaner/': typeof CleanerIndexRoute
   '/cleaning/': typeof CleaningIndexRoute
+  '/expenses/': typeof ExpensesIndexRoute
   '/properties/': typeof PropertiesIndexRoute
+  '/readiness/': typeof ReadinessIndexRoute
   '/settings/': typeof SettingsIndexRoute
   '/bookings/$bookingId/edit': typeof BookingsBookingIdEditRoute
   '/properties/$propertyId/edit': typeof PropertiesPropertyIdEditRoute
@@ -310,12 +337,15 @@ export interface FileRouteTypes {
     | '/properties/new'
     | '/s/$code'
     | '/settings/team'
+    | '/agents/'
     | '/ai-import/'
     | '/analytics/'
     | '/bookings/'
     | '/cleaner/'
     | '/cleaning/'
+    | '/expenses/'
     | '/properties/'
+    | '/readiness/'
     | '/settings/'
     | '/bookings/$bookingId/edit'
     | '/properties/$propertyId/edit'
@@ -340,12 +370,15 @@ export interface FileRouteTypes {
     | '/properties/new'
     | '/s/$code'
     | '/settings/team'
+    | '/agents'
     | '/ai-import'
     | '/analytics'
     | '/bookings'
     | '/cleaner'
     | '/cleaning'
+    | '/expenses'
     | '/properties'
+    | '/readiness'
     | '/settings'
     | '/bookings/$bookingId/edit'
     | '/properties/$propertyId/edit'
@@ -372,12 +405,15 @@ export interface FileRouteTypes {
     | '/properties/new'
     | '/s/$code'
     | '/settings/team'
+    | '/agents/'
     | '/ai-import/'
     | '/analytics/'
     | '/bookings/'
     | '/cleaner/'
     | '/cleaning/'
+    | '/expenses/'
     | '/properties/'
+    | '/readiness/'
     | '/settings/'
     | '/bookings/$bookingId/edit'
     | '/properties/$propertyId/edit'
@@ -405,12 +441,15 @@ export interface RootRouteChildren {
   PropertiesNewRoute: typeof PropertiesNewRoute
   SCodeRoute: typeof SCodeRoute
   SettingsTeamRoute: typeof SettingsTeamRoute
+  AgentsIndexRoute: typeof AgentsIndexRoute
   AiImportIndexRoute: typeof AiImportIndexRoute
   AnalyticsIndexRoute: typeof AnalyticsIndexRoute
   BookingsIndexRoute: typeof BookingsIndexRoute
   CleanerIndexRoute: typeof CleanerIndexRoute
   CleaningIndexRoute: typeof CleaningIndexRoute
+  ExpensesIndexRoute: typeof ExpensesIndexRoute
   PropertiesIndexRoute: typeof PropertiesIndexRoute
+  ReadinessIndexRoute: typeof ReadinessIndexRoute
   SettingsIndexRoute: typeof SettingsIndexRoute
 }
 
@@ -458,11 +497,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/readiness/': {
+      id: '/readiness/'
+      path: '/readiness'
+      fullPath: '/readiness/'
+      preLoaderRoute: typeof ReadinessIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/properties/': {
       id: '/properties/'
       path: '/properties'
       fullPath: '/properties/'
       preLoaderRoute: typeof PropertiesIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/expenses/': {
+      id: '/expenses/'
+      path: '/expenses'
+      fullPath: '/expenses/'
+      preLoaderRoute: typeof ExpensesIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/cleaning/': {
@@ -498,6 +551,13 @@ declare module '@tanstack/react-router' {
       path: '/ai-import'
       fullPath: '/ai-import/'
       preLoaderRoute: typeof AiImportIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/agents/': {
+      id: '/agents/'
+      path: '/agents'
+      fullPath: '/agents/'
+      preLoaderRoute: typeof AgentsIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/settings/team': {
@@ -675,12 +735,15 @@ const rootRouteChildren: RootRouteChildren = {
   PropertiesNewRoute: PropertiesNewRoute,
   SCodeRoute: SCodeRoute,
   SettingsTeamRoute: SettingsTeamRoute,
+  AgentsIndexRoute: AgentsIndexRoute,
   AiImportIndexRoute: AiImportIndexRoute,
   AnalyticsIndexRoute: AnalyticsIndexRoute,
   BookingsIndexRoute: BookingsIndexRoute,
   CleanerIndexRoute: CleanerIndexRoute,
   CleaningIndexRoute: CleaningIndexRoute,
+  ExpensesIndexRoute: ExpensesIndexRoute,
   PropertiesIndexRoute: PropertiesIndexRoute,
+  ReadinessIndexRoute: ReadinessIndexRoute,
   SettingsIndexRoute: SettingsIndexRoute,
 }
 export const routeTree = rootRouteImport

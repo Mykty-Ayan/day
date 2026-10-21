@@ -3,6 +3,7 @@ field on the flat stays private until it is added to this list."""
 
 from __future__ import annotations
 
+import math
 from datetime import date, datetime, timezone
 
 from pydantic import BaseModel, Field, field_validator
@@ -170,6 +171,11 @@ class PublicOfferResponse(BaseModel):
     check_in: date
     check_out: date
     nights: int
+    # hourly: the stay is from starts_at to ends_at on check_in's day; nights is 0.
+    rental_mode: str = "daily"
+    starts_at: datetime | None = None
+    ends_at: datetime | None = None
+    hours: int | None = None
     guests: int
     flats: list[PublicOfferFlat]
     booking: PublicOfferBooking | None = None
@@ -177,13 +183,19 @@ class PublicOfferResponse(BaseModel):
     @classmethod
     def from_offer(cls, public: PublicOffer, held: OfferBooking | None = None) -> PublicOfferResponse:
         o = public.offer
+        hourly = o.rental_mode == RentalMode.HOURLY
         return cls(
             code=o.code,
             guest=greeting(o.guest_name),
             phone=mask_phone(o.guest_phone),
             check_in=o.check_in,
             check_out=o.check_out,
-            nights=(o.check_out - o.check_in).days,
+            nights=0 if hourly else (o.check_out - o.check_in).days,
+            rental_mode=o.rental_mode.value,
+            starts_at=o.starts_at,
+            ends_at=o.ends_at,
+            # As the price counts them: a part of an hour is an hour.
+            hours=math.ceil((o.ends_at - o.starts_at).total_seconds() / 3600) if hourly else None,
             guests=o.guests,
             flats=[
                 PublicOfferFlat(

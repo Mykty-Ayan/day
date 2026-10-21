@@ -33,7 +33,7 @@ from app.application.property.update_property import (
 from app.config import settings
 from app.domain.auth.permissions import Permission
 from app.domain.booking.exceptions import BlockFromCalendarError, BlockOverlapsBookingError
-from app.domain.property.entities import DiscountRule, PropertyCosts, SeasonalPrice
+from app.domain.property.entities import DiscountRule, PropertyCosts, SeasonalPrice, whatsapp_product_id
 from app.domain.property.value_objects import FactAudience, FactSource, PropertyStatus
 from app.infrastructure.calendar_feeds import build_calendar_feeds
 from app.infrastructure.calendar_fetch import fetch_calendar
@@ -41,6 +41,7 @@ from app.infrastructure.database import get_session
 from app.infrastructure.repositories.booking import SqlBookingRepository
 from app.infrastructure.repositories.property import (
     SqlAmenityRepository,
+    SqlCompanyFactRepository,
     SqlDayPriceRepository,
     SqlDiscountRuleRepository,
     SqlPricingConfigRepository,
@@ -62,6 +63,7 @@ from app.presentation.schemas.booking import (
 )
 from app.presentation.schemas.property import (
     AmenityResponse,
+    CompanyFactResponse,
     DayPriceResponse,
     DayPriceSet,
     DiscountRuleCreate,
@@ -81,6 +83,8 @@ from app.presentation.schemas.property import (
     PropertyFactResponse,
     PropertyListResponse,
     PropertyPhotoResponse,
+    PropertyReadinessItem,
+    PropertyReadinessResponse,
     PropertyResponse,
     PropertyStatusChange,
     PropertyUpdate,
@@ -107,6 +111,7 @@ def _repos(session: AsyncSession):
         "discount": SqlDiscountRuleRepository(session),
         "audit": SqlPropertyAuditLogRepository(session),
         "fact": SqlPropertyFactRepository(session),
+        "company_fact": SqlCompanyFactRepository(session),
     }
 
 
@@ -163,12 +168,13 @@ def _to_property_response(p, photos: list | None = None, *, sees_secrets: bool) 
         floors_total=p.floors_total,
         map_url=p.map_url,
         whatsapp_product_url=p.whatsapp_product_url,
+        whatsapp_product_id=whatsapp_product_id(p.whatsapp_product_url),
         video_url=p.video_url,
         listing_urls=p.listing_urls,
         hourly_listing_urls=p.hourly_listing_urls,
         min_nights=p.min_nights,
         max_nights=p.max_nights,
-        buffer_hours=p.buffer_hours,
+        buffer_minutes=p.buffer_minutes,
         min_lead_hours=p.min_lead_hours,
         rooms=p.rooms,
         beds=p.beds,
@@ -179,7 +185,8 @@ def _to_property_response(p, photos: list | None = None, *, sees_secrets: bool) 
         check_in_method=p.check_in_method,
         area_living=p.area_living,
         area_total=p.area_total,
-        check_in_instructions=p.check_in_instructions,
+        # How a guest gets in may hold a code: only for those who hand codes to guests.
+        check_in_instructions=p.check_in_instructions if sees_secrets else None,
         check_out_instructions=p.check_out_instructions,
         house_rules=p.house_rules,
         wifi_name=p.wifi_name,
@@ -247,7 +254,7 @@ async def create_property(
                 hourly_listing_urls=body.hourly_listing_urls,
                 min_nights=body.min_nights,
                 max_nights=body.max_nights,
-                buffer_hours=body.buffer_hours,
+                buffer_minutes=body.buffer_minutes,
                 min_lead_hours=body.min_lead_hours,
                 rooms=body.rooms,
                 beds=body.beds,
@@ -310,6 +317,65 @@ async def list_properties(
     )
 
 
+# What a flat's card says, for an integration to see what is missing before it answers guests.
+# Only filled or empty: the values themselves (codes among them) stay behind their own permissions.
+_READINESS_FIELDS = {
+    "address": lambda p, x: bool(p.address_full),
+    "map_url": lambda p, x: bool(p.map_url),
+    "description": lambda p, x: bool(p.description),
+    "max_guests": lambda p, x: p.max_guests is not None,
+    "check_in_hour": lambda p, x: p.check_in_hour is not None,
+    "check_out_hour": lambda p, x: p.check_out_hour is not None,
+    "check_in_instructions": lambda p, x: bool(p.check_in_instructions),
+    "check_out_instructions": lambda p, x: bool(p.check_out_instructions),
+    "house_rules": lambda p, x: bool(p.house_rules),
+    "wifi": lambda p, x: bool(p.wifi_name),
+    "listing_urls": lambda p, x: bool(p.listing_urls or p.hourly_listing_urls),
+    "whatsapp_product": lambda p, x: whatsapp_product_id(p.whatsapp_product_url) is not None,
+    "photos": lambda p, x: x["photos"],
+    "pricing": lambda p, x: x["pricing"],
+    "facts": lambda p, x: x["facts"],
+}
+
+
+@router.get(
+    "/readiness",
+    response_model=PropertyReadinessResponse,
+    dependencies=[Depends(require(Permission.PROPERTIES_READ))],
+)
+async def property_readiness(
+    session: AsyncSession = Depends(get_session),
+    company_id: uuid.UUID = Depends(get_company_id),
+):
+    """Which fields of each flat not archived are filled, and whether the company has rules for guests."""
+    repos = _repos(session)
+    flats = await repos["property"].list_by_company(company_id, limit=500)
+    items = []
+    # One query per flat and field kind; a company has a handful of flats.
+    for prop in flats:
+        if prop.status == PropertyStatus.ARCHIVED:
+            continue
+        extra = {
+            "photos": bool(await repos["photo"].list_by_property(prop.id)),
+            "pricing": await repos["pricing"].get_by_property(prop.id) is not None,
+            "facts": bool(await repos["fact"].list_by_property(prop.id)),
+        }
+        filled = {name: check(prop, extra) for name, check in _READINESS_FIELDS.items()}
+        items.append(
+            PropertyReadinessItem(
+                property_id=prop.id,
+                name=prop.name,
+                internal_name=prop.internal_name,
+                status=prop.status,
+                fields=filled,
+                empty=[name for name, ok in filled.items() if not ok],
+            )
+        )
+    return PropertyReadinessResponse(
+        company_facts=bool(await repos["company_fact"].list_by_company(company_id)), items=items
+    )
+
+
 @router.get(
     "/{property_id}",
     response_model=PropertyDetailResponse,
@@ -338,11 +404,13 @@ async def get_property(
     sees_secrets = _sees_secrets(principal)
     prop = _to_property_response(detail.property, photos=detail.photos, sees_secrets=sees_secrets)
     facts = _visible_facts(await repos["fact"].list_by_property(property_id), sees_secrets=sees_secrets)
+    company_facts = _visible_facts(await repos["company_fact"].list_by_company(company_id), sees_secrets=sees_secrets)
     return PropertyDetailResponse(
         **prop.model_dump(),
         amenities=[AmenityResponse.model_validate(a, from_attributes=True) for a in detail.amenities],
         pricing=PricingConfigResponse.model_validate(detail.pricing, from_attributes=True) if detail.pricing else None,
         facts=[PropertyFactResponse.model_validate(f, from_attributes=True) for f in facts],
+        company_facts=[CompanyFactResponse.model_validate(f, from_attributes=True) for f in company_facts],
     )
 
 
@@ -457,6 +525,10 @@ async def update_property(
 
     # Build input, only setting fields that were explicitly provided
     provided = body.model_dump(exclude_unset=True)
+    # A writer who cannot see how a guest gets in got it as null: what it sends back
+    # is not an edit, and must not erase it.
+    if not _sees_secrets(principal):
+        provided.pop("check_in_instructions", None)
     inp = UpdatePropertyInput(property_id=property_id, company_id=company_id, changed_by=user_id)
     for field_name, value in provided.items():
         setattr(inp, field_name, value)
@@ -1044,6 +1116,7 @@ async def get_audit_log(
     limit: int = Query(default=50, ge=1, le=100),
     session: AsyncSession = Depends(get_session),
     company_id: uuid.UUID = Depends(get_company_id),
+    principal: Principal = Depends(get_principal),
 ):
     repos = _repos(session)
     # Check property belongs to company
@@ -1051,7 +1124,14 @@ async def get_audit_log(
     if prop is None or prop.company_id != company_id:
         raise HTTPException(status_code=404, detail="Property not found")
     logs = await repos["audit"].list_by_property(property_id, offset=offset, limit=limit)
-    return [PropertyAuditLogResponse.model_validate(entry, from_attributes=True) for entry in logs]
+    entries = [PropertyAuditLogResponse.model_validate(entry, from_attributes=True) for entry in logs]
+    if not _sees_secrets(principal):
+        # The history of how a guest gets in may hold a code, older rows included.
+        for entry in entries:
+            if entry.field_name == "check_in_instructions":
+                entry.old_value = "***" if entry.old_value else entry.old_value
+                entry.new_value = "***" if entry.new_value else entry.new_value
+    return entries
 
 
 # ---------- Property Tags ----------

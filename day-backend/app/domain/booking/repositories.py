@@ -135,6 +135,7 @@ class BookingRepository(abc.ABC):
         search: str | None = None,
         date_from: date | None = None,
         date_to: date | None = None,
+        agent_id: uuid.UUID | None = None,
     ) -> list[Booking]: ...
 
     @abc.abstractmethod
@@ -148,6 +149,7 @@ class BookingRepository(abc.ABC):
         search: str | None = None,
         date_from: date | None = None,
         date_to: date | None = None,
+        agent_id: uuid.UUID | None = None,
     ) -> int: ...
 
     @abc.abstractmethod

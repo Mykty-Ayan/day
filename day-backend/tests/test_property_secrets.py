@@ -58,7 +58,7 @@ class _Properties:
                 apartment_number="62",
                 wifi_name="Home 62",
                 wifi_password="1234554321",
-                check_in_instructions=None,
+                check_in_instructions="Ключница на двери, код придёт в день заезда",
                 check_in_hour=None,
                 check_out_hour=None,
                 check_in_method=None,
@@ -90,6 +90,8 @@ async def test_the_assistant_says_the_password_only_to_those_who_may_hear_it(see
     info = await _tool_context(sees).property_info("62auc")
     assert info["wifi_name"] == "Home 62"
     assert info["wifi_password"] == password
+    # The way in may hold a code: it goes with the password.
+    assert (info["check_in_instructions"] is not None) is sees
 
 
 @pytest.mark.integration
@@ -108,3 +110,55 @@ async def test_a_write_key_without_secrets_never_gets_the_password_back(flat):  
 
     use(Permission.PROPERTIES_READ, Permission.PROPERTY_SECRETS_READ)
     assert (await client.get(path)).json()["wifi_password"] == "1234554321"
+
+
+@pytest.mark.integration
+async def test_the_way_in_is_shown_only_to_those_who_see_secrets(flat):  # noqa: F811  (the imported fixture)
+    # A cleaner or a read-only key reads the flat but not how a guest gets in: it may hold a code.
+    client, prop, use = flat
+    path = f"/api/v1/properties/{prop}"
+    way_in = "Ключница на двери, код придёт в день заезда"
+
+    use(Permission.PROPERTIES_READ, Permission.PROPERTIES_WRITE, Permission.PROPERTY_SECRETS_READ)
+    assert (await client.patch(path, json={"check_in_instructions": way_in})).json()["check_in_instructions"] == way_in
+
+    use(Permission.PROPERTIES_READ)
+    assert (await client.get(path)).json()["check_in_instructions"] is None
+    listed = (await client.get("/api/v1/properties")).json()["items"]
+    assert [p["check_in_instructions"] for p in listed] == [None]
+
+    use(Permission.PROPERTIES_READ, Permission.PROPERTY_SECRETS_READ)
+    assert (await client.get(path)).json()["check_in_instructions"] == way_in
+
+
+@pytest.mark.integration
+async def test_a_writer_who_cannot_see_the_way_in_does_not_erase_it(flat):  # noqa: F811  (the imported fixture)
+    # The edit form of such a writer holds an empty field and sends it back on every save.
+    client, prop, use = flat
+    path = f"/api/v1/properties/{prop}"
+    way_in = "Ключница на двери, код придёт в день заезда"
+    use(Permission.PROPERTIES_READ, Permission.PROPERTIES_WRITE, Permission.PROPERTY_SECRETS_READ)
+    await client.patch(path, json={"check_in_instructions": way_in})
+
+    use(Permission.PROPERTIES_READ, Permission.PROPERTIES_WRITE)
+    saved = await client.patch(path, json={"name": "Т13 у парка", "check_in_instructions": None})
+    assert saved.status_code == 200, saved.text
+
+    use(Permission.PROPERTIES_READ, Permission.PROPERTY_SECRETS_READ)
+    after = (await client.get(path)).json()
+    assert (after["name"], after["check_in_instructions"]) == ("Т13 у парка", way_in)
+
+
+@pytest.mark.integration
+async def test_the_history_hides_the_way_in_from_those_who_cannot_see_it(flat):  # noqa: F811  (the imported fixture)
+    client, prop, use = flat
+    path = f"/api/v1/properties/{prop}"
+    use(Permission.PROPERTIES_READ, Permission.PROPERTIES_WRITE, Permission.PROPERTY_SECRETS_READ)
+    await client.patch(path, json={"check_in_instructions": "Код 4471"})
+
+    def told(log):
+        return [(e["old_value"], e["new_value"]) for e in log if e["field_name"] == "check_in_instructions"]
+
+    assert told((await client.get(f"{path}/audit-log")).json()) == [(None, "Код 4471")]
+    use(Permission.PROPERTIES_READ)
+    assert told((await client.get(f"{path}/audit-log")).json()) == [(None, "***")]

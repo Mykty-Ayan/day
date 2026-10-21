@@ -1,5 +1,6 @@
 from fastapi import APIRouter
 
+from app.presentation.api.v1.agents import agent_router
 from app.presentation.api.v1.ai_migration import ai_migration_router
 from app.presentation.api.v1.analytics import analytics_router
 from app.presentation.api.v1.assistant import assistant_router
@@ -8,9 +9,12 @@ from app.presentation.api.v1.bookings import booking_router, gantt_router, guest
 from app.presentation.api.v1.channels import channel_router
 from app.presentation.api.v1.channex import channex_router
 from app.presentation.api.v1.cleaning import checklist_router, cleaning_router, rating_router
+from app.presentation.api.v1.company_facts import company_fact_router
+from app.presentation.api.v1.expenses import expense_router
 from app.presentation.api.v1.health import router as health_router
 from app.presentation.api.v1.ical import ical_router
 from app.presentation.api.v1.leads import blacklist_router, lead_router
+from app.presentation.api.v1.link_preview import preview_router
 from app.presentation.api.v1.offers import offers_router
 from app.presentation.api.v1.properties import amenity_router
 from app.presentation.api.v1.properties import router as properties_router
@@ -45,4 +49,8 @@ api_v1_router.include_router(assistant_router)
 api_v1_router.include_router(webhook_router)
 api_v1_router.include_router(ical_router)
 api_v1_router.include_router(public_router)
+api_v1_router.include_router(preview_router)
 api_v1_router.include_router(offers_router)
+api_v1_router.include_router(expense_router)
+api_v1_router.include_router(agent_router)
+api_v1_router.include_router(company_fact_router)

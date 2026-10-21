@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 import secrets
 import uuid
 from dataclasses import dataclass, field
@@ -23,6 +24,16 @@ _CODE_ALPHABET = "abcdefghjkmnpqrstuvwxyz23456789"
 
 def new_public_code() -> str:
     return "".join(secrets.choice(_CODE_ALPHABET) for _ in range(7))
+
+
+# A WhatsApp Business catalogue product link: https://wa.me/p/<product id>/<phone>.
+_WA_PRODUCT = re.compile(r"^https?://(?:www\.)?wa\.me/p/(\d{10,18})(?:[/?#]|$)", re.IGNORECASE)
+
+
+def whatsapp_product_id(url: str | None) -> str | None:
+    """The catalogue product's id in its link, which Whapi sends by; None for any other link."""
+    found = _WA_PRODUCT.match(url or "")
+    return found.group(1) if found else None
 
 
 @dataclass
@@ -71,7 +82,7 @@ class Property:
     # cleaning; hours a stay must be booked ahead of its check-in.
     min_nights: int | None = None
     max_nights: int | None = None
-    buffer_hours: int | None = None
+    buffer_minutes: int | None = None
     min_lead_hours: int | None = None
 
     # Details
@@ -258,5 +269,17 @@ class PropertyFact:
     property_id: uuid.UUID = field(default_factory=uuid.uuid4)
     text: str = ""
     audience: FactAudience = FactAudience.GUEST
+    source: FactSource = FactSource.USER
+    created_at: datetime | None = None
+
+
+@dataclass
+class CompanyFact:
+    """A rule for every flat of the company: documents, pets, smoking, quiet hours."""
+
+    id: uuid.UUID = field(default_factory=uuid.uuid4)
+    company_id: uuid.UUID = field(default_factory=uuid.uuid4)
+    text: str = ""
+    audience: FactAudience = FactAudience.PUBLIC
     source: FactSource = FactSource.USER
     created_at: datetime | None = None

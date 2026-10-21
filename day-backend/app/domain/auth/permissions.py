@@ -55,6 +55,9 @@ class Permission:
 
     MESSAGING_SEND = "messaging:send"
 
+    # The company's money out: rent, utilities, staff. The owner's by default.
+    EXPENSES_MANAGE = "expenses:manage"
+
 
 ALL_PERMISSIONS: frozenset[str] = frozenset(
     value for name, value in vars(Permission).items() if not name.startswith("_") and isinstance(value, str)
@@ -77,8 +80,9 @@ _MANAGER_PERMISSIONS: frozenset[str] = frozenset(
     }
 )
 
-# A cleaner reaches the property record because a task shows the address and the
-# check-in instructions, but never writes anything outside their own report.
+# A cleaner reaches the property record because a task shows the address, but
+# never writes anything outside their own report. How a guest gets in
+# (check-in instructions, codes) needs property_secrets:read, which a cleaner lacks.
 _CLEANER_PERMISSIONS: frozenset[str] = frozenset(
     {
         Permission.PROPERTIES_READ,

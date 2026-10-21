@@ -550,7 +550,18 @@ export default function TeamPage() {
               </div>
 
               <div>
-                <span className="mb-1.5 block text-xs font-bold text-gray-500">{t('team.scopes')}</span>
+                <div className="mb-1.5 flex items-center justify-between gap-2">
+                  <span className="text-xs font-bold text-gray-500">{t('team.scopes')}</span>
+                  {scopes.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setKeyScopes(keyScopes.length === scopes.length ? [] : [...scopes])}
+                      className="min-h-[44px] rounded-lg px-2 text-xs font-semibold text-gray-700 hover:bg-gray-100"
+                    >
+                      {keyScopes.length === scopes.length ? t('team.scopesNone') : t('team.scopesAll')}
+                    </button>
+                  )}
+                </div>
                 <div className="grid gap-2 sm:grid-cols-2">
                   {scopes.map((scope) => (
                     <label

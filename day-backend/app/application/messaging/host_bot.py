@@ -21,6 +21,7 @@ from app.application.messaging.notifications import reads_bookings
 from app.domain.assistant.value_objects import AssistantUnavailable
 from app.domain.auth.repositories import CompanyRepository, UserRepository
 from app.domain.booking.repositories import BookingRepository, GuestRepository
+from app.domain.booking.stay_rules import describe_breach
 from app.domain.booking.value_objects import BookingStatus
 from app.domain.messaging.entities import ChannelIdentity
 from app.domain.messaging.value_objects import Channel
@@ -219,7 +220,8 @@ class HostBotService:
         check_in = date_range.check_in if date_range else today
         check_out = date_range.check_out if date_range else today + timedelta(days=1)
 
-        available = await self._availability.execute(company_id, check_in, check_out)
+        # The host may sell against a rule, so a flat that breaks one is still listed.
+        available = await self._availability.execute(company_id, check_in, check_out, with_rule_breaches=True)
         header = f"<b>Свободно {format_date(check_in)} — {format_date(check_out)}</b>"
         if not available:
             return BotReply(f"{header}\n\nСвободных объектов нет.")
@@ -228,6 +230,9 @@ class HostBotService:
         for item in available[:_MAX_LISTED]:
             price = f" — {item.total_price:.0f}" if item.total_price is not None else ""
             lines.append(f"• {html.escape(item.property.name)}{price}")
+            # Free, but against a rule of the flat: booking it needs a confirmation.
+            for breach in item.rule_breaches:
+                lines.append(f"   ⚠ {html.escape(describe_breach(breach))}")
         if len(available) > _MAX_LISTED:
             lines.append(f"…и ещё {len(available) - _MAX_LISTED}")
         return BotReply("\n".join(lines))

@@ -46,13 +46,15 @@ class _Photos:
 class Offers:
     def __init__(self, today=date(2030, 10, 1)):
         self.today = today
+        # The company's clock; an hourly link reads it.
+        self.now = datetime(2030, 10, 1, 10)
         self.props = FakePropertyRepository()
         self.pricing = FakePricingConfigRepository()
         self.bookings = FakeBookingRepository()
         self.offers = FakeOfferRepository()
         self.service = GuestOffersService(
             self.offers, self.props, _Photos(), self.bookings,
-            _build_price_calculator(pricing_repo=self.pricing), today=lambda: self.today,
+            _build_price_calculator(pricing_repo=self.pricing), today=lambda: self.today, now=lambda: self.now,
         )
 
     async def flat(self, name="Студия", price="20000", company_id=COMPANY_ID, status=PropertyStatus.ACTIVE, **facts):
@@ -207,3 +209,119 @@ async def test_offers_through_the_api(flat):  # noqa: F811  (the imported fixtur
     assert page.json()["phone"] == "+7 701 ••• •• 78" and "2345678" not in page.text and "Сапаров" not in page.text
     assert page.json()["flats"][0]["total"] == 40000.0
     assert (await client.get("/api/v1/public/offers/nosuchcode")).status_code == 404
+
+
+async def _hourly(o, *flats, start=datetime(2030, 10, 20, 14), end=datetime(2030, 10, 20, 17), guests=2):
+    return await o.service.create(
+        COMPANY_ID, guest_name="Ерлан", guest_phone="+7 701 234 56 78", guests=guests,
+        property_ids=[f.id for f in flats], rental_mode=RentalMode.HOURLY, starts_at=start, ends_at=end,
+    )
+
+
+async def test_an_hourly_offer_shows_each_flat_for_the_hours():
+    o = Offers()
+    free = await o.flat("Студия", rental_mode=RentalMode.BOTH)
+    busy = await o.flat("Почасовая", rental_mode=RentalMode.HOURLY)
+    # Ends inside the guest's hours on the busy flat.
+    await o.bookings.create(Booking(company_id=COMPANY_ID, property_id=busy.id, status=BookingStatus.CONFIRMED,
+                                    rental_mode=RentalMode.HOURLY,
+                                    check_in=datetime(2030, 10, 20, 12), check_out=datetime(2030, 10, 20, 15)))
+    offer = await _hourly(o, free, busy)
+    assert (offer.check_in, offer.rental_mode) == (date(2030, 10, 20), RentalMode.HOURLY)
+
+    shown = PublicOfferResponse.from_offer(await o.service.public(offer.code))
+    assert (shown.rental_mode, shown.hours, shown.nights) == ("hourly", 3, 0)
+    # Three hours at 3 000, as an hourly booking counts them.
+    assert [(f.name, f.total, f.free) for f in shown.flats] == [("Студия", 9000.0, True), ("Почасовая", 9000.0, False)]
+
+
+async def test_an_hourly_offer_takes_only_flats_let_by_the_hour_and_up_to_a_day():
+    o = Offers()
+    nightly = await o.flat("Посуточная", rental_mode=RentalMode.DAILY)
+    with pytest.raises(ValueError, match="by the night only"):
+        await _hourly(o, nightly)
+    hourly = await o.flat("Почасовая", rental_mode=RentalMode.HOURLY)
+    with pytest.raises(ValueError, match="24 hours"):
+        await _hourly(o, hourly, end=datetime(2030, 10, 21, 15))
+    with pytest.raises(ValueError, match="after starts_at"):
+        await _hourly(o, hourly, end=datetime(2030, 10, 20, 14))
+    with pytest.raises(ValueError, match="past"):
+        await _hourly(o, hourly, start=datetime(2030, 9, 30, 14), end=datetime(2030, 9, 30, 16))
+    with pytest.raises(ValueError, match="up to 2 guests"):
+        await _hourly(o, hourly, guests=3)
+
+
+async def test_a_closed_span_takes_the_hours_it_covers():
+    from app.domain.booking.entities import PropertyBlock
+
+    o = Offers()
+    unit = await o.flat("Почасовая", rental_mode=RentalMode.HOURLY)
+    unit.check_out_hour = 11
+    # Closed for the night of the 19th: from 11:00 on the 19th to 11:00 on the 20th.
+    await o.bookings.add_block(PropertyBlock(company_id=COMPANY_ID, property_id=unit.id,
+                                             start_date=date(2030, 10, 19), end_date=date(2030, 10, 20)))
+    morning = await _hourly(o, unit, start=datetime(2030, 10, 20, 9), end=datetime(2030, 10, 20, 11))
+    eleven = await _hourly(o, unit, start=datetime(2030, 10, 20, 11), end=datetime(2030, 10, 20, 13))
+    assert (await o.service.public(morning.code)).flats[0].free is False
+    assert (await o.service.public(eleven.code)).flats[0].free is True
+
+
+async def test_an_hourly_offer_is_for_hours_ahead_and_ends_when_they_begin():
+    o = Offers()
+    unit = await o.flat("Почасовая", rental_mode=RentalMode.HOURLY)
+    o.now = datetime(2030, 10, 20, 12)
+    # Created at noon for the morning of the same day: a dead link.
+    with pytest.raises(ValueError, match="past"):
+        await _hourly(o, unit, start=datetime(2030, 10, 20, 9), end=datetime(2030, 10, 20, 11))
+    offer = await _hourly(o, unit)  # 14:00–17:00
+    assert (await o.service.public(offer.code)).flats[0].free is True
+    o.now = datetime(2030, 10, 20, 14)
+    with pytest.raises(OfferExpiredError):
+        await o.service.public(offer.code)
+
+
+async def test_the_page_keeps_the_flats_rules_as_a_booking_does():
+    o = Offers()
+    unit = await o.flat("Почасовая", rental_mode=RentalMode.HOURLY, buffer_minutes=30, min_lead_hours=2)
+    # A stay that ends at 14:00, the offer's start: no time to clean.
+    await o.bookings.create(Booking(company_id=COMPANY_ID, property_id=unit.id, status=BookingStatus.CONFIRMED,
+                                    rental_mode=RentalMode.HOURLY,
+                                    check_in=datetime(2030, 10, 20, 11), check_out=datetime(2030, 10, 20, 14)))
+    tight = await _hourly(o, unit)
+    later = await _hourly(o, unit, start=datetime(2030, 10, 20, 15), end=datetime(2030, 10, 20, 17))
+    assert (await o.service.public(tight.code)).flats[0].free is False
+    assert (await o.service.public(later.code)).flats[0].free is True
+    # An hour before the start the two hours' notice is not kept.
+    o.now = datetime(2030, 10, 20, 14)
+    assert (await o.service.public(later.code)).flats[0].free is False
+
+
+async def test_a_flat_let_otherwise_since_the_link_was_made_leaves_it():
+    o = Offers()
+    hourly, nightly = await o.flat("Почасовая", rental_mode=RentalMode.BOTH), await o.flat("Посуточная")
+    by_hours, by_nights = await _hourly(o, hourly), await o.offer(nightly)
+    hourly.rental_mode, nightly.rental_mode = RentalMode.DAILY, RentalMode.HOURLY
+    assert (await o.service.public(by_hours.code)).flats == []
+    assert (await o.service.public(by_nights.code)).flats == []
+
+
+async def test_an_hourly_offer_of_a_whole_day_is_taken():
+    o = Offers()
+    unit = await o.flat("Почасовая", rental_mode=RentalMode.HOURLY)
+    offer = await _hourly(o, unit, end=datetime(2030, 10, 21, 14))
+    assert PublicOfferResponse.from_offer(await o.service.public(offer.code)).hours == 24
+
+
+def test_an_offer_refuses_the_other_kinds_fields():
+    from pydantic import ValidationError
+
+    from app.presentation.schemas.offers import OfferCreate
+
+    base = {"guest_name": "Ерлан", "guest_phone": "+77012345678", "guests": 1, "property_ids": [str(uuid.uuid4())]}
+    nights = {"check_in": "2030-10-20", "check_out": "2030-10-21"}
+    hours = {"starts_at": "2030-10-20T14:00:00", "ends_at": "2030-10-20T17:00:00"}
+    assert OfferCreate(**base, **nights).rental_mode == "daily"
+    assert OfferCreate(**base, **hours, rental_mode="hourly").starts_at.hour == 14
+    for wrong in ({**nights, **hours}, {**nights, **hours, "rental_mode": "hourly"}, {**hours}):
+        with pytest.raises(ValidationError):
+            OfferCreate(**base, **wrong)

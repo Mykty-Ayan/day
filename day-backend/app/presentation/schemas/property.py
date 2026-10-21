@@ -77,7 +77,7 @@ class PropertyCreate(_TurnoverHours):
     # Stay rules for bookings made in Day; null is no rule.
     min_nights: int | None = Field(default=None, ge=1, le=365)
     max_nights: int | None = Field(default=None, ge=1, le=365)
-    buffer_hours: int | None = Field(default=None, ge=1, le=24)
+    buffer_minutes: int | None = Field(default=None, ge=15, le=1440, multiple_of=15)
     min_lead_hours: int | None = Field(default=None, ge=1, le=24 * 30)
     rooms: int | None = None
     beds: int | None = None
@@ -119,7 +119,7 @@ class PropertyUpdate(_TurnoverHours):
     # Stay rules for bookings made in Day; null is no rule.
     min_nights: int | None = Field(default=None, ge=1, le=365)
     max_nights: int | None = Field(default=None, ge=1, le=365)
-    buffer_hours: int | None = Field(default=None, ge=1, le=24)
+    buffer_minutes: int | None = Field(default=None, ge=15, le=1440, multiple_of=15)
     min_lead_hours: int | None = Field(default=None, ge=1, le=24 * 30)
     rooms: int | None = None
     beds: int | None = None
@@ -162,12 +162,14 @@ class PropertyResponse(BaseModel):
     floors_total: int | None = None
     map_url: str | None = None
     whatsapp_product_url: str | None = None
+    # Read from the product link (wa.me/p/<id>/<phone>): the id Whapi sends a catalogue product by.
+    whatsapp_product_id: str | None = None
     video_url: str | None = None
     listing_urls: list[str] = []
     hourly_listing_urls: list[str] = []
     min_nights: int | None = None
     max_nights: int | None = None
-    buffer_hours: int | None = None
+    buffer_minutes: int | None = None
     min_lead_hours: int | None = None
     rooms: int | None = None
     beds: int | None = None
@@ -437,12 +439,46 @@ class PropertyAuditLogResponse(BaseModel):
 # ---------- Full detail ----------
 
 
+class PropertyReadinessItem(BaseModel):
+    property_id: uuid.UUID
+    name: str
+    internal_name: str
+    status: PropertyStatus
+    # Field name -> filled; never the value.
+    fields: dict[str, bool]
+    empty: list[str]
+
+
+class PropertyReadinessResponse(BaseModel):
+    # Whether the company has any rules for guests (documents, pets, smoking).
+    company_facts: bool
+    items: list[PropertyReadinessItem]
+
+
+class CompanyFactCreate(BaseModel):
+    text: str = Field(..., min_length=1, max_length=1000)
+    # public: anyone may hear it; guest: only a guest with a confirmed stay.
+    audience: FactAudience = FactAudience.PUBLIC
+
+
+class CompanyFactResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    text: str
+    audience: FactAudience
+    source: FactSource
+    created_at: datetime | None = None
+
+
 class PropertyDetailResponse(PropertyResponse):
     photos: list[PropertyPhotoResponse] = []
     amenities: list[AmenityResponse] = []
     pricing: PricingConfigResponse | None = None
     # Every fact, each with its audience; the reader decides who hears which.
     facts: list[PropertyFactResponse] = []
+    # The company's rules, which hold in this flat too; the same audiences.
+    company_facts: list[CompanyFactResponse] = []
 
 
 # ---------- Tags ----------
