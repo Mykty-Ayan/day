@@ -133,7 +133,7 @@
       "both": "Оба",
       "basePrice": "Базовая цена",
       "hourlyPrice": "Цена за час",
-      "weekendMarkup": "Наценка на выходные (%)",
+      "weekendMarkup": "Наценка на выходные (₸)",
       "defaultDeposit": "Залог при посуточной аренде",
       "hourlyDeposit": "Залог при почасовой аренде",
       "baseGuests": "Базовое кол-во гостей",
@@ -222,7 +222,7 @@
       "livingArea": "Жилая площадь (м²)",
       "totalArea": "Общая площадь (м²)",
       "basePrice": "Базовая цена (за ночь)",
-      "weekendMarkup": "Наценка на выходные (%)",
+      "weekendMarkup": "Наценка на выходные (₸)",
       "defaultDeposit": "Залог при посуточной аренде",
       "hourlyDeposit": "Залог при почасовой аренде",
       "extraAdultPrice": "Доплата за взрослого",
@@ -513,7 +513,8 @@
       "airbnb": "Airbnb",
       "other": "Другое",
       "crm": "CRM",
-      "offer": "Личная ссылка"
+      "offer": "Личная ссылка",
+      "site": "Сайт"
     },
     "adultsCount_one": "{{count}} взрослый",
     "adultsCount_few": "{{count}} взрослых",
