@@ -12,8 +12,11 @@ import {
   Building2,
   CalendarCheck,
   KeyRound,
+  List,
   LogIn,
   LogOut,
+  MessageCircle,
+  Plus,
   Send,
   SprayCan,
   Users,
@@ -41,14 +44,21 @@ import type { SellRange } from './sell'
 import { cardRead, linkedBookingId } from './card-state'
 import { errorText } from './errors'
 import { addDays, formatDay, formatMoney, formatTime, toISODate } from './format'
-import { ActionButton, Chip, Screen, Section } from './miniapp-ui'
+import { ActionButton, BookingRow, Screen, Section, TabBar } from './miniapp-ui'
+import BookingsScreen from './BookingsScreen'
+import { searchWithTab, tabFromSearch, type Tab } from './tabs'
 
-type Tab = 'today' | 'sell' | 'units' | 'ask'
 const UPCOMING_DAYS = 14
 
 export default function MiniAppPage() {
   const { t, i18n } = useTranslation()
-  const [tab, setTab] = useState<Tab>('today')
+  const [tab, setTabState] = useState<Tab>(() => tabFromSearch(window.location.search))
+  // Replaced, not pushed: Telegram's back arrow closes sheets, and a history of
+  // tab switches would make the Android back gesture walk through them instead.
+  const setTab = (next: Tab) => {
+    setTabState(next)
+    window.history.replaceState(window.history.state, '', `${window.location.pathname}${searchWithTab(window.location.search, next)}`)
+  }
   const [authState, setAuthState] = useState<'pending' | 'ready' | 'failed'>('pending')
   const [authError, setAuthError] = useState('')
   const [attempt, setAttempt] = useState(0)
@@ -211,20 +221,7 @@ export default function MiniAppPage() {
     .sort((a, b) => a.check_in.localeCompare(b.check_in))
 
   return (
-    <div className="tg-root min-h-screen pb-6">
-      <nav className="tg-surface sticky top-0 z-10 flex gap-1 p-2">
-        {(
-          [
-            ['today', t('miniapp.tabs.today')],
-            ['sell', t('miniapp.tabs.sell')],
-            ['units', t('miniapp.tabs.flats')],
-            ['ask', t('miniapp.tabs.ask')],
-          ] as [Tab, string][]
-        ).map(([value, label]) => (
-          <Chip key={value} label={label} active={tab === value} onClick={() => setTab(value)} />
-        ))}
-      </nav>
-
+    <div className="tg-root min-h-screen pb-24">
       <main className="space-y-4 p-3">
         {tab === 'today' && (
           <>
@@ -374,8 +371,22 @@ export default function MiniAppPage() {
           </>
         )}
 
+        {tab === 'bookings' && <BookingsScreen enabled={enabled} today={today} onOpen={setBooking} />}
+
         {tab === 'ask' && <AskScreen />}
       </main>
+
+      <TabBar
+        active={tab}
+        onChange={setTab}
+        items={[
+          { value: 'today', label: t('miniapp.tabs.today'), icon: <CalendarCheck className="h-5 w-5" /> },
+          { value: 'bookings', label: t('miniapp.tabs.bookings'), icon: <List className="h-5 w-5" /> },
+          { value: 'sell', label: t('miniapp.tabs.sell'), icon: <Plus className="h-5 w-5" /> },
+          { value: 'units', label: t('miniapp.tabs.flats'), icon: <Building2 className="h-5 w-5" /> },
+          { value: 'ask', label: t('miniapp.tabs.ask'), icon: <MessageCircle className="h-5 w-5" /> },
+        ]}
+      />
 
       <OfferSheet key={offerOpen ? 'open' : 'closed'} open={offerOpen} onClose={() => setOfferOpen(false)} />
       <BookingSheet
@@ -427,40 +438,6 @@ function Figure({ label, value }: { label: string; value: string }) {
     <div className="px-3 py-2.5">
       <p className="tg-hint text-xs font-bold uppercase tracking-wide">{label}</p>
       <p className="mt-0.5 text-lg font-bold tabular-nums">{value}</p>
-    </div>
-  )
-}
-
-function BookingRow({
-  booking,
-  meta,
-  onOpen,
-  extra,
-}: {
-  booking: Booking
-  meta: string
-  onOpen: () => void
-  extra?: React.ReactNode
-}) {
-  return (
-    <div className="flex items-center gap-2 pr-3">
-      <button
-        type="button"
-        onClick={() => {
-          tapFeedback()
-          onOpen()
-        }}
-        className="flex min-h-[52px] min-w-0 flex-1 items-center gap-3 px-3 py-2.5 text-left"
-      >
-        <span className="min-w-0 flex-1">
-          <span className="block truncate text-sm font-semibold">
-            {booking.property_name || '—'}
-          </span>
-          <span className="tg-hint block truncate text-xs">{booking.guest_name || '—'}</span>
-        </span>
-        <span className="shrink-0 text-xs font-semibold">{meta}</span>
-      </button>
-      {extra}
     </div>
   )
 }

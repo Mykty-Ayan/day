@@ -9,6 +9,7 @@
 import { useEffect, useRef, type ReactNode } from 'react'
 import { X } from 'lucide-react'
 import { showBackButton, tapFeedback } from '../../lib/telegram'
+import type { Booking } from '../../types/booking'
 
 export function Screen({ children }: { children: ReactNode }) {
   return (
@@ -215,5 +216,72 @@ export function Sheet({
         <div className="space-y-4 px-4">{children}</div>
       </div>
     </div>
+  )
+}
+
+export function BookingRow({
+  booking,
+  meta,
+  onOpen,
+  extra,
+}: {
+  booking: Booking
+  meta: string
+  onOpen: () => void
+  extra?: ReactNode
+}) {
+  return (
+    <div className="flex items-center gap-2 pr-3">
+      <button
+        type="button"
+        onClick={() => {
+          tapFeedback()
+          onOpen()
+        }}
+        className="flex min-h-[52px] min-w-0 flex-1 items-center gap-3 px-3 py-2.5 text-left"
+      >
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-sm font-semibold">
+            {booking.property_name || '—'}
+          </span>
+          <span className="tg-hint block truncate text-xs">{booking.guest_name || '—'}</span>
+        </span>
+        <span className="shrink-0 text-xs font-semibold">{meta}</span>
+      </button>
+      {extra}
+    </div>
+  )
+}
+
+/** The bottom bar: where a thumb rests, and where every phone app keeps its sections. */
+export function TabBar<T extends string>({
+  items,
+  active,
+  onChange,
+}: {
+  items: { value: T; label: string; icon: ReactNode }[]
+  active: T
+  onChange: (value: T) => void
+}) {
+  return (
+    <nav className="tg-surface safe-area-bottom fixed inset-x-0 bottom-0 z-10 flex border-t border-black/5">
+      {items.map((item) => (
+        <button
+          key={item.value}
+          type="button"
+          aria-current={active === item.value ? 'page' : undefined}
+          onClick={() => {
+            tapFeedback()
+            onChange(item.value)
+          }}
+          className={`flex min-h-[56px] flex-1 flex-col items-center justify-center gap-0.5 text-[11px] font-semibold ${
+            active === item.value ? '' : 'tg-hint'
+          }`}
+        >
+          {item.icon}
+          {item.label}
+        </button>
+      ))}
+    </nav>
   )
 }

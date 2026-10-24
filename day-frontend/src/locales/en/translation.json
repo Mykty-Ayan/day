@@ -967,6 +967,15 @@
     "openInTelegram": "Open this page from the Telegram bot",
     "authFailed": "Could not sign in",
     "connectHint": "Connect the chat in the app: Settings → Team & API keys → Bots",
+    "bookings": {
+      "search": "Guest name or phone",
+      "upcoming": "Upcoming",
+      "past": "Past",
+      "cancelled": "Cancelled",
+      "unpaid": "Unpaid",
+      "more": "Show more",
+      "window": "Upcoming covers the next {{days}} days. Search by name or phone for later ones."
+    },
     "tabs": {
       "today": "Today",
       "free": "Free",
