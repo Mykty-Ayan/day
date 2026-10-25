@@ -13,7 +13,8 @@
     "expenses": "Expenses",
     "agents": "Agents",
     "readiness": "Readiness",
-    "site": "Site"
+    "site": "Site",
+    "inventory": "Stock"
   },
   "common": {
     "save": "Save",
@@ -1575,5 +1576,60 @@
     "refused": "We could not hold these dates. Pick others or write to us.",
     "tooMany": "Too many tries. Try again in a minute.",
     "nameNeeded": "Enter the name to book under."
+  },
+  "inventory": {
+    "title": "Minibar stock",
+    "notAllowed": "The stock is kept by the owner and the manager.",
+    "add": "New product",
+    "edit": "Edit product",
+    "name": "Name",
+    "category": "Category",
+    "categoryHint": "Drinks, snacks",
+    "price": "Price for the guest",
+    "order": "Order in the menu",
+    "active": "Shown to guests",
+    "save": "Save",
+    "saved": "Product saved",
+    "failed": "Could not save. Try again.",
+    "list": "Products",
+    "empty": "No products yet",
+    "hidden": "hidden from guests",
+    "stock": "{{qty}} pcs",
+    "photo": "Photo",
+    "photoSaved": "Photo saved",
+    "archive": "Archive",
+    "archiveConfirm": "Archive «{{name}}»? Guests will no longer see it; its history stays.",
+    "archived": "Product archived",
+    "kind": "What happened",
+    "quantity": "Quantity",
+    "difference": "Difference (+ or −)",
+    "unitCost": "Purchase price per piece",
+    "day": "Day of purchase",
+    "note": "Note",
+    "reason": "Reason",
+    "record": "Record",
+    "moved": "Stock updated",
+    "history": "History",
+    "kinds": {
+      "purchase": "Purchase",
+      "sale": "Sale",
+      "writeoff": "Write-off",
+      "adjust": "Count"
+    },
+    "errors": {
+      "name": "Enter the product's name",
+      "price": "Enter the price: from 0, at most two decimals",
+      "order": "The order is a whole number from 0 to 10 000",
+      "quantity": "Enter the quantity: a whole number from 1 to 100 000 (a count may be negative)",
+      "unitCost": "Enter the purchase price: from 0, at most two decimals",
+      "total": "The purchase total is too large",
+      "day": "Choose the day of purchase",
+      "reason": "Say why the stock changes",
+      "par": "The threshold is a whole number from 0 to 100 000, or empty"
+    },
+    "par": "Restock threshold",
+    "parHint": "Empty: no threshold",
+    "toBuy": "What to buy",
+    "toBuyLine": "+{{qty}} pcs (have {{stock}}, threshold {{par}})"
   }
 }
