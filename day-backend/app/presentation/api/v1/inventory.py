@@ -1,7 +1,7 @@
-"""The minibar's catalogue.
+"""The minibar's stock: products, their stock and the movements of it.
 
 Seeing it is for whoever handles bookings (guests' orders come from it);
-changing it needs inventory:manage.
+changing the catalogue and the counts needs inventory:manage.
 """
 
 from __future__ import annotations
@@ -11,15 +11,23 @@ import uuid
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.application.inventory.manage_stock import ManageStockService
+from app.application.inventory.manage_stock import ManageStockService, NewMovement
 from app.config import settings
 from app.domain.auth.permissions import Permission
+from app.domain.inventory.entities import MovementKind
 from app.infrastructure.database import get_session
-from app.infrastructure.repositories.inventory import SqlProductRepository
+from app.infrastructure.repositories.expenses import SqlExpenseRepository
+from app.infrastructure.repositories.inventory import SqlProductRepository, SqlStockMovementRepository
 from app.infrastructure.storage.s3 import upload_product_photo
-from app.presentation.api.deps import get_company_id, require
+from app.presentation.api.deps import Principal, get_company_id, get_principal, require
 from app.presentation.api.v1.properties import _sniff_photo
-from app.presentation.schemas.inventory import ProductCreate, ProductResponse, ProductUpdate
+from app.presentation.schemas.inventory import (
+    MovementCreate,
+    MovementResponse,
+    ProductCreate,
+    ProductResponse,
+    ProductUpdate,
+)
 
 inventory_router = APIRouter(prefix="/inventory", tags=["inventory"])
 
@@ -28,7 +36,9 @@ _manage = [Depends(require(Permission.INVENTORY_MANAGE))]
 
 
 def _service(session: AsyncSession) -> ManageStockService:
-    return ManageStockService(SqlProductRepository(session))
+    return ManageStockService(
+        SqlProductRepository(session), SqlStockMovementRepository(session), SqlExpenseRepository(session)
+    )
 
 
 async def _done(session: AsyncSession, call):
@@ -118,3 +128,41 @@ async def upload_photo(
         raise HTTPException(status_code=500, detail="Failed to upload photo")
     return await _done(session, svc.set_photo(company_id, product_id, url))
 
+
+@inventory_router.get("/products/{product_id}/movements", response_model=list[MovementResponse], dependencies=_read)
+async def list_movements(
+    product_id: uuid.UUID,
+    session: AsyncSession = Depends(get_session),
+    company_id: uuid.UUID = Depends(get_company_id),
+):
+    try:
+        return await _service(session).history(company_id, product_id)
+    except LookupError:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Product not found")
+
+
+@inventory_router.post(
+    "/products/{product_id}/movements",
+    response_model=MovementResponse,
+    status_code=status.HTTP_201_CREATED,
+    dependencies=_manage,
+)
+async def add_movement(
+    product_id: uuid.UUID,
+    body: MovementCreate,
+    session: AsyncSession = Depends(get_session),
+    company_id: uuid.UUID = Depends(get_company_id),
+    principal: Principal = Depends(get_principal),
+):
+    """A purchase (also an expense «minibar»), a write-off or a count, with its reason."""
+    new = NewMovement(
+        company_id=company_id,
+        product_id=product_id,
+        kind=MovementKind(body.kind),
+        quantity=body.quantity,
+        unit_cost=body.unit_cost,
+        spent_on=body.spent_on,
+        note=body.note,
+        created_by=principal.actor_id,
+    )
+    return await _done(session, _service(session).record(new))

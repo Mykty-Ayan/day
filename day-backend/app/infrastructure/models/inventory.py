@@ -1,11 +1,11 @@
-"""The minibar's catalogue."""
+"""The minibar's catalogue and the log of its stock."""
 
 from __future__ import annotations
 
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Boolean, CheckConstraint, DateTime, ForeignKey, Integer, Numeric, String, Text
+from sqlalchemy import Boolean, CheckConstraint, DateTime, ForeignKey, Index, Integer, Numeric, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.infrastructure.database import Base
@@ -32,3 +32,25 @@ class ProductModel(Base):
         CheckConstraint("par_level >= 0", name="ck_products_par_level"),
     )
 
+
+class StockMovementModel(Base):
+    __tablename__ = "stock_movements"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    company_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("companies.id", ondelete="CASCADE"))
+    product_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("products.id", ondelete="CASCADE"))
+    kind: Mapped[str] = mapped_column(String(16))
+    quantity: Mapped[int] = mapped_column(Integer)
+    unit_cost: Mapped[float | None] = mapped_column(Numeric(12, 2), nullable=True)
+    order_id: Mapped[uuid.UUID | None] = mapped_column(nullable=True)
+    expense_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("expenses.id", ondelete="SET NULL"), nullable=True
+    )
+    note: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_by: Mapped[uuid.UUID | None] = mapped_column(nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+    __table_args__ = (
+        CheckConstraint("quantity <> 0", name="ck_stock_movements_quantity"),
+        Index("ix_stock_movements_company_product", "company_id", "product_id"),
+    )
