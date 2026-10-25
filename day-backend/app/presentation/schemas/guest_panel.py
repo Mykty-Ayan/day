@@ -34,6 +34,8 @@ class GuestPanelBooking(BaseModel):
 
 class GuestPanelFlat(BaseModel):
     name: str
+    # The cover of the flat's listing; None for a closed booking.
+    photo_url: str | None = None
     address: str | None = None
     latitude: float | None = None
     longitude: float | None = None
@@ -108,6 +110,7 @@ class GuestPanelResponse(BaseModel):
         elif p is not None:
             page.flat = GuestPanelFlat(
                 name=p.name,
+                photo_url=panel.photo_url,
                 address=p.address_full,
                 latitude=p.latitude,
                 longitude=p.longitude,
