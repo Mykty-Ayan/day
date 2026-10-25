@@ -133,7 +133,7 @@
       "both": "Both",
       "basePrice": "Base Price",
       "hourlyPrice": "Hourly Price",
-      "weekendMarkup": "Weekend Markup (%)",
+      "weekendMarkup": "Weekend Markup (₸)",
       "defaultDeposit": "Deposit for nightly stays",
       "hourlyDeposit": "Deposit for hourly stays",
       "baseGuests": "Base Guests",
@@ -216,7 +216,7 @@
       "livingArea": "Living Area (m²)",
       "totalArea": "Total Area (m²)",
       "basePrice": "Base Price (per night)",
-      "weekendMarkup": "Weekend Markup (%)",
+      "weekendMarkup": "Weekend Markup (₸)",
       "defaultDeposit": "Deposit for nightly stays",
       "hourlyDeposit": "Deposit for hourly stays",
       "extraAdultPrice": "Extra Adult Price",
@@ -503,7 +503,8 @@
       "airbnb": "Airbnb",
       "other": "Other",
       "crm": "CRM",
-      "offer": "Personal link"
+      "offer": "Personal link",
+      "site": "Website"
     },
     "adultsCount": "{{count}} adult",
     "adultsCount_other": "{{count}} adults",

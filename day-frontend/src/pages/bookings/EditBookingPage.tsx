@@ -123,6 +123,7 @@ function EditBookingForm({ detail, bookingId }: { detail: BookingDetail; booking
     { value: 'other', label: t('bookings.sources.other') },
     { value: 'crm', label: t('bookings.sources.crm') },
     { value: 'offer', label: t('bookings.sources.offer') },
+    { value: 'site', label: t('bookings.sources.site') },
   ]
 
   const GANTT_COLORS = [

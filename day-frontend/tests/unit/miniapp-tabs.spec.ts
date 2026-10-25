@@ -4,7 +4,7 @@
  */
 
 import { expect, test } from '@playwright/test'
-import { searchWithTab, segmentFilters, segmentItems, tabFromSearch } from '../../src/pages/miniapp/tabs'
+import { readAllPages, searchWithTab, segmentFilters, segmentItems, tabFromSearch } from '../../src/pages/miniapp/tabs'
 import type { Booking } from '../../src/types/booking'
 
 function booking(overrides: Partial<Booking>): Booking {
@@ -34,21 +34,46 @@ test('switching tabs keeps the booking a notice linked to', () => {
   expect(searchWithTab('?tab=units', 'today')).toBe('')
 })
 
-test('upcoming reads one window ahead, past and cancelled read page by page', () => {
+test('upcoming reads one window ahead page by page, past and cancelled read page by page', () => {
   const today = new Date(2026, 9, 25)
-  expect(segmentFilters('upcoming', today, '')).toEqual({
+  expect(segmentFilters('upcoming', today, '', 2)).toEqual({
     search: undefined,
     date_from: '2026-10-25',
     date_to: '2026-11-24',
     per_page: 100,
+    page: 2,
   })
+  // The server reads date_to as midnight: tomorrow keeps a stay that ended this morning.
   expect(segmentFilters('past', today, ' Айгерим ', 2)).toEqual({
     search: 'Айгерим',
-    date_to: '2026-10-25',
+    date_to: '2026-10-26',
     per_page: 30,
     page: 2,
   })
   expect(segmentFilters('cancelled', today, '')).toMatchObject({ status: 'cancelled', page: 1 })
+})
+
+test('a search finds an upcoming booking past the window', () => {
+  expect(segmentFilters('upcoming', new Date(2026, 9, 25), 'Ерлан').date_to).toBeUndefined()
+})
+
+test('the window is read to its last page, newest-first pages included', async () => {
+  const pages = [
+    { items: [booking({ id: 'far' })], page: 1, pages: 2, total: 2, per_page: 1 },
+    { items: [booking({ id: 'near' })], page: 2, pages: 2, total: 2, per_page: 1 },
+  ]
+  const read: number[] = []
+  const all = await readAllPages(async (page) => {
+    read.push(page)
+    return pages[page - 1]
+  })
+  expect(read).toEqual([1, 2])
+  expect(all.map((b) => b.id)).toEqual(['far', 'near'])
+})
+
+test('an hourly stay that ended this morning is past', () => {
+  const morning = booking({ id: 'morning', check_in: '2026-10-25T09:00:00', check_out: '2026-10-25T11:00:00' })
+  expect(segmentItems('past', [morning], new Date('2026-10-25T13:00:00'), false).map((b) => b.id)).toEqual(['morning'])
 })
 
 test('a guest still in the flat is upcoming, one who left today is past', () => {
@@ -71,6 +96,8 @@ test('a cancelled booking shows only under cancelled', () => {
   const cancelled = booking({ status: 'cancelled' })
   expect(segmentItems('upcoming', [cancelled], now, false)).toEqual([])
   expect(segmentItems('cancelled', [cancelled], now, false)).toEqual([cancelled])
+  // "Unpaid" left on from another list does not hide a paid cancellation.
+  expect(segmentItems('cancelled', [{ ...cancelled, paid_amount: 30000 }], now, true)).toHaveLength(1)
 })
 
 test('"Unpaid" keeps only bookings with money still owed', () => {
