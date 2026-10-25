@@ -3,8 +3,9 @@ from __future__ import annotations
 import abc
 import uuid
 from collections.abc import Sequence
+from datetime import datetime
 
-from app.domain.inventory.entities import Product, StockMovement
+from app.domain.inventory.entities import GuestOrder, OrderStatus, Product, StockMovement
 
 
 class ProductRepository(abc.ABC):
@@ -32,3 +33,27 @@ class StockMovementRepository(abc.ABC):
         self, company_id: uuid.UUID, product_id: uuid.UUID, *, limit: int = 200
     ) -> Sequence[StockMovement]:
         """Newest first."""
+
+
+class GuestOrderRepository(abc.ABC):
+    @abc.abstractmethod
+    async def add(self, order: GuestOrder) -> GuestOrder:
+        """Save it with its items under the company's next number."""
+
+    @abc.abstractmethod
+    async def count_since(self, booking_id: uuid.UUID, since: datetime) -> int:
+        """How many orders the booking placed from `since` on."""
+
+    @abc.abstractmethod
+    async def get(self, company_id: uuid.UUID, order_id: uuid.UUID) -> GuestOrder | None: ...
+
+    @abc.abstractmethod
+    async def list(self, company_id: uuid.UUID, *, status: OrderStatus | None = None) -> Sequence[GuestOrder]:
+        """Newest first."""
+
+    @abc.abstractmethod
+    async def move(
+        self, company_id: uuid.UUID, order_id: uuid.UUID, allowed: set[OrderStatus], order: GuestOrder
+    ) -> GuestOrder | None:
+        """Write the order's new status and stamps if it is still in one of `allowed`,
+        in one step; None otherwise (another hand moved it first)."""

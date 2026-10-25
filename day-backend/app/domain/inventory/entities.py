@@ -59,3 +59,49 @@ class StockMovement:
     note: str | None = None
     created_by: uuid.UUID | None = None
     created_at: datetime | None = None
+
+
+class OrderStatus(str, enum.Enum):
+    NEW = "new"
+    ACCEPTED = "accepted"
+    DELIVERED = "delivered"
+    CANCELLED = "cancelled"
+
+
+class OrderPayment(str, enum.Enum):
+    """How the guest paid at the door: apart from the booking's money."""
+
+    CASH = "cash"
+    CARD = "card"
+    TRANSFER = "transfer"
+
+
+@dataclass
+class GuestOrderItem:
+    product_id: uuid.UUID
+    # The name and the price when ordered: a later change does not rewrite the order.
+    name: str
+    price: Decimal
+    quantity: int
+    id: uuid.UUID = field(default_factory=uuid.uuid4)
+
+
+@dataclass
+class GuestOrder:
+    company_id: uuid.UUID
+    booking_id: uuid.UUID
+    property_id: uuid.UUID
+    total: Decimal
+    items: list[GuestOrderItem]
+    id: uuid.UUID = field(default_factory=uuid.uuid4)
+    # The order's number in the company, for the WhatsApp text and the host.
+    number: int = 0
+    status: OrderStatus = OrderStatus.NEW
+    guest_note: str | None = None
+    payment_method: OrderPayment | None = None
+    created_at: datetime | None = None
+    accepted_at: datetime | None = None
+    delivered_at: datetime | None = None
+    cancelled_at: datetime | None = None
+    # Who delivered or cancelled it.
+    handled_by: uuid.UUID | None = None
