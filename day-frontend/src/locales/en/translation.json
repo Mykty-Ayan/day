@@ -879,6 +879,15 @@
       "mismatch": "The passwords do not match",
       "wrongCurrent": "The current password is wrong",
       "failed": "Could not change the password"
+    },
+    "guestPage": {
+      "title": "Guest page",
+      "description": "When the guest sees the door code and Wi-Fi on their page: once paid in full, this many hours before check-in (0–168).",
+      "daily": "By the night, hours before check-in",
+      "hourly": "By the hour, hours before check-in",
+      "save": "Save",
+      "invalid": "Hours: a whole number from 0 to 168",
+      "failed": "Could not save"
     }
   },
   "team": {
@@ -1487,7 +1496,6 @@
     "payment": "Payment",
     "paid": "Paid {{paid}} of {{total}}",
     "remaining": "Left to pay: {{amount}}",
-    "codeAfterPayment": "The door code and Wi-Fi appear here as soon as the stay is paid in full.",
     "checkIn": "How to check in",
     "rules": "House rules",
     "checkOutBy": "Check-out by {{time}}",
@@ -1515,6 +1523,7 @@
       "broken": "Something isn't working: ",
       "documents": "I need documents for my records (receipt, statement) for the stay.",
       "checkedOut": "I have checked out. Keys: "
-    }
+    },
+    "codeOpens": "The door code and Wi-Fi appear here once the stay is paid in full, {{hours}} h before check-in."
   }
 }

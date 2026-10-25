@@ -1,8 +1,8 @@
-import type { ReactNode } from 'react'
+import type { MouseEvent, ReactNode } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { KeyRound, MapPin, MessageCircle, ScrollText, Wallet, Wifi } from 'lucide-react'
-import { getGuestPanel, type GuestPanel } from '../../api/public'
+import { getGuestPanel, markGuestLeft, type GuestPanel } from '../../api/public'
 import { mapLinks, panelButtons, waLink, type PanelButton } from '../../lib/guest-panel'
 import { money, retryNetwork } from '../../lib/public-stay'
 import { GuestFrame, LoadFailed } from './GuestFrame'
@@ -20,7 +20,7 @@ function Panel({ code, locale }: { code: string; locale: string }) {
   if (!panel.data) {
     return <LoadFailed error={panel.error} onRetry={() => void panel.refetch()} gone={{ 404: t('guestPanel.notFound') }} />
   }
-  return <PanelView panel={panel.data} locale={locale} />
+  return <PanelView code={code} panel={panel.data} locale={locale} />
 }
 
 const day = (iso: string, locale: string) =>
@@ -38,7 +38,7 @@ function Section({ icon, title, children }: { icon: ReactNode; title: string; ch
   )
 }
 
-function PanelView({ panel, locale }: { panel: GuestPanel; locale: string }) {
+function PanelView({ code, panel, locale }: { code: string; panel: GuestPanel; locale: string }) {
   const { t } = useTranslation()
   const { booking: b, flat, access, company } = panel
   const dates = b ? `${day(b.check_in, locale)} — ${day(b.check_out, locale)}` : ''
@@ -51,6 +51,14 @@ function PanelView({ panel, locale }: { panel: GuestPanel; locale: string }) {
     return `${intro} ${t(`guestPanel.wa.${key}`, { amount: money(b?.remaining ?? 0, locale), checkIn, checkOut })}`
   }
 
+  /** «I have left»: Day is told first (the host hears it, the flat gets a cleaning
+   *  task), then WhatsApp opens; a failed request does not keep the guest from writing. */
+  async function leave(event: MouseEvent, url: string) {
+    event.preventDefault()
+    await markGuestLeft(code).catch(() => undefined)
+    window.location.assign(url)
+  }
+
   const buttons = panelButtons(panel)
   const button = (key: PanelButton) => (
     <a
@@ -58,6 +66,7 @@ function PanelView({ panel, locale }: { panel: GuestPanel; locale: string }) {
       href={waLink(company!.whatsapp!, message(key))}
       target="_blank"
       rel="noopener noreferrer"
+      onClick={key === 'checkedOut' ? (event) => leave(event, waLink(company!.whatsapp!, message(key))) : undefined}
       className={`flex min-h-12 items-center gap-2 rounded-xl px-4 text-sm font-semibold ${
         key === 'cannotGetIn' ? 'bg-red-600 text-white' : 'border border-gray-200 text-gray-900'
       }`}
@@ -105,8 +114,13 @@ function PanelView({ panel, locale }: { panel: GuestPanel; locale: string }) {
               <p data-testid="guest-remaining" className="text-base font-bold text-gray-900">
                 {t('guestPanel.remaining', { amount: money(b.remaining, locale) })}
               </p>
-              <p className="text-xs text-gray-500">{t('guestPanel.codeAfterPayment')}</p>
               {buttons.includes('pay') && button('pay')}
+            </Section>
+          )}
+
+          {!access && (
+            <Section icon={<KeyRound className="h-4 w-4" aria-hidden />} title={t('guestPanel.checkIn')}>
+              <p className="text-sm text-gray-600">{t('guestPanel.codeOpens', { hours: panel.lead_hours })}</p>
             </Section>
           )}
 

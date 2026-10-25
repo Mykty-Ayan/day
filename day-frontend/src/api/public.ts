@@ -174,8 +174,15 @@ export interface GuestPanel {
   } | null
   /** Only for a confirmed or checked-in stay paid in full: the server decides. */
   access: { instructions: string | null; wifi_name: string | null; wifi_password: string | null; facts: string[] } | null
+  /** Hours before check-in the way in opens, once the stay is paid. */
+  lead_hours: number
 }
 
 export async function getGuestPanel(code: string): Promise<GuestPanel> {
   return (await publicClient.get<GuestPanel>(`/public/guest/${encodeURIComponent(code)}`)).data
+}
+
+/** «I have left»: the host is told and the flat gets a cleaning task. */
+export async function markGuestLeft(code: string): Promise<void> {
+  await publicClient.post(`/public/guest/${encodeURIComponent(code)}/checked-out`, null, { timeout: 8_000 })
 }
