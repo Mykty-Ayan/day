@@ -115,7 +115,8 @@ test('on the departure day «I have left» tells Day first, then opens WhatsApp'
   await page.route('https://wa.me/**', (route) => route.fulfill({ contentType: 'text/html', body: '<p>WhatsApp</p>' }))
   const now = today()
   await open(page, answer({}, { check_in: `${addDays(now, -2)}T14:00:00`, check_out: `${now}T12:00:00`, paid: 40000, remaining: 0 }))
-  await page.getByRole('link', { name: 'Я выехал(а)' }).click()
+  // A double tap tells Day once.
+  await page.getByRole('link', { name: 'Я выехал(а)' }).dblclick()
   await page.waitForURL('https://wa.me/**')
   expect(left).toEqual(['POST'])
   expect(decodeURIComponent(page.url())).toContain('Я выехал(а). Ключи:')

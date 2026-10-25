@@ -1,4 +1,4 @@
-import { useState, type CSSProperties, type MouseEvent, type ReactNode } from 'react'
+import { useRef, useState, type CSSProperties, type MouseEvent, type ReactNode } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import {
@@ -154,6 +154,8 @@ type Open = 'help' | 'rules' | 'checkout' | 'maps' | null
 function PanelView({ code, panel, locale }: { code: string; panel: GuestPanel; locale: string }) {
   const { t } = useTranslation()
   const [open, setOpen] = useState<Open>(null)
+  // A second tap while the first «I have left» is on its way tells the host nothing new.
+  const leaving = useRef(false)
   const { booking: b, flat, access, company } = panel
   const color = company?.accent_color ?? DEFAULT_ACCENT
   const style = {
@@ -188,6 +190,8 @@ function PanelView({ code, panel, locale }: { code: string; panel: GuestPanel; l
    *  task), then WhatsApp opens; a failed request does not keep the guest from writing. */
   async function leave(event: MouseEvent) {
     event.preventDefault()
+    if (leaving.current) return
+    leaving.current = true
     await markGuestLeft(code).catch(() => undefined)
     window.location.assign(href('checkedOut'))
   }
