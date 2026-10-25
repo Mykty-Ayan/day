@@ -18,6 +18,7 @@ import { Route as SiteIndexRouteImport } from './routes/site/index'
 import { Route as SettingsIndexRouteImport } from './routes/settings/index'
 import { Route as ReadinessIndexRouteImport } from './routes/readiness/index'
 import { Route as PropertiesIndexRouteImport } from './routes/properties/index'
+import { Route as InventoryIndexRouteImport } from './routes/inventory/index'
 import { Route as ExpensesIndexRouteImport } from './routes/expenses/index'
 import { Route as CleaningIndexRouteImport } from './routes/cleaning/index'
 import { Route as CleanerIndexRouteImport } from './routes/cleaner/index'
@@ -88,6 +89,11 @@ const ReadinessIndexRoute = ReadinessIndexRouteImport.update({
 const PropertiesIndexRoute = PropertiesIndexRouteImport.update({
   id: '/properties/',
   path: '/properties/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const InventoryIndexRoute = InventoryIndexRouteImport.update({
+  id: '/inventory/',
+  path: '/inventory/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ExpensesIndexRoute = ExpensesIndexRouteImport.update({
@@ -251,6 +257,7 @@ export interface FileRoutesByFullPath {
   '/cleaner/': typeof CleanerIndexRoute
   '/cleaning/': typeof CleaningIndexRoute
   '/expenses/': typeof ExpensesIndexRoute
+  '/inventory/': typeof InventoryIndexRoute
   '/properties/': typeof PropertiesIndexRoute
   '/readiness/': typeof ReadinessIndexRoute
   '/settings/': typeof SettingsIndexRoute
@@ -286,6 +293,7 @@ export interface FileRoutesByTo {
   '/cleaner': typeof CleanerIndexRoute
   '/cleaning': typeof CleaningIndexRoute
   '/expenses': typeof ExpensesIndexRoute
+  '/inventory': typeof InventoryIndexRoute
   '/properties': typeof PropertiesIndexRoute
   '/readiness': typeof ReadinessIndexRoute
   '/settings': typeof SettingsIndexRoute
@@ -324,6 +332,7 @@ export interface FileRoutesById {
   '/cleaner/': typeof CleanerIndexRoute
   '/cleaning/': typeof CleaningIndexRoute
   '/expenses/': typeof ExpensesIndexRoute
+  '/inventory/': typeof InventoryIndexRoute
   '/properties/': typeof PropertiesIndexRoute
   '/readiness/': typeof ReadinessIndexRoute
   '/settings/': typeof SettingsIndexRoute
@@ -363,6 +372,7 @@ export interface FileRouteTypes {
     | '/cleaner/'
     | '/cleaning/'
     | '/expenses/'
+    | '/inventory/'
     | '/properties/'
     | '/readiness/'
     | '/settings/'
@@ -398,6 +408,7 @@ export interface FileRouteTypes {
     | '/cleaner'
     | '/cleaning'
     | '/expenses'
+    | '/inventory'
     | '/properties'
     | '/readiness'
     | '/settings'
@@ -435,6 +446,7 @@ export interface FileRouteTypes {
     | '/cleaner/'
     | '/cleaning/'
     | '/expenses/'
+    | '/inventory/'
     | '/properties/'
     | '/readiness/'
     | '/settings/'
@@ -473,6 +485,7 @@ export interface RootRouteChildren {
   CleanerIndexRoute: typeof CleanerIndexRoute
   CleaningIndexRoute: typeof CleaningIndexRoute
   ExpensesIndexRoute: typeof ExpensesIndexRoute
+  InventoryIndexRoute: typeof InventoryIndexRoute
   PropertiesIndexRoute: typeof PropertiesIndexRoute
   ReadinessIndexRoute: typeof ReadinessIndexRoute
   SettingsIndexRoute: typeof SettingsIndexRoute
@@ -542,6 +555,13 @@ declare module '@tanstack/react-router' {
       path: '/properties'
       fullPath: '/properties/'
       preLoaderRoute: typeof PropertiesIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/inventory/': {
+      id: '/inventory/'
+      path: '/inventory'
+      fullPath: '/inventory/'
+      preLoaderRoute: typeof InventoryIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/expenses/': {
@@ -783,6 +803,7 @@ const rootRouteChildren: RootRouteChildren = {
   CleanerIndexRoute: CleanerIndexRoute,
   CleaningIndexRoute: CleaningIndexRoute,
   ExpensesIndexRoute: ExpensesIndexRoute,
+  InventoryIndexRoute: InventoryIndexRoute,
   PropertiesIndexRoute: PropertiesIndexRoute,
   ReadinessIndexRoute: ReadinessIndexRoute,
   SettingsIndexRoute: SettingsIndexRoute,

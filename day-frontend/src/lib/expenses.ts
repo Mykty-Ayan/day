@@ -42,7 +42,7 @@ export function expenseAmount(value: string): number {
   return Number(plainAmount(value))
 }
 
-function plainAmount(value: string): string {
+export function plainAmount(value: string): string {
   const compact = value.replace(/\s+/g, '')
   const decimal = Math.max(compact.lastIndexOf(','), compact.lastIndexOf('.'))
   if (decimal === -1) return compact
