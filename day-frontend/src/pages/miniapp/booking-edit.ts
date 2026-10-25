@@ -38,15 +38,23 @@ export function formFromBooking(booking: Booking): EditForm {
   }
 }
 
+function nextDay(day: string): string {
+  const next = new Date(`${day}T12:00:00Z`)
+  next.setUTCDate(next.getUTCDate() + 1)
+  return next.toISOString().slice(0, 10)
+}
+
 function count(value: string): number | null {
   return /^\d+$/.test(value.trim()) ? Number(value) : null
 }
 
 export function editPatch(booking: Booking, form: EditForm): { patch: BookingUpdateInput } | { error: EditError } {
   const hourly = booking.rental_mode === 'hourly'
+  // An hourly stay may run past midnight (22:00–02:00): an end at or before the start is the next day.
+  const endDay = hourly && form.end && form.start && form.end <= form.start ? nextDay(form.day) : form.day
   const checkIn = hourly ? `${form.day}T${form.start}:00` : form.checkIn
-  const checkOut = hourly ? `${form.day}T${form.end}:00` : form.checkOut
-  if (hourly ? !form.day || !form.start || !form.end || form.start >= form.end : !checkIn || !checkOut || checkIn >= checkOut) {
+  const checkOut = hourly ? `${endDay}T${form.end}:00` : form.checkOut
+  if (hourly ? !form.day || !form.start || !form.end || form.start === form.end : !checkIn || !checkOut || checkIn >= checkOut) {
     return { error: 'dates' }
   }
   const adults = count(form.adults)
