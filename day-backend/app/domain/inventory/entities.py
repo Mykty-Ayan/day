@@ -68,6 +68,13 @@ class OrderStatus(str, enum.Enum):
     CANCELLED = "cancelled"
 
 
+class OrderPaymentStatus(str, enum.Enum):
+    """Set at delivery: paid at the door, or on the guest's tab to be paid later."""
+
+    PAID = "paid"
+    ON_BOOKING = "on_booking"
+
+
 class OrderPayment(str, enum.Enum):
     """How the guest paid at the door: apart from the booking's money."""
 
@@ -98,7 +105,10 @@ class GuestOrder:
     number: int = 0
     status: OrderStatus = OrderStatus.NEW
     guest_note: str | None = None
+    # None until delivered.
+    payment_status: OrderPaymentStatus | None = None
     payment_method: OrderPayment | None = None
+    paid_at: datetime | None = None
     created_at: datetime | None = None
     accepted_at: datetime | None = None
     delivered_at: datetime | None = None

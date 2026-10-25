@@ -29,7 +29,10 @@ def upgrade() -> None:
         sa.Column("status", sa.String(16), nullable=False, server_default="new"),
         sa.Column("total", sa.Numeric(12, 2), nullable=False),
         sa.Column("guest_note", sa.Text(), nullable=True),
+        # null until delivered; paid, or on_booking («on the tab»: the guest owes it) and paid later.
+        sa.Column("payment_status", sa.String(16), nullable=True),
         sa.Column("payment_method", sa.String(16), nullable=True),
+        sa.Column("paid_at", sa.DateTime(), nullable=True),
         sa.Column("created_at", sa.DateTime(), nullable=False, server_default=sa.func.now()),
         sa.Column("accepted_at", sa.DateTime(), nullable=True),
         sa.Column("delivered_at", sa.DateTime(), nullable=True),
@@ -37,6 +40,7 @@ def upgrade() -> None:
         sa.Column("handled_by", sa.Uuid(), nullable=True),
         sa.UniqueConstraint("company_id", "number", name="uq_guest_orders_company_number"),
         sa.CheckConstraint("total >= 0", name="ck_guest_orders_total"),
+        sa.CheckConstraint("payment_status IN ('paid', 'on_booking')", name="ck_guest_orders_payment_status"),
     )
     op.create_index("ix_guest_orders_company_created", "guest_orders", ["company_id", "created_at"])
     op.create_index("ix_guest_orders_booking_created", "guest_orders", ["booking_id", "created_at"])

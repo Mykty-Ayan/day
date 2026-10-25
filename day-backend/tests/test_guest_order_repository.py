@@ -90,3 +90,23 @@ async def test_of_two_moves_at_once_only_one_lands():
     assert sum(m is not None for m in moves) == 1
     # Another company's hand moves nothing.
     assert await _in_session(lambda repo: repo.move(uuid.uuid4(), order.id, {OrderStatus.DELIVERED}, order)) is None
+
+
+async def test_a_guest_owes_only_for_orders_on_the_tab():
+    from app.domain.inventory.entities import OrderPayment, OrderPaymentStatus
+
+    mine = await _company_with_a_booking()
+    company, _, booking, _ = mine
+    tab = await _in_session(lambda repo: repo.add(_order(*mine, quantity=1)))
+    paid = await _in_session(lambda repo: repo.add(_order(*mine, quantity=2)))
+    await _in_session(lambda repo: repo.add(_order(*mine, quantity=3)))  # not delivered yet
+    for order, status in ((tab, OrderPaymentStatus.ON_BOOKING), (paid, OrderPaymentStatus.PAID)):
+        order.status, order.payment_status = OrderStatus.DELIVERED, status
+        order.payment_method = OrderPayment.CASH if status == OrderPaymentStatus.PAID else None
+        assert await _in_session(lambda repo, o=order: repo.move(company, o.id, {OrderStatus.NEW}, o)) is not None
+
+    assert await _in_session(lambda repo: repo.due_by_bookings(company, [booking])) == {booking: Decimal("800")}
+    # Another company asking about the same booking hears nothing.
+    assert await _in_session(lambda repo: repo.due_by_bookings(uuid.uuid4(), [booking])) == {}
+    [stored] = [o for o in await _in_session(lambda repo: repo.list(company)) if o.id == tab.id]
+    assert (stored.payment_status, stored.payment_method) == (OrderPaymentStatus.ON_BOOKING, None)

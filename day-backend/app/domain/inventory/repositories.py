@@ -4,6 +4,7 @@ import abc
 import uuid
 from collections.abc import Sequence
 from datetime import datetime
+from decimal import Decimal
 
 from app.domain.inventory.entities import GuestOrder, OrderStatus, Product, StockMovement
 
@@ -50,6 +51,12 @@ class GuestOrderRepository(abc.ABC):
     @abc.abstractmethod
     async def list(self, company_id: uuid.UUID, *, status: OrderStatus | None = None) -> Sequence[GuestOrder]:
         """Newest first."""
+
+    @abc.abstractmethod
+    async def due_by_bookings(
+        self, company_id: uuid.UUID, booking_ids: Sequence[uuid.UUID]
+    ) -> dict[uuid.UUID, Decimal]:
+        """What each booking's guest owes for orders delivered on the tab (on_booking)."""
 
     @abc.abstractmethod
     async def move(

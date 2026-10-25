@@ -13,6 +13,7 @@ from app.domain.inventory.entities import (
     GuestOrderItem,
     MovementKind,
     OrderPayment,
+    OrderPaymentStatus,
     OrderStatus,
     Product,
     StockMovement,
@@ -159,7 +160,9 @@ def _to_order(m: GuestOrderModel, items: list[GuestOrderItemModel]) -> GuestOrde
         status=OrderStatus(m.status),
         total=Decimal(str(m.total)),
         guest_note=m.guest_note,
+        payment_status=OrderPaymentStatus(m.payment_status) if m.payment_status else None,
         payment_method=OrderPayment(m.payment_method) if m.payment_method else None,
+        paid_at=m.paid_at,
         created_at=m.created_at,
         accepted_at=m.accepted_at,
         delivered_at=m.delivered_at,
@@ -238,6 +241,22 @@ class SqlGuestOrderRepository(GuestOrderRepository):
         stmt = stmt.order_by(GuestOrderModel.created_at.desc()).limit(200)
         return await self._with_items(list(await self._session.scalars(stmt)))
 
+    async def due_by_bookings(
+        self, company_id: uuid.UUID, booking_ids: Sequence[uuid.UUID]
+    ) -> dict[uuid.UUID, Decimal]:
+        if not booking_ids:
+            return {}
+        rows = await self._session.execute(
+            select(GuestOrderModel.booking_id, func.sum(GuestOrderModel.total))
+            .where(
+                GuestOrderModel.company_id == company_id,
+                GuestOrderModel.booking_id.in_(booking_ids),
+                GuestOrderModel.payment_status == OrderPaymentStatus.ON_BOOKING.value,
+            )
+            .group_by(GuestOrderModel.booking_id)
+        )
+        return {booking_id: Decimal(str(total)) for booking_id, total in rows.all()}
+
     async def move(
         self, company_id: uuid.UUID, order_id: uuid.UUID, allowed: set[OrderStatus], order: GuestOrder
     ) -> GuestOrder | None:
@@ -251,7 +270,9 @@ class SqlGuestOrderRepository(GuestOrderRepository):
             )
             .values(
                 status=order.status.value,
+                payment_status=order.payment_status.value if order.payment_status else None,
                 payment_method=order.payment_method.value if order.payment_method else None,
+                paid_at=order.paid_at,
                 accepted_at=order.accepted_at,
                 delivered_at=order.delivered_at,
                 cancelled_at=order.cancelled_at,

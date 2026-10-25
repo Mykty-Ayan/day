@@ -80,7 +80,9 @@ class GuestOrderModel(Base):
     status: Mapped[str] = mapped_column(String(16), default="new")
     total: Mapped[float] = mapped_column(Numeric(12, 2))
     guest_note: Mapped[str | None] = mapped_column(Text, nullable=True)
+    payment_status: Mapped[str | None] = mapped_column(String(16), nullable=True)
     payment_method: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    paid_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     accepted_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     delivered_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
@@ -90,6 +92,7 @@ class GuestOrderModel(Base):
     __table_args__ = (
         UniqueConstraint("company_id", "number", name="uq_guest_orders_company_number"),
         CheckConstraint("total >= 0", name="ck_guest_orders_total"),
+        CheckConstraint("payment_status IN ('paid', 'on_booking')", name="ck_guest_orders_payment_status"),
         Index("ix_guest_orders_company_created", "company_id", "created_at"),
         Index("ix_guest_orders_booking_created", "booking_id", "created_at"),
     )
