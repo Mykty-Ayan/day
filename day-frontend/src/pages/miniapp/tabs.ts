@@ -4,7 +4,8 @@
 import type { Booking, BookingFilters } from '../../types/booking'
 import { addDays, toISODate } from './format'
 
-export const TABS = ['today', 'bookings', 'sell', 'units', 'ask'] as const
+// "ask" has no place in the bottom bar (five tabs at most): a button in the header opens it.
+export const TABS = ['today', 'bookings', 'sell', 'units', 'money', 'ask'] as const
 export type Tab = (typeof TABS)[number]
 
 export function tabFromSearch(search: string): Tab {
