@@ -1,5 +1,6 @@
-"""A guest's minibar order, placed from the guest's page during the stay. The
-price is the server's; placing it takes nothing from the stock.
+"""A guest's minibar order: placed from the guest's page during the stay, handled
+by the host. The price is the server's; the stock goes down on delivery only;
+the order is paid apart from the booking.
 """
 
 import copy
@@ -21,7 +22,7 @@ from app.application.inventory.guest_orders import (
 from app.application.messaging.notifications import NotificationDispatcher, render
 from app.domain.booking.entities import Booking
 from app.domain.booking.value_objects import BookingStatus
-from app.domain.inventory.entities import MovementKind, OrderStatus, Product
+from app.domain.inventory.entities import MovementKind, OrderPayment, OrderStatus, Product
 from app.domain.messaging.entities import OutboundNotification
 from app.domain.messaging.value_objects import Channel, NotificationEvent
 from app.domain.site.entities import CompanySite
@@ -166,6 +167,42 @@ async def test_five_orders_an_hour_per_booking():
         await svc.place(CODE, [(cola.id, 1)], None, "en", NOW)
 
 
+async def test_delivery_writes_a_sale_per_line_and_may_take_the_stock_below_zero():
+    svc, _, movements, products, cola, nuts = await _setup()
+    order = (await svc.place(CODE, [(cola.id, 2), (nuts.id, 1)], None, "ru", NOW)).order
+    # The last peanuts went elsewhere meanwhile: the guest has them anyway.
+    from app.domain.inventory.entities import StockMovement
+
+    await movements.add(StockMovement(company_id=COMPANY_ID, product_id=nuts.id, kind=MovementKind.WRITEOFF,
+                                      quantity=-1, note="Разбили"))
+    await svc.accept(COMPANY_ID, order.id, None)
+    done = await svc.deliver(COMPANY_ID, order.id, OrderPayment.CASH, uuid.uuid4())
+
+    assert (done.status, done.payment_method) == (OrderStatus.DELIVERED, OrderPayment.CASH)
+    sales = [(m.product_id, m.quantity, m.order_id) for m in movements.rows if m.kind == MovementKind.SALE]
+    assert sales == [(cola.id, -2, order.id), (nuts.id, -1, order.id)]
+    assert ((await products.get(COMPANY_ID, cola.id)).stock, (await products.get(COMPANY_ID, nuts.id)).stock) == (3, -1)
+    # Delivered once: a second hand changes nothing and writes no second sale.
+    with pytest.raises(ValueError):
+        await svc.deliver(COMPANY_ID, order.id, OrderPayment.CARD, None)
+    with pytest.raises(ValueError):
+        await svc.cancel(COMPANY_ID, order.id, None)
+    assert len([m for m in movements.rows if m.kind == MovementKind.SALE]) == 2
+
+
+async def test_a_cancelled_order_never_touches_the_stock_and_another_company_cannot_see_it():
+    svc, _, movements, _, cola, _ = await _setup()
+    order = (await svc.place(CODE, [(cola.id, 1)], None, "ru", NOW)).order
+    other = uuid.uuid4()
+    for call in (svc.accept(other, order.id, None), svc.cancel(other, order.id, None),
+                 svc.deliver(other, order.id, OrderPayment.CASH, None)):
+        with pytest.raises(LookupError):
+            await call
+    assert await svc.list(other) == []
+    await svc.cancel(COMPANY_ID, order.id, None)
+    assert not [m for m in movements.rows if m.kind == MovementKind.SALE]
+
+
 async def test_no_whatsapp_number_no_link_but_the_order_is_in_day():
     svc, orders, *_ , cola, _ = await _setup(whatsapp=None)
     placed = await svc.place(CODE, [(cola.id, 1)], None, "kz", NOW)
@@ -244,6 +281,22 @@ async def test_a_guest_orders_from_the_page_and_the_host_delivers(flat):  # noqa
 
     # Placing it takes nothing from the stock: the host's delivery does.
     assert (await client.get("/api/v1/inventory/products")).json()[0]["stock"] == 3
+
+    [order] = (await client.get("/api/v1/guest-orders", params={"status": "new"})).json()
+    assert (order["guest_name"], order["property_name"], order["guest_note"]) == ("Жалгас", "t13", "к 22:00")
+    use(Permission.BOOKINGS_READ)
+    assert (await client.post(f"/api/v1/guest-orders/{order['id']}/accept")).status_code == 403
+    use(Permission.BOOKINGS_READ, Permission.BOOKINGS_WRITE)
+    assert (await client.post(f"/api/v1/guest-orders/{order['id']}/accept")).json()["status"] == "accepted"
+    done = await client.post(f"/api/v1/guest-orders/{order['id']}/deliver", json={"payment_method": "card"})
+    assert (done.json()["status"], done.json()["payment_method"]) == ("delivered", "card")
+    again = await client.post(f"/api/v1/guest-orders/{order['id']}/deliver", json={"payment_method": "card"})
+    assert again.status_code == 409
+    [listed] = (await client.get("/api/v1/inventory/products")).json()
+    assert listed["stock"] == 1
+    # Paid apart: the booking's money is untouched.
+    assert (await client.get(f"/api/v1/bookings/{booking}/payments")).json() == []
+    assert (await client.post(f"/api/v1/guest-orders/{uuid.uuid4()}/cancel")).status_code == 404
 
 
 @pytest.mark.integration

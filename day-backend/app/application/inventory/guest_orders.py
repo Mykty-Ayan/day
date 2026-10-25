@@ -1,8 +1,8 @@
-"""A guest's minibar order, placed from the guest's page during the stay.
+"""A guest's minibar order: placed from the guest's page, handled by the host.
 
 The order lives in Day; the page also opens the host's WhatsApp with its text.
-It is paid apart from the booking, at the door. Placing it takes nothing from
-the stock: that happens when the host delivers it.
+It is paid apart from the booking, at the door. The stock goes down when the
+order is delivered, not when it is placed: a cancelled order never touched it.
 """
 
 from __future__ import annotations
@@ -18,7 +18,15 @@ from zoneinfo import ZoneInfo
 from app.domain.booking.entities import Booking
 from app.domain.booking.repositories import BookingRepository
 from app.domain.booking.value_objects import BookingSource, BookingStatus
-from app.domain.inventory.entities import GuestOrder, GuestOrderItem, Product
+from app.domain.inventory.entities import (
+    GuestOrder,
+    GuestOrderItem,
+    MovementKind,
+    OrderPayment,
+    OrderStatus,
+    Product,
+    StockMovement,
+)
 from app.domain.inventory.repositories import GuestOrderRepository, ProductRepository, StockMovementRepository
 from app.domain.property.repositories import PropertyRepository
 from app.domain.settings.entities import DEFAULT_TIME_ZONE
@@ -160,3 +168,53 @@ class GuestOrderService:
             )
             url = f"https://wa.me/{''.join(c for c in site.whatsapp if c.isdigit())}?text={quote(text)}"
         return PlacedOrder(order=order, flat_name=flat, whatsapp_url=url)
+
+    async def list(self, company_id: uuid.UUID, *, status: OrderStatus | None = None) -> Sequence[GuestOrder]:
+        return await self._orders.list(company_id, status=status)
+
+    async def accept(self, company_id: uuid.UUID, order_id: uuid.UUID, by: uuid.UUID | None) -> GuestOrder:
+        order = await self._get(company_id, order_id)
+        order.status, order.accepted_at = OrderStatus.ACCEPTED, datetime.utcnow()
+        return await self._move(company_id, order_id, {OrderStatus.NEW}, order)
+
+    async def cancel(self, company_id: uuid.UUID, order_id: uuid.UUID, by: uuid.UUID | None) -> GuestOrder:
+        order = await self._get(company_id, order_id)
+        order.status, order.cancelled_at, order.handled_by = OrderStatus.CANCELLED, datetime.utcnow(), by
+        return await self._move(company_id, order_id, {OrderStatus.NEW, OrderStatus.ACCEPTED}, order)
+
+    async def deliver(
+        self, company_id: uuid.UUID, order_id: uuid.UUID, payment: OrderPayment, by: uuid.UUID | None
+    ) -> GuestOrder:
+        """Delivered and paid: a sale per line, in the same transaction. The stock may
+        go below zero — the goods are with the guest; the purchase was not recorded."""
+        order = await self._get(company_id, order_id)
+        order.status, order.delivered_at = OrderStatus.DELIVERED, datetime.utcnow()
+        order.payment_method, order.handled_by = payment, by
+        delivered = await self._move(company_id, order_id, {OrderStatus.NEW, OrderStatus.ACCEPTED}, order)
+        for item in delivered.items:
+            await self._movements.add(
+                StockMovement(
+                    company_id=company_id,
+                    product_id=item.product_id,
+                    kind=MovementKind.SALE,
+                    quantity=-item.quantity,
+                    order_id=delivered.id,
+                    note=f"№{delivered.number}",
+                    created_by=by,
+                )
+            )
+        return delivered
+
+    async def _get(self, company_id: uuid.UUID, order_id: uuid.UUID) -> GuestOrder:
+        order = await self._orders.get(company_id, order_id)
+        if order is None:
+            raise LookupError("Order not found")
+        return order
+
+    async def _move(
+        self, company_id: uuid.UUID, order_id: uuid.UUID, allowed: set[OrderStatus], order: GuestOrder
+    ) -> GuestOrder:
+        moved = await self._orders.move(company_id, order_id, allowed, order)
+        if moved is None:
+            raise ValueError("The order is not in a state for this")
+        return moved
