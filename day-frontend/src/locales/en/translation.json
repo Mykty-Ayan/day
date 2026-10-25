@@ -1548,7 +1548,8 @@
         "cash": "cash",
         "card": "card",
         "transfer": "transfer"
-      }
+      },
+      "onTab": "on the tab"
     }
   }
 }

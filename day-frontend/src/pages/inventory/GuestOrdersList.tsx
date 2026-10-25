@@ -54,6 +54,7 @@ export default function GuestOrdersList() {
                   // The server keeps UTC without a zone: shown on this device's clock.
                   o.created_at ? new Date(`${o.created_at}Z`).toLocaleString(i18n.language, { dateStyle: 'short', timeStyle: 'short' }) : null,
                   t(`inventory.orders.statuses.${o.status}`),
+                  o.payment_status === 'on_booking' ? t('inventory.orders.onTab') : null,
                   o.payment_method ? t(`inventory.orders.payments.${o.payment_method}`) : null,
                 ]
                   .filter(Boolean)

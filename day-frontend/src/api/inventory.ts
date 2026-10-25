@@ -87,6 +87,8 @@ export interface GuestOrder {
   status: OrderStatus
   total: number
   guest_note: string | null
+  /** null until delivered; on_booking: on the guest's tab, to be paid later. */
+  payment_status: 'paid' | 'on_booking' | null
   payment_method: 'cash' | 'card' | 'transfer' | null
   property_name: string | null
   guest_name: string | null
