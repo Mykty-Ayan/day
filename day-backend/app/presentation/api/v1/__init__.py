@@ -13,6 +13,7 @@ from app.presentation.api.v1.company_facts import company_fact_router
 from app.presentation.api.v1.expenses import expense_router
 from app.presentation.api.v1.health import router as health_router
 from app.presentation.api.v1.ical import ical_router
+from app.presentation.api.v1.inventory import inventory_router
 from app.presentation.api.v1.leads import blacklist_router, lead_router
 from app.presentation.api.v1.link_preview import preview_router
 from app.presentation.api.v1.offers import offers_router
@@ -53,6 +54,7 @@ api_v1_router.include_router(public_router)
 api_v1_router.include_router(preview_router)
 api_v1_router.include_router(offers_router)
 api_v1_router.include_router(expense_router)
+api_v1_router.include_router(inventory_router)
 api_v1_router.include_router(agent_router)
 api_v1_router.include_router(company_fact_router)
 api_v1_router.include_router(site_router)
