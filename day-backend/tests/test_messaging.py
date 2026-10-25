@@ -1,7 +1,7 @@
 """Unit tests for the messaging context: link codes, outbox, and both bots."""
 
 import uuid
-from datetime import date, datetime, time, timedelta
+from datetime import date, datetime, timedelta
 from decimal import Decimal
 
 import pytest
@@ -19,8 +19,6 @@ from app.domain.assistant.gateway import ChatMessage
 from app.domain.assistant.value_objects import AssistantReply, AssistantUnavailable, PendingAction
 from app.domain.auth.entities import User
 from app.domain.auth.value_objects import UserRole
-from app.domain.booking.entities import Booking
-from app.domain.booking.value_objects import BookingStatus
 from app.domain.messaging.entities import (
     ChannelIdentity,
     ChannelLinkCode,
@@ -435,17 +433,14 @@ class TestNotifications:
 # ---------- host bot ----------
 
 
-def _host_bot(availability=None, bookings=None, assistant=None) -> HostBotService:
+def _host_bot(assistant=None, mini_app_url=None) -> HostBotService:
     async def assistant_for(identity):
         return assistant
 
     return HostBotService(
         LinkChannelService(FakeLinkCodeRepository(), FakeIdentityRepository()),
-        availability or StubAvailability([]),
-        bookings,
-        None,
-        None,
         assistant_for=assistant_for if assistant is not None else None,
+        mini_app_url=mini_app_url,
     )
 
 
@@ -486,25 +481,57 @@ class TestHostBotAssistant:
         assert reply.text == "Свободна 62-я, 25 000 ₸."
         assert assistant.asked == ["что свободно завтра?"]
 
-    @pytest.mark.asyncio
-    async def test_a_proposed_change_is_described_not_performed(self):
-        assistant = StubAssistant(
+    @staticmethod
+    def _proposing(arguments: dict) -> StubAssistant:
+        return StubAssistant(
             AssistantReply(
                 text="",
-                pending=PendingAction(
-                    tool="create_booking",
-                    arguments={"guest_name": "Ерлан"},
-                    summary="Забронировать 28auc на Ерлана",
-                ),
+                pending=PendingAction(tool="add_payment", arguments=arguments, summary="Принять 10 000 ₸ от Ерлана"),
             )
         )
-        bot = _host_bot(assistant=assistant)
+
+    @pytest.mark.asyncio
+    async def test_a_proposed_change_on_a_booking_opens_its_card_in_the_mini_app(self):
+        booking_id = uuid.uuid4()
+        bot = _host_bot(self._proposing({"booking_id": str(booking_id)}), "https://app.example.com/tma")
+
+        reply = await bot.handle(self.IDENTITY, "555", "прими 10 000 от Ерлана")
+
+        assert "Принять 10 000 ₸ от Ерлана" in reply.text
+        assert [(b.text, b.url) for b in reply.buttons] == [
+            ("Открыть бронь", f"https://app.example.com/tma?booking={booking_id}")
+        ]
+
+    @pytest.mark.asyncio
+    async def test_any_other_proposed_change_opens_the_ask_screen(self):
+        bot = _host_bot(self._proposing({"guest_name": "Ерлан"}), "https://app.example.com/tma")
 
         reply = await bot.handle(self.IDENTITY, "555", "забронируй 28auc на Ерлана")
 
-        assert "Забронировать 28auc на Ерлана" in reply.text
-        # There is no button in a chat, so the bot must send them where one is.
-        assert "Панел" in reply.text
+        assert [b.url for b in reply.buttons] == ["https://app.example.com/tma?tab=ask"]
+        assert "повторите" in reply.text
+
+    @pytest.mark.asyncio
+    async def test_an_id_the_model_made_up_does_not_go_into_the_link(self):
+        bot = _host_bot(self._proposing({"booking_id": "42&tab=money"}), "https://app.example.com/tma")
+
+        reply = await bot.handle(self.IDENTITY, "555", "прими оплату")
+
+        assert [b.url for b in reply.buttons] == ["https://app.example.com/tma?tab=ask"]
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "chat, url",
+        [("555", "http://localhost:3000/tma"), ("555", None), ("-100123", "https://app.example.com/tma")],
+    )
+    async def test_no_button_where_telegram_would_refuse_it(self, chat, url):
+        bot = _host_bot(self._proposing({"booking_id": str(uuid.uuid4())}), url)
+
+        reply = await bot.handle(self.IDENTITY, chat, "прими оплату")
+
+        assert reply.buttons == []
+        # Nothing is done by a reply: the operator is sent to the app.
+        assert "«Day»" in reply.text
 
     @pytest.mark.asyncio
     async def test_without_a_model_the_bot_behaves_as_before(self):
@@ -527,7 +554,7 @@ class TestHostBotAssistant:
         reply = await bot.handle(self.IDENTITY, "555", "что свободно завтра?")
 
         assert "boom" not in reply.text
-        assert "Панел" in reply.text
+        assert "«Day»" in reply.text
 
     @pytest.mark.asyncio
     async def test_commands_still_win_over_the_assistant(self):
@@ -536,7 +563,19 @@ class TestHostBotAssistant:
 
         reply = await bot.handle(self.IDENTITY, "555", "/help")
 
-        assert "Команды" in reply.text
+        assert "/stop" in reply.text
+        assert assistant.asked == []
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("command", ["/free", "/free 12.08 15.08", "/today", "/bookings"])
+    async def test_the_list_commands_are_gone_and_point_to_the_mini_app(self, command):
+        # Lists live in the Mini App now; the bot answers with where to find them.
+        assistant = StubAssistant(AssistantReply(text="я бы ответил"))
+
+        reply = await _host_bot(assistant).handle(self.IDENTITY, "555", command, today=TODAY)
+
+        assert "«Day»" in reply.text
+        assert "/free" not in reply.text and "/today" not in reply.text and "/bookings" not in reply.text
         assert assistant.asked == []
 
     @pytest.mark.asyncio
@@ -572,7 +611,7 @@ class TestHostBot:
         identities = FakeIdentityRepository()
         link = LinkChannelService(codes, identities)
         code = await link.issue_code(COMPANY_ID, OWNER_ID)
-        bot = HostBotService(link, StubAvailability([]), None, None, None)
+        bot = HostBotService(link)
 
         reply = await bot.handle(None, "555", f"/start {code.code}", "Host")
 
@@ -585,95 +624,10 @@ class TestHostBot:
         assert "Unknown code" in reply.text or "код" in reply.text.lower()
 
     @pytest.mark.asyncio
-    async def test_free_lists_available_properties_with_prices(self):
-        availability = StubAvailability(
-            [StubOption("Studio", Decimal("25000")), StubOption("Loft", None)]
-        )
-        identity = ChannelIdentity(company_id=COMPANY_ID, channel=Channel.TELEGRAM, external_id="555")
-
-        reply = await _host_bot(availability).handle(identity, "555", "/free 12.08 15.08", today=TODAY)
-
-        assert "Studio" in reply.text and "25000" in reply.text
-        assert "Loft" in reply.text
-        _, check_in, check_out = availability.calls[0]
-        assert (check_in, check_out) == (date(2026, 8, 12), date(2026, 8, 15))
-
-    @pytest.mark.asyncio
-    async def test_free_lists_a_flat_against_its_rule_with_the_rule(self):
-        from app.domain.booking.stay_rules import RuleBreach
-
-        availability = StubAvailability([StubOption("Studio", Decimal("25000"), [RuleBreach("min_nights", 2, 1)])])
-        identity = ChannelIdentity(company_id=COMPANY_ID, channel=Channel.TELEGRAM, external_id="555")
-
-        reply = await _host_bot(availability).handle(identity, "555", "/free", today=TODAY)
-
-        assert "минимум ночей 2, в брони 1" in reply.text
-
-    @pytest.mark.asyncio
-    async def test_free_escapes_flat_names(self):
-        availability = StubAvailability([StubOption("Loft <2> & co", None)])
-        identity = ChannelIdentity(company_id=COMPANY_ID, channel=Channel.TELEGRAM, external_id="555")
-
-        reply = await _host_bot(availability).handle(identity, "555", "/free", today=TODAY)
-
-        assert "Loft &lt;2&gt; &amp; co" in reply.text
-
-    @pytest.mark.asyncio
-    async def test_free_without_dates_uses_tonight(self):
-        availability = StubAvailability([])
-        identity = ChannelIdentity(company_id=COMPANY_ID, channel=Channel.TELEGRAM, external_id="555")
-
-        await _host_bot(availability).handle(identity, "555", "/free", today=TODAY)
-
-        _, check_in, check_out = availability.calls[0]
-        assert (check_in, check_out) == (TODAY, TODAY + timedelta(days=1))
-
-    @pytest.mark.asyncio
-    async def test_today_lists_the_guest_arriving_this_afternoon(self):
-        class SqlLikeRange:
-            """The repository's own overlap test: a date bound means midnight."""
-
-            def __init__(self, rows):
-                self.rows = rows
-
-            async def list_by_company_date_range(self, company_id, start, end):
-                start, end = datetime.combine(start, time()), datetime.combine(end, time())
-                return [b for b in self.rows if b.check_in < end and b.check_out > start]
-
-        class Named:
-            def __init__(self, name):
-                self.name = name
-
-        class ByName:
-            async def get_by_id(self, _id):
-                return Named("Studio <12>")
-
-        arriving = Booking(
-            company_id=COMPANY_ID,
-            check_in=datetime.combine(TODAY, time(14)),
-            check_out=datetime.combine(TODAY + timedelta(days=2), time(12)),
-            status=BookingStatus.CONFIRMED,
-        )
-        bot = HostBotService(
-            LinkChannelService(FakeLinkCodeRepository(), FakeIdentityRepository()),
-            StubAvailability([]),
-            SqlLikeRange([arriving]),
-            ByName(),
-            ByName(),
-        )
-        identity = ChannelIdentity(company_id=COMPANY_ID, channel=Channel.TELEGRAM, external_id="555")
-
-        reply = await bot.handle(identity, "555", "/today", today=TODAY)
-
-        arrivals = reply.text.split("<b>Выезды</b>")[0]
-        assert "10.08 14:00" in arrivals
-        assert "Studio &lt;12&gt;" in arrivals  # Telegram reads the reply as HTML
-
-    @pytest.mark.asyncio
     async def test_unknown_command_shows_help(self):
         identity = ChannelIdentity(company_id=COMPANY_ID, channel=Channel.TELEGRAM, external_id="555")
         reply = await _host_bot().handle(identity, "555", "/wat")
-        assert "/free" in reply.text
+        assert "/help" in reply.text
 
     @pytest.mark.asyncio
     async def test_deactivated_identity_is_treated_as_unlinked(self):
@@ -886,19 +840,11 @@ class TestTeamMembersInTelegram:
     @pytest.mark.asyncio
     @pytest.mark.parametrize("text", ["/today", "/bookings", "/free", "/help", "кто заезжает сегодня?"])
     async def test_a_cleaners_chat_gets_no_bookings_and_no_assistant(self, text):
-        class Untouchable:
-            async def list_by_company_date_range(self, *args):
-                raise AssertionError("a cleaner must not read bookings")
-
         async def assistant_for(identity):
             raise AssertionError("a cleaner must not reach the assistant")
 
         bot = HostBotService(
             LinkChannelService(FakeLinkCodeRepository(), FakeIdentityRepository()),
-            StubAvailability([]),
-            Untouchable(),
-            None,
-            None,
             assistant_for=assistant_for,
             user_repo=StubUsers([CLEANER]),
         )
@@ -915,7 +861,7 @@ class TestTeamMembersInTelegram:
         codes, identities = FakeLinkCodeRepository(), FakeIdentityRepository()
         link = LinkChannelService(codes, identities, StubUsers([OWNER, CLEANER]))
         code = await link.issue_code_for_member(COMPANY_ID, CLEANER.id)
-        bot = HostBotService(link, StubAvailability([]), None, None, None, user_repo=StubUsers([OWNER, CLEANER]))
+        bot = HostBotService(link, user_repo=StubUsers([OWNER, CLEANER]))
 
         reply = await bot.handle(None, "777", f"/start {code.code}")
 

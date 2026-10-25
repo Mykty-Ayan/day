@@ -1,4 +1,5 @@
 import apiClient from './client'
+import type { GanttDayPrice } from '../types/booking'
 import type { Property, PropertyCreateInput, PropertyUpdateInput, PropertyFilters, PaginatedResponse, PricingConfig, PricingInput, SeasonalPrice, SeasonalPriceInput, DiscountRule, DiscountRuleInput, Amenity, PropertyAuditLog, PropertyStatus, PhotoAudience, Tag, TagCreateInput, PropertyBlock, CalendarFeed } from '../types/property'
 
 // --- Properties ---
@@ -323,6 +324,11 @@ export async function removeCalendarFeed(propertyId: string, feedId: string): Pr
 export interface DayPriceRange {
   start_date: string
   end_date: string
+}
+
+export async function listDayPrices(propertyId: string, dateFrom: string, dateTo: string): Promise<GanttDayPrice[]> {
+  const res = await apiClient.get(`/properties/${propertyId}/day-prices`, { params: { date_from: dateFrom, date_to: dateTo } })
+  return res.data
 }
 
 export async function setDayPrices(propertyId: string, body: DayPriceRange & { price: number }): Promise<void> {
