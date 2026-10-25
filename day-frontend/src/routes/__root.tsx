@@ -13,7 +13,7 @@ const CLEANER_ROUTE_PREFIX = '/cleaner'
 // not be bounced to /login before it has had the chance.
 const MINIAPP_ROUTE = '/tma'
 // Guest pages, opened by a link, nobody signs in: a flat's page and a personal link.
-const GUEST_PAGE_PREFIXES = ['/s/', '/o/', '/c/']
+const GUEST_PAGE_PREFIXES = ['/s/', '/o/', '/c/', '/g/']
 const isGuestPage = (pathname: string) => GUEST_PAGE_PREFIXES.some((prefix) => pathname.startsWith(prefix))
 
 export const Route = createRootRoute({

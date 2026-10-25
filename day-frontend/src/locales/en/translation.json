@@ -881,6 +881,15 @@
       "mismatch": "The passwords do not match",
       "wrongCurrent": "The current password is wrong",
       "failed": "Could not change the password"
+    },
+    "guestPage": {
+      "title": "Guest page",
+      "description": "When the guest sees the door code and Wi-Fi on their page: once paid in full, this many hours before check-in (0–168).",
+      "daily": "By the night, hours before check-in",
+      "hourly": "By the hour, hours before check-in",
+      "save": "Save",
+      "invalid": "Hours: a whole number from 0 to 168",
+      "failed": "Could not save"
     }
   },
   "team": {
@@ -1631,5 +1640,45 @@
     "parHint": "Empty: no threshold",
     "toBuy": "What to buy",
     "toBuyLine": "+{{qty}} pcs (have {{stock}}, threshold {{par}})"
+  },
+  "guestPanel": {
+    "notFound": "This link was not found. Write to the host for a new one.",
+    "hello": "Hello, {{name}}!",
+    "stay": "Check-in {{from}} from {{checkIn}}, check-out {{to}} by {{checkOut}}",
+    "closed": "This booking is closed. Write to us if you have questions.",
+    "address": "Address",
+    "map": "Host's map",
+    "payment": "Payment",
+    "paid": "Paid {{paid}} of {{total}}",
+    "remaining": "Left to pay: {{amount}}",
+    "checkIn": "How to check in",
+    "rules": "House rules",
+    "checkOutBy": "Check-out by {{time}}",
+    "contact": "Contact the host",
+    "buttons": {
+      "pay": "How to pay",
+      "earlyCheckIn": "Early check-in",
+      "cannotGetIn": "I can't get in",
+      "extend": "Extend my stay",
+      "lateCheckOut": "Late check-out",
+      "cleaning": "Cleaning or fresh linen",
+      "broken": "Something is broken",
+      "documents": "Documents for my records",
+      "checkedOut": "I have checked out",
+      "question": "Ask a question"
+    },
+    "wa": {
+      "intro": "Hello! I'm {{name}}, booking {{dates}}, flat {{flat}}.",
+      "pay": "I'd like to pay for the booking. {{amount}} is left. Please send the payment details.",
+      "earlyCheckIn": "May I check in before {{checkIn}}?",
+      "cannotGetIn": "I can't get into the flat. Please help.",
+      "extend": "I'd like to extend my stay. For how many nights is it possible?",
+      "lateCheckOut": "May I check out after {{checkOut}}?",
+      "cleaning": "I need cleaning / fresh linen.",
+      "broken": "Something isn't working: ",
+      "documents": "I need documents for my records (receipt, statement) for the stay.",
+      "checkedOut": "I have checked out. Keys: "
+    },
+    "codeOpens": "The door code and Wi-Fi appear here once the stay is paid in full, {{hours}} h before check-in."
   }
 }
