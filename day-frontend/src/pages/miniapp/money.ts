@@ -15,7 +15,9 @@ export function periodRange(period: MoneyPeriod, today: Date): { date_from: stri
   return { date_from: toISODate(first), date_to: toISODate(last) }
 }
 
-export const owed = (booking: Booking) => Math.max(0, booking.total_price - (booking.paid_amount ?? 0))
+/** The stay's debt and the minibar orders on the guest's tab. */
+export const owed = (booking: Booking) =>
+  Math.max(0, booking.total_price - (booking.paid_amount ?? 0)) + (booking.orders_due ?? 0)
 
 const live = (bookings: Booking[]) => bookings.filter((booking) => booking.status !== 'cancelled')
 const sum = (values: number[]) => values.reduce((total, value) => total + value, 0)

@@ -18,6 +18,7 @@ import {
   MessageCircle,
   Plus,
   Send,
+  ShoppingBag,
   SprayCan,
   Users,
   Wallet,
@@ -25,6 +26,7 @@ import {
 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { getBooking, getTodayChecks, listBookings } from '../../api/bookings'
+import { listGuestOrders } from '../../api/guest-orders'
 import { onSessionStored, storeSession } from '../../api/client'
 import { onIdentityChange, roleFromToken, sessionIdentity } from '../../lib/token'
 import { telegramMiniAppLogin, type AvailableProperty } from '../../api/miniapp'
@@ -48,6 +50,8 @@ import { addDays, formatDay, formatMoney, formatTime, toISODate } from './format
 import { ActionButton, BookingRow, Screen, Section, TabBar } from './miniapp-ui'
 import BookingsScreen from './BookingsScreen'
 import MoneyScreen from './MoneyScreen'
+import OrdersScreen from './OrdersScreen'
+import { linkedOrderId } from './orders'
 import { searchWithTab, tabFromSearch, type Tab } from './tabs'
 
 const UPCOMING_DAYS = 14
@@ -131,6 +135,9 @@ export default function MiniAppPage() {
 
   // The booking screens' reads; a cleaner would only get 403s from them.
   const enabled = authState === 'ready' && role !== 'cleaner' && !paused
+  // New guests' orders, for the header's badge; the orders screen shares the answer.
+  const ordersQuery = useQuery({ queryKey: ['miniapp', 'orders'], queryFn: listGuestOrders, enabled, refetchInterval: 30_000 })
+  const newOrders = (ordersQuery.data ?? []).filter((order) => order.status === 'new').length
 
   const todayQuery = useQuery({
     queryKey: ['miniapp', 'today'],
@@ -226,6 +233,22 @@ export default function MiniAppPage() {
     <div className="tg-root min-h-screen pb-24">
       <header className="tg-root sticky top-0 z-10 flex items-center gap-2 px-3 pt-3">
         <h1 className="flex-1 truncate text-base font-bold">{t(`miniapp.tabs.${tab === 'units' ? 'flats' : tab}`)}</h1>
+        <button
+          type="button"
+          aria-label={newOrders ? `${t('miniapp.tabs.orders')}: ${newOrders}` : t('miniapp.tabs.orders')}
+          aria-current={tab === 'orders' ? 'page' : undefined}
+          onClick={() => {
+            tapFeedback()
+            setTab('orders')
+          }}
+          className={`flex h-10 items-center gap-1.5 rounded-full px-3 text-xs font-bold ${tab === 'orders' ? 'tg-active' : 'tg-surface'}`}
+        >
+          <ShoppingBag className="h-4 w-4" />
+          {t('miniapp.tabs.orders')}
+          {newOrders > 0 && (
+            <span className="rounded-full bg-red-600 px-1.5 text-[11px] leading-5 text-white">{newOrders}</span>
+          )}
+        </button>
         <button
           type="button"
           aria-label={t('miniapp.tabs.ask')}
@@ -397,6 +420,8 @@ export default function MiniAppPage() {
         {tab === 'money' && <MoneyScreen enabled={enabled} today={today} onOpen={setBooking} />}
 
         {tab === 'ask' && <AskScreen />}
+
+        {tab === 'orders' && <OrdersScreen enabled={enabled} linkedId={linkedOrderId(window.location.search)} />}
       </main>
 
       <TabBar
@@ -443,7 +468,7 @@ function MoneyStrip({ bookings }: { bookings: Booking[] }) {
   const { t, i18n } = useTranslation()
 
   const owed = bookings.reduce(
-    (sum, booking) => sum + Math.max(0, booking.total_price - (booking.paid_amount ?? 0)),
+    (sum, booking) => sum + Math.max(0, booking.total_price - (booking.paid_amount ?? 0)) + (booking.orders_due ?? 0),
     0,
   )
   const booked = bookings.reduce((sum, booking) => sum + booking.total_price, 0)

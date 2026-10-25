@@ -5,11 +5,13 @@ import type { PaginatedResponse } from '../../types/property'
 import type { Booking, BookingFilters } from '../../types/booking'
 import { addDays, toISODate } from './format'
 
-// "ask" has no place in the bottom bar (five tabs at most): a button in the header opens it.
-export const TABS = ['today', 'bookings', 'sell', 'units', 'money', 'ask'] as const
+// "ask" and "orders" have no place in the bottom bar (five tabs at most): buttons in the header open them.
+export const TABS = ['today', 'bookings', 'sell', 'units', 'money', 'ask', 'orders'] as const
 export type Tab = (typeof TABS)[number]
 
 export function tabFromSearch(search: string): Tab {
+  // A bot notice about a guest's order opens the orders.
+  if (new URLSearchParams(search).get('order')) return 'orders'
   const value = new URLSearchParams(search).get('tab')
   return (TABS as readonly string[]).includes(value ?? '') ? (value as Tab) : 'today'
 }
@@ -17,6 +19,8 @@ export function tabFromSearch(search: string): Tab {
 /** The same address with another tab; the other parameters stay. */
 export function searchWithTab(search: string, tab: Tab): string {
   const params = new URLSearchParams(search)
+  // The order a notice pointed at is left behind with its tab.
+  if (tab !== 'orders') params.delete('order')
   if (tab === 'today') params.delete('tab')
   else params.set('tab', tab)
   const next = params.toString()
@@ -66,7 +70,7 @@ export async function readAllPages<T>(read: (page: number) => Promise<PaginatedR
 }
 
 export function owes(booking: Booking): boolean {
-  return booking.total_price - (booking.paid_amount ?? 0) > 0
+  return booking.total_price - (booking.paid_amount ?? 0) > 0 || (booking.orders_due ?? 0) > 0
 }
 
 /** What the server's date window lets through but the segment does not mean:
