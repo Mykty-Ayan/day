@@ -73,6 +73,7 @@ export default function AnalyticsFilterBar({
     { value: 'other', label: t('common.other') },
     { value: 'crm', label: t('bookings.sources.crm') },
     { value: 'offer', label: t('bookings.sources.offer') },
+    { value: 'site', label: t('bookings.sources.site') },
   ]
 
   const selectedProperties = properties.filter((p) => propertyIds.includes(p.id))

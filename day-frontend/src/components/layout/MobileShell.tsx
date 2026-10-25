@@ -14,6 +14,7 @@ import {
   SprayCan,
   Clock,
   Wallet,
+  Package,
   Handshake,
   ClipboardCheck,
   Globe,
@@ -26,6 +27,8 @@ type MobileShellProps = {
   userEmail?: string
   /** The owner also sees the company's expenses. */
   isOwner?: boolean
+  /** The owner and the manager also keep the minibar's stock. */
+  keepsStock?: boolean
   onLogout: () => void
   children: ReactNode
 }
@@ -38,6 +41,7 @@ export default function MobileShell({
   pathname,
   userEmail,
   isOwner = false,
+  keepsStock = false,
   onLogout,
   children,
 }: MobileShellProps) {
@@ -62,11 +66,12 @@ export default function MobileShell({
       { to: '/cleaning/checklists', label: t('nav.checklists'), icon: ClipboardList },
       { to: '/agents', label: t('nav.agents'), icon: Handshake },
       ...(isOwner ? [{ to: '/expenses', label: t('nav.expenses'), icon: Wallet }] : []),
+      ...(keepsStock ? [{ to: '/inventory', label: t('nav.inventory'), icon: Package }] : []),
       ...(isOwner ? [{ to: '/site', label: t('nav.site'), icon: Globe }] : []),
       ...(AI_IMPORT_ENABLED ? [{ to: '/ai-import', label: t('nav.aiImport'), icon: Sparkles }] : []),
       { to: '/settings', label: t('nav.settings'), icon: Settings },
     ],
-    [t, isOwner],
+    [t, isOwner, keepsStock],
   )
 
   const morePrefixes = useMemo(() => moreLinks.map((item) => item.to), [moreLinks])

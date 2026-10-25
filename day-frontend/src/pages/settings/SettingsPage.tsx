@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion'
 import { useState } from 'react'
-import { Globe, Check, ChevronRight, Users, KeyRound, ShieldCheck } from 'lucide-react'
+import { Globe, Check, ChevronRight, Users, KeyRound, ShieldCheck, DoorOpen } from 'lucide-react'
 import { Link } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 import { showToast } from '../../components/ui/Toast'
@@ -9,6 +9,7 @@ import { changePassword, setTwoFactor } from '../../api/auth'
 import { useQueryClient } from '@tanstack/react-query'
 import { sessionGeneration, storeSession } from '../../api/client'
 import Button from '../../components/ui/Button'
+import { useSettings, useUpdateSettings } from '../../hooks/useSettings'
 
 const LANGUAGES = [
   { code: 'ru', label: 'Русский', flag: 'RU' },
@@ -76,6 +77,7 @@ export default function SettingsPage() {
 
         <PasswordCard />
         <TwoFactorCard />
+        {currentUser?.role === 'owner' && <GuestPageCard />}
 
         {/* Team and service keys live behind their own page — owner only. */}
         {currentUser?.role === 'owner' && (
@@ -235,6 +237,61 @@ function TwoFactorCard() {
           </Button>
         </>
       )}
+    </form>
+  )
+}
+
+/** When the guest's page shows the door code and Wi-Fi: once paid, so many hours
+ *  before check-in. The owner's, as the settings are. */
+function GuestPageCard() {
+  const { t } = useTranslation()
+  const { data: settings } = useSettings()
+  const update = useUpdateSettings()
+  const [daily, setDaily] = useState<string | null>(null)
+  const [hourly, setHourly] = useState<string | null>(null)
+  const shownDaily = daily ?? String(settings?.secrets_lead_hours_daily ?? 24)
+  const shownHourly = hourly ?? String(settings?.secrets_lead_hours_hourly ?? 1)
+  const valid = (v: string) => /^\d{1,3}$/.test(v) && Number(v) <= 168
+
+  async function save(event: React.FormEvent) {
+    event.preventDefault()
+    if (!valid(shownDaily) || !valid(shownHourly)) {
+      showToast('error', t('settings.guestPage.invalid'))
+      return
+    }
+    try {
+      await update.mutateAsync({ secrets_lead_hours_daily: Number(shownDaily), secrets_lead_hours_hourly: Number(shownHourly) })
+      setDaily(null)
+      setHourly(null)
+      showToast('success', t('settings.saved'))
+    } catch {
+      showToast('error', t('settings.guestPage.failed'))
+    }
+  }
+
+  const input = 'mt-1.5 w-full rounded-xl border border-gray-200 bg-gray-50 p-3 text-sm text-gray-800'
+  return (
+    <form onSubmit={save} className="mt-4 space-y-3 rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+      <div className="flex items-center gap-2">
+        <DoorOpen className="h-4 w-4 text-gray-500" />
+        <div>
+          <h2 className="text-sm font-bold text-gray-900">{t('settings.guestPage.title')}</h2>
+          <p className="text-xs text-gray-500">{t('settings.guestPage.description')}</p>
+        </div>
+      </div>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <label className="text-xs font-bold uppercase tracking-wider text-gray-400">
+          {t('settings.guestPage.daily')}
+          <input id="lead-daily" inputMode="numeric" value={shownDaily} onChange={(e) => setDaily(e.target.value)} className={input} />
+        </label>
+        <label className="text-xs font-bold uppercase tracking-wider text-gray-400">
+          {t('settings.guestPage.hourly')}
+          <input id="lead-hourly" inputMode="numeric" value={shownHourly} onChange={(e) => setHourly(e.target.value)} className={input} />
+        </label>
+      </div>
+      <Button type="submit" disabled={update.isPending}>
+        {t('settings.guestPage.save')}
+      </Button>
     </form>
   )
 }

@@ -67,3 +67,17 @@ test('guests and notes go out only when changed', () => {
     patch: { children_count: 1 },
   })
 })
+
+test('an hourly stay past midnight is edited, its end on the next day', () => {
+  const b = booking({ rental_mode: 'hourly', check_in: '2026-10-25T22:00:00', check_out: '2026-10-26T02:00:00' })
+  const form = formFromBooking(b)
+  expect(form).toMatchObject({ day: '2026-10-25', start: '22:00', end: '02:00' })
+  // Untouched, it sends nothing; a note alone saves.
+  expect(editPatch(b, form)).toEqual({ patch: {} })
+  expect(editPatch(b, { ...form, notes: 'ключи у охраны' })).toEqual({ patch: { notes: 'ключи у охраны' } })
+  expect(editPatch(b, { ...form, end: '03:00' })).toEqual({
+    patch: { check_in: '2026-10-25T22:00:00', check_out: '2026-10-26T03:00:00' },
+  })
+  // The same start and end is no stay.
+  expect(editPatch(b, { ...form, end: '22:00' })).toEqual({ error: 'dates' })
+})

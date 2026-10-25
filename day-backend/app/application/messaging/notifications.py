@@ -34,7 +34,12 @@ _SOURCES = {
     "site": "Сайт",
 }
 
-_BOOKING_EVENTS = {NotificationEvent.BOOKING_CREATED, NotificationEvent.BOOKING_CANCELLED, NotificationEvent.GUEST_HOLD}
+_BOOKING_EVENTS = {
+    NotificationEvent.BOOKING_CREATED,
+    NotificationEvent.BOOKING_CANCELLED,
+    NotificationEvent.GUEST_HOLD,
+    NotificationEvent.GUEST_CHECKED_OUT,
+}
 
 
 def _money(value: str) -> str:
@@ -63,6 +68,8 @@ def render(event: NotificationEvent, payload: dict) -> str:
         # Cut before escaping: a cut through "&amp;" makes Telegram refuse the message.
         payload["text"] = payload["text"][:400]
     payload = {key: html.escape(value) if isinstance(value, str) else value for key, value in payload.items()}
+    if isinstance(payload.get("lines"), list):
+        payload["lines"] = [html.escape(str(line)) for line in payload["lines"]]
 
     if event == NotificationEvent.BOOKING_CREATED:
         lines = [
@@ -111,6 +118,27 @@ def render(event: NotificationEvent, payload: dict) -> str:
         else:
             lines += ["", f"Залог у квартиры не задан: подтвердите бронь в карточке до {until}, иначе она снимется."]
         return "\n".join(lines)
+
+    if event == NotificationEvent.GUEST_CHECKED_OUT:
+        lines = [
+            "🚪 <b>Гость выехал</b>",
+            f"Объект: {payload.get('property_name', '—')}",
+            f"Гость: {payload.get('guest_name', '—')}",
+        ]
+        if payload.get("cleaning_created"):
+            lines.append("Создана задача уборки.")
+        lines.append("Проверьте квартиру и отметьте выезд в карточке брони.")
+        return "\n".join(lines)
+    if event == NotificationEvent.GUEST_ORDER:
+        lines = [
+            f"🛒 <b>Новый заказ №{payload.get('number', '—')}</b>",
+            f"Объект: {payload.get('property_name', '—')}",
+            *(f"• {line}" for line in payload.get("lines", [])),
+            f"Сумма: {_money(payload['total'])}" if payload.get("total") else "",
+        ]
+        if payload.get("note"):
+            lines.append(f"Комментарий: {payload['note']}")
+        return "\n".join(line for line in lines if line)
 
     if event == NotificationEvent.CALENDAR_CLASH:
         return "\n".join(
@@ -226,12 +254,12 @@ class NotificationDispatcher:
         group, so a dev server or a group chat gets the text alone.
         """
         booking_id = notification.payload.get("booking_id")
-        if (
-            notification.event not in _BOOKING_EVENTS
-            or not booking_id
-            or not (self._mini_app_url or "").startswith("https://")
-            or not notification.target.isdigit()
-        ):
+        order_id = notification.payload.get("order_id")
+        if not (self._mini_app_url or "").startswith("https://") or not notification.target.isdigit():
+            return None
+        if notification.event == NotificationEvent.GUEST_ORDER and order_id:
+            return [AppButton("Открыть заказ", f"{self._mini_app_url}?order={order_id}")]
+        if notification.event not in _BOOKING_EVENTS or not booking_id:
             return None
         return [AppButton("Открыть бронь", f"{self._mini_app_url}?booking={booking_id}")]
 

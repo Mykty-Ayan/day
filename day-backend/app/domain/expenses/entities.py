@@ -26,6 +26,7 @@ class ExpenseCategory(str, enum.Enum):
     STAFF = "staff"
     AGENT_COMMISSION = "agent_commission"
     SOFTWARE = "software"
+    MINIBAR = "minibar"  # goods bought for the guests' minibar, written by a purchase
     OTHER = "other"
 
 

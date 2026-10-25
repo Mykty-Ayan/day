@@ -47,6 +47,8 @@ PROPERTY_PHOTOS_PREFIX = "properties/"
 # Check-in photos (the entrance, the lock): outside the public prefix, handed
 # out only as signed links to those who may see door codes.
 CHECKIN_PHOTOS_PREFIX = "checkin/"
+# Minibar products: shown on the guest's panel, public as listing photos are.
+PRODUCT_PHOTOS_PREFIX = "products/"
 #: Long enough for the CRM to hand a link to WhatsApp, short enough that a
 #: forwarded link or one kept after access was revoked dies within the hour.
 CHECKIN_PHOTO_LINK_SECONDS = 3600
@@ -55,13 +57,12 @@ CHECKIN_PHOTO_LINK_SECONDS = 3600
 def apply_read_policy(client) -> None:
     """Set who may read the bucket without signing in.
 
-    Listing photos (properties/…) are public by nature: guests, OTAs and the
+    Listing photos (properties/…) and minibar products (products/…) are public by nature: guests, OTAs and the
     CRM open them by link. Everything else — booking files, guests'
     documents — is served only through the API, with no switch to open it.
     Applying the policy replaces one left by an earlier deploy, so a bucket
     made public before closes again.
     """
-    readable = f"{PROPERTY_PHOTOS_PREFIX}*"
     policy = {
         "Version": "2012-10-17",
         "Statement": [
@@ -70,7 +71,10 @@ def apply_read_policy(client) -> None:
                 "Effect": "Allow",
                 "Principal": "*",
                 "Action": ["s3:GetObject"],
-                "Resource": [f"arn:aws:s3:::{settings.S3_BUCKET}/{readable}"],
+                "Resource": [
+                    f"arn:aws:s3:::{settings.S3_BUCKET}/{prefix}*"
+                    for prefix in (PROPERTY_PHOTOS_PREFIX, PRODUCT_PHOTOS_PREFIX)
+                ],
             }
         ],
     }
@@ -158,6 +162,18 @@ async def upload_property_photo(*, property_id: uuid.UUID, file_obj, content_typ
         file_obj.seek(0)
     except Exception:
         pass
+    await asyncio.to_thread(
+        client.upload_fileobj, file_obj, settings.S3_BUCKET, key, ExtraArgs={"ContentType": content_type}
+    )
+    return build_public_url(key)
+
+
+async def upload_product_photo(*, company_id: uuid.UUID, file_obj, content_type: str) -> str:
+    """Store a minibar product's picture under its public prefix."""
+    client = _s3_client()
+    await asyncio.to_thread(_ensure_bucket, client)
+    await asyncio.to_thread(apply_read_policy, client)
+    key = f"{PRODUCT_PHOTOS_PREFIX}{company_id}/{uuid.uuid4()}{_PHOTO_EXTENSIONS.get(content_type, '')}"
     await asyncio.to_thread(
         client.upload_fileobj, file_obj, settings.S3_BUCKET, key, ExtraArgs={"ContentType": content_type}
     )

@@ -136,6 +136,9 @@ class BookingResponse(BaseModel):
     # What has actually been received, so a list can show who still owes without
     # asking for every booking's payments one at a time.
     paid_amount: Decimal = Decimal("0")
+    # Minibar orders delivered on the guest's tab: owed on top of the stay, apart
+    # from total_price and its payments.
+    orders_due: Decimal = Decimal("0")
     adults_count: int
     children_count: int
     notes: str | None = None
@@ -150,6 +153,8 @@ class BookingResponse(BaseModel):
     # An OTA booking that landed on nights already taken: kept, not dropped,
     # and shown so someone moves or cancels one of the two.
     overbooking: bool = False
+    # The guest's own page (/g/<code>), for whoever may hand out door codes.
+    guest_url: str | None = None
     created_at: datetime | None = None
     updated_at: datetime | None = None
 
@@ -184,6 +189,8 @@ class BookingFeedItem(BaseModel):
     expires_at: datetime | None = None
     # An OTA booking on nights already taken; see BookingResponse.
     overbooking: bool = False
+    # The guest's own page, to send the guest; see BookingResponse.
+    guest_url: str | None = None
     created_at: datetime
     updated_at: datetime
 
