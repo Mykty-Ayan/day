@@ -1,6 +1,7 @@
 /** Which tab the Mini App shows, kept in the address so a reload or a link from a
  *  bot notice (`?tab=bookings`) lands on the same screen. */
 
+import type { PaginatedResponse } from '../../types/property'
 import type { Booking, BookingFilters } from '../../types/booking'
 import { addDays, toISODate } from './format'
 
@@ -23,10 +24,15 @@ export function searchWithTab(search: string, tab: Tab): string {
 
 export type BookingSegment = 'upcoming' | 'past' | 'cancelled'
 
-// Upcoming is one page read ahead and sorted here; the server sorts newest first,
-// which would page from the far end of the calendar.
+// Upcoming is read whole and sorted here: the server sorts newest first, which would
+// page from the far end of the calendar. A search drops the window's far end, so a
+// booking two months ahead is found by its guest.
 export const UPCOMING_WINDOW_DAYS = 30
 export const PAGE_SIZE = 30
+const WINDOW_PAGE = 100
+// A ceiling, not a design: ten pages are a thousand bookings in a month, far past a
+// subletter's flats. Past it the list says less than there is.
+const MAX_WINDOW_PAGES = 10
 
 export function segmentFilters(
   segment: BookingSegment,
@@ -35,12 +41,27 @@ export function segmentFilters(
   page = 1,
   propertyId = '',
 ): BookingFilters {
-  const base: BookingFilters = { search: search.trim() || undefined, property_id: propertyId || undefined }
+  const query = search.trim()
+  const base: BookingFilters = { search: query || undefined, property_id: propertyId || undefined }
   if (segment === 'upcoming') {
-    return { ...base, date_from: toISODate(today), date_to: toISODate(addDays(today, UPCOMING_WINDOW_DAYS)), per_page: 100 }
+    const until = query ? undefined : toISODate(addDays(today, UPCOMING_WINDOW_DAYS))
+    return { ...base, date_from: toISODate(today), date_to: until, per_page: WINDOW_PAGE, page }
   }
-  if (segment === 'past') return { ...base, date_to: toISODate(today), per_page: PAGE_SIZE, page }
+  // The server reads date_to as midnight: tomorrow keeps an hourly stay that ended
+  // this morning; segmentItems then keeps only what has ended.
+  if (segment === 'past') return { ...base, date_to: toISODate(addDays(today, 1)), per_page: PAGE_SIZE, page }
   return { ...base, status: 'cancelled', per_page: PAGE_SIZE, page }
+}
+
+/** Every page of a list, in order, up to the ceiling. */
+export async function readAllPages<T>(read: (page: number) => Promise<PaginatedResponse<T>>): Promise<T[]> {
+  const items: T[] = []
+  for (let page = 1; page <= MAX_WINDOW_PAGES; page++) {
+    const answer = await read(page)
+    items.push(...answer.items)
+    if (answer.page >= answer.pages) break
+  }
+  return items
 }
 
 export function owes(booking: Booking): boolean {
@@ -52,8 +73,9 @@ export function owes(booking: Booking): boolean {
 export function segmentItems(segment: BookingSegment, items: Booking[], now: Date, unpaidOnly: boolean): Booking[] {
   const at = now.getTime()
   const kept = items.filter((booking) => {
-    if (unpaidOnly && !owes(booking)) return false
+    // A cancelled booking owes nothing; the chip is hidden there and does not apply.
     if (segment === 'cancelled') return booking.status === 'cancelled'
+    if (unpaidOnly && !owes(booking)) return false
     if (booking.status === 'cancelled') return false
     const leaves = new Date(booking.check_out).getTime()
     return segment === 'upcoming' ? leaves > at : leaves <= at

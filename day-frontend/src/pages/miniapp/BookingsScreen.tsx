@@ -14,7 +14,7 @@ import type { Booking } from '../../types/booking'
 import { formatDay, formatMoney } from './format'
 import { ActionButton, BookingRow, Chip, Section } from './miniapp-ui'
 import OccupancyList from './OccupancyList'
-import { owes, segmentFilters, segmentItems, UPCOMING_WINDOW_DAYS, type BookingSegment } from './tabs'
+import { owes, readAllPages, segmentFilters, segmentItems, UPCOMING_WINDOW_DAYS, type BookingSegment } from './tabs'
 
 const SEARCH_DELAY_MS = 300
 
@@ -52,20 +52,21 @@ export default function BookingsScreen({
   })
 
   const upcoming = useQuery({
-    queryKey: ['miniapp', 'bookings', 'upcoming', search, propertyId],
-    queryFn: () => listBookings(segmentFilters('upcoming', today, search, 1, propertyId)),
+    // Its own key: the paged lists below cache pages under theirs, never in this shape.
+    queryKey: ['miniapp', 'bookings', 'window', search, propertyId],
+    queryFn: () => readAllPages((page) => listBookings(segmentFilters('upcoming', today, search, page, propertyId))),
     enabled: enabled && view === 'upcoming',
   })
 
   const paged = useInfiniteQuery({
-    queryKey: ['miniapp', 'bookings', segment, search, propertyId],
+    queryKey: ['miniapp', 'bookings', 'paged', segment, search, propertyId],
     queryFn: ({ pageParam }) => listBookings(segmentFilters(segment, today, search, pageParam, propertyId)),
     initialPageParam: 1,
     getNextPageParam: (last) => (last.page < last.pages ? last.page + 1 : undefined),
     enabled: enabled && view !== 'upcoming' && view !== 'occupancy',
   })
 
-  const loaded = segment === 'upcoming' ? (upcoming.data?.items ?? []) : (paged.data?.pages.flatMap((page) => page.items) ?? [])
+  const loaded = segment === 'upcoming' ? (upcoming.data ?? []) : (paged.data?.pages.flatMap((page) => page.items) ?? [])
   const items = segmentItems(segment, loaded, new Date(), unpaidOnly)
   const isLoading = segment === 'upcoming' ? upcoming.isLoading : paged.isLoading
   const isError = segment === 'upcoming' ? upcoming.isError : paged.isError
@@ -146,7 +147,7 @@ export default function BookingsScreen({
         </Section>
       )}
 
-      {segment === 'upcoming' && upcoming.data && (
+      {segment === 'upcoming' && upcoming.data && !search.trim() && (
         <p className="tg-hint px-1 text-xs">{t('miniapp.bookings.window', { days: UPCOMING_WINDOW_DAYS })}</p>
       )}
       {segment !== 'upcoming' && paged.hasNextPage && (
