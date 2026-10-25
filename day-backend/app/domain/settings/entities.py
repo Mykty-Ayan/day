@@ -18,5 +18,9 @@ class CompanySettings:
     default_language: Language = Language.RU
     # IANA name of the clock that check-in and check-out times are local to.
     time_zone: str = DEFAULT_TIME_ZONE
+    # How many hours before check-in the guest's page shows the way in (codes,
+    # Wi-Fi) once the stay is paid: by the night and by the hour.
+    secrets_lead_hours_daily: int = 24
+    secrets_lead_hours_hourly: int = 1
     created_at: datetime | None = None
     updated_at: datetime | None = None

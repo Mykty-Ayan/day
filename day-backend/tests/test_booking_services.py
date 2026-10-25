@@ -136,6 +136,9 @@ class FakeBookingRepository(BookingRepository):
     async def get_by_id(self, booking_id: uuid.UUID) -> Booking | None:
         return self._bookings.get(booking_id)
 
+    async def get_by_guest_code(self, code):
+        return next((b for b in self._bookings.values() if b.guest_code == code), None)
+
     async def lock_idempotency_key(self, company_id, key):
         pass
 
