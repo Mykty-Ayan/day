@@ -10,7 +10,7 @@ import { test, expect } from '../fixtures/e2e-auth'
 import { nextStep, priceField, wizardField } from '../fixtures/property-ui'
 import { createTestProperty, API_BASE } from '../fixtures/test-data'
 
-const NIGHTLY = ['Weekend Markup (%)', 'Base Guests', 'Extra Adult Price', 'Extra Child Price']
+const NIGHTLY = ['Weekend Markup (₸)', 'Base Guests', 'Extra Adult Price', 'Extra Child Price']
 
 async function expectNightly(scope: Locator, basePrice: string, shown: boolean) {
   for (const label of [basePrice, ...NIGHTLY]) {
