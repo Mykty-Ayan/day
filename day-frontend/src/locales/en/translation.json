@@ -1679,6 +1679,25 @@
       "documents": "I need documents for my records (receipt, statement) for the stay.",
       "checkedOut": "I have checked out. Keys: "
     },
-    "codeOpens": "The door code and Wi-Fi appear here once the stay is paid in full, {{hours}} h before check-in."
+    "codeOpens": "The door code and Wi-Fi appear here once the stay is paid in full, {{hours}} h before check-in.",
+    "minibar": {
+      "title": "Minibar",
+      "payOnDelivery": "Paid on delivery, apart from the booking.",
+      "placed": "Order #{{number}} received. The host will bring it soon.",
+      "openWhatsApp": "Open WhatsApp again",
+      "empty": "The minibar is empty for now.",
+      "less": "Remove: {{name}}",
+      "more": "Add: {{name}}",
+      "cart": "Cart: {{qty}} pcs",
+      "yourOrder": "Your order",
+      "total": "Total",
+      "note": "Note",
+      "noteHint": "No ice, by 22:00",
+      "send": "Send the order",
+      "outOfStock": "Something is no longer there in that quantity. The menu is updated: check your order.",
+      "tooMany": "Too many orders in an hour. Write to the host in WhatsApp.",
+      "failed": "The order did not go through. Try again."
+    },
+    "ordersDue": "Of which minibar orders: {{amount}}"
   }
 }

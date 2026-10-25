@@ -6,6 +6,7 @@ import { getGuestPanel, markGuestLeft, type GuestPanel } from '../../api/public'
 import { mapLinks, panelButtons, waLink, type PanelButton } from '../../lib/guest-panel'
 import { money, retryNetwork } from '../../lib/public-stay'
 import { GuestFrame, LoadFailed } from './GuestFrame'
+import { GuestMinibar } from './GuestMinibar'
 
 /** A guest's own page for their booking: the stay, the address, what is left to pay,
  *  how to get in once paid, the rules, and buttons that write to the host. */
@@ -114,6 +115,9 @@ function PanelView({ code, panel, locale }: { code: string; panel: GuestPanel; l
               <p data-testid="guest-remaining" className="text-base font-bold text-gray-900">
                 {t('guestPanel.remaining', { amount: money(b.remaining, locale) })}
               </p>
+              {(b.orders_due ?? 0) > 0 && (
+                <p className="text-sm text-gray-700">{t('guestPanel.ordersDue', { amount: money(b.orders_due ?? 0, locale) })}</p>
+              )}
               {buttons.includes('pay') && button('pay')}
             </Section>
           )}
@@ -138,6 +142,8 @@ function PanelView({ code, panel, locale }: { code: string; panel: GuestPanel; l
               )}
             </Section>
           )}
+
+          {panel.menu && <GuestMinibar code={code} menu={panel.menu} locale={locale} />}
 
           {flat && (
             <Section icon={<ScrollText className="h-4 w-4" aria-hidden />} title={t('guestPanel.rules')}>
