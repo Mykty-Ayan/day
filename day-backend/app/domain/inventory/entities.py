@@ -39,6 +39,11 @@ class Product:
     # The sum of its movements; filled by the repository on reading.
     stock: int = 0
 
+    @property
+    def to_buy(self) -> int:
+        """How many are missing up to the threshold; 0 without one or at it."""
+        return max(self.par_level - self.stock, 0) if self.par_level is not None else 0
+
 
 @dataclass
 class StockMovement:

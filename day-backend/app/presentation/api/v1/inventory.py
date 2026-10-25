@@ -64,6 +64,15 @@ async def list_products(
     return await _service(session).list(company_id, include_archived=include_archived)
 
 
+@inventory_router.get("/to-buy", response_model=list[ProductResponse], dependencies=_read)
+async def list_to_buy(
+    session: AsyncSession = Depends(get_session),
+    company_id: uuid.UUID = Depends(get_company_id),
+):
+    """Products below their threshold (par_level) and how many are missing."""
+    return await _service(session).to_buy(company_id)
+
+
 @inventory_router.post(
     "/products", response_model=ProductResponse, status_code=status.HTTP_201_CREATED, dependencies=_manage
 )

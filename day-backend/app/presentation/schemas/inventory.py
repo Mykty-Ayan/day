@@ -45,6 +45,8 @@ class ProductResponse(BaseModel):
     sort_order: int
     par_level: int | None = None
     stock: int
+    # Missing up to par_level: what the list of what to buy says.
+    to_buy: int = 0
     archived_at: datetime | None = None
 
 

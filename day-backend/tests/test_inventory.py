@@ -184,6 +184,20 @@ async def test_another_companys_product_has_no_movements_here():
         await svc.record(_move(theirs, MovementKind.PURCHASE, 1, unit_cost=Decimal("1")))
 
 
+async def test_what_to_buy_is_what_is_below_the_threshold():
+    svc, _ = _service()
+    cola = await svc.add_product(COMPANY, name="Кола", price=Decimal("800"), par_level=10)
+    water = await svc.add_product(COMPANY, name="Вода", price=Decimal("300"), par_level=4)
+    await svc.add_product(COMPANY, name="Чай", price=Decimal("500"))  # no threshold
+    full = await svc.add_product(COMPANY, name="Сок", price=Decimal("700"), par_level=2)
+    await svc.record(_move(cola, MovementKind.PURCHASE, 7, unit_cost=Decimal("1")))
+    await svc.record(_move(full, MovementKind.PURCHASE, 2, unit_cost=Decimal("1")))
+
+    assert [(p.name, p.to_buy) for p in await svc.to_buy(COMPANY)] == [("Вода", 4), ("Кола", 3)]
+    assert water.id in {p.id for p in await svc.to_buy(COMPANY)}
+    assert await svc.to_buy(uuid.uuid4()) == []
+
+
 def test_the_owner_and_the_manager_manage_the_catalogue_a_cleaner_does_not():
     assert Permission.INVENTORY_MANAGE in permissions_for_role(UserRole.OWNER)
     assert Permission.INVENTORY_MANAGE in permissions_for_role(UserRole.MANAGER)
@@ -245,6 +259,9 @@ async def test_purchases_and_writeoffs_make_the_stock_through_the_api(flat):  # 
 
     [listed] = (await client.get("/api/v1/inventory/products")).json()
     assert listed["stock"] == 22
+    await client.patch(f"/api/v1/inventory/products/{cola}", json={"par_level": 30})
+    [short] = (await client.get("/api/v1/inventory/to-buy")).json()
+    assert (short["name"], short["stock"], short["to_buy"]) == ("Кола", 22, 8)
     assert [m["quantity"] for m in (await client.get(moves)).json()] == [-2, 24]
     [expense] = (await client.get("/api/v1/expenses", params={"category": "minibar"})).json()
     assert (expense["amount"], expense["id"]) == (8400, bought.json()["expense_id"])

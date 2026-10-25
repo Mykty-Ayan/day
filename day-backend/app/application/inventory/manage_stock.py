@@ -73,6 +73,11 @@ class ManageStockService:
     async def list(self, company_id: uuid.UUID, *, include_archived: bool = False) -> Sequence[Product]:
         return await self._products.list(company_id, include_archived=include_archived)
 
+    async def to_buy(self, company_id: uuid.UUID) -> list[Product]:
+        """What to buy: products below their threshold, the largest shortage first."""
+        short = [p for p in await self._products.list(company_id) if p.to_buy > 0]
+        return sorted(short, key=lambda p: -p.to_buy)
+
     async def history(self, company_id: uuid.UUID, product_id: uuid.UUID) -> Sequence[StockMovement]:
         await self._get(company_id, product_id)
         return await self._movements.list_for_product(company_id, product_id)
