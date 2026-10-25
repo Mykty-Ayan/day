@@ -1680,7 +1680,26 @@
     "par": "Restock threshold",
     "parHint": "Empty: no threshold",
     "toBuy": "What to buy",
-    "toBuyLine": "+{{qty}} pcs (have {{stock}}, threshold {{par}})"
+    "toBuyLine": "+{{qty}} pcs (have {{stock}}, threshold {{par}})",
+    "orders": {
+      "title": "Guests' orders",
+      "status": "Status",
+      "all": "All",
+      "empty": "No orders",
+      "number": "#{{number}}",
+      "statuses": {
+        "new": "new",
+        "accepted": "accepted",
+        "delivered": "delivered",
+        "cancelled": "cancelled"
+      },
+      "payments": {
+        "cash": "cash",
+        "card": "card",
+        "transfer": "transfer"
+      },
+      "onTab": "on the tab"
+    }
   },
   "guestPanel": {
     "notFound": "This link was not found. Write to the host for a new one.",
