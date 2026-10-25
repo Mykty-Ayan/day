@@ -143,3 +143,46 @@ export async function bookStay(
   const res = await publicClient.post(`/public/stays/${encodeURIComponent(code)}/book`, { rental_mode: 'daily', ...body })
   return res.data
 }
+
+/** A guest's own page for their booking (/g/<code>). */
+export interface GuestPanel {
+  closed: boolean
+  /** The company's own day, YYYY-MM-DD: which buttons fit the stay. */
+  today: string
+  company: { title: string; logo_url: string | null; accent_color: string | null; whatsapp: string | null } | null
+  guest_name: string | null
+  booking: {
+    status: string
+    rental_mode: string
+    check_in: string
+    check_out: string
+    adults: number
+    total: number
+    paid: number
+    remaining: number
+  } | null
+  flat: {
+    name: string
+    address: string | null
+    latitude: number | null
+    longitude: number | null
+    map_url: string | null
+    check_in_hour: number | null
+    check_out_hour: number | null
+    house_rules: string | null
+    check_out_instructions: string | null
+  } | null
+  /** Only for a confirmed or checked-in stay paid in full: the server decides. */
+  access: { instructions: string | null; wifi_name: string | null; wifi_password: string | null; facts: string[] } | null
+  /** Hours before check-in the way in opens, once the stay is paid. */
+  lead_hours: number
+}
+
+export async function getGuestPanel(code: string): Promise<GuestPanel> {
+  return (await publicClient.get<GuestPanel>(`/public/guest/${encodeURIComponent(code)}`)).data
+}
+
+/** «I have left»: the host is told and the flat gets a cleaning task. */
+export async function markGuestLeft(code: string): Promise<void> {
+  await publicClient.post(`/public/guest/${encodeURIComponent(code)}/checked-out`, null, { timeout: 8_000 })
+}

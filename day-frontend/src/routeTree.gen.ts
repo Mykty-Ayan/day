@@ -18,6 +18,7 @@ import { Route as SiteIndexRouteImport } from './routes/site/index'
 import { Route as SettingsIndexRouteImport } from './routes/settings/index'
 import { Route as ReadinessIndexRouteImport } from './routes/readiness/index'
 import { Route as PropertiesIndexRouteImport } from './routes/properties/index'
+import { Route as InventoryIndexRouteImport } from './routes/inventory/index'
 import { Route as ExpensesIndexRouteImport } from './routes/expenses/index'
 import { Route as CleaningIndexRouteImport } from './routes/cleaning/index'
 import { Route as CleanerIndexRouteImport } from './routes/cleaner/index'
@@ -31,6 +32,7 @@ import { Route as PropertiesNewRouteImport } from './routes/properties/new'
 import { Route as PropertiesGanttRouteImport } from './routes/properties/gantt'
 import { Route as PropertiesPropertyIdRouteImport } from './routes/properties/$propertyId'
 import { Route as OCodeRouteImport } from './routes/o/$code'
+import { Route as GCodeRouteImport } from './routes/g/$code'
 import { Route as CleaningNewRouteImport } from './routes/cleaning/new'
 import { Route as CleaningChecklistsRouteImport } from './routes/cleaning/checklists'
 import { Route as CleaningTaskIdRouteImport } from './routes/cleaning/$taskId'
@@ -88,6 +90,11 @@ const ReadinessIndexRoute = ReadinessIndexRouteImport.update({
 const PropertiesIndexRoute = PropertiesIndexRouteImport.update({
   id: '/properties/',
   path: '/properties/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const InventoryIndexRoute = InventoryIndexRouteImport.update({
+  id: '/inventory/',
+  path: '/inventory/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ExpensesIndexRoute = ExpensesIndexRouteImport.update({
@@ -153,6 +160,11 @@ const PropertiesPropertyIdRoute = PropertiesPropertyIdRouteImport.update({
 const OCodeRoute = OCodeRouteImport.update({
   id: '/o/$code',
   path: '/o/$code',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const GCodeRoute = GCodeRouteImport.update({
+  id: '/g/$code',
+  path: '/g/$code',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CleaningNewRoute = CleaningNewRouteImport.update({
@@ -238,6 +250,7 @@ export interface FileRoutesByFullPath {
   '/cleaning/$taskId': typeof CleaningTaskIdRoute
   '/cleaning/checklists': typeof CleaningChecklistsRoute
   '/cleaning/new': typeof CleaningNewRoute
+  '/g/$code': typeof GCodeRoute
   '/o/$code': typeof OCodeRoute
   '/properties/$propertyId': typeof PropertiesPropertyIdRouteWithChildren
   '/properties/gantt': typeof PropertiesGanttRoute
@@ -251,6 +264,7 @@ export interface FileRoutesByFullPath {
   '/cleaner/': typeof CleanerIndexRoute
   '/cleaning/': typeof CleaningIndexRoute
   '/expenses/': typeof ExpensesIndexRoute
+  '/inventory/': typeof InventoryIndexRoute
   '/properties/': typeof PropertiesIndexRoute
   '/readiness/': typeof ReadinessIndexRoute
   '/settings/': typeof SettingsIndexRoute
@@ -274,6 +288,7 @@ export interface FileRoutesByTo {
   '/cleaning/$taskId': typeof CleaningTaskIdRoute
   '/cleaning/checklists': typeof CleaningChecklistsRoute
   '/cleaning/new': typeof CleaningNewRoute
+  '/g/$code': typeof GCodeRoute
   '/o/$code': typeof OCodeRoute
   '/properties/gantt': typeof PropertiesGanttRoute
   '/properties/new': typeof PropertiesNewRoute
@@ -286,6 +301,7 @@ export interface FileRoutesByTo {
   '/cleaner': typeof CleanerIndexRoute
   '/cleaning': typeof CleaningIndexRoute
   '/expenses': typeof ExpensesIndexRoute
+  '/inventory': typeof InventoryIndexRoute
   '/properties': typeof PropertiesIndexRoute
   '/readiness': typeof ReadinessIndexRoute
   '/settings': typeof SettingsIndexRoute
@@ -311,6 +327,7 @@ export interface FileRoutesById {
   '/cleaning/$taskId': typeof CleaningTaskIdRoute
   '/cleaning/checklists': typeof CleaningChecklistsRoute
   '/cleaning/new': typeof CleaningNewRoute
+  '/g/$code': typeof GCodeRoute
   '/o/$code': typeof OCodeRoute
   '/properties/$propertyId': typeof PropertiesPropertyIdRouteWithChildren
   '/properties/gantt': typeof PropertiesGanttRoute
@@ -324,6 +341,7 @@ export interface FileRoutesById {
   '/cleaner/': typeof CleanerIndexRoute
   '/cleaning/': typeof CleaningIndexRoute
   '/expenses/': typeof ExpensesIndexRoute
+  '/inventory/': typeof InventoryIndexRoute
   '/properties/': typeof PropertiesIndexRoute
   '/readiness/': typeof ReadinessIndexRoute
   '/settings/': typeof SettingsIndexRoute
@@ -350,6 +368,7 @@ export interface FileRouteTypes {
     | '/cleaning/$taskId'
     | '/cleaning/checklists'
     | '/cleaning/new'
+    | '/g/$code'
     | '/o/$code'
     | '/properties/$propertyId'
     | '/properties/gantt'
@@ -363,6 +382,7 @@ export interface FileRouteTypes {
     | '/cleaner/'
     | '/cleaning/'
     | '/expenses/'
+    | '/inventory/'
     | '/properties/'
     | '/readiness/'
     | '/settings/'
@@ -386,6 +406,7 @@ export interface FileRouteTypes {
     | '/cleaning/$taskId'
     | '/cleaning/checklists'
     | '/cleaning/new'
+    | '/g/$code'
     | '/o/$code'
     | '/properties/gantt'
     | '/properties/new'
@@ -398,6 +419,7 @@ export interface FileRouteTypes {
     | '/cleaner'
     | '/cleaning'
     | '/expenses'
+    | '/inventory'
     | '/properties'
     | '/readiness'
     | '/settings'
@@ -422,6 +444,7 @@ export interface FileRouteTypes {
     | '/cleaning/$taskId'
     | '/cleaning/checklists'
     | '/cleaning/new'
+    | '/g/$code'
     | '/o/$code'
     | '/properties/$propertyId'
     | '/properties/gantt'
@@ -435,6 +458,7 @@ export interface FileRouteTypes {
     | '/cleaner/'
     | '/cleaning/'
     | '/expenses/'
+    | '/inventory/'
     | '/properties/'
     | '/readiness/'
     | '/settings/'
@@ -460,6 +484,7 @@ export interface RootRouteChildren {
   CleaningTaskIdRoute: typeof CleaningTaskIdRoute
   CleaningChecklistsRoute: typeof CleaningChecklistsRoute
   CleaningNewRoute: typeof CleaningNewRoute
+  GCodeRoute: typeof GCodeRoute
   OCodeRoute: typeof OCodeRoute
   PropertiesPropertyIdRoute: typeof PropertiesPropertyIdRouteWithChildren
   PropertiesGanttRoute: typeof PropertiesGanttRoute
@@ -473,6 +498,7 @@ export interface RootRouteChildren {
   CleanerIndexRoute: typeof CleanerIndexRoute
   CleaningIndexRoute: typeof CleaningIndexRoute
   ExpensesIndexRoute: typeof ExpensesIndexRoute
+  InventoryIndexRoute: typeof InventoryIndexRoute
   PropertiesIndexRoute: typeof PropertiesIndexRoute
   ReadinessIndexRoute: typeof ReadinessIndexRoute
   SettingsIndexRoute: typeof SettingsIndexRoute
@@ -542,6 +568,13 @@ declare module '@tanstack/react-router' {
       path: '/properties'
       fullPath: '/properties/'
       preLoaderRoute: typeof PropertiesIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/inventory/': {
+      id: '/inventory/'
+      path: '/inventory'
+      fullPath: '/inventory/'
+      preLoaderRoute: typeof InventoryIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/expenses/': {
@@ -633,6 +666,13 @@ declare module '@tanstack/react-router' {
       path: '/o/$code'
       fullPath: '/o/$code'
       preLoaderRoute: typeof OCodeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/g/$code': {
+      id: '/g/$code'
+      path: '/g/$code'
+      fullPath: '/g/$code'
+      preLoaderRoute: typeof GCodeRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/cleaning/new': {
@@ -770,6 +810,7 @@ const rootRouteChildren: RootRouteChildren = {
   CleaningTaskIdRoute: CleaningTaskIdRoute,
   CleaningChecklistsRoute: CleaningChecklistsRoute,
   CleaningNewRoute: CleaningNewRoute,
+  GCodeRoute: GCodeRoute,
   OCodeRoute: OCodeRoute,
   PropertiesPropertyIdRoute: PropertiesPropertyIdRouteWithChildren,
   PropertiesGanttRoute: PropertiesGanttRoute,
@@ -783,6 +824,7 @@ const rootRouteChildren: RootRouteChildren = {
   CleanerIndexRoute: CleanerIndexRoute,
   CleaningIndexRoute: CleaningIndexRoute,
   ExpensesIndexRoute: ExpensesIndexRoute,
+  InventoryIndexRoute: InventoryIndexRoute,
   PropertiesIndexRoute: PropertiesIndexRoute,
   ReadinessIndexRoute: ReadinessIndexRoute,
   SettingsIndexRoute: SettingsIndexRoute,
