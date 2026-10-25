@@ -15,6 +15,7 @@ import {
   useUploadProductPhoto,
 } from '../../hooks/useInventory'
 import type { Product } from '../../api/inventory'
+import GuestOrdersList from './GuestOrdersList'
 import {
   emptyMovementForm,
   emptyProductForm,
@@ -220,6 +221,8 @@ export default function InventoryPage() {
           </ul>
         )}
       </section>
+
+      <GuestOrdersList />
     </div>
   )
 }

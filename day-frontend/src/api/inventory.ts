@@ -78,3 +78,22 @@ export async function listMovements(productId: string): Promise<StockMovement[]>
 export async function addMovement(productId: string, data: MovementInput): Promise<StockMovement> {
   return (await apiClient.post<StockMovement>(`/inventory/products/${productId}/movements`, data)).data
 }
+
+export type OrderStatus = 'new' | 'accepted' | 'delivered' | 'cancelled'
+
+export interface GuestOrder {
+  id: string
+  number: number
+  status: OrderStatus
+  total: number
+  guest_note: string | null
+  payment_method: 'cash' | 'card' | 'transfer' | null
+  property_name: string | null
+  guest_name: string | null
+  created_at: string | null
+  items: { product_id: string; name: string; price: number; quantity: number }[]
+}
+
+export async function listGuestOrders(status?: OrderStatus): Promise<GuestOrder[]> {
+  return (await apiClient.get<GuestOrder[]>('/guest-orders', { params: status ? { status } : {} })).data
+}

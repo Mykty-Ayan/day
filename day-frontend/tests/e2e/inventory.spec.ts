@@ -4,7 +4,7 @@
  */
 
 import { test, expect } from '../fixtures/e2e-auth'
-import { API_BASE } from '../fixtures/test-data'
+import { API_BASE, createTestBooking, createTestProperty, futureDate } from '../fixtures/test-data'
 
 test('the owner adds a product, buys it in, writes one off and reads the history', async ({ page, request }) => {
   await page.goto('/inventory')
@@ -67,4 +67,40 @@ test('an archived product leaves the list', async ({ page, request }) => {
   page.once('dialog', (dialog) => dialog.accept())
   await row.getByRole('button', { name: 'Archive' }).click()
   await expect(page.getByText('No products yet')).toBeVisible()
+})
+
+test("the owner reads guests' orders by status", async ({ page, request }) => {
+  const flat = await (await request.post(`${API_BASE}/properties`, { data: createTestProperty() })).json()
+  await request.post(`${API_BASE}/properties/${flat.id}/status`, { data: { target_status: 'active' } })
+  await request.put(`${API_BASE}/properties/${flat.id}/pricing`, {
+    data: { base_price: 10000, weekend_markup: 0, default_deposit: 0, extra_adult_price: 0, extra_child_price: 0, base_guests: 2 },
+  })
+  const product = await (await request.post(`${API_BASE}/inventory/products`, { data: { name: 'Кола 0,5', price: 800 } })).json()
+  await request.post(`${API_BASE}/inventory/products/${product.id}/movements`, {
+    data: { kind: 'purchase', quantity: 5, unit_cost: 0 },
+  })
+  const made = await request.post(`${API_BASE}/bookings`, {
+    data: createTestBooking(flat.id, { guest_name: 'Жалгас', check_in: futureDate(0), check_out: futureDate(2) }),
+  })
+  const booking = await made.json()
+  await request.post(`${API_BASE}/bookings/${booking.id}/status`, { data: { status: 'confirmed' } })
+  const code = booking.guest_url.split('/').pop()
+  for (const quantity of [2, 1]) {
+    const placed = await request.post(`${API_BASE}/public/guest/${code}/orders`, {
+      data: { items: [{ product_id: product.id, quantity }], note: 'без льда' },
+    })
+    expect(placed.status(), await placed.text()).toBe(201)
+  }
+  const [second] = await (await request.get(`${API_BASE}/guest-orders`)).json()
+  await request.post(`${API_BASE}/guest-orders/${second.id}/cancel`)
+
+  await page.goto('/inventory')
+  const orders = page.getByTestId('guest-order')
+  await expect(orders).toHaveCount(2)
+  await expect(orders.first()).toContainText('#2')
+  await expect(orders.first()).toContainText('cancelled')
+  await page.locator('#orders-status').selectOption('new')
+  await expect(orders).toHaveCount(1)
+  await expect(orders.first()).toContainText('Кола 0,5 × 2')
+  await expect(orders.first()).toContainText('«без льда»')
 })

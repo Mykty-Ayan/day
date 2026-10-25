@@ -1519,6 +1519,24 @@
     "par": "«Сатып алу» шегі",
     "parHint": "Бос — шексіз",
     "toBuy": "Не сатып алу керек",
-    "toBuyLine": "+{{qty}} дана (бар {{stock}}, шегі {{par}})"
+    "toBuyLine": "+{{qty}} дана (бар {{stock}}, шегі {{par}})",
+    "orders": {
+      "title": "Қонақ тапсырыстары",
+      "status": "Күйі",
+      "all": "Барлығы",
+      "empty": "Тапсырыс жоқ",
+      "number": "№{{number}}",
+      "statuses": {
+        "new": "жаңа",
+        "accepted": "қабылданды",
+        "delivered": "жеткізілді",
+        "cancelled": "болдырылмады"
+      },
+      "payments": {
+        "cash": "қолма-қол",
+        "card": "карта",
+        "transfer": "аударым"
+      }
+    }
   }
 }

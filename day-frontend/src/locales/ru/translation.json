@@ -1583,6 +1583,24 @@
     "par": "Порог «докупить»",
     "parHint": "Пусто — без порога",
     "toBuy": "Что докупить",
-    "toBuyLine": "+{{qty}} шт. (есть {{stock}}, порог {{par}})"
+    "toBuyLine": "+{{qty}} шт. (есть {{stock}}, порог {{par}})",
+    "orders": {
+      "title": "Заказы гостей",
+      "status": "Статус",
+      "all": "Все",
+      "empty": "Заказов нет",
+      "number": "№{{number}}",
+      "statuses": {
+        "new": "новый",
+        "accepted": "принят",
+        "delivered": "доставлен",
+        "cancelled": "отменён"
+      },
+      "payments": {
+        "cash": "наличные",
+        "card": "карта",
+        "transfer": "перевод"
+      }
+    }
   }
 }
