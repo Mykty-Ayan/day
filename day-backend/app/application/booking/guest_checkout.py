@@ -57,6 +57,10 @@ class GuestCheckoutService:
         today = (now or datetime.now(tz=ZoneInfo("UTC"))).astimezone(zone).date()
         if booking.status not in (BookingStatus.CONFIRMED, BookingStatus.CHECKED_IN) or today < booking.check_in.date():
             raise NotStayingError("The stay has not begun")
+        # Hosts often leave a past stay confirmed: its old link must not report a guest
+        # leaving, nor book a cleaning into the flat of whoever lives there now.
+        if today > booking.check_out.date():
+            raise NotStayingError("The stay is over")
         prop = await self._properties.get_by_id(booking.property_id)
         guest = await self._guests.get_by_id(booking.guest_id)
         open_tasks = [

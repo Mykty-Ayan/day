@@ -275,7 +275,8 @@ export function createTestBatchImport(count: number = 3): { urls: string[]; user
   }
 }
 
-export const API_BASE = 'http://localhost:8000/api/v1'
+// E2E_API_BASE: a backend on another port, when 8000 is taken by another checkout.
+export const API_BASE = process.env.E2E_API_BASE ?? 'http://localhost:8000/api/v1'
 
 export const AI_SERVICE_URL = process.env.AI_SERVICE_URL ?? 'http://localhost:8001'
 

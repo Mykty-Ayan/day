@@ -26,6 +26,7 @@ const panel = (over: Partial<GuestPanel> = {}, booking: Partial<NonNullable<Gues
   flat: null,
   access: null,
   lead_hours: 24,
+  menu: null,
   ...over,
 })
 

@@ -27,6 +27,7 @@ from app.config import settings
 from app.domain.assistant.gateway import ChatMessage
 from app.domain.assistant.value_objects import AssistantUnavailable
 from app.domain.messaging.entities import ChannelIdentity, Conversation, Message
+from app.domain.messaging.services import AppButton
 from app.domain.messaging.value_objects import (
     Channel,
     MessageDirection,
@@ -96,10 +97,10 @@ _VOICE_FAILED = "Не разобрал голосовое. Напишите те
 _NOT_LINKED_VOICE = "Этот чат не привязан к компании. Отправьте /start и код из приложения."
 
 
-async def _reply(chat_id: str, text: str) -> None:
+async def _reply(chat_id: str, text: str, buttons: list[AppButton] | None = None) -> None:
     """Say something back without letting a failed send retry the update."""
     try:
-        await get_provider(Channel.TELEGRAM).send_text(chat_id, text)
+        await get_provider(Channel.TELEGRAM).send_text(chat_id, text, buttons=buttons or None)
     except Exception as exc:
         logger.warning("Telegram reply to %s failed: %s", chat_id, exc)
 
@@ -252,7 +253,7 @@ async def telegram_webhook(
     await session.commit()
 
     if reply.text:
-        await _reply(chat_id, reply.text)
+        await _reply(chat_id, reply.text, reply.buttons)
 
     return _ok()
 

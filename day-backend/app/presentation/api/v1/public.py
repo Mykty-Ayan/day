@@ -14,6 +14,12 @@ from app.application.booking.guest_hold import GuestHoldService, OfferTakenError
 from app.application.booking.guest_offers import OfferExpiredError
 from app.application.booking.guest_panel import GuestPanelService
 from app.application.booking.price_calculator import PriceCalculatorService
+from app.application.inventory.guest_orders import (
+    GuestOrderService,
+    MinibarClosedError,
+    OutOfStockError,
+    TooManyOrdersError,
+)
 from app.application.property.public_stay import GetPublicStayService
 from app.domain.booking.exceptions import BookingOverlapError, PropertyBlockedError, StayRulesError
 from app.domain.booking.value_objects import RentalMode
@@ -30,6 +36,11 @@ from app.infrastructure.repositories.booking import (
     SqlGuestRepository,
 )
 from app.infrastructure.repositories.cleaning import SqlCleaningTaskRepository
+from app.infrastructure.repositories.inventory import (
+    SqlGuestOrderRepository,
+    SqlProductRepository,
+    SqlStockMovementRepository,
+)
 from app.infrastructure.repositories.leads import SqlBlacklistRepository
 from app.infrastructure.repositories.property import (
     SqlAmenityRepository,
@@ -44,6 +55,7 @@ from app.infrastructure.repositories.property import (
 from app.infrastructure.repositories.settings import SqlCompanySettingsRepository
 from app.infrastructure.repositories.site import SqlCompanySiteRepository
 from app.presentation.api.v1.offers import offers_service
+from app.presentation.schemas.guest_orders import GuestOrderCreate, GuestOrderPlaced
 from app.presentation.schemas.guest_panel import GuestPanelResponse
 from app.presentation.schemas.public import (
     PublicOfferBook,
@@ -218,6 +230,9 @@ async def guest_panel(code: str, session: AsyncSession = Depends(get_session)):
         SqlPropertyFactRepository(session),
         SqlCompanySiteRepository(session),
         SqlCompanySettingsRepository(session),
+        SqlProductRepository(session),
+        SqlGuestOrderRepository(session),
+        photos=SqlPropertyPhotoRepository(session),
     )
     try:
         panel = await service.execute(code)
@@ -257,3 +272,53 @@ async def guest_checked_out(code: str, session: AsyncSession = Depends(get_sessi
         raise HTTPException(status_code=409, detail=str(e))
     await session.commit()
     return {"cleaning_created": left.cleaning_created}
+
+
+def guest_orders(session: AsyncSession) -> GuestOrderService:
+    return GuestOrderService(
+        SqlGuestOrderRepository(session),
+        SqlProductRepository(session),
+        SqlStockMovementRepository(session),
+        SqlBookingRepository(session),
+        SqlPropertyRepository(session),
+        SqlCompanySiteRepository(session),
+        SqlCompanySettingsRepository(session),
+    )
+
+
+@public_router.post("/guest/{code}/orders", response_model=GuestOrderPlaced, status_code=201)
+async def place_guest_order(code: str, body: GuestOrderCreate, session: AsyncSession = Depends(get_session)):
+    """A minibar order from the guest's page, during the stay. The host is told in
+    the bot; the answer holds the WhatsApp link with the order's text."""
+    try:
+        placed = await guest_orders(session).place(
+            code, [(line.product_id, line.quantity) for line in body.items], body.note, body.language
+        )
+        order = placed.order
+        if not placed.repeated:
+            await build_notification_service(session).notify_company(
+                order.company_id,
+                NotificationEvent.GUEST_ORDER,
+                {
+                    "number": order.number,
+                    "property_name": placed.flat_name or "—",
+                    "lines": [f"{i.name} × {i.quantity}" for i in order.items],
+                    "total": str(order.total),
+                    "note": order.guest_note,
+                    "order_id": str(order.id),
+                },
+            )
+    except LookupError:
+        await session.rollback()
+        raise HTTPException(status_code=404, detail="Not found")
+    except (MinibarClosedError, OutOfStockError) as e:
+        await session.rollback()
+        raise HTTPException(status_code=409, detail=str(e))
+    except TooManyOrdersError as e:
+        await session.rollback()
+        raise HTTPException(status_code=429, detail=str(e))
+    except ValueError as e:
+        await session.rollback()
+        raise HTTPException(status_code=422, detail=str(e))
+    await session.commit()
+    return GuestOrderPlaced(number=order.number, total=float(order.total), whatsapp_url=placed.whatsapp_url)

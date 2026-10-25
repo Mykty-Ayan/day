@@ -175,6 +175,13 @@ class _ById:
         return self._rows.get(_id)
 
 
+class _NoTab:
+    """No minibar orders on any guest's tab."""
+
+    async def due_by_bookings(self, company_id, ids):
+        return {}
+
+
 class _Payments:
     def __init__(self, paid):
         self._paid = paid
@@ -199,6 +206,7 @@ def feed_api(monkeypatch):
             "guest": _ById(guests),
             "property": _ById(properties),
             "payment": _Payments(paid or {}),
+            "orders": _NoTab(),
             "settings": _Settings(),
         }
         monkeypatch.setattr(bookings, "_repos", lambda session: repos)
@@ -318,7 +326,8 @@ async def test_today_says_which_arrival_landed_on_nights_already_taken(monkeypat
         _booking(NOW, guest_id=guest.id, property_id=prop.id, overbooking=True),
         _booking(NOW, guest_id=guest.id, property_id=prop.id),
     ]
-    repos = {"booking": _Range(arrivals), "guest": _ById([guest]), "property": _ById([prop]), "payment": _Payments({})}
+    repos = {"booking": _Range(arrivals), "guest": _ById([guest]), "property": _ById([prop]), "payment": _Payments({}),
+             "orders": _NoTab()}
     monkeypatch.setattr(bookings, "_repos", lambda session: repos)
     app.dependency_overrides[deps.get_session] = lambda: _Session()
     try:
