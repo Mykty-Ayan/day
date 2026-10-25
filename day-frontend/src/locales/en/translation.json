@@ -1007,7 +1007,8 @@
       "bookings": "Bookings",
       "flats": "Units",
       "sell": "Sell",
-      "ask": "Ask"
+      "ask": "Ask",
+      "money": "Money"
     },
     "arrivals": "Arrivals",
     "departures": "Departures",
@@ -1275,6 +1276,18 @@
         "price": "The price is a whole number of tenge",
         "nights": "The last night cannot be before the first"
       }
+    },
+    "moneyTab": {
+      "month": "This month",
+      "lastMonth": "Last month",
+      "income": "Income",
+      "expenses": "Flat costs",
+      "profit": "Profit",
+      "occupancy": "Occupancy",
+      "debts": "Guests owe · {{amount}}",
+      "noDebts": "Every guest has paid",
+      "paid": "Paid · {{amount}}",
+      "spent": "Spent · {{amount}}"
     }
   },
   "auth": {

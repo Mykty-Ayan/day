@@ -20,6 +20,7 @@ import {
   Send,
   SprayCan,
   Users,
+  Wallet,
   Wifi,
 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
@@ -46,6 +47,7 @@ import { errorText } from './errors'
 import { addDays, formatDay, formatMoney, formatTime, toISODate } from './format'
 import { ActionButton, BookingRow, Screen, Section, TabBar } from './miniapp-ui'
 import BookingsScreen from './BookingsScreen'
+import MoneyScreen from './MoneyScreen'
 import { searchWithTab, tabFromSearch, type Tab } from './tabs'
 
 const UPCOMING_DAYS = 14
@@ -222,6 +224,22 @@ export default function MiniAppPage() {
 
   return (
     <div className="tg-root min-h-screen pb-24">
+      <header className="tg-root sticky top-0 z-10 flex items-center gap-2 px-3 pt-3">
+        <h1 className="flex-1 truncate text-base font-bold">{t(`miniapp.tabs.${tab === 'units' ? 'flats' : tab}`)}</h1>
+        <button
+          type="button"
+          aria-label={t('miniapp.tabs.ask')}
+          aria-current={tab === 'ask' ? 'page' : undefined}
+          onClick={() => {
+            tapFeedback()
+            setTab('ask')
+          }}
+          className={`flex h-10 items-center gap-1.5 rounded-full px-3 text-xs font-bold ${tab === 'ask' ? 'tg-active' : 'tg-surface'}`}
+        >
+          <MessageCircle className="h-4 w-4" />
+          {t('miniapp.tabs.ask')}
+        </button>
+      </header>
       <main className="space-y-4 p-3">
         {/* A booking opened by its id (a notice, the two-week chart) that could not be read. */}
         {linkedId && linked.isError && (
@@ -376,6 +394,8 @@ export default function MiniAppPage() {
           <BookingsScreen enabled={enabled} today={today} onOpen={setBooking} onOpenId={setLinkedId} />
         )}
 
+        {tab === 'money' && <MoneyScreen enabled={enabled} today={today} onOpen={setBooking} />}
+
         {tab === 'ask' && <AskScreen />}
       </main>
 
@@ -387,7 +407,7 @@ export default function MiniAppPage() {
           { value: 'bookings', label: t('miniapp.tabs.bookings'), icon: <List className="h-5 w-5" /> },
           { value: 'sell', label: t('miniapp.tabs.sell'), icon: <Plus className="h-5 w-5" /> },
           { value: 'units', label: t('miniapp.tabs.flats'), icon: <Building2 className="h-5 w-5" /> },
-          { value: 'ask', label: t('miniapp.tabs.ask'), icon: <MessageCircle className="h-5 w-5" /> },
+          { value: 'money', label: t('miniapp.tabs.money'), icon: <Wallet className="h-5 w-5" /> },
         ]}
       />
 
