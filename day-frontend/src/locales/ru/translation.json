@@ -1344,6 +1344,9 @@
       "accept": "Принять",
       "deliveredHow": "Доставлено, оплата:",
       "cancel": "Отменить",
+      "payAsk": "Заказ №{{number}} оплачен: {{amount}}, {{method}}?",
+      "deliverPaidAsk": "Заказ №{{number}} доставлен и оплачен: {{amount}}, {{method}}?",
+      "deliverTabAsk": "Заказ №{{number}} доставлен, {{amount}} — в долг гостю?",
       "cancelAsk": "Отменить заказ №{{number}}?",
       "failed": "Не удалось. Попробуйте ещё раз.",
       "status": {

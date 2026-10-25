@@ -45,6 +45,12 @@ test('the host handles guest orders from the Mini App', async ({ page, request, 
   await expect(card).toContainText('«без льда»')
   await card.getByRole('button', { name: 'Accept' }).click()
   await expect(card).toContainText('accepted')
+  // Money is recorded only after a yes, and the question names the sum and the method.
+  const asked: string[] = []
+  page.on('dialog', (dialog) => {
+    asked.push(dialog.message())
+    void dialog.accept()
+  })
   await card.getByRole('button', { name: 'Cash' }).click()
   await expect(card).toContainText('Paid in cash')
   await expect(page.getByTestId('stock-row').filter({ hasText: 'Кола 0,5' })).toContainText('1 pcs')
@@ -53,7 +59,6 @@ test('the host handles guest orders from the Mini App', async ({ page, request, 
   await placeOrder(1)
   await page.reload()
   const second = page.getByRole('article', { name: 'Order #2' })
-  page.once('dialog', (dialog) => dialog.accept())
   await second.getByRole('button', { name: 'Cancel' }).click()
   await expect(second).toContainText('cancelled')
   const orders = await (await request.get(`${API_BASE}/guest-orders`)).json()
@@ -77,6 +82,10 @@ test('the host handles guest orders from the Mini App', async ({ page, request, 
   await expect(page.getByText('Of which minibar orders on the tab: 800 ₸')).toBeVisible()
   await page.goto(`/tma?tab=orders`)
   await page.getByRole('article', { name: 'Order #3' }).getByRole('button', { name: 'Card' }).click()
+  await expect.poll(() => asked.length).toBe(4)
+  expect(asked[0]).toMatch(/^Order #1 delivered and paid: .+, Cash\?$/)
+  expect(asked[2]).toMatch(/on the guest's tab\?$/)
+  expect(asked[3]).toMatch(/^Order #3 paid: .+, Card\?$/)
   await expect(page.getByRole('article', { name: 'Order #3' })).toContainText('Paid by card')
   const settled = await (await request.get(`${API_BASE}/bookings/${booking.id}`)).json()
   expect(settled.booking.orders_due).toBe(0)

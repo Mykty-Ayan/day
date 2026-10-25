@@ -1304,6 +1304,9 @@
       "accept": "Accept",
       "deliveredHow": "Delivered, paid by:",
       "cancel": "Cancel",
+      "payAsk": "Order #{{number}} paid: {{amount}}, {{method}}?",
+      "deliverPaidAsk": "Order #{{number}} delivered and paid: {{amount}}, {{method}}?",
+      "deliverTabAsk": "Order #{{number}} delivered, {{amount}} on the guest's tab?",
       "cancelAsk": "Cancel order #{{number}}?",
       "failed": "That did not work. Try again.",
       "status": {

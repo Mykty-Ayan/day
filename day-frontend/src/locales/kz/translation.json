@@ -1298,6 +1298,9 @@
       "accept": "Қабылдау",
       "deliveredHow": "Жеткізілді, төлем:",
       "cancel": "Болдырмау",
+      "payAsk": "№{{number}} тапсырыс төленді: {{amount}}, {{method}}?",
+      "deliverPaidAsk": "№{{number}} тапсырыс жеткізілді және төленді: {{amount}}, {{method}}?",
+      "deliverTabAsk": "№{{number}} тапсырыс жеткізілді, {{amount}} — қонақтың қарызына?",
       "cancelAsk": "№{{number}} тапсырысты болдырмау керек пе?",
       "failed": "Болмады. Қайта көріңіз.",
       "status": {

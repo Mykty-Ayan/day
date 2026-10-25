@@ -36,11 +36,14 @@ export default function OrdersScreen({ enabled, linkedId }: { enabled: boolean; 
     mutationFn: (run: () => Promise<GuestOrder>) => run(),
     onSuccess: () => resultFeedback('success'),
     onError: () => resultFeedback('error'),
-    onSettled: () => {
-      void queryClient.invalidateQueries({ queryKey: ['miniapp', 'orders'] })
-      void queryClient.invalidateQueries({ queryKey: ['miniapp', 'stock'] })
-    },
+    // All of the Mini App: an order paid or put on the tab changes what each booking owes.
+    onSettled: () => void queryClient.invalidateQueries({ queryKey: ['miniapp'] }),
   })
+
+  /** Money is recorded only after a yes: a tap on the wrong method has no undo. */
+  async function settle(message: string, run: () => Promise<GuestOrder>) {
+    if (await confirmAction(message)) act.mutate(run)
+  }
   const { open, done } = splitOrders(orders.data ?? [])
 
   function card(order: GuestOrder) {
@@ -87,7 +90,13 @@ export default function OrdersScreen({ enabled, linkedId }: { enabled: boolean; 
             <p className="tg-hint text-xs font-bold uppercase tracking-wide">{t('miniapp.orders.paidHow')}</p>
             <div className="grid grid-cols-3 gap-2">
               {PAYMENTS.map((payment) => (
-                <ActionButton key={payment} disabled={busy} onClick={() => act.mutate(() => payGuestOrder(order.id, payment))}>
+                <ActionButton key={payment} disabled={busy} onClick={() =>
+                    settle(
+                      t('miniapp.orders.payAsk', { number: order.number, amount: money(order.total), method: t(`miniapp.orders.pay.${payment}`) }),
+                      () => payGuestOrder(order.id, payment),
+                    )
+                  }
+                >
                   {t(`miniapp.orders.pay.${payment}`)}
                 </ActionButton>
               ))}
@@ -107,13 +116,25 @@ export default function OrdersScreen({ enabled, linkedId }: { enabled: boolean; 
                 <ActionButton
                   key={payment}
                   disabled={busy}
-                  onClick={() => act.mutate(() => deliverGuestOrder(order.id, payment))}
+                  onClick={() =>
+                    settle(
+                      t('miniapp.orders.deliverPaidAsk', { number: order.number, amount: money(order.total), method: t(`miniapp.orders.pay.${payment}`) }),
+                      () => deliverGuestOrder(order.id, payment),
+                    )
+                  }
                 >
                   {t(`miniapp.orders.pay.${payment}`)}
                 </ActionButton>
               ))}
               {/* Not paid at the door: on the guest's tab, owed with the booking until paid. */}
-              <ActionButton disabled={busy} onClick={() => act.mutate(() => deliverGuestOrder(order.id, null))}>
+              <ActionButton
+                disabled={busy}
+                onClick={() =>
+                  settle(t('miniapp.orders.deliverTabAsk', { number: order.number, amount: money(order.total) }), () =>
+                    deliverGuestOrder(order.id, null),
+                  )
+                }
+              >
                 {t('miniapp.orders.toTab')}
               </ActionButton>
             </div>
