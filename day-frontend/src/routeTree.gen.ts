@@ -32,6 +32,7 @@ import { Route as PropertiesNewRouteImport } from './routes/properties/new'
 import { Route as PropertiesGanttRouteImport } from './routes/properties/gantt'
 import { Route as PropertiesPropertyIdRouteImport } from './routes/properties/$propertyId'
 import { Route as OCodeRouteImport } from './routes/o/$code'
+import { Route as GCodeRouteImport } from './routes/g/$code'
 import { Route as CleaningNewRouteImport } from './routes/cleaning/new'
 import { Route as CleaningChecklistsRouteImport } from './routes/cleaning/checklists'
 import { Route as CleaningTaskIdRouteImport } from './routes/cleaning/$taskId'
@@ -161,6 +162,11 @@ const OCodeRoute = OCodeRouteImport.update({
   path: '/o/$code',
   getParentRoute: () => rootRouteImport,
 } as any)
+const GCodeRoute = GCodeRouteImport.update({
+  id: '/g/$code',
+  path: '/g/$code',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const CleaningNewRoute = CleaningNewRouteImport.update({
   id: '/cleaning/new',
   path: '/cleaning/new',
@@ -244,6 +250,7 @@ export interface FileRoutesByFullPath {
   '/cleaning/$taskId': typeof CleaningTaskIdRoute
   '/cleaning/checklists': typeof CleaningChecklistsRoute
   '/cleaning/new': typeof CleaningNewRoute
+  '/g/$code': typeof GCodeRoute
   '/o/$code': typeof OCodeRoute
   '/properties/$propertyId': typeof PropertiesPropertyIdRouteWithChildren
   '/properties/gantt': typeof PropertiesGanttRoute
@@ -281,6 +288,7 @@ export interface FileRoutesByTo {
   '/cleaning/$taskId': typeof CleaningTaskIdRoute
   '/cleaning/checklists': typeof CleaningChecklistsRoute
   '/cleaning/new': typeof CleaningNewRoute
+  '/g/$code': typeof GCodeRoute
   '/o/$code': typeof OCodeRoute
   '/properties/gantt': typeof PropertiesGanttRoute
   '/properties/new': typeof PropertiesNewRoute
@@ -319,6 +327,7 @@ export interface FileRoutesById {
   '/cleaning/$taskId': typeof CleaningTaskIdRoute
   '/cleaning/checklists': typeof CleaningChecklistsRoute
   '/cleaning/new': typeof CleaningNewRoute
+  '/g/$code': typeof GCodeRoute
   '/o/$code': typeof OCodeRoute
   '/properties/$propertyId': typeof PropertiesPropertyIdRouteWithChildren
   '/properties/gantt': typeof PropertiesGanttRoute
@@ -359,6 +368,7 @@ export interface FileRouteTypes {
     | '/cleaning/$taskId'
     | '/cleaning/checklists'
     | '/cleaning/new'
+    | '/g/$code'
     | '/o/$code'
     | '/properties/$propertyId'
     | '/properties/gantt'
@@ -396,6 +406,7 @@ export interface FileRouteTypes {
     | '/cleaning/$taskId'
     | '/cleaning/checklists'
     | '/cleaning/new'
+    | '/g/$code'
     | '/o/$code'
     | '/properties/gantt'
     | '/properties/new'
@@ -433,6 +444,7 @@ export interface FileRouteTypes {
     | '/cleaning/$taskId'
     | '/cleaning/checklists'
     | '/cleaning/new'
+    | '/g/$code'
     | '/o/$code'
     | '/properties/$propertyId'
     | '/properties/gantt'
@@ -472,6 +484,7 @@ export interface RootRouteChildren {
   CleaningTaskIdRoute: typeof CleaningTaskIdRoute
   CleaningChecklistsRoute: typeof CleaningChecklistsRoute
   CleaningNewRoute: typeof CleaningNewRoute
+  GCodeRoute: typeof GCodeRoute
   OCodeRoute: typeof OCodeRoute
   PropertiesPropertyIdRoute: typeof PropertiesPropertyIdRouteWithChildren
   PropertiesGanttRoute: typeof PropertiesGanttRoute
@@ -655,6 +668,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof OCodeRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/g/$code': {
+      id: '/g/$code'
+      path: '/g/$code'
+      fullPath: '/g/$code'
+      preLoaderRoute: typeof GCodeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/cleaning/new': {
       id: '/cleaning/new'
       path: '/cleaning/new'
@@ -790,6 +810,7 @@ const rootRouteChildren: RootRouteChildren = {
   CleaningTaskIdRoute: CleaningTaskIdRoute,
   CleaningChecklistsRoute: CleaningChecklistsRoute,
   CleaningNewRoute: CleaningNewRoute,
+  GCodeRoute: GCodeRoute,
   OCodeRoute: OCodeRoute,
   PropertiesPropertyIdRoute: PropertiesPropertyIdRouteWithChildren,
   PropertiesGanttRoute: PropertiesGanttRoute,

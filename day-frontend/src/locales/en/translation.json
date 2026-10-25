@@ -134,7 +134,7 @@
       "both": "Both",
       "basePrice": "Base Price",
       "hourlyPrice": "Hourly Price",
-      "weekendMarkup": "Weekend Markup (%)",
+      "weekendMarkup": "Weekend Markup (₸)",
       "defaultDeposit": "Deposit for nightly stays",
       "hourlyDeposit": "Deposit for hourly stays",
       "baseGuests": "Base Guests",
@@ -217,7 +217,7 @@
       "livingArea": "Living Area (m²)",
       "totalArea": "Total Area (m²)",
       "basePrice": "Base Price (per night)",
-      "weekendMarkup": "Weekend Markup (%)",
+      "weekendMarkup": "Weekend Markup (₸)",
       "defaultDeposit": "Deposit for nightly stays",
       "hourlyDeposit": "Deposit for hourly stays",
       "extraAdultPrice": "Extra Adult Price",
@@ -504,7 +504,8 @@
       "airbnb": "Airbnb",
       "other": "Other",
       "crm": "CRM",
-      "offer": "Personal link"
+      "offer": "Personal link",
+      "site": "Website"
     },
     "adultsCount": "{{count}} adult",
     "adultsCount_other": "{{count}} adults",
@@ -880,6 +881,15 @@
       "mismatch": "The passwords do not match",
       "wrongCurrent": "The current password is wrong",
       "failed": "Could not change the password"
+    },
+    "guestPage": {
+      "title": "Guest page",
+      "description": "When the guest sees the door code and Wi-Fi on their page: once paid in full, this many hours before check-in (0–168).",
+      "daily": "By the night, hours before check-in",
+      "hourly": "By the hour, hours before check-in",
+      "save": "Save",
+      "invalid": "Hours: a whole number from 0 to 168",
+      "failed": "Could not save"
     }
   },
   "team": {
@@ -968,13 +978,48 @@
     "openInTelegram": "Open this page from the Telegram bot",
     "authFailed": "Could not sign in",
     "connectHint": "Connect the chat in the app: Settings → Team & API keys → Bots",
+    "edit": {
+      "open": "Edit",
+      "title": "Edit booking",
+      "checkIn": "Check-in",
+      "checkOut": "Check-out",
+      "day": "Day",
+      "start": "From",
+      "end": "To",
+      "adults": "Adults",
+      "children": "Children",
+      "price": "Price, ₸",
+      "notes": "Note",
+      "save": "Save",
+      "saveAnyway": "Save anyway",
+      "priceAsk": "Booking price: {{was}} → {{now}}. Save?",
+      "errors": {
+        "dates": "Check-out must be after check-in",
+        "adults": "At least one adult; children from 0",
+        "price": "The price is a number from 0"
+      }
+    },
+    "bookings": {
+      "search": "Guest name or phone",
+      "upcoming": "Upcoming",
+      "past": "Past",
+      "cancelled": "Cancelled",
+      "unpaid": "Unpaid",
+      "more": "Show more",
+      "window": "Upcoming covers the next {{days}} days. Search by name or phone for later ones.",
+      "occupancy": "14 days",
+      "flat": "Flat",
+      "allFlats": "All flats"
+    },
     "tabs": {
       "today": "Today",
       "free": "Free",
       "bookings": "Bookings",
       "flats": "Units",
       "sell": "Sell",
-      "ask": "Ask"
+      "ask": "Ask",
+      "money": "Money",
+      "orders": "Orders"
     },
     "arrivals": "Arrivals",
     "departures": "Departures",
@@ -1073,7 +1118,10 @@
       "checkAttempt": "Check on the server",
       "notRecorded": "The {{amount}} payment was not recorded and never will be. If the money came, enter it again.",
       "notReceived": "Confirming {{amount}} has not landed yet. Press retry: the money will not count twice.",
-      "receiveGone": "The {{amount}} payment no longer waits for confirmation; the attempt is cleared."
+      "receiveGone": "The {{amount}} payment no longer waits for confirmation; the attempt is cleared.",
+      "guestLink": "Link for the guest",
+      "guestLinkText": "Hello, {{name}}! Your booking page: {{url}}\nThe address, payment, house rules and the minibar are there. The door code appears there as soon as the stay is paid in full.",
+      "ordersDue": "Of which minibar orders on the tab: {{amount}}"
     },
     "cleaning": {
       "title": "Cleaning",
@@ -1190,7 +1238,108 @@
       "doneAsk": "Is {{unit}} clean?"
     },
     "otherSession": "Another window signed in to another Day account. This one has stopped so the two do not mix.",
-    "continueHere": "Continue here"
+    "continueHere": "Continue here",
+    "occupancy": {
+      "free": "Free",
+      "booked": "Booked",
+      "closed": "Closed",
+      "freeNights": "{{count}} free nights",
+      "freeNights_one": "{{count}} free night"
+    },
+    "flat": {
+      "edit": "Edit",
+      "prices": "Prices",
+      "blocks": "Closed",
+      "editTitle": "Edit flat",
+      "name": "Name",
+      "maxGuests": "Max guests",
+      "wifiName": "Wi-Fi network",
+      "wifiPassword": "Wi-Fi password",
+      "checkInText": "How to check in",
+      "checkOutText": "How to check out",
+      "houseRules": "House rules",
+      "addPhoto": "Add photo",
+      "photosFailed": "{{count}} photos did not upload",
+      "photosFailed_one": "{{count}} photo did not upload",
+      "pause": "Take off sale",
+      "activate": "Put on sale",
+      "pauseAsk": "Take the flat off sale? It will not be offered or booked until you put it back.",
+      "activateAsk": "Put the flat on sale?",
+      "pricesTitle": "Prices",
+      "basePrice": "Usual price per night, ₸",
+      "saveBase": "Save usual price",
+      "baseAsk": "Usual price per night: {{was}} → {{now}}. Bookings already made keep their price. Change it?",
+      "dayPrices": "Price for chosen nights",
+      "firstNight": "First night",
+      "lastNight": "Last night",
+      "nightPrice": "Price per night, ₸",
+      "setNights": "Set price",
+      "clearNights": "Usual price",
+      "dayAsk": "Nights {{from}} – {{to}} at {{price}} each? Bookings already made keep their price.",
+      "clearAsk": "Back to the usual price for nights {{from}} – {{to}}?",
+      "blocksTitle": "Closed nights",
+      "reason": "Reason (repairs, owner…)",
+      "closeNights": "Close these nights",
+      "noBlocks": "No closed nights ahead",
+      "reopen": "Open these nights",
+      "reopenAsk": "Open nights {{from}} – {{to}} for sale again?",
+      "fromCalendar": "From the {{source}} calendar",
+      "errors": {
+        "name": "The flat needs a name",
+        "maxGuests": "Guests: a number from 1 to 50",
+        "price": "The price is a whole number of tenge",
+        "nights": "The last night cannot be before the first"
+      }
+    },
+    "moneyTab": {
+      "month": "This month",
+      "lastMonth": "Last month",
+      "income": "Income",
+      "expenses": "Flat costs",
+      "profit": "Profit",
+      "occupancy": "Occupancy",
+      "debts": "Guests owe · {{amount}}",
+      "noDebts": "Every guest has paid",
+      "paid": "Paid · {{amount}}",
+      "spent": "Spent · {{amount}}"
+    },
+    "orders": {
+      "number": "Order #{{number}}",
+      "total": "Total",
+      "open": "Waiting",
+      "done": "Done",
+      "none": "No new orders",
+      "stock": "Stock",
+      "noStock": "No products yet",
+      "pieces": "{{qty}} pcs",
+      "accept": "Accept",
+      "deliveredHow": "Delivered, paid by:",
+      "cancel": "Cancel",
+      "payAsk": "Order #{{number}} paid: {{amount}}, {{method}}?",
+      "deliverPaidAsk": "Order #{{number}} delivered and paid: {{amount}}, {{method}}?",
+      "deliverTabAsk": "Order #{{number}} delivered, {{amount}} on the guest's tab?",
+      "cancelAsk": "Cancel order #{{number}}?",
+      "failed": "That did not work. Try again.",
+      "status": {
+        "new": "new",
+        "accepted": "accepted",
+        "delivered": "delivered",
+        "cancelled": "cancelled"
+      },
+      "pay": {
+        "cash": "Cash",
+        "card": "Card",
+        "transfer": "Transfer"
+      },
+      "paid": {
+        "cash": "Paid in cash",
+        "card": "Paid by card",
+        "transfer": "Paid by transfer"
+      },
+      "onTab": "On the tab: not paid",
+      "paidHow": "Paid by:",
+      "toTab": "On the tab"
+    }
   },
   "auth": {
     "forgot": {
@@ -1551,5 +1700,64 @@
       },
       "onTab": "on the tab"
     }
+  },
+  "guestPanel": {
+    "notFound": "This link was not found. Write to the host for a new one.",
+    "hello": "Hello, {{name}}!",
+    "stay": "Check-in {{from}} from {{checkIn}}, check-out {{to}} by {{checkOut}}",
+    "closed": "This booking is closed. Write to us if you have questions.",
+    "address": "Address",
+    "map": "Host's map",
+    "payment": "Payment",
+    "paid": "Paid {{paid}} of {{total}}",
+    "remaining": "Left to pay: {{amount}}",
+    "checkIn": "How to check in",
+    "rules": "House rules",
+    "checkOutBy": "Check-out by {{time}}",
+    "contact": "Contact the host",
+    "buttons": {
+      "pay": "How to pay",
+      "earlyCheckIn": "Early check-in",
+      "cannotGetIn": "I can't get in",
+      "extend": "Extend my stay",
+      "lateCheckOut": "Late check-out",
+      "cleaning": "Cleaning or fresh linen",
+      "broken": "Something is broken",
+      "documents": "Documents for my records",
+      "checkedOut": "I have checked out",
+      "question": "Ask a question"
+    },
+    "wa": {
+      "intro": "Hello! I'm {{name}}, booking {{dates}}, flat {{flat}}.",
+      "pay": "I'd like to pay for the booking. {{amount}} is left. Please send the payment details.",
+      "earlyCheckIn": "May I check in before {{checkIn}}?",
+      "cannotGetIn": "I can't get into the flat. Please help.",
+      "extend": "I'd like to extend my stay. For how many nights is it possible?",
+      "lateCheckOut": "May I check out after {{checkOut}}?",
+      "cleaning": "I need cleaning / fresh linen.",
+      "broken": "Something isn't working: ",
+      "documents": "I need documents for my records (receipt, statement) for the stay.",
+      "checkedOut": "I have checked out. Keys: "
+    },
+    "codeOpens": "The door code and Wi-Fi appear here once the stay is paid in full, {{hours}} h before check-in.",
+    "minibar": {
+      "title": "Minibar",
+      "payOnDelivery": "Paid on delivery, apart from the booking.",
+      "placed": "Order #{{number}} received. The host will bring it soon.",
+      "openWhatsApp": "Open WhatsApp again",
+      "empty": "The minibar is empty for now.",
+      "less": "Remove: {{name}}",
+      "more": "Add: {{name}}",
+      "cart": "Cart: {{qty}} pcs",
+      "yourOrder": "Your order",
+      "total": "Total",
+      "note": "Note",
+      "noteHint": "No ice, by 22:00",
+      "send": "Send the order",
+      "outOfStock": "Something is no longer there in that quantity. The menu is updated: check your order.",
+      "tooMany": "Too many orders in an hour. Write to the host in WhatsApp.",
+      "failed": "The order did not go through. Try again."
+    },
+    "ordersDue": "Of which minibar orders: {{amount}}"
   }
 }

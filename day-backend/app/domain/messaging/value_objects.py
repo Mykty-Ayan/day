@@ -51,3 +51,7 @@ class NotificationEvent(str, enum.Enum):
     CALENDAR_CLASH = "calendar_clash"
     # A guest booked by a personal link: the host sends the Kaspi invoice by hand.
     GUEST_HOLD = "guest_hold"
+    # The guest marked on their page that they left: the host checks the flat.
+    GUEST_CHECKED_OUT = "guest_checked_out"
+    # A guest ordered from the minibar on their page: the host delivers it.
+    GUEST_ORDER = "guest_order"

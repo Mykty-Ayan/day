@@ -62,6 +62,7 @@ from app.infrastructure.repositories.booking import (
     SqlBookingRepository,
     SqlGuestRepository,
 )
+from app.infrastructure.repositories.inventory import SqlGuestOrderRepository
 from app.infrastructure.repositories.property import (
     SqlDayPriceRepository,
     SqlDiscountRuleRepository,
@@ -76,7 +77,7 @@ from app.infrastructure.storage.s3 import (
     download_booking_file,
     upload_booking_file,
 )
-from app.presentation.api.deps import get_company_id, get_user_id, require
+from app.presentation.api.deps import Principal, get_company_id, get_principal, get_user_id, require
 from app.presentation.schemas.booking import (
     AvailabilityResponse,
     AvailablePhotoResponse,
@@ -129,6 +130,8 @@ def _repos(session: AsyncSession):
         "guest": SqlGuestRepository(session),
         "property": SqlPropertyRepository(session),
         "payment": SqlBookingPaymentRepository(session),
+        # Minibar orders on the guest's tab: owed on top of the stay.
+        "orders": SqlGuestOrderRepository(session),
         "deposit": SqlBookingDepositRepository(session),
         "file": SqlBookingFileRepository(session),
         "comment": SqlBookingCommentRepository(session),
@@ -178,6 +181,8 @@ def _to_booking_response(
     property_name: str | None = None,
     property_internal_name: str | None = None,
     paid_amount: Decimal | None = None,
+    orders_due: Decimal | None = None,
+    with_link: bool = False,
 ) -> BookingResponse:
     return BookingResponse(
         id=b.id,
@@ -195,6 +200,7 @@ def _to_booking_response(
         total_price=b.total_price,
         calculated_price=b.calculated_price,
         paid_amount=paid_amount if paid_amount is not None else Decimal("0"),
+        orders_due=orders_due if orders_due is not None else Decimal("0"),
         adults_count=b.adults_count,
         children_count=b.children_count,
         notes=b.notes,
@@ -206,9 +212,21 @@ def _to_booking_response(
         agent_id=b.agent_id,
         expires_at=b.expires_at.replace(tzinfo=timezone.utc) if b.expires_at else None,
         overbooking=b.overbooking,
+        guest_url=guest_url(b) if with_link else None,
         created_at=b.created_at,
         updated_at=b.updated_at,
     )
+
+
+def guest_url(b) -> str | None:
+    """The guest's own page for the booking (/g/<code>)."""
+    return f"{settings.PUBLIC_APP_URL.rstrip('/')}/g/{b.guest_code}" if b.guest_code else None
+
+
+def _shows_link(principal: Principal) -> bool:
+    """The guest's page shows the door code once the stay is paid: its link goes
+    to those who may hand codes to guests, as the check-in instructions do."""
+    return Permission.PROPERTY_SECRETS_READ in principal.permissions
 
 
 def _public_file_url(url: str) -> str:
@@ -294,6 +312,7 @@ async def create_booking(
     session: AsyncSession = Depends(get_session),
     company_id: uuid.UUID = Depends(get_company_id),
     user_id: uuid.UUID | None = Depends(get_user_id),
+    principal: Principal = Depends(get_principal),
 ):
     """Create a pending booking.
 
@@ -326,7 +345,7 @@ async def create_booking(
             return None
         response.status_code = 200
         response.headers["Idempotent-Replayed"] = "true"
-        return _to_booking_response(booking)
+        return _to_booking_response(booking, with_link=_shows_link(principal))
 
     if (answer := await replayed()) is not None:
         return answer
@@ -357,7 +376,7 @@ async def create_booking(
         )
         await _notify_booking(session, company_id, NotificationEvent.BOOKING_CREATED, result, repos)
         await session.commit()
-        return _to_booking_response(result)
+        return _to_booking_response(result, with_link=_shows_link(principal))
     except (BookingOverlapError, IdempotencyKeyTakenError) as e:
         await session.rollback()
         # A request with the same key may have committed while this one ran;
@@ -422,6 +441,7 @@ async def list_bookings(
     agent_id: uuid.UUID | None = None,
     session: AsyncSession = Depends(get_session),
     company_id: uuid.UUID = Depends(get_company_id),
+    principal: Principal = Depends(get_principal),
 ):
     repos = _repos(session)
     svc = ListBookingsService(repos["booking"])
@@ -442,6 +462,7 @@ async def list_bookings(
     # Enrich with guest and property names, plus what has been received —
     # one aggregate query for the whole page rather than one per booking.
     paid = await repos["payment"].sum_paid_by_bookings([b.id for b in result.items])
+    due = await repos["orders"].due_by_bookings(company_id, [b.id for b in result.items])
     items = []
     for b in result.items:
         guest = await repos["guest"].get_by_id(b.guest_id)
@@ -454,6 +475,8 @@ async def list_bookings(
                 property_name=prop.name if prop else None,
                 property_internal_name=prop.internal_name if prop else None,
                 paid_amount=paid.get(b.id),
+                orders_due=due.get(b.id),
+                with_link=_shows_link(principal),
             )
         )
 
@@ -478,6 +501,7 @@ async def booking_feed(
     limit: int = Query(default=100, ge=1, le=200),
     session: AsyncSession = Depends(get_session),
     company_id: uuid.UUID = Depends(get_company_id),
+    principal: Principal = Depends(get_principal),
 ):
     """Every change to the company's bookings, oldest first, cancelled ones included.
 
@@ -535,6 +559,7 @@ async def booking_feed(
                 external_id=b.external_id,
                 expires_at=b.expires_at.replace(tzinfo=timezone.utc) if b.expires_at else None,
                 overbooking=b.overbooking,
+                guest_url=guest_url(b) if _shows_link(principal) else None,
                 created_at=b.created_at.replace(tzinfo=timezone.utc),
                 updated_at=b.updated_at.replace(tzinfo=timezone.utc),
             )
@@ -577,6 +602,7 @@ async def get_today(
     in_house = []
 
     paid = await repos["payment"].sum_paid_by_bookings([b.id for b in all_bookings])
+    due = await repos["orders"].due_by_bookings(company_id, [b.id for b in all_bookings])
     for b in all_bookings:
         guest = await repos["guest"].get_by_id(b.guest_id)
         prop = await repos["property"].get_by_id(b.property_id)
@@ -588,6 +614,7 @@ async def get_today(
                 property_name=prop.name if prop else None,
                 property_internal_name=prop.internal_name if prop else None,
                 paid_amount=paid.get(b.id),
+                orders_due=due.get(b.id),
             ).model_dump(),
             property_status=prop.status if prop else None,
         )
@@ -630,6 +657,7 @@ async def get_booking(
     booking_id: uuid.UUID,
     session: AsyncSession = Depends(get_session),
     company_id: uuid.UUID = Depends(get_company_id),
+    principal: Principal = Depends(get_principal),
 ):
     repos = _repos(session)
     svc = GetBookingService(
@@ -655,6 +683,8 @@ async def get_booking(
             guest_phone=detail.guest.phone if detail.guest else None,
             property_name=detail.property_name,
             property_internal_name=detail.property_internal_name,
+            orders_due=(await repos["orders"].due_by_bookings(company_id, [booking_id])).get(booking_id),
+            with_link=_shows_link(principal),
         ),
         guest=GuestResponse.model_validate(detail.guest, from_attributes=True) if detail.guest else None,
         payments=[PaymentResponse.model_validate(p, from_attributes=True) for p in detail.payments],
