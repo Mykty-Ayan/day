@@ -7,7 +7,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { BedDouble, CheckCircle2, Copy, LogIn, LogOut, Phone, Send, Wallet, XCircle } from 'lucide-react'
+import { BedDouble, CheckCircle2, Copy, Link2, LogIn, LogOut, Pencil, Phone, Send, Wallet, XCircle } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import {
   addPayment,
@@ -41,6 +41,7 @@ import {
 import { cardRead, readyToAct, secretsFresh } from './card-state'
 import { formatDay, formatMoney, formatTime } from './format'
 import DepositRow from './DepositRow'
+import EditBookingSheet from './EditBookingSheet'
 import { errorText } from './errors'
 import { buildCheckInMessage } from './messages'
 import { ActionButton, Chip, Field, Sheet } from './miniapp-ui'
@@ -101,6 +102,7 @@ export default function BookingSheet({
   const [method, setMethod] = useState<PaymentMethod>('transfer')
   const [error, setError] = useState('')
   const [copied, setCopied] = useState(false)
+  const [editing, setEditing] = useState(false)
   const [openedAt] = useState(() => Date.now())
   // A check still out when the card closes must not act on what it reads.
   const alive = useRef(true)
@@ -148,6 +150,8 @@ export default function BookingSheet({
   // from another showed debts that were already paid.
   const payments = fresh.data?.payments ?? []
   const { due, waiting } = settlement(booking?.total_price ?? 0, payments)
+  // Minibar orders on the guest's tab: owed on top of the stay, paid on the order itself.
+  const ordersDue = fresh.data?.booking.orders_due ?? booking?.orders_due ?? 0
   const received = payments.filter((payment) => payment.status === 'completed')
 
   function refresh() {
@@ -416,10 +420,13 @@ export default function BookingSheet({
         <p className="mt-2 flex items-baseline justify-between text-sm">
           <span className="tg-hint">{t('miniapp.booking.due')}</span>
           <span className="font-bold">
-            {money(due)}
+            {money(due + ordersDue)}
             <span className="tg-hint font-normal"> / {money(booking.total_price)}</span>
           </span>
         </p>
+        {ordersDue > 0 && (
+          <p className="tg-hint mt-1 text-xs">{t('miniapp.booking.ordersDue', { amount: money(ordersDue) })}</p>
+        )}
       </div>
 
       {error && (
@@ -581,11 +588,45 @@ export default function BookingSheet({
         </ActionButton>
       </div>
 
+      {booking.guest_url && booking.status !== 'cancelled' && (
+        <ActionButton
+          disabled={settling}
+          onClick={() =>
+            openWhatsApp(
+              booking.guest_phone ?? '',
+              t('miniapp.booking.guestLinkText', { name: booking.guest_name ?? '', url: booking.guest_url }),
+            )
+          }
+        >
+          <Link2 className="h-4 w-4" />
+          {t('miniapp.booking.guestLink')}
+        </ActionButton>
+      )}
+
+      {booking.status !== 'cancelled' && booking.status !== 'completed' && (
+        <ActionButton disabled={settling} onClick={() => setEditing(true)}>
+          <Pencil className="h-4 w-4" />
+          {t('miniapp.edit.open')}
+        </ActionButton>
+      )}
+
       {canCancel(booking.status) && (
         <ActionButton disabled={settling || setStatus.isPending} onClick={askCancel}>
           <XCircle className="h-4 w-4" />
           {t('miniapp.booking.cancel')}
         </ActionButton>
+      )}
+
+      {editing && (
+        <EditBookingSheet
+          // Edited from the booking as the server has it now, never a stale row.
+          booking={booking}
+          onClose={() => setEditing(false)}
+          onSaved={() => {
+            setEditing(false)
+            setError('')
+          }}
+        />
       )}
     </Sheet>
   )

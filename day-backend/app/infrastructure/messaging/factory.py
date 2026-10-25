@@ -103,13 +103,10 @@ def build_host_bot(session: AsyncSession) -> HostBotService:
 
     return HostBotService(
         build_link_service(session),
-        build_availability(session),
-        SqlBookingRepository(session),
-        SqlPropertyRepository(session),
-        SqlGuestRepository(session),
         assistant_for=assistant_for,
         company_repo=SqlCompanyRepository(session),
         user_repo=SqlUserRepository(session),
+        mini_app_url=f"{settings.PUBLIC_APP_URL.rstrip('/')}/tma",
     )
 
 

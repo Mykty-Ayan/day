@@ -291,13 +291,18 @@ class _Tasks:
         return task
 
 
-def _checkout(status=BookingStatus.CHECKED_IN, tasks=None, check_in=datetime(2026, 10, 25, 14)):
+def _checkout(
+    status=BookingStatus.CHECKED_IN,
+    tasks=None,
+    check_in=datetime(2026, 10, 25, 14),
+    check_out=datetime(2026, 10, 27, 12),
+):
     from app.application.booking.guest_checkout import GuestCheckoutService
 
     flat_ = _make_property(name="Т13")
     guest = Guest(company_id=COMPANY_ID, name="Жалгас")
     booking = Booking(company_id=COMPANY_ID, property_id=flat_.id, guest_id=guest.id, status=status,
-                      check_in=check_in, check_out=datetime(2026, 10, 27, 12), guest_code=CODE)
+                      check_in=check_in, check_out=check_out, guest_code=CODE)
     tasks = tasks if tasks is not None else _Tasks()
     return GuestCheckoutService(_Repo(booking), _Repo(guest), _Repo(flat_), tasks, _Settings()), tasks, flat_
 
@@ -325,6 +330,14 @@ async def test_leaving_needs_a_stay_that_began():
         with pytest.raises(NotStayingError):
             await svc.execute(CODE, NOW)
         assert tasks.tasks == []
+    # A stay long over, never moved to checked out: the old link must not raise a false
+    # "guest left" nor send a cleaner into the next guest's flat.
+    svc, tasks, _ = _checkout(
+        status=BookingStatus.CONFIRMED, check_in=datetime(2026, 10, 10, 14), check_out=datetime(2026, 10, 12, 12)
+    )
+    with pytest.raises(NotStayingError):
+        await svc.execute(CODE, NOW)
+    assert tasks.tasks == []
     svc, *_ = _checkout()
     with pytest.raises(LookupError):
         await svc.execute("nosuchcodeatall0", NOW)

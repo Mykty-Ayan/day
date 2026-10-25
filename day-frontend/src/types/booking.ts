@@ -1,6 +1,6 @@
 
 export type BookingStatus = 'pending' | 'confirmed' | 'checked_in' | 'checked_out' | 'completed' | 'cancelled'
-export type BookingSource = 'direct' | 'booking' | 'airbnb' | 'other' | 'crm' | 'offer'
+export type BookingSource = 'direct' | 'booking' | 'airbnb' | 'other' | 'crm' | 'offer' | 'site'
 export type PaymentType = 'payment' | 'refund'
 export type PaymentMethod = 'cash' | 'card' | 'transfer'
 export type PaymentStatus = 'pending' | 'completed' | 'failed'
@@ -35,10 +35,14 @@ export interface Booking {
   gantt_icon?: string
   /** An OTA booking on nights already taken; someone has to resolve it. */
   overbooking?: boolean
+  /** The guest's own page (/g/<code>); only for those who may hand out door codes. */
+  guest_url?: string | null
   total_price: number
   calculated_price: number
   /** Net received: payments less refunds. Lets a list show who still owes. */
   paid_amount: number
+  /** Minibar orders delivered on the guest's tab: owed on top of the stay. */
+  orders_due?: number
   adults_count: number
   children_count: number
   notes?: string | null

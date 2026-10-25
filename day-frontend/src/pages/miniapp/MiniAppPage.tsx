@@ -12,15 +12,21 @@ import {
   Building2,
   CalendarCheck,
   KeyRound,
+  List,
   LogIn,
   LogOut,
+  MessageCircle,
+  Plus,
   Send,
+  ShoppingBag,
   SprayCan,
   Users,
+  Wallet,
   Wifi,
 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { getBooking, getTodayChecks, listBookings } from '../../api/bookings'
+import { listGuestOrders } from '../../api/guest-orders'
 import { onSessionStored, storeSession } from '../../api/client'
 import { onIdentityChange, roleFromToken, sessionIdentity } from '../../lib/token'
 import { telegramMiniAppLogin, type AvailableProperty } from '../../api/miniapp'
@@ -41,14 +47,24 @@ import type { SellRange } from './sell'
 import { cardRead, linkedBookingId } from './card-state'
 import { errorText } from './errors'
 import { addDays, formatDay, formatMoney, formatTime, toISODate } from './format'
-import { ActionButton, Chip, Screen, Section } from './miniapp-ui'
+import { ActionButton, BookingRow, Screen, Section, TabBar } from './miniapp-ui'
+import BookingsScreen from './BookingsScreen'
+import MoneyScreen from './MoneyScreen'
+import OrdersScreen from './OrdersScreen'
+import { linkedOrderId } from './orders'
+import { searchWithTab, tabFromSearch, type Tab } from './tabs'
 
-type Tab = 'today' | 'sell' | 'units' | 'ask'
 const UPCOMING_DAYS = 14
 
 export default function MiniAppPage() {
   const { t, i18n } = useTranslation()
-  const [tab, setTab] = useState<Tab>('today')
+  const [tab, setTabState] = useState<Tab>(() => tabFromSearch(window.location.search))
+  // Replaced, not pushed: Telegram's back arrow closes sheets, and a history of
+  // tab switches would make the Android back gesture walk through them instead.
+  const setTab = (next: Tab) => {
+    setTabState(next)
+    window.history.replaceState(window.history.state, '', `${window.location.pathname}${searchWithTab(window.location.search, next)}`)
+  }
   const [authState, setAuthState] = useState<'pending' | 'ready' | 'failed'>('pending')
   const [authError, setAuthError] = useState('')
   const [attempt, setAttempt] = useState(0)
@@ -119,6 +135,9 @@ export default function MiniAppPage() {
 
   // The booking screens' reads; a cleaner would only get 403s from them.
   const enabled = authState === 'ready' && role !== 'cleaner' && !paused
+  // New guests' orders, for the header's badge; the orders screen shares the answer.
+  const ordersQuery = useQuery({ queryKey: ['miniapp', 'orders'], queryFn: listGuestOrders, enabled, refetchInterval: 30_000 })
+  const newOrders = (ordersQuery.data ?? []).filter((order) => order.status === 'new').length
 
   const todayQuery = useQuery({
     queryKey: ['miniapp', 'today'],
@@ -211,35 +230,55 @@ export default function MiniAppPage() {
     .sort((a, b) => a.check_in.localeCompare(b.check_in))
 
   return (
-    <div className="tg-root min-h-screen pb-6">
-      <nav className="tg-surface sticky top-0 z-10 flex gap-1 p-2">
-        {(
-          [
-            ['today', t('miniapp.tabs.today')],
-            ['sell', t('miniapp.tabs.sell')],
-            ['units', t('miniapp.tabs.flats')],
-            ['ask', t('miniapp.tabs.ask')],
-          ] as [Tab, string][]
-        ).map(([value, label]) => (
-          <Chip key={value} label={label} active={tab === value} onClick={() => setTab(value)} />
-        ))}
-      </nav>
-
+    <div className="tg-root min-h-screen pb-24">
+      <header className="tg-root sticky top-0 z-10 flex items-center gap-2 px-3 pt-3">
+        <h1 className="flex-1 truncate text-base font-bold">{t(`miniapp.tabs.${tab === 'units' ? 'flats' : tab}`)}</h1>
+        <button
+          type="button"
+          aria-label={newOrders ? `${t('miniapp.tabs.orders')}: ${newOrders}` : t('miniapp.tabs.orders')}
+          aria-current={tab === 'orders' ? 'page' : undefined}
+          onClick={() => {
+            tapFeedback()
+            setTab('orders')
+          }}
+          className={`flex h-10 items-center gap-1.5 rounded-full px-3 text-xs font-bold ${tab === 'orders' ? 'tg-active' : 'tg-surface'}`}
+        >
+          <ShoppingBag className="h-4 w-4" />
+          {t('miniapp.tabs.orders')}
+          {newOrders > 0 && (
+            <span className="rounded-full bg-red-600 px-1.5 text-[11px] leading-5 text-white">{newOrders}</span>
+          )}
+        </button>
+        <button
+          type="button"
+          aria-label={t('miniapp.tabs.ask')}
+          aria-current={tab === 'ask' ? 'page' : undefined}
+          onClick={() => {
+            tapFeedback()
+            setTab('ask')
+          }}
+          className={`flex h-10 items-center gap-1.5 rounded-full px-3 text-xs font-bold ${tab === 'ask' ? 'tg-active' : 'tg-surface'}`}
+        >
+          <MessageCircle className="h-4 w-4" />
+          {t('miniapp.tabs.ask')}
+        </button>
+      </header>
       <main className="space-y-4 p-3">
+        {/* A booking opened by its id (a notice, the two-week chart) that could not be read. */}
+        {linkedId && linked.isError && (
+          <button
+            type="button"
+            role="alert"
+            onClick={() => setLinkedId(null)}
+            className="tg-surface w-full rounded-xl px-3 py-2 text-left text-sm"
+          >
+            {errorText(linked.error, t('miniapp.linkedFailed'), t)}
+            <span className="tg-hint block text-xs">{t('miniapp.tapToHide')}</span>
+          </button>
+        )}
+
         {tab === 'today' && (
           <>
-            {linkedId && linked.isError && (
-              <button
-                type="button"
-                role="alert"
-                onClick={() => setLinkedId(null)}
-                className="tg-surface w-full rounded-xl px-3 py-2 text-left text-sm"
-              >
-                {errorText(linked.error, t('miniapp.linkedFailed'), t)}
-                <span className="tg-hint block text-xs">{t('miniapp.tapToHide')}</span>
-              </button>
-            )}
-
             <MoneyStrip bookings={upcoming} />
 
             <ActionButton tone="primary" onClick={() => setOfferOpen(true)}>
@@ -374,8 +413,28 @@ export default function MiniAppPage() {
           </>
         )}
 
+        {tab === 'bookings' && (
+          <BookingsScreen enabled={enabled} today={today} onOpen={setBooking} onOpenId={setLinkedId} />
+        )}
+
+        {tab === 'money' && <MoneyScreen enabled={enabled} today={today} onOpen={setBooking} />}
+
         {tab === 'ask' && <AskScreen />}
+
+        {tab === 'orders' && <OrdersScreen enabled={enabled} linkedId={linkedOrderId(window.location.search)} />}
       </main>
+
+      <TabBar
+        active={tab}
+        onChange={setTab}
+        items={[
+          { value: 'today', label: t('miniapp.tabs.today'), icon: <CalendarCheck className="h-5 w-5" /> },
+          { value: 'bookings', label: t('miniapp.tabs.bookings'), icon: <List className="h-5 w-5" /> },
+          { value: 'sell', label: t('miniapp.tabs.sell'), icon: <Plus className="h-5 w-5" /> },
+          { value: 'units', label: t('miniapp.tabs.flats'), icon: <Building2 className="h-5 w-5" /> },
+          { value: 'money', label: t('miniapp.tabs.money'), icon: <Wallet className="h-5 w-5" /> },
+        ]}
+      />
 
       <OfferSheet key={offerOpen ? 'open' : 'closed'} open={offerOpen} onClose={() => setOfferOpen(false)} />
       <BookingSheet
@@ -409,7 +468,7 @@ function MoneyStrip({ bookings }: { bookings: Booking[] }) {
   const { t, i18n } = useTranslation()
 
   const owed = bookings.reduce(
-    (sum, booking) => sum + Math.max(0, booking.total_price - (booking.paid_amount ?? 0)),
+    (sum, booking) => sum + Math.max(0, booking.total_price - (booking.paid_amount ?? 0)) + (booking.orders_due ?? 0),
     0,
   )
   const booked = bookings.reduce((sum, booking) => sum + booking.total_price, 0)
@@ -427,40 +486,6 @@ function Figure({ label, value }: { label: string; value: string }) {
     <div className="px-3 py-2.5">
       <p className="tg-hint text-xs font-bold uppercase tracking-wide">{label}</p>
       <p className="mt-0.5 text-lg font-bold tabular-nums">{value}</p>
-    </div>
-  )
-}
-
-function BookingRow({
-  booking,
-  meta,
-  onOpen,
-  extra,
-}: {
-  booking: Booking
-  meta: string
-  onOpen: () => void
-  extra?: React.ReactNode
-}) {
-  return (
-    <div className="flex items-center gap-2 pr-3">
-      <button
-        type="button"
-        onClick={() => {
-          tapFeedback()
-          onOpen()
-        }}
-        className="flex min-h-[52px] min-w-0 flex-1 items-center gap-3 px-3 py-2.5 text-left"
-      >
-        <span className="min-w-0 flex-1">
-          <span className="block truncate text-sm font-semibold">
-            {booking.property_name || '—'}
-          </span>
-          <span className="tg-hint block truncate text-xs">{booking.guest_name || '—'}</span>
-        </span>
-        <span className="shrink-0 text-xs font-semibold">{meta}</span>
-      </button>
-      {extra}
     </div>
   )
 }

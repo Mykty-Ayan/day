@@ -19,6 +19,7 @@ from app.domain.booking.entities import Booking
 from app.domain.booking.repositories import BookingRepository
 from app.domain.booking.value_objects import BookingSource, BookingStatus
 from app.domain.inventory.entities import (
+    MAX_MONEY,
     GuestOrder,
     GuestOrderItem,
     MovementKind,
@@ -38,6 +39,8 @@ MAX_LINES = 30
 MAX_PER_LINE = 20
 # Orders a booking may place in an hour: more is a stuck button or someone playing.
 MAX_PER_HOUR = 5
+# A repeat of the same cart within this many seconds is the same order sent twice.
+REPEAT_SECONDS = 60
 
 _TEXT = {
     "ru": ("Заказ №{number}, кв. {flat}:", "Итого: {total}", "Комментарий: {note}"),
@@ -78,6 +81,8 @@ class PlacedOrder:
     flat_name: str
     # wa.me with the order's text; None when the company gave no WhatsApp number.
     whatsapp_url: str | None
+    # The same order sent again (a double tap, a retry): the one already made, told once.
+    repeated: bool = False
 
 
 class GuestOrderService:
@@ -129,6 +134,14 @@ class GuestOrderService:
                 raise ValueError(f"A line has 1 to {MAX_PER_LINE} pieces")
             wanted[product_id] = wanted.get(product_id, 0) + quantity
         utc_now = (now or datetime.now(tz=ZoneInfo("UTC"))).astimezone(ZoneInfo("UTC")).replace(tzinfo=None)
+        note = (note or "").strip() or None
+        # One booking's orders one at a time, to the transaction's end: a double tap
+        # waits for the first and then finds it.
+        await self._orders.hold(booking.id)
+        cart = sorted(wanted.items())
+        for prior in await self._orders.recent_new(booking.id, utc_now - timedelta(seconds=REPEAT_SECONDS)):
+            if prior.guest_note == note and sorted((i.product_id, i.quantity) for i in prior.items) == cart:
+                return await self._placed(booking, prior, language, repeated=True)
         if await self._orders.count_since(booking.id, utc_now - timedelta(hours=1)) >= MAX_PER_HOUR:
             raise TooManyOrdersError("Too many orders in an hour")
 
@@ -145,16 +158,23 @@ class GuestOrderService:
             items.append(
                 GuestOrderItem(product_id=product.id, name=product.name, price=product.price, quantity=quantity)
             )
+        total = sum((i.price * i.quantity for i in items), Decimal(0))
+        # The column is Numeric(12, 2): a larger total would come back as a 500.
+        if total > MAX_MONEY:
+            raise ValueError("The order's total is too large")
         order = await self._orders.add(
             GuestOrder(
                 company_id=booking.company_id,
                 booking_id=booking.id,
                 property_id=booking.property_id,
-                total=sum((i.price * i.quantity for i in items), Decimal(0)),
+                total=total,
                 items=items,
-                guest_note=(note or "").strip() or None,
+                guest_note=note,
             )
         )
+        return await self._placed(booking, order, language)
+
+    async def _placed(self, booking, order: GuestOrder, language: str, repeated: bool = False) -> PlacedOrder:
         prop = await self._properties.get_by_id(booking.property_id)
         flat = prop.name if prop and prop.company_id == booking.company_id else ""
         site = await self._sites.get(booking.company_id)
@@ -168,7 +188,7 @@ class GuestOrderService:
                 + ([comment.format(note=order.guest_note)] if order.guest_note else [])
             )
             url = f"https://wa.me/{''.join(c for c in site.whatsapp if c.isdigit())}?text={quote(text)}"
-        return PlacedOrder(order=order, flat_name=flat, whatsapp_url=url)
+        return PlacedOrder(order=order, flat_name=flat, whatsapp_url=url, repeated=repeated)
 
     async def list(self, company_id: uuid.UUID, *, status: OrderStatus | None = None) -> Sequence[GuestOrder]:
         return await self._orders.list(company_id, status=status)
