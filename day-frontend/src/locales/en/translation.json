@@ -1109,7 +1109,8 @@
       "notReceived": "Confirming {{amount}} has not landed yet. Press retry: the money will not count twice.",
       "receiveGone": "The {{amount}} payment no longer waits for confirmation; the attempt is cleared.",
       "guestLink": "Link for the guest",
-      "guestLinkText": "Hello, {{name}}! Your booking page: {{url}}\nThe address, payment, house rules and the minibar are there. The door code appears there as soon as the stay is paid in full."
+      "guestLinkText": "Hello, {{name}}! Your booking page: {{url}}\nThe address, payment, house rules and the minibar are there. The door code appears there as soon as the stay is paid in full.",
+      "ordersDue": "Of which minibar orders on the tab: {{amount}}"
     },
     "cleaning": {
       "title": "Cleaning",
@@ -1320,7 +1321,10 @@
         "cash": "Paid in cash",
         "card": "Paid by card",
         "transfer": "Paid by transfer"
-      }
+      },
+      "onTab": "On the tab: not paid",
+      "paidHow": "Paid by:",
+      "toTab": "On the tab"
     }
   },
   "auth": {

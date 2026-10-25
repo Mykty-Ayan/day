@@ -14,6 +14,7 @@ import {
   deliverGuestOrder,
   listGuestOrders,
   listStock,
+  payGuestOrder,
   type GuestOrder,
   type OrderPayment,
 } from '../../api/guest-orders'
@@ -80,6 +81,19 @@ export default function OrdersScreen({ enabled, linkedId }: { enabled: boolean; 
         {order.status === 'delivered' && order.payment_method && (
           <p className="tg-hint text-xs">{t(`miniapp.orders.paid.${order.payment_method}`)}</p>
         )}
+        {order.payment_status === 'on_booking' && (
+          <>
+            <p className="text-xs font-bold text-red-600">{t('miniapp.orders.onTab')}</p>
+            <p className="tg-hint text-xs font-bold uppercase tracking-wide">{t('miniapp.orders.paidHow')}</p>
+            <div className="grid grid-cols-3 gap-2">
+              {PAYMENTS.map((payment) => (
+                <ActionButton key={payment} disabled={busy} onClick={() => act.mutate(() => payGuestOrder(order.id, payment))}>
+                  {t(`miniapp.orders.pay.${payment}`)}
+                </ActionButton>
+              ))}
+            </div>
+          </>
+        )}
         {order.status === 'new' && (
           <ActionButton tone="primary" disabled={busy} onClick={() => act.mutate(() => acceptGuestOrder(order.id))}>
             {t('miniapp.orders.accept')}
@@ -88,7 +102,7 @@ export default function OrdersScreen({ enabled, linkedId }: { enabled: boolean; 
         {(order.status === 'new' || order.status === 'accepted') && (
           <>
             <p className="tg-hint text-xs font-bold uppercase tracking-wide">{t('miniapp.orders.deliveredHow')}</p>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-2 gap-2">
               {PAYMENTS.map((payment) => (
                 <ActionButton
                   key={payment}
@@ -98,6 +112,10 @@ export default function OrdersScreen({ enabled, linkedId }: { enabled: boolean; 
                   {t(`miniapp.orders.pay.${payment}`)}
                 </ActionButton>
               ))}
+              {/* Not paid at the door: on the guest's tab, owed with the booking until paid. */}
+              <ActionButton disabled={busy} onClick={() => act.mutate(() => deliverGuestOrder(order.id, null))}>
+                {t('miniapp.orders.toTab')}
+              </ActionButton>
             </div>
             <ActionButton
               disabled={busy}

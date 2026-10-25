@@ -14,6 +14,7 @@ import type { Booking } from '../../types/booking'
 import { formatDay, formatMoney } from './format'
 import { ActionButton, BookingRow, Chip, Section } from './miniapp-ui'
 import OccupancyList from './OccupancyList'
+import { owed } from './money'
 import { owes, segmentFilters, segmentItems, UPCOMING_WINDOW_DAYS, type BookingSegment } from './tabs'
 
 const SEARCH_DELAY_MS = 300
@@ -137,7 +138,7 @@ export default function BookingsScreen({
               extra={
                 owes(item) && item.status !== 'cancelled' ? (
                   <span className="shrink-0 text-xs font-bold text-red-500 tabular-nums">
-                    {formatMoney(item.total_price - (item.paid_amount ?? 0), i18n.language)} ₸
+                    {formatMoney(owed(item), i18n.language)} ₸
                   </span>
                 ) : undefined
               }

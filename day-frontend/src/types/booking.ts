@@ -41,6 +41,8 @@ export interface Booking {
   calculated_price: number
   /** Net received: payments less refunds. Lets a list show who still owes. */
   paid_amount: number
+  /** Minibar orders delivered on the guest's tab: owed on top of the stay. */
+  orders_due?: number
   adults_count: number
   children_count: number
   notes?: string | null

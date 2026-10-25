@@ -49,7 +49,7 @@ export function segmentFilters(
 }
 
 export function owes(booking: Booking): boolean {
-  return booking.total_price - (booking.paid_amount ?? 0) > 0
+  return booking.total_price - (booking.paid_amount ?? 0) > 0 || (booking.orders_due ?? 0) > 0
 }
 
 /** What the server's date window lets through but the segment does not mean:

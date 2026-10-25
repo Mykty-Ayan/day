@@ -63,6 +63,23 @@ test('the host handles guest orders from the Mini App', async ({ page, request, 
   ])
   // Cancelled: the stock stays where the delivery left it.
   await expect(page.getByTestId('stock-row').filter({ hasText: 'Кола 0,5' })).toContainText('1 pcs')
+
+  // Not paid at the door: on the guest's tab, owed with the booking until paid.
+  await placeOrder(1)
+  await page.reload()
+  const third = page.getByRole('article', { name: 'Order #3' })
+  await third.getByRole('button', { name: 'On the tab', exact: true }).click()
+  await expect(third).toContainText('On the tab: not paid')
+  const owing = await (await request.get(`${API_BASE}/bookings/${booking.id}`)).json()
+  expect(owing.booking.orders_due).toBe(800)
+  await page.getByRole('button', { name: 'Bookings', exact: true }).click()
+  await page.getByText(guest).click()
+  await expect(page.getByText('Of which minibar orders on the tab: 800 ₸')).toBeVisible()
+  await page.goto(`/tma?tab=orders`)
+  await page.getByRole('article', { name: 'Order #3' }).getByRole('button', { name: 'Card' }).click()
+  await expect(page.getByRole('article', { name: 'Order #3' })).toContainText('Paid by card')
+  const settled = await (await request.get(`${API_BASE}/bookings/${booking.id}`)).json()
+  expect(settled.booking.orders_due).toBe(0)
 })
 
 test('the booking card sends the guest their page link in WhatsApp', async ({ page, request, authTokens }) => {

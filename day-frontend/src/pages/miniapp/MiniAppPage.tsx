@@ -468,7 +468,7 @@ function MoneyStrip({ bookings }: { bookings: Booking[] }) {
   const { t, i18n } = useTranslation()
 
   const owed = bookings.reduce(
-    (sum, booking) => sum + Math.max(0, booking.total_price - (booking.paid_amount ?? 0)),
+    (sum, booking) => sum + Math.max(0, booking.total_price - (booking.paid_amount ?? 0)) + (booking.orders_due ?? 0),
     0,
   )
   const booked = bookings.reduce((sum, booking) => sum + booking.total_price, 0)

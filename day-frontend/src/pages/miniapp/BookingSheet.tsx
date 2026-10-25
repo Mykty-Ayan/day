@@ -150,6 +150,8 @@ export default function BookingSheet({
   // from another showed debts that were already paid.
   const payments = fresh.data?.payments ?? []
   const { due, waiting } = settlement(booking?.total_price ?? 0, payments)
+  // Minibar orders on the guest's tab: owed on top of the stay, paid on the order itself.
+  const ordersDue = fresh.data?.booking.orders_due ?? booking?.orders_due ?? 0
   const received = payments.filter((payment) => payment.status === 'completed')
 
   function refresh() {
@@ -418,10 +420,13 @@ export default function BookingSheet({
         <p className="mt-2 flex items-baseline justify-between text-sm">
           <span className="tg-hint">{t('miniapp.booking.due')}</span>
           <span className="font-bold">
-            {money(due)}
+            {money(due + ordersDue)}
             <span className="tg-hint font-normal"> / {money(booking.total_price)}</span>
           </span>
         </p>
+        {ordersDue > 0 && (
+          <p className="tg-hint mt-1 text-xs">{t('miniapp.booking.ordersDue', { amount: money(ordersDue) })}</p>
+        )}
       </div>
 
       {error && (
