@@ -176,6 +176,40 @@ export interface GuestPanel {
   access: { instructions: string | null; wifi_name: string | null; wifi_password: string | null; facts: string[] } | null
   /** Hours before check-in the way in opens, once the stay is paid. */
   lead_hours: number
+  /** The minibar during the stay; null outside it. */
+  menu: MenuItem[] | null
+}
+
+export interface MenuItem {
+  id: string
+  name: string
+  category: string
+  description: string | null
+  photo_url: string | null
+  price: number
+  /** What may go in the cart: what is left, at most 20. */
+  max_quantity: number
+}
+
+export interface PlacedOrder {
+  number: number
+  total: number
+  /** wa.me with the order's text; null when the host gave no WhatsApp number. */
+  whatsapp_url: string | null
+}
+
+export async function placeGuestOrder(
+  code: string,
+  items: { product_id: string; quantity: number }[],
+  note: string | null,
+  language: 'ru' | 'kz' | 'en',
+): Promise<PlacedOrder> {
+  const res = await publicClient.post<PlacedOrder>(`/public/guest/${encodeURIComponent(code)}/orders`, {
+    items,
+    note,
+    language,
+  })
+  return res.data
 }
 
 export async function getGuestPanel(code: string): Promise<GuestPanel> {

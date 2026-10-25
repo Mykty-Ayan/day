@@ -124,3 +124,62 @@ test('the page speaks three languages and a dead link says so', async ({ page })
   await page.getByRole('button', { name: /Language/ }).click()
   await expect(page.getByRole('radio')).toHaveCount(3)
 })
+
+const MENU = [
+  { id: 'p-cola', name: 'Кола 0,5', category: 'Напитки', description: null, photo_url: null, price: 800, max_quantity: 2 },
+  { id: 'p-nuts', name: 'Арахис', category: 'Снеки', description: null, photo_url: null, price: 600, max_quantity: 20 },
+]
+
+test('during the stay the guest fills a cart, sends the order and WhatsApp opens with it', async ({ page }) => {
+  const sent: unknown[] = []
+  await page.route(`**/api/v1/public/guest/${CODE}/orders`, async (route) => {
+    sent.push(route.request().postDataJSON())
+    await route.fulfill({ status: 201, json: { number: 7, total: 2200, whatsapp_url: 'https://wa.me/77001234567?text=order' } })
+  })
+  await page.route('https://wa.me/**', (route) => route.fulfill({ contentType: 'text/html', body: '<p>WhatsApp</p>' }))
+  await open(page, answer({ menu: MENU }, { paid: 40000, remaining: 0 }))
+
+  const minibar = page.getByRole('region', { name: 'Мини-бар' })
+  await expect(minibar.getByText('Оплата при доставке, отдельно от брони.')).toBeVisible()
+  await minibar.getByRole('button', { name: 'Добавить: Кола 0,5' }).click()
+  await minibar.getByRole('button', { name: 'Добавить: Кола 0,5' }).click()
+  // Two are left: no third.
+  await expect(minibar.getByRole('button', { name: 'Добавить: Кола 0,5' })).toBeDisabled()
+  await minibar.getByRole('button', { name: 'Добавить: Арахис' }).click()
+  await minibar.getByRole('button', { name: /Корзина: 3 шт\./ }).click()
+
+  const sheet = page.getByRole('dialog', { name: 'Ваш заказ' })
+  await expect(sheet.getByTestId('cart-total')).toContainText('2 200')
+  await sheet.getByRole('textbox').fill('без льда')
+  await sheet.getByRole('button', { name: 'Отправить заказ' }).click()
+  await page.waitForURL('https://wa.me/**')
+  expect(sent).toEqual([
+    {
+      items: [
+        { product_id: 'p-cola', quantity: 2 },
+        { product_id: 'p-nuts', quantity: 1 },
+      ],
+      note: 'без льда',
+      language: 'ru',
+    },
+  ])
+})
+
+test('an order the stock cannot cover is refused with a reason, and nothing opens', async ({ page }) => {
+  await page.route(`**/api/v1/public/guest/${CODE}/orders`, (route) =>
+    route.fulfill({ status: 409, json: { detail: 'Not enough Кола 0,5: 1 left' } }),
+  )
+  await open(page, answer({ menu: MENU }))
+  const minibar = page.getByRole('region', { name: 'Мини-бар' })
+  await minibar.getByRole('button', { name: 'Добавить: Кола 0,5' }).click()
+  await minibar.getByRole('button', { name: /Корзина: 1 шт\./ }).click()
+  await page.getByRole('dialog').getByRole('button', { name: 'Отправить заказ' }).click()
+  await expect(page.getByRole('alert')).toHaveText('Чего-то уже нет в нужном количестве. Меню обновлено, проверьте заказ.')
+  await expect(page).toHaveURL(new RegExp(`/g/${CODE}$`))
+})
+
+test('outside the stay there is no minibar', async ({ page }) => {
+  await open(page, answer({ menu: null }))
+  await expect(page.getByRole('heading', { name: 'Т13 у Байтерека' })).toBeVisible()
+  await expect(page.getByRole('region', { name: 'Мини-бар' })).toHaveCount(0)
+})

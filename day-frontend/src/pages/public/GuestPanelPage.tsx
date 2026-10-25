@@ -6,6 +6,7 @@ import { getGuestPanel, markGuestLeft, type GuestPanel } from '../../api/public'
 import { mapLinks, panelButtons, waLink, type PanelButton } from '../../lib/guest-panel'
 import { money, retryNetwork } from '../../lib/public-stay'
 import { GuestFrame, LoadFailed } from './GuestFrame'
+import { GuestMinibar } from './GuestMinibar'
 
 /** A guest's own page for their booking: the stay, the address, what is left to pay,
  *  how to get in once paid, the rules, and buttons that write to the host. */
@@ -138,6 +139,8 @@ function PanelView({ code, panel, locale }: { code: string; panel: GuestPanel; l
               )}
             </Section>
           )}
+
+          {panel.menu && <GuestMinibar code={code} menu={panel.menu} locale={locale} />}
 
           {flat && (
             <Section icon={<ScrollText className="h-4 w-4" aria-hidden />} title={t('guestPanel.rules')}>
