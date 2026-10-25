@@ -20,6 +20,7 @@ import ExpenseSheet from './ExpenseSheet'
 import { formatDay, formatMoney } from './format'
 import { ActionButton, BookingRow, Chip, Section } from './miniapp-ui'
 import { debts, owed, periodRange, received, type MoneyPeriod } from './money'
+import { readAllPages } from './tabs'
 
 export default function MoneyScreen({
   enabled,
@@ -43,8 +44,9 @@ export default function MoneyScreen({
   })
   const bookings = useQuery({
     queryKey: ['miniapp', 'money', 'bookings', range.date_from],
-    // Stays touching the month; a busy month of six flats fits one page.
-    queryFn: () => listBookings({ ...range, per_page: 100 }),
+    // Stays touching the month, every page: an hourly month passes a hundred, and
+    // a total from the first page alone would say less is owed than is.
+    queryFn: () => readAllPages((page) => listBookings({ ...range, per_page: 100, page })),
     enabled,
   })
   const expenses = useQuery({
@@ -55,8 +57,8 @@ export default function MoneyScreen({
   })
 
   const summary = metrics.data?.summary
-  const owing = debts(bookings.data?.items ?? [])
-  const paid = received(bookings.data?.items ?? [])
+  const owing = debts(bookings.data ?? [])
+  const paid = received(bookings.data ?? [])
   const spent = (expenses.data ?? []).filter((expense) => !expense.voided_at)
   const ownerOnly = isAxiosError(expenses.error) && expenses.error.response?.status === 403
   const stay = (booking: Booking) =>
