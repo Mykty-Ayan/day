@@ -28,8 +28,14 @@ export type BookingSegment = 'upcoming' | 'past' | 'cancelled'
 export const UPCOMING_WINDOW_DAYS = 30
 export const PAGE_SIZE = 30
 
-export function segmentFilters(segment: BookingSegment, today: Date, search: string, page = 1): BookingFilters {
-  const base: BookingFilters = { search: search.trim() || undefined }
+export function segmentFilters(
+  segment: BookingSegment,
+  today: Date,
+  search: string,
+  page = 1,
+  propertyId = '',
+): BookingFilters {
+  const base: BookingFilters = { search: search.trim() || undefined, property_id: propertyId || undefined }
   if (segment === 'upcoming') {
     return { ...base, date_from: toISODate(today), date_to: toISODate(addDays(today, UPCOMING_WINDOW_DAYS)), per_page: 100 }
   }

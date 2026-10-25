@@ -995,7 +995,10 @@
       "cancelled": "Cancelled",
       "unpaid": "Unpaid",
       "more": "Show more",
-      "window": "Upcoming covers the next {{days}} days. Search by name or phone for later ones."
+      "window": "Upcoming covers the next {{days}} days. Search by name or phone for later ones.",
+      "occupancy": "14 days",
+      "flat": "Flat",
+      "allFlats": "All flats"
     },
     "tabs": {
       "today": "Today",
@@ -1219,7 +1222,14 @@
       "doneAsk": "Is {{unit}} clean?"
     },
     "otherSession": "Another window signed in to another Day account. This one has stopped so the two do not mix.",
-    "continueHere": "Continue here"
+    "continueHere": "Continue here",
+    "occupancy": {
+      "free": "Free",
+      "booked": "Booked",
+      "closed": "Closed",
+      "freeNights": "{{count}} free nights",
+      "freeNights_one": "{{count}} free night"
+    }
   },
   "auth": {
     "forgot": {
