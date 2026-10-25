@@ -1,7 +1,7 @@
 /**
  * Every booking, not only the next two weeks: find a guest by name or phone,
- * look back at who stayed, see what was cancelled. The card opens on a tap,
- * the same card Today opens.
+ * look back at who stayed, see what was cancelled, or see two weeks flat by
+ * flat. The card opens on a tap, the same card Today opens.
  */
 
 import { useEffect, useState } from 'react'
@@ -9,9 +9,11 @@ import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
 import { Search } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { listBookings } from '../../api/bookings'
+import { listAllProperties } from '../../api/properties'
 import type { Booking } from '../../types/booking'
 import { formatDay, formatMoney } from './format'
 import { ActionButton, BookingRow, Chip, Section } from './miniapp-ui'
+import OccupancyList from './OccupancyList'
 import { owes, readAllPages, segmentFilters, segmentItems, UPCOMING_WINDOW_DAYS, type BookingSegment } from './tabs'
 
 const SEARCH_DELAY_MS = 300
@@ -20,13 +22,18 @@ export default function BookingsScreen({
   enabled,
   today,
   onOpen,
+  onOpenId,
 }: {
   enabled: boolean
   today: Date
   onOpen: (booking: Booking) => void
+  /** The chart's rows are not whole bookings: the card reads this one first. */
+  onOpenId: (bookingId: string) => void
 }) {
   const { t, i18n } = useTranslation()
-  const [segment, setSegment] = useState<BookingSegment>('upcoming')
+  const [view, setView] = useState<BookingSegment | 'occupancy'>('upcoming')
+  const segment: BookingSegment = view === 'occupancy' ? 'upcoming' : view
+  const [propertyId, setPropertyId] = useState('')
   const [typed, setTyped] = useState('')
   const [search, setSearch] = useState('')
   const [unpaidOnly, setUnpaidOnly] = useState(false)
@@ -37,19 +44,26 @@ export default function BookingsScreen({
     return () => window.clearTimeout(timer)
   }, [typed])
 
+  // The same cache entry as the flats tab.
+  const flats = useQuery({
+    queryKey: ['miniapp', 'units'],
+    queryFn: () => listAllProperties(),
+    enabled,
+  })
+
   const upcoming = useQuery({
     // Its own key: the paged lists below cache pages under theirs, never in this shape.
-    queryKey: ['miniapp', 'bookings', 'window', search],
-    queryFn: () => readAllPages((page) => listBookings(segmentFilters('upcoming', today, search, page))),
-    enabled: enabled && segment === 'upcoming',
+    queryKey: ['miniapp', 'bookings', 'window', search, propertyId],
+    queryFn: () => readAllPages((page) => listBookings(segmentFilters('upcoming', today, search, page, propertyId))),
+    enabled: enabled && view === 'upcoming',
   })
 
   const paged = useInfiniteQuery({
-    queryKey: ['miniapp', 'bookings', 'paged', segment, search],
-    queryFn: ({ pageParam }) => listBookings(segmentFilters(segment, today, search, pageParam)),
+    queryKey: ['miniapp', 'bookings', 'paged', segment, search, propertyId],
+    queryFn: ({ pageParam }) => listBookings(segmentFilters(segment, today, search, pageParam, propertyId)),
     initialPageParam: 1,
     getNextPageParam: (last) => (last.page < last.pages ? last.page + 1 : undefined),
-    enabled: enabled && segment !== 'upcoming',
+    enabled: enabled && view !== 'upcoming' && view !== 'occupancy',
   })
 
   const loaded = segment === 'upcoming' ? (upcoming.data ?? []) : (paged.data?.pages.flatMap((page) => page.items) ?? [])
@@ -57,8 +71,43 @@ export default function BookingsScreen({
   const isLoading = segment === 'upcoming' ? upcoming.isLoading : paged.isLoading
   const isError = segment === 'upcoming' ? upcoming.isError : paged.isError
 
+  const views = (
+    <>
+      <select
+        aria-label={t('miniapp.bookings.flat')}
+        value={propertyId}
+        onChange={(event) => setPropertyId(event.target.value)}
+        className="tg-surface min-h-[44px] w-full rounded-xl px-3 text-sm outline-none"
+      >
+        <option value="">{t('miniapp.bookings.allFlats')}</option>
+        {(flats.data?.items ?? [])
+          .filter((flat) => flat.status !== 'archived')
+          .map((flat) => (
+            <option key={flat.id} value={flat.id}>
+              {flat.name || flat.internal_name}
+            </option>
+          ))}
+      </select>
+      <div className="flex gap-1">
+        {(['upcoming', 'past', 'cancelled', 'occupancy'] as const).map((value) => (
+          <Chip key={value} label={t(`miniapp.bookings.${value}`)} active={view === value} onClick={() => setView(value)} />
+        ))}
+      </div>
+    </>
+  )
+
+  if (view === 'occupancy') {
+    return (
+      <div className="space-y-3">
+        {views}
+        <OccupancyList enabled={enabled} today={today} propertyId={propertyId} onOpen={onOpenId} />
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-3">
+      {views}
       <label className="tg-surface flex min-h-[44px] items-center gap-2 rounded-xl px-3">
         <Search className="tg-hint h-4 w-4 shrink-0" />
         <input
@@ -69,17 +118,6 @@ export default function BookingsScreen({
           className="w-full bg-transparent text-sm outline-none"
         />
       </label>
-
-      <div className="flex gap-1">
-        {(['upcoming', 'past', 'cancelled'] as BookingSegment[]).map((value) => (
-          <Chip
-            key={value}
-            label={t(`miniapp.bookings.${value}`)}
-            active={segment === value}
-            onClick={() => setSegment(value)}
-          />
-        ))}
-      </div>
       {segment !== 'cancelled' && (
         <div className="flex">
           <Chip label={t('miniapp.bookings.unpaid')} active={unpaidOnly} onClick={() => setUnpaidOnly((on) => !on)} />

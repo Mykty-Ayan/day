@@ -34,9 +34,15 @@ const WINDOW_PAGE = 100
 // subletter's flats. Past it the list says less than there is.
 const MAX_WINDOW_PAGES = 10
 
-export function segmentFilters(segment: BookingSegment, today: Date, search: string, page = 1): BookingFilters {
+export function segmentFilters(
+  segment: BookingSegment,
+  today: Date,
+  search: string,
+  page = 1,
+  propertyId = '',
+): BookingFilters {
   const query = search.trim()
-  const base: BookingFilters = { search: query || undefined }
+  const base: BookingFilters = { search: query || undefined, property_id: propertyId || undefined }
   if (segment === 'upcoming') {
     const until = query ? undefined : toISODate(addDays(today, UPCOMING_WINDOW_DAYS))
     return { ...base, date_from: toISODate(today), date_to: until, per_page: WINDOW_PAGE, page }

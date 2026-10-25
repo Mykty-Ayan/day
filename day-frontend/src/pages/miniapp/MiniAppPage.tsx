@@ -223,20 +223,21 @@ export default function MiniAppPage() {
   return (
     <div className="tg-root min-h-screen pb-24">
       <main className="space-y-4 p-3">
+        {/* A booking opened by its id (a notice, the two-week chart) that could not be read. */}
+        {linkedId && linked.isError && (
+          <button
+            type="button"
+            role="alert"
+            onClick={() => setLinkedId(null)}
+            className="tg-surface w-full rounded-xl px-3 py-2 text-left text-sm"
+          >
+            {errorText(linked.error, t('miniapp.linkedFailed'), t)}
+            <span className="tg-hint block text-xs">{t('miniapp.tapToHide')}</span>
+          </button>
+        )}
+
         {tab === 'today' && (
           <>
-            {linkedId && linked.isError && (
-              <button
-                type="button"
-                role="alert"
-                onClick={() => setLinkedId(null)}
-                className="tg-surface w-full rounded-xl px-3 py-2 text-left text-sm"
-              >
-                {errorText(linked.error, t('miniapp.linkedFailed'), t)}
-                <span className="tg-hint block text-xs">{t('miniapp.tapToHide')}</span>
-              </button>
-            )}
-
             <MoneyStrip bookings={upcoming} />
 
             <ActionButton tone="primary" onClick={() => setOfferOpen(true)}>
@@ -371,7 +372,9 @@ export default function MiniAppPage() {
           </>
         )}
 
-        {tab === 'bookings' && <BookingsScreen enabled={enabled} today={today} onOpen={setBooking} />}
+        {tab === 'bookings' && (
+          <BookingsScreen enabled={enabled} today={today} onOpen={setBooking} onOpenId={setLinkedId} />
+        )}
 
         {tab === 'ask' && <AskScreen />}
       </main>
