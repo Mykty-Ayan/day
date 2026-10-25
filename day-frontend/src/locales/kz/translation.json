@@ -133,7 +133,7 @@
       "both": "Екеуі де",
       "basePrice": "Базалық баға",
       "hourlyPrice": "Сағаттық баға",
-      "weekendMarkup": "Демалыс күні үстемесі (%)",
+      "weekendMarkup": "Демалыс күні үстемесі (₸)",
       "defaultDeposit": "Тәуліктік жалға кепіл",
       "hourlyDeposit": "Сағаттық жалға кепіл",
       "baseGuests": "Базалық қонақ саны",
@@ -216,7 +216,7 @@
       "livingArea": "Тұрғын ауданы (м²)",
       "totalArea": "Жалпы ауданы (м²)",
       "basePrice": "Базалық баға (түнге)",
-      "weekendMarkup": "Демалыс күні үстемесі (%)",
+      "weekendMarkup": "Демалыс күні үстемесі (₸)",
       "defaultDeposit": "Тәуліктік жалға кепіл",
       "hourlyDeposit": "Сағаттық жалға кепіл",
       "extraAdultPrice": "Қосымша ересек бағасы",
@@ -503,7 +503,8 @@
       "airbnb": "Airbnb",
       "other": "Басқа",
       "crm": "CRM",
-      "offer": "Жеке сілтеме"
+      "offer": "Жеке сілтеме",
+      "site": "Сайт"
     },
     "adultsCount": "{{count}} ересек",
     "adultsCount_other": "{{count}} ересек",
