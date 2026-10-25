@@ -16,7 +16,7 @@ import pytest
 from app.application.booking.guest_panel import GuestPanelService
 from app.domain.booking.entities import Booking, Guest, new_guest_code
 from app.domain.booking.value_objects import BookingStatus
-from app.domain.property.entities import PropertyFact
+from app.domain.property.entities import PropertyFact, PropertyPhoto
 from app.domain.property.value_objects import FactAudience
 from app.domain.site.entities import CompanySite
 from app.presentation.schemas.guest_panel import GuestPanelResponse
@@ -53,6 +53,14 @@ class _Facts:
         return [f for f in self.facts if f.property_id == property_id]
 
 
+class _Photos:
+    def __init__(self, *photos):
+        self.photos = list(photos)
+
+    async def list_by_property(self, property_id):
+        return [p for p in self.photos if p.property_id == property_id]
+
+
 class _Site:
     async def get(self, company_id):
         return CompanySite(company_id=company_id, slug="munar", title="Munar", whatsapp="77001234567")
@@ -63,7 +71,7 @@ class _Settings:
         return SimpleNamespace(time_zone="Asia/Almaty", secrets_lead_hours_daily=24, secrets_lead_hours_hourly=1)
 
 
-def _setup(status=BookingStatus.CONFIRMED, paid=Decimal("40000"), total=Decimal("40000"), **stay):
+def _setup(status=BookingStatus.CONFIRMED, paid=Decimal("40000"), total=Decimal("40000"), photos=None, **stay):
     flat_ = _make_property(
         name="Т13 у Байтерека", check_in_instructions="Подъезд 2, сейф у двери", wifi_name="T13",
         wifi_password="secret-wifi", house_rules="Не курить", address_full="Астана, Кабанбай батыра 11",
@@ -79,7 +87,10 @@ def _setup(status=BookingStatus.CONFIRMED, paid=Decimal("40000"), total=Decimal(
         PropertyFact(company_id=COMPANY_ID, property_id=flat_.id, text="Код сейфа 4512", audience=FactAudience.GUEST),
         PropertyFact(company_id=COMPANY_ID, property_id=flat_.id, text="Рядом парк", audience=FactAudience.PUBLIC),
     )
-    return GuestPanelService(_Repo(booking), _Paid(paid), _Repo(guest), _Repo(flat_), facts, _Site(), _Settings())
+    pictures = _Photos(*(photos(flat_.id) if photos else ()))
+    return GuestPanelService(
+        _Repo(booking), _Paid(paid), _Repo(guest), _Repo(flat_), facts, _Site(), _Settings(), photos=pictures
+    )
 
 
 # 25 Oct, 20:00 in Almaty is still the 25th there, 15:00 in UTC.
@@ -93,6 +104,21 @@ async def test_a_paid_confirmed_stay_shows_how_to_get_in():
     # Only the guest facts: a public one is for the listing.
     assert panel.access.facts == ["Код сейфа 4512"]
     assert (panel.remaining, panel.today.isoformat()) == (Decimal("0"), "2026-10-25")
+
+
+async def test_the_page_opens_on_the_flat_s_cover_never_on_a_check_in_photo():
+    def photos(flat_id):
+        return [
+            PropertyPhoto(property_id=flat_id, url="https://s3/lock.jpg", audience=FactAudience.GUEST, is_cover=True),
+            PropertyPhoto(property_id=flat_id, url="https://s3/kitchen.jpg", sort_order=1),
+            PropertyPhoto(property_id=flat_id, url="https://s3/living.jpg", sort_order=2, is_cover=True),
+        ]
+
+    panel = await _setup(photos=photos).execute(CODE, NOW)
+    assert panel.photo_url == "https://s3/living.jpg"
+    assert GuestPanelResponse.from_panel(panel).flat.photo_url == "https://s3/living.jpg"
+    # No public photo: no picture, and the page falls back to a plain header.
+    assert (await _setup().execute(CODE, NOW)).photo_url is None
 
 
 async def test_a_debt_or_a_pending_booking_keeps_the_door_code_back():
