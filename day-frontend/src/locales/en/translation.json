@@ -1470,6 +1470,7 @@
       "staff": "Staff",
       "agent_commission": "Agent commission",
       "software": "Software",
+      "minibar": "Minibar",
       "other": "Other"
     },
     "agent": "Agent",
