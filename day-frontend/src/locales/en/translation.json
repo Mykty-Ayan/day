@@ -968,6 +968,27 @@
     "openInTelegram": "Open this page from the Telegram bot",
     "authFailed": "Could not sign in",
     "connectHint": "Connect the chat in the app: Settings → Team & API keys → Bots",
+    "edit": {
+      "open": "Edit",
+      "title": "Edit booking",
+      "checkIn": "Check-in",
+      "checkOut": "Check-out",
+      "day": "Day",
+      "start": "From",
+      "end": "To",
+      "adults": "Adults",
+      "children": "Children",
+      "price": "Price, ₸",
+      "notes": "Note",
+      "save": "Save",
+      "saveAnyway": "Save anyway",
+      "priceAsk": "Booking price: {{was}} → {{now}}. Save?",
+      "errors": {
+        "dates": "Check-out must be after check-in",
+        "adults": "At least one adult; children from 0",
+        "price": "The price is a number from 0"
+      }
+    },
     "bookings": {
       "search": "Guest name or phone",
       "upcoming": "Upcoming",

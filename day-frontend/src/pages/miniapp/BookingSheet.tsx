@@ -7,7 +7,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { BedDouble, CheckCircle2, Copy, LogIn, LogOut, Phone, Send, Wallet, XCircle } from 'lucide-react'
+import { BedDouble, CheckCircle2, Copy, LogIn, LogOut, Pencil, Phone, Send, Wallet, XCircle } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import {
   addPayment,
@@ -41,6 +41,7 @@ import {
 import { cardRead, readyToAct, secretsFresh } from './card-state'
 import { formatDay, formatMoney, formatTime } from './format'
 import DepositRow from './DepositRow'
+import EditBookingSheet from './EditBookingSheet'
 import { errorText } from './errors'
 import { buildCheckInMessage } from './messages'
 import { ActionButton, Chip, Field, Sheet } from './miniapp-ui'
@@ -101,6 +102,7 @@ export default function BookingSheet({
   const [method, setMethod] = useState<PaymentMethod>('transfer')
   const [error, setError] = useState('')
   const [copied, setCopied] = useState(false)
+  const [editing, setEditing] = useState(false)
   const [openedAt] = useState(() => Date.now())
   // A check still out when the card closes must not act on what it reads.
   const alive = useRef(true)
@@ -581,11 +583,30 @@ export default function BookingSheet({
         </ActionButton>
       </div>
 
+      {booking.status !== 'cancelled' && booking.status !== 'completed' && (
+        <ActionButton disabled={settling} onClick={() => setEditing(true)}>
+          <Pencil className="h-4 w-4" />
+          {t('miniapp.edit.open')}
+        </ActionButton>
+      )}
+
       {canCancel(booking.status) && (
         <ActionButton disabled={settling || setStatus.isPending} onClick={askCancel}>
           <XCircle className="h-4 w-4" />
           {t('miniapp.booking.cancel')}
         </ActionButton>
+      )}
+
+      {editing && (
+        <EditBookingSheet
+          // Edited from the booking as the server has it now, never a stale row.
+          booking={booking}
+          onClose={() => setEditing(false)}
+          onSaved={() => {
+            setEditing(false)
+            setError('')
+          }}
+        />
       )}
     </Sheet>
   )
