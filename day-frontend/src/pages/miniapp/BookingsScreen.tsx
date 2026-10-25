@@ -12,7 +12,7 @@ import { listBookings } from '../../api/bookings'
 import type { Booking } from '../../types/booking'
 import { formatDay, formatMoney } from './format'
 import { ActionButton, BookingRow, Chip, Section } from './miniapp-ui'
-import { owes, segmentFilters, segmentItems, UPCOMING_WINDOW_DAYS, type BookingSegment } from './tabs'
+import { owes, readAllPages, segmentFilters, segmentItems, UPCOMING_WINDOW_DAYS, type BookingSegment } from './tabs'
 
 const SEARCH_DELAY_MS = 300
 
@@ -38,20 +38,21 @@ export default function BookingsScreen({
   }, [typed])
 
   const upcoming = useQuery({
-    queryKey: ['miniapp', 'bookings', 'upcoming', search],
-    queryFn: () => listBookings(segmentFilters('upcoming', today, search)),
+    // Its own key: the paged lists below cache pages under theirs, never in this shape.
+    queryKey: ['miniapp', 'bookings', 'window', search],
+    queryFn: () => readAllPages((page) => listBookings(segmentFilters('upcoming', today, search, page))),
     enabled: enabled && segment === 'upcoming',
   })
 
   const paged = useInfiniteQuery({
-    queryKey: ['miniapp', 'bookings', segment, search],
+    queryKey: ['miniapp', 'bookings', 'paged', segment, search],
     queryFn: ({ pageParam }) => listBookings(segmentFilters(segment, today, search, pageParam)),
     initialPageParam: 1,
     getNextPageParam: (last) => (last.page < last.pages ? last.page + 1 : undefined),
     enabled: enabled && segment !== 'upcoming',
   })
 
-  const loaded = segment === 'upcoming' ? (upcoming.data?.items ?? []) : (paged.data?.pages.flatMap((page) => page.items) ?? [])
+  const loaded = segment === 'upcoming' ? (upcoming.data ?? []) : (paged.data?.pages.flatMap((page) => page.items) ?? [])
   const items = segmentItems(segment, loaded, new Date(), unpaidOnly)
   const isLoading = segment === 'upcoming' ? upcoming.isLoading : paged.isLoading
   const isError = segment === 'upcoming' ? upcoming.isError : paged.isError
@@ -108,7 +109,7 @@ export default function BookingsScreen({
         </Section>
       )}
 
-      {segment === 'upcoming' && upcoming.data && (
+      {segment === 'upcoming' && upcoming.data && !search.trim() && (
         <p className="tg-hint px-1 text-xs">{t('miniapp.bookings.window', { days: UPCOMING_WINDOW_DAYS })}</p>
       )}
       {segment !== 'upcoming' && paged.hasNextPage && (
