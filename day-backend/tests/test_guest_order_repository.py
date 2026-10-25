@@ -110,3 +110,24 @@ async def test_a_guest_owes_only_for_orders_on_the_tab():
     assert await _in_session(lambda repo: repo.due_by_bookings(uuid.uuid4(), [booking])) == {}
     [stored] = [o for o in await _in_session(lambda repo: repo.list(company)) if o.id == tab.id]
     assert (stored.payment_status, stored.payment_method) == (OrderPaymentStatus.ON_BOOKING, None)
+
+
+async def test_two_identical_orders_at_once_make_one():
+    # A double tap: both requests hold the booking's lock in turn, and the second finds
+    # the first among the booking's new orders before adding its own.
+    mine = await _company_with_a_booking()
+
+    async def place(repo):
+        await repo.hold(mine[2])
+        prior = await repo.recent_new(mine[2], datetime.utcnow() - timedelta(minutes=1))
+        if prior:
+            return prior[0]
+        await asyncio.sleep(0.2)  # the other request is waiting on the lock meanwhile
+        return await repo.add(_order(*mine))
+
+    placed = await asyncio.gather(_in_session(place), _in_session(place))
+    assert placed[0].id == placed[1].id
+    assert len(await _in_session(lambda repo: repo.list(mine[0]))) == 1
+    # Only new orders of this booking count as a repeat.
+    other = await _company_with_a_booking()
+    assert await _in_session(lambda repo: repo.recent_new(other[2], datetime.utcnow() - timedelta(minutes=1))) == []

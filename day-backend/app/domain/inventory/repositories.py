@@ -46,6 +46,14 @@ class GuestOrderRepository(abc.ABC):
         """How many orders the booking placed from `since` on."""
 
     @abc.abstractmethod
+    async def hold(self, booking_id: uuid.UUID) -> None:
+        """Take the booking's order lock until the transaction ends."""
+
+    @abc.abstractmethod
+    async def recent_new(self, booking_id: uuid.UUID, since: datetime) -> list[GuestOrder]:
+        """The booking's orders still new, placed from `since` on, with their items."""
+
+    @abc.abstractmethod
     async def get(self, company_id: uuid.UUID, order_id: uuid.UUID) -> GuestOrder | None: ...
 
     @abc.abstractmethod
