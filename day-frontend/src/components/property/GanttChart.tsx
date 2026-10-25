@@ -278,6 +278,7 @@ const sourceKeys: Record<Booking['source'], string> = {
   other: 'bookings.sources.other',
   crm: 'bookings.sources.crm',
   offer: 'bookings.sources.offer',
+  site: 'bookings.sources.site',
 }
 
 export default function GanttChart({

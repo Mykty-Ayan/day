@@ -26,7 +26,6 @@ from tests.test_messaging import (
     OWNER_ID,
     FakeIdentityRepository,
     FakeLinkCodeRepository,
-    StubAvailability,
 )
 
 
@@ -51,7 +50,7 @@ async def _start(identities, code_company=COMPANY_ID):
     codes = FakeLinkCodeRepository()
     link = LinkChannelService(codes, identities)
     code = await link.issue_code(code_company, OWNER_ID)
-    bot = HostBotService(link, StubAvailability([]), None, None, None, company_repo=COMPANIES)
+    bot = HostBotService(link, company_repo=COMPANIES)
     return await bot.handle(None, "555", f"/start {code.code}", "offPenny")
 
 

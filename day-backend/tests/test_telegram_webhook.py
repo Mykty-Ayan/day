@@ -21,9 +21,12 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
 
+from app.application.messaging.host_bot import HostBotService
 from app.config import settings
+from app.domain.assistant.value_objects import AssistantReply, PendingAction
 from app.domain.messaging.value_objects import Channel, MessageDirection
 from app.infrastructure.database import get_session
+from app.infrastructure.messaging.factory import build_link_service
 from app.infrastructure.models.auth import CompanyModel
 from app.infrastructure.models.messaging import (
     ChannelIdentityModel,
@@ -43,11 +46,13 @@ class SpyProvider:
 
     def __init__(self, transcript: str = "") -> None:
         self.sent: list[tuple[str, str]] = []
+        self.buttons: list[list] = []
         self.downloads: list[str] = []
         self._transcript = transcript
 
-    async def send_text(self, to: str, text: str):
+    async def send_text(self, to: str, text: str, *, buttons=None):
         self.sent.append((to, text))
+        self.buttons.append(list(buttons or []))
         return type("Sent", (), {"provider_message_id": "1"})()
 
     async def download_file(self, file_id: str, max_bytes: int) -> bytes:
@@ -173,13 +178,44 @@ class TestOrdinaryMessages:
         response = await _post(_update(chat_id, 10, text="/help"))
 
         assert response.status_code == 200
-        assert provider.sent and "Команды" in provider.sent[0][1]
+        assert provider.sent and "/stop" in provider.sent[0][1]
 
         recorded = await _bodies(db, chat_id)
         assert [direction for direction, _ in recorded] == [
             MessageDirection.INBOUND,
             MessageDirection.OUTBOUND,
         ], "the bot's own answer was not written down, so a follow-up has no thread"
+
+    @pytest.mark.asyncio
+    async def test_a_proposed_change_goes_out_with_a_button_into_the_mini_app(self, db, wired, monkeypatch):
+        chat_id = str(uuid.uuid4().int % 10**9)
+        await _linked_chat(db, chat_id)
+        provider = wired()
+        booking_id = uuid.uuid4()
+
+        class Proposing:
+            async def execute(self, question, history=None, today=None):
+                pending = PendingAction("add_payment", {"booking_id": str(booking_id)}, "Принять 10 000 ₸")
+                return AssistantReply(text="", pending=pending)
+
+        async def assistant_for(identity):
+            return Proposing()
+
+        monkeypatch.setattr(
+            webhooks,
+            "build_host_bot",
+            lambda session: HostBotService(
+                build_link_service(session), assistant_for=assistant_for, mini_app_url="https://app.example.com/tma"
+            ),
+        )
+
+        response = await _post(_update(chat_id, 15, text="прими 10 000 от Ерлана"))
+
+        assert response.status_code == 200
+        assert "Принять 10 000 ₸" in provider.sent[0][1]
+        assert [(b.text, b.url) for b in provider.buttons[0]] == [
+            ("Открыть бронь", f"https://app.example.com/tma?booking={booking_id}")
+        ]
 
     @pytest.mark.asyncio
     async def test_a_redelivered_update_is_ignored(self, db, wired):
