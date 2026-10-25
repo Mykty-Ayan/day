@@ -1,8 +1,9 @@
 """A guest's own page for their booking, by a link with no sign-in (/g/<code>).
 
 The code names one booking. How to get in (instructions, Wi-Fi, guest facts)
-leaves the server only for a confirmed or checked-in stay paid in full. A closed
-booking shows only that it is closed, and whom to write to.
+leaves the server only for a confirmed or checked-in stay paid in full, from N
+hours before check-in (the company's setting) until check-out. A closed booking
+shows only that it is closed, and whom to write to.
 """
 
 import uuid
@@ -59,10 +60,10 @@ class _Site:
 
 class _Settings:
     async def get_by_company(self, company_id):
-        return SimpleNamespace(time_zone="Asia/Almaty")
+        return SimpleNamespace(time_zone="Asia/Almaty", secrets_lead_hours_daily=24, secrets_lead_hours_hourly=1)
 
 
-def _setup(status=BookingStatus.CONFIRMED, paid=Decimal("40000"), total=Decimal("40000")):
+def _setup(status=BookingStatus.CONFIRMED, paid=Decimal("40000"), total=Decimal("40000"), **stay):
     flat_ = _make_property(
         name="Т13 у Байтерека", check_in_instructions="Подъезд 2, сейф у двери", wifi_name="T13",
         wifi_password="secret-wifi", house_rules="Не курить", address_full="Астана, Кабанбай батыра 11",
@@ -72,6 +73,8 @@ def _setup(status=BookingStatus.CONFIRMED, paid=Decimal("40000"), total=Decimal(
         company_id=COMPANY_ID, property_id=flat_.id, guest_id=guest.id, status=status, total_price=total,
         check_in=datetime(2026, 10, 25, 14), check_out=datetime(2026, 10, 27, 12), guest_code=CODE,
     )
+    for name, value in stay.items():
+        setattr(booking, name, value)
     facts = _Facts(
         PropertyFact(company_id=COMPANY_ID, property_id=flat_.id, text="Код сейфа 4512", audience=FactAudience.GUEST),
         PropertyFact(company_id=COMPANY_ID, property_id=flat_.id, text="Рядом парк", audience=FactAudience.PUBLIC),
@@ -99,6 +102,25 @@ async def test_a_debt_or_a_pending_booking_keeps_the_door_code_back():
         dumped = GuestPanelResponse.from_panel(panel).model_dump_json()
         assert "secret-wifi" not in dumped and "4512" not in dumped and "сейф" not in dumped
     assert (await _setup(paid=Decimal("10000")).execute(CODE, NOW)).remaining == Decimal("30000")
+
+
+async def test_the_way_in_opens_n_hours_before_check_in_and_closes_at_check_out():
+    from app.domain.booking.value_objects import RentalMode
+
+    # NOW is 25 Oct, 20:00 in Almaty.
+    far = await _setup(check_in=datetime(2026, 10, 26, 21), check_out=datetime(2026, 10, 28, 12)).execute(CODE, NOW)
+    assert (far.access, far.lead_hours) == (None, 24)
+    near = await _setup(check_in=datetime(2026, 10, 26, 19), check_out=datetime(2026, 10, 28, 12)).execute(CODE, NOW)
+    assert near.access is not None
+    gone = await _setup(check_in=datetime(2026, 10, 24, 14), check_out=datetime(2026, 10, 25, 19)).execute(CODE, NOW)
+    assert gone.access is None
+    # By the hour: one hour before.
+    hourly = dict(rental_mode=RentalMode.HOURLY, check_out=datetime(2026, 10, 25, 23))
+    early = await _setup(check_in=datetime(2026, 10, 25, 21, 30), **hourly).execute(CODE, NOW)
+    assert (early.access, early.lead_hours) == (None, 1)
+    assert (await _setup(check_in=datetime(2026, 10, 25, 20, 45), **hourly).execute(CODE, NOW)).access is not None
+    page = GuestPanelResponse.from_panel(early)
+    assert page.lead_hours == 1 and page.access is None
 
 
 async def test_a_closed_booking_keeps_back_the_address_the_rules_and_the_way_in():
@@ -143,9 +165,14 @@ async def test_the_guest_reads_the_page_and_gets_the_code_after_paying(flat):  #
     assert wifi.status_code == 200, wifi.text
     fact = await client.post(f"/api/v1/properties/{prop}/facts", json={"text": "Код сейфа 4512", "audience": "guest"})
     assert fact.status_code == 201, fact.text
+    from datetime import timedelta
+    from zoneinfo import ZoneInfo
+
+    # Arriving today: the way in opens 24 hours before check-in.
+    today = datetime.now(ZoneInfo("Asia/Almaty")).date()
     stay = {"property_id": str(prop), "guest_name": "Жалгас", "guest_phone": "+77079011161",
-            "check_in": "2030-12-01T14:00:00", "check_out": "2030-12-03T12:00:00", "rental_mode": "daily",
-            "adults_count": 1, "total_price": 40000}
+            "check_in": f"{today}T14:00:00", "check_out": f"{today + timedelta(days=2)}T12:00:00",
+            "rental_mode": "daily", "adults_count": 1, "total_price": 40000}
     made = await client.post("/api/v1/bookings", json=stay)
     assert made.status_code == 201, made.text
     booking = made.json()["id"]
@@ -221,3 +248,114 @@ async def test_the_migration_gives_every_old_booking_its_own_code():
                 await trans.rollback()
     finally:
         await engine.dispose()
+
+
+# ---------- «I have left» ----------
+
+
+class _Tasks:
+    def __init__(self, *tasks):
+        self.tasks = list(tasks)
+
+    async def list_by_property(self, property_id, *, offset=0, limit=50):
+        return [t for t in self.tasks if t.property_id == property_id]
+
+    async def create(self, task):
+        self.tasks.append(task)
+        return task
+
+
+def _checkout(status=BookingStatus.CHECKED_IN, tasks=None, check_in=datetime(2026, 10, 25, 14)):
+    from app.application.booking.guest_checkout import GuestCheckoutService
+
+    flat_ = _make_property(name="Т13")
+    guest = Guest(company_id=COMPANY_ID, name="Жалгас")
+    booking = Booking(company_id=COMPANY_ID, property_id=flat_.id, guest_id=guest.id, status=status,
+                      check_in=check_in, check_out=datetime(2026, 10, 27, 12), guest_code=CODE)
+    tasks = tasks if tasks is not None else _Tasks()
+    return GuestCheckoutService(_Repo(booking), _Repo(guest), _Repo(flat_), tasks, _Settings()), tasks, flat_
+
+
+async def test_leaving_makes_a_cleaning_task_once_and_keeps_the_status():
+    svc, tasks, flat_ = _checkout()
+    left = await svc.execute(CODE, NOW)
+    assert (left.cleaning_created, left.flat_name, left.guest_name) == (True, "Т13", "Жалгас")
+    [task] = tasks.tasks
+    assert (task.property_id, task.booking_id, task.scheduled_date.isoformat()) == (flat_.id, left.booking.id,
+                                                                                   "2026-10-25")
+    assert left.booking.status == BookingStatus.CHECKED_IN
+    # Pressed again: the open task is there already.
+    assert (await svc.execute(CODE, NOW)).cleaning_created is False
+    assert len(tasks.tasks) == 1
+
+
+async def test_leaving_needs_a_stay_that_began():
+    from app.application.booking.guest_checkout import NotStayingError
+
+    for status, check_in in ((BookingStatus.PENDING, datetime(2026, 10, 25, 14)),
+                             (BookingStatus.CANCELLED, datetime(2026, 10, 25, 14)),
+                             (BookingStatus.CONFIRMED, datetime(2026, 10, 26, 14))):
+        svc, tasks, _ = _checkout(status=status, check_in=check_in)
+        with pytest.raises(NotStayingError):
+            await svc.execute(CODE, NOW)
+        assert tasks.tasks == []
+    svc, *_ = _checkout()
+    with pytest.raises(LookupError):
+        await svc.execute("nosuchcodeatall0", NOW)
+
+
+def test_the_host_hears_the_guest_left_with_a_button_to_the_booking():
+    from starlette.requests import Request
+
+    from app.application.messaging.notifications import NotificationDispatcher, render
+    from app.domain.messaging.entities import OutboundNotification
+    from app.domain.messaging.value_objects import Channel, NotificationEvent
+    from app.infrastructure.rate_limiter import _limit_for
+
+    payload = {"property_name": "Т13", "guest_name": "Жалгас", "cleaning_created": True, "booking_id": "b1"}
+    text = render(NotificationEvent.GUEST_CHECKED_OUT, payload)
+    assert "Гость выехал" in text and "Т13" in text and "Жалгас" in text and "уборки" in text
+    note = OutboundNotification(company_id=COMPANY_ID, channel=Channel.TELEGRAM, target="12345",
+                                event=NotificationEvent.GUEST_CHECKED_OUT, payload=payload)
+    [button] = NotificationDispatcher(None, {}, mini_app_url="https://day.test/tma")._buttons(note)
+    assert button.url == "https://day.test/tma?booking=b1"
+    path = f"/api/v1/public/guest/{CODE}/checked-out"
+    post = Request({"type": "http", "method": "POST", "path": path, "headers": []})
+    assert _limit_for(post) == ("guestbook", 5)
+
+
+@pytest.mark.integration
+async def test_the_owner_sets_the_hours_and_the_guest_marks_leaving(flat):  # noqa: F811  (the imported fixture)
+    from app.domain.auth.permissions import Permission
+    from app.infrastructure.models.booking import BookingModel
+
+    client, prop, use = flat
+    use(Permission.SETTINGS_READ, Permission.SETTINGS_WRITE, Permission.BOOKINGS_READ, Permission.BOOKINGS_WRITE,
+        Permission.PROPERTIES_READ, Permission.CLEANING_READ)
+    for wrong in (-1, 169):
+        assert (await client.patch("/api/v1/settings", json={"secrets_lead_hours_daily": wrong})).status_code == 422
+    hours = {"secrets_lead_hours_daily": 48, "secrets_lead_hours_hourly": 2}
+    saved = await client.patch("/api/v1/settings", json=hours)
+    assert saved.status_code == 200, saved.text
+    assert (saved.json()["secrets_lead_hours_daily"], saved.json()["secrets_lead_hours_hourly"]) == (48, 2)
+
+    from datetime import timedelta
+    from zoneinfo import ZoneInfo
+
+    today = datetime.now(ZoneInfo("Asia/Almaty")).date()
+    stay = {"property_id": str(prop), "guest_name": "Жалгас", "guest_phone": "+77079011163",
+            "check_in": f"{today}T14:00:00", "check_out": f"{today + timedelta(days=1)}T12:00:00",
+            "rental_mode": "daily", "adults_count": 1}
+    booking = (await client.post("/api/v1/bookings", json=stay)).json()["id"]
+    code = await _guest_code(BookingModel, booking)
+    assert (await client.get(f"/api/v1/public/guest/{code}")).json()["lead_hours"] == 48
+    path = f"/api/v1/public/guest/{code}/checked-out"
+    assert (await client.post(path)).status_code == 409  # still pending
+    await client.post(f"/api/v1/bookings/{booking}/status", json={"status": "confirmed"})
+    first = await client.post(path)
+    assert (first.status_code, first.json()) == (200, {"cleaning_created": True})
+    assert (await client.post(path)).json() == {"cleaning_created": False}
+    tasks = (await client.get("/api/v1/cleaning", params={"property_id": str(prop)})).json()
+    items = tasks["items"] if isinstance(tasks, dict) else tasks
+    assert [t["booking_id"] for t in items] == [booking]
+    assert (await client.get(f"/api/v1/bookings/{booking}")).json()["booking"]["status"] == "confirmed"

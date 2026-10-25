@@ -34,7 +34,12 @@ _SOURCES = {
     "site": "Сайт",
 }
 
-_BOOKING_EVENTS = {NotificationEvent.BOOKING_CREATED, NotificationEvent.BOOKING_CANCELLED, NotificationEvent.GUEST_HOLD}
+_BOOKING_EVENTS = {
+    NotificationEvent.BOOKING_CREATED,
+    NotificationEvent.BOOKING_CANCELLED,
+    NotificationEvent.GUEST_HOLD,
+    NotificationEvent.GUEST_CHECKED_OUT,
+}
 
 
 def _money(value: str) -> str:
@@ -110,6 +115,17 @@ def render(event: NotificationEvent, payload: dict) -> str:
             ]
         else:
             lines += ["", f"Залог у квартиры не задан: подтвердите бронь в карточке до {until}, иначе она снимется."]
+        return "\n".join(lines)
+
+    if event == NotificationEvent.GUEST_CHECKED_OUT:
+        lines = [
+            "🚪 <b>Гость выехал</b>",
+            f"Объект: {payload.get('property_name', '—')}",
+            f"Гость: {payload.get('guest_name', '—')}",
+        ]
+        if payload.get("cleaning_created"):
+            lines.append("Создана задача уборки.")
+        lines.append("Проверьте квартиру и отметьте выезд в карточке брони.")
         return "\n".join(lines)
 
     if event == NotificationEvent.CALENDAR_CLASH:

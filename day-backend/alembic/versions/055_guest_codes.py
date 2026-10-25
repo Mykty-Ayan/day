@@ -1,7 +1,9 @@
 """A code for each booking's page for the guest (/g/<code>): random and long, as
 the page shows the door code once the stay is paid.
 
-Existing bookings get their codes here; new ones get theirs when created.
+Existing bookings get their codes here; new ones get theirs when created. The
+company's settings get how many hours before check-in that page shows the way
+in: 24 by the night, 1 by the hour, until the owner changes them.
 
 Revision ID: 055_guest_codes
 Revises: 054_stock_movements
@@ -45,8 +47,16 @@ def upgrade() -> None:
         server_default=sa.text("substr(md5(random()::text || clock_timestamp()::text), 1, 16)"),
     )
     op.create_unique_constraint("uq_bookings_guest_code", "bookings", ["guest_code"])
+    op.add_column(
+        "company_settings", sa.Column("secrets_lead_hours_daily", sa.Integer(), nullable=False, server_default="24")
+    )
+    op.add_column(
+        "company_settings", sa.Column("secrets_lead_hours_hourly", sa.Integer(), nullable=False, server_default="1")
+    )
 
 
 def downgrade() -> None:
+    op.drop_column("company_settings", "secrets_lead_hours_hourly")
+    op.drop_column("company_settings", "secrets_lead_hours_daily")
     op.drop_constraint("uq_bookings_guest_code", "bookings", type_="unique")
     op.drop_column("bookings", "guest_code")

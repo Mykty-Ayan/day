@@ -55,8 +55,10 @@ class GuestPanelResponse(BaseModel):
     guest_name: str | None = None
     booking: GuestPanelBooking | None = None
     flat: GuestPanelFlat | None = None
-    # Only for a confirmed or checked-in stay paid in full.
+    # Only for a confirmed or checked-in stay paid in full, from lead_hours before
+    # check-in until check-out.
     access: GuestPanelAccess | None = None
+    lead_hours: int = 24
 
     @classmethod
     def from_panel(cls, panel: GuestPanel) -> GuestPanelResponse:
@@ -64,6 +66,7 @@ class GuestPanelResponse(BaseModel):
         page = cls(
             closed=panel.closed,
             today=panel.today,
+            lead_hours=panel.lead_hours,
             company=GuestPanelCompany(
                 title=site.title, logo_url=site.logo_url, accent_color=site.accent_color, whatsapp=site.whatsapp
             )

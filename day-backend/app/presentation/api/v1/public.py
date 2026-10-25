@@ -9,6 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.application.booking.create_booking import CreateBookingService
+from app.application.booking.guest_checkout import GuestCheckoutService, NotStayingError
 from app.application.booking.guest_hold import GuestHoldService, OfferTakenError
 from app.application.booking.guest_offers import OfferExpiredError
 from app.application.booking.guest_panel import GuestPanelService
@@ -16,8 +17,10 @@ from app.application.booking.price_calculator import PriceCalculatorService
 from app.application.property.public_stay import GetPublicStayService
 from app.domain.booking.exceptions import BookingOverlapError, PropertyBlockedError, StayRulesError
 from app.domain.booking.value_objects import RentalMode
+from app.domain.messaging.value_objects import NotificationEvent
 from app.infrastructure.database import get_session
 from app.infrastructure.messaging.booking_notice import notify_guest_hold
+from app.infrastructure.messaging.factory import build_notification_service
 from app.infrastructure.repositories.booking import (
     SqlBookingAuditLogRepository,
     SqlBookingDepositRepository,
@@ -26,6 +29,7 @@ from app.infrastructure.repositories.booking import (
     SqlGuestOfferRepository,
     SqlGuestRepository,
 )
+from app.infrastructure.repositories.cleaning import SqlCleaningTaskRepository
 from app.infrastructure.repositories.leads import SqlBlacklistRepository
 from app.infrastructure.repositories.property import (
     SqlAmenityRepository,
@@ -220,3 +224,36 @@ async def guest_panel(code: str, session: AsyncSession = Depends(get_session)):
     except ValueError:
         raise HTTPException(status_code=404, detail="Not found")
     return GuestPanelResponse.from_panel(panel)
+
+
+@public_router.post("/guest/{code}/checked-out")
+async def guest_checked_out(code: str, session: AsyncSession = Depends(get_session)):
+    """The guest says they left: the host is told in the bot, and the flat gets a
+    cleaning task if none is open. The booking's status stays the host's to change."""
+    service = GuestCheckoutService(
+        SqlBookingRepository(session),
+        SqlGuestRepository(session),
+        SqlPropertyRepository(session),
+        SqlCleaningTaskRepository(session),
+        SqlCompanySettingsRepository(session),
+    )
+    try:
+        left = await service.execute(code)
+        await build_notification_service(session).notify_company(
+            left.booking.company_id,
+            NotificationEvent.GUEST_CHECKED_OUT,
+            {
+                "property_name": left.flat_name or "—",
+                "guest_name": left.guest_name or "—",
+                "cleaning_created": left.cleaning_created,
+                "booking_id": str(left.booking.id),
+            },
+        )
+    except LookupError:
+        await session.rollback()
+        raise HTTPException(status_code=404, detail="Not found")
+    except NotStayingError as e:
+        await session.rollback()
+        raise HTTPException(status_code=409, detail=str(e))
+    await session.commit()
+    return {"cleaning_created": left.cleaning_created}

@@ -3,19 +3,20 @@ left to pay, the house rules and, once the stay is paid in full, how to get in.
 
 Opened by a link with no sign-in: the code names one booking of one company. The
 door code and the Wi-Fi leave the server only for a confirmed or checked-in stay
-paid in full; the page never decides that itself.
+paid in full, from N hours before check-in (the company's setting, by the night or
+by the hour) until check-out; the page never decides that itself.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from decimal import Decimal
 from zoneinfo import ZoneInfo
 
 from app.domain.booking.entities import Booking
 from app.domain.booking.repositories import BookingPaymentRepository, BookingRepository, GuestRepository
-from app.domain.booking.value_objects import BookingStatus
+from app.domain.booking.value_objects import BookingStatus, RentalMode
 from app.domain.property.entities import Property
 from app.domain.property.repositories import PropertyFactRepository, PropertyRepository
 from app.domain.property.value_objects import FactAudience
@@ -51,6 +52,8 @@ class GuestPanel:
     flat: Property | None = None
     paid: Decimal = Decimal("0")
     access: GuestAccess | None = None
+    # How many hours before check-in the way in opens, once paid: for the page's hint.
+    lead_hours: int = 24
 
     @property
     def remaining(self) -> Decimal:
@@ -84,7 +87,16 @@ class GuestPanelService:
         site = await self._sites.get(booking.company_id)
         company = await self._settings.get_by_company(booking.company_id)
         zone = ZoneInfo(company.time_zone if company and company.time_zone else DEFAULT_TIME_ZONE)
-        today = (now or datetime.now(tz=ZoneInfo("UTC"))).astimezone(zone).date()
+        # Check-in and check-out are the company's local times, as everywhere in Day.
+        local_now = (now or datetime.now(tz=ZoneInfo("UTC"))).astimezone(zone).replace(tzinfo=None)
+        today = local_now.date()
+        hourly = booking.rental_mode == RentalMode.HOURLY
+        defaults = (24, 1)
+        lead_hours = (
+            (company.secrets_lead_hours_hourly if hourly else company.secrets_lead_hours_daily)
+            if company
+            else defaults[hourly]
+        )
         prop = await self._properties.get_by_id(booking.property_id)
         guest = await self._guests.get_by_id(booking.guest_id)
         paid = (await self._payments.sum_paid_by_bookings([booking.id])).get(booking.id, Decimal("0"))
@@ -97,8 +109,15 @@ class GuestPanelService:
             guest_name=guest.name if guest and guest.company_id == booking.company_id else None,
             flat=prop if prop and prop.company_id == booking.company_id else None,
             paid=paid,
+            lead_hours=lead_hours,
         )
-        if not panel.closed and panel.flat is not None and booking.status in _LIVE and paid >= booking.total_price:
+        opens = booking.check_in - timedelta(hours=lead_hours)
+        if (
+            panel.flat is not None
+            and booking.status in _LIVE
+            and paid >= booking.total_price
+            and opens <= local_now < booking.check_out
+        ):
             facts = await self._facts.list_by_property(panel.flat.id)
             panel.access = GuestAccess(
                 instructions=panel.flat.check_in_instructions,
