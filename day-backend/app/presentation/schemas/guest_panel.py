@@ -3,6 +3,7 @@ on the booking or the flat stays private until it is added to this list."""
 
 from __future__ import annotations
 
+import uuid
 from datetime import date, datetime
 
 from pydantic import BaseModel
@@ -48,6 +49,17 @@ class GuestPanelAccess(BaseModel):
     facts: list[str] = []
 
 
+class GuestPanelProduct(BaseModel):
+    id: uuid.UUID
+    name: str
+    category: str
+    description: str | None = None
+    photo_url: str | None = None
+    price: float
+    # How many may go in the cart: what is left, at most a line's limit.
+    max_quantity: int
+
+
 class GuestPanelResponse(BaseModel):
     closed: bool
     today: date
@@ -59,6 +71,8 @@ class GuestPanelResponse(BaseModel):
     # check-in until check-out.
     access: GuestPanelAccess | None = None
     lead_hours: int = 24
+    # The minibar during the stay; None outside it.
+    menu: list[GuestPanelProduct] | None = None
 
     @classmethod
     def from_panel(cls, panel: GuestPanel) -> GuestPanelResponse:
@@ -100,6 +114,14 @@ class GuestPanelResponse(BaseModel):
                 house_rules=p.house_rules,
                 check_out_instructions=p.check_out_instructions,
             )
+        if panel.menu is not None:
+            page.menu = [
+                GuestPanelProduct(
+                    id=p.id, name=p.name, category=p.category, description=p.description, photo_url=p.photo_url,
+                    price=float(p.price), max_quantity=min(p.stock, 20),
+                )
+                for p in panel.menu
+            ]
         if (a := panel.access) is not None:
             page.access = GuestPanelAccess(
                 instructions=a.instructions, wifi_name=a.wifi_name, wifi_password=a.wifi_password, facts=a.facts

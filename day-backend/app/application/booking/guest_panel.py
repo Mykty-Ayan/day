@@ -14,9 +14,12 @@ from datetime import date, datetime, timedelta
 from decimal import Decimal
 from zoneinfo import ZoneInfo
 
+from app.application.inventory.guest_orders import minibar_open
 from app.domain.booking.entities import Booking
 from app.domain.booking.repositories import BookingPaymentRepository, BookingRepository, GuestRepository
 from app.domain.booking.value_objects import BookingStatus, RentalMode
+from app.domain.inventory.entities import Product
+from app.domain.inventory.repositories import ProductRepository
 from app.domain.property.entities import Property
 from app.domain.property.repositories import PropertyFactRepository, PropertyRepository
 from app.domain.property.value_objects import FactAudience
@@ -54,6 +57,8 @@ class GuestPanel:
     access: GuestAccess | None = None
     # How many hours before check-in the way in opens, once paid: for the page's hint.
     lead_hours: int = 24
+    # The minibar's menu, during the stay only: active products with something left.
+    menu: list[Product] | None = None
 
     @property
     def remaining(self) -> Decimal:
@@ -70,6 +75,7 @@ class GuestPanelService:
         facts: PropertyFactRepository,
         sites: CompanySiteRepository,
         company_settings: CompanySettingsRepository,
+        products: ProductRepository | None = None,
     ) -> None:
         self._bookings = bookings
         self._payments = payments
@@ -78,6 +84,7 @@ class GuestPanelService:
         self._facts = facts
         self._sites = sites
         self._settings = company_settings
+        self._products = products
 
     async def execute(self, code: str, now: datetime | None = None) -> GuestPanel:
         """The guest's page; ValueError for a code that names no booking."""
@@ -125,4 +132,7 @@ class GuestPanelService:
                 wifi_password=panel.flat.wifi_password,
                 facts=[f.text for f in facts if f.audience == FactAudience.GUEST],
             )
+        if self._products is not None and minibar_open(booking, today):
+            stock = await self._products.list(booking.company_id)
+            panel.menu = [p for p in stock if p.is_active and p.stock > 0]
         return panel
