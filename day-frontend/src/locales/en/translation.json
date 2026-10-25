@@ -1542,6 +1542,7 @@
       "outOfStock": "Something is no longer there in that quantity. The menu is updated: check your order.",
       "tooMany": "Too many orders in an hour. Write to the host in WhatsApp.",
       "failed": "The order did not go through. Try again."
-    }
+    },
+    "ordersDue": "Of which minibar orders: {{amount}}"
   }
 }

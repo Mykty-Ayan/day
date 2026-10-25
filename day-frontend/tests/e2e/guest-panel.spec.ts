@@ -178,6 +178,13 @@ test('an order the stock cannot cover is refused with a reason, and nothing open
   await expect(page).toHaveURL(new RegExp(`/g/${CODE}$`))
 })
 
+test('orders on the tab are owed with the stay, and said apart', async ({ page }) => {
+  await open(page, answer({ menu: MENU }, { paid: 40000, orders_due: 1600, remaining: 1600 }))
+  await expect(page.getByTestId('guest-remaining')).toContainText('1 600')
+  await expect(page.getByText('Из них заказы мини-бара: 1 600 ₸')).toBeVisible()
+  await expect(page.getByRole('link', { name: 'Как оплатить' })).toBeVisible()
+})
+
 test('outside the stay there is no minibar', async ({ page }) => {
   await open(page, answer({ menu: null }))
   await expect(page.getByRole('heading', { name: 'Т13 у Байтерека' })).toBeVisible()

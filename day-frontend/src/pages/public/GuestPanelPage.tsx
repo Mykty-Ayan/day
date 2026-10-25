@@ -115,6 +115,9 @@ function PanelView({ code, panel, locale }: { code: string; panel: GuestPanel; l
               <p data-testid="guest-remaining" className="text-base font-bold text-gray-900">
                 {t('guestPanel.remaining', { amount: money(b.remaining, locale) })}
               </p>
+              {(b.orders_due ?? 0) > 0 && (
+                <p className="text-sm text-gray-700">{t('guestPanel.ordersDue', { amount: money(b.orders_due ?? 0, locale) })}</p>
+              )}
               {buttons.includes('pay') && button('pay')}
             </Section>
           )}
