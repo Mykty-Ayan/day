@@ -104,7 +104,8 @@ class BookingUpdate(BaseModel):
     gantt_icon: str | None = None
     adults_count: int | None = None
     children_count: int | None = None
-    total_price: Decimal | None = None
+    # Set by hand; the column is Numeric(12, 2), and a negative total reads as money owed back.
+    total_price: Decimal | None = Field(default=None, ge=0, le=Decimal("9999999999.99"))
     notes: str | None = None
     # Extends a hold, or releases it with null. Pending bookings only.
     expires_at: AwareDatetime | None = None
@@ -135,6 +136,9 @@ class BookingResponse(BaseModel):
     # What has actually been received, so a list can show who still owes without
     # asking for every booking's payments one at a time.
     paid_amount: Decimal = Decimal("0")
+    # Minibar orders delivered on the guest's tab: owed on top of the stay, apart
+    # from total_price and its payments.
+    orders_due: Decimal = Decimal("0")
     adults_count: int
     children_count: int
     notes: str | None = None

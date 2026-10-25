@@ -62,6 +62,7 @@ from app.infrastructure.repositories.booking import (
     SqlBookingRepository,
     SqlGuestRepository,
 )
+from app.infrastructure.repositories.inventory import SqlGuestOrderRepository
 from app.infrastructure.repositories.property import (
     SqlDayPriceRepository,
     SqlDiscountRuleRepository,
@@ -129,6 +130,8 @@ def _repos(session: AsyncSession):
         "guest": SqlGuestRepository(session),
         "property": SqlPropertyRepository(session),
         "payment": SqlBookingPaymentRepository(session),
+        # Minibar orders on the guest's tab: owed on top of the stay.
+        "orders": SqlGuestOrderRepository(session),
         "deposit": SqlBookingDepositRepository(session),
         "file": SqlBookingFileRepository(session),
         "comment": SqlBookingCommentRepository(session),
@@ -178,6 +181,7 @@ def _to_booking_response(
     property_name: str | None = None,
     property_internal_name: str | None = None,
     paid_amount: Decimal | None = None,
+    orders_due: Decimal | None = None,
 ) -> BookingResponse:
     return BookingResponse(
         id=b.id,
@@ -195,6 +199,7 @@ def _to_booking_response(
         total_price=b.total_price,
         calculated_price=b.calculated_price,
         paid_amount=paid_amount if paid_amount is not None else Decimal("0"),
+        orders_due=orders_due if orders_due is not None else Decimal("0"),
         adults_count=b.adults_count,
         children_count=b.children_count,
         notes=b.notes,
@@ -442,6 +447,7 @@ async def list_bookings(
     # Enrich with guest and property names, plus what has been received —
     # one aggregate query for the whole page rather than one per booking.
     paid = await repos["payment"].sum_paid_by_bookings([b.id for b in result.items])
+    due = await repos["orders"].due_by_bookings(company_id, [b.id for b in result.items])
     items = []
     for b in result.items:
         guest = await repos["guest"].get_by_id(b.guest_id)
@@ -454,6 +460,7 @@ async def list_bookings(
                 property_name=prop.name if prop else None,
                 property_internal_name=prop.internal_name if prop else None,
                 paid_amount=paid.get(b.id),
+                orders_due=due.get(b.id),
             )
         )
 
@@ -577,6 +584,7 @@ async def get_today(
     in_house = []
 
     paid = await repos["payment"].sum_paid_by_bookings([b.id for b in all_bookings])
+    due = await repos["orders"].due_by_bookings(company_id, [b.id for b in all_bookings])
     for b in all_bookings:
         guest = await repos["guest"].get_by_id(b.guest_id)
         prop = await repos["property"].get_by_id(b.property_id)
@@ -588,6 +596,7 @@ async def get_today(
                 property_name=prop.name if prop else None,
                 property_internal_name=prop.internal_name if prop else None,
                 paid_amount=paid.get(b.id),
+                orders_due=due.get(b.id),
             ).model_dump(),
             property_status=prop.status if prop else None,
         )
@@ -655,6 +664,7 @@ async def get_booking(
             guest_phone=detail.guest.phone if detail.guest else None,
             property_name=detail.property_name,
             property_internal_name=detail.property_internal_name,
+            orders_due=(await repos["orders"].due_by_bookings(company_id, [booking_id])).get(booking_id),
         ),
         guest=GuestResponse.model_validate(detail.guest, from_attributes=True) if detail.guest else None,
         payments=[PaymentResponse.model_validate(p, from_attributes=True) for p in detail.payments],
