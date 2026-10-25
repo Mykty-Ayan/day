@@ -23,6 +23,8 @@ class Product:
     # An inactive product stays in the stock and leaves the guest's menu.
     is_active: bool = True
     sort_order: int = 0
+    # Below this stock the product goes on the list of what to buy; None: no threshold.
+    par_level: int | None = None
     created_at: datetime | None = None
     # Archived, never deleted: orders and the stock's log point at it.
     archived_at: datetime | None = None

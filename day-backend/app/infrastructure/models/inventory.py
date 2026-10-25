@@ -23,8 +23,12 @@ class ProductModel(Base):
     price: Mapped[float] = mapped_column(Numeric(12, 2))
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     sort_order: Mapped[int] = mapped_column(Integer, default=0)
+    par_level: Mapped[int | None] = mapped_column(Integer, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     archived_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
-    __table_args__ = (CheckConstraint("price >= 0", name="ck_products_price"),)
+    __table_args__ = (
+        CheckConstraint("price >= 0", name="ck_products_price"),
+        CheckConstraint("par_level >= 0", name="ck_products_par_level"),
+    )
 

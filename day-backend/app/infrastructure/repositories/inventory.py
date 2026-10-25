@@ -23,6 +23,7 @@ def _to_product(m: ProductModel) -> Product:
         price=Decimal(str(m.price)),
         is_active=m.is_active,
         sort_order=m.sort_order,
+        par_level=m.par_level,
         created_at=m.created_at,
         archived_at=m.archived_at,
     )
@@ -46,6 +47,7 @@ class SqlProductRepository(ProductRepository):
             price=product.price,
             is_active=product.is_active,
             sort_order=product.sort_order,
+            par_level=product.par_level,
         )
         self._session.add(model)
         await self._session.flush()
@@ -69,7 +71,7 @@ class SqlProductRepository(ProductRepository):
         )
         if model is None:
             raise LookupError("Product not found")
-        for name in ("name", "category", "description", "photo_url", "price", "is_active", "sort_order"):
+        for name in ("name", "category", "description", "photo_url", "price", "is_active", "sort_order", "par_level"):
             setattr(model, name, getattr(product, name))
         model.archived_at = product.archived_at
         await self._session.flush()

@@ -56,6 +56,9 @@ async def test_a_product_has_a_name_and_a_price_within_the_money_bounds():
             await svc.add_product(COMPANY, name="Чай", price=price)
     with pytest.raises(ValueError, match="name"):
         await svc.add_product(COMPANY, name="  ", price=Decimal("1"))
+    for par in (-1, 100_001):
+        with pytest.raises(ValueError, match="threshold"):
+            await svc.add_product(COMPANY, name="Чай", price=Decimal("1"), par_level=par)
     with pytest.raises(ValueError, match="cannot be changed"):
         await svc.update_product(COMPANY, cola.id, archived_at=None)
 
@@ -109,8 +112,13 @@ async def test_the_owner_keeps_the_catalogue_through_the_api(flat):  # noqa: F81
     listed = (await client.get("/api/v1/inventory/products")).json()
     assert [(p["name"], p["price"]) for p in listed] == [("Кола", 800), ("Арахис", 600)]
 
-    patched = await client.patch(f"/api/v1/inventory/products/{cola}", json={"price": 900, "is_active": False})
-    assert (patched.json()["price"], patched.json()["is_active"]) == (900, False)
+    patched = await client.patch(f"/api/v1/inventory/products/{cola}",
+                                 json={"price": 900, "is_active": False, "par_level": 6})
+    assert (patched.json()["price"], patched.json()["is_active"], patched.json()["par_level"]) == (900, False, 6)
+    # null takes the threshold away.
+    cleared = await client.patch(f"/api/v1/inventory/products/{cola}", json={"par_level": None})
+    assert cleared.json()["par_level"] is None
+    assert (await client.patch(f"/api/v1/inventory/products/{cola}", json={"par_level": -1})).status_code == 422
     assert (await client.patch(f"/api/v1/inventory/products/{cola}", json={"name": None})).status_code == 422
     assert (await client.post(f"/api/v1/inventory/products/{cola}/archive")).status_code == 200
     assert [p["name"] for p in (await client.get("/api/v1/inventory/products")).json()] == ["Арахис"]

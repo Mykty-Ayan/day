@@ -16,6 +16,8 @@ class ProductCreate(BaseModel):
     price: Decimal = Field(..., ge=0, le=MAX_MONEY, max_digits=12, decimal_places=2)
     is_active: bool = True
     sort_order: int = Field(default=0, ge=0, le=10_000)
+    # Below it the product goes on the list of what to buy; null: no threshold.
+    par_level: int | None = Field(default=None, ge=0, le=100_000)
 
 
 class ProductUpdate(BaseModel):
@@ -25,6 +27,8 @@ class ProductUpdate(BaseModel):
     price: Decimal | None = Field(default=None, ge=0, le=MAX_MONEY, max_digits=12, decimal_places=2)
     is_active: bool | None = None
     sort_order: int | None = Field(default=None, ge=0, le=10_000)
+    # null removes the threshold.
+    par_level: int | None = Field(default=None, ge=0, le=100_000)
 
 
 class ProductResponse(BaseModel):
@@ -38,5 +42,6 @@ class ProductResponse(BaseModel):
     price: Decimal
     is_active: bool
     sort_order: int
+    par_level: int | None = None
     archived_at: datetime | None = None
 

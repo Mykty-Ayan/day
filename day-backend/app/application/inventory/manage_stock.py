@@ -10,7 +10,7 @@ from decimal import Decimal
 from app.domain.inventory.entities import MAX_MONEY, Product
 from app.domain.inventory.repositories import ProductRepository
 
-_EDITABLE = ("name", "category", "description", "price", "is_active", "sort_order")
+_EDITABLE = ("name", "category", "description", "price", "is_active", "sort_order", "par_level")
 
 
 class ManageStockService:
@@ -66,3 +66,5 @@ def _apply(product: Product, fields: dict) -> None:
         raise ValueError("The product needs a name")
     if not 0 <= product.price <= MAX_MONEY:
         raise ValueError("The price must be from 0 to 9 999 999 999.99")
+    if product.par_level is not None and not 0 <= product.par_level <= 100_000:
+        raise ValueError("The threshold must be from 0 to 100 000")

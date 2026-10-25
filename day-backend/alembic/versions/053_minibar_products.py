@@ -30,9 +30,12 @@ def upgrade() -> None:
         sa.Column("price", sa.Numeric(12, 2), nullable=False),
         sa.Column("is_active", sa.Boolean(), nullable=False, server_default=sa.true()),
         sa.Column("sort_order", sa.Integer(), nullable=False, server_default="0"),
+        # Below it the product goes on the list of what to buy; null: no threshold.
+        sa.Column("par_level", sa.Integer(), nullable=True),
         sa.Column("created_at", sa.DateTime(), nullable=False, server_default=sa.func.now()),
         sa.Column("archived_at", sa.DateTime(), nullable=True),
         sa.CheckConstraint("price >= 0", name="ck_products_price"),
+        sa.CheckConstraint("par_level >= 0", name="ck_products_par_level"),
     )
     op.create_index("ix_products_company_id", "products", ["company_id"])
 
