@@ -23,6 +23,7 @@ from app.domain.inventory.entities import (
     GuestOrderItem,
     MovementKind,
     OrderPayment,
+    OrderPaymentStatus,
     OrderStatus,
     Product,
     StockMovement,
@@ -183,13 +184,17 @@ class GuestOrderService:
         return await self._move(company_id, order_id, {OrderStatus.NEW, OrderStatus.ACCEPTED}, order)
 
     async def deliver(
-        self, company_id: uuid.UUID, order_id: uuid.UUID, payment: OrderPayment, by: uuid.UUID | None
+        self, company_id: uuid.UUID, order_id: uuid.UUID, payment: OrderPayment | None, by: uuid.UUID | None
     ) -> GuestOrder:
-        """Delivered and paid: a sale per line, in the same transaction. The stock may
-        go below zero — the goods are with the guest; the purchase was not recorded."""
+        """Delivered: paid at the door (`payment`, how) or on the guest's tab (None).
+        A sale per line, in the same transaction. The stock may go below zero — the
+        goods are with the guest; the purchase was not recorded."""
         order = await self._get(company_id, order_id)
-        order.status, order.delivered_at = OrderStatus.DELIVERED, datetime.utcnow()
-        order.payment_method, order.handled_by = payment, by
+        now = datetime.utcnow()
+        order.status, order.delivered_at, order.handled_by = OrderStatus.DELIVERED, now, by
+        order.payment_method = payment
+        order.payment_status = OrderPaymentStatus.PAID if payment else OrderPaymentStatus.ON_BOOKING
+        order.paid_at = now if payment else None
         delivered = await self._move(company_id, order_id, {OrderStatus.NEW, OrderStatus.ACCEPTED}, order)
         for item in delivered.items:
             await self._movements.add(
@@ -204,6 +209,17 @@ class GuestOrderService:
                 )
             )
         return delivered
+
+    async def mark_paid(
+        self, company_id: uuid.UUID, order_id: uuid.UUID, payment: OrderPayment, by: uuid.UUID | None
+    ) -> GuestOrder:
+        """The guest paid an order delivered on the tab."""
+        order = await self._get(company_id, order_id)
+        if order.payment_status != OrderPaymentStatus.ON_BOOKING:
+            raise ValueError("The order is not on the tab")
+        order.payment_status, order.payment_method, order.paid_at = OrderPaymentStatus.PAID, payment, datetime.utcnow()
+        order.handled_by = by
+        return await self._move(company_id, order_id, {OrderStatus.DELIVERED}, order)
 
     async def _get(self, company_id: uuid.UUID, order_id: uuid.UUID) -> GuestOrder:
         order = await self._orders.get(company_id, order_id)

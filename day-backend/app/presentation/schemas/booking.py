@@ -135,6 +135,9 @@ class BookingResponse(BaseModel):
     # What has actually been received, so a list can show who still owes without
     # asking for every booking's payments one at a time.
     paid_amount: Decimal = Decimal("0")
+    # Minibar orders delivered on the guest's tab: owed on top of the stay, apart
+    # from total_price and its payments.
+    orders_due: Decimal = Decimal("0")
     adults_count: int
     children_count: int
     notes: str | None = None

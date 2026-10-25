@@ -203,6 +203,38 @@ async def test_a_cancelled_order_never_touches_the_stock_and_another_company_can
     assert not [m for m in movements.rows if m.kind == MovementKind.SALE]
 
 
+async def test_an_order_on_the_tab_is_owed_until_paid():
+    from app.domain.inventory.entities import OrderPaymentStatus
+
+    svc, _, movements, _, cola, _ = await _setup()
+    order = (await svc.place(CODE, [(cola.id, 1)], None, "ru", NOW)).order
+    tab = await svc.deliver(COMPANY_ID, order.id, None, None)
+    assert (tab.payment_status, tab.payment_method, tab.paid_at) == (OrderPaymentStatus.ON_BOOKING, None, None)
+    # Delivered all the same: the cola is with the guest.
+    assert [m.quantity for m in movements.rows if m.kind == MovementKind.SALE] == [-1]
+
+    paid = await svc.mark_paid(COMPANY_ID, order.id, OrderPayment.TRANSFER, None)
+    assert (paid.payment_status, paid.payment_method, paid.paid_at is not None) == (
+        OrderPaymentStatus.PAID, OrderPayment.TRANSFER, True
+    )
+    with pytest.raises(ValueError, match="tab"):
+        await svc.mark_paid(COMPANY_ID, order.id, OrderPayment.CASH, None)
+    with pytest.raises(LookupError):
+        await svc.mark_paid(uuid.uuid4(), order.id, OrderPayment.CASH, None)
+
+
+def test_delivered_paid_needs_how_and_on_the_tab_takes_none():
+    from pydantic import ValidationError
+
+    from app.presentation.schemas.guest_orders import GuestOrderDeliver
+
+    assert GuestOrderDeliver(payment_method="cash").payment_status == "paid"
+    assert GuestOrderDeliver(payment_status="on_booking").payment_method is None
+    for wrong in ({}, {"payment_status": "on_booking", "payment_method": "cash"}):
+        with pytest.raises(ValidationError):
+            GuestOrderDeliver(**wrong)
+
+
 async def test_no_whatsapp_number_no_link_but_the_order_is_in_day():
     svc, orders, *_ , cola, _ = await _setup(whatsapp=None)
     placed = await svc.place(CODE, [(cola.id, 1)], None, "kz", NOW)
@@ -296,6 +328,24 @@ async def test_a_guest_orders_from_the_page_and_the_host_delivers(flat):  # noqa
     assert listed["stock"] == 1
     # Paid apart: the booking's money is untouched.
     assert (await client.get(f"/api/v1/bookings/{booking}/payments")).json() == []
+
+    # The next one on the guest's tab: owed in the bookings and on the guest's page until paid.
+    second = await client.post(path, json={"items": [{"product_id": cola, "quantity": 1}]})
+    assert second.status_code == 201, second.text
+    [new] = (await client.get("/api/v1/guest-orders", params={"status": "new"})).json()
+    tab = await client.post(f"/api/v1/guest-orders/{new['id']}/deliver", json={"payment_status": "on_booking"})
+    assert tab.json()["payment_status"] == "on_booking"
+    owed = lambda body: body["orders_due"]  # noqa: E731
+    assert owed((await client.get(f"/api/v1/bookings/{booking}")).json()["booking"]) == 800
+    assert [owed(b) for b in (await client.get("/api/v1/bookings")).json()["items"]] == [800]
+    page = (await client.get(f"/api/v1/public/guest/{code}")).json()["booking"]
+    assert (page["orders_due"], page["remaining"]) == (800, 40800)
+    assert (await client.post(f"/api/v1/guest-orders/{new['id']}/deliver", json={})).status_code == 422
+    paid = await client.post(f"/api/v1/guest-orders/{new['id']}/paid", json={"payment_method": "cash"})
+    assert (paid.status_code, paid.json()["payment_status"]) == (200, "paid")
+    assert owed((await client.get(f"/api/v1/bookings/{booking}")).json()["booking"]) == 0
+    again = await client.post(f"/api/v1/guest-orders/{new['id']}/paid", json={"payment_method": "cash"})
+    assert again.status_code == 409
     assert (await client.post(f"/api/v1/guest-orders/{uuid.uuid4()}/cancel")).status_code == 404
 
 

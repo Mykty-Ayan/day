@@ -18,7 +18,7 @@ from app.infrastructure.repositories.booking import SqlBookingRepository, SqlGue
 from app.infrastructure.repositories.property import SqlPropertyRepository
 from app.presentation.api.deps import Principal, get_company_id, get_principal, require
 from app.presentation.api.v1.public import guest_orders
-from app.presentation.schemas.guest_orders import GuestOrderDeliver, GuestOrderResponse
+from app.presentation.schemas.guest_orders import GuestOrderDeliver, GuestOrderPaid, GuestOrderResponse
 
 guest_order_router = APIRouter(prefix="/guest-orders", tags=["guest-orders"])
 
@@ -89,9 +89,22 @@ async def deliver_order(
     company_id: uuid.UUID = Depends(get_company_id),
     principal: Principal = Depends(get_principal),
 ):
-    """Delivered and paid at the door: the stock goes down by each line."""
+    """Delivered, paid at the door or on the guest's tab: the stock goes down by each line."""
     service = guest_orders(session)
     return await _handled(session, service.deliver(company_id, order_id, body.payment_method, principal.actor_id))
+
+
+@guest_order_router.post("/{order_id}/paid", response_model=GuestOrderResponse, dependencies=_write)
+async def order_paid(
+    order_id: uuid.UUID,
+    body: GuestOrderPaid,
+    session: AsyncSession = Depends(get_session),
+    company_id: uuid.UUID = Depends(get_company_id),
+    principal: Principal = Depends(get_principal),
+):
+    """The guest paid an order delivered on the tab; it leaves what they owe."""
+    service = guest_orders(session)
+    return await _handled(session, service.mark_paid(company_id, order_id, body.payment_method, principal.actor_id))
 
 
 @guest_order_router.post("/{order_id}/cancel", response_model=GuestOrderResponse, dependencies=_write)

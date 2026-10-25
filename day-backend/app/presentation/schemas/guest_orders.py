@@ -5,9 +5,9 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from app.domain.inventory.entities import OrderPayment, OrderStatus
+from app.domain.inventory.entities import OrderPayment, OrderPaymentStatus, OrderStatus
 
 
 class GuestOrderLine(BaseModel):
@@ -47,7 +47,10 @@ class GuestOrderResponse(BaseModel):
     status: OrderStatus
     total: Decimal
     guest_note: str | None = None
+    # null until delivered; paid, or on_booking (on the guest's tab, to be paid later).
+    payment_status: OrderPaymentStatus | None = None
     payment_method: OrderPayment | None = None
+    paid_at: datetime | None = None
     booking_id: uuid.UUID
     property_id: uuid.UUID
     property_name: str | None = None
@@ -60,4 +63,17 @@ class GuestOrderResponse(BaseModel):
 
 
 class GuestOrderDeliver(BaseModel):
+    """Paid at the door (with how), or on the guest's tab."""
+
+    payment_status: OrderPaymentStatus = OrderPaymentStatus.PAID
+    payment_method: OrderPayment | None = None
+
+    @model_validator(mode="after")
+    def _how(self) -> GuestOrderDeliver:
+        if (self.payment_status == OrderPaymentStatus.PAID) != (self.payment_method is not None):
+            raise ValueError("Paid needs how (payment_method); on the tab takes none")
+        return self
+
+
+class GuestOrderPaid(BaseModel):
     payment_method: OrderPayment
