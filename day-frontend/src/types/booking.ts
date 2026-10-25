@@ -35,6 +35,8 @@ export interface Booking {
   gantt_icon?: string
   /** An OTA booking on nights already taken; someone has to resolve it. */
   overbooking?: boolean
+  /** The guest's own page (/g/<code>); only for those who may hand out door codes. */
+  guest_url?: string | null
   total_price: number
   calculated_price: number
   /** Net received: payments less refunds. Lets a list show who still owes. */

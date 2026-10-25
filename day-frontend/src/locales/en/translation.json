@@ -1007,7 +1007,8 @@
       "flats": "Units",
       "sell": "Sell",
       "ask": "Ask",
-      "money": "Money"
+      "money": "Money",
+      "orders": "Orders"
     },
     "arrivals": "Arrivals",
     "departures": "Departures",
@@ -1106,7 +1107,9 @@
       "checkAttempt": "Check on the server",
       "notRecorded": "The {{amount}} payment was not recorded and never will be. If the money came, enter it again.",
       "notReceived": "Confirming {{amount}} has not landed yet. Press retry: the money will not count twice.",
-      "receiveGone": "The {{amount}} payment no longer waits for confirmation; the attempt is cleared."
+      "receiveGone": "The {{amount}} payment no longer waits for confirmation; the attempt is cleared.",
+      "guestLink": "Link for the guest",
+      "guestLinkText": "Hello, {{name}}! Your booking page: {{url}}\nThe address, payment, house rules and the minibar are there. The door code appears there as soon as the stay is paid in full."
     },
     "cleaning": {
       "title": "Cleaning",
@@ -1287,6 +1290,37 @@
       "noDebts": "Every guest has paid",
       "paid": "Paid · {{amount}}",
       "spent": "Spent · {{amount}}"
+    },
+    "orders": {
+      "number": "Order #{{number}}",
+      "total": "Total",
+      "open": "Waiting",
+      "done": "Done",
+      "none": "No new orders",
+      "stock": "Stock",
+      "noStock": "No products yet",
+      "pieces": "{{qty}} pcs",
+      "accept": "Accept",
+      "deliveredHow": "Delivered, paid by:",
+      "cancel": "Cancel",
+      "cancelAsk": "Cancel order #{{number}}?",
+      "failed": "That did not work. Try again.",
+      "status": {
+        "new": "new",
+        "accepted": "accepted",
+        "delivered": "delivered",
+        "cancelled": "cancelled"
+      },
+      "pay": {
+        "cash": "Cash",
+        "card": "Card",
+        "transfer": "Transfer"
+      },
+      "paid": {
+        "cash": "Paid in cash",
+        "card": "Paid by card",
+        "transfer": "Paid by transfer"
+      }
     }
   },
   "auth": {

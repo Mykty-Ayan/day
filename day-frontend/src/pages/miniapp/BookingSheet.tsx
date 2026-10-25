@@ -7,7 +7,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { BedDouble, CheckCircle2, Copy, LogIn, LogOut, Pencil, Phone, Send, Wallet, XCircle } from 'lucide-react'
+import { BedDouble, CheckCircle2, Copy, Link2, LogIn, LogOut, Pencil, Phone, Send, Wallet, XCircle } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import {
   addPayment,
@@ -582,6 +582,21 @@ export default function BookingSheet({
           {copied ? t('miniapp.copied') : t('miniapp.offer.copy')}
         </ActionButton>
       </div>
+
+      {booking.guest_url && booking.status !== 'cancelled' && (
+        <ActionButton
+          disabled={settling}
+          onClick={() =>
+            openWhatsApp(
+              booking.guest_phone ?? '',
+              t('miniapp.booking.guestLinkText', { name: booking.guest_name ?? '', url: booking.guest_url }),
+            )
+          }
+        >
+          <Link2 className="h-4 w-4" />
+          {t('miniapp.booking.guestLink')}
+        </ActionButton>
+      )}
 
       {booking.status !== 'cancelled' && booking.status !== 'completed' && (
         <ActionButton disabled={settling} onClick={() => setEditing(true)}>
