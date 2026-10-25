@@ -19,7 +19,7 @@ from app.domain.booking.entities import Booking
 from app.domain.booking.repositories import BookingPaymentRepository, BookingRepository, GuestRepository
 from app.domain.booking.value_objects import BookingStatus, RentalMode
 from app.domain.inventory.entities import Product
-from app.domain.inventory.repositories import ProductRepository
+from app.domain.inventory.repositories import GuestOrderRepository, ProductRepository
 from app.domain.property.entities import Property
 from app.domain.property.repositories import PropertyFactRepository, PropertyRepository
 from app.domain.property.value_objects import FactAudience
@@ -54,6 +54,8 @@ class GuestPanel:
     guest_name: str | None = None
     flat: Property | None = None
     paid: Decimal = Decimal("0")
+    # Minibar orders delivered on the guest's tab: owed on top of the stay.
+    orders_due: Decimal = Decimal("0")
     access: GuestAccess | None = None
     # How many hours before check-in the way in opens, once paid: for the page's hint.
     lead_hours: int = 24
@@ -62,7 +64,7 @@ class GuestPanel:
 
     @property
     def remaining(self) -> Decimal:
-        return max(self.booking.total_price - self.paid, Decimal("0"))
+        return max(self.booking.total_price - self.paid, Decimal("0")) + self.orders_due
 
 
 class GuestPanelService:
@@ -76,6 +78,7 @@ class GuestPanelService:
         sites: CompanySiteRepository,
         company_settings: CompanySettingsRepository,
         products: ProductRepository | None = None,
+        orders: GuestOrderRepository | None = None,
     ) -> None:
         self._bookings = bookings
         self._payments = payments
@@ -85,6 +88,7 @@ class GuestPanelService:
         self._sites = sites
         self._settings = company_settings
         self._products = products
+        self._orders = orders
 
     async def execute(self, code: str, now: datetime | None = None) -> GuestPanel:
         """The guest's page; ValueError for a code that names no booking."""
@@ -118,6 +122,9 @@ class GuestPanelService:
             paid=paid,
             lead_hours=lead_hours,
         )
+        if self._orders is not None:
+            due = await self._orders.due_by_bookings(booking.company_id, [booking.id])
+            panel.orders_due = due.get(booking.id, Decimal("0"))
         opens = booking.check_in - timedelta(hours=lead_hours)
         if (
             panel.flat is not None

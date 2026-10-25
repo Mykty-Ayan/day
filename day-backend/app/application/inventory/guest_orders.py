@@ -17,7 +17,7 @@ from zoneinfo import ZoneInfo
 
 from app.domain.booking.entities import Booking
 from app.domain.booking.repositories import BookingRepository
-from app.domain.booking.value_objects import BookingStatus
+from app.domain.booking.value_objects import BookingSource, BookingStatus
 from app.domain.inventory.entities import GuestOrder, GuestOrderItem, Product
 from app.domain.inventory.repositories import GuestOrderRepository, ProductRepository, StockMovementRepository
 from app.domain.property.repositories import PropertyRepository
@@ -50,8 +50,11 @@ class TooManyOrdersError(Exception):
 
 
 def minibar_open(booking: Booking, today: date) -> bool:
-    """From the arrival day to the departure day, for a confirmed or checked-in stay."""
+    """From the arrival day to the departure day, for a confirmed or checked-in stay.
+    Never for an Airbnb guest: Airbnb forbids taking money past the platform."""
     if booking.status not in (BookingStatus.CONFIRMED, BookingStatus.CHECKED_IN):
+        return False
+    if booking.source == BookingSource.AIRBNB:
         return False
     return booking.check_in.date() <= today <= booking.check_out.date()
 

@@ -27,6 +27,8 @@ class GuestPanelBooking(BaseModel):
     adults: int
     total: float
     paid: float
+    # Minibar orders on the guest's tab; part of remaining.
+    orders_due: float = 0
     remaining: float
 
 
@@ -97,6 +99,7 @@ class GuestPanelResponse(BaseModel):
             adults=b.adults_count,
             total=float(b.total_price),
             paid=float(panel.paid),
+            orders_due=float(panel.orders_due),
             remaining=float(panel.remaining),
         )
         if (p := panel.flat) is not None and panel.closed:

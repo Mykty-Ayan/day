@@ -275,3 +275,30 @@ async def test_a_guest_cannot_order_another_companys_product(flat):  # noqa: F81
                                                                                     "quantity": 1}]})
     assert res.status_code == 422
     assert (await client.get(f"/api/v1/public/guest/{code}")).json()["menu"] == []
+
+
+async def test_an_airbnb_guest_gets_no_minibar():
+    from app.domain.booking.value_objects import BookingSource
+
+    booking = _booking()
+    booking.source = BookingSource.AIRBNB
+    assert minibar_open(booking, date(2026, 10, 26)) is False
+    svc, *_, cola, _ = await _setup(booking)
+    with pytest.raises(MinibarClosedError):
+        await svc.place(CODE, [(cola.id, 1)], None, "ru", NOW)
+
+
+async def test_the_guest_page_counts_orders_on_the_tab_in_what_is_left():
+    from tests.test_guest_panel import CODE as PANEL_CODE
+    from tests.test_guest_panel import NOW as PANEL_NOW
+    from tests.test_guest_panel import _setup as panel_setup
+
+    class _Due:
+        async def due_by_bookings(self, company_id, booking_ids):
+            return {booking_ids[0]: Decimal("1600")}
+
+    svc = panel_setup(paid=Decimal("40000"))
+    svc._orders = _Due()
+    panel = await svc.execute(PANEL_CODE, PANEL_NOW)
+    # The stay is paid: the code shows; the minibar's tab is still owed.
+    assert (panel.orders_due, panel.remaining, panel.access is not None) == (Decimal("1600"), Decimal("1600"), True)
