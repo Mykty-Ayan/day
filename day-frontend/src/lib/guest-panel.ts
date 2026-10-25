@@ -77,3 +77,25 @@ export function mapLinks(flat: NonNullable<GuestPanel['flat']>): { name: string;
     },
   ]
 }
+
+/** When the way in opens, as the company's local time (YYYY-MM-DDTHH:mm): N hours
+ *  before check-in. Shown on the locked card next to the payment it also waits for. */
+export function accessOpensAt(panel: GuestPanel): string | null {
+  const b = panel.booking
+  if (!b) return null
+  // The stored times carry no zone: the arithmetic stays in that same wall clock.
+  const [day, time] = b.check_in.slice(0, 16).split('T')
+  const at = new Date(Date.UTC(+day.slice(0, 4), +day.slice(5, 7) - 1, +day.slice(8, 10), +time.slice(0, 2), +time.slice(3, 5)))
+  at.setUTCHours(at.getUTCHours() - panel.lead_hours)
+  return at.toISOString().slice(0, 16)
+}
+
+/** Whether the hours before check-in have come: the company's day decides, and on
+ *  that very day the phone's clock (HH:mm). Only for the locked card's checklist;
+ *  the server alone decides whether the way in is sent. */
+export function accessTimeReached(panel: GuestPanel, clock: string): boolean {
+  const opens = accessOpensAt(panel)
+  if (!opens) return false
+  const day = opens.slice(0, 10)
+  return day < panel.today || (day === panel.today && opens.slice(11, 16) <= clock)
+}
