@@ -45,12 +45,15 @@ function savedLanguage(): string | null {
 }
 
 /** A guest page's frame: the language picker on top, the page in the guest's
- *  language (the phone's, or the one picked here) below. */
-export function GuestFrame({ children }: { children: (locale: string) => ReactNode }) {
+ *  language (the phone's, or the one picked here) below. `only`: a page written in
+ *  fewer languages offers just those, and English for any other. */
+export function GuestFrame({ children, only }: { children: (locale: string) => ReactNode; only?: GuestLanguage[] }) {
   const { t } = useTranslation()
-  const [language, setLanguage] = useState<GuestLanguage>(() =>
-    guestLanguage(savedLanguage(), typeof navigator === 'undefined' ? null : navigator.language),
-  )
+  const languages = only ? LANGUAGES.filter((l) => only.includes(l.code)) : LANGUAGES
+  const [language, setLanguage] = useState<GuestLanguage>(() => {
+    const picked = guestLanguage(savedLanguage(), typeof navigator === 'undefined' ? null : navigator.language)
+    return !only || only.includes(picked) ? picked : 'en'
+  })
   // The language on screen: the page waits for a picked one's strings, not to flash another.
   const [shown, setShown] = useState<GuestLanguage | null>(null)
   const [picking, setPicking] = useState(false)
@@ -128,7 +131,7 @@ export function GuestFrame({ children }: { children: (locale: string) => ReactNo
               </button>
             </div>
             <div role="radiogroup" aria-label={t('guest.language')} className="flex flex-col">
-              {LANGUAGES.map((l) => (
+              {languages.map((l) => (
                 <button
                   key={l.code}
                   type="button"
