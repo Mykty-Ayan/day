@@ -83,11 +83,14 @@ def _readable(bucket) -> list[str]:
     return json.loads(bucket.policies[-1]["Policy"])["Statement"][0]["Resource"]
 
 
-def test_the_bucket_shows_only_listing_photos():
+def test_the_bucket_shows_only_listing_and_minibar_photos():
     # The policy replaces one left by an earlier deploy that opened everything.
     bucket = _Bucket()
     s3.apply_read_policy(bucket)
-    assert _readable(bucket) == [f"arn:aws:s3:::{settings.S3_BUCKET}/properties/*"]
+    assert _readable(bucket) == [
+        f"arn:aws:s3:::{settings.S3_BUCKET}/properties/*",
+        f"arn:aws:s3:::{settings.S3_BUCKET}/products/*",
+    ]
 
 
 @pytest.mark.asyncio
