@@ -47,6 +47,13 @@ class FakeOrders:
     async def count_since(self, booking_id, since):
         return sum(1 for o in self.rows.values() if o.booking_id == booking_id and o.created_at >= since)
 
+    async def hold(self, booking_id):
+        pass
+
+    async def recent_new(self, booking_id, since):
+        return [o for o in self.rows.values()
+                if o.booking_id == booking_id and o.status == OrderStatus.NEW and o.created_at >= since]
+
     async def get(self, company_id, order_id):
         # A copy, as a fresh read from the database is: the caller's changes are its own.
         found = self.rows.get(order_id)
@@ -160,11 +167,36 @@ async def test_wrong_lines_and_another_companys_product_are_refused():
 
 
 async def test_five_orders_an_hour_per_booking():
-    svc, *_ , cola, _ = await _setup()
-    for _ in range(5):
-        await svc.place(CODE, [(cola.id, 1)], None, "en", NOW)
+    svc, *_ , cola, nuts = await _setup()
+    for quantity in range(1, 6):
+        await svc.place(CODE, [(cola.id, quantity)], None, "en", NOW)
     with pytest.raises(TooManyOrdersError):
-        await svc.place(CODE, [(cola.id, 1)], None, "en", NOW)
+        await svc.place(CODE, [(nuts.id, 1)], None, "en", NOW)
+
+
+async def test_the_same_order_sent_twice_is_one_order():
+    # A double tap or a retry on a bad network: the same lines and note within a
+    # minute answer with the order already made, and nothing new is told the host.
+    svc, orders, *_ , cola, nuts = await _setup()
+    first = await svc.place(CODE, [(cola.id, 2), (nuts.id, 1)], "без льда", "ru", NOW)
+    again = await svc.place(CODE, [(nuts.id, 1), (cola.id, 2)], " без льда ", "ru", NOW)
+    assert (again.order.id, again.repeated, first.repeated) == (first.order.id, True, False)
+    assert again.whatsapp_url == first.whatsapp_url
+    assert len(orders.rows) == 1
+    # Another cart is another order.
+    other = await svc.place(CODE, [(cola.id, 1)], None, "ru", NOW)
+    assert other.order.id != first.order.id and len(orders.rows) == 2
+
+
+async def test_an_order_past_the_money_column_is_refused():
+    svc, _, _, products, _, _ = await _setup()
+    from app.domain.inventory.entities import StockMovement
+
+    gold = await products.add(Product(company_id=COMPANY_ID, name="Золото", price=Decimal("9999999999.99")))
+    await svc._movements.add(StockMovement(company_id=COMPANY_ID, product_id=gold.id, kind=MovementKind.PURCHASE,
+                                           quantity=5))
+    with pytest.raises(ValueError, match="total"):
+        await svc.place(CODE, [(gold.id, 2)], None, "ru", NOW)
 
 
 async def test_delivery_writes_a_sale_per_line_and_may_take_the_stock_below_zero():

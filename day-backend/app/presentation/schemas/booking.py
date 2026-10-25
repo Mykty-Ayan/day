@@ -104,7 +104,8 @@ class BookingUpdate(BaseModel):
     gantt_icon: str | None = None
     adults_count: int | None = None
     children_count: int | None = None
-    total_price: Decimal | None = None
+    # Set by hand; the column is Numeric(12, 2), and a negative total reads as money owed back.
+    total_price: Decimal | None = Field(default=None, ge=0, le=Decimal("9999999999.99"))
     notes: str | None = None
     # Extends a hold, or releases it with null. Pending bookings only.
     expires_at: AwareDatetime | None = None

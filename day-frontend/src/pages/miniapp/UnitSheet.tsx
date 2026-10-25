@@ -1,16 +1,21 @@
 /**
  * One flat, as the operator needs it on the phone: where it is, how the guest
  * gets in and when, the Wi-Fi, prices, what the assistant knows about it, and
- * the calendar link for Airbnb and Booking.
+ * the calendar link for Airbnb and Booking. From here the operator also edits
+ * it, adds photos, changes its price, closes nights and takes it off sale.
  */
 
 import { useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
-import { CalendarSync, Copy, Wifi } from 'lucide-react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { CalendarOff, CalendarSync, Copy, ImagePlus, Pencil, Tag, Wifi } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
-import { getCalendarLink, getProperty } from '../../api/properties'
-import { copyText, tapFeedback } from '../../lib/telegram'
+import { changePropertyStatus, getCalendarLink, getProperty, uploadPhotos } from '../../api/properties'
+import { confirmAction, copyText, resultFeedback, tapFeedback } from '../../lib/telegram'
 import { cardRead, readyToAct } from './card-state'
+import { errorText } from './errors'
+import FlatBlocksSheet from './FlatBlocksSheet'
+import FlatEditSheet from './FlatEditSheet'
+import FlatPriceSheet from './FlatPriceSheet'
 import { formatMoney } from './format'
 import { ActionButton, Sheet } from './miniapp-ui'
 
@@ -33,6 +38,9 @@ export default function UnitSheet({ unitId, onClose }: { unitId: string | null; 
   const { t, i18n } = useTranslation()
   const [copied, setCopied] = useState<'wifi' | 'link' | null>(null)
   const [openedAt] = useState(() => Date.now())
+  const [editing, setEditing] = useState<'details' | 'prices' | 'blocks' | null>(null)
+  const [notice, setNotice] = useState('')
+  const queryClient = useQueryClient()
 
   // Read on every open and dropped when the sheet closes. The Wi-Fi password and
   // guest-only facts depend on the caller's rights: they show only from a read
@@ -50,6 +58,26 @@ export default function UnitSheet({ unitId, onClose }: { unitId: string | null; 
     staleTime: Infinity,
     retry: false,
   })
+
+  const act = useMutation({
+    mutationFn: (send: () => Promise<unknown>) => send(),
+    onSuccess: (failed) => {
+      resultFeedback(typeof failed === 'number' && failed > 0 ? 'warning' : 'success')
+      setNotice(typeof failed === 'number' && failed > 0 ? t('miniapp.flat.photosFailed', { count: failed }) : '')
+      queryClient.invalidateQueries({ queryKey: ['miniapp'] })
+    },
+    onError: (mutationError) => {
+      resultFeedback('error')
+      setNotice(errorText(mutationError, t('miniapp.loadFailed'), t))
+    },
+  })
+
+  async function toggleSale(selling: boolean) {
+    setNotice('')
+    if (await confirmAction(t(selling ? 'miniapp.flat.pauseAsk' : 'miniapp.flat.activateAsk'))) {
+      act.mutate(() => changePropertyStatus(unitId!, selling ? 'paused' : 'active'))
+    }
+  }
 
   async function copy(what: 'wifi' | 'link', text: string) {
     tapFeedback()
@@ -70,6 +98,55 @@ export default function UnitSheet({ unitId, onClose }: { unitId: string | null; 
 
       {flat && (
         <>
+          <div className="grid grid-cols-3 gap-2">
+            <ActionButton disabled={!secretsShown} onClick={() => setEditing('details')}>
+              <Pencil className="h-4 w-4 shrink-0" />
+              {t('miniapp.flat.edit')}
+            </ActionButton>
+            <ActionButton onClick={() => setEditing('prices')}>
+              <Tag className="h-4 w-4 shrink-0" />
+              {t('miniapp.flat.prices')}
+            </ActionButton>
+            <ActionButton onClick={() => setEditing('blocks')}>
+              <CalendarOff className="h-4 w-4 shrink-0" />
+              {t('miniapp.flat.blocks')}
+            </ActionButton>
+          </div>
+
+          <div className="flex gap-2 overflow-x-auto pb-1">
+            {flat.photos.map((photo) => (
+              <img
+                key={photo.id}
+                src={photo.thumbnail_url || photo.url}
+                alt=""
+                className="h-16 w-16 shrink-0 rounded-lg object-cover"
+              />
+            ))}
+            <label className="tg-surface flex h-16 w-16 shrink-0 cursor-pointer flex-col items-center justify-center rounded-lg text-[10px] font-bold">
+              <ImagePlus className="h-5 w-5" />
+              {act.isPending ? t('miniapp.loading') : t('miniapp.flat.addPhoto')}
+              <input
+                type="file"
+                accept="image/*"
+                multiple
+                hidden
+                disabled={act.isPending}
+                onChange={(event) => {
+                  const files = Array.from(event.target.files ?? [])
+                  event.target.value = ''
+                  if (files.length === 0) return
+                  setNotice('')
+                  act.mutate(() => uploadPhotos(unitId, files.map((file) => ({ file })), flat.photos.length))
+                }}
+              />
+            </label>
+          </div>
+          {notice && (
+            <p role="alert" className="text-sm font-semibold">
+              {notice}
+            </p>
+          )}
+
           <Block title={t('miniapp.unit.address')}>
             <p className="text-sm">{flat.address_full || '—'}</p>
             <p className="tg-hint text-xs">
@@ -160,6 +237,12 @@ export default function UnitSheet({ unitId, onClose }: { unitId: string | null; 
             </Block>
           )}
 
+          {flat.status !== 'archived' && (
+            <ActionButton disabled={act.isPending} onClick={() => toggleSale(flat.status === 'active')}>
+              {t(flat.status === 'active' ? 'miniapp.flat.pause' : 'miniapp.flat.activate')}
+            </ActionButton>
+          )}
+
           {link.data && (
             <Block title={t('miniapp.unit.calendar')}>
               <p className="tg-hint text-xs">{t('miniapp.unit.calendarHint')}</p>
@@ -171,6 +254,10 @@ export default function UnitSheet({ unitId, onClose }: { unitId: string | null; 
           )}
         </>
       )}
+
+      {flat && editing === 'details' && <FlatEditSheet flat={flat} onClose={() => setEditing(null)} />}
+      {flat && editing === 'prices' && <FlatPriceSheet flat={flat} onClose={() => setEditing(null)} />}
+      {flat && editing === 'blocks' && <FlatBlocksSheet flat={flat} onClose={() => setEditing(null)} />}
     </Sheet>
   )
 }

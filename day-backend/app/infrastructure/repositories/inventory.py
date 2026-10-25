@@ -223,6 +223,21 @@ class SqlGuestOrderRepository(GuestOrderRepository):
         await self._session.refresh(model)
         return (await self._with_items([model]))[0]
 
+    async def hold(self, booking_id: uuid.UUID) -> None:
+        await self._session.execute(
+            text("SELECT pg_advisory_xact_lock(hashtextextended(:k, 0))"), {"k": f"guest-order-booking:{booking_id}"}
+        )
+
+    async def recent_new(self, booking_id: uuid.UUID, since: datetime) -> list[GuestOrder]:
+        models = await self._session.scalars(
+            select(GuestOrderModel).where(
+                GuestOrderModel.booking_id == booking_id,
+                GuestOrderModel.status == OrderStatus.NEW.value,
+                GuestOrderModel.created_at >= since,
+            )
+        )
+        return await self._with_items(list(models))
+
     async def count_since(self, booking_id: uuid.UUID, since: datetime) -> int:
         return await self._session.scalar(
             select(func.count()).where(GuestOrderModel.booking_id == booking_id, GuestOrderModel.created_at >= since)

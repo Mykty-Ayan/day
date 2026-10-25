@@ -294,18 +294,19 @@ async def place_guest_order(code: str, body: GuestOrderCreate, session: AsyncSes
             code, [(line.product_id, line.quantity) for line in body.items], body.note, body.language
         )
         order = placed.order
-        await build_notification_service(session).notify_company(
-            order.company_id,
-            NotificationEvent.GUEST_ORDER,
-            {
-                "number": order.number,
-                "property_name": placed.flat_name or "—",
-                "lines": [f"{i.name} × {i.quantity}" for i in order.items],
-                "total": str(order.total),
-                "note": order.guest_note,
-                "order_id": str(order.id),
-            },
-        )
+        if not placed.repeated:
+            await build_notification_service(session).notify_company(
+                order.company_id,
+                NotificationEvent.GUEST_ORDER,
+                {
+                    "number": order.number,
+                    "property_name": placed.flat_name or "—",
+                    "lines": [f"{i.name} × {i.quantity}" for i in order.items],
+                    "total": str(order.total),
+                    "note": order.guest_note,
+                    "order_id": str(order.id),
+                },
+            )
     except LookupError:
         await session.rollback()
         raise HTTPException(status_code=404, detail="Not found")
