@@ -1476,5 +1476,45 @@
     "refused": "We could not hold these dates. Pick others or write to us.",
     "tooMany": "Too many tries. Try again in a minute.",
     "nameNeeded": "Enter the name to book under."
+  },
+  "guestPanel": {
+    "notFound": "This link was not found. Write to the host for a new one.",
+    "hello": "Hello, {{name}}!",
+    "stay": "Check-in {{from}} from {{checkIn}}, check-out {{to}} by {{checkOut}}",
+    "closed": "This booking is closed. Write to us if you have questions.",
+    "address": "Address",
+    "map": "Host's map",
+    "payment": "Payment",
+    "paid": "Paid {{paid}} of {{total}}",
+    "remaining": "Left to pay: {{amount}}",
+    "codeAfterPayment": "The door code and Wi-Fi appear here as soon as the stay is paid in full.",
+    "checkIn": "How to check in",
+    "rules": "House rules",
+    "checkOutBy": "Check-out by {{time}}",
+    "contact": "Contact the host",
+    "buttons": {
+      "pay": "How to pay",
+      "earlyCheckIn": "Early check-in",
+      "cannotGetIn": "I can't get in",
+      "extend": "Extend my stay",
+      "lateCheckOut": "Late check-out",
+      "cleaning": "Cleaning or fresh linen",
+      "broken": "Something is broken",
+      "documents": "Documents for my records",
+      "checkedOut": "I have checked out",
+      "question": "Ask a question"
+    },
+    "wa": {
+      "intro": "Hello! I'm {{name}}, booking {{dates}}, flat {{flat}}.",
+      "pay": "I'd like to pay for the booking. {{amount}} is left. Please send the payment details.",
+      "earlyCheckIn": "May I check in before {{checkIn}}?",
+      "cannotGetIn": "I can't get into the flat. Please help.",
+      "extend": "I'd like to extend my stay. For how many nights is it possible?",
+      "lateCheckOut": "May I check out after {{checkOut}}?",
+      "cleaning": "I need cleaning / fresh linen.",
+      "broken": "Something isn't working: ",
+      "documents": "I need documents for my records (receipt, statement) for the stay.",
+      "checkedOut": "I have checked out. Keys: "
+    }
   }
 }
