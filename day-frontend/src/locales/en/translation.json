@@ -1525,7 +1525,12 @@
       "unitCost": "Enter the purchase price: from 0, at most two decimals",
       "total": "The purchase total is too large",
       "day": "Choose the day of purchase",
-      "reason": "Say why the stock changes"
-    }
+      "reason": "Say why the stock changes",
+      "par": "The threshold is a whole number from 0 to 100 000, or empty"
+    },
+    "par": "Restock threshold",
+    "parHint": "Empty: no threshold",
+    "toBuy": "What to buy",
+    "toBuyLine": "+{{qty}} pcs (have {{stock}}, threshold {{par}})"
   }
 }

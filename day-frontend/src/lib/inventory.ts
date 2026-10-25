@@ -12,13 +12,29 @@ export interface ProductForm {
   category: string
   price: string
   sort_order: string
+  /** '' for no threshold. */
+  par_level: string
   is_active: boolean
 }
 
-export const emptyProductForm = (): ProductForm => ({ name: '', category: '', price: '', sort_order: '0', is_active: true })
+export const emptyProductForm = (): ProductForm => ({
+  name: '',
+  category: '',
+  price: '',
+  sort_order: '0',
+  par_level: '',
+  is_active: true,
+})
 
 export function productFormOf(p: Product): ProductForm {
-  return { name: p.name, category: p.category, price: String(p.price), sort_order: String(p.sort_order), is_active: p.is_active }
+  return {
+    name: p.name,
+    category: p.category,
+    price: String(p.price),
+    sort_order: String(p.sort_order),
+    par_level: p.par_level === null ? '' : String(p.par_level),
+    is_active: p.is_active,
+  }
 }
 
 /** Money as typed ("1 500", "350,50"), kept to the tiyn as the server does. */
@@ -33,6 +49,8 @@ export function productFormError(form: ProductForm): string | null {
   if (!form.name.trim()) return 'inventory.errors.name'
   if (!moneyOk(form.price, true)) return 'inventory.errors.price'
   if (!/^\d{1,5}$/.test(form.sort_order.trim()) || Number(form.sort_order) > 10_000) return 'inventory.errors.order'
+  const par = form.par_level.trim()
+  if (par && (!/^\d{1,6}$/.test(par) || Number(par) > MAX_QUANTITY)) return 'inventory.errors.par'
   return null
 }
 
@@ -44,6 +62,7 @@ export function productInput(form: ProductForm): ProductInput {
     price: expenseAmount(form.price),
     is_active: form.is_active,
     sort_order: Number(form.sort_order),
+    par_level: form.par_level.trim() ? Number(form.par_level) : null,
   }
 }
 
@@ -91,5 +110,6 @@ export function movementInput(form: MovementForm): MovementInput {
   }
 }
 
-/** The stock on screen: red when there is nothing left or less than nothing. */
-export const stockIsLow = (stock: number) => stock <= 0
+/** The stock on screen: red below the threshold, or at nothing when there is none. */
+export const stockIsLow = (p: Pick<Product, 'stock' | 'par_level'>) =>
+  p.par_level !== null ? p.stock < p.par_level : p.stock <= 0

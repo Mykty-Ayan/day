@@ -9,8 +9,12 @@ export interface Product {
   price: number
   is_active: boolean
   sort_order: number
+  /** Below it the product goes on the list of what to buy; null: no threshold. */
+  par_level: number | null
   /** The sum of its movements: below zero when a sale outran a forgotten purchase. */
   stock: number
+  /** Missing up to par_level. */
+  to_buy: number
   archived_at: string | null
 }
 
@@ -21,6 +25,7 @@ export interface ProductInput {
   price: number
   is_active: boolean
   sort_order: number
+  par_level: number | null
 }
 
 export type MovementKind = 'purchase' | 'sale' | 'writeoff' | 'adjust'

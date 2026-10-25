@@ -138,6 +138,10 @@ export default function InventoryPage() {
             {t('inventory.order')}
             <input id="product-order" inputMode="numeric" value={form.sort_order} onChange={(e) => update('sort_order', e.target.value)} className={`mt-1.5 ${field}`} />
           </label>
+          <label className={label}>
+            {t('inventory.par')}
+            <input id="product-par" inputMode="numeric" value={form.par_level} placeholder={t('inventory.parHint')} onChange={(e) => update('par_level', e.target.value)} className={`mt-1.5 ${field}`} />
+          </label>
           <label className="flex items-center gap-2 self-end pb-3 text-sm text-gray-700">
             <input id="product-active" type="checkbox" checked={form.is_active} onChange={(e) => update('is_active', e.target.checked)} />
             {t('inventory.active')}
@@ -156,6 +160,23 @@ export default function InventoryPage() {
           )}
         </div>
       </section>
+
+      {products.some((p) => p.to_buy > 0) && (
+        <section aria-label={t('inventory.toBuy')} className="rounded-xl border border-amber-200 bg-amber-50 p-4 shadow-sm">
+          <h2 className="mb-2 text-sm font-bold text-gray-900">{t('inventory.toBuy')}</h2>
+          <ul className="space-y-1 text-sm">
+            {products
+              .filter((p) => p.to_buy > 0)
+              .sort((a, b) => b.to_buy - a.to_buy)
+              .map((p) => (
+                <li key={p.id} className="flex justify-between gap-3">
+                  <span className="truncate text-gray-900">{p.name}</span>
+                  <span className="shrink-0 text-gray-700">{t('inventory.toBuyLine', { qty: p.to_buy, stock: p.stock, par: p.par_level })}</span>
+                </li>
+              ))}
+          </ul>
+        </section>
+      )}
 
       <section className="rounded-xl border border-gray-200 bg-white shadow-sm">
         <h2 className="border-b border-gray-100 px-4 py-3 text-sm font-bold text-gray-900">{t('inventory.list')}</h2>
@@ -179,7 +200,7 @@ export default function InventoryPage() {
                       {[p.category, format(p.price), p.is_active ? null : t('inventory.hidden')].filter(Boolean).join(' · ')}
                     </span>
                   </button>
-                  <span data-testid="product-stock" className={`font-semibold ${stockIsLow(p.stock) ? 'text-red-600' : 'text-gray-900'}`}>
+                  <span data-testid="product-stock" className={`font-semibold ${stockIsLow(p) ? 'text-red-600' : 'text-gray-900'}`}>
                     {t('inventory.stock', { qty: p.stock })}
                   </span>
                   <button type="button" onClick={() => startEdit(p)} aria-label={t('inventory.edit')} title={t('inventory.edit')} className={iconButton}>

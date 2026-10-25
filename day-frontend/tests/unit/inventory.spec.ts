@@ -24,7 +24,12 @@ test('a product needs a name and a price within the money bounds', () => {
     price: 1500,
     is_active: true,
     sort_order: 0,
+    par_level: null,
   })
+  expect(productInput({ ...form, par_level: ' 6 ' }).par_level).toBe(6)
+  for (const par_level of ['-1', '1.5', '100001', 'x']) {
+    expect(productFormError({ ...form, par_level })).toBe('inventory.errors.par')
+  }
   expect(productFormError({ ...form, price: '0' })).toBeNull()
   expect(productFormError({ ...form, name: '  ' })).toBe('inventory.errors.name')
   for (const price of ['', '-1', '1.001', '10000000000', 'abc']) {
@@ -63,6 +68,9 @@ test('a write-off and a count need a reason; only a count may go below zero', ()
   expect(movementFormError({ ...count, quantity: '0' })).toBe('inventory.errors.quantity')
 })
 
-test('nothing left, or less than nothing, shows red', () => {
-  expect([stockIsLow(-1), stockIsLow(0), stockIsLow(1)]).toEqual([true, true, false])
+test('red below the threshold; without one, at nothing or less', () => {
+  const none = (stock: number) => stockIsLow({ stock, par_level: null })
+  expect([none(-1), none(0), none(1)]).toEqual([true, true, false])
+  const par = (stock: number) => stockIsLow({ stock, par_level: 5 })
+  expect([par(4), par(5), par(6)]).toEqual([true, false, false])
 })

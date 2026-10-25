@@ -40,6 +40,24 @@ test('the owner adds a product, buys it in, writes one off and reads the history
   expect(expenses.map((e: { amount: number }) => e.amount)).toEqual([8400])
 })
 
+test('a product below its threshold is red and on the list of what to buy', async ({ page, request }) => {
+  const made = await request.post(`${API_BASE}/inventory/products`, { data: { name: 'Вода', price: 300 } })
+  const water = await made.json()
+  await request.post(`${API_BASE}/inventory/products/${water.id}/movements`, {
+    data: { kind: 'purchase', quantity: 4, unit_cost: 0 },
+  })
+
+  await page.goto('/inventory')
+  const row = page.getByTestId('product-row').filter({ hasText: 'Вода' })
+  await expect(row.getByTestId('product-stock')).not.toHaveClass(/text-red-600/)
+  await expect(page.getByRole('region', { name: 'What to buy' })).toHaveCount(0)
+  await row.getByRole('button', { name: 'Edit product' }).click()
+  await page.locator('#product-par').fill('10')
+  await page.getByRole('button', { name: 'Save' }).click()
+  await expect(row.getByTestId('product-stock')).toHaveClass(/text-red-600/)
+  await expect(page.getByRole('region', { name: 'What to buy' })).toContainText('+6 pcs (have 4, threshold 10)')
+})
+
 test('an archived product leaves the list', async ({ page, request }) => {
   const made = await request.post(`${API_BASE}/inventory/products`, { data: { name: 'Старый сок', price: 700 } })
   expect(made.ok(), await made.text()).toBeTruthy()
