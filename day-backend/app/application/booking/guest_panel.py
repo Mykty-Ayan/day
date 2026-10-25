@@ -1,0 +1,109 @@
+"""A guest's own page for their booking (/g/<code>): the stay, the address, what is
+left to pay, the house rules and, once the stay is paid in full, how to get in.
+
+Opened by a link with no sign-in: the code names one booking of one company. The
+door code and the Wi-Fi leave the server only for a confirmed or checked-in stay
+paid in full; the page never decides that itself.
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+from datetime import date, datetime
+from decimal import Decimal
+from zoneinfo import ZoneInfo
+
+from app.domain.booking.entities import Booking
+from app.domain.booking.repositories import BookingPaymentRepository, BookingRepository, GuestRepository
+from app.domain.booking.value_objects import BookingStatus
+from app.domain.property.entities import Property
+from app.domain.property.repositories import PropertyFactRepository, PropertyRepository
+from app.domain.property.value_objects import FactAudience
+from app.domain.settings.entities import DEFAULT_TIME_ZONE
+from app.domain.settings.repositories import CompanySettingsRepository
+from app.domain.site.entities import CompanySite
+from app.domain.site.repositories import CompanySiteRepository
+
+# A stay that is over or called off: the page says so, names the stay for the
+# messages to the host (documents for the books), and keeps the rest back.
+_CLOSED = {BookingStatus.CANCELLED, BookingStatus.CHECKED_OUT, BookingStatus.COMPLETED}
+_LIVE = {BookingStatus.CONFIRMED, BookingStatus.CHECKED_IN}
+
+
+@dataclass
+class GuestAccess:
+    """How to get in: only for a live stay paid in full."""
+
+    instructions: str | None
+    wifi_name: str | None
+    wifi_password: str | None
+    facts: list[str] = field(default_factory=list)
+
+
+@dataclass
+class GuestPanel:
+    booking: Booking
+    site: CompanySite | None
+    # The company's own day: which buttons fit (arrival, the stay, departure).
+    today: date
+    closed: bool
+    guest_name: str | None = None
+    flat: Property | None = None
+    paid: Decimal = Decimal("0")
+    access: GuestAccess | None = None
+
+    @property
+    def remaining(self) -> Decimal:
+        return max(self.booking.total_price - self.paid, Decimal("0"))
+
+
+class GuestPanelService:
+    def __init__(
+        self,
+        bookings: BookingRepository,
+        payments: BookingPaymentRepository,
+        guests: GuestRepository,
+        properties: PropertyRepository,
+        facts: PropertyFactRepository,
+        sites: CompanySiteRepository,
+        company_settings: CompanySettingsRepository,
+    ) -> None:
+        self._bookings = bookings
+        self._payments = payments
+        self._guests = guests
+        self._properties = properties
+        self._facts = facts
+        self._sites = sites
+        self._settings = company_settings
+
+    async def execute(self, code: str, now: datetime | None = None) -> GuestPanel:
+        """The guest's page; ValueError for a code that names no booking."""
+        booking = await self._bookings.get_by_guest_code(code) if len(code) == 16 else None
+        if booking is None:
+            raise ValueError("Not found")
+        site = await self._sites.get(booking.company_id)
+        company = await self._settings.get_by_company(booking.company_id)
+        zone = ZoneInfo(company.time_zone if company and company.time_zone else DEFAULT_TIME_ZONE)
+        today = (now or datetime.now(tz=ZoneInfo("UTC"))).astimezone(zone).date()
+        prop = await self._properties.get_by_id(booking.property_id)
+        guest = await self._guests.get_by_id(booking.guest_id)
+        paid = (await self._payments.sum_paid_by_bookings([booking.id])).get(booking.id, Decimal("0"))
+        panel = GuestPanel(
+            booking=booking,
+            site=site,
+            today=today,
+            closed=booking.status in _CLOSED,
+            # The name of this booking's guest only: never a phone, never anyone else.
+            guest_name=guest.name if guest and guest.company_id == booking.company_id else None,
+            flat=prop if prop and prop.company_id == booking.company_id else None,
+            paid=paid,
+        )
+        if not panel.closed and panel.flat is not None and booking.status in _LIVE and paid >= booking.total_price:
+            facts = await self._facts.list_by_property(panel.flat.id)
+            panel.access = GuestAccess(
+                instructions=panel.flat.check_in_instructions,
+                wifi_name=panel.flat.wifi_name,
+                wifi_password=panel.flat.wifi_password,
+                facts=[f.text for f in facts if f.audience == FactAudience.GUEST],
+            )
+        return panel

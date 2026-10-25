@@ -16,6 +16,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from app.domain.booking.entities import new_guest_code
 from app.infrastructure.database import Base
 
 
@@ -95,6 +96,7 @@ class BookingModel(Base):
     idempotency_key: Mapped[str | None] = mapped_column(String(255), nullable=True)
     idempotency_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
     expires_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    guest_code: Mapped[str] = mapped_column(String(16), unique=True, default=new_guest_code)
     created_at: Mapped[datetime] = mapped_column(default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(
         default=datetime.utcnow, onupdate=datetime.utcnow

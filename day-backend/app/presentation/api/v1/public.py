@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.application.booking.create_booking import CreateBookingService
 from app.application.booking.guest_hold import GuestHoldService, OfferTakenError
 from app.application.booking.guest_offers import OfferExpiredError
+from app.application.booking.guest_panel import GuestPanelService
 from app.application.booking.price_calculator import PriceCalculatorService
 from app.application.property.public_stay import GetPublicStayService
 from app.domain.booking.exceptions import BookingOverlapError, PropertyBlockedError, StayRulesError
@@ -20,6 +21,7 @@ from app.infrastructure.messaging.booking_notice import notify_guest_hold
 from app.infrastructure.repositories.booking import (
     SqlBookingAuditLogRepository,
     SqlBookingDepositRepository,
+    SqlBookingPaymentRepository,
     SqlBookingRepository,
     SqlGuestOfferRepository,
     SqlGuestRepository,
@@ -30,6 +32,7 @@ from app.infrastructure.repositories.property import (
     SqlDayPriceRepository,
     SqlDiscountRuleRepository,
     SqlPricingConfigRepository,
+    SqlPropertyFactRepository,
     SqlPropertyPhotoRepository,
     SqlPropertyRepository,
     SqlSeasonalPriceRepository,
@@ -37,6 +40,7 @@ from app.infrastructure.repositories.property import (
 from app.infrastructure.repositories.settings import SqlCompanySettingsRepository
 from app.infrastructure.repositories.site import SqlCompanySiteRepository
 from app.presentation.api.v1.offers import offers_service
+from app.presentation.schemas.guest_panel import GuestPanelResponse
 from app.presentation.schemas.public import (
     PublicOfferBook,
     PublicOfferBooking,
@@ -196,3 +200,23 @@ async def book_from_stay(code: str, body: PublicStayBook, session: AsyncSession 
         raise HTTPException(status_code=404 if str(e) == "Not found" else 422, detail=str(e))
     await session.commit()
     return PublicOfferBooking.from_hold(held)
+
+
+@public_router.get("/guest/{code}", response_model=GuestPanelResponse)
+async def guest_panel(code: str, session: AsyncSession = Depends(get_session)):
+    """A guest's own page for their booking. How to get in (instructions, Wi-Fi,
+    the flat's guest facts) only for a confirmed or checked-in stay paid in full."""
+    service = GuestPanelService(
+        SqlBookingRepository(session),
+        SqlBookingPaymentRepository(session),
+        SqlGuestRepository(session),
+        SqlPropertyRepository(session),
+        SqlPropertyFactRepository(session),
+        SqlCompanySiteRepository(session),
+        SqlCompanySettingsRepository(session),
+    )
+    try:
+        panel = await service.execute(code)
+    except ValueError:
+        raise HTTPException(status_code=404, detail="Not found")
+    return GuestPanelResponse.from_panel(panel)
