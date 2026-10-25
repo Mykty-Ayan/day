@@ -163,7 +163,8 @@ async def test_the_guest_reads_the_page_and_gets_the_code_after_paying(flat):  #
 
     paid = await client.post(f"/api/v1/bookings/{booking}/payments", json={"amount": 40000})
     assert paid.status_code == 201, paid.text
-    await client.patch(f"/api/v1/bookings/{booking}/status", json={"status": "confirmed"})
+    # The payment confirms the booking by itself; confirming again is not needed.
+    assert (await client.get(f"/api/v1/bookings/{booking}")).json()["booking"]["status"] == "confirmed"
     body = (await client.get(f"/api/v1/public/guest/{code}")).json()
     assert body["access"]["wifi_password"] == "secret-wifi" and body["access"]["facts"] == ["Код сейфа 4512"]
 
