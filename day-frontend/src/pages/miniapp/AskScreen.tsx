@@ -174,7 +174,7 @@ export default function AskScreen() {
       </div>
 
       <form
-        className="tg-root sticky bottom-0 flex gap-2 py-2"
+        className="tg-root sticky bottom-[calc(56px+env(safe-area-inset-bottom))] flex gap-2 py-2"
         onSubmit={(event) => {
           event.preventDefault()
           send(draft)
