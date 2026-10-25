@@ -1704,13 +1704,11 @@
   "guestPanel": {
     "notFound": "This link was not found. Write to the host for a new one.",
     "hello": "Hello, {{name}}!",
-    "stay": "Check-in {{from}} from {{checkIn}}, check-out {{to}} by {{checkOut}}",
     "closed": "This booking is closed. Write to us if you have questions.",
     "address": "Address",
     "map": "Host's map",
     "payment": "Payment",
     "paid": "Paid {{paid}} of {{total}}",
-    "remaining": "Left to pay: {{amount}}",
     "checkIn": "How to check in",
     "rules": "House rules",
     "checkOutBy": "Check-out by {{time}}",
@@ -1739,7 +1737,6 @@
       "documents": "I need documents for my records (receipt, statement) for the stay.",
       "checkedOut": "I have checked out. Keys: "
     },
-    "codeOpens": "The door code and Wi-Fi appear here once the stay is paid in full, {{hours}} h before check-in.",
     "minibar": {
       "title": "Minibar",
       "payOnDelivery": "Paid on delivery, apart from the booking.",
@@ -1756,8 +1753,34 @@
       "send": "Send the order",
       "outOfStock": "Something is no longer there in that quantity. The menu is updated: check your order.",
       "tooMany": "Too many orders in an hour. Write to the host in WhatsApp.",
-      "failed": "The order did not go through. Try again."
+      "failed": "The order did not go through. Try again.",
+      "other": "Other"
     },
-    "ordersDue": "Of which minibar orders: {{amount}}"
+    "ordersDue": "Of which minibar orders: {{amount}}",
+    "trip": "Your trip",
+    "checkInLabel": "Check-in",
+    "checkOutLabel": "Check-out",
+    "nights_one": "{{count}} night",
+    "nights_other": "{{count}} nights",
+    "statusPaid": "Paid",
+    "statusDue": "{{amount}} left to pay",
+    "statusClosed": "Booking closed",
+    "quickActions": "Quick actions",
+    "quick": {
+      "route": "Route",
+      "wifi": "Wi-Fi",
+      "write": "Message",
+      "minibar": "Minibar"
+    },
+    "copy": "Copy",
+    "copied": "Copied",
+    "wifiNetwork": "Wi-Fi network",
+    "wifiPassword": "Wi-Fi password",
+    "stepPaid": "Booking paid in full",
+    "stepTime": "Opens {{when}}, {{hours}} h before check-in",
+    "stepTimeDone": "Less than {{hours}} h to check-in",
+    "cannotGetInHint": "Message us, we will help right away",
+    "departureToday": "Check-out today by {{time}}",
+    "helpHint": "Pick a topic: WhatsApp opens with the message ready."
   }
 }

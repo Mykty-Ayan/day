@@ -72,10 +72,22 @@ test('with a debt the guest sees what is left and a button to pay, not the door 
   expect(href).toContain('Я Жалгас')
   expect(href).toContain('кв. Т13 у Байтерека')
   expect(href).toContain('Подскажите реквизиты')
-  // How to get in waits: what it takes is said, the code is not there.
-  await expect(page.getByText('Код замка и Wi-Fi появятся здесь после полной оплаты, за 24 ч до заезда.')).toBeVisible()
+  // The trip card: two nights, and what is left on its chip.
+  await expect(page.getByRole('region', { name: 'Ваша поездка' })).toContainText('2 ночи')
+  await expect(page.getByRole('region', { name: 'Ваша поездка' })).toContainText('Осталось 30 000 ₸')
+  // How to get in waits: what it takes is said, the code is not there. Check-in is
+  // today, so the hours have come and only the payment is missing.
+  const checkIn = page.getByRole('region', { name: 'Как заселиться' })
+  await expect(checkIn).toContainText('Полная оплата брони')
+  await expect(checkIn).toContainText('До заезда меньше 24 ч')
+  await expect(checkIn.getByRole('button', { name: /Скопировать/ })).toHaveCount(0)
   // The arrival day: "I can't get in" is there and stands out.
-  await expect(page.getByRole('link', { name: 'Не могу войти' })).toHaveClass(/bg-red-600/)
+  await expect(page.getByRole('link', { name: /Не могу войти/ })).toHaveClass(/bg-red-600/)
+  // Every other reason to write is in one sheet, each with its text ready.
+  await page.getByRole('button', { name: 'Написать' }).click()
+  const help = page.getByRole('dialog', { name: 'Связь с хозяином' })
+  await expect(help.getByRole('link', { name: 'Продлить проживание' })).toBeVisible()
+  await expect(help.getByRole('link', { name: 'Не могу войти' })).toHaveCount(0)
 })
 
 test('paid in full: how to get in, the Wi-Fi and the guest facts', async ({ page }) => {
@@ -88,7 +100,9 @@ test('paid in full: how to get in, the Wi-Fi and the guest facts', async ({ page
   )
   await expect(page.getByRole('heading', { name: 'Как заселиться' })).toBeVisible()
   await expect(page.getByText('Код сейфа 4512')).toBeVisible()
-  await expect(page.getByText('T13 · secret-wifi')).toBeVisible()
+  await expect(page.getByText('secret-wifi')).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Скопировать: Wi-Fi, пароль' })).toBeVisible()
+  await expect(page.getByRole('region', { name: 'Ваша поездка' })).toContainText('Оплачено')
   await expect(page.getByRole('link', { name: 'Как оплатить' })).toHaveCount(0)
 })
 
@@ -101,7 +115,8 @@ test('on the departure day «I have left» tells Day first, then opens WhatsApp'
   await page.route('https://wa.me/**', (route) => route.fulfill({ contentType: 'text/html', body: '<p>WhatsApp</p>' }))
   const now = today()
   await open(page, answer({}, { check_in: `${addDays(now, -2)}T14:00:00`, check_out: `${now}T12:00:00`, paid: 40000, remaining: 0 }))
-  await page.getByRole('link', { name: 'Я выехал(а)' }).click()
+  // A double tap tells Day once.
+  await page.getByRole('link', { name: 'Я выехал(а)' }).dblclick()
   await page.waitForURL('https://wa.me/**')
   expect(left).toEqual(['POST'])
   expect(decodeURIComponent(page.url())).toContain('Я выехал(а). Ключи:')

@@ -165,6 +165,8 @@ export interface GuestPanel {
   } | null
   flat: {
     name: string
+    /** The listing's cover; null when the flat has no public photo. */
+    photo_url?: string | null
     address: string | null
     latitude: number | null
     longitude: number | null

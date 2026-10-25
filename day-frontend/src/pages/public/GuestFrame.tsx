@@ -46,8 +46,17 @@ function savedLanguage(): string | null {
 
 /** A guest page's frame: the language picker on top, the page in the guest's
  *  language (the phone's, or the one picked here) below. `only`: a page written in
- *  fewer languages offers just those, and English for any other. */
-export function GuestFrame({ children, only }: { children: (locale: string) => ReactNode; only?: GuestLanguage[] }) {
+ *  fewer languages offers just those, and English for any other. `overlay`: the
+ *  picker floats over the page's own header photo instead of a bar above it. */
+export function GuestFrame({
+  children,
+  only,
+  overlay = false,
+}: {
+  children: (locale: string) => ReactNode
+  only?: GuestLanguage[]
+  overlay?: boolean
+}) {
   const { t } = useTranslation()
   const languages = only ? LANGUAGES.filter((l) => only.includes(l.code)) : LANGUAGES
   const [language, setLanguage] = useState<GuestLanguage>(() => {
@@ -97,14 +106,24 @@ export function GuestFrame({ children, only }: { children: (locale: string) => R
 
   return (
     <div className="min-h-screen bg-white text-gray-900">
-      <div className="mx-auto max-w-[640px]">
-        <header className="flex h-14 items-center justify-end border-b border-gray-200 px-4">
+      <div className="relative mx-auto max-w-[640px]">
+        <header
+          className={
+            overlay
+              ? 'absolute inset-x-0 top-0 z-10 flex h-16 items-center justify-end px-4'
+              : 'flex h-14 items-center justify-end border-b border-gray-200 px-4'
+          }
+        >
           <button
             ref={languageButton}
             type="button"
             onClick={() => setPicking(true)}
             aria-label={`${t('guest.language')}: ${LANGUAGES.find((l) => l.code === language)?.name}`}
-            className="flex h-11 items-center gap-1.5 rounded-xl border border-gray-200 px-3 text-sm font-semibold"
+            className={
+              overlay
+                ? 'flex h-10 items-center gap-1.5 rounded-full bg-black/30 px-3.5 text-sm font-semibold text-white ring-1 ring-white/25 backdrop-blur-md'
+                : 'flex h-11 items-center gap-1.5 rounded-xl border border-gray-200 px-3 text-sm font-semibold'
+            }
           >
             <Globe className="h-4 w-4" aria-hidden />
             {language.toUpperCase()}

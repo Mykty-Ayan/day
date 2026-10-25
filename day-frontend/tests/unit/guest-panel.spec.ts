@@ -5,7 +5,7 @@
 
 import { expect, test } from '@playwright/test'
 import type { GuestPanel } from '../../src/api/public'
-import { mapLinks, panelButtons, stageOf, waLink } from '../../src/lib/guest-panel'
+import { accessOpensAt, accessTimeReached, mapLinks, panelButtons, stageOf, waLink } from '../../src/lib/guest-panel'
 
 const panel = (over: Partial<GuestPanel> = {}, booking: Partial<NonNullable<GuestPanel['booking']>> = {}): GuestPanel => ({
   closed: false,
@@ -83,4 +83,19 @@ test('links: wa.me with the text, maps by the point or else by the address', () 
     `https://2gis.kz/search/${encodeURIComponent('Астана, Кабанбай батыра 11')}`,
   )
   expect(mapLinks({ ...flat, latitude: null, longitude: null, address: null })).toEqual([])
+})
+
+test('the way in opens N hours before check-in, across midnight, in the flat\'s own clock', () => {
+  expect(accessOpensAt(panel())).toBe('2026-10-24T14:00')
+  expect(accessOpensAt(panel({ lead_hours: 1 }, { check_in: '2026-10-25T00:30:00' }))).toBe('2026-10-24T23:30')
+  expect(accessOpensAt(panel({ lead_hours: 0 }))).toBe('2026-10-25T14:00')
+  expect(accessOpensAt(panel({ booking: null }))).toBeNull()
+})
+
+test('the hours before check-in have come: a later day, or that day at the time', () => {
+  // Opens 24 Oct 14:00; the company's day decides, the clock only on that day.
+  expect(accessTimeReached(panel({ today: '2026-10-23' }), '23:59')).toBe(false)
+  expect(accessTimeReached(panel({ today: '2026-10-24' }), '13:59')).toBe(false)
+  expect(accessTimeReached(panel({ today: '2026-10-24' }), '14:00')).toBe(true)
+  expect(accessTimeReached(panel({ today: '2026-10-25' }), '00:01')).toBe(true)
 })

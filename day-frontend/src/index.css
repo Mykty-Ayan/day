@@ -83,3 +83,15 @@ body {
   -webkit-appearance: none;
   margin: 0;
 }
+
+/* Guest pages: a sheet slides up, revealed content fades in. */
+@keyframes sheet-up {
+  from {
+    transform: translateY(100%);
+  }
+}
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
