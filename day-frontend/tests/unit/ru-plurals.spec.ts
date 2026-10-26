@@ -50,6 +50,8 @@ const INVARIANT = new Set([
   'miniapp.book.hold', // Придержать 3 ч
   'miniapp.book.holdHint', // …за 3 ч.
   'miniapp.sell.hoursShort', // 3 ч
+  'guest.allPhotos', // Все фото · 3
+  'guest.allAmenities', // Показать все · 3
 ])
 
 test('every Russian count has the forms for 1, 2 and 5', () => {

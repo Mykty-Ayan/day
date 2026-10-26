@@ -47,7 +47,11 @@
     "minNights_other": "Mindestens {{count}} Nächte",
     "totalHint": "Nur die Nächte, vor Rabatten und Aufpreisen für weitere Gäste.",
     "hours_one": "{{count}} Stunde",
-    "hours_other": "{{count}} Stunden"
+    "hours_other": "{{count}} Stunden",
+    "allPhotos": "Alle Fotos · {{count}}",
+    "allAmenities": "Alle anzeigen · {{count}}",
+    "readMore": "Weiterlesen",
+    "showLess": "Weniger anzeigen"
   },
   "guestOffer": {
     "hello": "{{name}}, hier sind Wohnungen für Ihre Reisedaten",

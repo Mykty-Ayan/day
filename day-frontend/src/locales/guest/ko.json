@@ -41,7 +41,11 @@
     "area": "{{area}}m²",
     "minNights": "최소 {{count}}박",
     "totalHint": "숙박 요금만 표시되며, 할인과 추가 인원 요금은 제외됩니다.",
-    "hours": "{{count}}시간"
+    "hours": "{{count}}시간",
+    "allPhotos": "사진 전체 · {{count}}",
+    "allAmenities": "모두 보기 · {{count}}",
+    "readMore": "더 읽기",
+    "showLess": "접기"
   },
   "guestOffer": {
     "hello": "{{name}}님, 원하시는 날짜의 숙소입니다",

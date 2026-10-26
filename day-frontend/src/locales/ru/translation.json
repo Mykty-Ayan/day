@@ -1472,7 +1472,11 @@
     "hours_one": "{{count}} час",
     "hours_few": "{{count}} часа",
     "hours_many": "{{count}} часов",
-    "hours_other": "{{count}} часа"
+    "hours_other": "{{count}} часа",
+    "allPhotos": "Все фото · {{count}}",
+    "allAmenities": "Показать все · {{count}}",
+    "readMore": "Читать полностью",
+    "showLess": "Свернуть"
   },
   "guestOffer": {
     "hello": "{{name}}, вот квартиры на ваши даты",
