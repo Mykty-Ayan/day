@@ -232,6 +232,8 @@ export interface StayHere {
   /** The stay has a phone to check the digits against; if not, the guest asks the host. */
   by_phone: boolean
   mine: boolean
+  /** The phones of the stays going on now, last 4 digits hidden: "+7 (702) 377 ****". */
+  hints: string[]
 }
 
 export async function getStayHere(code: string, mine: string | null): Promise<StayHere> {

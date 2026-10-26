@@ -9,7 +9,7 @@ answers with its page's code (/g/<code>). The caller brakes wrong digits per fla
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
@@ -42,11 +42,23 @@ class StayHere:
     by_phone: bool
     # The booking code this device remembers is one of the stays going on now.
     mine: bool
+    # Each such phone with its last 4 digits hidden, so the guest knows which number
+    # is meant: "+7 (702) 377 ****". The owner chose this over hiding more (27 Oct
+    # 2026): whoever opens the link with ?nfc sees the rest of the guest's number.
+    hints: list[str] = field(default_factory=list)
 
 
 def _last4(phone: str | None) -> str | None:
     digits = re.sub(r"\D", "", phone or "")
     return digits[-4:] if len(digits) >= 4 else None
+
+
+def phone_hint(phone: str) -> str:
+    """The phone with its last 4 digits hidden: "+7 (702) 377 ****" for a Kazakh one."""
+    digits = re.sub(r"\D", "", phone)
+    if len(digits) == 11 and digits[0] in "78":
+        return f"+7 ({digits[1:4]}) {digits[4:7]} ****"
+    return f"+{digits[:-4]} ****"
 
 
 class StayKeyService:
@@ -83,20 +95,22 @@ class StayKeyService:
         return prop, live
 
     async def _phones(self, prop: Property, live: list[Booking]) -> list[tuple[Booking, str]]:
+        """The stays going on now with their guest's phone, of this company's guests only."""
         found = []
         for b in live:
             guest = await self._guests.get_by_id(b.guest_id)
-            last4 = _last4(guest.phone) if guest and guest.company_id == prop.company_id else None
-            if last4:
-                found.append((b, last4))
+            if guest and guest.company_id == prop.company_id and _last4(guest.phone):
+                found.append((b, guest.phone))
         return found
 
     async def here(self, code: str, remembered: str | None, now: datetime | None = None) -> StayHere:
         prop, live = await self._live(code, now)
+        phones = await self._phones(prop, live)
         return StayHere(
             staying=bool(live),
-            by_phone=bool(await self._phones(prop, live)),
+            by_phone=bool(phones),
             mine=remembered is not None and any(b.guest_code == remembered for b in live),
+            hints=[phone_hint(phone) for _, phone in phones],
         )
 
     async def unlock(self, code: str, digits: str, now: datetime | None = None) -> str:
@@ -104,7 +118,7 @@ class StayKeyService:
         prop, live = await self._live(code, now)
         if not live:
             raise NobodyStayingError("Nobody is staying now")
-        for booking, last4 in await self._phones(prop, live):
-            if last4 == digits:
+        for booking, phone in await self._phones(prop, live):
+            if _last4(phone) == digits:
                 return booking.guest_code
         raise WrongDigitsError("Wrong digits")

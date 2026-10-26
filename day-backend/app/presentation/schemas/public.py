@@ -270,6 +270,8 @@ class StayHereResponse(BaseModel):
     staying: bool
     by_phone: bool
     mine: bool
+    # The phones of the stays going on now, last 4 digits hidden: "+7 (702) 377 ****".
+    hints: list[str] = Field(default_factory=list)
 
 
 class StayKeyBody(BaseModel):

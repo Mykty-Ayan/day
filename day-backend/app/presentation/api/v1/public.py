@@ -243,7 +243,7 @@ async def stay_here(
         here = await _stay_key(session).here(code, mine)
     except ValueError:
         raise HTTPException(status_code=404, detail="Not found")
-    return StayHereResponse(staying=here.staying, by_phone=here.by_phone, mine=here.mine)
+    return StayHereResponse(staying=here.staying, by_phone=here.by_phone, mine=here.mine, hints=here.hints)
 
 
 @public_router.post("/stays/{code}/here", response_model=StayKeyResponse)

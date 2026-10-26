@@ -13,7 +13,7 @@ from types import SimpleNamespace
 import pytest
 from httpx import ASGITransport, AsyncClient
 
-from app.application.booking.stay_key import NobodyStayingError, StayKeyService, WrongDigitsError
+from app.application.booking.stay_key import NobodyStayingError, StayKeyService, WrongDigitsError, phone_hint
 from app.domain.booking.entities import Booking, Guest, new_guest_code
 from app.domain.booking.value_objects import BookingStatus
 from app.domain.property.value_objects import PropertyStatus
@@ -98,6 +98,8 @@ async def test_the_guest_staying_now_opens_their_booking_by_the_last_4_digits():
 
     here = await service.here(FLAT_CODE, None, NOW)
     assert (here.staying, here.by_phone, here.mine) == (True, True, False)
+    # The guest sees which number is meant, never its last 4 digits.
+    assert here.hints == ["+7 (707) 749 ****"]
     assert await service.unlock(FLAT_CODE, "6995", NOW) == stay.guest_code
     # The device that remembers the code goes straight to the booking next time.
     assert (await service.here(FLAT_CODE, stay.guest_code, NOW)).mine is True
@@ -155,7 +157,7 @@ async def test_a_guest_without_a_phone_is_staying_but_cannot_be_checked():
     nameless = Guest(company_id=COMPANY_ID, name="Гость Airbnb", phone=None)
     service = _service(flat, nameless, _stay(flat, nameless, datetime(2026, 10, 26, 14), datetime(2026, 10, 28, 12)))
     here = await service.here(FLAT_CODE, None, NOW)
-    assert (here.staying, here.by_phone) == (True, False)
+    assert (here.staying, here.by_phone, here.hints) == (True, False, [])
     with pytest.raises(WrongDigitsError):
         await service.unlock(FLAT_CODE, "0000", NOW)
 
@@ -237,7 +239,8 @@ async def test_the_endpoints_answer_and_lock(monkeypatch):
     try:
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             here = await client.get(f"/api/v1/public/stays/{FLAT_CODE}/here")
-            assert here.status_code == 200 and here.json() == {"staying": True, "by_phone": True, "mine": False}
+            assert here.status_code == 200
+            assert here.json() == {"staying": True, "by_phone": True, "mine": False, "hints": ["+7 (707) 749 ****"]}
             # The digits only: no letters, no full number.
             letters = await client.post(f"/api/v1/public/stays/{FLAT_CODE}/here", json={"digits": "69a5"})
             assert letters.status_code == 422
@@ -253,3 +256,9 @@ async def test_the_endpoints_answer_and_lock(monkeypatch):
     finally:
         app.dependency_overrides.pop(get_session, None)
         app.dependency_overrides.pop(get_stay_key_throttle, None)
+
+
+def test_a_phone_hint_hides_the_last_4_digits():
+    assert phone_hint("+7 702 377 12 34") == "+7 (702) 377 ****"
+    assert phone_hint("87023771234") == "+7 (702) 377 ****"
+    assert phone_hint("+90 532 123 45 67") == "+90532123 ****"

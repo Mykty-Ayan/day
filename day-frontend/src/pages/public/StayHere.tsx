@@ -68,12 +68,22 @@ export function StayHereBanner({ code, whatsapp }: { code: string; whatsapp: str
           )}
         </p>
       )}
-      {open && <DigitsSheet code={code} whatsapp={whatsapp} onClose={() => setOpen(false)} />}
+      {open && <DigitsSheet code={code} hints={here.data.hints} whatsapp={whatsapp} onClose={() => setOpen(false)} />}
     </section>
   )
 }
 
-function DigitsSheet({ code, whatsapp, onClose }: { code: string; whatsapp: string | null; onClose: () => void }) {
+function DigitsSheet({
+  code,
+  hints,
+  whatsapp,
+  onClose,
+}: {
+  code: string
+  hints: string[]
+  whatsapp: string | null
+  onClose: () => void
+}) {
   const { t } = useTranslation()
   const [digits, setDigits] = useState('')
   const [sending, setSending] = useState(false)
@@ -134,6 +144,10 @@ function DigitsSheet({ code, whatsapp, onClose }: { code: string; whatsapp: stri
         >
           <label className="flex flex-col gap-1.5">
             <span className="text-sm font-semibold">{t('stayHere.digits')}</span>
+            {/* Which number is meant: the stay's phone, its last 4 digits hidden. */}
+            {hints.map((hint) => (
+              <span key={hint} dir="ltr" className="text-lg font-bold tabular-nums tracking-wide">{hint}</span>
+            ))}
             <input
               value={digits}
               onChange={(e) => setDigits(e.target.value.replace(/\D/g, '').slice(0, 4))}
