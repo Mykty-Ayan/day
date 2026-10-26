@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.7.0 — 2026-10-25
+
+A company gets its own site for guests: a page with its flats, look and contacts, and a guest books a flat straight from the flat's page. The flat's page gets a new look in the company's color. Migration 052 runs on start. No environment variable has to change.
+
+A company without a site set up sees nothing new: `/c/<address>` answers 404 and the flat's page stays as it was.
+
+### Added
+- A company's public site: an address (`/c/<address>`), a title, "about us", a cover and a logo, a color, WhatsApp and Instagram, and its flats with their `/s/` links; the owner sets it on the "Site" screen. API: `GET/PUT /site`, public `GET /public/companies/{slug}` (#190, #191)
+- A guest books a flat from its own page (`POST /public/stays/{code}/book`): the dates are held for 30 minutes and the owner hears "Booking from the site" in Telegram. Only for a company with a site; at most 3 unpaid site bookings per flat, one per phone, the shared guest blacklist is checked, 5 tries a minute from one address. The booking's source is `site` (#192)
+- A company's site link pasted in a chat shows its name, words and cover (#194)
+
+### Changed
+- A flat's page of a company with a site: the company on top, a bar at the foot with the price and "Book", full-screen photos, "Ask in WhatsApp", the company's color (#193)
+- The "Ask in WhatsApp" text carries the flat's code `(s/<code>)`, so the CRM knows the flat (#196)
+- The weekend markup is labelled in tenge: it was always added to Friday and Saturday nights as an amount, never a percent (#198)
+
+### Fixed
+- Bookings from a flat's page are labelled "Site" in lists, filters, the booking form, analytics and the chart, instead of a raw key (#198)
+- Plural forms of two new strings (#195)
+
 ## 0.6.0 — 2026-10-20
 
 The owner keeps the company's expenses and the agents who bring guests, and writes the rules for guests once for every flat. The CRM gets what its AI needs to sell alone: a deposit moves the booking in the feed, a booking from a personal link says so, the free-dates search names the stay rules a stay would break, a readiness report shows what each flat's card lacks, a personal link can be by the hour and carries the CRM's conversation id to its booking, and a flat's card gives the WhatsApp catalogue product id. Migrations 045–051 run on start. No environment variable has to change.
