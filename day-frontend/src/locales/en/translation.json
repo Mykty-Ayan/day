@@ -1420,7 +1420,11 @@
     "minNights_other": "At least {{count}} nights",
     "totalHint": "The nights alone, before discounts and fees for extra guests.",
     "hours_one": "{{count}} hour",
-    "hours_other": "{{count}} hours"
+    "hours_other": "{{count}} hours",
+    "allPhotos": "All photos · {{count}}",
+    "allAmenities": "Show all · {{count}}",
+    "readMore": "Read more",
+    "showLess": "Show less"
   },
   "guestOffer": {
     "hello": "{{name}}, here are flats for your dates",

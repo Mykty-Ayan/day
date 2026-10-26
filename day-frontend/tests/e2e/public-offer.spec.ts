@@ -48,7 +48,9 @@ test('a guest with a personal link sees the flats for their dates', async ({ bro
   await page.goto(`/o/${code}`)
   await expect(page).toHaveURL(new RegExp(`/o/${code}$`))
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Ерлан, вот квартиры на ваши даты')
-  await expect(page.getByText(/2 ночи · 2 гостя/)).toBeVisible()
+  // The stay's dates, length and guests, each a pill of its own.
+  await expect(page.getByText('2 ночи', { exact: true })).toBeVisible()
+  await expect(page.getByText('2 гостя', { exact: true })).toBeVisible()
   await expect(page.getByText('Сапаров')).toHaveCount(0)
 
   const studioCard = page.locator('article', { hasText: 'Студия у парка' })

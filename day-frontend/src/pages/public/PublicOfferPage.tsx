@@ -81,17 +81,23 @@ function OfferView({ offer, locale, onRefresh }: { offer: PublicOffer; locale: s
   }
 
   return (
-    <main className="flex flex-col gap-5 px-5 pb-10 pt-5">
-      <section className="flex flex-col gap-1.5">
-        <h1 className="text-2xl font-bold leading-tight tracking-tight">
+    <main className="flex flex-col gap-6 px-4 pb-10 pt-6">
+      <section className="flex flex-col gap-3 px-1">
+        <h1 className="text-[28px] font-extrabold leading-[1.15] tracking-tight">
           {offer.guest ? t('guestOffer.hello', { name: offer.guest }) : t('guestOffer.title')}
         </h1>
-        <p className="text-base text-gray-700">
-          {dates} · {nights} · {t('guestOffer.guests', { count: offer.guests })}
+        <p className="flex flex-wrap gap-2 text-sm font-medium">
+          <span className="rounded-full bg-stone-100 px-3.5 py-2">{dates}</span>
+          <span className="rounded-full bg-stone-100 px-3.5 py-2">{nights}</span>
+          <span className="rounded-full bg-stone-100 px-3.5 py-2">{t('guestOffer.guests', { count: offer.guests })}</span>
         </p>
         {allFree && (
-          <p className="text-sm font-semibold text-emerald-800">
-            {offer.flats.length === 1 ? t('guestOffer.freeOne') : t('guestOffer.freeAll')} {t('guestOffer.hold')}
+          // Two sentences of their own: joined by a space they read as one, with no stop between.
+          <p className="flex flex-col items-start gap-1.5 text-sm text-emerald-900">
+            <span className="rounded-full bg-emerald-50 px-3 py-1 font-semibold">
+              {offer.flats.length === 1 ? t('guestOffer.freeOne') : t('guestOffer.freeAll')}
+            </span>
+            <span>{t('guestOffer.hold')}</span>
           </p>
         )}
       </section>
@@ -102,6 +108,7 @@ function OfferView({ offer, locale, onRefresh }: { offer: PublicOffer; locale: s
       )}
 
       {offer.flats.length === 0 && <p className="text-base text-gray-700">{t('guestOffer.none')}</p>}
+      <div className="flex flex-col gap-8">
       {offer.flats.map((flat, n) => (
         <FlatCard
           key={flat.code}
@@ -116,6 +123,7 @@ function OfferView({ offer, locale, onRefresh }: { offer: PublicOffer; locale: s
           }}
         />
       ))}
+      </div>
 
       <footer className="pt-3 text-xs text-gray-500">{t('guest.poweredBy')}</footer>
     </main>
@@ -143,21 +151,23 @@ function FlatCard({
   ].filter(Boolean)
 
   return (
-    <article data-flat={flat.code} className="overflow-hidden rounded-2xl border border-gray-200">
-      {flat.photo ? (
-        // The name is the heading below; photos past the first wait for the scroll.
-        <img
-          src={flat.photo}
-          alt=""
-          loading={first ? 'eager' : 'lazy'}
-          decoding="async"
-          className="aspect-[4/3] w-full bg-gray-100 object-cover"
-        />
-      ) : (
-        <div className="aspect-[4/3] w-full bg-gray-100" aria-hidden />
-      )}
-      <div className="flex flex-col gap-2 p-4">
-        <h2 dir="auto" className="text-lg font-bold leading-snug">{flat.name}</h2>
+    <article data-flat={flat.code} className="flex flex-col gap-3">
+      <div className="relative overflow-hidden rounded-[24px] bg-stone-100">
+        {flat.photo ? (
+          // The name is the heading below; photos past the first wait for the scroll.
+          <img
+            src={flat.photo}
+            alt=""
+            loading={first ? 'eager' : 'lazy'}
+            decoding="async"
+            className={`aspect-[4/3] w-full object-cover ${flat.free ? '' : 'grayscale'}`}
+          />
+        ) : (
+          <div className="aspect-[4/3] w-full" aria-hidden />
+        )}
+      </div>
+      <div className="flex flex-col gap-2 px-1">
+        <h2 dir="auto" className="text-xl font-bold leading-snug tracking-tight">{flat.name}</h2>
         {(flat.complex_name || facts.length > 0) && (
           <p className="text-sm text-gray-600">{[flat.complex_name, ...facts].filter(Boolean).join(' · ')}</p>
         )}
@@ -178,7 +188,7 @@ function FlatCard({
             to="/s/$code"
             params={{ code: flat.code }}
             aria-label={`${t('guestOffer.details')}: ${flat.name}`}
-            className="flex h-11 items-center justify-center rounded-xl border border-gray-200 text-sm font-semibold"
+            className="flex h-12 items-center justify-center rounded-full bg-stone-100 text-sm font-semibold"
           >
             {t('guestOffer.details')}
           </Link>
@@ -187,7 +197,7 @@ function FlatCard({
               type="button"
               onClick={onChoose}
               aria-label={`${t('guestOffer.choose')}: ${flat.name}`}
-              className="h-11 rounded-xl bg-emerald-700 text-sm font-bold text-white"
+              className="h-12 rounded-full bg-emerald-700 text-sm font-bold text-white"
             >
               {t('guestOffer.choose')}
             </button>

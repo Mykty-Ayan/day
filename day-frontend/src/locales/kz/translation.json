@@ -1408,7 +1408,11 @@
     "area": "{{area}} м²",
     "minNights": "Кемінде {{count}} түн",
     "totalHint": "Түндер сомасы, жеңілдіктер мен қонақтар үшін қосымша төлемсіз.",
-    "hours": "{{count}} сағат"
+    "hours": "{{count}} сағат",
+    "allPhotos": "Барлық фото · {{count}}",
+    "allAmenities": "Барлығын көрсету · {{count}}",
+    "readMore": "Толық оқу",
+    "showLess": "Жию"
   },
   "guestOffer": {
     "hello": "{{name}}, міне сіздің күндеріңізге пәтерлер",

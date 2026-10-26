@@ -41,7 +41,11 @@
     "area": "{{area}} m²",
     "minNights": "En az {{count}} gece",
     "totalHint": "Yalnızca geceler; indirimler ve ek misafir ücretleri hariç.",
-    "hours": "{{count}} saat"
+    "hours": "{{count}} saat",
+    "allPhotos": "Tüm fotoğraflar · {{count}}",
+    "allAmenities": "Tümünü göster · {{count}}",
+    "readMore": "Devamını oku",
+    "showLess": "Daha az göster"
   },
   "guestOffer": {
     "hello": "{{name}}, tarihleriniz için daireler",
