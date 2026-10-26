@@ -41,7 +41,11 @@
     "area": "{{area}} 平方米",
     "minNights": "至少 {{count}} 晚",
     "totalHint": "仅为住宿费用，未计折扣和额外客人费用。",
-    "hours": "{{count}} 小时"
+    "hours": "{{count}} 小时",
+    "allPhotos": "全部照片 · {{count}}",
+    "allAmenities": "显示全部 · {{count}}",
+    "readMore": "阅读全文",
+    "showLess": "收起"
   },
   "guestOffer": {
     "hello": "{{name}}，这些是适合您日期的房源",

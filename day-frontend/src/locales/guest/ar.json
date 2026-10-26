@@ -41,7 +41,11 @@
     "area": "{{area}} م²",
     "minNights": "الحد الأدنى لعدد الليالي: {{count}}",
     "totalHint": "سعر الليالي فقط، قبل الخصومات ورسوم الضيوف الإضافيين.",
-    "hours": "الساعات: {{count}}"
+    "hours": "الساعات: {{count}}",
+    "allPhotos": "كل الصور · {{count}}",
+    "allAmenities": "عرض الكل · {{count}}",
+    "readMore": "اقرأ المزيد",
+    "showLess": "عرض أقل"
   },
   "guestOffer": {
     "hello": "{{name}}، إليك شققًا لتواريخك",

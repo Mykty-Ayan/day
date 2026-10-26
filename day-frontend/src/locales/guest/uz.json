@@ -41,7 +41,11 @@
     "area": "{{area}} m²",
     "minNights": "Kamida {{count}} kecha",
     "totalHint": "Faqat kechalar narxi: chegirmalar va qo‘shimcha mehmonlar uchun to‘lovlar hisobga olinmagan.",
-    "hours": "{{count}} soat"
+    "hours": "{{count}} soat",
+    "allPhotos": "Barcha suratlar · {{count}}",
+    "allAmenities": "Hammasini ko'rsatish · {{count}}",
+    "readMore": "To'liq o'qish",
+    "showLess": "Yig'ish"
   },
   "guestOffer": {
     "hello": "{{name}}, sanalaringiz uchun kvartiralar",
