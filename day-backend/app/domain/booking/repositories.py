@@ -185,6 +185,16 @@ class BookingRepository(abc.ABC):
     async def list_expired_holds(self, now: datetime, *, limit: int) -> list[Booking]:
         """Pending bookings of every company whose expires_at <= now, locked for the caller."""
 
+    async def has_live_hold(
+        self, company_id: uuid.UUID, guest_ids: list[uuid.UUID], source: str, now: datetime
+    ) -> bool:
+        """Whether one of these guests has a pending booking from `source` that still holds its dates."""
+        raise NotImplementedError
+
+    async def count_live_holds(self, property_id: uuid.UUID, source: str, now: datetime) -> int:
+        """The flat's pending bookings from `source` that still hold their dates."""
+        raise NotImplementedError
+
     @abc.abstractmethod
     async def update(self, booking: Booking) -> Booking: ...
 

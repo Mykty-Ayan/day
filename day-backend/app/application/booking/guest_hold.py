@@ -11,12 +11,13 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 from zoneinfo import ZoneInfo
 
 from app.application.booking.create_booking import CreateBookingInput, CreateBookingService
 from app.application.booking.guest_offers import OfferExpiredError
+from app.application.leads.check_guest import normalise_phone
 from app.domain.booking.entities import Booking, BookingDeposit, GuestOffer
 from app.domain.booking.repositories import (
     BookingDepositRepository,
@@ -25,12 +26,23 @@ from app.domain.booking.repositories import (
     GuestRepository,
 )
 from app.domain.booking.value_objects import BookingSource, BookingStatus, DepositStatus, RentalMode
+from app.domain.leads.repositories import BlacklistRepository
 from app.domain.property.repositories import PricingConfigRepository, PropertyRepository
 from app.domain.property.value_objects import PropertyStatus
 from app.domain.settings.entities import DEFAULT_TIME_ZONE
 from app.domain.settings.repositories import CompanySettingsRepository
+from app.domain.site.repositories import CompanySiteRepository
 
 HOLD_MINUTES = 30
+# A stay booked from a flat's page: as long and as far ahead as a personal link takes.
+SITE_MAX_NIGHTS = 120
+SITE_MAX_HOURS = 24
+SITE_HORIZON_DAYS = 730
+# Unpaid holds from a flat's page at once: real guests rarely wait on more, and
+# made-up numbers cannot close a whole calendar.
+SITE_LIVE_HOLDS_PER_FLAT = 3
+# One answer for every refusal: it must not tell a stranger whether a number holds a booking.
+SITE_REFUSED = "These dates cannot be held now"
 
 
 class OfferTakenError(Exception):
@@ -63,6 +75,8 @@ class GuestHoldService:
         settings_repo: CompanySettingsRepository | None = None,
         *,
         now: Callable[[], datetime] = datetime.utcnow,
+        sites: CompanySiteRepository | None = None,
+        blacklist: BlacklistRepository | None = None,
     ) -> None:
         self._offers = offer_repo
         self._properties = property_repo
@@ -73,6 +87,8 @@ class GuestHoldService:
         self._create = create_booking
         self._settings = settings_repo
         self._now = now
+        self._sites = sites
+        self._blacklist = blacklist
 
     async def book(
         self, code: str, *, flat: str, guests: int, name: str | None = None, phone: str | None = None
@@ -140,6 +156,92 @@ class GuestHoldService:
             await self._deposits.create(BookingDeposit(booking_id=booking.id, amount=deposit))
         await self._offers.set_booking(offer.id, booking.id)
         offer.booking_id = booking.id
+        return OfferBooking(booking=booking, flat=prop.public_code, deposit=deposit, phone=phone, name=name)
+
+    async def book_stay(
+        self,
+        flat_code: str,
+        *,
+        rental_mode: RentalMode,
+        guests: int,
+        name: str,
+        phone: str,
+        check_in: date | None = None,
+        check_out: date | None = None,
+        starts_at: datetime | None = None,
+        ends_at: datetime | None = None,
+    ) -> OfferBooking:
+        """A guest books from the flat's own page (/s/<code>), with no chat before: the
+        nights or hours are held for 30 minutes and the host is asked for the Kaspi
+        invoice, as from a personal link. One phone holds one such booking at a time,
+        so a stranger cannot close a flat's calendar with made-up holds."""
+        prop = await self._properties.get_by_public_code(flat_code)
+        if prop is None or prop.status != PropertyStatus.ACTIVE:
+            raise ValueError("Not found")
+        # The company opts in by setting up its site: a flat's page books only then.
+        if self._sites is None or await self._sites.get(prop.company_id) is None:
+            raise ValueError("Not found")
+        name, phone = name.strip(), phone.strip()
+        if not name:
+            raise ValueError("A name is needed")
+        if prop.max_guests is not None and guests > prop.max_guests:
+            raise ValueError(f"The flat takes up to {prop.max_guests} guests")
+        hourly = rental_mode == RentalMode.HOURLY
+        if hourly and prop.rental_mode == RentalMode.DAILY:
+            raise ValueError(f"{prop.name} lets by the night only")
+        if not hourly and prop.rental_mode == RentalMode.HOURLY:
+            raise ValueError(f"{prop.name} lets by the hour only")
+
+        now = await self._company_now(prop.company_id)
+        horizon = now.date() + timedelta(days=SITE_HORIZON_DAYS)
+        if hourly:
+            if starts_at is None or ends_at is None or ends_at <= starts_at:
+                raise ValueError("ends_at must be after starts_at")
+            if starts_at <= now:
+                raise ValueError("starts_at is in the past")
+            if ends_at - starts_at > timedelta(hours=SITE_MAX_HOURS) or starts_at.date() > horizon:
+                raise ValueError(f"An hourly stay is up to {SITE_MAX_HOURS} hours, within two years")
+            start, end = starts_at, ends_at
+        else:
+            if check_in is None or check_out is None or check_out <= check_in:
+                raise ValueError("check_out must be after check_in")
+            if check_in < now.date():
+                raise ValueError("check_in is in the past")
+            if (check_out - check_in).days > SITE_MAX_NIGHTS or check_in > horizon:
+                raise ValueError(f"A stay is up to {SITE_MAX_NIGHTS} nights, within two years")
+            start, end = check_in, check_out
+
+        same_phone = [g.id for g in await self._guests.list_by_phone(prop.company_id, phone)]
+        if (
+            await self._bookings.has_live_hold(prop.company_id, same_phone, BookingSource.SITE.value, self._now())
+            or await self._bookings.count_live_holds(prop.id, BookingSource.SITE.value, self._now())
+            >= SITE_LIVE_HOLDS_PER_FLAT
+            or (self._blacklist is not None
+                and await self._blacklist.find(prop.company_id, normalise_phone(phone)) is not None)
+        ):
+            raise OfferTakenError(SITE_REFUSED)
+
+        pricing = await self._pricing.get_by_property(prop.id)
+        amount = (pricing.hourly_deposit if hourly else pricing.default_deposit) if pricing else None
+        deposit = amount if amount and amount > 0 else None
+        booking = await self._create.execute(
+            CreateBookingInput(
+                company_id=prop.company_id,
+                property_id=prop.id,
+                guest_name=name,
+                guest_phone=phone,
+                check_in=start,
+                check_out=end,
+                rental_mode=RentalMode.HOURLY if hourly else RentalMode.DAILY,
+                adults_count=guests,
+                source=BookingSource.SITE,
+                # The guest found by phone keeps its own name: who booked is told here.
+                notes=f"Гость забронировал на странице квартиры /s/{prop.public_code}. С формы: {name}, {phone}",
+                expires_at=self._now() + timedelta(minutes=HOLD_MINUTES),
+            )
+        )
+        if deposit is not None:
+            await self._deposits.create(BookingDeposit(booking_id=booking.id, amount=deposit))
         return OfferBooking(booking=booking, flat=prop.public_code, deposit=deposit, phone=phone, name=name)
 
     async def current(self, offer: GuestOffer) -> OfferBooking | None:

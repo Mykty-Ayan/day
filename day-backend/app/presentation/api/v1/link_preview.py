@@ -20,6 +20,7 @@ from app.application.booking.guest_offers import OfferExpiredError
 from app.application.property.public_stay import GetPublicStayService
 from app.config import settings
 from app.domain.booking.value_objects import RentalMode
+from app.domain.property.value_objects import PropertyStatus
 from app.infrastructure.database import get_session
 from app.infrastructure.repositories.booking import SqlBookingRepository
 from app.infrastructure.repositories.property import (
@@ -30,6 +31,7 @@ from app.infrastructure.repositories.property import (
     SqlPropertyRepository,
     SqlSeasonalPriceRepository,
 )
+from app.infrastructure.repositories.site import SqlCompanySiteRepository
 from app.presentation.api.v1.offers import offers_service
 
 preview_router = APIRouter(prefix="/public/preview", tags=["public"])
@@ -142,3 +144,27 @@ async def offer_preview(code: str, session: AsyncSession = Depends(get_session))
     description = f"{when} · гостей: {o.guests} · " + (f"вариантов: {count}" if count else "свободных вариантов нет")
     photo = next((f.photo for f in public.flats if f.photo), None)
     return _page(render(title, description, preview_image(photo), _link("o", code)))
+
+
+@preview_router.get("/c/{slug}", response_class=HTMLResponse, include_in_schema=False)
+async def company_preview(slug: str, session: AsyncSession = Depends(get_session)):
+    """A company's site: its name, its words or its flats and lowest price, its cover."""
+    site = await SqlCompanySiteRepository(session).get_by_slug(slug.lower())
+    if site is None:
+        return _page(_NOT_FOUND, 404)
+    flats = await SqlPropertyRepository(session).list_by_company(
+        site.company_id, status=PropertyStatus.ACTIVE, limit=100
+    )
+    pricing = SqlPricingConfigRepository(session)
+    nightly = [
+        p.base_price
+        for p in [await pricing.get_by_property(f.id) for f in flats if f.rental_mode != RentalMode.HOURLY]
+        if p is not None and p.base_price > 0
+    ]
+    facts = [f"квартир: {len(flats)}"] if flats else []
+    if nightly:
+        facts.append(f"от {tenge(min(nightly))} за ночь")
+    description = site.about or " · ".join(facts) or "Квартиры посуточно"
+    if len(description) > 200:
+        description = description[:197].rstrip() + "…"
+    return _page(render(site.title, description, preview_image(site.cover_url), _link("c", site.slug)))

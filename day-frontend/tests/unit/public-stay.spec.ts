@@ -4,7 +4,7 @@
  */
 
 import { expect, test } from '@playwright/test'
-import { guestLanguage, isHourly, monthCells, offerDates, stayDates, stayQuote } from '../../src/lib/public-stay'
+import { guestLanguage, isHourly, monthCells, offerDates, onAccent, stayDates, stayQuote } from '../../src/lib/public-stay'
 
 test('a month is laid out from Monday, with blanks before its first day', () => {
   // 1 October 2026 is a Thursday.
@@ -65,4 +65,11 @@ test('an hourly link shows its day and hours as written, never shifted by the zo
   const nightly = { ...offer, rental_mode: 'daily' as const, starts_at: null, ends_at: null }
   expect(isHourly(nightly)).toBe(false)
   expect(offerDates('ru', nightly)).toBe(stayDates('ru', '2030-10-20', '2030-10-21'))
+})
+
+test('a button reads on the company color: dark text on a light one', () => {
+  expect(onAccent('#047857')).toBe('#ffffff')
+  expect(onAccent('#facc15')).toBe('#111827')
+  expect(onAccent('#ffffff')).toBe('#111827')
+  expect(onAccent('#1e3a8a')).toBe('#ffffff')
 })

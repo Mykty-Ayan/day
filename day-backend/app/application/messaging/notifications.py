@@ -31,6 +31,7 @@ logger = logging.getLogger(__name__)
 _SOURCES = {
     "direct": "Прямое", "booking": "Booking.com", "airbnb": "Airbnb", "other": "Другое", "crm": "CRM",
     "offer": "Личная ссылка",
+    "site": "Сайт",
 }
 
 _BOOKING_EVENTS = {NotificationEvent.BOOKING_CREATED, NotificationEvent.BOOKING_CANCELLED, NotificationEvent.GUEST_HOLD}
@@ -89,7 +90,8 @@ def render(event: NotificationEvent, payload: dict) -> str:
 
     if event == NotificationEvent.GUEST_HOLD:
         lines = [
-            "🔔 <b>Бронь по ссылке гостя</b>",
+            # From the flat's page the guest came with no chat; from a link, after one.
+            "🔔 <b>Бронь с сайта</b>" if payload.get("source") == "site" else "🔔 <b>Бронь по ссылке гостя</b>",
             f"Объект: {payload.get('property_name', '—')}",
             f"Гость: {payload.get('guest_name', '—')}, {payload.get('phone', '—')}",
             f"Заезд: {payload.get('check_in', '—')}",

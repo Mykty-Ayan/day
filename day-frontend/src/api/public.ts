@@ -30,6 +30,8 @@ export interface PublicStay {
   amenities: { name: string; category: string }[]
   prices: { night: number | null; hour: number | null; deposit: number | null; hour_deposit: number | null }
   nights: PublicNight[]
+  /** The company, once it has set up its site: the page links to it and books. */
+  company?: { slug: string; title: string; logo_url: string | null; accent_color: string | null; whatsapp: string | null } | null
 }
 
 export async function getPublicStay(code: string, dateFrom: string, dateTo: string): Promise<PublicStay> {
@@ -97,5 +99,47 @@ export async function bookFromOffer(
   body: { flat: string; guests: number; name?: string; phone?: string },
 ): Promise<PublicOfferBooking> {
   const res = await publicClient.post(`/public/offers/${encodeURIComponent(code)}/book`, body)
+  return res.data
+}
+
+/** A company's page for guests (/c/<slug>): who it is, how to reach it, its rules and flats. */
+export interface PublicCompanyFlat {
+  /** The flat's own page: /s/<code>. */
+  code: string
+  name: string
+  complex_name: string | null
+  rooms: number | null
+  max_guests: number | null
+  area_total: number | null
+  photo: string | null
+  night_price: number | null
+  hour_price: number | null
+}
+
+export interface PublicCompany {
+  slug: string
+  title: string
+  about: string | null
+  logo_url: string | null
+  cover_url: string | null
+  accent_color: string | null
+  /** Digits for wa.me. */
+  whatsapp: string | null
+  instagram: string | null
+  rules: string[]
+  flats: PublicCompanyFlat[]
+}
+
+export async function getPublicCompany(slug: string): Promise<PublicCompany> {
+  const res = await publicClient.get(`/public/companies/${encodeURIComponent(slug)}`)
+  return res.data
+}
+
+/** Book the flat from its own page: the nights are held for 30 minutes. */
+export async function bookStay(
+  code: string,
+  body: { check_in: string; check_out: string; guests: number; name: string; phone: string },
+): Promise<PublicOfferBooking> {
+  const res = await publicClient.post(`/public/stays/${encodeURIComponent(code)}/book`, { rental_mode: 'daily', ...body })
   return res.data
 }

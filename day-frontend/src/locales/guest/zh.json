@@ -107,5 +107,21 @@
       "host_greets": "我们当面迎接",
       "other": "其他"
     }
+  },
+  "guestCompany": {
+    "notFound": "此链接未指向公司页面。",
+    "flats": "房源 · {{count}}",
+    "noFlats": "目前没有可预订的房源。",
+    "write": "通过 WhatsApp 联系",
+    "rules": "住客须知"
+  },
+  "guestStay": {
+    "pickDates": "选择日期",
+    "ask": "通过 WhatsApp 咨询",
+    "askText": "您好！我对房源「{{flat}}」 (s/{{code}})感兴趣{{dates}}",
+    "allFlats": "全部房源",
+    "refused": "无法保留这些日期。请选择其他日期或联系我们。",
+    "tooMany": "尝试次数过多，请一分钟后再试。",
+    "nameNeeded": "请输入预订人姓名。"
   }
 }
