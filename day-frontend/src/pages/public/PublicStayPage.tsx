@@ -2,10 +2,11 @@ import { useMemo, useState, type CSSProperties } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { addDays, format, parseISO } from 'date-fns'
-import { BedDouble, Building2, Check, Images, KeyRound, LayoutGrid, MapPin, Ruler, Users, X } from 'lucide-react'
+import { BedDouble, Building2, ChevronLeft, Images, KeyRound, LayoutGrid, MapPin, Ruler, Users, X } from 'lucide-react'
 import { getPublicStay, type PublicOfferBooking, type PublicStay } from '../../api/public'
 import { isDayBlocked } from '../../lib/booking-dates'
-import { money, monthCells, onAccent, openedInFlat, retryNetwork, stayQuote } from '../../lib/public-stay'
+import { amenityIcon } from '../../lib/amenity-icons'
+import { fromThisWeek, money, monthCells, onAccent, openedInFlat, retryNetwork, stayQuote } from '../../lib/public-stay'
 import { GuestFrame, LoadFailed } from './GuestFrame'
 import { BookBar, BookSheet, HeldView } from './StayBooking'
 import { StayHereBanner } from './StayHere'
@@ -17,8 +18,6 @@ const DEFAULT_ACCENT = '#047857'
 const WINDOW_NIGHTS = 62
 // The guest does it themselves: no lock and no code to send.
 const SELF_CHECK_IN = ['lockbox', 'keypad', 'smart_lock']
-// Under the cover, a row of photos to tap into the gallery; the last says how many more.
-const THUMBS = 3
 // Enough amenities to tell the flat, the rest a tap away.
 const AMENITIES_SHOWN = 8
 
@@ -52,6 +51,7 @@ function Stay({ code, locale }: { code: string; locale: string }) {
 
 function StayView({ stay, locale, today }: { stay: PublicStay; locale: string; today: string }) {
   const { t } = useTranslation()
+  const [photo, setPhoto] = useState(0)
   const [gallery, setGallery] = useState(false)
   const [allAmenities, setAllAmenities] = useState(false)
   // The photo open on the whole screen, by its place in the list.
@@ -123,60 +123,57 @@ function StayView({ stay, locale, today }: { stay: PublicStay; locale: string; t
 
   return (
     <main style={accent} className={stay.company ? 'pb-24' : undefined}>
-      {stay.company && (
-        <a href={`/c/${stay.company.slug}`} className="flex items-center gap-2.5 border-b border-gray-100 px-5 py-2.5">
-          {stay.company.logo_url && <img src={stay.company.logo_url} alt="" className="h-8 w-8 rounded-lg object-cover" />}
-          <span dir="auto" className="min-w-0 truncate text-sm font-semibold text-gray-800">{stay.company.title}</span>
-          <span className="ms-auto text-sm font-semibold text-[var(--accent)]">{t('guestStay.allFlats')}</span>
-        </a>
-      )}
-      {/* Opened from a tag or a QR code in the flat: the guest staying now opens their booking. */}
-      {openedInFlat(window.location.search) && <StayHereBanner code={stay.code} whatsapp={stay.company?.whatsapp ?? null} />}
-      {stay.photos.length > 0 && (
-        <section aria-label={t('guest.photos')} className="flex flex-col gap-1.5 px-3 pt-3">
-          <button type="button" onClick={() => setZoomed(0)} className="relative overflow-hidden rounded-[28px] bg-stone-100">
-            <img src={stay.photos[0]} alt={t('guest.photoOf', { n: 1, total: stay.photos.length })} fetchPriority="high" decoding="async" className="aspect-square w-full object-cover sm:aspect-[16/10]" />
-          </button>
-          {stay.photos.length > 1 && (
-            <div className="grid grid-cols-3 gap-1.5">
-              {stay.photos.slice(1, THUMBS + 1).map((url, n) => {
-                const more = n === THUMBS - 1 ? stay.photos.length - THUMBS - 1 : 0
-                return (
-                  <button
-                    key={url}
-                    type="button"
-                    onClick={() => (more > 0 ? setGallery(true) : setZoomed(n + 1))}
-                    className="relative overflow-hidden rounded-2xl bg-stone-100"
-                  >
-                    <img src={url} alt={t('guest.photoOf', { n: n + 2, total: stay.photos.length })} loading="lazy" decoding="async" className="aspect-square w-full object-cover" />
-                    {more > 0 && (
-                      <span className="absolute inset-0 flex items-center justify-center bg-black/45 text-lg font-bold text-white">+{more}</span>
-                    )}
-                  </button>
-                )
-              })}
-            </div>
+      {/* The flat edge to edge, the way a listing opens on a phone; the text slides over it as a sheet. */}
+      <section aria-label={t('guest.photos')} className="relative bg-stone-200">
+        {stay.photos.length > 0 ? (
+          <div
+            className="flex aspect-[4/5] max-h-[72vh] w-full snap-x snap-mandatory overflow-x-auto [scrollbar-width:none]"
+            // Right to left, the scroll runs below zero.
+            onScroll={(e) => setPhoto(Math.round(Math.abs(e.currentTarget.scrollLeft) / e.currentTarget.clientWidth))}
+          >
+            {stay.photos.map((url, n) => (
+              <button key={url} type="button" onClick={() => setZoomed(n)} className="h-full w-full flex-none snap-center">
+                <img src={url} alt={t('guest.photoOf', { n: n + 1, total: stay.photos.length })} loading={n === 0 ? 'eager' : 'lazy'} fetchPriority={n === 0 ? 'high' : 'auto'} decoding="async" className="h-full w-full object-cover" />
+              </button>
+            ))}
+          </div>
+        ) : (
+          <div className="aspect-[16/9] w-full" aria-hidden />
+        )}
+        <div className="absolute inset-x-0 top-0 flex items-center justify-between gap-2 p-3">
+          {stay.company ? (
+            <a href={`/c/${stay.company.slug}`} className="flex h-10 min-w-0 items-center gap-1.5 rounded-full bg-white/85 pe-3.5 ps-2 text-sm font-semibold text-gray-900 shadow-sm backdrop-blur-md">
+              <ChevronLeft className="h-5 w-5 shrink-0 rtl:rotate-180" aria-hidden />
+              {stay.company.logo_url && <img src={stay.company.logo_url} alt="" className="h-6 w-6 rounded-full object-cover" />}
+              <span className="truncate">{t('guestStay.allFlats')}</span>
+            </a>
+          ) : (
+            <span />
           )}
-          {stay.photos.length > 2 && (
-            <button
-              type="button"
-              onClick={() => setGallery(true)}
-              className="flex h-11 items-center justify-center gap-2 rounded-full text-sm font-semibold text-gray-800"
-            >
+          {stay.photos.length > 1 && (
+            <button type="button" onClick={() => setGallery(true)} className="flex h-10 shrink-0 items-center gap-1.5 rounded-full bg-white/85 px-3.5 text-sm font-semibold text-gray-900 shadow-sm backdrop-blur-md">
               <Images className="h-4 w-4" aria-hidden />
               {t('guest.allPhotos', { count: stay.photos.length })}
             </button>
           )}
-        </section>
-      )}
+        </div>
+        {stay.photos.length > 1 && (
+          <span dir="ltr" className="absolute bottom-12 end-4 rounded-full bg-black/55 px-2.5 py-1 text-xs font-semibold text-white backdrop-blur-md">
+            {photo + 1} / {stay.photos.length}
+          </span>
+        )}
+      </section>
 
-      <section className="flex flex-col gap-2 px-5 pt-4">
+      <section className="relative -mt-8 flex flex-col gap-2 rounded-t-[32px] bg-white px-5 pt-6">
         {/* The owner's words, in their language: their own direction on a right-to-left page. */}
         {stay.complex_name && (
           <span dir="auto" className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--accent)]">{stay.complex_name}</span>
         )}
-        <h1 dir="auto" className="text-[28px] font-extrabold leading-[1.15] tracking-tight">{stay.name}</h1>
+        <h1 dir="auto" className="text-[30px] font-extrabold leading-[1.1] tracking-tight">{stay.name}</h1>
       </section>
+
+      {/* Opened from a tag or a QR code in the flat: the guest staying now opens their booking. */}
+      {openedInFlat(window.location.search) && <StayHereBanner code={stay.code} whatsapp={stay.company?.whatsapp ?? null} />}
 
       {facts.length > 0 && (
         <ul className="flex gap-2 overflow-x-auto px-5 pb-1 pt-4 [scrollbar-width:none]">
@@ -227,19 +224,24 @@ function StayView({ stay, locale, today }: { stay: PublicStay; locale: string; t
       {stay.amenities.length > 0 && (
         <section className="flex flex-col gap-3 px-5 pt-8">
           <h2 className="text-[22px] font-bold tracking-tight">{t('guest.amenities')}</h2>
-          <ul className="flex flex-wrap gap-2">
-            {(allAmenities ? stay.amenities : stay.amenities.slice(0, AMENITIES_SHOWN)).map((a) => (
-              <li key={a.name} dir="auto" className="flex items-center gap-1.5 rounded-full border border-stone-200 px-3 py-1.5 text-sm">
-                <Check className="h-3.5 w-3.5 shrink-0 text-[var(--accent)]" aria-hidden />
-                {a.name}
-              </li>
-            ))}
+          <ul className="grid grid-cols-2 gap-x-3 gap-y-3">
+            {(allAmenities ? stay.amenities : stay.amenities.slice(0, AMENITIES_SHOWN)).map((a) => {
+              const Icon = amenityIcon(a.name, a.category)
+              return (
+                <li key={a.name} className="flex items-center gap-3 text-[15px] leading-snug">
+                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-stone-100">
+                    <Icon className="h-5 w-5" aria-hidden />
+                  </span>
+                  <span dir="auto">{a.name}</span>
+                </li>
+              )
+            })}
           </ul>
           {!allAmenities && stay.amenities.length > AMENITIES_SHOWN && (
             <button
               type="button"
               onClick={() => setAllAmenities(true)}
-              className="h-11 self-start rounded-full bg-stone-100 px-4 text-sm font-semibold"
+              className="h-12 rounded-full border border-gray-900 px-5 text-sm font-semibold"
             >
               {t('guest.allAmenities', { count: stay.amenities.length })}
             </button>
@@ -259,7 +261,7 @@ function StayView({ stay, locale, today }: { stay: PublicStay; locale: string; t
                 {t('guest.weekdays').split(' ').map((d) => <span key={d}>{d}</span>)}
               </div>
               <div className="grid grid-cols-7 gap-0.5">
-                {monthCells(month.getFullYear(), month.getMonth()).map((day, n) => {
+                {fromThisWeek(monthCells(month.getFullYear(), month.getMonth()), today).map((day, n) => {
                   if (!day) return <span key={`blank-${n}`} />
                   // Past the next taken night a free day is not a check-out, but it can start a new stay.
                   const disabled =
