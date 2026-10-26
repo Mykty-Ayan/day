@@ -23,6 +23,12 @@ body {
   min-height: 100vh;
 }
 
+/* Headings of the guest pages: a serif with the Kazakh letters (cyrillic-ext),
+   loaded by GuestFrame only; scripts it lacks fall to the system's serif. */
+.font-guest-display {
+  font-family: 'Lora', Georgia, 'Times New Roman', serif;
+}
+
 .safe-area-top {
   padding-top: env(safe-area-inset-top);
 }

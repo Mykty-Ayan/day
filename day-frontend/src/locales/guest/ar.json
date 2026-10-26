@@ -45,7 +45,9 @@
     "allPhotos": "كل الصور · {{count}}",
     "allAmenities": "عرض الكل · {{count}}",
     "readMore": "اقرأ المزيد",
-    "showLess": "عرض أقل"
+    "showLess": "عرض أقل",
+    "share": "مشاركة",
+    "linkCopied": "تم نسخ الرابط"
   },
   "guestOffer": {
     "hello": "{{name}}، إليك شققًا لتواريخك",

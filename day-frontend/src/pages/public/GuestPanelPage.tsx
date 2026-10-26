@@ -250,7 +250,7 @@ function PanelView({ code, panel, locale }: { code: string; panel: GuestPanel; l
             </p>
           )}
           {panel.guest_name && <p className="text-[15px] text-white/90">{t('guestPanel.hello', { name: panel.guest_name })}</p>}
-          <h1 dir="auto" className="text-[28px] font-bold leading-tight tracking-tight">{flat?.name}</h1>
+          <h1 dir="auto" className="font-guest-display text-[30px] font-semibold leading-tight tracking-tight">{flat?.name}</h1>
         </div>
       </header>
 

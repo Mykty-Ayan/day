@@ -45,7 +45,9 @@
     "allPhotos": "全部照片 · {{count}}",
     "allAmenities": "显示全部 · {{count}}",
     "readMore": "阅读全文",
-    "showLess": "收起"
+    "showLess": "收起",
+    "share": "分享",
+    "linkCopied": "链接已复制"
   },
   "guestOffer": {
     "hello": "{{name}}，这些是适合您日期的房源",

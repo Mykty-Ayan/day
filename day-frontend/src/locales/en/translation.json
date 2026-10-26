@@ -1424,7 +1424,9 @@
     "allPhotos": "All photos · {{count}}",
     "allAmenities": "Show all · {{count}}",
     "readMore": "Read more",
-    "showLess": "Show less"
+    "showLess": "Show less",
+    "share": "Share",
+    "linkCopied": "Link copied"
   },
   "guestOffer": {
     "hello": "{{name}}, here are flats for your dates",

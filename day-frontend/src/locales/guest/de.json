@@ -51,7 +51,9 @@
     "allPhotos": "Alle Fotos · {{count}}",
     "allAmenities": "Alle anzeigen · {{count}}",
     "readMore": "Weiterlesen",
-    "showLess": "Weniger anzeigen"
+    "showLess": "Weniger anzeigen",
+    "share": "Teilen",
+    "linkCopied": "Link kopiert"
   },
   "guestOffer": {
     "hello": "{{name}}, hier sind Wohnungen für Ihre Reisedaten",
