@@ -5,9 +5,10 @@ import { addDays, format, parseISO } from 'date-fns'
 import { BedDouble, Building2, KeyRound, LayoutGrid, MapPin, Ruler, Users, X } from 'lucide-react'
 import { getPublicStay, type PublicOfferBooking, type PublicStay } from '../../api/public'
 import { isDayBlocked } from '../../lib/booking-dates'
-import { money, monthCells, onAccent, retryNetwork, stayQuote } from '../../lib/public-stay'
+import { money, monthCells, onAccent, openedInFlat, retryNetwork, stayQuote } from '../../lib/public-stay'
 import { GuestFrame, LoadFailed } from './GuestFrame'
 import { BookBar, BookSheet, HeldView } from './StayBooking'
+import { StayHereBanner } from './StayHere'
 
 // Day's own green when the company has no color of its own.
 const DEFAULT_ACCENT = '#047857'
@@ -124,6 +125,8 @@ function StayView({ stay, locale, today }: { stay: PublicStay; locale: string; t
           <span className="ms-auto text-sm font-semibold text-[var(--accent)]">{t('guestStay.allFlats')}</span>
         </a>
       )}
+      {/* Opened from a tag or a QR code in the flat: the guest staying now opens their booking. */}
+      {openedInFlat(window.location.search) && <StayHereBanner code={stay.code} whatsapp={stay.company?.whatsapp ?? null} />}
       {stay.photos.length > 0 && (
         <section aria-label={t('guest.photos')} className="relative">
           <div

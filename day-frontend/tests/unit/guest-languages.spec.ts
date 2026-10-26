@@ -28,6 +28,7 @@ const pages = flat({
   guestBook: english.guestBook,
   guestCompany: english.guestCompany,
   guestStay: english.guestStay,
+  stayHere: english.stayHere,
   properties: { checkInMethod: (english.properties as Tree).checkInMethod },
 } as Tree)
 const bases = new Map(Object.entries(pages).map(([key, text]) => [key.replace(PLURAL, ''), vars(text)]))

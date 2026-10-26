@@ -73,6 +73,12 @@ export function money(value: number, locale: string): string {
 }
 
 /** A link that leads nowhere stays so: only a failed network is tried again. */
+/** The flat's page opened from an NFC tag (?nfc) or a QR code (?qr) in the flat. */
+export function openedInFlat(search: string): boolean {
+  const params = new URLSearchParams(search)
+  return params.has('nfc') || params.has('qr')
+}
+
 export function retryNetwork(count: number, error: unknown): boolean {
   return !(isAxiosError(error) && error.response && error.response.status < 500) && count < 2
 }

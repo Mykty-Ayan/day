@@ -24,32 +24,34 @@ MAX_FAILURES = 10
 LOCK_SECONDS = 15 * 60
 
 
-def _key(email: str) -> str:
+def _key(email: str, prefix: str = "login_fail") -> str:
     # The same string the account is looked up by: case variants are
     # different accounts there, so they must not share (or reset) a counter.
     digest = hashlib.sha256(email.encode()).hexdigest()[:32]
-    return f"login_fail:{digest}"
+    return f"{prefix}:{digest}"
 
 
 class LoginThrottle:
-    def __init__(self, redis) -> None:
+    def __init__(self, redis, *, prefix: str = "login_fail", max_failures: int = MAX_FAILURES) -> None:
         self._redis = redis
+        self._prefix = prefix
+        self._max = max_failures
 
     def attempt(self, email: str) -> int:
         """Reserve one attempt. Returns seconds to wait when the account is locked, else 0."""
         if self._redis is None:
             return 0
-        key = _key(email)
+        key = _key(email, self._prefix)
         try:
             pipe = self._redis.pipeline()  # MULTI/EXEC: the count never exists without its expiry
             pipe.incr(key)
             pipe.expire(key, LOCK_SECONDS, nx=True)
             count = pipe.execute()[0]
-            if count == MAX_FAILURES:
+            if count == self._max:
                 # The lock runs its full length from the attempt that set it,
                 # not from the first failure of the window.
                 self._redis.expire(key, LOCK_SECONDS)
-            if count <= MAX_FAILURES:
+            if count <= self._max:
                 return 0
             return max(int(self._redis.ttl(key)), 1)
         except Exception:
@@ -60,24 +62,40 @@ class LoginThrottle:
         if self._redis is None:
             return
         try:
-            self._redis.delete(_key(email))
+            self._redis.delete(_key(email, self._prefix))
         except Exception:
             logger.warning("Login throttle Redis error, counter not cleared")
 
 
 _throttle: LoginThrottle | None = None
+_stay_key_throttle: LoginThrottle | None = None
+
+# A guest opens their booking from the flat's page (an NFC tag, a QR code) by the
+# last 4 digits of their phone: 10 000 to try, so a flat takes a few guesses only.
+STAY_KEY_MAX_FAILURES = 5
+
+
+def _redis_client():
+    try:
+        import redis
+
+        return redis.Redis.from_url(settings.REDIS_URL, decode_responses=True, socket_connect_timeout=1)
+    except Exception:
+        logger.warning("Redis unavailable for the throttle, attempts are not braked")
+        return None
 
 
 def get_login_throttle() -> LoginThrottle:
     """FastAPI dependency; one Redis connection pool for the process."""
     global _throttle
     if _throttle is None:
-        try:
-            import redis
-
-            client = redis.Redis.from_url(settings.REDIS_URL, decode_responses=True, socket_connect_timeout=1)
-        except Exception:
-            logger.warning("Redis unavailable for the login throttle, logins are not braked")
-            client = None
-        _throttle = LoginThrottle(client)
+        _throttle = LoginThrottle(_redis_client())
     return _throttle
+
+
+def get_stay_key_throttle() -> LoginThrottle:
+    """The same brake for a flat's "I am staying here": counted per flat, not per address."""
+    global _stay_key_throttle
+    if _stay_key_throttle is None:
+        _stay_key_throttle = LoginThrottle(_redis_client(), prefix="stay_key_fail", max_failures=STAY_KEY_MAX_FAILURES)
+    return _stay_key_throttle

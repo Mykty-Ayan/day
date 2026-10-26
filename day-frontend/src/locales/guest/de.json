@@ -130,5 +130,19 @@
     "refused": "Diese Daten konnten nicht reserviert werden. Wählen Sie andere oder schreiben Sie uns.",
     "tooMany": "Zu viele Versuche. Bitte in einer Minute erneut.",
     "nameNeeded": "Geben Sie den Namen für die Buchung ein."
+  },
+  "stayHere": {
+    "title": "Wohnen Sie hier?",
+    "hint": "Türcode, WLAN, Minibar und Zahlung finden Sie auf der Seite Ihrer Buchung.",
+    "open": "Meine Buchung öffnen",
+    "digits": "Die letzten 4 Ziffern Ihrer Telefonnummer",
+    "digitsHint": "Der Nummer, auf die gebucht wurde.",
+    "submit": "Öffnen",
+    "wrong": "Die Ziffern passen nicht zur Buchung. Prüfen Sie die Nummer.",
+    "locked": "Zu viele Versuche. Versuchen Sie es in {{minutes}} Min. erneut.",
+    "nobody": "Für diese Wohnung gibt es gerade keine Buchung.",
+    "noPhone": "Bitten Sie den Gastgeber um den Link zu Ihrer Buchung.",
+    "askHost": "Gastgeber schreiben",
+    "failed": "Das hat nicht geklappt. Versuchen Sie es erneut."
   }
 }
