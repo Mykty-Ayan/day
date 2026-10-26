@@ -27,7 +27,7 @@ from app.domain.booking.exceptions import BookingOverlapError, PropertyBlockedEr
 from app.domain.booking.value_objects import RentalMode
 from app.domain.messaging.value_objects import NotificationEvent
 from app.infrastructure.database import get_session
-from app.infrastructure.login_throttle import LoginThrottle, get_stay_key_throttle
+from app.infrastructure.login_throttle import StayKeyThrottle, get_stay_key_throttle
 from app.infrastructure.messaging.booking_notice import notify_guest_hold
 from app.infrastructure.messaging.factory import build_notification_service
 from app.infrastructure.repositories.booking import (
@@ -251,10 +251,11 @@ async def stay_key(
     code: str,
     body: StayKeyBody,
     session: AsyncSession = Depends(get_session),
-    throttle: LoginThrottle = Depends(get_stay_key_throttle),
+    throttle: StayKeyThrottle = Depends(get_stay_key_throttle),
 ):
     """The guest staying now opens their own page by the last 4 digits of their phone.
-    A few wrong tries lock the flat for a while, the right digits included."""
+    A few wrong tries lock the flat for a while, the right digits included; so does
+    Redis being down, as 4 digits cannot stand a guesser unbraked."""
     wait = throttle.attempt(code)
     if wait:
         return JSONResponse(status_code=429, content={"detail": "Too many tries"}, headers={"Retry-After": str(wait)})

@@ -132,7 +132,7 @@
     "digitsHint": "Bron rasmiylashtirilgan raqamning.",
     "submit": "Ochish",
     "wrong": "Raqamlar bronga mos kelmadi. Raqamni tekshiring.",
-    "locked": "Urinishlar juda ko'p. {{minutes}} daqiqadan keyin qayta urining.",
+    "locked": "Urinishlar juda ko'p. Bronni xabardagi havola orqali oching yoki uy egasiga yozing.",
     "nobody": "Hozir bu kvartirada bron yo'q.",
     "noPhone": "Bron havolasini uy egasidan so'rang.",
     "askHost": "Uy egasiga yozish",

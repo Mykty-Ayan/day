@@ -5,6 +5,7 @@ Every guest who ever stayed has that link, so it opens nothing by itself: the la
 digits of the phone on a stay going on now answer with that stay's page code.
 """
 
+import hashlib
 import uuid
 from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
@@ -16,9 +17,14 @@ from app.application.booking.stay_key import NobodyStayingError, StayKeyService,
 from app.domain.booking.entities import Booking, Guest, new_guest_code
 from app.domain.booking.value_objects import BookingStatus
 from app.domain.property.value_objects import PropertyStatus
-from app.infrastructure.login_throttle import STAY_KEY_MAX_FAILURES, LoginThrottle
+from app.infrastructure.login_throttle import (
+    STAY_KEY_DAILY_TRIES,
+    STAY_KEY_MAX_FAILURES,
+    LoginThrottle,
+    StayKeyThrottle,
+)
 from app.infrastructure.rate_limiter import _GUEST_BOOK
-from tests.test_login_throttle import FakeRedis
+from tests.test_login_throttle import BrokenRedis, FakeRedis
 from tests.test_property_services import COMPANY_ID, _make_property
 
 FLAT_CODE = "knz82cx"
@@ -177,12 +183,34 @@ async def test_a_flat_not_on_sale_or_a_wrong_code_is_not_found():
 
 
 def test_wrong_digits_lock_the_flat_after_a_few_tries():
-    throttle = LoginThrottle(FakeRedis(), prefix="stay_key_fail", max_failures=STAY_KEY_MAX_FAILURES)
+    redis = FakeRedis()
+    throttle = StayKeyThrottle(redis)
     waits = [throttle.attempt(FLAT_CODE) for _ in range(STAY_KEY_MAX_FAILURES + 1)]
     assert waits[:-1] == [0] * STAY_KEY_MAX_FAILURES and waits[-1] > 0
     # Another flat keeps its own count, and the login counter is apart too.
     assert throttle.attempt("vy4pfyw") == 0
-    assert LoginThrottle(throttle._redis).attempt(FLAT_CODE) == 0
+    assert LoginThrottle(redis).attempt(FLAT_CODE) == 0
+
+
+def test_a_flat_takes_only_so_many_guesses_a_day_and_the_right_digits_do_not_reset_them():
+    redis = FakeRedis()
+    throttle = StayKeyThrottle(redis)
+    allowed = 0
+    for _ in range(STAY_KEY_DAILY_TRIES * 2):
+        if throttle.attempt(FLAT_CODE) == 0:
+            allowed += 1
+        # The short lock is over (time passing, here by hand): the guesser comes back.
+        redis.delete("stay_key_fail:" + hashlib.sha256(FLAT_CODE.encode()).hexdigest()[:32])
+        # The guest opens their booking now and then: that clears the short count only.
+        throttle.succeeded(FLAT_CODE)
+    assert allowed == STAY_KEY_DAILY_TRIES
+    assert redis.ttls["stay_key_day:" + hashlib.sha256(FLAT_CODE.encode()).hexdigest()[:32]] == 86400
+
+
+def test_with_redis_down_the_digits_wait_and_logins_do_not():
+    for redis in (None, BrokenRedis()):
+        assert StayKeyThrottle(redis).attempt(FLAT_CODE) > 0
+        assert LoginThrottle(redis).attempt("owner@example.com") == 0
 
 
 def test_the_digits_count_against_the_guest_booking_limit_per_address():
@@ -199,7 +227,7 @@ async def test_the_endpoints_answer_and_lock(monkeypatch):
     stay = _stay(flat, ARINA, datetime.now() - timedelta(hours=2), datetime.now() + timedelta(hours=20))
     service = _service(flat, ARINA, stay)
     monkeypatch.setattr(public_api, "_stay_key", lambda session: service)
-    throttle = LoginThrottle(FakeRedis(), prefix="stay_key_fail", max_failures=STAY_KEY_MAX_FAILURES)
+    throttle = StayKeyThrottle(FakeRedis())
 
     async def _no_db():
         yield None

@@ -68,12 +68,12 @@ export function StayHereBanner({ code, whatsapp }: { code: string; whatsapp: str
           )}
         </p>
       )}
-      {open && <DigitsSheet code={code} onClose={() => setOpen(false)} />}
+      {open && <DigitsSheet code={code} whatsapp={whatsapp} onClose={() => setOpen(false)} />}
     </section>
   )
 }
 
-function DigitsSheet({ code, onClose }: { code: string; onClose: () => void }) {
+function DigitsSheet({ code, whatsapp, onClose }: { code: string; whatsapp: string | null; onClose: () => void }) {
   const { t } = useTranslation()
   const [digits, setDigits] = useState('')
   const [sending, setSending] = useState(false)
@@ -92,12 +92,12 @@ function DigitsSheet({ code, onClose }: { code: string; onClose: () => void }) {
       window.location.assign(`/g/${guest_code}`)
     } catch (e) {
       const res = isAxiosError(e) ? e.response : undefined
-      const minutes = Math.max(1, Math.ceil(Number(res?.headers?.['retry-after'] ?? 60) / 60))
+      // The lock runs from minutes to a day: the page names the ways round it, not a time.
       setError(
         res?.status === 403
           ? t('stayHere.wrong')
           : res?.status === 429
-            ? t('stayHere.locked', { minutes })
+            ? t('stayHere.locked')
             : res?.status === 409
               ? t('stayHere.nobody')
               : t('stayHere.failed'),
@@ -147,7 +147,16 @@ function DigitsSheet({ code, onClose }: { code: string; onClose: () => void }) {
             />
             <span className="text-xs text-gray-500">{t('stayHere.digitsHint')}</span>
           </label>
-          {error && <p role="alert" className="text-sm font-semibold text-amber-800">{error}</p>}
+          {error && (
+            <p role="alert" className="text-sm font-semibold text-amber-800">
+              {error}{' '}
+              {whatsapp && (
+                <a href={`https://wa.me/${whatsapp.replace(/\D/g, '')}`} className="underline">
+                  {t('stayHere.askHost')}
+                </a>
+              )}
+            </p>
+          )}
           <button
             type="submit"
             disabled={digits.length !== 4 || sending}

@@ -1791,7 +1791,7 @@
     "digitsHint": "Of the number the booking is under.",
     "submit": "Open",
     "wrong": "The digits do not match the booking. Check the number.",
-    "locked": "Too many tries. Try again in {{minutes}} min.",
+    "locked": "Too many tries. Open your booking from the link in your messages, or message the host.",
     "nobody": "Nobody has a booking in this flat now.",
     "noPhone": "Ask the host for the link to your booking.",
     "askHost": "Message the host",

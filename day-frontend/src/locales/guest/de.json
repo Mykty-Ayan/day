@@ -139,7 +139,7 @@
     "digitsHint": "Der Nummer, auf die gebucht wurde.",
     "submit": "Öffnen",
     "wrong": "Die Ziffern passen nicht zur Buchung. Prüfen Sie die Nummer.",
-    "locked": "Zu viele Versuche. Versuchen Sie es in {{minutes}} Min. erneut.",
+    "locked": "Zu viele Versuche. Öffnen Sie Ihre Buchung über den Link in Ihren Nachrichten oder schreiben Sie dem Gastgeber.",
     "nobody": "Für diese Wohnung gibt es gerade keine Buchung.",
     "noPhone": "Bitten Sie den Gastgeber um den Link zu Ihrer Buchung.",
     "askHost": "Gastgeber schreiben",

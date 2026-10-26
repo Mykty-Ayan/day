@@ -132,7 +132,7 @@
     "digitsHint": "Rezervasyonun yapıldığı numaranın.",
     "submit": "Aç",
     "wrong": "Rakamlar rezervasyonla eşleşmiyor. Numarayı kontrol edin.",
-    "locked": "Çok fazla deneme. {{minutes}} dk sonra tekrar deneyin.",
+    "locked": "Çok fazla deneme. Rezervasyonunuzu mesajdaki bağlantıdan açın veya ev sahibine yazın.",
     "nobody": "Şu anda bu dairede rezervasyon yok.",
     "noPhone": "Rezervasyon bağlantınızı ev sahibinden isteyin.",
     "askHost": "Ev sahibine yaz",
