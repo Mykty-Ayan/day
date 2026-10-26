@@ -224,3 +224,27 @@ export async function getGuestPanel(code: string): Promise<GuestPanel> {
 export async function markGuestLeft(code: string): Promise<void> {
   await publicClient.post(`/public/guest/${encodeURIComponent(code)}/checked-out`, null, { timeout: 8_000 })
 }
+
+/** Whether anyone stays in the flat now, for its page opened from a tag or a QR code
+ *  in the flat; mine: the booking code this device remembers is one of them. */
+export interface StayHere {
+  staying: boolean
+  /** The stay has a phone to check the digits against; if not, the guest asks the host. */
+  by_phone: boolean
+  mine: boolean
+  /** The phones of the stays going on now, last 4 digits hidden: "+7 (702) 377 ****". */
+  hints: string[]
+}
+
+export async function getStayHere(code: string, mine: string | null): Promise<StayHere> {
+  const res = await publicClient.get(`/public/stays/${encodeURIComponent(code)}/here`, {
+    params: mine ? { mine } : undefined,
+  })
+  return res.data
+}
+
+/** The last 4 digits of the guest's phone open their own page: /g/<guest_code>. */
+export async function unlockStay(code: string, digits: string): Promise<{ guest_code: string }> {
+  const res = await publicClient.post(`/public/stays/${encodeURIComponent(code)}/here`, { digits })
+  return res.data
+}

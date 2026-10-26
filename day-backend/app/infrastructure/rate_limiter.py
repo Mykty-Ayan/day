@@ -38,8 +38,11 @@ _ANONYMOUS_PREFIXES = ("/api/v1/public/", "/api/v1/calendar/")
 # A guest booking from a link or a flat's page holds a flat's dates for half an hour:
 # a handful a minute from one address is a family, more is someone closing a calendar.
 _GUEST_BOOK_LIMIT = 5
-# "I have left" and a minibar order on a guest's page share it too.
-_GUEST_BOOK = re.compile(r"^/api/v1/public/((stays|offers)/[^/]+/book|guest/[^/]+/(checked-out|orders))$")
+# "I have left" and a minibar order on a guest's page share it too, and so do the
+# phone digits that open a guest's page from the flat's.
+_GUEST_BOOK = re.compile(
+    r"^/api/v1/public/((stays|offers)/[^/]+/book|stays/[^/]+/here|guest/[^/]+/(checked-out|orders))$"
+)
 
 # Paths excluded from rate limiting
 _EXCLUDED_PATHS = {"/api/v1/health", "/health"}

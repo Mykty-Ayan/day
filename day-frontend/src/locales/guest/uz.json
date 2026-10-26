@@ -123,5 +123,19 @@
     "refused": "Bu sanalarni band qilib bo‘lmadi. Boshqasini tanlang yoki bizga yozing.",
     "tooMany": "Urinishlar juda ko‘p. Bir daqiqadan so‘ng qayta urining.",
     "nameNeeded": "Bron kimning nomiga ekanini yozing."
+  },
+  "stayHere": {
+    "title": "Shu yerda yashayapsizmi?",
+    "hint": "Eshik kodi, Wi-Fi, mini-bar va to'lov — bron sahifangizda.",
+    "open": "Bronimni ochish",
+    "digits": "Telefoningizning oxirgi 4 raqami",
+    "digitsHint": "Bron rasmiylashtirilgan raqamning.",
+    "submit": "Ochish",
+    "wrong": "Raqamlar bronga mos kelmadi. Raqamni tekshiring.",
+    "locked": "Urinishlar juda ko'p. Bronni xabardagi havola orqali oching yoki uy egasiga yozing.",
+    "nobody": "Hozir bu kvartirada bron yo'q.",
+    "noPhone": "Bron havolasini uy egasidan so'rang.",
+    "askHost": "Uy egasiga yozish",
+    "failed": "Bo'lmadi. Qayta urining."
   }
 }

@@ -1782,5 +1782,19 @@
     "cannotGetInHint": "Message us, we will help right away",
     "departureToday": "Check-out today by {{time}}",
     "helpHint": "Pick a topic: WhatsApp opens with the message ready."
+  },
+  "stayHere": {
+    "title": "Staying here?",
+    "hint": "The door code, Wi-Fi, minibar and payment are on your booking's page.",
+    "open": "Open my booking",
+    "digits": "The last 4 digits of your phone",
+    "digitsHint": "Of the number the booking is under.",
+    "submit": "Open",
+    "wrong": "The digits do not match the booking. Check the number.",
+    "locked": "Too many tries. Open your booking from the link in your messages, or message the host.",
+    "nobody": "Nobody has a booking in this flat now.",
+    "noPhone": "Ask the host for the link to your booking.",
+    "askHost": "Message the host",
+    "failed": "That did not work. Try again."
   }
 }

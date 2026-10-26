@@ -123,5 +123,19 @@
     "refused": "Bu tarihler ayrılamadı. Başka tarih seçin ya da bize yazın.",
     "tooMany": "Çok fazla deneme. Bir dakika sonra tekrar deneyin.",
     "nameNeeded": "Rezervasyonun yapılacağı adı yazın."
+  },
+  "stayHere": {
+    "title": "Burada mı kalıyorsunuz?",
+    "hint": "Kapı kodu, Wi-Fi, minibar ve ödeme rezervasyon sayfanızda.",
+    "open": "Rezervasyonumu aç",
+    "digits": "Telefonunuzun son 4 hanesi",
+    "digitsHint": "Rezervasyonun yapıldığı numaranın.",
+    "submit": "Aç",
+    "wrong": "Rakamlar rezervasyonla eşleşmiyor. Numarayı kontrol edin.",
+    "locked": "Çok fazla deneme. Rezervasyonunuzu mesajdaki bağlantıdan açın veya ev sahibine yazın.",
+    "nobody": "Şu anda bu dairede rezervasyon yok.",
+    "noPhone": "Rezervasyon bağlantınızı ev sahibinden isteyin.",
+    "askHost": "Ev sahibine yaz",
+    "failed": "Olmadı. Tekrar deneyin."
   }
 }

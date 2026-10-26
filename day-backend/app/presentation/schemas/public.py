@@ -262,3 +262,25 @@ class PublicOfferResponse(BaseModel):
             ],
             booking=PublicOfferBooking.from_hold(held) if held else None,
         )
+
+
+class StayHereResponse(BaseModel):
+    """Whether anyone stays in the flat now: the page offers "I am staying here" then."""
+
+    staying: bool
+    by_phone: bool
+    mine: bool
+    # The phones of the stays going on now, last 4 digits hidden: "+7 (702) 377 ****".
+    hints: list[str] = Field(default_factory=list)
+
+
+class StayKeyBody(BaseModel):
+    """The last 4 digits of the phone on the booking."""
+
+    digits: str = Field(pattern=r"^\d{4}$")
+
+
+class StayKeyResponse(BaseModel):
+    """The guest's own page: /g/<guest_code>."""
+
+    guest_code: str
