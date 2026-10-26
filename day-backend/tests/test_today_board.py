@@ -14,7 +14,7 @@ from app.domain.booking.entities import Booking, Guest
 from app.domain.booking.value_objects import BookingStatus
 from app.domain.property.entities import Property
 from app.main import app
-from tests.test_booking_feed import COMPANY_ID, NOW, _ById, _get, _Payments, _principal, _Session
+from tests.test_booking_feed import COMPANY_ID, NOW, _ById, _get, _NoTab, _Payments, _principal, _Session
 
 
 def _booking(check_in, check_out, status=BookingStatus.CONFIRMED, **kw):
@@ -34,7 +34,8 @@ async def _today(monkeypatch, rows, guests, props, paid):
     from app.presentation.api import deps
     from app.presentation.api.v1 import bookings
 
-    repos = {"booking": _Range(rows), "guest": _ById(guests), "property": _ById(props), "payment": _Payments(paid)}
+    repos = {"booking": _Range(rows), "guest": _ById(guests), "property": _ById(props), "payment": _Payments(paid),
+             "orders": _NoTab()}
     monkeypatch.setattr(bookings, "_repos", lambda session: repos)
     app.dependency_overrides[deps.get_session] = lambda: _Session()
     try:

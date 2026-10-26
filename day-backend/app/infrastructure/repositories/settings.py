@@ -19,6 +19,8 @@ def _model_to_settings(m: CompanySettingsModel) -> CompanySettings:
         default_currency=Currency(m.default_currency),
         default_language=Language(m.default_language),
         time_zone=m.time_zone,
+        secrets_lead_hours_daily=m.secrets_lead_hours_daily,
+        secrets_lead_hours_hourly=m.secrets_lead_hours_hourly,
         created_at=m.created_at,
         updated_at=m.updated_at,
     )
@@ -40,6 +42,8 @@ class SqlCompanySettingsRepository(CompanySettingsRepository):
             default_currency=settings.default_currency.value,
             default_language=settings.default_language.value,
             time_zone=settings.time_zone,
+            secrets_lead_hours_daily=settings.secrets_lead_hours_daily,
+            secrets_lead_hours_hourly=settings.secrets_lead_hours_hourly,
         )
         self._session.add(model)
         await self._session.flush()
@@ -54,6 +58,8 @@ class SqlCompanySettingsRepository(CompanySettingsRepository):
                 default_currency=settings.default_currency.value,
                 default_language=settings.default_language.value,
                 time_zone=settings.time_zone,
+                secrets_lead_hours_daily=settings.secrets_lead_hours_daily,
+                secrets_lead_hours_hourly=settings.secrets_lead_hours_hourly,
                 updated_at=datetime.utcnow(),
             )
         )

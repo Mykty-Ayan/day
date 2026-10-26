@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import secrets
 import uuid
 from dataclasses import dataclass, field
 from datetime import date, datetime
@@ -17,6 +18,15 @@ from app.domain.booking.value_objects import (
     PaymentType,
     RentalMode,
 )
+
+# Lower case letters and digits a reader cannot mix up, as in a flat's page link.
+_CODE_ALPHABET = "abcdefghjkmnpqrstuvwxyz23456789"
+
+
+def new_guest_code() -> str:
+    """The key to a guest's own page (/g/<code>): it shows the door code once the
+    stay is paid, so it is long enough that guessing one is out of reach."""
+    return "".join(secrets.choice(_CODE_ALPHABET) for _ in range(16))
 
 
 @dataclass
@@ -81,6 +91,8 @@ class Booking:
     # A pending booking with this set is a hold: a background sweep cancels it
     # once this moment (naive UTC) passes unless someone confirms it first.
     expires_at: datetime | None = None
+    # The guest's page link; the database gives one to every booking.
+    guest_code: str | None = None
     created_at: datetime | None = None
     updated_at: datetime | None = None
 

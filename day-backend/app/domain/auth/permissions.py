@@ -58,6 +58,10 @@ class Permission:
     # The company's money out: rent, utilities, staff. The owner's by default.
     EXPENSES_MANAGE = "expenses:manage"
 
+    # The minibar's catalogue, purchases and write-offs. Seeing the stock and
+    # handling guests' orders goes with bookings:read / bookings:write.
+    INVENTORY_MANAGE = "inventory:manage"
+
 
 ALL_PERMISSIONS: frozenset[str] = frozenset(
     value for name, value in vars(Permission).items() if not name.startswith("_") and isinstance(value, str)
@@ -77,6 +81,7 @@ _MANAGER_PERMISSIONS: frozenset[str] = frozenset(
         Permission.SETTINGS_READ,
         Permission.AI_IMPORT_WRITE,
         Permission.MESSAGING_SEND,
+        Permission.INVENTORY_MANAGE,
     }
 )
 

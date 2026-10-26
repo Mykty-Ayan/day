@@ -108,6 +108,7 @@ def _model_to_booking(m: BookingModel) -> Booking:
         idempotency_key=m.idempotency_key,
         idempotency_hash=m.idempotency_hash,
         expires_at=m.expires_at,
+        guest_code=m.guest_code,
         created_at=m.created_at,
         updated_at=m.updated_at,
     )
@@ -401,6 +402,10 @@ class SqlBookingRepository(BookingRepository):
 
     async def get_by_id(self, booking_id: uuid.UUID) -> Booking | None:
         result = await self._session.get(BookingModel, booking_id)
+        return _model_to_booking(result) if result else None
+
+    async def get_by_guest_code(self, code: str) -> Booking | None:
+        result = await self._session.scalar(select(BookingModel).where(BookingModel.guest_code == code))
         return _model_to_booking(result) if result else None
 
     async def get_for_update(self, booking_id: uuid.UUID) -> Booking | None:

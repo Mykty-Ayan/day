@@ -143,3 +143,84 @@ export async function bookStay(
   const res = await publicClient.post(`/public/stays/${encodeURIComponent(code)}/book`, { rental_mode: 'daily', ...body })
   return res.data
 }
+
+/** A guest's own page for their booking (/g/<code>). */
+export interface GuestPanel {
+  closed: boolean
+  /** The company's own day, YYYY-MM-DD: which buttons fit the stay. */
+  today: string
+  company: { title: string; logo_url: string | null; accent_color: string | null; whatsapp: string | null } | null
+  guest_name: string | null
+  booking: {
+    status: string
+    rental_mode: string
+    check_in: string
+    check_out: string
+    adults: number
+    total: number
+    paid: number
+    /** Minibar orders delivered on the guest's tab; part of remaining. */
+    orders_due?: number
+    remaining: number
+  } | null
+  flat: {
+    name: string
+    /** The listing's cover; null when the flat has no public photo. */
+    photo_url?: string | null
+    address: string | null
+    latitude: number | null
+    longitude: number | null
+    map_url: string | null
+    check_in_hour: number | null
+    check_out_hour: number | null
+    house_rules: string | null
+    check_out_instructions: string | null
+  } | null
+  /** Only for a confirmed or checked-in stay paid in full: the server decides. */
+  access: { instructions: string | null; wifi_name: string | null; wifi_password: string | null; facts: string[] } | null
+  /** Hours before check-in the way in opens, once the stay is paid. */
+  lead_hours: number
+  /** The minibar during the stay; null outside it. */
+  menu: MenuItem[] | null
+}
+
+export interface MenuItem {
+  id: string
+  name: string
+  category: string
+  description: string | null
+  photo_url: string | null
+  price: number
+  /** What may go in the cart: what is left, at most 20. */
+  max_quantity: number
+}
+
+export interface PlacedOrder {
+  number: number
+  total: number
+  /** wa.me with the order's text; null when the host gave no WhatsApp number. */
+  whatsapp_url: string | null
+}
+
+export async function placeGuestOrder(
+  code: string,
+  items: { product_id: string; quantity: number }[],
+  note: string | null,
+  language: 'ru' | 'kz' | 'en',
+): Promise<PlacedOrder> {
+  const res = await publicClient.post<PlacedOrder>(`/public/guest/${encodeURIComponent(code)}/orders`, {
+    items,
+    note,
+    language,
+  })
+  return res.data
+}
+
+export async function getGuestPanel(code: string): Promise<GuestPanel> {
+  return (await publicClient.get<GuestPanel>(`/public/guest/${encodeURIComponent(code)}`)).data
+}
+
+/** «I have left»: the host is told and the flat gets a cleaning task. */
+export async function markGuestLeft(code: string): Promise<void> {
+  await publicClient.post(`/public/guest/${encodeURIComponent(code)}/checked-out`, null, { timeout: 8_000 })
+}
