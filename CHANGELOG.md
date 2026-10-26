@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.8.0 — 2026-10-26
+
+The Telegram Mini App becomes the operator's phone app, and the bot keeps to notices and the assistant. A guest gets a page of their own booking with the way in once paid, and orders from the company's minibar; the owner keeps the minibar's stock on the web. Migrations 053–056 run on start; 055 gives every booking its guest link. No environment variable has to change.
+
+### Added
+- Mini App: a bottom bar (Today, Bookings, Sell, Flats, Money), the tab kept in the address. Bookings: upcoming, past and cancelled, search by guest, "Unpaid", a flat filter and 14 days of occupancy (#199, #201)
+- Mini App: edit a booking's dates, party, price and note; a typed price is confirmed, new dates on a system price ask "recalculate" or "keep" (#200)
+- Mini App: a flat's card — fields, photos, the base price and a price for a day, closed dates, off sale and back (#202)
+- Mini App: Money — what guests owe, payments, expenses and the month's totals (#203)
+- The minibar's stock on the web ("Stock"): products with photos and a restock threshold, purchases written as a "Minibar" expense, write-offs and counts, a "what to buy" list, guests' orders (#206–#208, #217)
+- A guest's own page `/g/<code>` in Russian, Kazakh and English: the stay, the address with Yandex, 2GIS and Google, what is left to pay, the check-in instructions, Wi-Fi and the flat's guest facts only once paid in full and from N hours before check-in (24 by the night, 1 by the hour, a company setting) until check-out, the rules, WhatsApp buttons with the message ready, and "I have left", which tells the host and books a cleaning (#209, #210, #219, #220)
+- The minibar on the guest's page: a menu with photos, a cart, an order recorded in Day and sent to the host's WhatsApp; hidden for Airbnb bookings. The host accepts, delivers paid or on the guest's tab, and marks a tab paid; the stock goes down on delivery (#211–#214, #216)
+- `guest_url` on bookings in the API and the booking feed, for those who may read check-in secrets (#215)
+
+### Changed
+- The bot answers no more commands (`/free`, `/today`, `/bookings`): notices, `/start`, `/stop` and the assistant stay; a change the assistant proposes opens the Mini App to confirm (#204)
+- A booking's price set by hand is 0 to 9 999 999 999.99 (#200)
+- What a guest owes counts minibar orders on the tab, in the Mini App, the web and the guest's page (#213, #216)
+
 ## 0.7.0 — 2026-10-25
 
 A company gets its own site for guests: a page with its flats, look and contacts, and a guest books a flat straight from the flat's page. The flat's page gets a new look in the company's color. Migration 052 runs on start. No environment variable has to change.
