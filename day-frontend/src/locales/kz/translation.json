@@ -1412,7 +1412,9 @@
     "allPhotos": "Барлық фото · {{count}}",
     "allAmenities": "Барлығын көрсету · {{count}}",
     "readMore": "Толық оқу",
-    "showLess": "Жию"
+    "showLess": "Жию",
+    "share": "Бөлісу",
+    "linkCopied": "Сілтеме көшірілді"
   },
   "guestOffer": {
     "hello": "{{name}}, міне сіздің күндеріңізге пәтерлер",

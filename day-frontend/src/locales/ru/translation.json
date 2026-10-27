@@ -1476,7 +1476,9 @@
     "allPhotos": "Все фото · {{count}}",
     "allAmenities": "Показать все · {{count}}",
     "readMore": "Читать полностью",
-    "showLess": "Свернуть"
+    "showLess": "Свернуть",
+    "share": "Поделиться",
+    "linkCopied": "Ссылка скопирована"
   },
   "guestOffer": {
     "hello": "{{name}}, вот квартиры на ваши даты",

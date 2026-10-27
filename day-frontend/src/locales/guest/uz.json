@@ -45,7 +45,9 @@
     "allPhotos": "Barcha suratlar · {{count}}",
     "allAmenities": "Hammasini ko'rsatish · {{count}}",
     "readMore": "To'liq o'qish",
-    "showLess": "Yig'ish"
+    "showLess": "Yig'ish",
+    "share": "Ulashish",
+    "linkCopied": "Havola nusxalandi"
   },
   "guestOffer": {
     "hello": "{{name}}, sanalaringiz uchun kvartiralar",

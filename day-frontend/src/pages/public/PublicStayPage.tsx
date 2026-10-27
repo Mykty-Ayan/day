@@ -2,7 +2,7 @@ import { useMemo, useState, type CSSProperties } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { addDays, format, parseISO } from 'date-fns'
-import { BedDouble, Building2, ChevronLeft, Images, KeyRound, LayoutGrid, MapPin, Ruler, Users, X } from 'lucide-react'
+import { BedDouble, Building2, ChevronLeft, Images, KeyRound, LayoutGrid, MapPin, Ruler, Share2, Users, X } from 'lucide-react'
 import { getPublicStay, type PublicOfferBooking, type PublicStay } from '../../api/public'
 import { isDayBlocked } from '../../lib/booking-dates'
 import { amenityIcon } from '../../lib/amenity-icons'
@@ -24,7 +24,7 @@ const AMENITIES_SHOWN = 8
 /** A flat's page for guests, opened by its link with no sign-in: what the flat is,
  *  what a night costs and which nights are free. */
 export default function PublicStayPage({ code }: { code: string }) {
-  return <GuestFrame>{(locale) => <Stay code={code} locale={locale} />}</GuestFrame>
+  return <GuestFrame overlay>{(locale) => <Stay code={code} locale={locale} />}</GuestFrame>
 }
 
 function Stay({ code, locale }: { code: string; locale: string }) {
@@ -140,27 +140,25 @@ function StayView({ stay, locale, today }: { stay: PublicStay; locale: string; t
         ) : (
           <div className="aspect-[16/9] w-full" aria-hidden />
         )}
-        <div className="absolute inset-x-0 top-0 flex items-center justify-between gap-2 p-3">
-          {stay.company ? (
-            <a href={`/c/${stay.company.slug}`} className="flex h-10 min-w-0 items-center gap-1.5 rounded-full bg-white/85 pe-3.5 ps-2 text-sm font-semibold text-gray-900 shadow-sm backdrop-blur-md">
-              <ChevronLeft className="h-5 w-5 shrink-0 rtl:rotate-180" aria-hidden />
-              {stay.company.logo_url && <img src={stay.company.logo_url} alt="" className="h-6 w-6 rounded-full object-cover" />}
-              <span className="truncate">{t('guestStay.allFlats')}</span>
+        {/* The language picker floats at the top end (GuestFrame overlay); these take the start. */}
+        <div className="absolute start-0 top-0 z-10 flex h-16 items-center gap-2 px-4">
+          {stay.company && (
+            <a href={`/c/${stay.company.slug}`} aria-label={t('guestStay.allFlats')} className="flex h-10 w-10 items-center justify-center rounded-full bg-black/30 text-white ring-1 ring-white/25 backdrop-blur-md">
+              <ChevronLeft className="h-5 w-5 rtl:rotate-180" aria-hidden />
             </a>
-          ) : (
-            <span />
           )}
-          {stay.photos.length > 1 && (
-            <button type="button" onClick={() => setGallery(true)} className="flex h-10 shrink-0 items-center gap-1.5 rounded-full bg-white/85 px-3.5 text-sm font-semibold text-gray-900 shadow-sm backdrop-blur-md">
+          <ShareButton title={stay.name} />
+        </div>
+        {stay.photos.length > 1 && (
+          <div className="absolute inset-x-0 bottom-12 flex items-center justify-between px-4">
+            <button type="button" onClick={() => setGallery(true)} className="flex h-10 items-center gap-1.5 rounded-full px-3.5 text-sm font-semibold bg-black/30 text-white ring-1 ring-white/25 backdrop-blur-md">
               <Images className="h-4 w-4" aria-hidden />
               {t('guest.allPhotos', { count: stay.photos.length })}
             </button>
-          )}
-        </div>
-        {stay.photos.length > 1 && (
-          <span dir="ltr" className="absolute bottom-12 end-4 rounded-full bg-black/55 px-2.5 py-1 text-xs font-semibold text-white backdrop-blur-md">
-            {photo + 1} / {stay.photos.length}
-          </span>
+            <span dir="ltr" className="rounded-full bg-black/45 px-2.5 py-1 text-xs font-semibold text-white backdrop-blur-md">
+              {photo + 1} / {stay.photos.length}
+            </span>
+          </div>
         )}
       </section>
 
@@ -169,7 +167,7 @@ function StayView({ stay, locale, today }: { stay: PublicStay; locale: string; t
         {stay.complex_name && (
           <span dir="auto" className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--accent)]">{stay.complex_name}</span>
         )}
-        <h1 dir="auto" className="text-[30px] font-extrabold leading-[1.1] tracking-tight">{stay.name}</h1>
+        <h1 dir="auto" className="font-guest-display text-[32px] font-bold leading-[1.1] tracking-tight">{stay.name}</h1>
       </section>
 
       {/* Opened from a tag or a QR code in the flat: the guest staying now opens their booking. */}
@@ -216,14 +214,14 @@ function StayView({ stay, locale, today }: { stay: PublicStay; locale: string; t
 
       {stay.description && (
         <section className="flex flex-col gap-2 px-5 pt-8">
-          <h2 className="text-[22px] font-bold tracking-tight">{t('guest.about')}</h2>
+          <h2 className="font-guest-display text-[22px] font-bold tracking-tight">{t('guest.about')}</h2>
           <LongText text={stay.description} />
         </section>
       )}
 
       {stay.amenities.length > 0 && (
         <section className="flex flex-col gap-3 px-5 pt-8">
-          <h2 className="text-[22px] font-bold tracking-tight">{t('guest.amenities')}</h2>
+          <h2 className="font-guest-display text-[22px] font-bold tracking-tight">{t('guest.amenities')}</h2>
           <ul className="grid grid-cols-2 gap-x-3 gap-y-3">
             {(allAmenities ? stay.amenities : stay.amenities.slice(0, AMENITIES_SHOWN)).map((a) => {
               const Icon = amenityIcon(a.name, a.category)
@@ -251,7 +249,7 @@ function StayView({ stay, locale, today }: { stay: PublicStay; locale: string; t
 
       {stay.nights.length > 0 && (
         <section id="dates" className="flex scroll-mt-4 flex-col gap-4 px-5 pt-8">
-          <h2 className="text-[22px] font-bold tracking-tight">{t('guest.freeDates')}</h2>
+          <h2 className="font-guest-display text-[22px] font-bold tracking-tight">{t('guest.freeDates')}</h2>
           {months.map((month) => (
             <div key={month.getMonth()} className="flex flex-col gap-2">
               <h3 className="text-base font-semibold capitalize">
@@ -260,7 +258,7 @@ function StayView({ stay, locale, today }: { stay: PublicStay; locale: string; t
               <div className="grid grid-cols-7 text-center text-xs text-gray-600">
                 {t('guest.weekdays').split(' ').map((d) => <span key={d}>{d}</span>)}
               </div>
-              <div className="grid grid-cols-7 gap-0.5">
+              <div className="grid grid-cols-7 gap-y-1">
                 {fromThisWeek(monthCells(month.getFullYear(), month.getMonth()), today).map((day, n) => {
                   if (!day) return <span key={`blank-${n}`} />
                   // Past the next taken night a free day is not a check-out, but it can start a new stay.
@@ -278,8 +276,8 @@ function StayView({ stay, locale, today }: { stay: PublicStay; locale: string; t
                       onClick={() => pick(day)}
                       aria-pressed={Boolean(edge || inside)}
                       aria-label={`${dayLabel.format(parseISO(day))}${taken.has(day) && day >= today ? `, ${t('guest.taken')}` : ''}`}
-                      className={`flex h-12 flex-col items-center justify-center gap-0.5 rounded-lg text-[15px] ${
-                        edge ? 'bg-[var(--accent)] text-[var(--on-accent)]' : inside ? 'bg-gray-100' : ''
+                      className={`flex h-12 flex-col items-center justify-center gap-0.5 text-[15px] ${
+                        edge ? 'rounded-full bg-[var(--accent)] font-semibold text-[var(--on-accent)]' : inside ? 'bg-stone-100' : 'rounded-full'
                       } ${disabled ? (day < today ? 'text-gray-300' : 'text-gray-400 line-through') : ''}`}
                     >
                       {Number(day.slice(8))}
@@ -314,7 +312,7 @@ function StayView({ stay, locale, today }: { stay: PublicStay; locale: string; t
 
       {(stay.rental_mode !== 'hourly' || stay.check_in_method) && (
         <section className="flex flex-col gap-3 px-5 pt-8">
-          <h2 className="text-[22px] font-bold tracking-tight">{t('guest.checkInTitle')}</h2>
+          <h2 className="font-guest-display text-[22px] font-bold tracking-tight">{t('guest.checkInTitle')}</h2>
           {stay.rental_mode !== 'hourly' && (
           <div className="grid grid-cols-2 gap-2">
             {stay.check_in_hour != null && (
@@ -344,13 +342,13 @@ function StayView({ stay, locale, today }: { stay: PublicStay; locale: string; t
 
       {stay.house_rules && (
         <section className="flex flex-col gap-2 px-5 pt-8">
-          <h2 className="text-[22px] font-bold tracking-tight">{t('guest.rules')}</h2>
+          <h2 className="font-guest-display text-[22px] font-bold tracking-tight">{t('guest.rules')}</h2>
           <LongText text={stay.house_rules} />
         </section>
       )}
 
       <section className="flex flex-col gap-3 px-5 pt-8">
-        <h2 className="text-[22px] font-bold tracking-tight">{t('guest.location')}</h2>
+        <h2 className="font-guest-display text-[22px] font-bold tracking-tight">{t('guest.location')}</h2>
         <div className="flex items-start gap-3 rounded-[24px] bg-stone-50 p-4">
           <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white text-[var(--accent)]">
             <MapPin className="h-5 w-5" aria-hidden />
@@ -459,6 +457,38 @@ function LongText({ text }: { text: string }) {
         <button type="button" onClick={() => setOpen((o) => !o)} className="h-11 self-start text-sm font-semibold underline underline-offset-4">
           {open ? t('guest.showLess') : t('guest.readMore')}
         </button>
+      )}
+    </>
+  )
+}
+
+// The flat's own link, never the one from a tag in the flat (?nfc): a friend gets the listing.
+function ShareButton({ title }: { title: string }) {
+  const { t } = useTranslation()
+  const [copied, setCopied] = useState(false)
+  async function share() {
+    const url = `${window.location.origin}${window.location.pathname}`
+    try {
+      if (navigator.share) {
+        await navigator.share({ title, url })
+        return
+      }
+      await navigator.clipboard.writeText(url)
+      setCopied(true)
+      window.setTimeout(() => setCopied(false), 2000)
+    } catch {
+      // The guest closed the share sheet, or the browser refused: nothing to undo.
+    }
+  }
+  return (
+    <>
+      <button type="button" onClick={() => void share()} aria-label={t('guest.share')} className="flex h-10 w-10 items-center justify-center rounded-full bg-black/30 text-white ring-1 ring-white/25 backdrop-blur-md">
+        <Share2 className="h-[18px] w-[18px]" aria-hidden />
+      </button>
+      {copied && (
+        <span role="status" className="fixed inset-x-0 top-4 z-overlay mx-auto w-fit rounded-full bg-gray-900 px-4 py-2 text-sm font-semibold text-white shadow-lg">
+          {t('guest.linkCopied')}
+        </span>
       )}
     </>
   )

@@ -83,7 +83,7 @@ function OfferView({ offer, locale, onRefresh }: { offer: PublicOffer; locale: s
   return (
     <main className="flex flex-col gap-6 px-4 pb-10 pt-6">
       <section className="flex flex-col gap-3 px-1">
-        <h1 className="text-[28px] font-extrabold leading-[1.15] tracking-tight">
+        <h1 className="font-guest-display text-[30px] font-bold leading-[1.15] tracking-tight">
           {offer.guest ? t('guestOffer.hello', { name: offer.guest }) : t('guestOffer.title')}
         </h1>
         <p className="flex flex-wrap gap-2 text-sm font-medium">

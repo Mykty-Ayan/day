@@ -45,7 +45,9 @@
     "allPhotos": "Tüm fotoğraflar · {{count}}",
     "allAmenities": "Tümünü göster · {{count}}",
     "readMore": "Devamını oku",
-    "showLess": "Daha az göster"
+    "showLess": "Daha az göster",
+    "share": "Paylaş",
+    "linkCopied": "Bağlantı kopyalandı"
   },
   "guestOffer": {
     "hello": "{{name}}, tarihleriniz için daireler",

@@ -45,7 +45,9 @@
     "allPhotos": "사진 전체 · {{count}}",
     "allAmenities": "모두 보기 · {{count}}",
     "readMore": "더 읽기",
-    "showLess": "접기"
+    "showLess": "접기",
+    "share": "공유",
+    "linkCopied": "링크가 복사되었습니다"
   },
   "guestOffer": {
     "hello": "{{name}}님, 원하시는 날짜의 숙소입니다",

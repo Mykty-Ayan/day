@@ -48,6 +48,19 @@ function savedLanguage(): string | null {
  *  language (the phone's, or the one picked here) below. `only`: a page written in
  *  fewer languages offers just those, and English for any other. `overlay`: the
  *  picker floats over the page's own header photo instead of a bar above it. */
+// The guest pages' heading font: loaded with the first guest page, never by the operator's app.
+const DISPLAY_FONT = 'https://fonts.googleapis.com/css2?family=Onest:wght@600;700&display=swap'
+
+function useDisplayFont() {
+  useEffect(() => {
+    if (document.querySelector(`link[href="${DISPLAY_FONT}"]`)) return
+    const link = document.createElement('link')
+    link.rel = 'stylesheet'
+    link.href = DISPLAY_FONT
+    document.head.appendChild(link)
+  }, [])
+}
+
 export function GuestFrame({
   children,
   only,
@@ -58,6 +71,7 @@ export function GuestFrame({
   overlay?: boolean
 }) {
   const { t } = useTranslation()
+  useDisplayFont()
   const languages = only ? LANGUAGES.filter((l) => only.includes(l.code)) : LANGUAGES
   const [language, setLanguage] = useState<GuestLanguage>(() => {
     const picked = guestLanguage(savedLanguage(), typeof navigator === 'undefined' ? null : navigator.language)

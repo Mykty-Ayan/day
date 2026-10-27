@@ -23,6 +23,12 @@ body {
   min-height: 100vh;
 }
 
+/* Headings of the guest pages: Onest, drawn for Cyrillic, with the Kazakh letters
+   (cyrillic-ext); loaded by GuestFrame only, scripts it lacks fall to the system's. */
+.font-guest-display {
+  font-family: 'Onest', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+}
+
 .safe-area-top {
   padding-top: env(safe-area-inset-top);
 }
