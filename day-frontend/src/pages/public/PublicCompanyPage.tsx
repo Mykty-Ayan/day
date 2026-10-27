@@ -51,7 +51,7 @@ function CompanyView({ company, locale }: { company: PublicCompany; locale: stri
       </section>
 
       <section aria-labelledby="company-flats" className="mt-8 flex flex-col gap-4 px-3">
-        <h2 id="company-flats" className="font-guest-display px-2 text-[24px] font-semibold tracking-tight">
+        <h2 id="company-flats" className="font-guest-display px-2 text-[22px] font-bold tracking-tight">
           {t('guestCompany.flats', { count: company.flats.length })}
         </h2>
         {company.flats.length === 0 && <p className="px-2 text-base text-gray-600">{t('guestCompany.noFlats')}</p>}
@@ -128,7 +128,7 @@ function HeroSection({ company, accent }: { company: PublicCompany; accent: stri
           {company.logo_url && (
             <img src={company.logo_url} alt="" className="h-14 w-14 rounded-2xl border-2 border-white/80 bg-white object-cover" />
           )}
-          <h1 dir="auto" className="font-guest-display text-[34px] font-semibold leading-[1.1] tracking-tight text-white">{company.title}</h1>
+          <h1 dir="auto" className="font-guest-display text-[34px] font-bold leading-[1.1] tracking-tight text-white">{company.title}</h1>
         </div>
       </div>
     </section>

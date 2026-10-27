@@ -167,7 +167,7 @@ function StayView({ stay, locale, today }: { stay: PublicStay; locale: string; t
         {stay.complex_name && (
           <span dir="auto" className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--accent)]">{stay.complex_name}</span>
         )}
-        <h1 dir="auto" className="font-guest-display text-[32px] font-semibold leading-[1.1] tracking-tight">{stay.name}</h1>
+        <h1 dir="auto" className="font-guest-display text-[32px] font-bold leading-[1.1] tracking-tight">{stay.name}</h1>
       </section>
 
       {/* Opened from a tag or a QR code in the flat: the guest staying now opens their booking. */}
@@ -214,14 +214,14 @@ function StayView({ stay, locale, today }: { stay: PublicStay; locale: string; t
 
       {stay.description && (
         <section className="flex flex-col gap-2 px-5 pt-8">
-          <h2 className="font-guest-display text-[24px] font-semibold tracking-tight">{t('guest.about')}</h2>
+          <h2 className="font-guest-display text-[22px] font-bold tracking-tight">{t('guest.about')}</h2>
           <LongText text={stay.description} />
         </section>
       )}
 
       {stay.amenities.length > 0 && (
         <section className="flex flex-col gap-3 px-5 pt-8">
-          <h2 className="font-guest-display text-[24px] font-semibold tracking-tight">{t('guest.amenities')}</h2>
+          <h2 className="font-guest-display text-[22px] font-bold tracking-tight">{t('guest.amenities')}</h2>
           <ul className="grid grid-cols-2 gap-x-3 gap-y-3">
             {(allAmenities ? stay.amenities : stay.amenities.slice(0, AMENITIES_SHOWN)).map((a) => {
               const Icon = amenityIcon(a.name, a.category)
@@ -249,7 +249,7 @@ function StayView({ stay, locale, today }: { stay: PublicStay; locale: string; t
 
       {stay.nights.length > 0 && (
         <section id="dates" className="flex scroll-mt-4 flex-col gap-4 px-5 pt-8">
-          <h2 className="font-guest-display text-[24px] font-semibold tracking-tight">{t('guest.freeDates')}</h2>
+          <h2 className="font-guest-display text-[22px] font-bold tracking-tight">{t('guest.freeDates')}</h2>
           {months.map((month) => (
             <div key={month.getMonth()} className="flex flex-col gap-2">
               <h3 className="text-base font-semibold capitalize">
@@ -312,7 +312,7 @@ function StayView({ stay, locale, today }: { stay: PublicStay; locale: string; t
 
       {(stay.rental_mode !== 'hourly' || stay.check_in_method) && (
         <section className="flex flex-col gap-3 px-5 pt-8">
-          <h2 className="font-guest-display text-[24px] font-semibold tracking-tight">{t('guest.checkInTitle')}</h2>
+          <h2 className="font-guest-display text-[22px] font-bold tracking-tight">{t('guest.checkInTitle')}</h2>
           {stay.rental_mode !== 'hourly' && (
           <div className="grid grid-cols-2 gap-2">
             {stay.check_in_hour != null && (
@@ -342,13 +342,13 @@ function StayView({ stay, locale, today }: { stay: PublicStay; locale: string; t
 
       {stay.house_rules && (
         <section className="flex flex-col gap-2 px-5 pt-8">
-          <h2 className="font-guest-display text-[24px] font-semibold tracking-tight">{t('guest.rules')}</h2>
+          <h2 className="font-guest-display text-[22px] font-bold tracking-tight">{t('guest.rules')}</h2>
           <LongText text={stay.house_rules} />
         </section>
       )}
 
       <section className="flex flex-col gap-3 px-5 pt-8">
-        <h2 className="font-guest-display text-[24px] font-semibold tracking-tight">{t('guest.location')}</h2>
+        <h2 className="font-guest-display text-[22px] font-bold tracking-tight">{t('guest.location')}</h2>
         <div className="flex items-start gap-3 rounded-[24px] bg-stone-50 p-4">
           <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white text-[var(--accent)]">
             <MapPin className="h-5 w-5" aria-hidden />

@@ -49,7 +49,7 @@ function savedLanguage(): string | null {
  *  fewer languages offers just those, and English for any other. `overlay`: the
  *  picker floats over the page's own header photo instead of a bar above it. */
 // The guest pages' heading font: loaded with the first guest page, never by the operator's app.
-const DISPLAY_FONT = 'https://fonts.googleapis.com/css2?family=Lora:wght@500;600&display=swap'
+const DISPLAY_FONT = 'https://fonts.googleapis.com/css2?family=Onest:wght@600;700&display=swap'
 
 function useDisplayFont() {
   useEffect(() => {
