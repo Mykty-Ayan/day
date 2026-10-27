@@ -49,7 +49,7 @@ const ICONS: Record<PanelButton, typeof Wallet> = {
  *  in once paid, the address, the rules, the minibar, and a way to write to the host. */
 export default function GuestPanelPage({ code }: { code: string }) {
   return (
-    <GuestFrame only={['ru', 'kz', 'en']} overlay>
+    <GuestFrame only={['ru', 'kz', 'en']} overlay personal>
       {(locale) => <Panel code={code} locale={locale} />}
     </GuestFrame>
   )

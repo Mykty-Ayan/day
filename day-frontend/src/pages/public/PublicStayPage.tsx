@@ -6,6 +6,7 @@ import { BedDouble, Building2, ChevronLeft, Images, KeyRound, LayoutGrid, MapPin
 import { getPublicStay, type PublicOfferBooking, type PublicStay } from '../../api/public'
 import { isDayBlocked } from '../../lib/booking-dates'
 import { amenityIcon } from '../../lib/amenity-icons'
+import { MASK } from '../../lib/clarity'
 import { fromThisWeek, money, monthCells, onAccent, openedInFlat, retryNetwork, stayQuote } from '../../lib/public-stay'
 import { GuestFrame, LoadFailed } from './GuestFrame'
 import { BookBar, BookSheet, HeldView } from './StayBooking'
@@ -115,7 +116,7 @@ function StayView({ stay, locale, today }: { stay: PublicStay; locale: string; t
 
   if (held) {
     return (
-      <main style={accent}>
+      <main style={accent} {...MASK}>
         <HeldView booking={held} locale={locale} />
       </main>
     )

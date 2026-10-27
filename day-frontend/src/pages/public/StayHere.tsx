@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { isAxiosError } from 'axios'
 import { KeyRound, X } from 'lucide-react'
 import { getStayHere, unlockStay } from '../../api/public'
+import { MASK } from '../../lib/clarity'
 import { retryNetwork } from '../../lib/public-stay'
 
 // The booking this device opened from the flat's page: the next tap goes straight there.
@@ -146,7 +147,7 @@ function DigitsSheet({
             <span className="text-sm font-semibold">{t('stayHere.digits')}</span>
             {/* Which number is meant: the stay's phone, its last 4 digits hidden. */}
             {hints.map((hint) => (
-              <span key={hint} dir="ltr" className="text-lg font-bold tabular-nums tracking-wide">{hint}</span>
+              <span key={hint} dir="ltr" {...MASK} className="text-lg font-bold tabular-nums tracking-wide">{hint}</span>
             ))}
             <input
               value={digits}

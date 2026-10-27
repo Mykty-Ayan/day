@@ -10,7 +10,7 @@ import { GuestFrame, LoadFailed } from './GuestFrame'
 /** A guest's personal link from aidyn: the flats for the guest's dates, each with
  *  what the stay costs and whether it is still free. */
 export default function PublicOfferPage({ code }: { code: string }) {
-  return <GuestFrame>{(locale) => <Offer code={code} locale={locale} />}</GuestFrame>
+  return <GuestFrame personal>{(locale) => <Offer code={code} locale={locale} />}</GuestFrame>
 }
 
 function Offer({ code, locale }: { code: string; locale: string }) {
