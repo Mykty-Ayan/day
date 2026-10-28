@@ -1088,7 +1088,7 @@
       "payment": "Payment",
       "record": "Record",
       "sendGuest": "To guest",
-      "messageHead": "{{name}}, welcome!",
+      "messageHead": "Hello, {{name}}! Welcome.",
       "block": "block {{value}}",
       "flat": "flat {{value}}",
       "floor": "floor {{value}}",
@@ -1120,7 +1120,7 @@
       "notReceived": "Confirming {{amount}} has not landed yet. Press retry: the money will not count twice.",
       "receiveGone": "The {{amount}} payment no longer waits for confirmation; the attempt is cleared.",
       "guestLink": "Link for the guest",
-      "guestLinkText": "Hello, {{name}}! Your booking page: {{url}}\nThe address, payment, house rules and the minibar are there. The door code appears there as soon as the stay is paid in full.",
+      "guestLinkText": "Hello, {{name}}! Your booking page: {{url}}\nThe address, payment, house rules and the minibar are there. The door code appears there once the stay is paid in full, closer to check-in.",
       "ordersDue": "Of which minibar orders on the tab: {{amount}}"
     },
     "cleaning": {
@@ -1390,9 +1390,9 @@
     "floorOf": "Floor {{floor}} of {{total}}",
     "perNight": "per night",
     "hourly": "By the hour: {{price}} an hour",
-    "deposit": "Deposit {{price}}, returned after check-out",
-    "nightDeposit": "Deposit for nightly stays {{price}}, returned after check-out",
-    "hourDeposit": "Deposit for hourly stays {{price}}, returned after check-out",
+    "deposit": "Deposit {{price}}, returned within a day after check-out",
+    "nightDeposit": "Deposit for nightly stays {{price}}, returned within a day after check-out",
+    "hourDeposit": "Deposit for hourly stays {{price}}, returned within a day after check-out",
     "freeDates": "Free dates",
     "weekdays": "Mo Tu We Th Fr Sa Su",
     "taken": "taken",
@@ -1407,7 +1407,7 @@
     "checkOut": "Check-out",
     "from": "from {{hour}}:00",
     "until": "until {{hour}}:00",
-    "checkInHow": "{{method}}. We send the code or key after booking.",
+    "checkInHow": "{{method}}. How to get in will be on your booking page.",
     "rules": "House rules",
     "location": "Location",
     "addressAfter": "We send the exact address and how to find the building after booking.",
@@ -1429,7 +1429,7 @@
     "linkCopied": "Link copied"
   },
   "guestOffer": {
-    "hello": "{{name}}, here are flats for your dates",
+    "hello": "Hello, {{name}}. Here are flats for your dates",
     "title": "Flats for your dates",
     "guests_one": "{{count}} guest",
     "guests_other": "{{count}} guests",
@@ -1444,7 +1444,7 @@
     "expired": "The dates of this link have passed. Write to us and we will find new ones.",
     "choose": "Choose",
     "hold": "Pick one and we hold it for you for 30 minutes.",
-    "lapsed": "The booking's time ran out before the payment came. Choose a flat again."
+    "lapsed": "We held the dates for you, but the deposit did not arrive in time. Choose a flat again."
   },
   "guestBook": {
     "back": "All flats",
@@ -1474,7 +1474,7 @@
     "noDeposit": "We check the dates and confirm the booking in a few minutes.",
     "step1": "The invoice comes to Kaspi, in notifications.",
     "step2": "Pay the {{deposit}} deposit. We return it after check-out.",
-    "step3": "Once paid, we send the address, entrance and code on WhatsApp.",
+    "step3": "The address and the way to the door will be on your booking page. The door code — once paid in full, closer to check-in.",
     "confirmed": "Booking confirmed",
     "confirmedNext": "We send the address, entrance and how to get in on WhatsApp before check-in.",
     "nightsAtCheckIn": "The nights, {{total}}, are paid at check-in",
@@ -1728,7 +1728,7 @@
       "cleaning": "Cleaning or fresh linen",
       "broken": "Something is broken",
       "documents": "Documents for my records",
-      "checkedOut": "I have checked out",
+      "checkedOut": "Tell the host I left",
       "question": "Ask a question"
     },
     "wa": {
@@ -1741,7 +1741,7 @@
       "cleaning": "I need cleaning / fresh linen.",
       "broken": "Something isn't working: ",
       "documents": "I need documents for my records (receipt, statement) for the stay.",
-      "checkedOut": "I have checked out. Keys: "
+      "checkedOut": "We have checked out. Keys: "
     },
     "minibar": {
       "title": "Minibar",
@@ -1798,7 +1798,7 @@
     "submit": "Open",
     "wrong": "The digits do not match the booking. Check the number.",
     "locked": "Too many tries. Open your booking from the link in your messages, or message the host.",
-    "nobody": "Nobody has a booking in this flat now.",
+    "nobody": "Nobody has a booking in this flat now. Open your booking from the link in your message or write to the host.",
     "noPhone": "Ask the host for the link to your booking.",
     "askHost": "Message the host",
     "failed": "That did not work. Try again."
