@@ -17,7 +17,7 @@ test.describe('Booking Edit - E2E', () => {
   ) {
     await page.goto(`/bookings/${bookingId}`)
     await page.waitForLoadState('networkidle')
-    await page.getByRole('button', { name: /edit/i }).click()
+    await page.getByRole('button', { name: 'Edit', exact: true }).click()
     await expect(page).toHaveURL(new RegExp(`/bookings/${bookingId}/edit$`))
   }
 

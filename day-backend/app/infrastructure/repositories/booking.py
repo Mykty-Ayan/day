@@ -302,6 +302,18 @@ class SqlGuestRepository(GuestRepository):
         result = await self._session.get(GuestModel, guest_id)
         return _model_to_guest(result) if result else None
 
+    async def update(self, guest: Guest) -> Guest:
+        model = await self._session.scalar(
+            select(GuestModel).where(GuestModel.id == guest.id, GuestModel.company_id == guest.company_id)
+        )
+        if model is None:
+            raise LookupError("Guest not found")
+        model.name = guest.name
+        model.phone = guest.phone
+        await self._session.flush()
+        await self._session.refresh(model)
+        return _model_to_guest(model)
+
     async def get_by_company(
         self,
         company_id: uuid.UUID,

@@ -89,7 +89,7 @@ async def tenants():
 
     try:
         yield SimpleNamespace(call=call, new_task=new_task, prop_id=prop_id, their_task=their_task,
-                              mine=mine, theirs=theirs, ghost=ghost)
+                              mine=mine, theirs=theirs, ghost=ghost, maker=maker, company=mine_company)
     finally:
         app.dependency_overrides.pop(get_session, None)
         app.dependency_overrides.pop(get_principal, None)
@@ -154,6 +154,36 @@ async def test_a_task_is_assigned_to_a_cleaner_of_the_callers_company(tenants):
     assert response.status_code == 200, response.text
     assert response.json()["cleaner_id"] == str(tenants.mine)
     assert response.json()["status"] == "assigned"
+
+
+async def test_the_cleaner_is_told_in_telegram_when_a_cleaning_is_given_to_them(tenants):
+    from sqlalchemy import select
+
+    from app.infrastructure.models.messaging import ChannelIdentityModel, OutboundNotificationModel
+
+    chat = str(uuid.uuid4().int)[:12]
+    async with tenants.maker() as session:
+        session.add(ChannelIdentityModel(company_id=tenants.company, channel="telegram", external_id=chat,
+                                          user_id=tenants.mine))
+        await session.commit()
+
+    created = await tenants.call("POST", "/cleaning", {"property_id": str(tenants.prop_id),
+                                                       "cleaner_id": str(tenants.mine), "scheduled_date": "2026-10-31"})
+    assert created.status_code == 201, created.text
+    assert (await tenants.call("POST", "/cleaning", {"property_id": str(tenants.prop_id)})).status_code == 201
+    task_id = await tenants.new_task("pending")
+    assigned = await tenants.call("POST", f"/cleaning/{task_id}/assign", {"cleaner_id": str(tenants.mine)})
+    assert assigned.status_code == 200, assigned.text
+
+    async with tenants.maker() as session:
+        queued = (await session.scalars(
+            select(OutboundNotificationModel).where(OutboundNotificationModel.company_id == tenants.company)
+        )).all()
+    assert [(n.event, n.target, n.payload["user_id"]) for n in queued] == [
+        ("cleaning_assigned", chat, str(tenants.mine))
+    ] * 2
+    assert {n.payload["task_id"] for n in queued} == {created.json()["id"], str(task_id)}
+    assert {n.payload["date"] for n in queued} == {"31.10.2026", "14.10.2026"}
 
 
 # ---------- report (a manager files it on a cleaner's behalf) ----------
