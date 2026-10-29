@@ -11,6 +11,7 @@ import {
   cartLines,
   cartTotal,
   changeCart,
+  guestMayCancel,
   minibarPending,
   orderState,
 } from '../../src/lib/minibar-cart'
@@ -79,4 +80,6 @@ test('ordered to be added to the booking and not yet delivered is owed on top of
   expect(orderState(order(1, 'awaiting_payment', 'invoice'))).toBe('confirmed')
   expect(orderState({ ...order(1, 'awaiting_payment', 'invoice'), invoiced: true })).toBe('invoiced')
   expect(orderState(order(1, 'accepted', 'booking'))).toBe('accepted')
+  // The guest may call off what waits for the host or for the invoice's payment.
+  expect(orders.filter(guestMayCancel).map((o) => o.total)).toEqual([100, 12800])
 })

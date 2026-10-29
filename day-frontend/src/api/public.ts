@@ -226,6 +226,11 @@ export interface PlacedOrder {
   whatsapp_url: string | null
 }
 
+/** The guest calls off their own order while it is new or awaiting the invoice's payment. */
+export async function cancelOwnOrder(code: string, number: number): Promise<void> {
+  await publicClient.post(`/public/guest/${encodeURIComponent(code)}/orders/${number}/cancel`)
+}
+
 export async function placeGuestOrder(
   code: string,
   items: { product_id: string; quantity: number }[],

@@ -3,8 +3,8 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { isAxiosError } from 'axios'
 import { useTranslation } from 'react-i18next'
 import { Minus, Package, Plus, ShoppingBag, X } from 'lucide-react'
-import { placeGuestOrder, type GuestBilling, type GuestPanel, type MenuItem, type PlacedOrder } from '../../api/public'
-import { byCategory, cartCount, cartLines, cartTotal, changeCart, orderState, type Cart } from '../../lib/minibar-cart'
+import { cancelOwnOrder, placeGuestOrder, type GuestBilling, type GuestPanel, type MenuItem, type PlacedOrder } from '../../api/public'
+import { byCategory, cartCount, cartLines, cartTotal, changeCart, guestMayCancel, orderState, type Cart } from '../../lib/minibar-cart'
 import { money } from '../../lib/public-stay'
 
 /** The minibar on the guest's page: the menu by category, a cart, and the order,
@@ -56,6 +56,14 @@ export function GuestMinibar({
     },
     onError: () => void queryClient.invalidateQueries({ queryKey: ['guest-panel', code] }),
   })
+  const callOff = useMutation({
+    mutationFn: (number: number) => cancelOwnOrder(code, number),
+    // Cancelled, or already past that: the list reads anew either way.
+    onSettled: () => void queryClient.invalidateQueries({ queryKey: ['guest-panel', code] }),
+  })
+  function cancel(number: number) {
+    if (window.confirm(t('guestPanel.minibar.cancelAsk', { number }))) callOff.mutate(number)
+  }
   const status = isAxiosError(order.error) ? order.error.response?.status : undefined
   const detail = isAxiosError(order.error) ? String(order.error.response?.data?.detail ?? '') : ''
   const failure = !order.isError
@@ -162,6 +170,11 @@ export function GuestMinibar({
       {orders.length > 0 && (
         <div className="mt-5 space-y-2 border-t border-gray-100 pt-4">
           <h3 className="text-[13px] font-semibold uppercase tracking-wider text-gray-400">{t('guestPanel.minibar.yourOrders')}</h3>
+          {callOff.isError && (
+            <p role="alert" className="text-sm text-red-600">
+              {t('guestPanel.minibar.cancelFailed')}
+            </p>
+          )}
           {orders.map((o) => (
             <div key={o.number} data-testid="guest-order" className="flex justify-between gap-3 text-[15px]">
               <div className="min-w-0">
@@ -174,6 +187,16 @@ export function GuestMinibar({
                 >
                   {t(`guestPanel.minibar.state.${orderState(o)}`)}
                 </span>
+                {guestMayCancel(o) && (
+                  <button
+                    type="button"
+                    onClick={() => cancel(o.number)}
+                    disabled={callOff.isPending}
+                    className="ms-3 text-[13px] font-semibold text-gray-500 underline disabled:opacity-50"
+                  >
+                    {t('guestPanel.minibar.cancel')}
+                  </button>
+                )}
               </div>
               <span className="shrink-0 font-semibold tabular-nums">{money(o.total, locale)}</span>
             </div>

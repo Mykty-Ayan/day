@@ -90,7 +90,7 @@ export interface GuestOrder {
   guest_note: string | null
   /** null until delivered; on_booking: on the guest's tab, to be paid later. */
   payment_status: 'paid' | 'on_booking' | null
-  payment_method: 'cash' | 'card' | 'transfer' | null
+  payment_method: 'cash' | 'card' | 'transfer' | 'kaspi' | null
   property_name: string | null
   guest_name: string | null
   created_at: string | null

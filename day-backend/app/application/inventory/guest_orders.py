@@ -222,6 +222,29 @@ class GuestOrderService:
     async def list(self, company_id: uuid.UUID, *, status: OrderStatus | None = None) -> Sequence[GuestOrder]:
         return await self._orders.list(company_id, status=status)
 
+    async def cancel_by_guest(self, code: str, number: int) -> PlacedOrder:
+        """The guest calls off their own order, while it waits for the host or for
+        the invoice's payment and nothing is paid. LookupError for another booking's
+        order or a wrong code; ValueError when it is past that."""
+        booking = await self._bookings.get_by_guest_code(code) if len(code) == 16 else None
+        if booking is None:
+            raise LookupError("Not found")
+        found = [o for o in await self._orders.list_for_booking(booking.company_id, booking.id) if o.number == number]
+        if not found:
+            raise LookupError("Order not found")
+        order = found[0]
+        if order.payment_status is not None:
+            raise ValueError("The order is paid or on the tab")
+        order.status, order.cancelled_at = OrderStatus.CANCELLED, datetime.utcnow()
+        moved = await self._orders.move(
+            booking.company_id, order.id, {OrderStatus.NEW, OrderStatus.AWAITING_PAYMENT}, order
+        )
+        if moved is None:
+            raise ValueError("The host has the order on its way")
+        prop = await self._properties.get_by_id(booking.property_id)
+        flat = prop.name if prop and prop.company_id == booking.company_id else ""
+        return PlacedOrder(order=moved, flat_name=flat, whatsapp_url=None)
+
     async def list_for_booking(self, company_id: uuid.UUID, booking_id: uuid.UUID) -> Sequence[GuestOrder]:
         return await self._orders.list_for_booking(company_id, booking_id)
 

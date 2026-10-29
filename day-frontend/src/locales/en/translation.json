@@ -1346,12 +1346,14 @@
       "pay": {
         "cash": "Cash",
         "card": "Card",
-        "transfer": "Transfer"
+        "transfer": "Transfer",
+        "kaspi": "Kaspi"
       },
       "paid": {
         "cash": "Paid in cash",
         "card": "Paid by card",
-        "transfer": "Paid by transfer"
+        "transfer": "Paid by transfer",
+        "kaspi": "Paid via Kaspi"
       },
       "onTab": "On the tab: not paid",
       "paidHow": "Paid by:",
@@ -1366,7 +1368,8 @@
       "invoicePaid": "Invoice paid",
       "invoicePaidAsk": "Order #{{number}} paid by invoice: {{amount}}?",
       "delivered": "Delivered",
-      "deliverAsk": "Order #{{number}} delivered?"
+      "deliverAsk": "Order #{{number}} delivered?",
+      "cancelPaidAsk": "Order #{{number}} is paid. You return the money to the guest yourself. Cancel it?"
     }
   },
   "auth": {
@@ -1731,7 +1734,8 @@
       "payments": {
         "cash": "cash",
         "card": "card",
-        "transfer": "transfer"
+        "transfer": "transfer",
+        "kaspi": "Kaspi"
       },
       "onTab": "on the tab",
       "billing": {
@@ -1813,7 +1817,10 @@
         "accepted": "On its way",
         "delivered": "Delivered",
         "cancelled": "Cancelled"
-      }
+      },
+      "cancel": "Cancel",
+      "cancelAsk": "Cancel order #{{number}}?",
+      "cancelFailed": "Could not cancel: the order is paid or on its way. Write to the host."
     },
     "ordersDue": "Minibar · {{amount}} · with the booking",
     "trip": "Your trip",

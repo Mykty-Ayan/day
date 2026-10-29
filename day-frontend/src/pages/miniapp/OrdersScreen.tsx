@@ -27,7 +27,7 @@ import { formatMoney, formatTime } from './format'
 import { ActionButton, Section } from './miniapp-ui'
 import { splitOrders } from './orders'
 
-const PAYMENTS: OrderPayment[] = ['cash', 'card', 'transfer']
+const PAYMENTS: OrderPayment[] = ['kaspi', 'cash', 'card', 'transfer']
 
 export default function OrdersScreen({ enabled, linkedId }: { enabled: boolean; linkedId: string | null }) {
   const { t, i18n } = useTranslation()
@@ -100,13 +100,12 @@ export default function OrdersScreen({ enabled, linkedId }: { enabled: boolean; 
                 {t('miniapp.orders.invoiceSent')}
               </ActionButton>
             )}
-            {/* Kaspi Pay: recorded as a transfer. */}
             <ActionButton
               tone="primary"
               disabled={busy}
               onClick={() =>
                 settle(t('miniapp.orders.invoicePaidAsk', { number: order.number, amount: money(order.total) }), () =>
-                  payGuestOrder(order.id, 'transfer'),
+                  payGuestOrder(order.id, 'kaspi'),
                 )
               }
             >
@@ -121,7 +120,7 @@ export default function OrdersScreen({ enabled, linkedId }: { enabled: boolean; 
             onClick={async () => {
               if (await confirmAction(t('miniapp.orders.deliverAsk', { number: order.number }))) {
                 // Paid by its invoice: the server keeps the payment as it was.
-                act.mutate(() => deliverGuestOrder(order.id, order.payment_method ?? 'transfer'))
+                act.mutate(() => deliverGuestOrder(order.id, order.payment_method ?? 'kaspi'))
               }
             }}
           >
@@ -135,7 +134,7 @@ export default function OrdersScreen({ enabled, linkedId }: { enabled: boolean; 
           <>
             <p className="text-xs font-bold text-red-600">{t('miniapp.orders.onTab')}</p>
             <p className="tg-hint text-xs font-bold uppercase tracking-wide">{t('miniapp.orders.paidHow')}</p>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-2 gap-2">
               {PAYMENTS.map((payment) => (
                 <ActionButton key={payment} disabled={busy} onClick={() =>
                     settle(
@@ -195,7 +194,9 @@ export default function OrdersScreen({ enabled, linkedId }: { enabled: boolean; 
             <ActionButton
               disabled={busy}
               onClick={async () => {
-                if (await confirmAction(t('miniapp.orders.cancelAsk', { number: order.number }))) {
+                // Paid already (by its invoice): the money goes back to the guest by hand.
+                const ask = order.payment_status === 'paid' ? 'miniapp.orders.cancelPaidAsk' : 'miniapp.orders.cancelAsk'
+                if (await confirmAction(t(ask, { number: order.number }))) {
                   act.mutate(() => cancelGuestOrder(order.id))
                 }
               }}

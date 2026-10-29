@@ -37,6 +37,10 @@ export function minibarPending(orders: GuestPanelOrder[]): number {
     .reduce((sum, o) => sum + o.total, 0)
 }
 
+/** The guest may still call it off: waiting for the host or for the invoice's payment, unpaid. */
+export const guestMayCancel = (order: GuestPanelOrder) =>
+  (order.status === 'new' || order.status === 'awaiting_payment') && !order.payment_status
+
 /** The order's state for the guest, as a key under guestPanel.minibar.state. */
 export function orderState(order: GuestPanelOrder): string {
   if (order.status === 'awaiting_payment') return order.invoiced ? 'invoiced' : 'confirmed'

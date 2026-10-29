@@ -216,6 +216,29 @@ test('with both ways the guest chooses, sees the orders state and owes the booki
   expect(sent.map((body) => body.billing)).toEqual(['booking'])
 })
 
+test('the guest calls off an order still waiting, after a yes; the host has the rest', async ({ page }) => {
+  const cancelled: string[] = []
+  await page.route(`**/api/v1/public/guest/${CODE}/orders/*/cancel`, async (route) => {
+    cancelled.push(new URL(route.request().url()).pathname)
+    await route.fulfill({ json: { number: 8, status: 'cancelled' } })
+  })
+  const orders = [
+    { number: 8, status: 'awaiting_payment', billing: 'invoice', payment_status: null, invoiced: true, total: 1200, lines: ['Кола 0,5'] },
+    { number: 7, status: 'accepted', billing: 'invoice', payment_status: 'paid', invoiced: true, total: 600, lines: ['Арахис'] },
+  ]
+  await open(page, answer({ menu: MENU, orders }, { paid: 40000, remaining: 0 }))
+  const listed = page.getByRole('region', { name: 'Мини-бар' }).getByTestId('guest-order')
+  await expect(listed.last().getByRole('button', { name: 'Отменить' })).toHaveCount(0)
+  const asked: string[] = []
+  page.once('dialog', (dialog) => {
+    asked.push(dialog.message())
+    void dialog.accept()
+  })
+  await listed.first().getByRole('button', { name: 'Отменить' }).click()
+  await expect.poll(() => cancelled).toEqual([`/api/v1/public/guest/${CODE}/orders/8/cancel`])
+  expect(asked).toEqual(['Отменить заказ №8?'])
+})
+
 test('outside the hours the guest sees when ordering opens and cannot send', async ({ page }) => {
   const minibar = { billings: ['invoice'], opens: '10:00:00', closes: '02:00:00', open_now: false }
   await open(page, answer({ menu: MENU, minibar }))

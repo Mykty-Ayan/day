@@ -4,7 +4,8 @@ import apiClient from './client'
 export type OrderStatus = 'new' | 'awaiting_payment' | 'accepted' | 'delivered' | 'cancelled'
 /** How the guest chose to pay: a Kaspi invoice before delivery, or with the booking. */
 export type OrderBilling = 'invoice' | 'booking'
-export type OrderPayment = 'cash' | 'card' | 'transfer'
+/** kaspi: the Kaspi invoice the host sent to the guest's phone. */
+export type OrderPayment = 'cash' | 'card' | 'transfer' | 'kaspi'
 /** null until delivered; on_booking: on the guest's tab, paid later. */
 export type OrderPaymentStatus = 'paid' | 'on_booking' | null
 

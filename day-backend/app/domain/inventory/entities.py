@@ -88,11 +88,13 @@ class OrderPaymentStatus(str, enum.Enum):
 
 
 class OrderPayment(str, enum.Enum):
-    """How the guest paid at the door: apart from the booking's money."""
+    """How the guest paid the order: apart from the booking's money."""
 
     CASH = "cash"
     CARD = "card"
     TRANSFER = "transfer"
+    # The Kaspi invoice the host sent to the guest's phone.
+    KASPI = "kaspi"
 
 
 @dataclass

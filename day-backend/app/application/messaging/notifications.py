@@ -136,6 +136,13 @@ def render(event: NotificationEvent, payload: dict) -> str:
             lines.append("Создана задача уборки.")
         lines.append("Проверьте квартиру и отметьте выезд в карточке брони.")
         return "\n".join(lines)
+    if event == NotificationEvent.GUEST_ORDER_CANCELLED:
+        return "\n".join(
+            [
+                f"❌ <b>Гость отменил заказ №{payload.get('number', '—')}</b>",
+                f"Объект: {payload.get('property_name', '—')}",
+            ]
+        )
     if event == NotificationEvent.GUEST_ORDER:
         lines = [
             f"🛒 <b>Новый заказ №{payload.get('number', '—')}</b>",
@@ -267,7 +274,7 @@ class NotificationDispatcher:
         order_id = notification.payload.get("order_id")
         if not (self._mini_app_url or "").startswith("https://") or not notification.target.isdigit():
             return None
-        if notification.event == NotificationEvent.GUEST_ORDER and order_id:
+        if notification.event in (NotificationEvent.GUEST_ORDER, NotificationEvent.GUEST_ORDER_CANCELLED) and order_id:
             return [AppButton("Открыть заказ", f"{self._mini_app_url}?order={order_id}")]
         if notification.event not in _BOOKING_EVENTS or not booking_id:
             return None
