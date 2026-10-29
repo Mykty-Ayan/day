@@ -19,7 +19,7 @@ import type { Booking } from '../../types/booking'
 import ExpenseSheet from './ExpenseSheet'
 import { formatDay, formatMoney } from './format'
 import { ActionButton, BookingRow, Chip, Section } from './miniapp-ui'
-import { debts, owed, periodRange, received, type MoneyPeriod } from './money'
+import { debts, metricsRange, owed, periodRange, received, type MoneyPeriod } from './money'
 import { readAllPages } from './tabs'
 
 export default function MoneyScreen({
@@ -39,7 +39,7 @@ export default function MoneyScreen({
 
   const metrics = useQuery({
     queryKey: ['miniapp', 'money', 'metrics', range.date_from],
-    queryFn: () => getAnalyticsMetrics({ ...range, period: 'custom' }),
+    queryFn: () => getAnalyticsMetrics({ ...metricsRange(period, today), period: 'custom' }),
     enabled,
   })
   const bookings = useQuery({
