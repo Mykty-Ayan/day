@@ -66,6 +66,13 @@ def reads_bookings(user: User | None) -> bool:
     return user is not None and user.is_active and Permission.BOOKINGS_READ in permissions_for_role(user.role)
 
 
+# How the guest chose to pay a minibar order, and what the host does next.
+_ORDER_BILLING = {
+    "invoice": "Оплата по счёту: подтвердите заказ и выставьте счёт Kaspi на номер гостя",
+    "booking": "Оплата с бронью: подтвердите заказ и везите",
+}
+
+
 def render(event: NotificationEvent, payload: dict) -> str:
     """Turn an event into the message a host reads.
 
@@ -148,6 +155,9 @@ def render(event: NotificationEvent, payload: dict) -> str:
         ]
         if payload.get("note"):
             lines.append(f"Комментарий: {payload['note']}")
+        billing = _ORDER_BILLING.get(payload.get("billing", ""))
+        if billing:
+            lines.append(billing)
         return "\n".join(line for line in lines if line)
 
     if event == NotificationEvent.CALENDAR_CLASH:
