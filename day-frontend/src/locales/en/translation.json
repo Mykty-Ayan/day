@@ -1025,6 +1025,7 @@
     "departures": "Departures",
     "inHouse": "Staying now",
     "until": "until",
+    "rowOrders": "minibar {{amount}} of it",
     "freeProperties": "Free properties",
     "noPrice": "no price",
     "upcoming": "Next {{days}} days",

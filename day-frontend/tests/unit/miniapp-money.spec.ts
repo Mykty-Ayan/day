@@ -4,7 +4,7 @@
  */
 
 import { expect, test } from '@playwright/test'
-import { debts, periodRange, received } from '../../src/pages/miniapp/money'
+import { debts, periodRange, received, rowDebt } from '../../src/pages/miniapp/money'
 import { tabFromSearch } from '../../src/pages/miniapp/tabs'
 import type { Booking } from '../../src/types/booking'
 
@@ -40,6 +40,15 @@ test('payments add up what guests paid, a cancelled stay counts for nothing', ()
   expect(result.items.map((booking) => booking.id)).toEqual(['big', 'small'])
   expect(result.total).toBe(35000)
   expect(debts([stay('gone', 30000, 0, { status: 'cancelled' })]).total).toBe(0)
+})
+
+test('a row of the today screen shows the stay and the minibar orders owed, and their part', () => {
+  expect(rowDebt(stay('stay', 30000, 10000))).toEqual({ total: 20000, orders: 0 })
+  expect(rowDebt(stay('both', 30000, 10000, { orders_due: 4500 }))).toEqual({ total: 24500, orders: 4500 })
+  // Paid for the nights, the minibar still on the tab.
+  expect(rowDebt(stay('orders', 30000, 30000, { orders_due: 4500 }))).toEqual({ total: 4500, orders: 4500 })
+  expect(rowDebt(stay('paid', 30000, 30000))).toBeNull()
+  expect(rowDebt(stay('gone', 30000, 0, { status: 'cancelled', orders_due: 4500 }))).toBeNull()
 })
 
 test('the money tab and the ask screen open from a link', () => {

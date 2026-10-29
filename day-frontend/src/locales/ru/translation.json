@@ -1059,6 +1059,7 @@
     "departures": "Выезды",
     "inHouse": "Проживают",
     "until": "до",
+    "rowOrders": "из них мини-бар {{amount}}",
     "freeProperties": "Свободные объекты",
     "noPrice": "нет цены",
     "upcoming": "Ближайшие {{days}} дней",
