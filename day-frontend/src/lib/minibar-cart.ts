@@ -28,15 +28,6 @@ export function byCategory(menu: MenuItem[]): [string, MenuItem[]][] {
   return [...groups]
 }
 
-/** Minibar orders to be added to the booking and not yet delivered: owed before
- *  check-out, though the server counts in what is left only the ones delivered on
- *  the tab (orders_due). */
-export function minibarPending(orders: GuestPanelOrder[]): number {
-  return orders
-    .filter((o) => o.billing === 'booking' && (o.status === 'new' || o.status === 'accepted') && !o.payment_status)
-    .reduce((sum, o) => sum + o.total, 0)
-}
-
 /** The guest may still call it off: waiting for the host or for the invoice's payment, unpaid. */
 export const guestMayCancel = (order: GuestPanelOrder) =>
   (order.status === 'new' || order.status === 'awaiting_payment') && !order.payment_status

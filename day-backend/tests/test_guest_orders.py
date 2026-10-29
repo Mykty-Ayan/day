@@ -77,9 +77,11 @@ class FakeOrders:
     async def due_by_bookings(self, company_id, booking_ids):
         return {}
 
-    async def move(self, company_id, order_id, allowed, order):
+    async def move(self, company_id, order_id, allowed, order, was):
         stored = await self.get(company_id, order_id)
-        if stored is None or stored.status not in allowed:
+        if stored is None or stored.status not in allowed or stored.payment_status != was:
+            return None
+        if stored.payment_status == OrderPaymentStatus.PAID and order.payment_status != OrderPaymentStatus.PAID:
             return None
         self.rows[order_id] = order
         return order
@@ -615,7 +617,16 @@ async def test_the_company_sets_the_ways_to_pay_and_the_hours_and_the_guest_foll
     assert placed.status_code == 201, placed.text
     [order] = (await client.get("/api/v1/guest-orders")).json()
     assert order["billing"] == "booking"
+    # Not confirmed yet: not owed. Confirmed: owed with the stay, in the booking and on the guest's page alike.
+    owed = lambda: client.get(f"/api/v1/bookings/{booking}")  # noqa: E731
+    assert (await owed()).json()["booking"]["orders_due"] in (0, None)
     assert (await client.post(f"/api/v1/guest-orders/{order['id']}/accept")).json()["status"] == "accepted"
+    assert (await owed()).json()["booking"]["orders_due"] == 800
+    page = (await client.get(f"/api/v1/public/guest/{code}")).json()["booking"]
+    assert (page["orders_due"], page["remaining"]) == (800, page["total"] - page["paid"] + 800)
+    # Delivered without payment: still owed once.
+    await client.post(f"/api/v1/guest-orders/{order['id']}/deliver", json={"payment_status": "on_booking"})
+    assert (await owed()).json()["booking"]["orders_due"] == 800
 
     # Closed the hour before now and open the hour after: no order now.
     hour = datetime.now(ZoneInfo("Asia/Almaty")).hour
@@ -723,3 +734,53 @@ async def test_the_guest_cancels_from_the_page_and_the_host_is_told(flat):  # no
     assert (await client.post(f"/api/v1/public/guest/{mine}/orders/2/cancel")).status_code == 409
     page = (await client.get(f"/api/v1/public/guest/{mine}")).json()["orders"]
     assert [(o["number"], o["status"]) for o in page] == [(2, "accepted"), (1, "cancelled")]
+
+
+# ---------- two hands at once ----------
+
+
+async def _stale_then(svc, order_id, act):
+    """Hand A reads the order; hand B acts; A's next step runs on what it read."""
+    stale = await svc._orders.get(COMPANY_ID, order_id)
+    await act()
+    read = svc._get
+
+    async def _old(company_id, oid):
+        svc._get = read
+        return copy.deepcopy(stale)
+
+    svc._get = _old
+
+
+async def test_delivering_on_the_tab_after_another_hand_took_the_kaspi_payment_is_refused():
+    svc, orders, movements, _, cola, _ = await _setup()
+    order = (await svc.place(CODE, [(cola.id, 1)], None, "ru", NOW)).order
+    await svc.accept(COMPANY_ID, order.id, None)
+    await _stale_then(svc, order.id, lambda: svc.mark_paid(COMPANY_ID, order.id, OrderPayment.KASPI, None))
+    with pytest.raises(ValueError):
+        await svc.deliver(COMPANY_ID, order.id, None, None)
+    kept = orders.rows[order.id]
+    assert (kept.status, kept.payment_status, kept.payment_method) == (
+        OrderStatus.ACCEPTED, OrderPaymentStatus.PAID, OrderPayment.KASPI
+    )
+    assert not [m for m in movements.rows if m.kind == MovementKind.SALE]
+    # Read afresh, the delivery keeps the payment.
+    done = await svc.deliver(COMPANY_ID, order.id, None, None)
+    assert (done.status, done.payment_status, done.payment_method) == (
+        OrderStatus.DELIVERED, OrderPaymentStatus.PAID, OrderPayment.KASPI
+    )
+
+
+async def test_a_cancel_after_the_payment_is_refused_and_a_fresh_one_keeps_it_paid():
+    svc, orders, *_, cola, _ = await _setup()
+    order = (await svc.place(CODE, [(cola.id, 1)], None, "ru", NOW)).order
+    await svc.accept(COMPANY_ID, order.id, None)
+    await _stale_then(svc, order.id, lambda: svc.mark_paid(COMPANY_ID, order.id, OrderPayment.KASPI, None))
+    # The hand that read it unpaid must read again, and then sees it paid (the warning).
+    with pytest.raises(ValueError):
+        await svc.cancel(COMPANY_ID, order.id, None)
+    assert orders.rows[order.id].status == OrderStatus.ACCEPTED
+    off = await svc.cancel(COMPANY_ID, order.id, None)
+    assert (off.status, off.payment_status, off.payment_method) == (
+        OrderStatus.CANCELLED, OrderPaymentStatus.PAID, OrderPayment.KASPI
+    )

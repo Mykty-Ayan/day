@@ -26,7 +26,6 @@ import {
 import { getGuestPanel, markGuestLeft, type GuestPanel } from '../../api/public'
 import { accessOpensAt, accessTimeReached, mapLinks, nightsOf, panelButtons, stageOf, waLink, type PanelButton } from '../../lib/guest-panel'
 import { money, onAccent, retryNetwork } from '../../lib/public-stay'
-import { minibarPending } from '../../lib/minibar-cart'
 import { GuestFrame, LoadFailed } from './GuestFrame'
 import { GuestMinibar } from './GuestMinibar'
 
@@ -178,11 +177,10 @@ function PanelView({ code, panel, locale }: { code: string; panel: GuestPanel; l
   const maps = flat ? [...(flat.map_url ? [{ name: t('guestPanel.map'), url: flat.map_url }] : []), ...mapLinks(flat)] : []
   const opensAt = accessOpensAt(panel)
   const paidInFull = b ? b.paid >= b.total : false
-  // Minibar orders with the booking: the ones delivered on the tab are in remaining
-  // already; the ones not yet delivered are owed before check-out all the same.
-  const pending = minibarPending(panel.orders ?? [])
-  const minibarDue = (b?.orders_due ?? 0) + pending
-  const due = (b?.remaining ?? 0) + pending
+  // What is owed for the minibar is the server's figure, part of remaining: one rule
+  // for the guest's page, the Mini App and the booking card.
+  const minibarDue = b?.orders_due ?? 0
+  const due = b?.remaining ?? 0
   const timeReached = accessTimeReached(panel, new Date().toTimeString().slice(0, 5))
 
   function message(key: PanelButton): string {

@@ -27,7 +27,8 @@ class GuestPanelBooking(BaseModel):
     adults: int
     total: float
     paid: float
-    # Minibar orders on the guest's tab; part of remaining.
+    # Minibar orders owed with the stay (confirmed with the booking, or delivered on
+    # the tab; unpaid); part of remaining.
     orders_due: float = 0
     remaining: float
 

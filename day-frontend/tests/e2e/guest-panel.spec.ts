@@ -183,7 +183,7 @@ test('during the stay the guest fills a cart, sends the order and WhatsApp opens
   ])
 })
 
-test('with both ways the guest chooses, sees the orders state and owes the booking ones with the stay', async ({ page }) => {
+test('with both ways the guest chooses, sees the orders state and reads what is owed from the server', async ({ page }) => {
   const sent: { billing?: string }[] = []
   await page.route(`**/api/v1/public/guest/${CODE}/orders`, async (route) => {
     sent.push(route.request().postDataJSON())
@@ -191,20 +191,22 @@ test('with both ways the guest chooses, sees the orders state and owes the booki
   })
   const orders = [
     { number: 8, status: 'new', billing: 'booking', payment_status: null, invoiced: false, total: 1200, lines: ['Кола 0,5', 'Арахис'] },
+    { number: 6, status: 'accepted', billing: 'booking', payment_status: null, invoiced: false, total: 800, lines: ['Кола 0,5'] },
     { number: 7, status: 'awaiting_payment', billing: 'invoice', payment_status: null, invoiced: true, total: 600, lines: ['Арахис'] },
   ]
   const minibar = { billings: ['invoice', 'booking'], opens: null, closes: null, open_now: true }
-  await open(page, answer({ menu: MENU, minibar, orders }, { paid: 40000, remaining: 0 }))
+  // The server owes the confirmed one (№6), not the new one (№8).
+  await open(page, answer({ menu: MENU, minibar, orders }, { paid: 40000, orders_due: 800, remaining: 800 }))
 
   const region = page.getByRole('region', { name: 'Мини-бар' })
   const listed = region.getByTestId('guest-order')
-  await expect(listed).toHaveCount(2)
+  await expect(listed).toHaveCount(3)
   await expect(listed.first()).toContainText('К оплате с бронью до выезда')
   await expect(listed.first()).toContainText('Ждём подтверждения')
   await expect(listed.last()).toContainText('Счёт в Kaspi, оплатите')
-  // Paid stay, an order with the booking not yet delivered: owed before check-out.
-  await expect(page.getByTestId('guest-remaining')).toContainText('1 200')
-  await expect(page.getByTestId('guest-minibar-due')).toHaveText('Мини-бар · 1 200 ₸ · с бронью')
+  // The page shows the server's figure and adds nothing of its own.
+  await expect(page.getByTestId('guest-remaining')).toHaveText('800 ₸')
+  await expect(page.getByTestId('guest-minibar-due')).toHaveText('Мини-бар · 800 ₸ · с бронью')
 
   await region.getByRole('button', { name: 'Добавить: Кола 0,5' }).click()
   await region.getByRole('button', { name: /Корзина: 1 шт\./ }).click()

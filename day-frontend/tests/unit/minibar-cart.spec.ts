@@ -12,7 +12,6 @@ import {
   cartTotal,
   changeCart,
   guestMayCancel,
-  minibarPending,
   orderState,
 } from '../../src/lib/minibar-cart'
 
@@ -55,7 +54,7 @@ test('the menu reads by category in the host order', () => {
   ])
 })
 
-test('ordered to be added to the booking and not yet delivered is owed on top of what is left', () => {
+test('an order\'s state for the guest, and which ones the guest may still call off', () => {
   const order = (total: number, status: Order['status'], billing: Order['billing'], payment_status: Order['payment_status'] = null): Order => ({
     number: total,
     status,
@@ -75,8 +74,6 @@ test('ordered to be added to the booking and not yet delivered is owed on top of
     order(6400, 'delivered', 'booking', 'paid'),
     order(12800, 'awaiting_payment', 'invoice'),
   ]
-  // The ones on the tab are in what the server says is left already (orders_due).
-  expect(minibarPending(orders)).toBe(300)
   expect(orderState(order(1, 'awaiting_payment', 'invoice'))).toBe('confirmed')
   expect(orderState({ ...order(1, 'awaiting_payment', 'invoice'), invoiced: true })).toBe('invoiced')
   expect(orderState(order(1, 'accepted', 'booking'))).toBe('accepted')

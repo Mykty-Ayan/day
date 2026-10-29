@@ -159,7 +159,7 @@ export interface GuestPanel {
     adults: number
     total: number
     paid: number
-    /** Minibar orders delivered on the guest's tab; part of remaining. */
+    /** Minibar orders owed with the stay, by the server's one rule; part of remaining. */
     orders_due?: number
     remaining: number
   } | null

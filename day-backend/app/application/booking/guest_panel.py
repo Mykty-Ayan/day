@@ -65,7 +65,7 @@ class GuestPanel:
     guest_name: str | None = None
     flat: Property | None = None
     paid: Decimal = Decimal("0")
-    # Minibar orders delivered on the guest's tab: owed on top of the stay.
+    # Minibar orders owed with the stay (the repository's one rule): on top of it.
     orders_due: Decimal = Decimal("0")
     access: GuestAccess | None = None
     # How many hours before check-in the way in opens, once paid: for the page's hint.

@@ -6,7 +6,7 @@ from collections.abc import Sequence
 from datetime import datetime
 from decimal import Decimal
 
-from app.domain.inventory.entities import GuestOrder, OrderStatus, Product, StockMovement
+from app.domain.inventory.entities import GuestOrder, OrderPaymentStatus, OrderStatus, Product, StockMovement
 
 
 class ProductRepository(abc.ABC):
@@ -68,11 +68,21 @@ class GuestOrderRepository(abc.ABC):
     async def due_by_bookings(
         self, company_id: uuid.UUID, booking_ids: Sequence[uuid.UUID]
     ) -> dict[uuid.UUID, Decimal]:
-        """What each booking's guest owes for orders delivered on the tab (on_booking)."""
+        """What each booking's guest owes for minibar orders with the stay: delivered
+        on the tab (on_booking), or to be added to the booking and confirmed by the
+        host (accepted, delivered); never paid, never cancelled. A new order is not
+        owed yet. The one rule every screen reads."""
 
     @abc.abstractmethod
     async def move(
-        self, company_id: uuid.UUID, order_id: uuid.UUID, allowed: set[OrderStatus], order: GuestOrder
+        self,
+        company_id: uuid.UUID,
+        order_id: uuid.UUID,
+        allowed: set[OrderStatus],
+        order: GuestOrder,
+        was: OrderPaymentStatus | None,
     ) -> GuestOrder | None:
-        """Write the order's new status and stamps if it is still in one of `allowed`,
-        in one step; None otherwise (another hand moved it first)."""
+        """Write the order's new status, payment and stamps if it is still in one of
+        `allowed` and its payment is still `was`, in one step; None otherwise
+        (another hand moved or paid it first). A stored paid is never written over
+        with on_booking or none."""
