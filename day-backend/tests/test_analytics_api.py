@@ -259,3 +259,22 @@ async def test_export_csv_custom_date_range(client):
     disposition = response.headers["content-disposition"]
     assert "2025-01-01" in disposition
     assert "2025-12-31" in disposition
+
+
+@pytest.mark.asyncio
+async def test_the_expense_journal_comes_off_the_profit_until_voided(client):
+    period = "/api/v1/analytics/metrics?date_from=2026-10-01&date_to=2026-11-01"
+    created = await client.post(
+        "/api/v1/expenses", json={"category": "internet", "amount": "9000", "spent_on": "2026-10-15"}
+    )
+    assert created.status_code == 201, created.text
+
+    summary = (await client.get(period)).json()["summary"]
+    assert float(summary["total_recorded_expenses"]) == 9000
+    assert float(summary["total_expenses"]) == 9000
+    assert float(summary["total_profit"]) == -9000
+
+    assert (await client.post(f"/api/v1/expenses/{created.json()['id']}/void")).status_code == 200
+    summary = (await client.get(period)).json()["summary"]
+    assert float(summary["total_recorded_expenses"]) == 0
+    assert float(summary["total_profit"]) == 0

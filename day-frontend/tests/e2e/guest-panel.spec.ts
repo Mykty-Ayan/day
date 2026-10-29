@@ -116,15 +116,15 @@ test('on the departure day «I have left» tells Day first, then opens WhatsApp'
   const now = today()
   await open(page, answer({}, { check_in: `${addDays(now, -2)}T14:00:00`, check_out: `${now}T12:00:00`, paid: 40000, remaining: 0 }))
   // A double tap tells Day once.
-  await page.getByRole('link', { name: 'Я выехал(а)' }).dblclick()
+  await page.getByRole('link', { name: 'Сообщить о выезде' }).dblclick()
   await page.waitForURL('https://wa.me/**')
   expect(left).toEqual(['POST'])
-  expect(decodeURIComponent(page.url())).toContain('Я выехал(а). Ключи:')
+  expect(decodeURIComponent(page.url())).toContain('Мы выехали. Ключи:')
 })
 
 test('a closed booking says so and keeps only the contact', async ({ page }) => {
   await open(page, answer({ closed: true, flat: { name: 'Т13 у Байтерека' } }, { status: 'checked_out' }))
-  await expect(page.getByText('Бронь закрыта. Если остались вопросы, напишите нам.')).toBeVisible()
+  await expect(page.getByText('Бронь закрыта. Если остались вопросы, напишите хозяину.')).toBeVisible()
   await expect(page.getByRole('link', { name: 'Документы для отчётности' })).toBeVisible()
   await expect(page.getByRole('link', { name: 'Задать вопрос' })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Адрес' })).toHaveCount(0)
