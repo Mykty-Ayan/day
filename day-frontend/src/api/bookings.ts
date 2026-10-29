@@ -21,6 +21,8 @@ import type {
   TodayChecks,
   GuestFilters,
   GuestListResponse,
+  Guest,
+  GuestUpdateInput,
 } from '../types/booking'
 import type { PaginatedResponse } from '../types/property'
 
@@ -248,6 +250,12 @@ export async function getTodayChecks(): Promise<TodayChecks> {
 }
 
 // --- Guests ---
+
+/** 409 when another guest of the company has the phone. */
+export async function updateGuest(id: string, data: GuestUpdateInput): Promise<Guest> {
+  const res = await apiClient.patch(`/guests/${id}`, data)
+  return res.data
+}
 
 export async function listGuests(
   filters: GuestFilters = {},

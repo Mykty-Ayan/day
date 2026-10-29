@@ -109,8 +109,8 @@ test('a flat let by the night and by the hour shows the deposit of each, never o
   const guest = await browser.newContext({ locale: 'ru-RU', baseURL: test.info().project.use.baseURL })
   const page = await guest.newPage()
   await page.goto(`/s/${code}`)
-  await expect(page.getByText('Залог при посуточной аренде 10 000 ₸ — вернём после выезда')).toBeVisible()
-  await expect(page.getByText('Залог при почасовой аренде 7 000 ₸ — вернём после выезда')).toBeVisible()
+  await expect(page.getByText('Залог при посуточной аренде 10 000 ₸ — вернём в течение дня после выезда')).toBeVisible()
+  await expect(page.getByText('Залог при почасовой аренде 7 000 ₸ — вернём в течение дня после выезда')).toBeVisible()
   await guest.close()
 })
 
