@@ -95,7 +95,7 @@ test('a guest books a flat by the link and waits for the Kaspi invoice', async (
   const soon = [-1, 0, 1].map((m) => `Даты за вами до ${clock.format(new Date(Date.now() + (30 + m) * 60_000))}`)
   await expect(page.getByRole('heading', { level: 1 })).toHaveText(new RegExp(`^(${soon.join('|')})$`))
   // The sum's thousands are split by a no-break space.
-  await expect(page.getByText(/счёт на залог 10\s000 ₸ на номер \+7 701 ••• •• 78/)).toBeVisible()
+  await expect(page.getByText(/счёт на залог 10\s000\s₸ на номер \+7 701 ••• •• 78/)).toBeVisible()
   await expect(page.getByText('За ночи 20 000 ₸ — при заселении')).toBeVisible()
   // The link remembers its booking: the guest who comes back sees it, not the flats.
   await page.reload()
