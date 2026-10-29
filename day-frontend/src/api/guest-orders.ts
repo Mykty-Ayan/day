@@ -1,6 +1,9 @@
 import apiClient from './client'
 
-export type OrderStatus = 'new' | 'accepted' | 'delivered' | 'cancelled'
+/** awaiting_payment: confirmed, its Kaspi invoice not yet paid; accepted: on its way. */
+export type OrderStatus = 'new' | 'awaiting_payment' | 'accepted' | 'delivered' | 'cancelled'
+/** How the guest chose to pay: a Kaspi invoice before delivery, or with the booking. */
+export type OrderBilling = 'invoice' | 'booking'
 export type OrderPayment = 'cash' | 'card' | 'transfer'
 /** null until delivered; on_booking: on the guest's tab, paid later. */
 export type OrderPaymentStatus = 'paid' | 'on_booking' | null
@@ -9,6 +12,7 @@ export interface GuestOrder {
   id: string
   number: number
   status: OrderStatus
+  billing: OrderBilling
   total: number
   guest_note: string | null
   payment_status: OrderPaymentStatus
@@ -17,7 +21,10 @@ export interface GuestOrder {
   property_id: string
   property_name: string | null
   guest_name: string | null
+  /** Where the Kaspi invoice goes. */
+  guest_phone: string | null
   created_at: string | null
+  invoiced_at: string | null
   delivered_at: string | null
   items: { product_id: string; name: string; price: number; quantity: number }[]
 }
@@ -45,7 +52,12 @@ export async function deliverGuestOrder(id: string, payment_method: OrderPayment
   return (await apiClient.post<GuestOrder>(`/guest-orders/${id}/deliver`, body)).data
 }
 
-/** The guest paid an order delivered on the tab. */
+/** The Kaspi invoice went to the guest's phone (sent by hand: Kaspi Pay has no API). */
+export async function invoiceSentGuestOrder(id: string): Promise<GuestOrder> {
+  return (await apiClient.post<GuestOrder>(`/guest-orders/${id}/invoiced`)).data
+}
+
+/** The guest paid: an order's invoice (it goes on its way), or an order delivered on the tab. */
 export async function payGuestOrder(id: string, payment_method: OrderPayment): Promise<GuestOrder> {
   return (await apiClient.post<GuestOrder>(`/guest-orders/${id}/paid`, { payment_method })).data
 }

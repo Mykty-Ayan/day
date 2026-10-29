@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { listGuestOrders, type OrderStatus } from '../../api/inventory'
 import { useCurrency } from '../../hooks/useCurrency'
 
-const STATUSES: OrderStatus[] = ['new', 'accepted', 'delivered', 'cancelled']
+const STATUSES: OrderStatus[] = ['new', 'awaiting_payment', 'accepted', 'delivered', 'cancelled']
 
 /** Guests' minibar orders, newest first, by status. Handled in the Mini App;
  *  here the owner reads them. */
@@ -54,6 +54,7 @@ export default function GuestOrdersList() {
                   // The server keeps UTC without a zone: shown on this device's clock.
                   o.created_at ? new Date(`${o.created_at}Z`).toLocaleString(i18n.language, { dateStyle: 'short', timeStyle: 'short' }) : null,
                   t(`inventory.orders.statuses.${o.status}`),
+                  t(`inventory.orders.billing.${o.billing}`),
                   o.payment_status === 'on_booking' ? t('inventory.orders.onTab') : null,
                   o.payment_method ? t(`inventory.orders.payments.${o.payment_method}`) : null,
                 ]
