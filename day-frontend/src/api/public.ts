@@ -182,6 +182,30 @@ export interface GuestPanel {
   lead_hours: number
   /** The minibar during the stay; null outside it. */
   menu: MenuItem[] | null
+  /** With the menu: the ways the company takes and its hours. */
+  minibar?: {
+    billings: GuestBilling[]
+    /** "HH:MM:SS", local; both null: round the clock. */
+    opens: string | null
+    closes: string | null
+    open_now: boolean
+  } | null
+  /** This booking's own orders, newest first. */
+  orders?: GuestPanelOrder[]
+}
+
+/** invoice: a Kaspi invoice before delivery; booking: added to the booking's bill. */
+export type GuestBilling = 'invoice' | 'booking'
+
+export interface GuestPanelOrder {
+  number: number
+  status: 'new' | 'awaiting_payment' | 'accepted' | 'delivered' | 'cancelled'
+  billing: GuestBilling
+  payment_status: 'paid' | 'on_booking' | null
+  /** The host sent the Kaspi invoice. */
+  invoiced: boolean
+  total: number
+  lines: string[]
 }
 
 export interface MenuItem {
@@ -207,11 +231,13 @@ export async function placeGuestOrder(
   items: { product_id: string; quantity: number }[],
   note: string | null,
   language: 'ru' | 'kz' | 'en',
+  billing: GuestBilling,
 ): Promise<PlacedOrder> {
   const res = await publicClient.post<PlacedOrder>(`/public/guest/${encodeURIComponent(code)}/orders`, {
     items,
     note,
     language,
+    billing,
   })
   return res.data
 }

@@ -1,6 +1,6 @@
 /** The guest's minibar cart: product id → how many. Kept apart to be tested. */
 
-import type { MenuItem } from '../api/public'
+import type { GuestPanelOrder, MenuItem } from '../api/public'
 
 export type Cart = Record<string, number>
 
@@ -26,4 +26,19 @@ export function byCategory(menu: MenuItem[]): [string, MenuItem[]][] {
   const groups = new Map<string, MenuItem[]>()
   for (const item of menu) groups.set(item.category, [...(groups.get(item.category) ?? []), item])
   return [...groups]
+}
+
+/** Minibar orders to be added to the booking and not yet delivered: owed before
+ *  check-out, though the server counts in what is left only the ones delivered on
+ *  the tab (orders_due). */
+export function minibarPending(orders: GuestPanelOrder[]): number {
+  return orders
+    .filter((o) => o.billing === 'booking' && (o.status === 'new' || o.status === 'accepted') && !o.payment_status)
+    .reduce((sum, o) => sum + o.total, 0)
+}
+
+/** The order's state for the guest, as a key under guestPanel.minibar.state. */
+export function orderState(order: GuestPanelOrder): string {
+  if (order.status === 'awaiting_payment') return order.invoiced ? 'invoiced' : 'confirmed'
+  return order.status
 }

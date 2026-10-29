@@ -1778,8 +1778,7 @@
     },
     "minibar": {
       "title": "Minibar",
-      "payOnDelivery": "Paid on delivery, apart from the booking.",
-      "placed": "Order #{{number}} received. The host will bring it soon.",
+      "placed": "Order #{{number}} sent. The host will answer soon.",
       "openWhatsApp": "Open WhatsApp again",
       "empty": "The minibar is empty for now.",
       "less": "Remove: {{name}}",
@@ -1793,9 +1792,30 @@
       "outOfStock": "Something is no longer there in that quantity. The menu is updated: check your order.",
       "tooMany": "Too many orders in an hour. Write to the host in WhatsApp.",
       "failed": "The order did not go through. Try again.",
-      "other": "Other"
+      "other": "Other",
+      "payInvoice": "The host confirms the order and sends an invoice to the Kaspi app on your phone. We bring it once paid.",
+      "payBooking": "The sum is added to your booking. Pay it before check-out.",
+      "invoice": "Pay by invoice",
+      "invoiceHint": "The invoice comes to the Kaspi app; we bring it once paid",
+      "booking": "Add to my booking",
+      "bookingHint": "Pay with the booking before check-out",
+      "hours": "Orders from {{opens}} to {{closes}}",
+      "closedNow": "We take no orders now. Ordering opens at {{opens}}.",
+      "yourOrders": "Your orders",
+      "way": {
+        "invoice": "Invoice to Kaspi",
+        "booking": "With the booking, before check-out"
+      },
+      "state": {
+        "new": "Waiting for the host",
+        "confirmed": "Invoice on its way",
+        "invoiced": "Invoice in Kaspi: please pay",
+        "accepted": "On its way",
+        "delivered": "Delivered",
+        "cancelled": "Cancelled"
+      }
     },
-    "ordersDue": "Of which minibar orders: {{amount}}",
+    "ordersDue": "Minibar · {{amount}} · with the booking",
     "trip": "Your trip",
     "checkInLabel": "Check-in",
     "checkOutLabel": "Check-out",

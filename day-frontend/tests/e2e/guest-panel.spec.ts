@@ -155,7 +155,6 @@ test('during the stay the guest fills a cart, sends the order and WhatsApp opens
   await open(page, answer({ menu: MENU }, { paid: 40000, remaining: 0 }))
 
   const minibar = page.getByRole('region', { name: 'Мини-бар' })
-  await expect(minibar.getByText('Оплата при доставке, отдельно от брони.')).toBeVisible()
   await minibar.getByRole('button', { name: 'Добавить: Кола 0,5' }).click()
   await minibar.getByRole('button', { name: 'Добавить: Кола 0,5' }).click()
   // Two are left: no third.
@@ -165,6 +164,9 @@ test('during the stay the guest fills a cart, sends the order and WhatsApp opens
 
   const sheet = page.getByRole('dialog', { name: 'Ваш заказ' })
   await expect(sheet.getByTestId('cart-total')).toContainText('2 200')
+  // One way to pay (a new company's: the invoice): said, not asked.
+  await expect(sheet.getByText('Хозяин подтвердит заказ и пришлёт счёт в приложение Kaspi на ваш номер. Привезём после оплаты.')).toBeVisible()
+  await expect(sheet.getByRole('radio')).toHaveCount(0)
   await sheet.getByRole('textbox').fill('без льда')
   await sheet.getByRole('button', { name: 'Отправить заказ' }).click()
   await page.waitForURL('https://wa.me/**')
@@ -176,8 +178,52 @@ test('during the stay the guest fills a cart, sends the order and WhatsApp opens
       ],
       note: 'без льда',
       language: 'ru',
+      billing: 'invoice',
     },
   ])
+})
+
+test('with both ways the guest chooses, sees the orders state and owes the booking ones with the stay', async ({ page }) => {
+  const sent: { billing?: string }[] = []
+  await page.route(`**/api/v1/public/guest/${CODE}/orders`, async (route) => {
+    sent.push(route.request().postDataJSON())
+    await route.fulfill({ status: 201, json: { number: 9, total: 800, whatsapp_url: null } })
+  })
+  const orders = [
+    { number: 8, status: 'new', billing: 'booking', payment_status: null, invoiced: false, total: 1200, lines: ['Кола 0,5', 'Арахис'] },
+    { number: 7, status: 'awaiting_payment', billing: 'invoice', payment_status: null, invoiced: true, total: 600, lines: ['Арахис'] },
+  ]
+  const minibar = { billings: ['invoice', 'booking'], opens: null, closes: null, open_now: true }
+  await open(page, answer({ menu: MENU, minibar, orders }, { paid: 40000, remaining: 0 }))
+
+  const region = page.getByRole('region', { name: 'Мини-бар' })
+  const listed = region.getByTestId('guest-order')
+  await expect(listed).toHaveCount(2)
+  await expect(listed.first()).toContainText('К оплате с бронью до выезда')
+  await expect(listed.first()).toContainText('Ждём подтверждения')
+  await expect(listed.last()).toContainText('Счёт в Kaspi, оплатите')
+  // Paid stay, an order with the booking not yet delivered: owed before check-out.
+  await expect(page.getByTestId('guest-remaining')).toContainText('1 200')
+  await expect(page.getByTestId('guest-minibar-due')).toHaveText('Мини-бар · 1 200 ₸ · с бронью')
+
+  await region.getByRole('button', { name: 'Добавить: Кола 0,5' }).click()
+  await region.getByRole('button', { name: /Корзина: 1 шт\./ }).click()
+  const sheet = page.getByRole('dialog', { name: 'Ваш заказ' })
+  await expect(sheet.getByRole('radio', { name: /Оплачу по счёту/ })).toBeChecked()
+  await sheet.getByRole('radio', { name: /Добавить к оплате брони/ }).check()
+  await sheet.getByRole('button', { name: 'Отправить заказ' }).click()
+  await expect(page.getByText('Заказ №9 отправлен. Хозяин скоро ответит.')).toBeVisible()
+  expect(sent.map((body) => body.billing)).toEqual(['booking'])
+})
+
+test('outside the hours the guest sees when ordering opens and cannot send', async ({ page }) => {
+  const minibar = { billings: ['invoice'], opens: '10:00:00', closes: '02:00:00', open_now: false }
+  await open(page, answer({ menu: MENU, minibar }))
+  const region = page.getByRole('region', { name: 'Мини-бар' })
+  await expect(region.getByText('Сейчас заказы не принимаем. Откроемся в 10:00.')).toBeVisible()
+  await region.getByRole('button', { name: 'Добавить: Кола 0,5' }).click()
+  await region.getByRole('button', { name: /Корзина: 1 шт\./ }).click()
+  await expect(page.getByRole('dialog').getByRole('button', { name: 'Отправить заказ' })).toBeDisabled()
 })
 
 test('an order the stock cannot cover is refused with a reason, and nothing opens', async ({ page }) => {
@@ -196,7 +242,7 @@ test('an order the stock cannot cover is refused with a reason, and nothing open
 test('orders on the tab are owed with the stay, and said apart', async ({ page }) => {
   await open(page, answer({ menu: MENU }, { paid: 40000, orders_due: 1600, remaining: 1600 }))
   await expect(page.getByTestId('guest-remaining')).toContainText('1 600')
-  await expect(page.getByText('Из них заказы мини-бара: 1 600 ₸')).toBeVisible()
+  await expect(page.getByTestId('guest-minibar-due')).toHaveText('Мини-бар · 1 600 ₸ · с бронью')
   await expect(page.getByRole('link', { name: 'Как оплатить' })).toBeVisible()
 })
 

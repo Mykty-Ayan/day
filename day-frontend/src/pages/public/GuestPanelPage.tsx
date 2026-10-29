@@ -26,6 +26,7 @@ import {
 import { getGuestPanel, markGuestLeft, type GuestPanel } from '../../api/public'
 import { accessOpensAt, accessTimeReached, mapLinks, nightsOf, panelButtons, stageOf, waLink, type PanelButton } from '../../lib/guest-panel'
 import { money, onAccent, retryNetwork } from '../../lib/public-stay'
+import { minibarPending } from '../../lib/minibar-cart'
 import { GuestFrame, LoadFailed } from './GuestFrame'
 import { GuestMinibar } from './GuestMinibar'
 
@@ -177,6 +178,11 @@ function PanelView({ code, panel, locale }: { code: string; panel: GuestPanel; l
   const maps = flat ? [...(flat.map_url ? [{ name: t('guestPanel.map'), url: flat.map_url }] : []), ...mapLinks(flat)] : []
   const opensAt = accessOpensAt(panel)
   const paidInFull = b ? b.paid >= b.total : false
+  // Minibar orders with the booking: the ones delivered on the tab are in remaining
+  // already; the ones not yet delivered are owed before check-out all the same.
+  const pending = minibarPending(panel.orders ?? [])
+  const minibarDue = (b?.orders_due ?? 0) + pending
+  const due = (b?.remaining ?? 0) + pending
   const timeReached = accessTimeReached(panel, new Date().toTimeString().slice(0, 5))
 
   function message(key: PanelButton): string {
@@ -344,15 +350,17 @@ function PanelView({ code, panel, locale }: { code: string; panel: GuestPanel; l
               </Card>
             )}
 
-            {b && b.remaining > 0 && (
+            {b && due > 0 && (
               <Card aria-label={t('guestPanel.payment')}>
                 <CardTitle icon={<Wallet className="h-4 w-4" aria-hidden />}>{t('guestPanel.payment')}</CardTitle>
                 <p data-testid="guest-remaining" className="text-[28px] font-bold tabular-nums tracking-tight text-gray-900">
-                  {money(b.remaining, locale)}
+                  {money(due, locale)}
                 </p>
                 <p className="text-[13px] text-gray-500">{t('guestPanel.paid', { paid: money(b.paid, locale), total: money(b.total, locale) })}</p>
-                {(b.orders_due ?? 0) > 0 && (
-                  <p className="text-[13px] text-gray-500">{t('guestPanel.ordersDue', { amount: money(b.orders_due ?? 0, locale) })}</p>
+                {minibarDue > 0 && (
+                  <p data-testid="guest-minibar-due" className="text-[13px] text-gray-500">
+                    {t('guestPanel.ordersDue', { amount: money(minibarDue, locale) })}
+                  </p>
                 )}
                 {buttons.includes('pay') && (
                   <a
@@ -451,7 +459,7 @@ function PanelView({ code, panel, locale }: { code: string; panel: GuestPanel; l
 
             {panel.menu && (
               <div id="minibar" className="scroll-mt-4">
-                <GuestMinibar code={code} menu={panel.menu} locale={locale} />
+                <GuestMinibar code={code} menu={panel.menu} minibar={panel.minibar} orders={panel.orders} locale={locale} />
               </div>
             )}
 

@@ -3,15 +3,33 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { isAxiosError } from 'axios'
 import { useTranslation } from 'react-i18next'
 import { Minus, Package, Plus, ShoppingBag, X } from 'lucide-react'
-import { placeGuestOrder, type GuestPanel, type MenuItem, type PlacedOrder } from '../../api/public'
-import { byCategory, cartCount, cartLines, cartTotal, changeCart, type Cart } from '../../lib/minibar-cart'
+import { placeGuestOrder, type GuestBilling, type GuestPanel, type MenuItem, type PlacedOrder } from '../../api/public'
+import { byCategory, cartCount, cartLines, cartTotal, changeCart, orderState, type Cart } from '../../lib/minibar-cart'
 import { money } from '../../lib/public-stay'
 
-/** The minibar on the guest's page: the menu by category, a cart, and the order.
+/** The minibar on the guest's page: the menu by category, a cart, and the order,
+ *  paid one of the ways the company takes; then the guest's orders and their state.
  *  The order is written in Day, then the host's WhatsApp opens with its text. */
-export function GuestMinibar({ code, menu, locale }: { code: string; menu: NonNullable<GuestPanel['menu']>; locale: string }) {
+export function GuestMinibar({
+  code,
+  menu,
+  minibar,
+  orders = [],
+  locale,
+}: {
+  code: string
+  menu: NonNullable<GuestPanel['menu']>
+  minibar?: GuestPanel['minibar']
+  orders?: GuestPanel['orders']
+  locale: string
+}) {
   const { t, i18n } = useTranslation()
   const queryClient = useQueryClient()
+  const ways: GuestBilling[] = minibar?.billings?.length ? minibar.billings : ['invoice']
+  const [chosen, setChosen] = useState<GuestBilling | null>(null)
+  const billing = chosen && ways.includes(chosen) ? chosen : ways[0]
+  const hours = minibar?.opens && minibar?.closes ? { opens: minibar.opens.slice(0, 5), closes: minibar.closes.slice(0, 5) } : null
+  const closedNow = minibar?.open_now === false
   const [cart, setCart] = useState<Cart>({})
   const [open, setOpen] = useState(false)
   const [note, setNote] = useState('')
@@ -25,6 +43,7 @@ export function GuestMinibar({ code, menu, locale }: { code: string; menu: NonNu
         lines.map((l) => ({ product_id: l.item.id, quantity: l.quantity })),
         note.trim() || null,
         (['ru', 'kz', 'en'] as const).find((l) => l === i18n.language) ?? 'ru',
+        billing,
       ),
     onSuccess: (done) => {
       setPlaced(done)
@@ -38,9 +57,12 @@ export function GuestMinibar({ code, menu, locale }: { code: string; menu: NonNu
     onError: () => void queryClient.invalidateQueries({ queryKey: ['guest-panel', code] }),
   })
   const status = isAxiosError(order.error) ? order.error.response?.status : undefined
-  const failure = order.isError
-    ? t(status === 409 ? 'guestPanel.minibar.outOfStock' : status === 429 ? 'guestPanel.minibar.tooMany' : 'guestPanel.minibar.failed')
-    : null
+  const detail = isAxiosError(order.error) ? String(order.error.response?.data?.detail ?? '') : ''
+  const failure = !order.isError
+    ? null
+    : status === 409 && /hour/.test(detail)
+      ? t('guestPanel.minibar.closedNow', { opens: hours?.opens ?? '' })
+      : t(status === 409 ? 'guestPanel.minibar.outOfStock' : status === 429 ? 'guestPanel.minibar.tooMany' : 'guestPanel.minibar.failed')
 
   function stepper(item: MenuItem, size: 'card' | 'line' = 'card') {
     const quantity = cart[item.id] ?? 0
@@ -81,7 +103,11 @@ export function GuestMinibar({ code, menu, locale }: { code: string; menu: NonNu
         </span>
         {t('guestPanel.minibar.title')}
       </h2>
-      <p className="mt-1 text-[13px] text-gray-500">{t('guestPanel.minibar.payOnDelivery')}</p>
+      {hours && (
+        <p className={`mt-1 text-[13px] ${closedNow ? 'font-semibold text-gray-900' : 'text-gray-500'}`}>
+          {closedNow ? t('guestPanel.minibar.closedNow', hours) : t('guestPanel.minibar.hours', hours)}
+        </p>
+      )}
       {placed && (
         <div role="status" className="mt-3 space-y-1 rounded-2xl bg-emerald-50 p-4 text-[15px] text-emerald-900">
           <p className="font-semibold">{t('guestPanel.minibar.placed', { number: placed.number })}</p>
@@ -133,6 +159,28 @@ export function GuestMinibar({ code, menu, locale }: { code: string; menu: NonNu
         </div>
       ))}
 
+      {orders.length > 0 && (
+        <div className="mt-5 space-y-2 border-t border-gray-100 pt-4">
+          <h3 className="text-[13px] font-semibold uppercase tracking-wider text-gray-400">{t('guestPanel.minibar.yourOrders')}</h3>
+          {orders.map((o) => (
+            <div key={o.number} data-testid="guest-order" className="flex justify-between gap-3 text-[15px]">
+              <div className="min-w-0">
+                <p className="text-gray-900">{o.lines.join(', ')}</p>
+                {o.status !== 'cancelled' && <p className="text-[13px] text-gray-500">{t(`guestPanel.minibar.way.${o.billing}`)}</p>}
+                <span
+                  className={`mt-1 inline-block rounded-full px-2 py-0.5 text-[12px] font-semibold ${
+                    o.status === 'awaiting_payment' && o.invoiced ? 'bg-[var(--accent-soft)] text-[var(--accent)]' : 'bg-stone-100 text-gray-700'
+                  }`}
+                >
+                  {t(`guestPanel.minibar.state.${orderState(o)}`)}
+                </span>
+              </div>
+              <span className="shrink-0 font-semibold tabular-nums">{money(o.total, locale)}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
       {count > 0 && (
         <>
           {/* Room under the last product for the bar that floats over it. */}
@@ -170,8 +218,31 @@ export function GuestMinibar({ code, menu, locale }: { code: string; menu: NonNu
               {t('guestPanel.minibar.note')}
               <textarea value={note} maxLength={500} rows={2} onChange={(e) => setNote(e.target.value)} placeholder={t('guestPanel.minibar.noteHint')} className="mt-1.5 w-full rounded-2xl border border-gray-200 p-3 text-sm normal-case tracking-normal text-gray-900" />
             </label>
+            {ways.length > 1 ? (
+              <fieldset className="space-y-2">
+                {ways.map((way) => (
+                  <label
+                    key={way}
+                    className={`flex cursor-pointer items-center gap-3 rounded-2xl border-2 p-3 ${
+                      billing === way ? 'border-[var(--accent)] bg-[var(--accent-soft)]' : 'border-transparent bg-stone-100'
+                    }`}
+                  >
+                    <input type="radio" name="minibar-billing" value={way} checked={billing === way} onChange={() => setChosen(way)} className="h-5 w-5 shrink-0 accent-[var(--accent)]" />
+                    <span>
+                      <span className="block text-[15px] font-semibold text-gray-900">{t(`guestPanel.minibar.${way}`)}</span>
+                      <span className="block text-[13px] text-gray-500">{t(`guestPanel.minibar.${way}Hint`)}</span>
+                    </span>
+                  </label>
+                ))}
+              </fieldset>
+            ) : (
+              <p className="text-[13px] text-gray-500">
+                {t(billing === 'booking' ? 'guestPanel.minibar.payBooking' : 'guestPanel.minibar.payInvoice')}
+              </p>
+            )}
+            {closedNow && hours && <p className="text-sm font-semibold text-gray-900">{t('guestPanel.minibar.closedNow', hours)}</p>}
             {failure && <p role="alert" className="text-sm text-red-600">{failure}</p>}
-            <button type="button" onClick={() => order.mutate()} disabled={order.isPending || count === 0} className="flex min-h-12 w-full items-center justify-center rounded-2xl bg-[var(--accent)] text-[15px] font-semibold text-[var(--on-accent)] disabled:opacity-50">
+            <button type="button" onClick={() => order.mutate()} disabled={order.isPending || count === 0 || closedNow} className="flex min-h-12 w-full items-center justify-center rounded-2xl bg-[var(--accent)] text-[15px] font-semibold text-[var(--on-accent)] disabled:opacity-50">
               {t('guestPanel.minibar.send')}
             </button>
           </div>
