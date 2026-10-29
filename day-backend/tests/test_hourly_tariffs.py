@@ -48,7 +48,7 @@ async def _price(calc, prop_id, start: datetime, end: datetime):
 async def test_three_hours_on_a_weekday():
     calc, prop_id = await _munar()
     result = await _price(calc, prop_id, datetime(2026, 11, MON, 14), datetime(2026, 11, MON, 17))
-    assert (result.tariff, result.total, result.units) == ("3h", Decimal("8000"), 3)
+    assert (result.tariff, result.total, result.units, result.tariff_reason) == ("3h", Decimal("8000"), 3, None)
 
 
 @pytest.mark.asyncio
@@ -62,7 +62,7 @@ async def test_three_hours_on_friday_at_the_weekend_price():
 async def test_two_hours_sell_as_three():
     calc, prop_id = await _munar()
     result = await _price(calc, prop_id, datetime(2026, 11, MON, 14), datetime(2026, 11, MON, 16))
-    assert (result.tariff, result.total) == ("3h", Decimal("8000"))
+    assert (result.tariff, result.total, result.tariff_reason) == ("3h", Decimal("8000"), "rounded_up")
 
 
 @pytest.mark.asyncio
@@ -126,7 +126,7 @@ async def test_out_after_eleven_is_the_night_whenever_the_guest_came():
 async def test_late_hours_are_not_sold_by_the_hour():
     calc, prop_id = await _munar()
     result = await _price(calc, prop_id, datetime(2026, 11, MON, 22), datetime(2026, 11, MON + 1, 1))
-    assert (result.tariff, result.total) == ("night", Decimal("15000"))
+    assert (result.tariff, result.total, result.tariff_reason) == ("night", Decimal("15000"), "late")
 
 
 @pytest.mark.asyncio
@@ -140,7 +140,7 @@ async def test_a_night_longer_than_twelve_hours_sells_the_day():
 async def test_out_after_the_morning_sells_the_day():
     calc, prop_id = await _munar()
     result = await _price(calc, prop_id, datetime(2026, 11, MON, 23), datetime(2026, 11, MON + 1, 11))
-    assert (result.tariff, result.total) == ("day", Decimal("20000"))
+    assert (result.tariff, result.total, result.tariff_reason) == ("day", Decimal("20000"), "late")
 
 
 @pytest.mark.asyncio
@@ -155,7 +155,7 @@ async def test_the_late_hour_and_the_night_are_the_flats_own():
 async def test_eight_hours_in_daytime_sell_the_day():
     calc, prop_id = await _munar()
     result = await _price(calc, prop_id, datetime(2026, 11, MON, 10), datetime(2026, 11, MON, 18))
-    assert (result.tariff, result.total, result.units) == ("day", Decimal("20000"), 8)
+    assert (result.tariff, result.total, result.units, result.tariff_reason) == ("day", Decimal("20000"), 8, "longer")
 
 
 @pytest.mark.asyncio
@@ -178,7 +178,7 @@ async def test_a_switched_off_tariff_is_skipped():
 async def test_a_day_and_two_hours_sell_two_days():
     calc, prop_id = await _munar()
     result = await _price(calc, prop_id, datetime(2026, 11, MON, 10), datetime(2026, 11, MON + 1, 12))
-    assert (result.tariff, result.nights, result.total) == ("day", 2, Decimal("40000"))
+    assert (result.tariff, result.nights, result.total, result.tariff_reason) == ("day", 2, Decimal("40000"), "longer")
 
 
 @pytest.mark.asyncio
@@ -325,4 +325,13 @@ async def test_tariffs_are_saved_and_price_an_hourly_stay(flat):  # noqa: F811  
 
     assert (await quote("2026-11-06T14:00:00", "2026-11-06T18:00:00"))["total"] == 14000
     night = await quote("2026-11-02T19:00:00", "2026-11-03T00:00:00")
-    assert (night["tariff"], night["total"]) == ("night", 15000)
+    assert (night["tariff"], night["total"], night["tariff_reason"]) == ("night", 15000, "late")
+
+    # The CRM's search by the hour names the tariff and why: 22:00–01:00 is the night.
+    use(Permission.PROPERTIES_WRITE, Permission.BOOKINGS_READ)
+    assert (await client.patch(f"/api/v1/properties/{prop}", json={"rental_mode": "both"})).status_code == 200
+    found = await client.get("/api/v1/bookings/availability", params={
+        "check_in": "2026-11-02T22:00:00", "check_out": "2026-11-03T01:00:00", "rental_mode": "hourly"})
+    assert found.status_code == 200, found.text
+    item = next(i for i in found.json()["items"] if i["property_id"] == str(prop))
+    assert (item["tariff"], item["tariff_reason"], item["total_price"]) == ("night", "late", 15000)

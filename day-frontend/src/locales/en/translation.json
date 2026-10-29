@@ -1819,6 +1819,12 @@
     "copyConfirm": "This flat's saved tariffs and hours replace the tariffs of the other flats. Daily prices and deposits stay.",
     "copyYes": "Apply",
     "copied": "Tariffs applied. Flats changed: {{n}}",
+    "day": "Day",
+    "reason": {
+      "rounded_up": "only 3 h, 6 h, the night and a day are sold",
+      "late": "after the late hour — only the night or a day",
+      "longer": "longer than a tariff — by the day"
+    },
     "line": "{{name}} {{value}}",
     "copyFailed": "Could not apply the tariffs. Save this flat's prices first."
   }
