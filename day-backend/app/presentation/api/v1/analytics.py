@@ -23,6 +23,7 @@ from app.domain.analytics.value_objects import Granularity, PeriodPreset
 from app.domain.auth.permissions import Permission
 from app.infrastructure.database import get_session
 from app.infrastructure.repositories.analytics import SqlAnalyticsRepository
+from app.infrastructure.repositories.expenses import SqlExpenseRepository
 from app.infrastructure.repositories.property import SqlPropertyCostsRepository
 from app.presentation.api.deps import get_company_id, require
 from app.presentation.schemas.analytics import (
@@ -82,7 +83,7 @@ async def get_metrics(
     resolved_from, resolved_to = _resolve_dates(date_from, date_to, period)
 
     repo = SqlAnalyticsRepository(session)
-    svc = CalculateMetricsService(repo, SqlPropertyCostsRepository(session))
+    svc = CalculateMetricsService(repo, SqlPropertyCostsRepository(session), SqlExpenseRepository(session))
 
     try:
         result = await svc.execute(
@@ -105,6 +106,7 @@ async def get_metrics(
             total_commission=result.summary.total_commission,
             total_fixed_costs=result.summary.total_fixed_costs,
             total_variable_costs=result.summary.total_variable_costs,
+            total_recorded_expenses=result.summary.total_recorded_expenses,
             overall_adr=result.summary.overall_adr,
             overall_revpar=result.summary.overall_revpar,
             overall_occupancy_rate=result.summary.overall_occupancy_rate,
@@ -126,6 +128,7 @@ async def get_metrics(
                 profit=pm.profit,
                 fixed_costs=pm.fixed_costs,
                 variable_costs=pm.variable_costs,
+                recorded_expenses=pm.recorded_expenses,
                 commission=pm.commission,
                 vacancy_days=pm.vacancy_days,
                 occupancy_rate=pm.occupancy_rate,
@@ -205,7 +208,7 @@ async def export_csv(
     resolved_from, resolved_to = _resolve_dates(date_from, date_to, period)
 
     repo = SqlAnalyticsRepository(session)
-    svc = CalculateMetricsService(repo, SqlPropertyCostsRepository(session))
+    svc = CalculateMetricsService(repo, SqlPropertyCostsRepository(session), SqlExpenseRepository(session))
 
     try:
         result = await svc.execute(
@@ -232,8 +235,10 @@ async def export_csv(
         "Expenses",
         "Profit",
         "Commission",
-        "Fixed costs",
-        "Variable costs",
+        # Expenses = commission + journal; the planned costs are for pricing, not profit.
+        "Journal expenses",
+        "Planned fixed costs",
+        "Planned variable costs",
         "Vacancy Days",
         "Occupancy %",
         "Avg Stay",
@@ -250,6 +255,7 @@ async def export_csv(
             f"{pm.expenses:.2f}",
             f"{pm.profit:.2f}",
             f"{pm.commission:.2f}",
+            f"{pm.recorded_expenses:.2f}",
             f"{pm.fixed_costs:.2f}",
             f"{pm.variable_costs:.2f}",
             pm.vacancy_days,
@@ -270,6 +276,9 @@ async def export_csv(
         f"{s.total_expenses:.2f}",
         f"{s.total_profit:.2f}",
         f"{s.total_commission:.2f}",
+        f"{s.total_recorded_expenses:.2f}",
+        "",
+        "",
         s.total_vacancy_days,
         f"{s.overall_occupancy_rate:.1f}",
         f"{s.avg_stay_duration:.1f}",

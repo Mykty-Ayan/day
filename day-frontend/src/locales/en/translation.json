@@ -1301,7 +1301,7 @@
       "month": "This month",
       "lastMonth": "Last month",
       "income": "Income",
-      "expenses": "Flat costs",
+      "expenses": "All costs",
       "profit": "Profit",
       "occupancy": "Occupancy",
       "debts": "Guests owe · {{amount}}",
