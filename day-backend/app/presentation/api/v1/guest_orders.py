@@ -1,4 +1,5 @@
-"""Guests' minibar orders, for the host: the list, accept, delivered (paid), cancel.
+"""Guests' minibar orders, for the host: the list, accept, invoice sent, paid,
+delivered, cancel.
 
 Seeing them goes with bookings:read, handling them with bookings:write.
 """
@@ -30,7 +31,7 @@ async def _responses(session: AsyncSession, orders: list[GuestOrder]) -> list[Gu
     """With the flat's and the guest's names, looked up once each."""
     props, bookings, guests = SqlPropertyRepository(session), SqlBookingRepository(session), SqlGuestRepository(session)
     flats: dict[uuid.UUID, str | None] = {}
-    names: dict[uuid.UUID, str | None] = {}
+    names: dict[uuid.UUID, tuple[str | None, str | None]] = {}
     out = []
     for order in orders:
         if order.property_id not in flats:
@@ -39,10 +40,14 @@ async def _responses(session: AsyncSession, orders: list[GuestOrder]) -> list[Gu
         if order.booking_id not in names:
             booking = await bookings.get_by_id(order.booking_id)
             guest = await guests.get_by_id(booking.guest_id) if booking else None
-            names[order.booking_id] = guest.name if guest else None
+            names[order.booking_id] = (guest.name, guest.phone) if guest else (None, None)
         out.append(
             GuestOrderResponse.model_validate(order, from_attributes=True).model_copy(
-                update={"property_name": flats[order.property_id], "guest_name": names[order.booking_id]}
+                update={
+                    "property_name": flats[order.property_id],
+                    "guest_name": names[order.booking_id][0],
+                    "guest_phone": names[order.booking_id][1],
+                }
             )
         )
     return out
@@ -81,6 +86,17 @@ async def accept_order(
     return await _handled(session, guest_orders(session).accept(company_id, order_id, principal.actor_id))
 
 
+@guest_order_router.post("/{order_id}/invoiced", response_model=GuestOrderResponse, dependencies=_write)
+async def order_invoiced(
+    order_id: uuid.UUID,
+    session: AsyncSession = Depends(get_session),
+    company_id: uuid.UUID = Depends(get_company_id),
+    principal: Principal = Depends(get_principal),
+):
+    """The host sent the Kaspi invoice to the guest's phone; the order waits for payment."""
+    return await _handled(session, guest_orders(session).invoiced(company_id, order_id, principal.actor_id))
+
+
 @guest_order_router.post("/{order_id}/deliver", response_model=GuestOrderResponse, dependencies=_write)
 async def deliver_order(
     order_id: uuid.UUID,
@@ -102,7 +118,8 @@ async def order_paid(
     company_id: uuid.UUID = Depends(get_company_id),
     principal: Principal = Depends(get_principal),
 ):
-    """The guest paid an order delivered on the tab; it leaves what they owe."""
+    """The guest paid: the invoice of an order awaiting payment (it goes on its way),
+    or an order delivered on the tab (it leaves what they owe)."""
     service = guest_orders(session)
     return await _handled(session, service.mark_paid(company_id, order_id, body.payment_method, principal.actor_id))
 

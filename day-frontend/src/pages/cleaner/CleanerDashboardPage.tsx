@@ -145,7 +145,6 @@ export default function CleanerDashboardPage() {
           <div className="flex flex-col items-center justify-center py-20">
             <CheckCircle2 className="w-12 h-12 text-gray-200 mb-3" />
             <p className="text-sm font-semibold text-gray-500">{t('cleaner.noTasksForToday')}</p>
-            <p className="text-xs text-gray-400 mt-1">{t('cleaner.enjoyYourDayOff')}</p>
           </div>
         ) : (
           <>

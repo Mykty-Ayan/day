@@ -12,6 +12,7 @@ from app.domain.inventory.entities import (
     GuestOrder,
     GuestOrderItem,
     MovementKind,
+    OrderBilling,
     OrderPayment,
     OrderPaymentStatus,
     OrderStatus,
@@ -158,6 +159,7 @@ def _to_order(m: GuestOrderModel, items: list[GuestOrderItemModel]) -> GuestOrde
         property_id=m.property_id,
         number=m.number,
         status=OrderStatus(m.status),
+        billing=OrderBilling(m.billing),
         total=Decimal(str(m.total)),
         guest_note=m.guest_note,
         payment_status=OrderPaymentStatus(m.payment_status) if m.payment_status else None,
@@ -165,6 +167,7 @@ def _to_order(m: GuestOrderModel, items: list[GuestOrderItemModel]) -> GuestOrde
         paid_at=m.paid_at,
         created_at=m.created_at,
         accepted_at=m.accepted_at,
+        invoiced_at=m.invoiced_at,
         delivered_at=m.delivered_at,
         cancelled_at=m.cancelled_at,
         handled_by=m.handled_by,
@@ -207,6 +210,7 @@ class SqlGuestOrderRepository(GuestOrderRepository):
             property_id=order.property_id,
             number=(last or 0) + 1,
             status=order.status.value,
+            billing=order.billing.value,
             total=order.total,
             guest_note=order.guest_note,
         )
@@ -256,6 +260,15 @@ class SqlGuestOrderRepository(GuestOrderRepository):
         stmt = stmt.order_by(GuestOrderModel.created_at.desc()).limit(200)
         return await self._with_items(list(await self._session.scalars(stmt)))
 
+    async def list_for_booking(self, company_id: uuid.UUID, booking_id: uuid.UUID) -> list[GuestOrder]:
+        stmt = (
+            select(GuestOrderModel)
+            .where(GuestOrderModel.company_id == company_id, GuestOrderModel.booking_id == booking_id)
+            .order_by(GuestOrderModel.created_at.desc())
+            .limit(50)
+        )
+        return await self._with_items(list(await self._session.scalars(stmt)))
+
     async def due_by_bookings(
         self, company_id: uuid.UUID, booking_ids: Sequence[uuid.UUID]
     ) -> dict[uuid.UUID, Decimal]:
@@ -289,6 +302,7 @@ class SqlGuestOrderRepository(GuestOrderRepository):
                 payment_method=order.payment_method.value if order.payment_method else None,
                 paid_at=order.paid_at,
                 accepted_at=order.accepted_at,
+                invoiced_at=order.invoiced_at,
                 delivered_at=order.delivered_at,
                 cancelled_at=order.cancelled_at,
                 handled_by=order.handled_by,

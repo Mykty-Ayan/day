@@ -78,6 +78,7 @@ class GuestOrderModel(Base):
     property_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("properties.id", ondelete="CASCADE"))
     number: Mapped[int] = mapped_column(Integer)
     status: Mapped[str] = mapped_column(String(16), default="new")
+    billing: Mapped[str] = mapped_column(String(16), default="invoice", server_default="invoice")
     total: Mapped[float] = mapped_column(Numeric(12, 2))
     guest_note: Mapped[str | None] = mapped_column(Text, nullable=True)
     payment_status: Mapped[str | None] = mapped_column(String(16), nullable=True)
@@ -85,6 +86,7 @@ class GuestOrderModel(Base):
     paid_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     accepted_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    invoiced_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     delivered_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     cancelled_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     handled_by: Mapped[uuid.UUID | None] = mapped_column(nullable=True)
@@ -93,6 +95,7 @@ class GuestOrderModel(Base):
         UniqueConstraint("company_id", "number", name="uq_guest_orders_company_number"),
         CheckConstraint("total >= 0", name="ck_guest_orders_total"),
         CheckConstraint("payment_status IN ('paid', 'on_booking')", name="ck_guest_orders_payment_status"),
+        CheckConstraint("billing IN ('invoice', 'booking')", name="ck_guest_orders_billing"),
         Index("ix_guest_orders_company_created", "company_id", "created_at"),
         Index("ix_guest_orders_booking_created", "booking_id", "created_at"),
     )
