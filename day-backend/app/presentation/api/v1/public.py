@@ -345,7 +345,11 @@ async def place_guest_order(code: str, body: GuestOrderCreate, session: AsyncSes
     the bot; the answer holds the WhatsApp link with the order's text."""
     try:
         placed = await guest_orders(session).place(
-            code, [(line.product_id, line.quantity) for line in body.items], body.note, body.language
+            code,
+            [(line.product_id, line.quantity) for line in body.items],
+            body.note,
+            body.language,
+            billing=body.billing,
         )
         order = placed.order
         if not placed.repeated:
@@ -358,6 +362,7 @@ async def place_guest_order(code: str, body: GuestOrderCreate, session: AsyncSes
                     "lines": [f"{i.name} × {i.quantity}" for i in order.items],
                     "total": str(order.total),
                     "note": order.guest_note,
+                    "billing": order.billing.value,
                     "order_id": str(order.id),
                 },
             )

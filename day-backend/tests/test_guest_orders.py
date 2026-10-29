@@ -1,13 +1,13 @@
 """A guest's minibar order: placed from the guest's page during the stay, handled
 by the host. The price is the server's; the stock goes down on delivery only;
-the order is paid apart from the booking.
+the order is paid apart from the booking: by a Kaspi invoice before delivery, or
+added to the booking's bill — the ways the company takes, in its hours.
 """
 
 import copy
 import uuid
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, datetime, time, timedelta, timezone
 from decimal import Decimal
-from types import SimpleNamespace
 from zoneinfo import ZoneInfo
 
 import pytest
@@ -22,9 +22,17 @@ from app.application.inventory.guest_orders import (
 from app.application.messaging.notifications import NotificationDispatcher, render
 from app.domain.booking.entities import Booking
 from app.domain.booking.value_objects import BookingStatus
-from app.domain.inventory.entities import MovementKind, OrderPayment, OrderStatus, Product
+from app.domain.inventory.entities import (
+    MovementKind,
+    OrderBilling,
+    OrderPayment,
+    OrderPaymentStatus,
+    OrderStatus,
+    Product,
+)
 from app.domain.messaging.entities import OutboundNotification
 from app.domain.messaging.value_objects import Channel, NotificationEvent
+from app.domain.settings.entities import CompanySettings
 from app.domain.site.entities import CompanySite
 from tests.test_inventory import FakeMovements, FakeProducts
 from tests.test_property_facts import flat  # noqa: F401  (a fixture)
@@ -62,6 +70,12 @@ class FakeOrders:
     async def list(self, company_id, *, status=None):
         return [o for o in self.rows.values() if o.company_id == company_id and status in (None, o.status)]
 
+    async def list_for_booking(self, company_id, booking_id):
+        return [o for o in self.rows.values() if o.company_id == company_id and o.booking_id == booking_id][::-1]
+
+    async def due_by_bookings(self, company_id, booking_ids):
+        return {}
+
     async def move(self, company_id, order_id, allowed, order):
         stored = await self.get(company_id, order_id)
         if stored is None or stored.status not in allowed:
@@ -95,8 +109,11 @@ class _Site:
 
 
 class _Settings:
+    def __init__(self, company=None):
+        self.company = company or CompanySettings()
+
     async def get_by_company(self, company_id):
-        return SimpleNamespace(time_zone="Asia/Almaty")
+        return self.company
 
 
 def _booking(status=BookingStatus.CONFIRMED, check_in=datetime(2026, 10, 25, 14), check_out=datetime(2026, 10, 27, 12)):
@@ -104,14 +121,16 @@ def _booking(status=BookingStatus.CONFIRMED, check_in=datetime(2026, 10, 25, 14)
                    check_out=check_out, guest_code=CODE)
 
 
-async def _setup(booking=None, whatsapp="77001234567"):
+async def _setup(booking=None, whatsapp="77001234567", company=None):
     booking = booking or _booking()
     flat_ = _make_property(name="Т13")
     flat_.id = booking.property_id
     movements = FakeMovements()
     products = FakeProducts(movements)
     orders = FakeOrders()
-    svc = GuestOrderService(orders, products, movements, _Bookings(booking), _One(flat_), _Site(whatsapp), _Settings())
+    svc = GuestOrderService(
+        orders, products, movements, _Bookings(booking), _One(flat_), _Site(whatsapp), _Settings(company)
+    )
     cola = await products.add(Product(company_id=COMPANY_ID, name="Кола", price=Decimal("800")))
     nuts = await products.add(Product(company_id=COMPANY_ID, name="Арахис", price=Decimal("600")))
     from app.domain.inventory.entities import StockMovement
@@ -207,7 +226,7 @@ async def test_delivery_writes_a_sale_per_line_and_may_take_the_stock_below_zero
 
     await movements.add(StockMovement(company_id=COMPANY_ID, product_id=nuts.id, kind=MovementKind.WRITEOFF,
                                       quantity=-1, note="Разбили"))
-    await svc.accept(COMPANY_ID, order.id, None)
+    assert (await svc.accept(COMPANY_ID, order.id, None)).status == OrderStatus.AWAITING_PAYMENT
     done = await svc.deliver(COMPANY_ID, order.id, OrderPayment.CASH, uuid.uuid4())
 
     assert (done.status, done.payment_method) == (OrderStatus.DELIVERED, OrderPayment.CASH)
@@ -348,12 +367,22 @@ async def test_a_guest_orders_from_the_page_and_the_host_delivers(flat):  # noqa
 
     [order] = (await client.get("/api/v1/guest-orders", params={"status": "new"})).json()
     assert (order["guest_name"], order["property_name"], order["guest_note"]) == ("Жалгас", "t13", "к 22:00")
+    # The company takes the invoice only (a new company's default): the host sends it to this phone.
+    assert (order["billing"], order["guest_phone"]) == ("invoice", "+77079011161")
     use(Permission.BOOKINGS_READ)
-    assert (await client.post(f"/api/v1/guest-orders/{order['id']}/accept")).status_code == 403
+    for step in ("accept", "invoiced"):
+        assert (await client.post(f"/api/v1/guest-orders/{order['id']}/{step}")).status_code == 403
     use(Permission.BOOKINGS_READ, Permission.BOOKINGS_WRITE)
-    assert (await client.post(f"/api/v1/guest-orders/{order['id']}/accept")).json()["status"] == "accepted"
+    assert (await client.post(f"/api/v1/guest-orders/{order['id']}/accept")).json()["status"] == "awaiting_payment"
+    sent = (await client.post(f"/api/v1/guest-orders/{order['id']}/invoiced")).json()
+    assert (sent["status"], sent["invoiced_at"] is not None) == ("awaiting_payment", True)
+    [mine] = (await client.get(f"/api/v1/public/guest/{code}")).json()["orders"]
+    assert (mine["status"], mine["invoiced"], mine["lines"]) == ("awaiting_payment", True, ["Кола × 2"])
+    paid = (await client.post(f"/api/v1/guest-orders/{order['id']}/paid", json={"payment_method": "transfer"})).json()
+    assert (paid["status"], paid["payment_status"]) == ("accepted", "paid")
     done = await client.post(f"/api/v1/guest-orders/{order['id']}/deliver", json={"payment_method": "card"})
-    assert (done.json()["status"], done.json()["payment_method"]) == ("delivered", "card")
+    # Paid by its invoice: it stays so.
+    assert (done.json()["status"], done.json()["payment_method"]) == ("delivered", "transfer")
     again = await client.post(f"/api/v1/guest-orders/{order['id']}/deliver", json={"payment_method": "card"})
     assert again.status_code == 409
     [listed] = (await client.get("/api/v1/inventory/products")).json()
@@ -432,8 +461,165 @@ async def test_the_guest_page_counts_orders_on_the_tab_in_what_is_left():
         async def due_by_bookings(self, company_id, booking_ids):
             return {booking_ids[0]: Decimal("1600")}
 
+        async def list_for_booking(self, company_id, booking_id):
+            return []
+
     svc = panel_setup(paid=Decimal("40000"))
     svc._orders = _Due()
     panel = await svc.execute(PANEL_CODE, PANEL_NOW)
     # The stay is paid: the code shows; the minibar's tab is still owed.
     assert (panel.orders_due, panel.remaining, panel.access is not None) == (Decimal("1600"), Decimal("1600"), True)
+
+
+# ---------- how the guest pays ----------
+
+
+async def test_by_invoice_the_host_confirms_sends_the_invoice_and_delivers_once_paid():
+    svc, _, movements, _, cola, _ = await _setup()
+    placed = await svc.place(CODE, [(cola.id, 2)], None, "ru", NOW)
+    assert placed.order.billing == OrderBilling.INVOICE  # the company's only way
+    order_id = placed.order.id
+    # Not yet confirmed: no invoice, no payment.
+    for call in (svc.invoiced(COMPANY_ID, order_id, None), svc.mark_paid(COMPANY_ID, order_id, OrderPayment.TRANSFER,
+                                                                        None)):
+        with pytest.raises(ValueError):
+            await call
+
+    waiting = await svc.accept(COMPANY_ID, order_id, None)
+    assert (waiting.status, waiting.accepted_at is not None, waiting.payment_status) == (
+        OrderStatus.AWAITING_PAYMENT, True, None
+    )
+    sent = await svc.invoiced(COMPANY_ID, order_id, None)
+    assert (sent.status, sent.invoiced_at is not None) == (OrderStatus.AWAITING_PAYMENT, True)
+    paid = await svc.mark_paid(COMPANY_ID, order_id, OrderPayment.TRANSFER, None)
+    assert (paid.status, paid.payment_status, paid.payment_method) == (
+        OrderStatus.ACCEPTED, OrderPaymentStatus.PAID, OrderPayment.TRANSFER
+    )
+    with pytest.raises(ValueError):
+        await svc.invoiced(COMPANY_ID, order_id, None)
+    # Delivered: it stays paid as it was, whatever the delivery says.
+    done = await svc.deliver(COMPANY_ID, order_id, None, None)
+    assert (done.status, done.payment_status, done.payment_method, done.paid_at) == (
+        OrderStatus.DELIVERED, OrderPaymentStatus.PAID, OrderPayment.TRANSFER, paid.paid_at
+    )
+    assert [m.quantity for m in movements.rows if m.kind == MovementKind.SALE] == [-2]
+
+
+async def test_on_the_booking_the_order_goes_straight_on_its_way_and_is_owed_with_the_stay():
+    both = CompanySettings(minibar_invoice=True, minibar_on_booking=True)
+    svc, *_, cola, _ = await _setup(company=both)
+    order = (await svc.place(CODE, [(cola.id, 1)], None, "ru", NOW, billing=OrderBilling.BOOKING)).order
+    assert order.billing == OrderBilling.BOOKING
+    assert (await svc.accept(COMPANY_ID, order.id, None)).status == OrderStatus.ACCEPTED
+    with pytest.raises(ValueError):  # no invoice for it
+        await svc.invoiced(COMPANY_ID, order.id, None)
+    tab = await svc.deliver(COMPANY_ID, order.id, None, None)
+    assert tab.payment_status == OrderPaymentStatus.ON_BOOKING
+    # With both ways and none named, the invoice.
+    plain = (await svc.place(CODE, [(cola.id, 2)], None, "ru", NOW)).order
+    assert plain.billing == OrderBilling.INVOICE
+
+
+async def test_a_way_the_company_does_not_take_is_refused():
+    svc, orders, *_, cola, _ = await _setup()
+    with pytest.raises(ValueError, match="way of paying"):
+        await svc.place(CODE, [(cola.id, 1)], None, "ru", NOW, billing=OrderBilling.BOOKING)
+    assert not orders.rows
+    only_booking = CompanySettings(minibar_invoice=False, minibar_on_booking=True)
+    svc, *_, cola, _ = await _setup(company=only_booking)
+    assert (await svc.place(CODE, [(cola.id, 1)], None, "ru", NOW)).order.billing == OrderBilling.BOOKING
+    with pytest.raises(ValueError):
+        await svc.place(CODE, [(cola.id, 2)], None, "ru", NOW, billing=OrderBilling.INVOICE)
+
+
+async def test_outside_the_companys_hours_no_order_is_taken():
+    from app.application.inventory.guest_orders import MinibarAfterHoursError
+
+    # NOW is 11:00 in Almaty.
+    svc, orders, *_, cola, _ = await _setup(company=CompanySettings(minibar_opens=time(12), minibar_closes=time(2)))
+    with pytest.raises(MinibarAfterHoursError):
+        await svc.place(CODE, [(cola.id, 1)], None, "ru", NOW)
+    assert not orders.rows
+    svc, *_, cola, _ = await _setup(company=CompanySettings(minibar_opens=time(10), minibar_closes=time(22)))
+    assert (await svc.place(CODE, [(cola.id, 1)], None, "ru", NOW)).order.number == 1
+
+
+def test_the_host_reads_how_the_guest_pays():
+    base = {"number": 7, "property_name": "Т13", "lines": ["Кола × 2"], "total": "1600"}
+    assert "выставьте счёт Kaspi" in render(NotificationEvent.GUEST_ORDER, {**base, "billing": "invoice"})
+    assert "Оплата с бронью" in render(NotificationEvent.GUEST_ORDER, {**base, "billing": "booking"})
+    assert "Оплата" not in render(NotificationEvent.GUEST_ORDER, base)
+
+
+async def test_the_guest_page_shows_the_ways_the_hours_and_the_guests_own_orders():
+    from tests.test_guest_panel import CODE as PANEL_CODE
+    from tests.test_guest_panel import NOW as PANEL_NOW
+    from tests.test_guest_panel import _setup as panel_setup
+    from tests.test_inventory import FakeMovements, FakeProducts
+
+    svc = panel_setup()
+    booking = next(iter(svc._bookings.rows.values()))
+    orders = FakeOrders()
+    from app.domain.inventory.entities import GuestOrder, GuestOrderItem
+
+    mine = GuestOrder(company_id=COMPANY_ID, booking_id=booking.id, property_id=booking.property_id,
+                      total=Decimal("1600"), billing=OrderBilling.BOOKING,
+                      items=[GuestOrderItem(product_id=uuid.uuid4(), name="Кола", price=Decimal("800"), quantity=2)])
+    theirs = GuestOrder(company_id=COMPANY_ID, booking_id=uuid.uuid4(), property_id=booking.property_id,
+                        total=Decimal("1"), items=[])
+    for order in (mine, theirs):
+        await orders.add(order)
+    svc._orders, svc._products = orders, FakeProducts(FakeMovements())
+    svc._settings = _Settings(CompanySettings(minibar_on_booking=True, minibar_opens=time(21), minibar_closes=time(2)))
+
+    from app.presentation.schemas.guest_panel import GuestPanelResponse
+
+    page = GuestPanelResponse.from_panel(await svc.execute(PANEL_CODE, PANEL_NOW))  # 20:00 in Almaty
+    assert (page.minibar.billings, page.minibar.opens, page.minibar.open_now) == (
+        ["invoice", "booking"], time(21), False
+    )
+    [order] = page.orders
+    assert (order.number, order.status, order.billing, order.lines, order.total) == (
+        1, "new", "booking", ["Кола × 2"], 1600
+    )
+
+
+@pytest.mark.integration
+async def test_the_company_sets_the_ways_to_pay_and_the_hours_and_the_guest_follows_them(flat):  # noqa: F811
+    from app.domain.auth.permissions import Permission
+    from app.infrastructure.models.booking import BookingModel
+    from tests.test_guest_panel import _guest_code
+
+    client, prop, use = flat
+    use(Permission.SETTINGS_READ, Permission.SETTINGS_WRITE, Permission.BOOKINGS_READ, Permission.BOOKINGS_WRITE,
+        Permission.PROPERTIES_READ, Permission.INVENTORY_MANAGE)
+    saved = await client.patch("/api/v1/settings", json={"minibar_invoice": False, "minibar_on_booking": True})
+    assert (saved.json()["minibar_invoice"], saved.json()["minibar_on_booking"]) == (False, True)
+
+    cola = (await client.post("/api/v1/inventory/products", json={"name": "Кола", "price": 800})).json()["id"]
+    await client.post(f"/api/v1/inventory/products/{cola}/movements",
+                      json={"kind": "purchase", "quantity": 3, "unit_cost": 0})
+    today = datetime.now(ZoneInfo("Asia/Almaty")).date()
+    stay = {"property_id": str(prop), "guest_name": "Жалгас", "guest_phone": "+77079011164",
+            "check_in": f"{today}T14:00:00", "check_out": f"{today + timedelta(days=1)}T12:00:00",
+            "rental_mode": "daily", "adults_count": 1}
+    booking = (await client.post("/api/v1/bookings", json=stay)).json()["id"]
+    await client.post(f"/api/v1/bookings/{booking}/status", json={"status": "confirmed"})
+    code = await _guest_code(BookingModel, booking)
+    path = f"/api/v1/public/guest/{code}/orders"
+    line = {"items": [{"product_id": cola, "quantity": 1}]}
+
+    assert (await client.post(path, json={**line, "billing": "invoice"})).status_code == 422
+    placed = await client.post(path, json=line)
+    assert placed.status_code == 201, placed.text
+    [order] = (await client.get("/api/v1/guest-orders")).json()
+    assert order["billing"] == "booking"
+    assert (await client.post(f"/api/v1/guest-orders/{order['id']}/accept")).json()["status"] == "accepted"
+
+    # Closed the hour before now and open the hour after: no order now.
+    hour = datetime.now(ZoneInfo("Asia/Almaty")).hour
+    closed = {"minibar_opens": f"{(hour + 1) % 24:02d}:00", "minibar_closes": f"{(hour + 2) % 24:02d}:00"}
+    assert (await client.patch("/api/v1/settings", json=closed)).status_code == 200
+    page = (await client.get(f"/api/v1/public/guest/{code}")).json()
+    assert (page["minibar"]["billings"], page["minibar"]["open_now"]) == (["booking"], False)
+    assert (await client.post(path, json={"items": [{"product_id": cola, "quantity": 2}]})).status_code == 409

@@ -63,9 +63,21 @@ class StockMovement:
 
 class OrderStatus(str, enum.Enum):
     NEW = "new"
+    # Confirmed, to be paid by the invoice the host sends; delivered after payment.
+    AWAITING_PAYMENT = "awaiting_payment"
+    # Confirmed and on its way.
     ACCEPTED = "accepted"
     DELIVERED = "delivered"
     CANCELLED = "cancelled"
+
+
+class OrderBilling(str, enum.Enum):
+    """How the guest chose to pay when ordering, from the ways the company takes."""
+
+    # The host sends a Kaspi invoice to the guest's phone; delivered once paid.
+    INVOICE = "invoice"
+    # Added to the booking's bill, paid with the stay before check-out.
+    BOOKING = "booking"
 
 
 class OrderPaymentStatus(str, enum.Enum):
@@ -104,6 +116,7 @@ class GuestOrder:
     # The order's number in the company, for the WhatsApp text and the host.
     number: int = 0
     status: OrderStatus = OrderStatus.NEW
+    billing: OrderBilling = OrderBilling.INVOICE
     guest_note: str | None = None
     # None until delivered.
     payment_status: OrderPaymentStatus | None = None
@@ -111,6 +124,8 @@ class GuestOrder:
     paid_at: datetime | None = None
     created_at: datetime | None = None
     accepted_at: datetime | None = None
+    # When the host marked the Kaspi invoice sent.
+    invoiced_at: datetime | None = None
     delivered_at: datetime | None = None
     cancelled_at: datetime | None = None
     # Who delivered or cancelled it.
