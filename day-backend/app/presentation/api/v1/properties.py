@@ -950,6 +950,26 @@ async def get_pricing(
         raise HTTPException(status_code=404, detail="Property not found")
 
 
+@router.post(
+    "/{property_id}/pricing/tariffs/copy-to-all",
+    dependencies=[Depends(require(Permission.PROPERTIES_WRITE))],
+)
+async def copy_tariffs_to_all(
+    property_id: uuid.UUID,
+    session: AsyncSession = Depends(get_session),
+    company_id: uuid.UUID = Depends(get_company_id),
+) -> dict[str, int]:
+    repos = _repos(session)
+    svc = ManagePricingService(repos["property"], repos["pricing"], repos["seasonal"], repos["discount"])
+    try:
+        changed = await svc.copy_tariffs_to_all(property_id, company_id)
+    except ValueError as e:
+        await session.rollback()
+        raise HTTPException(status_code=404, detail=str(e))
+    await session.commit()
+    return {"updated": changed}
+
+
 # --- Seasonal ---
 
 

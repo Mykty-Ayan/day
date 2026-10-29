@@ -269,6 +269,36 @@ async def test_a_clone_keeps_the_tariffs():
     assert (clone.price_night, clone.night_to) == (Decimal("15000"), time(11))
 
 
+async def test_tariffs_copy_to_the_other_flats_of_the_company_only():
+    from app.application.property.manage_pricing import ManagePricingService
+    from tests.test_property_services import (
+        COMPANY_ID,
+        FakeDiscountRuleRepository,
+        FakePropertyRepository,
+        FakeSeasonalPriceRepository,
+        _make_property,
+    )
+
+    props, pricing = FakePropertyRepository(), FakePricingConfigRepository()
+    one, two, unpriced, foreign = _make_property(), _make_property(), _make_property(), _make_property()
+    foreign.company_id = uuid.uuid4()
+    for prop in (one, two, unpriced, foreign):
+        await props.save(prop)
+    await pricing.save(PricingConfig(property_id=one.id, base_price=Decimal("20000"), price_3h=Decimal("8000"),
+                                     late_from=time(22)))
+    await pricing.save(PricingConfig(property_id=two.id, base_price=Decimal("23000"), price_night=Decimal("17000")))
+    await pricing.save(PricingConfig(property_id=foreign.id, base_price=Decimal("1")))
+    svc = ManagePricingService(props, pricing, FakeSeasonalPriceRepository(), FakeDiscountRuleRepository())
+
+    assert await svc.copy_tariffs_to_all(one.id, COMPANY_ID) == 1
+
+    copied = await pricing.get_by_property(two.id)
+    assert (copied.base_price, copied.price_3h, copied.price_night, copied.late_from) == (
+        Decimal("23000"), Decimal("8000"), Decimal("0"), time(22))
+    assert (await pricing.get_by_property(foreign.id)).price_3h == 0
+    assert await pricing.get_by_property(unpriced.id) is None
+
+
 @pytest.mark.integration
 async def test_tariffs_are_saved_and_price_an_hourly_stay(flat):  # noqa: F811  (the imported fixture)
     client, prop, use = flat
