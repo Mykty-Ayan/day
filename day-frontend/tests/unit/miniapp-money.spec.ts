@@ -4,7 +4,7 @@
  */
 
 import { expect, test } from '@playwright/test'
-import { debts, periodRange, received } from '../../src/pages/miniapp/money'
+import { debts, metricsRange, periodRange, received } from '../../src/pages/miniapp/money'
 import { tabFromSearch } from '../../src/pages/miniapp/tabs'
 import type { Booking } from '../../src/types/booking'
 
@@ -45,4 +45,9 @@ test('payments add up what guests paid, a cancelled stay counts for nothing', ()
 test('the money tab and the ask screen open from a link', () => {
   expect(tabFromSearch('?tab=money')).toBe('money')
   expect(tabFromSearch('?tab=ask')).toBe('ask')
+})
+
+test('analytics gets the day after the month, so the last day counts', () => {
+  expect(metricsRange('month', new Date(2026, 9, 30))).toEqual({ date_from: '2026-10-01', date_to: '2026-11-01' })
+  expect(metricsRange('lastMonth', new Date(2026, 0, 15))).toEqual({ date_from: '2025-12-01', date_to: '2026-01-01' })
 })
