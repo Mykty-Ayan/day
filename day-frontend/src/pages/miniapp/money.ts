@@ -28,6 +28,13 @@ export function metricsRange(period: MoneyPeriod, today: Date): { date_from: str
 export const owed = (booking: Booking) =>
   Math.max(0, booking.total_price - (booking.paid_amount ?? 0)) + (booking.orders_due ?? 0)
 
+/** A row's debt: all of it, and the minibar orders' part; null when nothing is owed. */
+export function rowDebt(booking: Booking): { total: number; orders: number } | null {
+  if (booking.status === 'cancelled') return null
+  const total = owed(booking)
+  return total > 0 ? { total, orders: booking.orders_due ?? 0 } : null
+}
+
 const live = (bookings: Booking[]) => bookings.filter((booking) => booking.status !== 'cancelled')
 const sum = (values: number[]) => values.reduce((total, value) => total + value, 0)
 
