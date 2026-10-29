@@ -435,6 +435,15 @@ class TestRecordedExpenses:
         assert result.summary.total_recorded_expenses == Decimal("20000")
         assert result.summary.total_profit == Decimal("77000")
 
+    @pytest.mark.asyncio
+    async def test_a_platform_commission_in_the_journal_is_not_taken_twice(self):
+        # Day computes the platforms' commission from the bookings already.
+        commission = _expense("3000", date(2025, 1, 5), PROPERTY_ID)
+        commission.category = ExpenseCategory.PLATFORM_COMMISSION
+        result, _ = await _metrics_with_journal(commission)
+        assert result.summary.total_recorded_expenses == Decimal("0")
+        assert result.summary.total_profit == Decimal("147000")
+
 
 # ---------- GetTimeSeriesService ----------
 
@@ -601,22 +610,16 @@ class TestCostsReachTheReport:
         assert result.properties[0].variable_costs == Decimal("50000")
 
     @pytest.mark.asyncio
-    async def test_profit_is_what_is_left_after_all_of_it(self):
-        result = await self._run(FakePropertyCostsRepository({PROPERTY_ID: self._costs()}))
-        pm = result.properties[0]
-
-        assert pm.expenses == pm.commission + pm.fixed_costs + pm.variable_costs
-        assert pm.profit == pm.revenue - pm.expenses
-
-    @pytest.mark.asyncio
-    async def test_the_old_number_was_larger_by_the_whole_rent(self):
-        # The point of the change, stated as a test: a month that looked like
-        # 570 000 ₸ of profit is closer to 210 000 ₸.
+    async def test_planned_costs_stay_out_of_profit(self):
+        # The owner's decision (30 Oct 2026): profit takes its costs from the
+        # expense journal alone. Planned rent written again in the journal was
+        # counted twice; the plan stays for pricing.
         with_costs = await self._run(FakePropertyCostsRepository({PROPERTY_ID: self._costs()}))
         without = await self._run(FakePropertyCostsRepository())
+        pm = with_costs.properties[0]
 
-        assert without.properties[0].profit > with_costs.properties[0].profit
-        assert without.properties[0].profit == Decimal("570000")
+        assert pm.expenses == pm.commission
+        assert pm.profit == without.properties[0].profit == Decimal("570000")
 
     @pytest.mark.asyncio
     async def test_a_flat_with_no_costs_recorded_still_reports(self):

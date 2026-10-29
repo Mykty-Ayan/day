@@ -9,6 +9,7 @@ from decimal import Decimal
 
 from app.domain.analytics.entities import AnalyticsSummary, PropertyMetrics
 from app.domain.analytics.repositories import AnalyticsRepository
+from app.domain.expenses.entities import ExpenseCategory
 from app.domain.expenses.repositories import ExpenseRepository
 from app.domain.property.entities import PropertyCosts
 from app.domain.property.repositories import PropertyCostsRepository
@@ -129,18 +130,20 @@ class CalculateMetricsService:
             inp.company_id, date_from=inp.date_from, date_to=inp.date_to - timedelta(days=1)
         )
         for expense in expenses:
+            # Day computes the platforms' commission itself: a journal entry of it would count twice.
+            if expense.category == ExpenseCategory.PLATFORM_COMMISSION:
+                continue
             totals[expense.property_id] = totals.get(expense.property_id, Decimal("0")) + expense.amount
         return totals
 
 
 def _apply_costs(pm: PropertyMetrics, costs: PropertyCosts | None, period_days: int) -> None:
-    """Fill in what the flat cost, and what is actually left.
+    """Fill in the flat's planned costs, and what is left after commission.
 
-    A flat with no costs recorded keeps the old arithmetic — revenue minus
-    commission — rather than reporting an error or a zero. That is not the right
-    number, but it is the number that was there before anyone filled the form
-    in, and a report that refuses to render is worse than one that is
-    incomplete for the flats nobody has configured yet.
+    The owner's decision (30 Oct 2026): profit takes its costs from the expense
+    journal alone, added on top of this. The planned rent, utilities, cleaning and
+    consumables stay as figures for pricing, never subtracted: rent written both
+    in the plan and in the journal was counted twice.
     """
     if costs is not None:
         pm.fixed_costs = costs.fixed_cost(period_days)
@@ -150,5 +153,5 @@ def _apply_costs(pm: PropertyMetrics, costs: PropertyCosts | None, period_days: 
             + costs.consumables_per_night * pm.booked_nights
         )
 
-    pm.expenses = pm.commission + pm.fixed_costs + pm.variable_costs
+    pm.expenses = pm.commission
     pm.profit = pm.revenue - pm.expenses
