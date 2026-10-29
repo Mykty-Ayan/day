@@ -78,6 +78,10 @@ jobs:
       # covers src and tests together.
       - name: Type check
         run: cd day-frontend && npm run typecheck
+      # Pure functions only (tests/unit): no browser, no server. Before this step a
+      # Russian plural or a payment-state rule could break with CI still green.
+      - name: Unit tests
+        run: cd day-frontend && npx playwright test --config=playwright.unit.config.ts
 
   frontend-build:
     runs-on: ubuntu-latest
