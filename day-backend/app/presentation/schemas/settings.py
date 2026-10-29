@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime
+from datetime import datetime, time
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
@@ -17,6 +17,12 @@ class SettingsUpdate(BaseModel):
     # Hours before check-in the guest's page shows the way in, once the stay is paid.
     secrets_lead_hours_daily: int | None = Field(default=None, ge=0, le=168)
     secrets_lead_hours_hourly: int | None = Field(default=None, ge=0, le=168)
+    # How a guest may pay for a minibar order; at least one stays on.
+    minibar_invoice: bool | None = None
+    minibar_on_booking: bool | None = None
+    # The minibar's hours, local; both null: round the clock. Send both together.
+    minibar_opens: time | None = None
+    minibar_closes: time | None = None
 
     @field_validator("time_zone")
     @classmethod
@@ -42,5 +48,9 @@ class SettingsResponse(BaseModel):
     time_zone: str
     secrets_lead_hours_daily: int = 24
     secrets_lead_hours_hourly: int = 1
+    minibar_invoice: bool = True
+    minibar_on_booking: bool = False
+    minibar_opens: time | None = None
+    minibar_closes: time | None = None
     created_at: datetime | None = None
     updated_at: datetime | None = None
