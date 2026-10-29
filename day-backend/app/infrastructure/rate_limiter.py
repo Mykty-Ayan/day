@@ -41,7 +41,7 @@ _GUEST_BOOK_LIMIT = 5
 # "I have left" and a minibar order on a guest's page share it too, and so do the
 # phone digits that open a guest's page from the flat's.
 _GUEST_BOOK = re.compile(
-    r"^/api/v1/public/((stays|offers)/[^/]+/book|stays/[^/]+/here|guest/[^/]+/(checked-out|orders))$"
+    r"^/api/v1/public/((stays|offers)/[^/]+/book|stays/[^/]+/here|guest/[^/]+/(checked-out|orders|orders/\d+/cancel))$"
 )
 
 # Paths excluded from rate limiting

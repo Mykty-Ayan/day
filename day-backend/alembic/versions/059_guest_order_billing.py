@@ -27,6 +27,9 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    # The code before this revision knows no kaspi way to pay: a Kaspi invoice
+    # paid goes back as a transfer.
+    op.execute("UPDATE guest_orders SET payment_method = 'transfer' WHERE payment_method = 'kaspi'")
     # Before this revision there was no awaiting_payment: such an order goes back
     # to accepted, as the host confirmed it.
     op.execute("UPDATE guest_orders SET status = 'accepted' WHERE status = 'awaiting_payment'")

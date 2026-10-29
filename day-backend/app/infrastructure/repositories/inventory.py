@@ -5,7 +5,7 @@ from collections.abc import Sequence
 from datetime import datetime
 from decimal import Decimal
 
-from sqlalchemy import func, select, text, update
+from sqlalchemy import and_, func, or_, select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.domain.inventory.entities import (
@@ -279,23 +279,41 @@ class SqlGuestOrderRepository(GuestOrderRepository):
             .where(
                 GuestOrderModel.company_id == company_id,
                 GuestOrderModel.booking_id.in_(booking_ids),
-                GuestOrderModel.payment_status == OrderPaymentStatus.ON_BOOKING.value,
+                GuestOrderModel.status != OrderStatus.CANCELLED.value,
+                GuestOrderModel.payment_status.is_distinct_from(OrderPaymentStatus.PAID.value),
+                or_(
+                    GuestOrderModel.payment_status == OrderPaymentStatus.ON_BOOKING.value,
+                    and_(
+                        GuestOrderModel.billing == OrderBilling.BOOKING.value,
+                        GuestOrderModel.status.in_([OrderStatus.ACCEPTED.value, OrderStatus.DELIVERED.value]),
+                    ),
+                ),
             )
             .group_by(GuestOrderModel.booking_id)
         )
         return {booking_id: Decimal(str(total)) for booking_id, total in rows.all()}
 
     async def move(
-        self, company_id: uuid.UUID, order_id: uuid.UUID, allowed: set[OrderStatus], order: GuestOrder
+        self,
+        company_id: uuid.UUID,
+        order_id: uuid.UUID,
+        allowed: set[OrderStatus],
+        order: GuestOrder,
+        was: OrderPaymentStatus | None,
     ) -> GuestOrder | None:
         # One conditional update: of two hands at once, the second changes nothing.
+        # Compare-and-set on the payment as read too: a payment recorded meanwhile stays.
+        guards = [
+            GuestOrderModel.id == order_id,
+            GuestOrderModel.company_id == company_id,
+            GuestOrderModel.status.in_([s.value for s in allowed]),
+            GuestOrderModel.payment_status.is_not_distinct_from(was.value if was else None),
+        ]
+        if order.payment_status != OrderPaymentStatus.PAID:
+            guards.append(GuestOrderModel.payment_status.is_distinct_from(OrderPaymentStatus.PAID.value))
         model = await self._session.scalar(
             update(GuestOrderModel)
-            .where(
-                GuestOrderModel.id == order_id,
-                GuestOrderModel.company_id == company_id,
-                GuestOrderModel.status.in_([s.value for s in allowed]),
-            )
+            .where(*guards)
             .values(
                 status=order.status.value,
                 payment_status=order.payment_status.value if order.payment_status else None,

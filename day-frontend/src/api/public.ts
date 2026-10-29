@@ -169,7 +169,7 @@ export interface GuestPanel {
     adults: number
     total: number
     paid: number
-    /** Minibar orders delivered on the guest's tab; part of remaining. */
+    /** Minibar orders owed with the stay, by the server's one rule; part of remaining. */
     orders_due?: number
     remaining: number
   } | null
@@ -192,6 +192,30 @@ export interface GuestPanel {
   lead_hours: number
   /** The minibar during the stay; null outside it. */
   menu: MenuItem[] | null
+  /** With the menu: the ways the company takes and its hours. */
+  minibar?: {
+    billings: GuestBilling[]
+    /** "HH:MM:SS", local; both null: round the clock. */
+    opens: string | null
+    closes: string | null
+    open_now: boolean
+  } | null
+  /** This booking's own orders, newest first. */
+  orders?: GuestPanelOrder[]
+}
+
+/** invoice: a Kaspi invoice before delivery; booking: added to the booking's bill. */
+export type GuestBilling = 'invoice' | 'booking'
+
+export interface GuestPanelOrder {
+  number: number
+  status: 'new' | 'awaiting_payment' | 'accepted' | 'delivered' | 'cancelled'
+  billing: GuestBilling
+  payment_status: 'paid' | 'on_booking' | null
+  /** The host sent the Kaspi invoice. */
+  invoiced: boolean
+  total: number
+  lines: string[]
 }
 
 export interface MenuItem {
@@ -212,16 +236,23 @@ export interface PlacedOrder {
   whatsapp_url: string | null
 }
 
+/** The guest calls off their own order while it is new or awaiting the invoice's payment. */
+export async function cancelOwnOrder(code: string, number: number): Promise<void> {
+  await publicClient.post(`/public/guest/${encodeURIComponent(code)}/orders/${number}/cancel`)
+}
+
 export async function placeGuestOrder(
   code: string,
   items: { product_id: string; quantity: number }[],
   note: string | null,
   language: 'ru' | 'kz' | 'en',
+  billing: GuestBilling,
 ): Promise<PlacedOrder> {
   const res = await publicClient.post<PlacedOrder>(`/public/guest/${encodeURIComponent(code)}/orders`, {
     items,
     note,
     language,
+    billing,
   })
   return res.data
 }

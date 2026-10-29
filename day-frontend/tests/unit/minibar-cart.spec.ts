@@ -1,10 +1,19 @@
 /**
- * The guest's minibar cart: within what is left, in the menu's order, totals.
+ * The guest's minibar cart: within what is left, in the menu's order, totals;
+ * and the guest's orders: what is owed with the booking, and each one's state.
  */
 
 import { expect, test } from '@playwright/test'
-import type { MenuItem } from '../../src/api/public'
-import { byCategory, cartCount, cartLines, cartTotal, changeCart } from '../../src/lib/minibar-cart'
+import type { GuestPanelOrder as Order, MenuItem } from '../../src/api/public'
+import {
+  byCategory,
+  cartCount,
+  cartLines,
+  cartTotal,
+  changeCart,
+  guestMayCancel,
+  orderState,
+} from '../../src/lib/minibar-cart'
 
 const item = (id: string, price: number, max: number, category = 'Напитки'): MenuItem => ({
   id,
@@ -43,4 +52,31 @@ test('the menu reads by category in the host order', () => {
     ['Напитки', ['cola', 'water']],
     ['Снеки', ['nuts']],
   ])
+})
+
+test('an order\'s state for the guest, and which ones the guest may still call off', () => {
+  const order = (total: number, status: Order['status'], billing: Order['billing'], payment_status: Order['payment_status'] = null): Order => ({
+    number: total,
+    status,
+    billing,
+    payment_status,
+    invoiced: false,
+    total,
+    lines: [],
+  })
+  const orders = [
+    order(100, 'new', 'booking'),
+    order(200, 'accepted', 'booking'),
+    order(400, 'delivered', 'booking', 'on_booking'),
+    order(800, 'delivered', 'invoice', 'on_booking'),
+    order(1600, 'cancelled', 'booking'),
+    order(3200, 'accepted', 'invoice', 'paid'),
+    order(6400, 'delivered', 'booking', 'paid'),
+    order(12800, 'awaiting_payment', 'invoice'),
+  ]
+  expect(orderState(order(1, 'awaiting_payment', 'invoice'))).toBe('confirmed')
+  expect(orderState({ ...order(1, 'awaiting_payment', 'invoice'), invoiced: true })).toBe('invoiced')
+  expect(orderState(order(1, 'accepted', 'booking'))).toBe('accepted')
+  // The guest may call off what waits for the host or for the invoice's payment.
+  expect(orders.filter(guestMayCancel).map((o) => o.total)).toEqual([100, 12800])
 })

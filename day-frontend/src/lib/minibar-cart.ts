@@ -1,6 +1,6 @@
 /** The guest's minibar cart: product id → how many. Kept apart to be tested. */
 
-import type { MenuItem } from '../api/public'
+import type { GuestPanelOrder, MenuItem } from '../api/public'
 
 export type Cart = Record<string, number>
 
@@ -26,4 +26,14 @@ export function byCategory(menu: MenuItem[]): [string, MenuItem[]][] {
   const groups = new Map<string, MenuItem[]>()
   for (const item of menu) groups.set(item.category, [...(groups.get(item.category) ?? []), item])
   return [...groups]
+}
+
+/** The guest may still call it off: waiting for the host or for the invoice's payment, unpaid. */
+export const guestMayCancel = (order: GuestPanelOrder) =>
+  (order.status === 'new' || order.status === 'awaiting_payment') && !order.payment_status
+
+/** The order's state for the guest, as a key under guestPanel.minibar.state. */
+export function orderState(order: GuestPanelOrder): string {
+  if (order.status === 'awaiting_payment') return order.invoiced ? 'invoiced' : 'confirmed'
+  return order.status
 }

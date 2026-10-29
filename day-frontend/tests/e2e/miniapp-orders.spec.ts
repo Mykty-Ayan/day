@@ -64,7 +64,7 @@ test('the host handles guest orders from the Mini App', async ({ page, request, 
   await card.getByRole('button', { name: 'Invoice paid' }).click()
   await expect(card).toContainText('on its way')
   await card.getByRole('button', { name: 'Delivered', exact: true }).click()
-  await expect(card).toContainText('Paid by transfer')
+  await expect(card).toContainText('Paid via Kaspi')
   await expect(page.getByTestId('stock-row').filter({ hasText: 'Кола 0,5' })).toContainText('1 pcs')
   await expect(page).toHaveURL(/order=/)
 
@@ -102,6 +102,22 @@ test('the host handles guest orders from the Mini App', async ({ page, request, 
   await expect(page.getByRole('article', { name: 'Order #3' })).toContainText('Paid by card')
   const settled = await (await request.get(`${API_BASE}/bookings/${booking.id}`)).json()
   expect(settled.booking.orders_due).toBe(0)
+
+  // Paid by its invoice and then cancelled: the question says the money goes back by hand.
+  const stock = await request.post(`${API_BASE}/inventory/products/${product.id}/movements`, {
+    data: { kind: 'purchase', quantity: 1, unit_cost: 300, spent_on: futureDate(0) },
+  })
+  expect(stock.ok(), await stock.text()).toBeTruthy()
+  await placeOrder(1)
+  const fourth = (await (await request.get(`${API_BASE}/guest-orders`)).json()).find((o: { number: number }) => o.number === 4)
+  await request.post(`${API_BASE}/guest-orders/${fourth.id}/accept`)
+  const paidByKaspi = await request.post(`${API_BASE}/guest-orders/${fourth.id}/paid`, { data: { payment_method: 'kaspi' } })
+  expect(paidByKaspi.ok(), await paidByKaspi.text()).toBeTruthy()
+  await page.reload()
+  const card4 = page.getByRole('article', { name: 'Order #4' })
+  await card4.getByRole('button', { name: 'Cancel' }).click()
+  await expect(card4).toContainText('cancelled')
+  expect(asked[5]).toBe('Order #4 is paid. You return the money to the guest yourself. Cancel it?')
 })
 
 test('the booking card sends the guest their page link in WhatsApp', async ({ page, request, authTokens }) => {

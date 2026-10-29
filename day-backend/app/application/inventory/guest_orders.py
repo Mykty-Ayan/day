@@ -222,6 +222,29 @@ class GuestOrderService:
     async def list(self, company_id: uuid.UUID, *, status: OrderStatus | None = None) -> Sequence[GuestOrder]:
         return await self._orders.list(company_id, status=status)
 
+    async def cancel_by_guest(self, code: str, number: int) -> PlacedOrder:
+        """The guest calls off their own order, while it waits for the host or for
+        the invoice's payment and nothing is paid. LookupError for another booking's
+        order or a wrong code; ValueError when it is past that."""
+        booking = await self._bookings.get_by_guest_code(code) if len(code) == 16 else None
+        if booking is None:
+            raise LookupError("Not found")
+        found = [o for o in await self._orders.list_for_booking(booking.company_id, booking.id) if o.number == number]
+        if not found:
+            raise LookupError("Order not found")
+        order = found[0]
+        if order.payment_status is not None:
+            raise ValueError("The order is paid or on the tab")
+        order.status, order.cancelled_at = OrderStatus.CANCELLED, datetime.utcnow()
+        moved = await self._orders.move(
+            booking.company_id, order.id, {OrderStatus.NEW, OrderStatus.AWAITING_PAYMENT}, order, None
+        )
+        if moved is None:
+            raise ValueError("The host has the order on its way")
+        prop = await self._properties.get_by_id(booking.property_id)
+        flat = prop.name if prop and prop.company_id == booking.company_id else ""
+        return PlacedOrder(order=moved, flat_name=flat, whatsapp_url=None)
+
     async def list_for_booking(self, company_id: uuid.UUID, booking_id: uuid.UUID) -> Sequence[GuestOrder]:
         return await self._orders.list_for_booking(company_id, booking_id)
 
@@ -229,21 +252,24 @@ class GuestOrderService:
         """Confirmed: by invoice it now waits for the guest's payment; on the
         booking's bill it goes straight on its way."""
         order = await self._get(company_id, order_id)
+        was = order.payment_status
         order.accepted_at = datetime.utcnow()
         order.status = OrderStatus.AWAITING_PAYMENT if order.billing == OrderBilling.INVOICE else OrderStatus.ACCEPTED
-        return await self._move(company_id, order_id, {OrderStatus.NEW}, order)
+        return await self._move(company_id, order_id, {OrderStatus.NEW}, order, was)
 
     async def invoiced(self, company_id: uuid.UUID, order_id: uuid.UUID, by: uuid.UUID | None) -> GuestOrder:
         """The host sent the Kaspi invoice (by hand: Kaspi Pay has no API); the
         guest's page says it is in their Kaspi app."""
         order = await self._get(company_id, order_id)
+        was = order.payment_status
         order.invoiced_at, order.handled_by = datetime.utcnow(), by
-        return await self._move(company_id, order_id, {OrderStatus.AWAITING_PAYMENT}, order)
+        return await self._move(company_id, order_id, {OrderStatus.AWAITING_PAYMENT}, order, was)
 
     async def cancel(self, company_id: uuid.UUID, order_id: uuid.UUID, by: uuid.UUID | None) -> GuestOrder:
         order = await self._get(company_id, order_id)
+        was = order.payment_status
         order.status, order.cancelled_at, order.handled_by = OrderStatus.CANCELLED, datetime.utcnow(), by
-        return await self._move(company_id, order_id, _OPEN, order)
+        return await self._move(company_id, order_id, _OPEN, order, was)
 
     async def deliver(
         self, company_id: uuid.UUID, order_id: uuid.UUID, payment: OrderPayment | None, by: uuid.UUID | None
@@ -254,13 +280,14 @@ class GuestOrderService:
         the same transaction. The stock may go below zero — the goods are with the
         guest; the purchase was not recorded."""
         order = await self._get(company_id, order_id)
+        was = order.payment_status
         now = datetime.utcnow()
         order.status, order.delivered_at, order.handled_by = OrderStatus.DELIVERED, now, by
         if order.payment_status != OrderPaymentStatus.PAID:
             order.payment_method = payment
             order.payment_status = OrderPaymentStatus.PAID if payment else OrderPaymentStatus.ON_BOOKING
             order.paid_at = now if payment else None
-        delivered = await self._move(company_id, order_id, _OPEN, order)
+        delivered = await self._move(company_id, order_id, _OPEN, order, was)
         for item in delivered.items:
             await self._movements.add(
                 StockMovement(
@@ -281,6 +308,7 @@ class GuestOrderService:
         """The guest paid: the invoice of an order awaiting payment (it goes on its
         way), or an order delivered on the tab."""
         order = await self._get(company_id, order_id)
+        was = order.payment_status
         if order.status == OrderStatus.AWAITING_PAYMENT:
             order.status, allowed = OrderStatus.ACCEPTED, {OrderStatus.AWAITING_PAYMENT}
         elif order.payment_status == OrderPaymentStatus.ON_BOOKING:
@@ -289,7 +317,7 @@ class GuestOrderService:
             raise ValueError("The order is not awaiting payment nor on the tab")
         order.payment_status, order.payment_method, order.paid_at = OrderPaymentStatus.PAID, payment, datetime.utcnow()
         order.handled_by = by
-        return await self._move(company_id, order_id, allowed, order)
+        return await self._move(company_id, order_id, allowed, order, was)
 
     async def _get(self, company_id: uuid.UUID, order_id: uuid.UUID) -> GuestOrder:
         order = await self._orders.get(company_id, order_id)
@@ -298,9 +326,16 @@ class GuestOrderService:
         return order
 
     async def _move(
-        self, company_id: uuid.UUID, order_id: uuid.UUID, allowed: set[OrderStatus], order: GuestOrder
+        self,
+        company_id: uuid.UUID,
+        order_id: uuid.UUID,
+        allowed: set[OrderStatus],
+        order: GuestOrder,
+        was: OrderPaymentStatus | None,
     ) -> GuestOrder:
-        moved = await self._orders.move(company_id, order_id, allowed, order)
+        """Write the step if the order is still in `allowed` and its payment is still
+        `was`, as read: a payment another hand recorded meanwhile is never lost."""
+        moved = await self._orders.move(company_id, order_id, allowed, order, was)
         if moved is None:
             raise ValueError("The order is not in a state for this")
         return moved

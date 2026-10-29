@@ -380,3 +380,24 @@ async def place_guest_order(code: str, body: GuestOrderCreate, session: AsyncSes
         raise HTTPException(status_code=422, detail=str(e))
     await session.commit()
     return GuestOrderPlaced(number=order.number, total=float(order.total), whatsapp_url=placed.whatsapp_url)
+
+
+@public_router.post("/guest/{code}/orders/{number}/cancel")
+async def cancel_guest_order(code: str, number: int, session: AsyncSession = Depends(get_session)):
+    """The guest calls off their own order while it is new or awaiting the invoice's
+    payment and unpaid; 409 once it is paid or on its way. The host is told in the bot."""
+    try:
+        done = await guest_orders(session).cancel_by_guest(code, number)
+        await build_notification_service(session).notify_company(
+            done.order.company_id,
+            NotificationEvent.GUEST_ORDER_CANCELLED,
+            {"number": done.order.number, "property_name": done.flat_name or "—", "order_id": str(done.order.id)},
+        )
+    except LookupError:
+        await session.rollback()
+        raise HTTPException(status_code=404, detail="Not found")
+    except ValueError as e:
+        await session.rollback()
+        raise HTTPException(status_code=409, detail=str(e))
+    await session.commit()
+    return {"number": done.order.number, "status": done.order.status.value}
