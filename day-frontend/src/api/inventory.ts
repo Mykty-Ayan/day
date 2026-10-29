@@ -79,12 +79,13 @@ export async function addMovement(productId: string, data: MovementInput): Promi
   return (await apiClient.post<StockMovement>(`/inventory/products/${productId}/movements`, data)).data
 }
 
-export type OrderStatus = 'new' | 'accepted' | 'delivered' | 'cancelled'
+export type OrderStatus = 'new' | 'awaiting_payment' | 'accepted' | 'delivered' | 'cancelled'
 
 export interface GuestOrder {
   id: string
   number: number
   status: OrderStatus
+  billing: 'invoice' | 'booking'
   total: number
   guest_note: string | null
   /** null until delivered; on_booking: on the guest's tab, to be paid later. */

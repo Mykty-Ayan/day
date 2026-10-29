@@ -1,6 +1,8 @@
 /**
- * Guests' minibar orders: the ones waiting for a hand on top (accept, delivered
- * with how the guest paid, cancel), the done ones below, and the stock to read.
+ * Guests' minibar orders: the ones waiting for a hand on top, the done ones
+ * below, and the stock to read. By invoice: confirm, send the Kaspi invoice to
+ * the guest's phone by hand, mark it sent, mark it paid, deliver. With the
+ * booking: confirm, deliver (paid at the door or on the guest's tab).
  * Delivering takes the lines off the stock on the server; the stock is changed
  * only on the web (purchases, write-offs).
  */
@@ -12,6 +14,7 @@ import {
   acceptGuestOrder,
   cancelGuestOrder,
   deliverGuestOrder,
+  invoiceSentGuestOrder,
   listGuestOrders,
   listStock,
   payGuestOrder,
@@ -81,6 +84,50 @@ export default function OrdersScreen({ enabled, linkedId }: { enabled: boolean; 
           <span>{t('miniapp.orders.total')}</span>
           <span className="tabular-nums">{money(order.total)}</span>
         </p>
+        <p className="tg-hint text-xs">
+          {order.billing === 'invoice' && order.guest_phone && order.status === 'awaiting_payment'
+            ? t('miniapp.orders.invoiceTo', { phone: order.guest_phone })
+            : t(`miniapp.orders.billing.${order.billing}`)}
+        </p>
+        {order.status === 'awaiting_payment' && (
+          <>
+            {order.invoiced_at ? (
+              <p className="tg-hint text-xs">
+                {t('miniapp.orders.invoiceSentAt', { time: formatTime(`${order.invoiced_at}Z`, i18n.language) })}
+              </p>
+            ) : (
+              <ActionButton disabled={busy} onClick={() => act.mutate(() => invoiceSentGuestOrder(order.id))}>
+                {t('miniapp.orders.invoiceSent')}
+              </ActionButton>
+            )}
+            {/* Kaspi Pay: recorded as a transfer. */}
+            <ActionButton
+              tone="primary"
+              disabled={busy}
+              onClick={() =>
+                settle(t('miniapp.orders.invoicePaidAsk', { number: order.number, amount: money(order.total) }), () =>
+                  payGuestOrder(order.id, 'transfer'),
+                )
+              }
+            >
+              {t('miniapp.orders.invoicePaid')}
+            </ActionButton>
+          </>
+        )}
+        {order.status === 'accepted' && order.payment_status === 'paid' && (
+          <ActionButton
+            tone="primary"
+            disabled={busy}
+            onClick={async () => {
+              if (await confirmAction(t('miniapp.orders.deliverAsk', { number: order.number }))) {
+                // Paid by its invoice: the server keeps the payment as it was.
+                act.mutate(() => deliverGuestOrder(order.id, order.payment_method ?? 'transfer'))
+              }
+            }}
+          >
+            {t('miniapp.orders.delivered')}
+          </ActionButton>
+        )}
         {order.status === 'delivered' && order.payment_method && (
           <p className="tg-hint text-xs">{t(`miniapp.orders.paid.${order.payment_method}`)}</p>
         )}
@@ -108,7 +155,10 @@ export default function OrdersScreen({ enabled, linkedId }: { enabled: boolean; 
             {t('miniapp.orders.accept')}
           </ActionButton>
         )}
-        {(order.status === 'new' || order.status === 'accepted') && (
+        {/* By invoice it is paid before it goes; with the booking (or an order from before
+            the ways to pay) the host settles it at the door. */}
+        {((order.status === 'new' && order.billing === 'booking') ||
+          (order.status === 'accepted' && order.payment_status !== 'paid')) && (
           <>
             <p className="tg-hint text-xs font-bold uppercase tracking-wide">{t('miniapp.orders.deliveredHow')}</p>
             <div className="grid grid-cols-2 gap-2">
@@ -138,6 +188,10 @@ export default function OrdersScreen({ enabled, linkedId }: { enabled: boolean; 
                 {t('miniapp.orders.toTab')}
               </ActionButton>
             </div>
+          </>
+        )}
+        {(order.status === 'new' || order.status === 'awaiting_payment' || order.status === 'accepted') && (
+          <>
             <ActionButton
               disabled={busy}
               onClick={async () => {

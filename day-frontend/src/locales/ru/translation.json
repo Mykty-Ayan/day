@@ -922,6 +922,22 @@
       "save": "Сохранить",
       "invalid": "Часы — целое число от 0 до 168",
       "failed": "Не удалось сохранить"
+    },
+    "minibar": {
+      "title": "Мини-бар",
+      "description": "Как гость платит за заказ и когда можно заказывать.",
+      "ways": "Способы оплаты",
+      "invoice": "По счёту",
+      "invoiceHint": "Вы выставляете счёт Kaspi на номер гостя, привозите после оплаты",
+      "onBooking": "К оплате брони",
+      "onBookingHint": "Сумма добавляется к брони, гость платит до выезда",
+      "oneWay": "Оставьте хотя бы один способ",
+      "allDay": "Круглосуточно",
+      "opens": "Принимаем с",
+      "closes": "до",
+      "hoursInvalid": "Укажите оба времени, и они должны различаться",
+      "save": "Сохранить",
+      "failed": "Не удалось сохранить"
     }
   },
   "team": {
@@ -1352,7 +1368,7 @@
       "stock": "Остатки",
       "noStock": "Товаров пока нет",
       "pieces": "{{qty}} шт.",
-      "accept": "Принять",
+      "accept": "Подтвердить",
       "deliveredHow": "Доставлено, оплата:",
       "cancel": "Отменить",
       "payAsk": "Заказ №{{number}} оплачен: {{amount}}, {{method}}?",
@@ -1362,7 +1378,8 @@
       "failed": "Не удалось. Попробуйте ещё раз.",
       "status": {
         "new": "новый",
-        "accepted": "принят",
+        "awaiting_payment": "ждёт оплаты",
+        "accepted": "везём",
         "delivered": "доставлен",
         "cancelled": "отменён"
       },
@@ -1378,7 +1395,18 @@
       },
       "onTab": "В долг: не оплачен",
       "paidHow": "Оплачено:",
-      "toTab": "В долг"
+      "toTab": "В долг",
+      "billing": {
+        "invoice": "По счёту Kaspi",
+        "booking": "К оплате брони"
+      },
+      "invoiceTo": "Счёт Kaspi на {{phone}}",
+      "invoiceSent": "Счёт отправлен",
+      "invoiceSentAt": "Счёт отправлен {{time}}",
+      "invoicePaid": "Счёт оплачен",
+      "invoicePaidAsk": "Заказ №{{number}} оплачен по счёту: {{amount}}?",
+      "delivered": "Доставлено",
+      "deliverAsk": "Заказ №{{number}} доставлен?"
     }
   },
   "auth": {
@@ -1751,7 +1779,8 @@
       "number": "№{{number}}",
       "statuses": {
         "new": "новый",
-        "accepted": "принят",
+        "awaiting_payment": "ждёт оплаты",
+        "accepted": "везём",
         "delivered": "доставлен",
         "cancelled": "отменён"
       },
@@ -1760,7 +1789,11 @@
         "card": "карта",
         "transfer": "перевод"
       },
-      "onTab": "в долг"
+      "onTab": "в долг",
+      "billing": {
+        "invoice": "по счёту",
+        "booking": "к оплате брони"
+      }
     }
   },
   "guestPanel": {

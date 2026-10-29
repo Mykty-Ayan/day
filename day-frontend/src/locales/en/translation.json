@@ -890,6 +890,22 @@
       "save": "Save",
       "invalid": "Hours: a whole number from 0 to 168",
       "failed": "Could not save"
+    },
+    "minibar": {
+      "title": "Minibar",
+      "description": "How a guest pays for an order, and when ordering is open.",
+      "ways": "Ways to pay",
+      "invoice": "By invoice",
+      "invoiceHint": "You send a Kaspi invoice to the guest's phone and deliver once it is paid",
+      "onBooking": "Added to the booking",
+      "onBookingHint": "The sum joins the booking; the guest pays before check-out",
+      "oneWay": "Keep at least one way on",
+      "allDay": "Round the clock",
+      "opens": "Orders from",
+      "closes": "to",
+      "hoursInvalid": "Give both times, and make them differ",
+      "save": "Save",
+      "failed": "Could not save"
     }
   },
   "team": {
@@ -1312,7 +1328,7 @@
       "stock": "Stock",
       "noStock": "No products yet",
       "pieces": "{{qty}} pcs",
-      "accept": "Accept",
+      "accept": "Confirm",
       "deliveredHow": "Delivered, paid by:",
       "cancel": "Cancel",
       "payAsk": "Order #{{number}} paid: {{amount}}, {{method}}?",
@@ -1322,7 +1338,8 @@
       "failed": "That did not work. Try again.",
       "status": {
         "new": "new",
-        "accepted": "accepted",
+        "awaiting_payment": "awaiting payment",
+        "accepted": "on its way",
         "delivered": "delivered",
         "cancelled": "cancelled"
       },
@@ -1338,7 +1355,18 @@
       },
       "onTab": "On the tab: not paid",
       "paidHow": "Paid by:",
-      "toTab": "On the tab"
+      "toTab": "On the tab",
+      "billing": {
+        "invoice": "By Kaspi invoice",
+        "booking": "Added to the booking"
+      },
+      "invoiceTo": "Kaspi invoice to {{phone}}",
+      "invoiceSent": "Invoice sent",
+      "invoiceSentAt": "Invoice sent {{time}}",
+      "invoicePaid": "Invoice paid",
+      "invoicePaidAsk": "Order #{{number}} paid by invoice: {{amount}}?",
+      "delivered": "Delivered",
+      "deliverAsk": "Order #{{number}} delivered?"
     }
   },
   "auth": {
@@ -1695,7 +1723,8 @@
       "number": "#{{number}}",
       "statuses": {
         "new": "new",
-        "accepted": "accepted",
+        "awaiting_payment": "awaiting payment",
+        "accepted": "on its way",
         "delivered": "delivered",
         "cancelled": "cancelled"
       },
@@ -1704,7 +1733,11 @@
         "card": "card",
         "transfer": "transfer"
       },
-      "onTab": "on the tab"
+      "onTab": "on the tab",
+      "billing": {
+        "invoice": "by invoice",
+        "booking": "added to the booking"
+      }
     }
   },
   "guestPanel": {

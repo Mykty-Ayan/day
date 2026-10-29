@@ -10,6 +10,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { sessionGeneration, storeSession } from '../../api/client'
 import Button from '../../components/ui/Button'
 import { useSettings, useUpdateSettings } from '../../hooks/useSettings'
+import MinibarCard from './MinibarCard'
 
 const LANGUAGES = [
   { code: 'ru', label: 'Русский', flag: 'RU' },
@@ -78,6 +79,7 @@ export default function SettingsPage() {
         <PasswordCard />
         <TwoFactorCard />
         {currentUser?.role === 'owner' && <GuestPageCard />}
+        {currentUser?.role === 'owner' && <MinibarCard />}
 
         {/* Team and service keys live behind their own page — owner only. */}
         {currentUser?.role === 'owner' && (
