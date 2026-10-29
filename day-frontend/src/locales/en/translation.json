@@ -256,7 +256,7 @@
       "latitudePlaceholder": "43.2381",
       "longitudePlaceholder": "76.9454",
       "dropPhotos": "Drop photos here or click to upload",
-      "photoHint": "PNG, JPG up to 10MB",
+      "photoHint": "JPEG, PNG or WebP up to 20 MB",
       "setAsCover": "Set as cover",
       "cover": "Cover",
       "amenitiesError": "Failed to load amenities",
