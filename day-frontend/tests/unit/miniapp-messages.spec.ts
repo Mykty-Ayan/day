@@ -23,7 +23,7 @@ const RU: Record<string, string> = {
   'miniapp.offer.hours': 'заезд с {{checkIn}}, выезд до {{checkOut}}',
   'miniapp.offer.forNights': 'за {{count}} ноч.',
   'miniapp.offer.rooms': '{{count}}-комн.',
-  'miniapp.booking.messageHead': '{{name}}, добро пожаловать!',
+  'miniapp.booking.messageHead': 'Здравствуйте, {{name}}! Добро пожаловать.',
   'miniapp.booking.block': 'блок {{value}}',
   'miniapp.booking.flat': 'кв. {{value}}',
   'miniapp.booking.floor': '{{value}} этаж',
@@ -211,7 +211,7 @@ test.describe('buildCheckInMessage', () => {
 
     expect(plain(message)).toBe(
       [
-        'Ерлан, добро пожаловать!',
+        'Здравствуйте, Ерлан! Добро пожаловать.',
         '',
         'Проспект Райымбека 210/6, блок 8, кв. 62, 8 этаж',
         '',
@@ -296,7 +296,7 @@ test.describe('buildCheckInMessage', () => {
     const message = buildCheckInMessage(booking(), undefined, 'ru', t)
 
     expect(plain(message)).toBe(
-      ['Ерлан, добро пожаловать!', '', 'Заезд 28 авг. 14:00, выезд 30 авг. 12:00.'].join('\n'),
+      ['Здравствуйте, Ерлан! Добро пожаловать.', '', 'Заезд 28 авг. 14:00, выезд 30 авг. 12:00.'].join('\n'),
     )
     expect(plain(message)).not.toContain('undefined')
     expect(plain(message)).not.toContain('null')
@@ -306,7 +306,7 @@ test.describe('buildCheckInMessage', () => {
     const message = buildCheckInMessage(booking({ guest_name: '' }), FLAT, 'ru', t)
 
     expect(plain(message).startsWith(',')).toBe(false)
-    expect(plain(message)).not.toContain('добро пожаловать')
+    expect(plain(message)).not.toContain('Добро пожаловать')
     expect(plain(message)).toContain('Проспект Райымбека 210/6')
   })
 })

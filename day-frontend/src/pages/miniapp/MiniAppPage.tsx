@@ -52,6 +52,7 @@ import BookingsScreen from './BookingsScreen'
 import MoneyScreen from './MoneyScreen'
 import OrdersScreen from './OrdersScreen'
 import { linkedOrderId } from './orders'
+import { rowDebt } from './money'
 import { searchWithTab, tabFromSearch, type Tab } from './tabs'
 
 const UPCOMING_DAYS = 14
@@ -303,6 +304,7 @@ export default function MiniAppPage() {
                       booking={item}
                       meta={formatTime(item.check_in, i18n.language)}
                       onOpen={() => setBooking(item)}
+                      extra={<DebtTag booking={item} />}
                     />
                   ))}
                 </Section>
@@ -320,18 +322,21 @@ export default function MiniAppPage() {
                       meta={formatTime(item.check_out, i18n.language)}
                       onOpen={() => setBooking(item)}
                       extra={
-                        <button
-                          type="button"
-                          onClick={(event) => {
-                            event.stopPropagation()
-                            tapFeedback()
-                            setCleaningFor(item)
-                          }}
-                          className="tg-surface flex h-9 shrink-0 items-center gap-1.5 rounded-lg px-2.5 text-xs font-bold"
-                        >
-                          <SprayCan className="h-3.5 w-3.5" />
-                          {t('miniapp.cleaning.short')}
-                        </button>
+                        <>
+                          <DebtTag booking={item} />
+                          <button
+                            type="button"
+                            onClick={(event) => {
+                              event.stopPropagation()
+                              tapFeedback()
+                              setCleaningFor(item)
+                            }}
+                            className="tg-surface flex h-9 shrink-0 items-center gap-1.5 rounded-lg px-2.5 text-xs font-bold"
+                          >
+                            <SprayCan className="h-3.5 w-3.5" />
+                            {t('miniapp.cleaning.short')}
+                          </button>
+                        </>
                       }
                     />
                   ))}
@@ -349,6 +354,7 @@ export default function MiniAppPage() {
                       booking={item}
                       meta={`${t('miniapp.until')} ${formatDay(item.check_out, i18n.language)}`}
                       onOpen={() => setBooking(item)}
+                      extra={<DebtTag booking={item} />}
                     />
                   ))}
                 </Section>
@@ -367,6 +373,7 @@ export default function MiniAppPage() {
                   booking={item}
                   meta={`${formatDay(item.check_in, i18n.language)} → ${formatDay(item.check_out, i18n.language)}`}
                   onOpen={() => setBooking(item)}
+                  extra={<DebtTag booking={item} />}
                 />
               ))}
             </Section>
@@ -478,6 +485,22 @@ function MoneyStrip({ bookings }: { bookings: Booking[] }) {
       <Figure label={t('miniapp.money.owed')} value={`${formatMoney(owed, i18n.language)} ₸`} />
       <Figure label={t('miniapp.money.booked')} value={`${formatMoney(booked, i18n.language)} ₸`} />
     </div>
+  )
+}
+
+/** What the guest still owes, as the bookings list shows it, and the minibar's part of it. */
+function DebtTag({ booking }: { booking: Booking }) {
+  const { t, i18n } = useTranslation()
+  const debt = rowDebt(booking)
+  if (!debt) return null
+  const money = (value: number) => `${formatMoney(value, i18n.language)} ₸`
+  return (
+    <span className="flex shrink-0 flex-col items-end text-right tabular-nums">
+      <span className="text-xs font-bold text-red-500">{money(debt.total)}</span>
+      {debt.orders > 0 && (
+        <span className="tg-hint text-[11px]">{t('miniapp.rowOrders', { amount: money(debt.orders) })}</span>
+      )}
+    </span>
   )
 }
 

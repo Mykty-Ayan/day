@@ -42,6 +42,16 @@ _BOOKING_EVENTS = {
 }
 
 
+# Addressed to one person, a cleaner included, not to everyone who reads bookings.
+_PERSONAL_EVENTS = {NotificationEvent.CLEANING_ASSIGNED}
+
+_CLEANING_TYPES = {
+    "post_checkout": "после выезда",
+    "mid_stay": "во время проживания",
+    "on_demand": "по запросу",
+}
+
+
 def _money(value: str) -> str:
     try:
         amount = Decimal(value)
@@ -150,6 +160,19 @@ def render(event: NotificationEvent, payload: dict) -> str:
             ]
         )
 
+    if event == NotificationEvent.CLEANING_ASSIGNED:
+        when = " ".join(part for part in (payload.get("date"), payload.get("time")) if part) or "дата не указана"
+        lines = [
+            "🧹 <b>Новая уборка</b>",
+            f"Объект: {payload.get('property_name', '—')}",
+            f"Когда: {when}",
+        ]
+        if payload.get("type") in _CLEANING_TYPES:
+            lines.append(f"Уборка {_CLEANING_TYPES[payload['type']]}")
+        if payload.get("notes"):
+            lines.append(f"Комментарий: {payload['notes']}")
+        return "\n".join(lines)
+
     if event == NotificationEvent.GUEST_INQUIRY:
         return "\n".join(
             [
@@ -215,6 +238,35 @@ class NotificationService:
         return queued
 
 
+    async def notify_user(
+        self,
+        company_id: uuid.UUID,
+        user_id: uuid.UUID,
+        event: NotificationEvent,
+        payload: dict,
+        channel: Channel = Channel.TELEGRAM,
+    ) -> list[OutboundNotification]:
+        """Queue a notice for one person's linked chats; none linked, nothing queued.
+
+        The dispatcher checks again before sending that the chat is still this
+        person's, so the payload carries who it is for.
+        """
+        identities = await self._identities.list_by_company(company_id, channel=channel)
+        return [
+            await self._notifications.save(
+                OutboundNotification(
+                    company_id=company_id,
+                    channel=channel,
+                    target=identity.external_id,
+                    event=event,
+                    payload={**payload, "user_id": str(user_id)},
+                )
+            )
+            for identity in identities
+            if identity.user_id == user_id
+        ]
+
+
 class NotificationDispatcher:
     """Drains the outbox. Runs on a timer inside the API process."""
 
@@ -243,6 +295,13 @@ class NotificationDispatcher:
         )
         if identity is None or not identity.is_active or identity.company_id != notification.company_id:
             return False
+        if notification.event in _PERSONAL_EVENTS:
+            if identity.user_id is None or str(identity.user_id) != notification.payload.get("user_id"):
+                return False
+            if self._users is None:
+                return True
+            user = await self._users.get_by_id(identity.user_id)
+            return user is not None and user.is_active
         if identity.user_id is None or self._users is None:
             return True
         return reads_bookings(await self._users.get_by_id(identity.user_id))
@@ -257,6 +316,9 @@ class NotificationDispatcher:
         order_id = notification.payload.get("order_id")
         if not (self._mini_app_url or "").startswith("https://") or not notification.target.isdigit():
             return None
+        if notification.event == NotificationEvent.CLEANING_ASSIGNED:
+            # A cleaner's Mini App opens on their cleanings.
+            return [AppButton("Мои уборки", self._mini_app_url)]
         if notification.event == NotificationEvent.GUEST_ORDER and order_id:
             return [AppButton("Открыть заказ", f"{self._mini_app_url}?order={order_id}")]
         if notification.event not in _BOOKING_EVENTS or not booking_id:
