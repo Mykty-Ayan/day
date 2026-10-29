@@ -48,7 +48,7 @@ async def _price(calc, prop_id, start: datetime, end: datetime):
 async def test_three_hours_on_a_weekday():
     calc, prop_id = await _munar()
     result = await _price(calc, prop_id, datetime(2026, 11, MON, 14), datetime(2026, 11, MON, 17))
-    assert (result.tariff, result.total, result.units) == ("3h", Decimal("8000"), 3)
+    assert (result.tariff, result.total, result.units, result.tariff_reason) == ("3h", Decimal("8000"), 3, None)
 
 
 @pytest.mark.asyncio
@@ -62,7 +62,7 @@ async def test_three_hours_on_friday_at_the_weekend_price():
 async def test_two_hours_sell_as_three():
     calc, prop_id = await _munar()
     result = await _price(calc, prop_id, datetime(2026, 11, MON, 14), datetime(2026, 11, MON, 16))
-    assert (result.tariff, result.total) == ("3h", Decimal("8000"))
+    assert (result.tariff, result.total, result.tariff_reason) == ("3h", Decimal("8000"), "rounded_up")
 
 
 @pytest.mark.asyncio
@@ -126,7 +126,7 @@ async def test_out_after_eleven_is_the_night_whenever_the_guest_came():
 async def test_late_hours_are_not_sold_by_the_hour():
     calc, prop_id = await _munar()
     result = await _price(calc, prop_id, datetime(2026, 11, MON, 22), datetime(2026, 11, MON + 1, 1))
-    assert (result.tariff, result.total) == ("night", Decimal("15000"))
+    assert (result.tariff, result.total, result.tariff_reason) == ("night", Decimal("15000"), "late")
 
 
 @pytest.mark.asyncio
@@ -140,7 +140,7 @@ async def test_a_night_longer_than_twelve_hours_sells_the_day():
 async def test_out_after_the_morning_sells_the_day():
     calc, prop_id = await _munar()
     result = await _price(calc, prop_id, datetime(2026, 11, MON, 23), datetime(2026, 11, MON + 1, 11))
-    assert (result.tariff, result.total) == ("day", Decimal("20000"))
+    assert (result.tariff, result.total, result.tariff_reason) == ("day", Decimal("20000"), "late")
 
 
 @pytest.mark.asyncio
@@ -155,7 +155,7 @@ async def test_the_late_hour_and_the_night_are_the_flats_own():
 async def test_eight_hours_in_daytime_sell_the_day():
     calc, prop_id = await _munar()
     result = await _price(calc, prop_id, datetime(2026, 11, MON, 10), datetime(2026, 11, MON, 18))
-    assert (result.tariff, result.total, result.units) == ("day", Decimal("20000"), 8)
+    assert (result.tariff, result.total, result.units, result.tariff_reason) == ("day", Decimal("20000"), 8, "longer")
 
 
 @pytest.mark.asyncio
@@ -178,7 +178,7 @@ async def test_a_switched_off_tariff_is_skipped():
 async def test_a_day_and_two_hours_sell_two_days():
     calc, prop_id = await _munar()
     result = await _price(calc, prop_id, datetime(2026, 11, MON, 10), datetime(2026, 11, MON + 1, 12))
-    assert (result.tariff, result.nights, result.total) == ("day", 2, Decimal("40000"))
+    assert (result.tariff, result.nights, result.total, result.tariff_reason) == ("day", 2, Decimal("40000"), "longer")
 
 
 @pytest.mark.asyncio
@@ -186,6 +186,33 @@ async def test_three_days_from_thursday_take_friday_at_the_weekend_price():
     calc, prop_id = await _munar()
     result = await _price(calc, prop_id, datetime(2026, 11, 5, 14), datetime(2026, 11, 8, 12))
     assert (result.tariff, result.nights, result.total) == ("day", 3, Decimal("68000"))  # 20 000 + 24 000 + 24 000
+
+
+@pytest.mark.asyncio
+async def test_the_day_after_midnight_is_priced_as_the_evening_before():
+    # In at 02:00 belongs to the evening before, for the day's price too.
+    calc, prop_id = await _munar()
+    sunday = await _price(calc, prop_id, datetime(2026, 11, 8, 2), datetime(2026, 11, 8, 14))
+    friday = await _price(calc, prop_id, datetime(2026, 11, FRI, 2), datetime(2026, 11, FRI, 14))
+    assert (sunday.tariff, sunday.total) == ("day", Decimal("24000"))  # Saturday's night
+    assert (friday.tariff, friday.total) == ("day", Decimal("20000"))  # Thursday's night
+
+
+@pytest.mark.asyncio
+async def test_six_in_the_morning_is_the_new_day():
+    calc, prop_id = await _munar()
+    result = await _price(calc, prop_id, datetime(2026, 11, MON, 6), datetime(2026, 11, MON, 9))
+    assert (result.tariff, result.total) == ("3h", Decimal("8000"))
+
+
+@pytest.mark.asyncio
+async def test_a_flat_selling_only_the_night_sells_daytime_by_the_hour():
+    calc, prop_id = await _munar(base_price=Decimal("0"), price_3h=Decimal("0"), price_3h_weekend=Decimal("0"),
+                                 price_6h=Decimal("0"), price_6h_weekend=Decimal("0"))
+    day = await _price(calc, prop_id, datetime(2026, 11, MON, 14), datetime(2026, 11, MON, 16))
+    night = await _price(calc, prop_id, datetime(2026, 11, MON, 23), datetime(2026, 11, MON + 1, 9))
+    assert (day.tariff, day.total) == (None, Decimal("6000"))  # 2 h × 3 000
+    assert (night.tariff, night.total) == ("night", Decimal("15000"))
 
 
 @pytest.mark.asyncio
@@ -243,6 +270,28 @@ async def test_a_save_without_tariffs_keeps_the_saved_ones():
     assert (kept.base_price, kept.price_3h, kept.late_from) == (Decimal("21000"), Decimal("8000"), time(22))
 
 
+async def test_one_time_alone_is_checked_against_the_saved_other():
+    from app.application.property.manage_pricing import ManagePricingService, PricingConfigInput
+    from tests.test_property_services import (
+        COMPANY_ID,
+        FakeDiscountRuleRepository,
+        FakePropertyRepository,
+        FakeSeasonalPriceRepository,
+        _make_property,
+    )
+
+    props, pricing = FakePropertyRepository(), FakePricingConfigRepository()
+    prop = _make_property()
+    await props.save(prop)
+    svc = ManagePricingService(props, pricing, FakeSeasonalPriceRepository(), FakeDiscountRuleRepository())
+    await svc.upsert_pricing(prop.id, COMPANY_ID, PricingConfigInput(base_price=Decimal("20000")))
+
+    # The saved morning is 10:00: a late hour of 09:00 would end the night before it began.
+    with pytest.raises(ValueError, match="night_to before late_from"):
+        await svc.upsert_pricing(prop.id, COMPANY_ID, PricingConfigInput(base_price=Decimal("20000"),
+                                                                          late_from=time(9)))
+
+
 async def test_a_clone_keeps_the_tariffs():
     from app.application.property.clone_property import ClonePropertyService
     from tests.test_property_services import (
@@ -267,6 +316,36 @@ async def test_a_clone_keeps_the_tariffs():
     clone = await pricing.get_by_property((await svc.execute(source.id, COMPANY_ID)).id)
 
     assert (clone.price_night, clone.night_to) == (Decimal("15000"), time(11))
+
+
+async def test_tariffs_copy_to_the_other_flats_of_the_company_only():
+    from app.application.property.manage_pricing import ManagePricingService
+    from tests.test_property_services import (
+        COMPANY_ID,
+        FakeDiscountRuleRepository,
+        FakePropertyRepository,
+        FakeSeasonalPriceRepository,
+        _make_property,
+    )
+
+    props, pricing = FakePropertyRepository(), FakePricingConfigRepository()
+    one, two, unpriced, foreign = _make_property(), _make_property(), _make_property(), _make_property()
+    foreign.company_id = uuid.uuid4()
+    for prop in (one, two, unpriced, foreign):
+        await props.save(prop)
+    await pricing.save(PricingConfig(property_id=one.id, base_price=Decimal("20000"), price_3h=Decimal("8000"),
+                                     late_from=time(22)))
+    await pricing.save(PricingConfig(property_id=two.id, base_price=Decimal("23000"), price_night=Decimal("17000")))
+    await pricing.save(PricingConfig(property_id=foreign.id, base_price=Decimal("1")))
+    svc = ManagePricingService(props, pricing, FakeSeasonalPriceRepository(), FakeDiscountRuleRepository())
+
+    assert await svc.copy_tariffs_to_all(one.id, COMPANY_ID) == 1
+
+    copied = await pricing.get_by_property(two.id)
+    assert (copied.base_price, copied.price_3h, copied.price_night, copied.late_from) == (
+        Decimal("23000"), Decimal("8000"), Decimal("0"), time(22))
+    assert (await pricing.get_by_property(foreign.id)).price_3h == 0
+    assert await pricing.get_by_property(unpriced.id) is None
 
 
 @pytest.mark.integration
@@ -295,4 +374,33 @@ async def test_tariffs_are_saved_and_price_an_hourly_stay(flat):  # noqa: F811  
 
     assert (await quote("2026-11-06T14:00:00", "2026-11-06T18:00:00"))["total"] == 14000
     night = await quote("2026-11-02T19:00:00", "2026-11-03T00:00:00")
-    assert (night["tariff"], night["total"]) == ("night", 15000)
+    assert (night["tariff"], night["total"], night["tariff_reason"]) == ("night", 15000, "late")
+
+    # The CRM's search by the hour names the tariff and why: 22:00–01:00 is the night.
+    use(Permission.PROPERTIES_WRITE, Permission.BOOKINGS_READ)
+    assert (await client.patch(f"/api/v1/properties/{prop}", json={"rental_mode": "both"})).status_code == 200
+    found = await client.get("/api/v1/bookings/availability", params={
+        "check_in": "2026-11-02T22:00:00", "check_out": "2026-11-03T01:00:00", "rental_mode": "hourly"})
+    assert found.status_code == 200, found.text
+    item = next(i for i in found.json()["items"] if i["property_id"] == str(prop))
+    assert (item["tariff"], item["tariff_reason"], item["total_price"]) == ("night", "late", 15000)
+
+
+async def test_the_guest_page_shows_the_tariffs_instead_of_an_hourly_price():
+    from datetime import date
+
+    from app.presentation.schemas.public import PublicStayResponse
+    from tests.test_public_stay import Stay
+
+    s = Stay()
+    prop = await s.flat(hourly_price=Decimal("3000"), price_3h=Decimal("8000"), price_3h_weekend=Decimal("10000"),
+                        price_night=Decimal("15000"), price_night_weekend=Decimal("15000"))
+    prop.rental_mode = RentalMode.BOTH
+    await s.props.save(prop)
+
+    prices = PublicStayResponse.from_stay(
+        await s.service().execute(prop.public_code, date(2030, 10, 1), date(2030, 10, 3))).prices
+
+    assert prices.hour is None
+    assert [(t.name, t.price, t.weekend) for t in prices.tariffs] == [("3h", 8000, 10000), ("night", 15000, None)]
+    assert (prices.late_from, prices.night_to) == ("23:00", "10:00")

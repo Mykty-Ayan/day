@@ -13,6 +13,7 @@ import {
   changePropertyStatus,
   getPricing,
   createOrUpdatePricing,
+  copyTariffsToAll,
   listAmenities,
   getPropertyAuditLog,
   uploadPhotos,
@@ -123,6 +124,14 @@ export function useCreateOrUpdatePricing(propertyId: string) {
       qc.invalidateQueries({ queryKey: [PRICING_KEY, propertyId] })
       qc.invalidateQueries({ queryKey: [PROPERTY_KEY, propertyId] })
     },
+  })
+}
+
+export function useCopyTariffsToAll(propertyId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: () => copyTariffsToAll(propertyId),
+    onSuccess: () => qc.invalidateQueries({ queryKey: [PRICING_KEY] }),
   })
 }
 

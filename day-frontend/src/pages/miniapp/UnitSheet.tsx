@@ -90,6 +90,26 @@ export default function UnitSheet({ unitId, onClose }: { unitId: string | null; 
   const flat = detail.data
   const facts = (flat?.facts ?? []).filter((fact) => secretsShown || fact.audience !== 'guest')
   const money = (value: number) => `${formatMoney(value, i18n.language)} ₸`
+  // "3 часа 8 000 ₸ / 10 000 ₸": weekday, then Friday–Saturday when it differs.
+  const tariffs = flat?.pricing
+    ? (
+        [
+          ['h3', flat.pricing.price_3h, flat.pricing.price_3h_weekend],
+          ['h6', flat.pricing.price_6h, flat.pricing.price_6h_weekend],
+          ['night', flat.pricing.price_night, flat.pricing.price_night_weekend],
+        ] as const
+      )
+        .filter(([, weekday]) => Number(weekday) > 0)
+        .map(([name, weekday, weekend]) =>
+          t('tariffs.line', {
+            name: t(`tariffs.${name}`),
+            value:
+              Number(weekend) > 0 && Number(weekend) !== Number(weekday)
+                ? `${money(Number(weekday))} / ${money(Number(weekend))}`
+                : money(Number(weekday)),
+          }),
+        )
+    : []
 
   return (
     <Sheet open title={flat?.name || flat?.internal_name || ''} onClose={onClose}>
@@ -203,8 +223,10 @@ export default function UnitSheet({ unitId, onClose }: { unitId: string | null; 
                 {[
                   flat.rental_mode !== 'hourly' && t('miniapp.unit.perNight', { value: money(flat.pricing.base_price) }),
                   flat.rental_mode !== 'daily' &&
+                    !tariffs.length &&
                     flat.pricing.hourly_price > 0 &&
                     t('miniapp.unit.perHour', { value: money(flat.pricing.hourly_price) }),
+                  ...(flat.rental_mode !== 'daily' ? tariffs : []),
                   flat.rental_mode !== 'hourly' &&
                     flat.pricing.default_deposit > 0 &&
                     t('miniapp.unit.deposit', { value: money(flat.pricing.default_deposit) }),

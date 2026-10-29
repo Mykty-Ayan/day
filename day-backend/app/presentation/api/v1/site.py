@@ -7,6 +7,7 @@ import uuid
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.application.booking.price_calculator import has_tariffs
 from app.domain.auth.permissions import Permission
 from app.domain.booking.value_objects import RentalMode
 from app.domain.property.value_objects import FactAudience, PropertyStatus
@@ -84,8 +85,9 @@ async def public_company(slug: str, session: AsyncSession = Depends(get_session)
                 night_price=float(price.base_price)
                 if price and prop.rental_mode != RentalMode.HOURLY and price.base_price > 0
                 else None,
+                # Tariffs replace the price of an hour: an hourly price left over would be wrong.
                 hour_price=float(price.hourly_price)
-                if price and prop.rental_mode != RentalMode.DAILY and price.hourly_price > 0
+                if price and prop.rental_mode != RentalMode.DAILY and price.hourly_price > 0 and not has_tariffs(price)
                 else None,
             )
         )

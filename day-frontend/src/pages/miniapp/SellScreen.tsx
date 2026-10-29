@@ -46,6 +46,9 @@ function Stepper({
   )
 }
 
+// The server names tariffs "3h" / "6h"; the texts are keyed h3 / h6.
+const TARIFF_KEY = { '3h': 'h3', '6h': 'h6', night: 'night', day: 'day' } as const
+
 export default function SellScreen({
   enabled,
   today,
@@ -169,6 +172,12 @@ export default function SellScreen({
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-sm font-semibold">{item.name}</span>
                 <span className="tg-hint block truncate text-xs">{item.internal_name}</span>
+                {item.tariff && (
+                  <span className="tg-hint block text-xs">
+                    {t(`tariffs.${TARIFF_KEY[item.tariff]}`)}
+                    {item.tariff_reason && ` · ${t(`tariffs.reason.${item.tariff_reason}`)}`}
+                  </span>
+                )}
               </span>
               <span className="shrink-0 text-xs font-bold">
                 {item.total_price !== null ? `${formatMoney(item.total_price, lang)} ₸` : t('miniapp.noPrice')}
