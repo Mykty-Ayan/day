@@ -335,7 +335,7 @@ function OverviewTab({ booking, guest }: { booking: Booking; guest: Guest }) {
           <InfoRow icon={DollarSign} label={t('bookings.totalPrice')} value={`${symbol}${formatMoney(booking.total_price)}`} />
           <div className="flex items-center gap-3 pt-1">
             <span className="text-xs text-gray-500 w-24">{t('bookings.source')}</span>
-            <span className="text-sm text-gray-900 capitalize">{t('bookings.sources.' + booking.source)}</span>
+            <span className="text-sm text-gray-900">{t('bookings.sources.' + booking.source)}</span>
           </div>
           <div className="flex items-center gap-3 pt-1">
             <span className="text-xs text-gray-500 w-24">{t('bookings.calendarColor')}</span>
@@ -384,11 +384,13 @@ function InfoRow({ icon: Icon, label, value }: { icon: React.ComponentType<{ cla
   )
 }
 
-const moneyFormatter = new Intl.NumberFormat('en-US', {
+// The reader's own number format, as everywhere else in the cabinet: forced en-US
+// wrote «₸79,000.00» on a Russian screen.
+const moneyFormatter = new Intl.NumberFormat(undefined, {
   minimumFractionDigits: 2,
   maximumFractionDigits: 2,
 })
-const moneyChipFormatter = new Intl.NumberFormat('en-US', {
+const moneyChipFormatter = new Intl.NumberFormat(undefined, {
   maximumFractionDigits: 0,
 })
 
