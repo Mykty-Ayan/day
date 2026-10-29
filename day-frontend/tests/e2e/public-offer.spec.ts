@@ -47,7 +47,7 @@ test('a guest with a personal link sees the flats for their dates', async ({ bro
   const page = await guest.newPage()
   await page.goto(`/o/${code}`)
   await expect(page).toHaveURL(new RegExp(`/o/${code}$`))
-  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Ерлан, вот квартиры на ваши даты')
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Здравствуйте, Ерлан. Вот квартиры на ваши даты')
   // The stay's dates, length and guests, each a pill of its own.
   await expect(page.getByText('2 ночи', { exact: true })).toBeVisible()
   await expect(page.getByText('2 гостя', { exact: true })).toBeVisible()
@@ -159,7 +159,7 @@ test('a hold that runs out unpaid gives the guest the flats again, and says why'
   expect(lapsed.ok(), await lapsed.text()).toBeTruthy()
   // The guest comes back to the tab: the page reads the link again.
   await page.evaluate(() => window.dispatchEvent(new Event('visibilitychange')))
-  await expect(page.getByText('Время брони вышло, а оплата не пришла. Выберите квартиру снова.')).toBeVisible()
+  await expect(page.getByText('Время, пока мы держали даты, вышло, а залог не пришёл. Выберите квартиру снова.')).toBeVisible()
   await expect(page.getByRole('button', { name: 'Выбрать' })).toBeVisible()
   await guest.close()
 })
