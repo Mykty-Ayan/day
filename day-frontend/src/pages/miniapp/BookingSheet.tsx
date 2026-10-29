@@ -7,7 +7,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { BedDouble, CheckCircle2, Copy, Link2, LogIn, LogOut, Pencil, Phone, Send, Wallet, XCircle } from 'lucide-react'
+import { BedDouble, CheckCircle2, Copy, Link2, LogIn, LogOut, Pencil, Phone, Send, User, Wallet, XCircle } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import {
   addPayment,
@@ -42,6 +42,7 @@ import { cardRead, readyToAct, secretsFresh } from './card-state'
 import { formatDay, formatMoney, formatTime } from './format'
 import DepositRow from './DepositRow'
 import EditBookingSheet from './EditBookingSheet'
+import GuestSheet from './GuestSheet'
 import { errorText } from './errors'
 import { buildCheckInMessage } from './messages'
 import { ActionButton, Chip, Field, Sheet } from './miniapp-ui'
@@ -103,6 +104,7 @@ export default function BookingSheet({
   const [error, setError] = useState('')
   const [copied, setCopied] = useState(false)
   const [editing, setEditing] = useState(false)
+  const [editingGuest, setEditingGuest] = useState(false)
   const [openedAt] = useState(() => Date.now())
   // A check still out when the card closes must not act on what it reads.
   const alive = useRef(true)
@@ -610,12 +612,19 @@ export default function BookingSheet({
         </ActionButton>
       )}
 
+      <ActionButton disabled={settling} onClick={() => setEditingGuest(true)}>
+        <User className="h-4 w-4" />
+        {t('bookings.guestEdit.open')}
+      </ActionButton>
+
       {canCancel(booking.status) && (
         <ActionButton disabled={settling || setStatus.isPending} onClick={askCancel}>
           <XCircle className="h-4 w-4" />
           {t('miniapp.booking.cancel')}
         </ActionButton>
       )}
+
+      {editingGuest && <GuestSheet booking={booking} onClose={() => setEditingGuest(false)} />}
 
       {editing && (
         <EditBookingSheet

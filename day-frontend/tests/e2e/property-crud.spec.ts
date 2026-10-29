@@ -151,7 +151,7 @@ test.describe('Property CRUD - E2E', () => {
     // replaced by a spinner while it loads, so the property that must stay is
     // awaited first: a hidden one proves nothing until the filtered list is on screen
     const searched = page.waitForResponse((r) => r.url().includes('/properties?') && r.url().includes('search='))
-    await page.getByPlaceholder('Search by name...').fill(data.internal_name)
+    await page.getByPlaceholder('Search by name…').fill(data.internal_name)
     await searched
     await expect(page.getByText(data.name)).toBeVisible()
     await expect(page.getByText(other.name)).toHaveCount(0)

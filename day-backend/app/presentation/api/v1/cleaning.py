@@ -38,6 +38,7 @@ from app.application.cleaning.submit_report import (
 from app.domain.auth.permissions import Permission
 from app.domain.cleaning.value_objects import CleaningStatus
 from app.infrastructure.database import get_session
+from app.infrastructure.messaging.cleaning_notice import notify_cleaner
 from app.infrastructure.repositories.auth import SqlUserRepository
 from app.infrastructure.repositories.cleaning import (
     SqlCleanerRatingRepository,
@@ -201,6 +202,7 @@ async def create_cleaning_task(
                 notes=body.notes,
             )
         )
+        await notify_cleaner(session, result, repos["property"])
         await session.commit()
         return _to_task_response(result)
     except ValueError as e:
@@ -365,6 +367,7 @@ async def assign_cleaner(
     svc = AssignCleanerService(repos["task"])
     try:
         result = await svc.execute(task_id, company_id, body.cleaner_id)
+        await notify_cleaner(session, result, repos["property"])
         await session.commit()
         return _to_task_response(result)
     except ValueError as e:

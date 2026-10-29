@@ -17,6 +17,7 @@ import type {
   PriceCalculateInput,
   MoveBookingInput,
   GuestFilters,
+  GuestUpdateInput,
 } from '../types/booking'
 import {
   listBookings,
@@ -38,6 +39,7 @@ import {
   deleteFile,
   getGanttData,
   getTodayChecks,
+  updateGuest,
   listGuests,
 } from '../api/bookings'
 
@@ -120,6 +122,21 @@ export function useUpdateBooking(id: string) {
       qc.invalidateQueries({ queryKey: [BOOKINGS_KEY] })
       qc.invalidateQueries({ queryKey: [BOOKING_KEY, id] })
       qc.invalidateQueries({ queryKey: [GANTT_KEY] })
+    },
+  })
+}
+
+/** The guest is shown on every booking of theirs, so all bookings are read again. */
+export function useUpdateGuest(id: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (data: GuestUpdateInput) => updateGuest(id, data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: [BOOKINGS_KEY] })
+      qc.invalidateQueries({ queryKey: [BOOKING_KEY] })
+      qc.invalidateQueries({ queryKey: [GANTT_KEY] })
+      qc.invalidateQueries({ queryKey: [TODAY_KEY] })
+      qc.invalidateQueries({ queryKey: [GUESTS_KEY] })
     },
   })
 }

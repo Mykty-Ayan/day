@@ -28,6 +28,8 @@ class PropertyMetrics:
     fixed_costs: Decimal = Decimal("0")
     #: Cleaning and consumables — paid because guests came.
     variable_costs: Decimal = Decimal("0")
+    #: What the expense journal says was spent on this flat (voided ones left out).
+    recorded_expenses: Decimal = Decimal("0")
     # Occupancy unit = booked *days*: whole calendar nights for daily/multi-day
     # stays, fractional days (hours/24) for sub-day hourly stays. Decimal so
     # sub-day occupancy is not truncated to zero.
@@ -62,6 +64,8 @@ class AnalyticsSummary:
     total_commission: Decimal = Decimal("0")
     total_fixed_costs: Decimal = Decimal("0")
     total_variable_costs: Decimal = Decimal("0")
+    #: The expense journal for the period: the flats' plus the whole company's.
+    total_recorded_expenses: Decimal = Decimal("0")
     overall_adr: Decimal = Decimal("0")
     overall_revpar: Decimal = Decimal("0")
     overall_occupancy_rate: Decimal = Decimal("0")
