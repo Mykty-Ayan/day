@@ -60,7 +60,9 @@ class CalculateMetricsService:
         for pm in properties:
             _apply_costs(pm, costs.get(pm.property_id), period_days)
 
-        recorded = await self._recorded_expenses(inp)
+        # The journal is not kept by booking source: a report on one source's
+        # bookings leaves it out, or all the company's costs would land on them.
+        recorded = await self._recorded_expenses(inp) if inp.source is None else {}
         for pm in properties:
             pm.recorded_expenses = recorded.pop(pm.property_id, Decimal("0"))
             pm.expenses += pm.recorded_expenses

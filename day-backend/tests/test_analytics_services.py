@@ -436,6 +436,19 @@ class TestRecordedExpenses:
         assert result.summary.total_profit == Decimal("77000")
 
     @pytest.mark.asyncio
+    async def test_a_report_on_one_source_leaves_the_journal_out(self):
+        # The journal is not kept by source: all the company's costs would land on
+        # one platform's bookings.
+        journal = FakeExpenseRepository()
+        await journal.add(_expense("20000", date(2025, 1, 5), PROPERTY_ID))
+        flats = [PropertyMetrics(property_id=PROPERTY_ID, revenue=Decimal("100000"), commission=Decimal("3000"))]
+        svc = CalculateMetricsService(FakeAnalyticsRepository(metrics=flats), FakePropertyCostsRepository(), journal)
+        result = await svc.execute(CalculateMetricsInput(
+            company_id=COMPANY_ID, date_from=date(2025, 1, 1), date_to=date(2025, 2, 1), source="airbnb"))
+        assert result.summary.total_recorded_expenses == Decimal("0")
+        assert result.summary.total_profit == Decimal("97000")
+
+    @pytest.mark.asyncio
     async def test_a_platform_commission_in_the_journal_is_not_taken_twice(self):
         # Day computes the platforms' commission from the bookings already.
         commission = _expense("3000", date(2025, 1, 5), PROPERTY_ID)
