@@ -165,6 +165,12 @@ export async function createOrUpdatePricing(
   }
 }
 
+/** Copies this flat's saved tariffs and late hours to the company's other priced flats. */
+export async function copyTariffsToAll(propertyId: string): Promise<number> {
+  const res = await apiClient.post(`/properties/${propertyId}/pricing/tariffs/copy-to-all`)
+  return (res.data as { updated: number }).updated
+}
+
 export async function getPricing(propertyId: string): Promise<PricingConfig | null> {
   const res = await apiClient.get(`/properties/${propertyId}/pricing`)
   const base = res.data as Omit<PricingConfig, 'seasonal_prices' | 'discount_rules'> | null

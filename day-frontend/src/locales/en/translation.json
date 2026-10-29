@@ -1807,5 +1807,24 @@
     "noPhone": "Ask the host for the link to your booking.",
     "askHost": "Message the host",
     "failed": "That did not work. Try again."
+  },
+  "tariffs": {
+    "title": "Hourly tariffs",
+    "hint": "A price of 0 switches a tariff off. An empty Fri–Sat is the weekday price. With no tariffs, hours are charged at the hourly price.",
+    "weekdays": "Sun–Thu",
+    "weekend": "Fri–Sat",
+    "h3": "3 hours",
+    "h6": "6 hours",
+    "night": "Night",
+    "lateFrom": "Hours — check-out by",
+    "nightTo": "Night — check-out by",
+    "nightMaxHours": "Night — max, h",
+    "rule": "Check-out after {{late}} sells only the night (out by {{morning}}, at most {{hours}} h), otherwise a day. Longer than a day sells several days.",
+    "copyAll": "Apply tariffs to all flats",
+    "copyConfirm": "This flat's saved tariffs and hours replace the tariffs of the other flats. Daily prices and deposits stay.",
+    "copyYes": "Apply",
+    "copied": "Tariffs applied. Flats changed: {{n}}",
+    "line": "{{name}} {{value}}",
+    "copyFailed": "Could not apply the tariffs. Save this flat's prices first."
   }
 }
