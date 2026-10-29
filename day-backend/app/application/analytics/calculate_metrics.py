@@ -4,11 +4,12 @@ from __future__ import annotations
 
 import uuid
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, timedelta
 from decimal import Decimal
 
 from app.domain.analytics.entities import AnalyticsSummary, PropertyMetrics
 from app.domain.analytics.repositories import AnalyticsRepository
+from app.domain.expenses.repositories import ExpenseRepository
 from app.domain.property.entities import PropertyCosts
 from app.domain.property.repositories import PropertyCostsRepository
 
@@ -33,9 +34,11 @@ class CalculateMetricsService:
         self,
         analytics_repo: AnalyticsRepository,
         costs_repo: PropertyCostsRepository,
+        expense_repo: ExpenseRepository | None = None,
     ) -> None:
         self._analytics_repo = analytics_repo
         self._costs_repo = costs_repo
+        self._expense_repo = expense_repo
 
     async def execute(self, inp: CalculateMetricsInput) -> CalculateMetricsResult:
         if inp.date_to <= inp.date_from:
@@ -56,8 +59,22 @@ class CalculateMetricsService:
         for pm in properties:
             _apply_costs(pm, costs.get(pm.property_id), period_days)
 
+        recorded = await self._recorded_expenses(inp)
+        for pm in properties:
+            pm.recorded_expenses = recorded.pop(pm.property_id, Decimal("0"))
+            pm.expenses += pm.recorded_expenses
+            pm.profit -= pm.recorded_expenses
+
         # Build summary from per-property metrics
         summary = AnalyticsSummary()
+        # What is left was spent for the whole company (internet, software) or
+        # for a flat no longer on the list (archived). It is the company's money
+        # all the same, so it counts in the total — unless the report is about
+        # chosen flats, where it would not belong to any of them.
+        if inp.property_ids is None:
+            summary.total_recorded_expenses = sum(recorded.values(), Decimal("0"))
+            summary.total_expenses += summary.total_recorded_expenses
+            summary.total_profit -= summary.total_recorded_expenses
         summary.properties_count = len(properties)
 
         # booked_nights / vacancy_days are now (possibly fractional) Decimals,
@@ -73,6 +90,7 @@ class CalculateMetricsService:
             summary.total_commission += pm.commission
             summary.total_fixed_costs += pm.fixed_costs
             summary.total_variable_costs += pm.variable_costs
+            summary.total_recorded_expenses += pm.recorded_expenses
             summary.total_bookings += pm.total_bookings
             summary.total_booked_nights += pm.booked_nights
             summary.total_vacancy_days += pm.vacancy_days
@@ -96,6 +114,23 @@ class CalculateMetricsService:
             summary.avg_stay_duration = weighted_stay_sum / summary.total_bookings
 
         return CalculateMetricsResult(summary=summary, properties=properties)
+
+    async def _recorded_expenses(self, inp: CalculateMetricsInput) -> dict[uuid.UUID | None, Decimal]:
+        """The expense journal's non-void sums for the period, by flat (None: the whole company's).
+
+        The period ends before date_to, as it does for the bookings. Summed here
+        from the list rather than in SQL: a company writes tens of expenses a
+        month; a GROUP BY in the repository is the upgrade if that grows.
+        """
+        totals: dict[uuid.UUID | None, Decimal] = {}
+        if self._expense_repo is None:
+            return totals
+        expenses = await self._expense_repo.list(
+            inp.company_id, date_from=inp.date_from, date_to=inp.date_to - timedelta(days=1)
+        )
+        for expense in expenses:
+            totals[expense.property_id] = totals.get(expense.property_id, Decimal("0")) + expense.amount
+        return totals
 
 
 def _apply_costs(pm: PropertyMetrics, costs: PropertyCosts | None, period_days: int) -> None:

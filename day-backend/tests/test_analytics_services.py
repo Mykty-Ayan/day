@@ -1,7 +1,7 @@
 """Unit tests for analytics application services."""
 
 import uuid
-from datetime import date
+from datetime import date, datetime, timezone
 from decimal import Decimal
 
 import pytest
@@ -17,8 +17,10 @@ from app.application.analytics.get_time_series import (
 from app.domain.analytics.entities import PropertyMetrics, TimeSeriesPoint
 from app.domain.analytics.repositories import AnalyticsRepository
 from app.domain.analytics.value_objects import Granularity
+from app.domain.expenses.entities import Expense, ExpenseCategory
 from app.domain.property.entities import PropertyCosts
 from app.domain.property.repositories import PropertyCostsRepository
+from tests.test_expenses import FakeExpenseRepository
 
 # ---------- In-memory fake repository ----------
 
@@ -359,6 +361,79 @@ class TestCalculateMetricsService:
         )
 
         assert result.summary.overall_adr == Decimal("0")
+
+
+
+# ---------- The expense journal comes off the profit ----------
+
+
+def _expense(amount, spent_on, property_id=None, company_id=COMPANY_ID, voided=False):
+    return Expense(
+        company_id=company_id,
+        category=ExpenseCategory.UTILITIES,
+        amount=Decimal(amount),
+        spent_on=spent_on,
+        property_id=property_id,
+        voided_at=datetime(2025, 1, 20, tzinfo=timezone.utc) if voided else None,
+    )
+
+
+async def _metrics_with_journal(*expenses, property_ids=None):
+    other = uuid.uuid4()
+    flats = [
+        PropertyMetrics(property_id=PROPERTY_ID, revenue=Decimal("100000"), commission=Decimal("3000")),
+        PropertyMetrics(property_id=other, revenue=Decimal("50000")),
+    ]
+    journal = FakeExpenseRepository()
+    for expense in expenses:
+        await journal.add(expense)
+    svc = CalculateMetricsService(FakeAnalyticsRepository(metrics=flats), FakePropertyCostsRepository(), journal)
+    result = await svc.execute(
+        CalculateMetricsInput(
+            company_id=COMPANY_ID, date_from=date(2025, 1, 1), date_to=date(2025, 2, 1), property_ids=property_ids
+        )
+    )
+    return result, other
+
+
+class TestRecordedExpenses:
+    @pytest.mark.asyncio
+    async def test_the_flats_and_the_companys_expenses_come_off_the_profit(self):
+        result, other = await _metrics_with_journal(
+            _expense("20000", date(2025, 1, 5), PROPERTY_ID),
+            _expense("7000", date(2025, 1, 31), PROPERTY_ID),
+            _expense("5000", date(2025, 1, 10)),  # the whole company's
+        )
+        flat = next(pm for pm in result.properties if pm.property_id == PROPERTY_ID)
+        assert flat.recorded_expenses == Decimal("27000")
+        assert flat.expenses == Decimal("30000")  # commission 3000 + journal 27000
+        assert flat.profit == Decimal("70000")
+        assert next(pm for pm in result.properties if pm.property_id == other).profit == Decimal("50000")
+
+        assert result.summary.total_recorded_expenses == Decimal("32000")
+        assert result.summary.total_expenses == Decimal("35000")
+        assert result.summary.total_profit == Decimal("115000")
+
+    @pytest.mark.asyncio
+    async def test_voided_outside_the_period_and_another_companys_do_not_count(self):
+        result, _ = await _metrics_with_journal(
+            _expense("1000", date(2025, 1, 5), PROPERTY_ID, voided=True),
+            _expense("1000", date(2024, 12, 31), PROPERTY_ID),
+            _expense("1000", date(2025, 2, 1), PROPERTY_ID),  # date_to is not in the period
+            _expense("1000", date(2025, 1, 5), PROPERTY_ID, company_id=uuid.uuid4()),
+        )
+        assert result.summary.total_recorded_expenses == Decimal("0")
+        assert result.summary.total_profit == Decimal("147000")
+
+    @pytest.mark.asyncio
+    async def test_a_report_on_chosen_flats_leaves_the_companys_expenses_out(self):
+        result, _ = await _metrics_with_journal(
+            _expense("20000", date(2025, 1, 5), PROPERTY_ID),
+            _expense("5000", date(2025, 1, 10)),
+            property_ids=[PROPERTY_ID],
+        )
+        assert result.summary.total_recorded_expenses == Decimal("20000")
+        assert result.summary.total_profit == Decimal("77000")
 
 
 # ---------- GetTimeSeriesService ----------

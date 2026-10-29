@@ -3,8 +3,8 @@
  * as the web analytics shows them), how full the flats were, who still owes,
  * who paid, and what was spent. A booking row opens its card.
  *
- * The analytics' costs are platform commissions and the flats' own costs, not
- * the expense journal below; the tile is named so the two do not seem to disagree.
+ * The analytics' costs are platform commissions, the flats' own costs and the
+ * expense journal below, so the tile is larger than the journal's sum.
  */
 
 import { useState } from 'react'

@@ -23,6 +23,7 @@ from app.domain.analytics.value_objects import Granularity, PeriodPreset
 from app.domain.auth.permissions import Permission
 from app.infrastructure.database import get_session
 from app.infrastructure.repositories.analytics import SqlAnalyticsRepository
+from app.infrastructure.repositories.expenses import SqlExpenseRepository
 from app.infrastructure.repositories.property import SqlPropertyCostsRepository
 from app.presentation.api.deps import get_company_id, require
 from app.presentation.schemas.analytics import (
@@ -82,7 +83,7 @@ async def get_metrics(
     resolved_from, resolved_to = _resolve_dates(date_from, date_to, period)
 
     repo = SqlAnalyticsRepository(session)
-    svc = CalculateMetricsService(repo, SqlPropertyCostsRepository(session))
+    svc = CalculateMetricsService(repo, SqlPropertyCostsRepository(session), SqlExpenseRepository(session))
 
     try:
         result = await svc.execute(
@@ -105,6 +106,7 @@ async def get_metrics(
             total_commission=result.summary.total_commission,
             total_fixed_costs=result.summary.total_fixed_costs,
             total_variable_costs=result.summary.total_variable_costs,
+            total_recorded_expenses=result.summary.total_recorded_expenses,
             overall_adr=result.summary.overall_adr,
             overall_revpar=result.summary.overall_revpar,
             overall_occupancy_rate=result.summary.overall_occupancy_rate,
@@ -126,6 +128,7 @@ async def get_metrics(
                 profit=pm.profit,
                 fixed_costs=pm.fixed_costs,
                 variable_costs=pm.variable_costs,
+                recorded_expenses=pm.recorded_expenses,
                 commission=pm.commission,
                 vacancy_days=pm.vacancy_days,
                 occupancy_rate=pm.occupancy_rate,
@@ -205,7 +208,7 @@ async def export_csv(
     resolved_from, resolved_to = _resolve_dates(date_from, date_to, period)
 
     repo = SqlAnalyticsRepository(session)
-    svc = CalculateMetricsService(repo, SqlPropertyCostsRepository(session))
+    svc = CalculateMetricsService(repo, SqlPropertyCostsRepository(session), SqlExpenseRepository(session))
 
     try:
         result = await svc.execute(
