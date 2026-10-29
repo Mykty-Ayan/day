@@ -192,6 +192,10 @@ class FakeGuestRepository(GuestRepository):
     async def get_by_id(self, guest_id):
         return self.items.get(guest_id)
 
+    async def update(self, guest):
+        self.items[guest.id] = guest
+        return guest
+
     async def get_by_company(self, company_id, **kwargs):
         return [g for g in self.items.values() if g.company_id == company_id]
 

@@ -20,6 +20,12 @@ export interface Guest {
   updated_at: string
 }
 
+/** Only what is sent changes; a phone of null removes it. */
+export interface GuestUpdateInput {
+  name?: string
+  phone?: string | null
+}
+
 export interface Booking {
   id: string
   company_id: string

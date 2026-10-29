@@ -24,7 +24,9 @@ app/
 
 Bounded contexts (`app/domain/`): `auth`, `property`, `booking`, `cleaning`, `analytics`, `pricing`,
 `assistant` (AI agent + tools), `messaging` (Telegram / WhatsApp via Whapi), `leads` (colleague lead
-exchange + guest blacklist), `channex`, `settings`, `ai_migration` (listing import via `ai-service`).
+exchange + guest blacklist), `channex`, `settings`, `ai_migration` (listing import via `ai-service`),
+`expenses` (company expenses, voided never deleted), `agents` (who brought a guest), `inventory`
+(minibar stock and guests' orders), `site` (a company's public site `/c/<address>`).
 
 - Linter: `ruff` (line-length 120, Python 3.12, rules: E, F, I)
 - Migrations: Alembic (`alembic/`)
@@ -63,6 +65,8 @@ src/
 npm run dev        # Vite dev server
 npm run build      # TypeScript check + Vite build
 npm run lint       # ESLint
+npm run typecheck  # tsc over src and tests (CI runs it)
+npx playwright test -c playwright.unit.config.ts   # pure-function unit tests, no server
 npm run test:e2e   # Playwright (all)
 npm run test:api   # Playwright API tests
 npm run test:ui    # Playwright E2E UI tests
@@ -81,13 +85,18 @@ Ports: Backend `:8000` (API at `/api/v1`), Frontend `:3000`, PostgreSQL `:5432`,
 ## Status
 
 Core PMS (auth, properties, bookings, cleaning, analytics) is complete and in production.
-Shipped on top of it: pricing suggestions, AI assistant with Telegram bot and Mini App, lead
-exchange + guest blacklist, listing import through `ai-service`. Production runs 0.4.0
-(`CHANGELOG.md`): the API the CRM `aidyn_crm` uses (booking feed, bookings and payments with
-`Idempotency-Key` and its void endpoint, holds with an expiry, guest by phone, apartment facts),
-the Mini App for the operator (today, sell, flats, booking card with money) and for a cleaner
-("My cleanings"). Channex integration works on staging and waits on certification before
-production. Curated project knowledge lives in `.omc/wiki/` (see below).
+Production runs 0.8.0 (`CHANGELOG.md`). On top of the core:
+- the API the CRM `aidyn_crm` uses: booking feed, bookings and payments with `Idempotency-Key`,
+  holds with an expiry, guest by phone, flat facts and company rules, availability with the stay
+  rules a stay breaks, personal links (`/o/`, by the night or the hour), a readiness report;
+- the Telegram Mini App as the operator's phone app (Today, Bookings, Sell, Flats, Money, Orders)
+  and the cleaner's «My cleanings»; the bot keeps to notices, `/start`, `/stop` and the assistant;
+- guest pages: a flat's page `/s/<code>`, a company's site `/c/<address>` with booking from the
+  flat's page, a guest's own booking page `/g/<code>` with the way in once paid and the minibar;
+- expenses and agents for the owner, the minibar's stock on the web (`/inventory`).
+
+Channex integration works on staging and waits on certification before production. Curated
+project knowledge lives in `.omc/wiki/` (see below).
 
 ## Key Patterns
 
