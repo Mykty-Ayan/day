@@ -915,6 +915,7 @@ async def calculate_price(
             extra_guest_surcharge=result.extra_guest_surcharge,
             discount_amount=result.discount_amount,
             total=result.total,
+            tariff=result.tariff,
         )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))

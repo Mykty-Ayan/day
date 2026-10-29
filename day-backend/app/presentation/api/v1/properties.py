@@ -33,7 +33,7 @@ from app.application.property.update_property import (
 from app.config import settings
 from app.domain.auth.permissions import Permission
 from app.domain.booking.exceptions import BlockFromCalendarError, BlockOverlapsBookingError
-from app.domain.property.entities import DiscountRule, PropertyCosts, SeasonalPrice, whatsapp_product_id
+from app.domain.property.entities import TARIFF_FIELDS, DiscountRule, PropertyCosts, SeasonalPrice, whatsapp_product_id
 from app.domain.property.value_objects import FactAudience, FactSource, PropertyStatus
 from app.infrastructure.calendar_feeds import build_calendar_feeds
 from app.infrastructure.calendar_fetch import fetch_calendar
@@ -922,6 +922,7 @@ async def upsert_pricing(
                 extra_adult_price=body.extra_adult_price,
                 extra_child_price=body.extra_child_price,
                 base_guests=body.base_guests,
+                **body.model_dump(include=set(TARIFF_FIELDS)),
             ),
         )
         await session.commit()

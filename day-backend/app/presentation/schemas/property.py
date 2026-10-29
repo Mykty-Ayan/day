@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import date, datetime
+from datetime import date, datetime, time
 from decimal import Decimal
 from typing import Annotated
 
@@ -289,6 +289,23 @@ class PricingConfigCreate(BaseModel):
     extra_adult_price: Decimal = Field(default=Decimal("0"), ge=0)
     extra_child_price: Decimal = Field(default=Decimal("0"), ge=0)
     base_guests: int = Field(default=1, ge=1)
+    # Hourly tariffs; left out, the saved ones stay. 0 switches a tariff off, a weekend
+    # price of 0 is the weekday one.
+    price_3h: Decimal | None = Field(default=None, ge=0)
+    price_3h_weekend: Decimal | None = Field(default=None, ge=0)
+    price_6h: Decimal | None = Field(default=None, ge=0)
+    price_6h_weekend: Decimal | None = Field(default=None, ge=0)
+    price_night: Decimal | None = Field(default=None, ge=0)
+    price_night_weekend: Decimal | None = Field(default=None, ge=0)
+    late_from: time | None = None
+    night_to: time | None = None
+    night_max_hours: int | None = Field(default=None, ge=1, le=24)
+
+    @model_validator(mode="after")
+    def _night_crosses_midnight(self) -> PricingConfigCreate:
+        if self.late_from is not None and self.night_to is not None and self.night_to >= self.late_from:
+            raise ValueError("Late hours start in the evening, the night ends next morning: night_to before late_from")
+        return self
 
 
 class PropertyCostsInput(BaseModel):
@@ -333,6 +350,15 @@ class PricingConfigResponse(BaseModel):
     extra_adult_price: Decimal
     extra_child_price: Decimal
     base_guests: int
+    price_3h: Decimal
+    price_3h_weekend: Decimal
+    price_6h: Decimal
+    price_6h_weekend: Decimal
+    price_night: Decimal
+    price_night_weekend: Decimal
+    late_from: time
+    night_to: time
+    night_max_hours: int
     created_at: datetime | None = None
     updated_at: datetime | None = None
 

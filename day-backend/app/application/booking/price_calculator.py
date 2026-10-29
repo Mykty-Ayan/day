@@ -3,7 +3,7 @@ from __future__ import annotations
 import math
 import uuid
 from dataclasses import dataclass
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, time, timedelta
 from decimal import Decimal
 
 from app.domain.booking.value_objects import RentalMode
@@ -27,6 +27,9 @@ class PriceBreakdown:
     extra_guest_surcharge: Decimal
     discount_amount: Decimal
     total: Decimal
+    # The hourly tariff that priced the stay: "3h", "6h", "night" or "day"; None when
+    # the hours were counted at the hourly price, or the stay is by the day.
+    tariff: str | None = None
 
 
 @dataclass(frozen=True)
@@ -60,6 +63,49 @@ def nightly_rates(
     return rates
 
 
+def has_tariffs(pricing: PricingConfig) -> bool:
+    return any(p > 0 for p in (pricing.price_3h, pricing.price_6h, pricing.price_night))
+
+
+def sold_tariffs(pricing: PricingConfig) -> list[str]:
+    """The tariffs a flat sells by the hour, in the order a stay is fitted to them."""
+    names = [n for n, p in (("3h", pricing.price_3h), ("6h", pricing.price_6h), ("night", pricing.price_night)) if p]
+    return names + (["day"] if pricing.base_price > 0 else [])
+
+
+def _tariff_price(weekday: Decimal, weekend: Decimal, is_weekend: bool) -> Decimal:
+    return weekend if is_weekend and weekend > 0 else weekday
+
+
+# A check-in before this hour belongs to the evening before: 01:00 is still last
+# night. Fixed rather than set per flat; make it a pricing field if a flat sells
+# early-morning hours.
+_MORNING = time(6)
+
+
+def _late_evening(pricing: PricingConfig, check_in: datetime, check_out: datetime) -> date | None:
+    """The evening whose late hours the stay reaches, or None for a stay out by
+    late_from. The check-out decides, not the check-in: in at 19:00 and out at
+    00:00 is late."""
+    evening = check_in.date() - timedelta(days=1) if check_in.time() < _MORNING else check_in.date()
+    return evening if check_out > datetime.combine(evening, pricing.late_from) else None
+
+
+def _tariff_breakdown(tariff: str, units: int, price: Decimal) -> PriceBreakdown:
+    return PriceBreakdown(
+        nights=0,
+        units=units,
+        unit_label="hours",
+        base_total=price,
+        weekend_surcharge=Decimal("0"),
+        seasonal_adjustment=Decimal("0"),
+        extra_guest_surcharge=Decimal("0"),
+        discount_amount=Decimal("0"),
+        total=price,
+        tariff=tariff,
+    )
+
+
 class PriceCalculatorService:
     def __init__(
         self,
@@ -87,6 +133,8 @@ class PriceCalculatorService:
             raise ValueError("Property has no pricing configuration")
 
         if rental_mode == RentalMode.HOURLY:
+            if has_tariffs(pricing):
+                return await self._calculate_tariff(pricing, check_in, check_out, adults_count, children_count)
             return self._calculate_hourly(pricing, check_in, check_out)
 
         return await self._calculate_daily(
@@ -118,6 +166,46 @@ class PriceCalculatorService:
             discount_amount=Decimal("0"),
             total=base_total,
         )
+
+    async def _calculate_tariff(
+        self,
+        pricing: PricingConfig,
+        check_in: datetime,
+        check_out: datetime,
+        adults_count: int,
+        children_count: int,
+    ) -> PriceBreakdown:
+        # The smallest tariff that covers the stay: 3 h or 6 h by day, the night once
+        # the stay runs late, then whole days. A guest asking for 4 hours pays for 6,
+        # for 30 hours two days; nothing in between is sold.
+        hours = (check_out - check_in).total_seconds() / 3600
+        if hours <= 0:
+            raise ValueError("Check-out must be after check-in")
+        units = math.ceil(hours)
+        evening = _late_evening(pricing, check_in, check_out)
+        if evening is None:
+            weekend = check_in.weekday() in (4, 5)
+            for name, limit, weekday_price, weekend_price in (
+                ("3h", 3, pricing.price_3h, pricing.price_3h_weekend),
+                ("6h", 6, pricing.price_6h, pricing.price_6h_weekend),
+            ):
+                price = _tariff_price(weekday_price, weekend_price, weekend)
+                if price > 0 and hours <= limit:
+                    return _tariff_breakdown(name, units, price)
+        else:
+            # Late, hours are not sold: the night, if out by morning and not too long.
+            morning = datetime.combine(evening + timedelta(days=1), pricing.night_to)
+            if pricing.price_night > 0 and check_out <= morning and hours <= pricing.night_max_hours:
+                price = _tariff_price(pricing.price_night, pricing.price_night_weekend, evening.weekday() in (4, 5))
+                return _tariff_breakdown("night", units, price)
+        if pricing.base_price > 0:
+            days = math.ceil(hours / 24)
+            day = await self._calculate_daily(
+                pricing, check_in.date(), check_in.date() + timedelta(days=days), adults_count, children_count
+            )
+            day.units, day.unit_label, day.tariff = units, "hours", "day"
+            return day
+        raise ValueError(f"No tariff covers this stay: the flat sells {', '.join(sold_tariffs(pricing))}")
 
     async def _calculate_daily(
         self,

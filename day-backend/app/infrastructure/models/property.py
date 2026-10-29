@@ -1,5 +1,5 @@
 import uuid
-from datetime import date, datetime
+from datetime import date, datetime, time
 
 from sqlalchemy import (
     JSON,
@@ -12,6 +12,7 @@ from sqlalchemy import (
     Numeric,
     String,
     Text,
+    Time,
     UniqueConstraint,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -147,6 +148,15 @@ class PricingConfigModel(Base):
     extra_adult_price: Mapped[float] = mapped_column(Numeric(12, 2), default=0)
     extra_child_price: Mapped[float] = mapped_column(Numeric(12, 2), default=0)
     base_guests: Mapped[int] = mapped_column(Integer, default=1)
+    price_3h: Mapped[float] = mapped_column(Numeric(12, 2), default=0, server_default="0")
+    price_3h_weekend: Mapped[float] = mapped_column(Numeric(12, 2), default=0, server_default="0")
+    price_6h: Mapped[float] = mapped_column(Numeric(12, 2), default=0, server_default="0")
+    price_6h_weekend: Mapped[float] = mapped_column(Numeric(12, 2), default=0, server_default="0")
+    price_night: Mapped[float] = mapped_column(Numeric(12, 2), default=0, server_default="0")
+    price_night_weekend: Mapped[float] = mapped_column(Numeric(12, 2), default=0, server_default="0")
+    late_from: Mapped[time] = mapped_column(Time, default=time(23), server_default="23:00")
+    night_to: Mapped[time] = mapped_column(Time, default=time(10), server_default="10:00")
+    night_max_hours: Mapped[int] = mapped_column(Integer, default=12, server_default="12")
     created_at: Mapped[datetime] = mapped_column(default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(default=datetime.utcnow, onupdate=datetime.utcnow)
 

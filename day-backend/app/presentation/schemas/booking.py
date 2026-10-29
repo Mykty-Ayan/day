@@ -420,6 +420,8 @@ class PriceCalculateResponse(BaseModel):
     extra_guest_surcharge: Decimal
     discount_amount: Decimal
     total: Decimal
+    # The hourly tariff that priced the stay ("3h", "6h", "night", "day"), if any.
+    tariff: str | None = None
 
 
 # ---------- Gantt ----------
