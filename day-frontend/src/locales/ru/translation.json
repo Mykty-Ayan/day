@@ -399,6 +399,12 @@
     "bookingDetails": "Детали бронирования",
     "guestInfo": "Информация о госте",
     "guestName": "Имя",
+    "guestEdit": {
+      "open": "Изменить гостя",
+      "phoneTaken": "Этот телефон уже записан у другого гостя",
+      "nameRequired": "Укажите имя гостя",
+      "failed": "Не удалось сохранить гостя"
+    },
     "phone": "Телефон",
     "email": "Email",
     "emailOptional": "Email (необязательно)",
