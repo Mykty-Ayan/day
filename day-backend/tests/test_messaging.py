@@ -920,3 +920,88 @@ class TestTeamMembersInTelegram:
         )
 
         assert await dispatcher.dispatch_due() == 1
+
+
+class TestCleanerHearsOfANewCleaning:
+    def _chats(self):
+        return FakeIdentityRepository(
+            [
+                ChannelIdentity(company_id=COMPANY_ID, channel=Channel.TELEGRAM, external_id="1", user_id=OWNER_ID),
+                ChannelIdentity(company_id=COMPANY_ID, channel=Channel.TELEGRAM, external_id="2", user_id=CLEANER.id),
+                ChannelIdentity(company_id=COMPANY_ID, channel=Channel.TELEGRAM, external_id="3"),
+            ]
+        )
+
+    @pytest.mark.asyncio
+    async def test_only_the_assigned_cleaners_chat_is_queued(self):
+        repo = FakeNotificationRepository()
+        svc = NotificationService(repo, self._chats(), StubUsers([OWNER, CLEANER]))
+
+        queued = await svc.notify_user(COMPANY_ID, CLEANER.id, NotificationEvent.CLEANING_ASSIGNED, {})
+
+        assert [(n.target, n.payload["user_id"]) for n in queued] == [("2", str(CLEANER.id))]
+        assert await svc.notify_user(COMPANY_ID, uuid.uuid4(), NotificationEvent.CLEANING_ASSIGNED, {}) == []
+
+    @pytest.mark.asyncio
+    async def test_the_notice_reaches_the_cleaner_with_a_button_to_their_cleanings(self):
+        repo = FakeNotificationRepository()
+        svc = NotificationService(repo, self._chats(), StubUsers([OWNER, CLEANER]))
+        await svc.notify_user(
+            COMPANY_ID,
+            CLEANER.id,
+            NotificationEvent.CLEANING_ASSIGNED,
+            {"property_name": "Абая 28", "date": "31.10.2026", "time": "12:00", "type": "post_checkout"},
+        )
+        provider = FakeProvider()
+        dispatcher = NotificationDispatcher(
+            repo,
+            {Channel.TELEGRAM: provider},
+            mini_app_url="https://app.example.com/tma",
+            identity_repo=self._chats(),
+            user_repo=StubUsers([OWNER, CLEANER]),
+        )
+
+        assert await dispatcher.dispatch_due() == 1
+        target, text = provider.sent[0][:2]
+        assert target == "2"
+        assert "Новая уборка" in text and "Абая 28" in text and "31.10.2026 12:00" in text
+        assert "после выезда" in text
+        assert provider.buttons == [[AppButton("Мои уборки", "https://app.example.com/tma")]]
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "now_linked",
+        [
+            ChannelIdentity(company_id=COMPANY_ID, channel=Channel.TELEGRAM, external_id="2", user_id=OWNER_ID),
+            ChannelIdentity(company_id=OTHER_COMPANY_ID, channel=Channel.TELEGRAM, external_id="2", user_id=CLEANER.id),
+            ChannelIdentity(
+                company_id=COMPANY_ID, channel=Channel.TELEGRAM, external_id="2", user_id=CLEANER.id, is_active=False
+            ),
+        ],
+    )
+    async def test_dropped_if_the_chat_is_no_longer_the_cleaners(self, now_linked):
+        repo = FakeNotificationRepository()
+        await repo.save(
+            OutboundNotification(
+                company_id=COMPANY_ID,
+                channel=Channel.TELEGRAM,
+                target="2",
+                event=NotificationEvent.CLEANING_ASSIGNED,
+                payload={"user_id": str(CLEANER.id)},
+            )
+        )
+        provider = FakeProvider()
+        dispatcher = NotificationDispatcher(
+            repo,
+            {Channel.TELEGRAM: provider},
+            identity_repo=FakeIdentityRepository([now_linked]),
+            user_repo=StubUsers([OWNER, CLEANER]),
+        )
+
+        assert await dispatcher.dispatch_due() == 0
+        assert provider.sent == []
+
+    def test_without_a_date_or_notes_the_notice_still_reads(self):
+        text = render(NotificationEvent.CLEANING_ASSIGNED, {"property_name": "Loft", "notes": "Ключ у <соседа>"})
+        assert "Когда: дата не указана" in text
+        assert "Комментарий: Ключ у &lt;соседа&gt;" in text
