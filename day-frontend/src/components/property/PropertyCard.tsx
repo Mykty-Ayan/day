@@ -64,16 +64,23 @@ export default function PropertyCard({ property, index, variant = 'large' }: Pro
             {property.internal_name}
           </p>
 
-          <div className={`flex items-center gap-3 ${isList ? 'mt-2' : 'mt-3'}`}>
-            <div className={`flex items-center gap-1 ${isMedium ? 'text-[10px]' : 'text-xs'} text-gray-500`}>
-              <DoorOpen className="w-3.5 h-3.5" />
-              <span>{t('properties.roomsCount', { count: property.rooms })}</span>
+          {/* An unknown count is left out: «комн.» with no number said nothing. */}
+          {(property.rooms != null || property.beds != null) && (
+            <div className={`flex items-center gap-3 ${isList ? 'mt-2' : 'mt-3'}`}>
+              {property.rooms != null && (
+                <div className={`flex items-center gap-1 ${isMedium ? 'text-[10px]' : 'text-xs'} text-gray-500`}>
+                  <DoorOpen className="w-3.5 h-3.5" />
+                  <span>{t('properties.roomsCount', { count: property.rooms })}</span>
+                </div>
+              )}
+              {property.beds != null && (
+                <div className={`flex items-center gap-1 ${isMedium ? 'text-[10px]' : 'text-xs'} text-gray-500`}>
+                  <Bed className="w-3.5 h-3.5" />
+                  <span>{t('properties.bedsCount', { count: property.beds })}</span>
+                </div>
+              )}
             </div>
-            <div className={`flex items-center gap-1 ${isMedium ? 'text-[10px]' : 'text-xs'} text-gray-500`}>
-              <Bed className="w-3.5 h-3.5" />
-              <span>{t('properties.bedsCount', { count: property.beds })}</span>
-            </div>
-          </div>
+          )}
 
           {property.pricing && (
             <p className={`${isMedium ? 'text-[12px]' : 'text-sm'} font-bold text-gray-900 ${isList ? 'mt-2' : 'mt-3'}`}>
