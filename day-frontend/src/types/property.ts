@@ -63,6 +63,18 @@ export interface PricingConfig {
   extra_adult_price: number
   extra_child_price: number
   base_guests: number
+  /** Hourly tariffs, Sunday–Thursday and Friday–Saturday; 0 is off, a weekend 0 is the weekday price. */
+  price_3h: number
+  price_3h_weekend: number
+  price_6h: number
+  price_6h_weekend: number
+  price_night: number
+  price_night_weekend: number
+  /** "HH:MM:SS". Out after late_from, hours are not sold: the night (out by night_to,
+   *  at most night_max_hours) or whole days. */
+  late_from: string
+  night_to: string
+  night_max_hours: number
   seasonal_prices: SeasonalPrice[]
   discount_rules: DiscountRule[]
   created_at: string
@@ -182,7 +194,21 @@ export interface PropertyCreateInput {
 /** null clears a field; a missing field stays as it was. */
 export type PropertyUpdateInput = { [K in keyof PropertyCreateInput]?: PropertyCreateInput[K] | null }
 
-export interface PricingInput {
+export type TariffInput = Pick<
+  PricingConfig,
+  | 'price_3h'
+  | 'price_3h_weekend'
+  | 'price_6h'
+  | 'price_6h_weekend'
+  | 'price_night'
+  | 'price_night_weekend'
+  | 'late_from'
+  | 'night_to'
+  | 'night_max_hours'
+>
+
+/** Tariffs left out stay as saved. */
+export interface PricingInput extends Partial<TariffInput> {
   base_price: number
   hourly_price?: number
   weekend_markup: number

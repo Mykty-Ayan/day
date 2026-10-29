@@ -3,10 +3,11 @@ import { format, isValid, parseISO } from 'date-fns'
 import { motion } from 'framer-motion'
 import { useTranslation } from 'react-i18next'
 import { Plus, X, Loader2 } from 'lucide-react'
-import type { PricingConfig, SeasonalPrice, DiscountRule } from '../../types/property'
+import type { PricingConfig, SeasonalPrice, DiscountRule, TariffInput } from '../../types/property'
 import type { RentalMode } from '../../types/booking'
 import DatePicker from '../ui/date-picker'
 import NumberInput from '../ui/number-input'
+import HourlyTariffs, { type TariffDraft } from './HourlyTariffs'
 import { ToggleGroup, ToggleGroupItem } from '../ui/toggle-group'
 import { useCurrency } from '../../hooks/useCurrency'
 import {
@@ -30,7 +31,7 @@ interface Props {
   pricing: PricingConfig | null
   rentalMode: RentalMode
   seasonalSuggestions?: SeasonalSuggestion[]
-  onSaveBase: (data: {
+  onSaveBase: (data: TariffInput & {
     base_price: number
     hourly_price: number
     rental_mode: RentalMode
@@ -91,6 +92,17 @@ function PricingFormInner({
   const [extraAdult, setExtraAdult] = useState(String(pricing?.extra_adult_price ?? ''))
   const [extraChild, setExtraChild] = useState(String(pricing?.extra_child_price ?? ''))
   const [baseGuests, setBaseGuests] = useState(String(pricing?.base_guests ?? ''))
+  const [tariffs, setTariffs] = useState<TariffDraft>(() => ({
+    price_3h: String(pricing?.price_3h ?? ''),
+    price_3h_weekend: String(pricing?.price_3h_weekend ?? ''),
+    price_6h: String(pricing?.price_6h ?? ''),
+    price_6h_weekend: String(pricing?.price_6h_weekend ?? ''),
+    price_night: String(pricing?.price_night ?? ''),
+    price_night_weekend: String(pricing?.price_night_weekend ?? ''),
+    late_from: (pricing?.late_from ?? '23:00').slice(0, 5),
+    night_to: (pricing?.night_to ?? '10:00').slice(0, 5),
+    night_max_hours: String(pricing?.night_max_hours ?? 12),
+  }))
   const seasonalPrices = pricing?.seasonal_prices ?? []
   const discountRules = pricing?.discount_rules ?? []
 
@@ -161,6 +173,15 @@ function PricingFormInner({
       extra_adult_price: parseNumber(extraAdult, 0),
       extra_child_price: parseNumber(extraChild, 0),
       base_guests: Math.max(1, parseInt(baseGuests) || 1),
+      price_3h: parseNumber(tariffs.price_3h, 0),
+      price_3h_weekend: parseNumber(tariffs.price_3h_weekend, 0),
+      price_6h: parseNumber(tariffs.price_6h, 0),
+      price_6h_weekend: parseNumber(tariffs.price_6h_weekend, 0),
+      price_night: parseNumber(tariffs.price_night, 0),
+      price_night_weekend: parseNumber(tariffs.price_night_weekend, 0),
+      late_from: tariffs.late_from,
+      night_to: tariffs.night_to,
+      night_max_hours: Math.min(24, Math.max(1, parseInt(tariffs.night_max_hours) || 12)),
     })
   }
 
@@ -318,6 +339,9 @@ function PricingFormInner({
             </>
           )}
         </div>
+        {rentalMode !== 'daily' && (
+          <HourlyTariffs draft={tariffs} onChange={setTariffs} propertyId={pricing?.property_id} />
+        )}
         <motion.button
           type="button"
           whileTap={{ scale: 0.97 }}

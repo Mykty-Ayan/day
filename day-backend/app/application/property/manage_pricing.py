@@ -93,6 +93,27 @@ class ManagePricingService:
         )
         return await self._pricing_repo.save(config)
 
+    async def copy_tariffs_to_all(self, property_id: uuid.UUID, company_id: uuid.UUID) -> int:
+        """Give every other flat of the company this flat's hourly tariffs and late
+        hours; their other prices stay. A flat with no prices yet is skipped. Returns
+        how many flats changed."""
+        await self._check_property(property_id, company_id)
+        source = await self._pricing_repo.get_by_property(property_id)
+        if source is None:
+            raise ValueError("Pricing config not found. Create pricing first.")
+        # One page of 1 000 flats covers every company today; page through if one outgrows it.
+        flats = await self._property_repo.list_by_company(company_id, limit=1000)
+        changed = 0
+        for flat in flats:
+            config = None if flat.id == property_id else await self._pricing_repo.get_by_property(flat.id)
+            if config is None:
+                continue
+            for name in TARIFF_FIELDS:
+                setattr(config, name, getattr(source, name))
+            await self._pricing_repo.update(config)
+            changed += 1
+        return changed
+
     async def get_pricing(
         self, property_id: uuid.UUID, company_id: uuid.UUID
     ) -> PricingConfig | None:

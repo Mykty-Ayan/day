@@ -392,6 +392,10 @@ class AvailablePropertyResponse(BaseModel):
     # Set when the unit is free but has no pricing configured, so the caller can
     # tell "costs nothing" apart from "cannot be quoted".
     price_error: str | None = None
+    # By the hour: the tariff that priced the stay ("3h", "6h", "night", "day") and
+    # why it is not the hours asked ("rounded_up", "late", "longer"), to tell the guest.
+    tariff: str | None = None
+    tariff_reason: str | None = None
     # The stay as this flat books it: its own check-in and check-out hours.
     check_in: datetime | None = None
     check_out: datetime | None = None
@@ -422,6 +426,7 @@ class PriceCalculateResponse(BaseModel):
     total: Decimal
     # The hourly tariff that priced the stay ("3h", "6h", "night", "day"), if any.
     tariff: str | None = None
+    tariff_reason: str | None = None
 
 
 # ---------- Gantt ----------
