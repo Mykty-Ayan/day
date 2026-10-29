@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.domain.booking.value_objects import RentalMode
 from app.domain.property.entities import (
+    TARIFF_PRICES,
     Amenity,
     CompanyFact,
     DayPrice,
@@ -194,6 +195,10 @@ def _model_to_pricing(m: PricingConfigModel) -> PricingConfig:
         extra_adult_price=Decimal(str(m.extra_adult_price)),
         extra_child_price=Decimal(str(m.extra_child_price)),
         base_guests=m.base_guests,
+        **{f: Decimal(str(getattr(m, f))) for f in TARIFF_PRICES},
+        late_from=m.late_from,
+        night_to=m.night_to,
+        night_max_hours=m.night_max_hours,
         created_at=m.created_at,
         updated_at=m.updated_at,
     )
@@ -512,6 +517,15 @@ class SqlPropertyCostsRepository(PropertyCostsRepository):
         return _model_to_costs(existing)
 
 
+def _tariff_values(config: PricingConfig) -> dict:
+    return {
+        **{f: float(getattr(config, f)) for f in TARIFF_PRICES},
+        "late_from": config.late_from,
+        "night_to": config.night_to,
+        "night_max_hours": config.night_max_hours,
+    }
+
+
 class SqlPricingConfigRepository(PricingConfigRepository):
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
@@ -533,6 +547,7 @@ class SqlPricingConfigRepository(PricingConfigRepository):
             extra_adult_price=float(config.extra_adult_price),
             extra_child_price=float(config.extra_child_price),
             base_guests=config.base_guests,
+            **_tariff_values(config),
         )
         self._session.add(model)
         await self._session.flush()
@@ -552,6 +567,7 @@ class SqlPricingConfigRepository(PricingConfigRepository):
                 extra_adult_price=float(config.extra_adult_price),
                 extra_child_price=float(config.extra_child_price),
                 base_guests=config.base_guests,
+                **_tariff_values(config),
                 updated_at=datetime.utcnow(),
             )
         )

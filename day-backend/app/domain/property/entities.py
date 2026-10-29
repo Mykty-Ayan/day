@@ -4,7 +4,7 @@ import re
 import secrets
 import uuid
 from dataclasses import dataclass, field
-from datetime import date, datetime
+from datetime import date, datetime, time
 from decimal import Decimal
 
 from app.domain.booking.value_objects import RentalMode
@@ -154,8 +154,27 @@ class PricingConfig:
     extra_adult_price: Decimal = Decimal("0")
     extra_child_price: Decimal = Decimal("0")
     base_guests: int = 1
+    # Hourly tariffs: one price for Sunday to Thursday, one for Friday and Saturday.
+    # 0 switches a tariff off; a weekend price of 0 is the weekday one.
+    price_3h: Decimal = Decimal("0")
+    price_3h_weekend: Decimal = Decimal("0")
+    price_6h: Decimal = Decimal("0")
+    price_6h_weekend: Decimal = Decimal("0")
+    price_night: Decimal = Decimal("0")
+    price_night_weekend: Decimal = Decimal("0")
+    # Late hours: a stay out after late_from is no longer sold by the hour. It is the
+    # night when out by night_to the next morning and no longer than night_max_hours,
+    # else whole days.
+    late_from: time = time(23)
+    night_to: time = time(10)
+    night_max_hours: int = 12
     created_at: datetime | None = None
     updated_at: datetime | None = None
+
+
+#: The tariff fields of a pricing config, copied as one by storage, the API and clones.
+TARIFF_PRICES = ("price_3h", "price_3h_weekend", "price_6h", "price_6h_weekend", "price_night", "price_night_weekend")
+TARIFF_FIELDS = (*TARIFF_PRICES, "late_from", "night_to", "night_max_hours")
 
 
 @dataclass

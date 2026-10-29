@@ -3,6 +3,7 @@ from __future__ import annotations
 import uuid
 
 from app.domain.property.entities import (
+    TARIFF_FIELDS,
     DiscountRule,
     PricingConfig,
     Property,
@@ -135,6 +136,7 @@ class ClonePropertyService:
                     extra_adult_price=pricing.extra_adult_price,
                     extra_child_price=pricing.extra_child_price,
                     base_guests=pricing.base_guests,
+                    **{f: getattr(pricing, f) for f in TARIFF_FIELDS},
                 )
             )
 

@@ -2,9 +2,10 @@ from __future__ import annotations
 
 import uuid
 from dataclasses import dataclass
+from datetime import time
 from decimal import Decimal
 
-from app.domain.property.entities import DiscountRule, PricingConfig, SeasonalPrice
+from app.domain.property.entities import TARIFF_FIELDS, DiscountRule, PricingConfig, SeasonalPrice
 from app.domain.property.repositories import (
     DiscountRuleRepository,
     PricingConfigRepository,
@@ -23,6 +24,19 @@ class PricingConfigInput:
     extra_adult_price: Decimal = Decimal("0")
     extra_child_price: Decimal = Decimal("0")
     base_guests: int = 1
+    # None keeps the saved tariff: a client that does not know tariffs never clears them.
+    price_3h: Decimal | None = None
+    price_3h_weekend: Decimal | None = None
+    price_6h: Decimal | None = None
+    price_6h_weekend: Decimal | None = None
+    price_night: Decimal | None = None
+    price_night_weekend: Decimal | None = None
+    late_from: time | None = None
+    night_to: time | None = None
+    night_max_hours: int | None = None
+
+    def tariffs(self) -> dict:
+        return {f: getattr(self, f) for f in TARIFF_FIELDS if getattr(self, f) is not None}
 
 
 class ManagePricingService:
@@ -62,6 +76,8 @@ class ManagePricingService:
             existing.extra_adult_price = inp.extra_adult_price
             existing.extra_child_price = inp.extra_child_price
             existing.base_guests = inp.base_guests
+            for name, value in inp.tariffs().items():
+                setattr(existing, name, value)
             return await self._pricing_repo.update(existing)
         config = PricingConfig(
             property_id=property_id,
@@ -73,6 +89,7 @@ class ManagePricingService:
             extra_adult_price=inp.extra_adult_price,
             extra_child_price=inp.extra_child_price,
             base_guests=inp.base_guests,
+            **inp.tariffs(),
         )
         return await self._pricing_repo.save(config)
 
