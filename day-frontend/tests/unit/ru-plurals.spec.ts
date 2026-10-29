@@ -36,8 +36,8 @@ const INVARIANT = new Set([
   'properties.photosFailed', // …не загрузились: 3
   'properties.photosAdded', // Фото добавлены: 3
   'properties.photosNotAdded', // Не загрузились: 3
-  'cleaner.activeCount', // Активные (3)
-  'cleaner.completedCount', // Завершённые (3)
+  'cleaner.activeCount', // В работе (3)
+  'cleaner.completedCount', // Готово (3)
   'aiImport.importingCount', // Импорт 3 URL
   'aiImport.importAllCount', // Импортировать все (3)
   'aiImport.minutesAgo', // 3 мин. назад
