@@ -30,7 +30,9 @@ import {
   useAddComment,
   useUploadBookingFile,
   useDeleteBookingFile,
+  useUpdateGuest,
 } from '../../hooks/useBookings'
+import { guestPatch, guestSaveError, type GuestForm } from '../../lib/guest-edit'
 import type {
   Booking,
   BookingAuditLog,
@@ -314,6 +316,7 @@ export default function BookingDetailPage() {
 function OverviewTab({ booking, guest }: { booking: Booking; guest: Guest }) {
   const { t, i18n } = useTranslation()
   const { symbol } = useCurrency()
+  const [editingGuest, setEditingGuest] = useState(false)
 
   const guestCountStr = (() => {
     let str = t('bookings.adultsCount', { count: booking.adults_count })
@@ -346,16 +349,34 @@ function OverviewTab({ booking, guest }: { booking: Booking; guest: Guest }) {
 
       {/* Guest Info */}
       <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
-        <h2 className="text-sm font-bold text-gray-900 mb-4">{t('bookings.guest')}</h2>
+        <div className="mb-4 flex items-center justify-between gap-2">
+          <h2 className="text-sm font-bold text-gray-900">{t('bookings.guest')}</h2>
+          {!editingGuest && (
+            <button
+              type="button"
+              onClick={() => setEditingGuest(true)}
+              className="flex items-center gap-1 text-xs font-semibold text-gray-500 hover:text-black"
+            >
+              <Pencil className="h-3.5 w-3.5" />
+              {t('bookings.guestEdit.open')}
+            </button>
+          )}
+        </div>
         <div className="space-y-3">
-          <div>
-            <p className="text-xs text-gray-500">{t('bookings.guestName')}</p>
-            <p className="text-sm font-semibold text-gray-900">{guest.name}</p>
-          </div>
-          <div>
-            <p className="text-xs text-gray-500">{t('bookings.phone')}</p>
-            <p className="text-sm text-gray-900">{guest.phone}</p>
-          </div>
+          {editingGuest ? (
+            <GuestEditForm guest={guest} onDone={() => setEditingGuest(false)} />
+          ) : (
+            <>
+              <div>
+                <p className="text-xs text-gray-500">{t('bookings.guestName')}</p>
+                <p className="text-sm font-semibold text-gray-900">{guest.name}</p>
+              </div>
+              <div>
+                <p className="text-xs text-gray-500">{t('bookings.phone')}</p>
+                <p className="text-sm text-gray-900">{guest.phone}</p>
+              </div>
+            </>
+          )}
           {guest.email && (
             <div>
               <p className="text-xs text-gray-500">{t('bookings.email')}</p>
@@ -369,6 +390,66 @@ function OverviewTab({ booking, guest }: { booking: Booking; guest: Guest }) {
             </div>
           )}
         </div>
+      </div>
+    </div>
+  )
+}
+
+function GuestEditForm({ guest, onDone }: { guest: Guest; onDone: () => void }) {
+  const { t } = useTranslation()
+  const [form, setForm] = useState<GuestForm>({ name: guest.name, phone: guest.phone ?? '' })
+  const [error, setError] = useState('')
+  const save = useUpdateGuest(guest.id)
+  const field = 'w-full bg-gray-50 border border-gray-200 rounded-xl p-3 outline-none focus:ring-2 focus:ring-black/10 text-sm'
+
+  function submit() {
+    const result = guestPatch(guest, form)
+    if ('error' in result) {
+      setError(t(`bookings.guestEdit.${result.error}`))
+      return
+    }
+    if (Object.keys(result.patch).length === 0) {
+      onDone()
+      return
+    }
+    save.mutate(result.patch, {
+      onSuccess: onDone,
+      onError: (mutationError) => setError(t(`bookings.guestEdit.${guestSaveError(mutationError)}`)),
+    })
+  }
+
+  return (
+    <div className="space-y-3">
+      <label className="block">
+        <span className="text-xs text-gray-500">{t('bookings.guestName')}</span>
+        <input
+          type="text"
+          value={form.name}
+          onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+          className={field}
+        />
+      </label>
+      <label className="block">
+        <span className="text-xs text-gray-500">{t('bookings.phone')}</span>
+        <input
+          type="tel"
+          value={form.phone}
+          onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
+          className={field}
+        />
+      </label>
+      {error && (
+        <p role="alert" className="text-sm font-semibold text-red-600">
+          {error}
+        </p>
+      )}
+      <div className="flex gap-2">
+        <Button onClick={submit} disabled={save.isPending}>
+          {save.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : t('common.save')}
+        </Button>
+        <Button variant="secondary" onClick={onDone} disabled={save.isPending}>
+          {t('common.cancel')}
+        </Button>
       </div>
     </div>
   )

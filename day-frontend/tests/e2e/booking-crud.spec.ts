@@ -208,7 +208,7 @@ test.describe('Booking CRUD - E2E', () => {
     await page.goto(`/bookings/${booking.id}`)
     await page.waitForLoadState('networkidle')
 
-    await page.getByRole('button', { name: /edit/i }).click()
+    await page.getByRole('button', { name: 'Edit', exact: true }).click()
     await expect(page).toHaveURL(new RegExp(`/bookings/${booking.id}/edit$`))
 
     await page.locator('input[type="number"]').first().fill('5')

@@ -393,6 +393,12 @@
     "bookingDetails": "Бронь мәліметтері",
     "guestInfo": "Қонақ туралы ақпарат",
     "guestName": "Аты",
+    "guestEdit": {
+      "open": "Қонақты өзгерту",
+      "phoneTaken": "Бұл телефон басқа қонақта жазылған",
+      "nameRequired": "Қонақтың атын жазыңыз",
+      "failed": "Қонақты сақтау мүмкін болмады"
+    },
     "phone": "Телефон",
     "email": "Email",
     "emailOptional": "Email (міндетті емес)",

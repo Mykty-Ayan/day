@@ -393,6 +393,12 @@
     "bookingDetails": "Booking Details",
     "guestInfo": "Guest Information",
     "guestName": "Name",
+    "guestEdit": {
+      "open": "Edit guest",
+      "phoneTaken": "Another guest already has this phone",
+      "nameRequired": "Enter the guest's name",
+      "failed": "Could not save the guest"
+    },
     "phone": "Phone",
     "email": "Email",
     "emailOptional": "Email (optional)",

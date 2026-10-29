@@ -31,6 +31,10 @@ class GuestRepository(abc.ABC):
     async def get_by_id(self, guest_id: uuid.UUID) -> Guest | None: ...
 
     @abc.abstractmethod
+    async def update(self, guest: Guest) -> Guest:
+        """Save the name and phone of a guest of guest.company_id."""
+
+    @abc.abstractmethod
     async def get_by_company(
         self,
         company_id: uuid.UUID,
