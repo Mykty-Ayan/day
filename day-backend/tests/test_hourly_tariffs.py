@@ -335,3 +335,23 @@ async def test_tariffs_are_saved_and_price_an_hourly_stay(flat):  # noqa: F811  
     assert found.status_code == 200, found.text
     item = next(i for i in found.json()["items"] if i["property_id"] == str(prop))
     assert (item["tariff"], item["tariff_reason"], item["total_price"]) == ("night", "late", 15000)
+
+
+async def test_the_guest_page_shows_the_tariffs_instead_of_an_hourly_price():
+    from datetime import date
+
+    from app.presentation.schemas.public import PublicStayResponse
+    from tests.test_public_stay import Stay
+
+    s = Stay()
+    prop = await s.flat(hourly_price=Decimal("3000"), price_3h=Decimal("8000"), price_3h_weekend=Decimal("10000"),
+                        price_night=Decimal("15000"), price_night_weekend=Decimal("15000"))
+    prop.rental_mode = RentalMode.BOTH
+    await s.props.save(prop)
+
+    prices = PublicStayResponse.from_stay(
+        await s.service().execute(prop.public_code, date(2030, 10, 1), date(2030, 10, 3))).prices
+
+    assert prices.hour is None
+    assert [(t.name, t.price, t.weekend) for t in prices.tariffs] == [("3h", 8000, 10000), ("night", 15000, None)]
+    assert (prices.late_from, prices.night_to) == ("23:00", "10:00")

@@ -28,7 +28,17 @@ export interface PublicStay {
   min_nights: number | null
   photos: string[]
   amenities: { name: string; category: string }[]
-  prices: { night: number | null; hour: number | null; deposit: number | null; hour_deposit: number | null }
+  prices: {
+    night: number | null
+    hour: number | null
+    /** By the hour, when the flat sells by tariffs; the weekend price only where it differs. */
+    tariffs?: { name: '3h' | '6h' | 'night'; price: number; weekend: number | null }[]
+    /** Out after late_from only the night is sold, out by night_to. */
+    late_from?: string | null
+    night_to?: string | null
+    deposit: number | null
+    hour_deposit: number | null
+  }
   nights: PublicNight[]
   /** The company, once it has set up its site: the page links to it and books. */
   company?: { slug: string; title: string; logo_url: string | null; accent_color: string | null; whatsapp: string | null } | null

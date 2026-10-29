@@ -185,12 +185,32 @@ function StayView({ stay, locale, today }: { stay: PublicStay; locale: string; t
         </ul>
       )}
 
-      {(stay.prices.night != null || stay.prices.hour != null) && (
+      {(stay.prices.night != null || stay.prices.hour != null || !!stay.prices.tariffs?.length) && (
         <section aria-label={t('guest.price')} className="mx-5 mt-5 flex flex-col gap-2 rounded-[24px] bg-stone-50 p-5">
-          <div className="flex items-baseline gap-1.5">
-            <span className="text-3xl font-bold tracking-tight">{money((stay.prices.night ?? stay.prices.hour)!, locale)}</span>
-            <span className="text-base text-gray-600">{stay.prices.night != null ? t('guest.perNight') : t('guest.perHour')}</span>
-          </div>
+          {(stay.prices.night != null || stay.prices.hour != null) && (
+            <div className="flex items-baseline gap-1.5">
+              <span className="text-3xl font-bold tracking-tight">{money((stay.prices.night ?? stay.prices.hour)!, locale)}</span>
+              <span className="text-base text-gray-600">{stay.prices.night != null ? t('guest.perNight') : t('guest.perHour')}</span>
+            </div>
+          )}
+          {!!stay.prices.tariffs?.length && (
+            <div className="flex flex-col gap-1">
+              <span className="text-sm font-semibold text-gray-600">{t('guest.tariffs')}</span>
+              {stay.prices.tariffs.map((tariff) => (
+                <span key={tariff.name} className="text-base">
+                  {t(`guest.tariff_${tariff.name}`)} — {money(tariff.price, locale)}
+                  {tariff.weekend != null && (
+                    <span className="text-gray-600">{` · ${t('guest.tariffWeekend', { price: money(tariff.weekend, locale) })}`}</span>
+                  )}
+                </span>
+              ))}
+              {stay.prices.late_from && (
+                <span className="text-sm text-gray-600">
+                  {t('guest.lateRule', { late: stay.prices.late_from, morning: stay.prices.night_to })}
+                </span>
+              )}
+            </div>
+          )}
           {stay.prices.night != null && stay.prices.hour != null && (
             <span className="text-base">{t('guest.hourly', { price: money(stay.prices.hour, locale) })}</span>
           )}

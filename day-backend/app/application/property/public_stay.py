@@ -12,7 +12,7 @@ from datetime import date, datetime, time, timedelta
 from decimal import Decimal
 
 from app.application.booking.ical_export import blocked_nights
-from app.application.booking.price_calculator import NightRate, nightly_rates
+from app.application.booking.price_calculator import NightRate, has_tariffs, nightly_rates
 from app.config import settings
 from app.domain.booking.repositories import BookingRepository
 from app.domain.booking.value_objects import BookingStatus, RentalMode
@@ -82,7 +82,11 @@ class GetPublicStayService:
         )
         pricing = await self._pricing.get_by_property(prop.id)
         by_night = bool(pricing) and prop.rental_mode != RentalMode.HOURLY and pricing.base_price > 0
-        by_hour = bool(pricing) and prop.rental_mode != RentalMode.DAILY and pricing.hourly_price > 0
+        by_hour = (
+            bool(pricing)
+            and prop.rental_mode != RentalMode.DAILY
+            and (pricing.hourly_price > 0 or has_tariffs(pricing))
+        )
         return PublicStay(
             property=prop,
             photos=[p.url for p in photos],
