@@ -39,6 +39,13 @@ class GuestCreate(BaseModel):
     notes: str | None = None
 
 
+class GuestUpdate(BaseModel):
+    """Only what is sent changes; a phone of null or "" removes it."""
+
+    name: str | None = Field(default=None, min_length=1, max_length=255)
+    phone: str | None = Field(default=None, max_length=50)
+
+
 class GuestResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
