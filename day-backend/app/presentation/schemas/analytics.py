@@ -47,6 +47,8 @@ class PropertyMetricsResponse(BaseModel):
     # guests came.
     fixed_costs: Decimal
     variable_costs: Decimal
+    # The expense journal for this flat, voided ones left out.
+    recorded_expenses: Decimal
     vacancy_days: Decimal
     occupancy_rate: Decimal
     avg_stay_duration: Decimal
@@ -66,6 +68,8 @@ class AnalyticsSummaryResponse(BaseModel):
     total_commission: Decimal
     total_fixed_costs: Decimal
     total_variable_costs: Decimal
+    # The expense journal: the flats' and the whole company's.
+    total_recorded_expenses: Decimal
     overall_adr: Decimal
     overall_revpar: Decimal
     overall_occupancy_rate: Decimal
