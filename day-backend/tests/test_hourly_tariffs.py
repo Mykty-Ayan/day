@@ -189,6 +189,33 @@ async def test_three_days_from_thursday_take_friday_at_the_weekend_price():
 
 
 @pytest.mark.asyncio
+async def test_the_day_after_midnight_is_priced_as_the_evening_before():
+    # In at 02:00 belongs to the evening before, for the day's price too.
+    calc, prop_id = await _munar()
+    sunday = await _price(calc, prop_id, datetime(2026, 11, 8, 2), datetime(2026, 11, 8, 14))
+    friday = await _price(calc, prop_id, datetime(2026, 11, FRI, 2), datetime(2026, 11, FRI, 14))
+    assert (sunday.tariff, sunday.total) == ("day", Decimal("24000"))  # Saturday's night
+    assert (friday.tariff, friday.total) == ("day", Decimal("20000"))  # Thursday's night
+
+
+@pytest.mark.asyncio
+async def test_six_in_the_morning_is_the_new_day():
+    calc, prop_id = await _munar()
+    result = await _price(calc, prop_id, datetime(2026, 11, MON, 6), datetime(2026, 11, MON, 9))
+    assert (result.tariff, result.total) == ("3h", Decimal("8000"))
+
+
+@pytest.mark.asyncio
+async def test_a_flat_selling_only_the_night_sells_daytime_by_the_hour():
+    calc, prop_id = await _munar(base_price=Decimal("0"), price_3h=Decimal("0"), price_3h_weekend=Decimal("0"),
+                                 price_6h=Decimal("0"), price_6h_weekend=Decimal("0"))
+    day = await _price(calc, prop_id, datetime(2026, 11, MON, 14), datetime(2026, 11, MON, 16))
+    night = await _price(calc, prop_id, datetime(2026, 11, MON, 23), datetime(2026, 11, MON + 1, 9))
+    assert (day.tariff, day.total) == (None, Decimal("6000"))  # 2 h × 3 000
+    assert (night.tariff, night.total) == ("night", Decimal("15000"))
+
+
+@pytest.mark.asyncio
 async def test_no_tariff_covers_without_a_day_price():
     calc, prop_id = await _munar(base_price=Decimal("0"))
     with pytest.raises(ValueError, match="3h, 6h, night"):
@@ -241,6 +268,28 @@ async def test_a_save_without_tariffs_keeps_the_saved_ones():
     kept = await svc.upsert_pricing(prop.id, COMPANY_ID, PricingConfigInput(base_price=Decimal("21000")))
 
     assert (kept.base_price, kept.price_3h, kept.late_from) == (Decimal("21000"), Decimal("8000"), time(22))
+
+
+async def test_one_time_alone_is_checked_against_the_saved_other():
+    from app.application.property.manage_pricing import ManagePricingService, PricingConfigInput
+    from tests.test_property_services import (
+        COMPANY_ID,
+        FakeDiscountRuleRepository,
+        FakePropertyRepository,
+        FakeSeasonalPriceRepository,
+        _make_property,
+    )
+
+    props, pricing = FakePropertyRepository(), FakePricingConfigRepository()
+    prop = _make_property()
+    await props.save(prop)
+    svc = ManagePricingService(props, pricing, FakeSeasonalPriceRepository(), FakeDiscountRuleRepository())
+    await svc.upsert_pricing(prop.id, COMPANY_ID, PricingConfigInput(base_price=Decimal("20000")))
+
+    # The saved morning is 10:00: a late hour of 09:00 would end the night before it began.
+    with pytest.raises(ValueError, match="night_to before late_from"):
+        await svc.upsert_pricing(prop.id, COMPANY_ID, PricingConfigInput(base_price=Decimal("20000"),
+                                                                          late_from=time(9)))
 
 
 async def test_a_clone_keeps_the_tariffs():
