@@ -1,7 +1,7 @@
 """Unit tests for analytics application services."""
 
 import uuid
-from datetime import date
+from datetime import date, datetime, timezone
 from decimal import Decimal
 
 import pytest
@@ -17,8 +17,10 @@ from app.application.analytics.get_time_series import (
 from app.domain.analytics.entities import PropertyMetrics, TimeSeriesPoint
 from app.domain.analytics.repositories import AnalyticsRepository
 from app.domain.analytics.value_objects import Granularity
+from app.domain.expenses.entities import Expense, ExpenseCategory
 from app.domain.property.entities import PropertyCosts
 from app.domain.property.repositories import PropertyCostsRepository
+from tests.test_expenses import FakeExpenseRepository
 
 # ---------- In-memory fake repository ----------
 
@@ -361,6 +363,101 @@ class TestCalculateMetricsService:
         assert result.summary.overall_adr == Decimal("0")
 
 
+
+# ---------- The expense journal comes off the profit ----------
+
+
+def _expense(amount, spent_on, property_id=None, company_id=COMPANY_ID, voided=False):
+    return Expense(
+        company_id=company_id,
+        category=ExpenseCategory.UTILITIES,
+        amount=Decimal(amount),
+        spent_on=spent_on,
+        property_id=property_id,
+        voided_at=datetime(2025, 1, 20, tzinfo=timezone.utc) if voided else None,
+    )
+
+
+async def _metrics_with_journal(*expenses, property_ids=None):
+    other = uuid.uuid4()
+    flats = [
+        PropertyMetrics(property_id=PROPERTY_ID, revenue=Decimal("100000"), commission=Decimal("3000")),
+        PropertyMetrics(property_id=other, revenue=Decimal("50000")),
+    ]
+    journal = FakeExpenseRepository()
+    for expense in expenses:
+        await journal.add(expense)
+    svc = CalculateMetricsService(FakeAnalyticsRepository(metrics=flats), FakePropertyCostsRepository(), journal)
+    result = await svc.execute(
+        CalculateMetricsInput(
+            company_id=COMPANY_ID, date_from=date(2025, 1, 1), date_to=date(2025, 2, 1), property_ids=property_ids
+        )
+    )
+    return result, other
+
+
+class TestRecordedExpenses:
+    @pytest.mark.asyncio
+    async def test_the_flats_and_the_companys_expenses_come_off_the_profit(self):
+        result, other = await _metrics_with_journal(
+            _expense("20000", date(2025, 1, 5), PROPERTY_ID),
+            _expense("7000", date(2025, 1, 31), PROPERTY_ID),
+            _expense("5000", date(2025, 1, 10)),  # the whole company's
+        )
+        flat = next(pm for pm in result.properties if pm.property_id == PROPERTY_ID)
+        assert flat.recorded_expenses == Decimal("27000")
+        assert flat.expenses == Decimal("30000")  # commission 3000 + journal 27000
+        assert flat.profit == Decimal("70000")
+        assert next(pm for pm in result.properties if pm.property_id == other).profit == Decimal("50000")
+
+        assert result.summary.total_recorded_expenses == Decimal("32000")
+        assert result.summary.total_expenses == Decimal("35000")
+        assert result.summary.total_profit == Decimal("115000")
+
+    @pytest.mark.asyncio
+    async def test_voided_outside_the_period_and_another_companys_do_not_count(self):
+        result, _ = await _metrics_with_journal(
+            _expense("1000", date(2025, 1, 5), PROPERTY_ID, voided=True),
+            _expense("1000", date(2024, 12, 31), PROPERTY_ID),
+            _expense("1000", date(2025, 2, 1), PROPERTY_ID),  # date_to is not in the period
+            _expense("1000", date(2025, 1, 5), PROPERTY_ID, company_id=uuid.uuid4()),
+        )
+        assert result.summary.total_recorded_expenses == Decimal("0")
+        assert result.summary.total_profit == Decimal("147000")
+
+    @pytest.mark.asyncio
+    async def test_a_report_on_chosen_flats_leaves_the_companys_expenses_out(self):
+        result, _ = await _metrics_with_journal(
+            _expense("20000", date(2025, 1, 5), PROPERTY_ID),
+            _expense("5000", date(2025, 1, 10)),
+            property_ids=[PROPERTY_ID],
+        )
+        assert result.summary.total_recorded_expenses == Decimal("20000")
+        assert result.summary.total_profit == Decimal("77000")
+
+    @pytest.mark.asyncio
+    async def test_a_report_on_one_source_leaves_the_journal_out(self):
+        # The journal is not kept by source: all the company's costs would land on
+        # one platform's bookings.
+        journal = FakeExpenseRepository()
+        await journal.add(_expense("20000", date(2025, 1, 5), PROPERTY_ID))
+        flats = [PropertyMetrics(property_id=PROPERTY_ID, revenue=Decimal("100000"), commission=Decimal("3000"))]
+        svc = CalculateMetricsService(FakeAnalyticsRepository(metrics=flats), FakePropertyCostsRepository(), journal)
+        result = await svc.execute(CalculateMetricsInput(
+            company_id=COMPANY_ID, date_from=date(2025, 1, 1), date_to=date(2025, 2, 1), source="airbnb"))
+        assert result.summary.total_recorded_expenses == Decimal("0")
+        assert result.summary.total_profit == Decimal("97000")
+
+    @pytest.mark.asyncio
+    async def test_a_platform_commission_in_the_journal_is_not_taken_twice(self):
+        # Day computes the platforms' commission from the bookings already.
+        commission = _expense("3000", date(2025, 1, 5), PROPERTY_ID)
+        commission.category = ExpenseCategory.PLATFORM_COMMISSION
+        result, _ = await _metrics_with_journal(commission)
+        assert result.summary.total_recorded_expenses == Decimal("0")
+        assert result.summary.total_profit == Decimal("147000")
+
+
 # ---------- GetTimeSeriesService ----------
 
 
@@ -526,22 +623,16 @@ class TestCostsReachTheReport:
         assert result.properties[0].variable_costs == Decimal("50000")
 
     @pytest.mark.asyncio
-    async def test_profit_is_what_is_left_after_all_of_it(self):
-        result = await self._run(FakePropertyCostsRepository({PROPERTY_ID: self._costs()}))
-        pm = result.properties[0]
-
-        assert pm.expenses == pm.commission + pm.fixed_costs + pm.variable_costs
-        assert pm.profit == pm.revenue - pm.expenses
-
-    @pytest.mark.asyncio
-    async def test_the_old_number_was_larger_by_the_whole_rent(self):
-        # The point of the change, stated as a test: a month that looked like
-        # 570 000 ₸ of profit is closer to 210 000 ₸.
+    async def test_planned_costs_stay_out_of_profit(self):
+        # The owner's decision (30 Oct 2026): profit takes its costs from the
+        # expense journal alone. Planned rent written again in the journal was
+        # counted twice; the plan stays for pricing.
         with_costs = await self._run(FakePropertyCostsRepository({PROPERTY_ID: self._costs()}))
         without = await self._run(FakePropertyCostsRepository())
+        pm = with_costs.properties[0]
 
-        assert without.properties[0].profit > with_costs.properties[0].profit
-        assert without.properties[0].profit == Decimal("570000")
+        assert pm.expenses == pm.commission
+        assert pm.profit == without.properties[0].profit == Decimal("570000")
 
     @pytest.mark.asyncio
     async def test_a_flat_with_no_costs_recorded_still_reports(self):

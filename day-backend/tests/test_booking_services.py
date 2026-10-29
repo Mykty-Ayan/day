@@ -280,6 +280,10 @@ class FakeGuestRepository(GuestRepository):
     async def get_by_id(self, guest_id: uuid.UUID) -> Guest | None:
         return self._guests.get(guest_id)
 
+    async def update(self, guest: Guest) -> Guest:
+        self._guests[guest.id] = guest
+        return guest
+
     async def get_by_company(self, company_id, *, offset=0, limit=50, search=None):
         return [g for g in self._guests.values() if g.company_id == company_id]
 

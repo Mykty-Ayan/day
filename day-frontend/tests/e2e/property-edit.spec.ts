@@ -10,7 +10,7 @@ import { pricingCard, priceField } from '../fixtures/property-ui'
 // The labels of the edit wizard are not tied to its inputs, so its fields are found by placeholder.
 const NAME_PLACEHOLDER = 'Cozy Downtown Studio'
 const INTERNAL_NAME_PLACEHOLDER = 'APT-001-Downtown'
-const DESCRIPTION_PLACEHOLDER = 'A beautiful property in the heart of the city...'
+const DESCRIPTION_PLACEHOLDER = 'A beautiful property in the heart of the city…'
 
 test.describe('Property Edit - E2E', () => {
   let propertyIdsToCleanup: string[] = []

@@ -15,9 +15,25 @@ export function periodRange(period: MoneyPeriod, today: Date): { date_from: stri
   return { date_from: toISODate(first), date_to: toISODate(last) }
 }
 
+/** The same period for analytics, which reads date_to as the first day after it:
+ *  given the last day, the month's last day was left out of income and profit. */
+export function metricsRange(period: MoneyPeriod, today: Date): { date_from: string; date_to: string } {
+  const shift = period === 'month' ? 0 : -1
+  const first = new Date(today.getFullYear(), today.getMonth() + shift, 1)
+  const next = new Date(today.getFullYear(), today.getMonth() + shift + 1, 1)
+  return { date_from: toISODate(first), date_to: toISODate(next) }
+}
+
 /** The stay's debt and the minibar orders on the guest's tab. */
 export const owed = (booking: Booking) =>
   Math.max(0, booking.total_price - (booking.paid_amount ?? 0)) + (booking.orders_due ?? 0)
+
+/** A row's debt: all of it, and the minibar orders' part; null when nothing is owed. */
+export function rowDebt(booking: Booking): { total: number; orders: number } | null {
+  if (booking.status === 'cancelled') return null
+  const total = owed(booking)
+  return total > 0 ? { total, orders: booking.orders_due ?? 0 } : null
+}
 
 const live = (bookings: Booking[]) => bookings.filter((booking) => booking.status !== 'cancelled')
 const sum = (values: number[]) => values.reduce((total, value) => total + value, 0)

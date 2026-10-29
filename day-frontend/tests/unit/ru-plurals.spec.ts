@@ -98,7 +98,7 @@ test('i18next renders the Russian forms', async () => {
   expect([1, 2].map((count) => t('bookings.adultsCount', { count }))).toEqual(['1 взрослый', '2 взрослых'])
   expect([1, 2, 5].map((count) => t('bookings.childrenCount', { count }))).toEqual(['1 ребёнок', '2 ребёнка', '5 детей'])
   expect([2, 5].map((count) => t('analytics.propertiesCount', { count }))).toEqual(['2 объекта', '5 объектов'])
-  expect([1, 3, 5].map((count) => t('analytics.bookingsCount', { count }))).toEqual(['1 бронирование', '3 бронирования', '5 бронирований'])
+  expect([1, 3, 5].map((count) => t('analytics.bookingsCount', { count }))).toEqual(['1 бронь', '3 брони', '5 броней'])
   expect([1, 4, 7].map((count) => t('team.scopesCount', { count }))).toEqual(['1 право', '4 права', '7 прав'])
   expect([1, 5].map((count) => t('properties.pricing.discountLabel', { count, amount: '10%' }))).toEqual([
     'От 1 ночи: скидка 10%',

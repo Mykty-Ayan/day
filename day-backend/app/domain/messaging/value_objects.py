@@ -57,3 +57,5 @@ class NotificationEvent(str, enum.Enum):
     GUEST_ORDER = "guest_order"
     # The guest called off their minibar order before it was paid.
     GUEST_ORDER_CANCELLED = "guest_order_cancelled"
+    # A cleaning was given to a cleaner: told to that cleaner alone.
+    CLEANING_ASSIGNED = "cleaning_assigned"
