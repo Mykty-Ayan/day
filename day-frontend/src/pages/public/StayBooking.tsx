@@ -53,6 +53,11 @@ export function BookBar({
                 {stay.prices.night != null ? t('guest.perNight') : t('guest.perHour')}
               </span>
             </>
+          ) : stay.prices.tariffs?.length ? (
+            <>
+              <span className="block text-lg font-bold">{money(stay.prices.tariffs[0].price, locale)}</span>
+              <span className="block text-sm text-gray-600">{t(`guest.tariff_${stay.prices.tariffs[0].name}`)}</span>
+            </>
           ) : null}
         </div>
         <div className="flex shrink-0 items-center gap-2">

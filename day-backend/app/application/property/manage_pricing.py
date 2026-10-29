@@ -39,6 +39,13 @@ class PricingConfigInput:
         return {f: getattr(self, f) for f in TARIFF_FIELDS if getattr(self, f) is not None}
 
 
+def _check_night(config: PricingConfig) -> None:
+    """The night runs from the late hour over midnight to the morning: checked on the
+    values as saved, since a save may send one of the two times alone."""
+    if config.night_to >= config.late_from:
+        raise ValueError("Late hours start in the evening, the night ends next morning: night_to before late_from")
+
+
 class ManagePricingService:
     def __init__(
         self,
@@ -78,6 +85,7 @@ class ManagePricingService:
             existing.base_guests = inp.base_guests
             for name, value in inp.tariffs().items():
                 setattr(existing, name, value)
+            _check_night(existing)
             return await self._pricing_repo.update(existing)
         config = PricingConfig(
             property_id=property_id,
@@ -91,6 +99,7 @@ class ManagePricingService:
             base_guests=inp.base_guests,
             **inp.tariffs(),
         )
+        _check_night(config)
         return await self._pricing_repo.save(config)
 
     async def copy_tariffs_to_all(self, property_id: uuid.UUID, company_id: uuid.UUID) -> int:

@@ -198,6 +198,9 @@ class PriceCalculatorService:
                 price = _tariff_price(weekday_price, weekend_price, weekend)
                 if price > 0 and hours <= limit:
                     return _tariff_breakdown(name, units, price, "rounded_up" if hours < limit else None)
+            # A flat that sells only the night by tariff still sells daytime hours by the hour.
+            if not (pricing.price_3h or pricing.price_6h) and pricing.hourly_price > 0 and hours <= 24:
+                return self._calculate_hourly(pricing, check_in, check_out)
         else:
             # Late, hours are not sold: the night, if out by morning and not too long.
             morning = datetime.combine(evening + timedelta(days=1), pricing.night_to)
@@ -206,8 +209,10 @@ class PriceCalculatorService:
                 return _tariff_breakdown("night", units, price, "late")
         if pricing.base_price > 0:
             days = math.ceil(hours / 24)
+            # A check-in before 06:00 is the evening before's, for the day's price too.
+            first = evening if evening is not None else check_in.date()
             day = await self._calculate_daily(
-                pricing, check_in.date(), check_in.date() + timedelta(days=days), adults_count, children_count
+                pricing, first, first + timedelta(days=days), adults_count, children_count
             )
             day.units, day.unit_label, day.tariff = units, "hours", "day"
             day.tariff_reason = "late" if evening is not None and hours <= 24 else "longer"

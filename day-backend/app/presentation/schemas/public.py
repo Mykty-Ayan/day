@@ -27,9 +27,21 @@ def _set(amount) -> float | None:
     return float(amount) if amount > 0 else None
 
 
+class PublicTariff(BaseModel):
+    name: str  # "3h", "6h" or "night"
+    price: float
+    # Friday and Saturday, when it differs from the price.
+    weekend: float | None = None
+
+
 class PublicPrices(BaseModel):
     night: float | None = None
+    # By the hour: the price of an hour, or the tariffs when the flat sells by them.
     hour: float | None = None
+    tariffs: list[PublicTariff] = []
+    # Out after late_from only the night is sold, out by night_to ("HH:MM").
+    late_from: str | None = None
+    night_to: str | None = None
     # The deposit of a stay by the night and by the hour, each only where the flat takes it.
     deposit: float | None = None
     hour_deposit: float | None = None
@@ -82,6 +94,19 @@ class PublicStayResponse(BaseModel):
     @classmethod
     def from_stay(cls, stay: PublicStay) -> PublicStayResponse:
         p, pricing = stay.property, stay.pricing
+        tariffs = (
+            [
+                PublicTariff(name=name, price=float(price), weekend=float(weekend) if 0 < weekend != price else None)
+                for name, price, weekend in (
+                    ("3h", pricing.price_3h, pricing.price_3h_weekend),
+                    ("6h", pricing.price_6h, pricing.price_6h_weekend),
+                    ("night", pricing.price_night, pricing.price_night_weekend),
+                )
+                if price > 0
+            ]
+            if stay.by_hour and pricing
+            else []
+        )
         return cls(
             code=p.public_code,
             name=p.name,
@@ -108,7 +133,10 @@ class PublicStayResponse(BaseModel):
             # for one let by the night.
             prices=PublicPrices(
                 night=float(pricing.base_price) if stay.by_night and pricing else None,
-                hour=float(pricing.hourly_price) if stay.by_hour and pricing else None,
+                hour=float(pricing.hourly_price) if stay.by_hour and not tariffs else None,
+                tariffs=tariffs,
+                late_from=pricing.late_from.strftime("%H:%M") if tariffs else None,
+                night_to=pricing.night_to.strftime("%H:%M") if tariffs else None,
                 # By the kind of stay the flat takes, not by its price: a flat priced by its
                 # calendar alone still takes the nightly deposit when booked by a link.
                 deposit=_set(pricing.default_deposit) if pricing and p.rental_mode != RentalMode.HOURLY else None,

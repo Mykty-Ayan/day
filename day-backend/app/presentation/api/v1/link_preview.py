@@ -17,6 +17,7 @@ from fastapi.responses import HTMLResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.application.booking.guest_offers import OfferExpiredError
+from app.application.booking.price_calculator import has_tariffs
 from app.application.property.public_stay import GetPublicStayService
 from app.config import settings
 from app.domain.booking.value_objects import RentalMode
@@ -117,7 +118,11 @@ async def flat_preview(code: str, session: AsyncSession = Depends(get_session)):
         facts.append(f"до {p.max_guests} гостей")
     if pricing and stay.by_night and pricing.base_price > 0:
         facts.append(f"{tenge(pricing.base_price)} за ночь")
-    if pricing and stay.by_hour and pricing.hourly_price > 0:
+    if pricing and stay.by_hour and has_tariffs(pricing):
+        hours = next((n, p) for n, p in (("3 часа", pricing.price_3h), ("6 часов", pricing.price_6h),
+                                          ("ночь", pricing.price_night)) if p > 0)
+        facts.append(f"{hours[0]} — {tenge(hours[1])}")
+    elif pricing and stay.by_hour and pricing.hourly_price > 0:
         facts.append(f"{tenge(pricing.hourly_price)} за час")
     title = f"{p.name} · {p.complex_name}" if p.complex_name else p.name
     description = " · ".join(facts) or "Свободные даты и цена — на странице"

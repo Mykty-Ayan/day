@@ -242,6 +242,7 @@ function PricingFormInner({
               </label>
               <NumberInput
                 value={basePrice}
+                ariaLabel={t('properties.pricing.basePrice')}
                 onChange={setBasePrice}
                 min={0}
                 step={1000}
@@ -255,6 +256,7 @@ function PricingFormInner({
               </label>
               <NumberInput
                 value={hourlyPrice}
+                ariaLabel={t('properties.pricing.hourlyPrice')}
                 onChange={setHourlyPrice}
                 min={0}
                 step={500}
@@ -268,6 +270,7 @@ function PricingFormInner({
               </label>
               <NumberInput
                 value={weekendMarkup}
+                ariaLabel={t('properties.pricing.weekendMarkup')}
                 onChange={setWeekendMarkup}
                 min={0}
                 step={1}
@@ -282,6 +285,7 @@ function PricingFormInner({
               </label>
               <NumberInput
                 value={deposit}
+                ariaLabel={t('properties.pricing.defaultDeposit')}
                 onChange={setDeposit}
                 min={0}
                 step={1000}
@@ -295,6 +299,7 @@ function PricingFormInner({
               </label>
               <NumberInput
                 value={hourlyDeposit}
+                ariaLabel={t('properties.pricing.hourlyDeposit')}
                 onChange={setHourlyDeposit}
                 min={0}
                 step={1000}
@@ -309,6 +314,7 @@ function PricingFormInner({
                 </label>
                 <NumberInput
                   value={baseGuests}
+                  ariaLabel={t('properties.pricing.baseGuests')}
                   onChange={setBaseGuests}
                   min={1}
                   step={1}
@@ -320,6 +326,7 @@ function PricingFormInner({
                 </label>
                 <NumberInput
                   value={extraAdult}
+                  ariaLabel={t('properties.pricing.extraAdultPrice')}
                   onChange={setExtraAdult}
                   min={0}
                   step={1000}
@@ -331,6 +338,7 @@ function PricingFormInner({
                 </label>
                 <NumberInput
                   value={extraChild}
+                  ariaLabel={t('properties.pricing.extraChildPrice')}
                   onChange={setExtraChild}
                   min={0}
                   step={1000}
