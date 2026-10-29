@@ -29,6 +29,7 @@ from app.infrastructure.repositories.booking import (
     SqlGuestRepository,
 )
 from app.infrastructure.repositories.cleaning import SqlCleaningTaskRepository
+from app.infrastructure.repositories.expenses import SqlExpenseRepository
 from app.infrastructure.repositories.property import (
     SqlDayPriceRepository,
     SqlDiscountRuleRepository,
@@ -65,7 +66,9 @@ def build_assistant_tools(
     update_booking = UpdateBookingService(bookings, properties, audit, prices, company_settings)
     manage_payments = ManagePaymentsService(bookings, payments, audit)
     create_cleaning = CreateCleaningTaskService(SqlCleaningTaskRepository(session), properties)
-    metrics = CalculateMetricsService(SqlAnalyticsRepository(session), SqlPropertyCostsRepository(session))
+    metrics = CalculateMetricsService(
+        SqlAnalyticsRepository(session), SqlPropertyCostsRepository(session), SqlExpenseRepository(session)
+    )
 
     async def _create_booking(**kwargs):
         return await create_booking.execute(

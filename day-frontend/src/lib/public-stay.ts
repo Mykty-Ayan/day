@@ -76,7 +76,7 @@ export function isHourly(offer: PublicOffer): boolean {
 }
 
 export function money(value: number, locale: string): string {
-  return `${Math.round(value).toLocaleString(locale)} ₸`
+  return `${Math.round(value).toLocaleString(locale)}\u00a0₸`
 }
 
 /** A link that leads nowhere stays so: only a failed network is tried again. */
