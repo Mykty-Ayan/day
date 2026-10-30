@@ -16,7 +16,7 @@ const day = (offset: number) => {
   return d
 }
 
-test('nights priced on the chessboard show their price, and a reset brings the usual one back', async ({ page, request }) => {
+test('nights priced on the chessboard show their price, and a reset brings the usual one back', { tag: '@desktop' }, async ({ page, request }) => {
   // First in the chessboard, whose rows go by internal name (see property-blocks.spec.ts).
   const newest = String(1e13 - Date.now()).padStart(13, '0')
   const data = createTestProperty({ internal_name: `000-0-${newest}-${Math.random().toString(36).slice(2, 6)}` })
@@ -61,7 +61,7 @@ test('nights priced on the chessboard show their price, and a reset brings the u
   expect(await priced()).toEqual([{ date: local(day(10)), price: 25000 }])
 })
 
-test('a price is read as written, a booked night can be picked, and the booking form sees the price at once', async ({ page, request }) => {
+test('a price is read as written, a booked night can be picked, and the booking form sees the price at once', { tag: '@desktop' }, async ({ page, request }) => {
   const newest = String(1e13 - Date.now()).padStart(13, '0')
   const data = createTestProperty({ internal_name: `000-0-${newest}-${Math.random().toString(36).slice(2, 6)}` })
   const { id } = await (await request.post(`${API_BASE}/properties`, { data })).json()

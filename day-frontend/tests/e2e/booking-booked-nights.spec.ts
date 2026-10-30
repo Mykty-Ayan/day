@@ -4,15 +4,10 @@
  * an empty answer would look like a free month.
  */
 
-import type { Page } from '@playwright/test'
 import { test, expect } from '../fixtures/e2e-auth'
-import { createTestBooking, createTestProperty, futureDate, API_BASE } from '../fixtures/test-data'
+import { calendarDay, createTestBooking, createTestProperty, futureDate, API_BASE } from '../fixtures/test-data'
 
 const BOOKINGS_OF_FLAT = /\/api\/v1\/bookings\?.*property_id=/
-
-function day(page: Page, date: string) {
-  return page.locator(`[data-radix-popper-content-wrapper] td[data-day="${date}"] button`)
-}
 
 test.describe('Booked nights in the booking calendar', () => {
   let propertyId = ''
@@ -37,9 +32,9 @@ test.describe('Booked nights in the booking calendar', () => {
   test('a booked night cannot start a stay', async ({ page }) => {
     await page.goto(`/bookings/new?property_id=${propertyId}`)
     await page.locator('#create-date-range').click()
-    await expect(day(page, futureDate(7))).toBeDisabled()
-    await expect(day(page, futureDate(8))).toBeDisabled()
-    await expect(day(page, futureDate(9))).toBeEnabled()
+    await expect(await calendarDay(page, futureDate(7))).toBeDisabled()
+    await expect(await calendarDay(page, futureDate(8))).toBeDisabled()
+    await expect(await calendarDay(page, futureDate(9))).toBeEnabled()
   })
 
   test('while the booked nights load, no day can be picked', async ({ page }) => {
@@ -51,10 +46,10 @@ test.describe('Booked nights in the booking calendar', () => {
     })
     await page.goto(`/bookings/new?property_id=${propertyId}`)
     await page.locator('#create-date-range').click()
-    await expect(day(page, futureDate(3))).toBeDisabled()
+    await expect(await calendarDay(page, futureDate(3))).toBeDisabled()
     release()
-    await expect(day(page, futureDate(3))).toBeEnabled()
-    await expect(day(page, futureDate(7))).toBeDisabled()
+    await expect(await calendarDay(page, futureDate(3))).toBeEnabled()
+    await expect(await calendarDay(page, futureDate(7))).toBeDisabled()
   })
 
   test('when the booked nights fail to load, no day can be picked until a retry works', async ({ page }) => {
@@ -62,14 +57,16 @@ test.describe('Booked nights in the booking calendar', () => {
     await page.route(BOOKINGS_OF_FLAT, (route) => route.abort())
     await page.goto(`/bookings/new?property_id=${propertyId}`)
     await page.locator('#create-date-range').click()
+    // Turning to the day's month asks again, so the failure is awaited after it.
+    const pick = await calendarDay(page, futureDate(3))
     // The query retries before it gives up.
     await expect(page.getByText('Could not load booked dates')).toBeVisible({ timeout: 20_000 })
-    await expect(day(page, futureDate(3))).toBeDisabled()
+    await expect(pick).toBeDisabled()
 
     await page.unroute(BOOKINGS_OF_FLAT)
     await page.getByRole('button', { name: 'Retry' }).click()
-    await expect(day(page, futureDate(3))).toBeEnabled()
-    await expect(day(page, futureDate(7))).toBeDisabled()
+    await expect(await calendarDay(page, futureDate(3))).toBeEnabled()
+    await expect(await calendarDay(page, futureDate(7))).toBeDisabled()
     await expect(page.getByText('Could not load booked dates')).toHaveCount(0)
   })
 })

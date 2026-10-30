@@ -91,10 +91,11 @@ test.describe('Cleaning Task CRUD - E2E', () => {
     await expect(page.getByRole('heading', { name: /cleaning tasks/i })).toBeVisible({ timeout: 5000 })
   })
 
-  test('navigate to checklists via nav bar', async ({ page }) => {
+  test('navigate to checklists via nav bar', async ({ page, isMobile }) => {
     await page.goto('/')
     await page.waitForLoadState('networkidle')
 
+    if (isMobile) await page.getByRole('button', { name: 'More' }).first().click()
     await page.getByRole('link', { name: /checklists/i }).click()
     await page.waitForURL(/\/cleaning\/checklists/, { timeout: 5000 })
 

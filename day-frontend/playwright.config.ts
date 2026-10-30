@@ -1,6 +1,9 @@
 import { defineConfig, devices } from '@playwright/test'
 
 const reuseLocalServer = !process.env.CI
+// The chessboard: mouse drags, hover and a wide grid. A phone opens the agenda
+// instead; what a touch screen does there lives in gantt-hourly's own block.
+const DESKTOP_ONLY = /@desktop/
 
 export default defineConfig({
   testDir: './tests',
@@ -23,10 +26,12 @@ export default defineConfig({
     {
       name: 'iPhone 13',
       use: { ...devices['iPhone 13'] },
+      grepInvert: DESKTOP_ONLY,
     },
     {
       name: 'Pixel 7',
       use: { ...devices['Pixel 7'] },
+      grepInvert: DESKTOP_ONLY,
     },
   ],
   webServer: [
