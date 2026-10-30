@@ -2,7 +2,8 @@ import { defineConfig, devices } from '@playwright/test'
 
 const reuseLocalServer = !process.env.CI
 // The chessboard: mouse drags, hover and a wide grid. A phone opens the agenda
-// instead; what a touch screen does there lives in gantt-hourly's own block.
+// instead (gantt-agenda.spec.ts); its tap on the chessboard is in gantt-hourly's
+// touch block.
 const DESKTOP_ONLY = /@desktop/
 
 export default defineConfig({

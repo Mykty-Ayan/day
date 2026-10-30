@@ -137,7 +137,12 @@ test('a plate that holds an overbooking says so, and so does its line', { tag: '
 test.describe('on a touch screen', () => {
   test.use({ hasTouch: true })
 
-  test('a booking in the plate opens its card with "Move to…"', { tag: '@desktop' }, async ({ page, request }) => {
+  // A phone opens the agenda; the chessboard is a tap away, and it remembers.
+  test.beforeEach(async ({ page }) => {
+    await page.addInitScript(() => window.localStorage.setItem('day:gantt:view-mode', 'gantt'))
+  })
+
+  test('a booking in the plate opens its card with "Move to…"', async ({ page, request }) => {
     const flat = await hourlyFlat(request)
     const day = inDays(6)
     const first = await book(request, flat.id, `${day}T10:00:00`, `${day}T12:00:00`)
