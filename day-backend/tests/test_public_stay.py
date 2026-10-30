@@ -199,7 +199,7 @@ async def test_only_an_active_flat_has_a_page():
 def test_every_flat_gets_its_own_short_code():
     codes = {Property().public_code for _ in range(200)}
     assert len(codes) == 200
-    assert all(len(code) == 7 and code.isalnum() and code.islower() for code in codes)
+    assert all(len(code) == 7 and code.isalnum() and code == code.lower() for code in codes)  # digits alone are not islower()
 
 
 async def test_the_calendar_and_the_booking_count_the_same_nights():
