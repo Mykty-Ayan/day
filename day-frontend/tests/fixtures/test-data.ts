@@ -1,7 +1,7 @@
 /**
  * Test data factories and helpers for Day PMS E2E tests.
  */
-import type { APIRequestContext } from '@playwright/test'
+import type { APIRequestContext, Locator, Page } from '@playwright/test'
 
 export function uniqueName(prefix: string): string {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
@@ -143,6 +143,17 @@ export function futureDate(daysFromNow: number): string {
   const d = new Date()
   d.setDate(d.getDate() + daysFromNow)
   return d.toISOString().slice(0, 10)
+}
+
+/** A day of the open calendar. A phone shows one month, so this turns to the day's month. */
+export async function calendarDay(page: Page, date: string): Promise<Locator> {
+  const popover = page.locator('[data-radix-popper-content-wrapper]')
+  const cell = popover.locator(`td[data-day="${date}"] button`)
+  await popover.getByRole('button', { name: 'Go to the Next Month' }).waitFor()
+  for (let turn = 0; turn < 24 && (await cell.count()) === 0; turn++) {
+    await popover.getByRole('button', { name: 'Go to the Next Month' }).click()
+  }
+  return cell
 }
 
 export function createTestBooking(

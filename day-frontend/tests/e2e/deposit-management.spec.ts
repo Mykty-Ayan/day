@@ -163,7 +163,8 @@ test.describe('Deposit Management - E2E', () => {
       await reasonField.fill('Broken window')
     }
 
-    const confirmBtn = page.getByRole('button', { name: /confirm|yes|submit|save/i })
+    // The form's own: a phone also keeps the booking's "Confirm" on the page.
+    const confirmBtn = page.getByRole('button', { name: /confirm|yes|submit|save/i }).last()
     if (await confirmBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
       await confirmBtn.click()
     }
@@ -204,7 +205,8 @@ test.describe('Deposit Management - E2E', () => {
       await reasonField.fill('Minor stain on carpet')
     }
 
-    const confirmBtn = page.getByRole('button', { name: /confirm|yes|submit|save/i })
+    // The form's own: a phone also keeps the booking's "Confirm" on the page.
+    const confirmBtn = page.getByRole('button', { name: /confirm|yes|submit|save/i }).last()
     if (await confirmBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
       await confirmBtn.click()
     }

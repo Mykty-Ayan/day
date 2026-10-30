@@ -5,10 +5,11 @@ import { API_BASE } from '../fixtures/test-data'
 // cards and (for an owner) the way to the team. There is no currency control in
 // the interface: the company currency is only in the API (see settings-api.spec).
 test.describe('Settings - E2E', () => {
-  test('navigate to settings page', async ({ page }) => {
+  test('navigate to settings page', async ({ page, isMobile }) => {
     await page.goto('/')
     await page.waitForLoadState('networkidle')
 
+    if (isMobile) await page.getByRole('button', { name: 'More' }).first().click()
     await page.getByRole('link', { name: 'Settings', exact: true }).click()
 
     await expect(page).toHaveURL(/\/settings$/)

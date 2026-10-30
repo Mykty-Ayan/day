@@ -76,10 +76,11 @@ test.describe('Navigation - E2E', () => {
     await expect(page.getByText(data.name)).toBeVisible({ timeout: 5000 })
   })
 
-  test('navigate to Gantt chart', async ({ page }) => {
+  test('navigate to Gantt chart', async ({ page, isMobile }) => {
     await page.goto('/')
     await page.waitForLoadState('networkidle')
 
+    if (isMobile) await page.getByRole('button', { name: 'More' }).first().click()
     await page.getByRole('link', { name: 'Gantt Chart' }).click()
 
     await expect(page).toHaveURL(/\/properties\/gantt$/)

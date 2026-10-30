@@ -5,7 +5,7 @@
  */
 
 import { test, expect } from '../fixtures/e2e-auth'
-import { createTestBooking, createTestProperty, API_BASE } from '../fixtures/test-data'
+import { calendarDay, createTestBooking, createTestProperty, API_BASE } from '../fixtures/test-data'
 
 const local = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 const day = (offset: number) => {
@@ -62,7 +62,7 @@ test('a calendar\'s nights are not reopened by hand', async ({ page, request }) 
   await expect(blocks.getByRole('button', { name: 'Reopen dates' })).toHaveCount(0)
 })
 
-test('a calendar\'s nights over a Day booking show as a double booking', async ({ page, request }) => {
+test('a calendar\'s nights over a Day booking show as a double booking', { tag: '@desktop' }, async ({ page, request }) => {
   const flat = await activeFlat(request)
   const booked = await request.post(`${API_BASE}/bookings`, {
     data: createTestBooking(flat.id, { check_in: day(6), check_out: day(8) }),
@@ -98,13 +98,12 @@ test('a platform\'s own booking is not kept off its nights by that platform\'s c
   })
   await page.goto(`/bookings/new?property_id=${flat.id}`)
   await expect(page.locator('#create-property')).toContainText(flat.name)
-  const night = page.locator(`[data-radix-popper-content-wrapper] td[data-day="${day(10)}"] button`)
 
   await page.locator('#create-date-range').click()
-  await expect(night).toBeDisabled()
+  await expect(await calendarDay(page, day(10))).toBeDisabled()
   await page.keyboard.press('Escape')
 
   await page.getByRole('radio', { name: 'Airbnb' }).click()
   await page.locator('#create-date-range').click()
-  await expect(night).toBeEnabled()
+  await expect(await calendarDay(page, day(10))).toBeEnabled()
 })

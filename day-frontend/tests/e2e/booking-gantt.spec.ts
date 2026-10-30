@@ -46,7 +46,7 @@ test.describe('Booking Gantt Chart - E2E', () => {
   const bar = (page: import('@playwright/test').Page, guest: string) =>
     page.getByRole('button', { name: new RegExp(`^${guest},`) })
 
-  test('a booking is a bar on the chart', async ({ page, request }) => {
+  test('a booking is a bar on the chart', { tag: '@desktop' }, async ({ page, request }) => {
     const flat = await activeFlat(request)
     const { guest } = await book(request, flat.id, {
       check_in: inDays(0),
@@ -59,7 +59,7 @@ test.describe('Booking Gantt Chart - E2E', () => {
     await expect(bar(page, guest)).toBeVisible()
   })
 
-  test('the bar has the colour of the booking', async ({ page, request }) => {
+  test('the bar has the colour of the booking', { tag: '@desktop' }, async ({ page, request }) => {
     const flat = await activeFlat(request)
     const { guest } = await book(request, flat.id, {
       check_in: inDays(0),
@@ -73,7 +73,7 @@ test.describe('Booking Gantt Chart - E2E', () => {
     await expect(bar(page, guest)).toHaveCSS('background-color', 'rgb(239, 68, 68)')
   })
 
-  test('hover on a bar shows the guest in a tooltip', async ({ page, request }) => {
+  test('hover on a bar shows the guest in a tooltip', { tag: '@desktop' }, async ({ page, request }) => {
     const flat = await activeFlat(request)
     const { guest } = await book(request, flat.id, {
       check_in: inDays(0),
@@ -91,7 +91,7 @@ test.describe('Booking Gantt Chart - E2E', () => {
     await expect(tooltip).toBeVisible()
   })
 
-  test('click on a bar opens the booking', async ({ page, request }) => {
+  test('click on a bar opens the booking', { tag: '@desktop' }, async ({ page, request }) => {
     const flat = await activeFlat(request)
     const { id, guest } = await book(request, flat.id, { check_in: inDays(0), check_out: inDays(1) })
 
@@ -101,7 +101,7 @@ test.describe('Booking Gantt Chart - E2E', () => {
     await expect(page).toHaveURL(new RegExp(`/bookings/${id}`))
   })
 
-  test('drag a bar onto another flat moves the booking', async ({ page, request }) => {
+  test('drag a bar onto another flat moves the booking', { tag: '@desktop' }, async ({ page, request }) => {
     const source = await activeFlat(request, { internal_name: 'gantt-drag-from' })
     const target = await activeFlat(request, { internal_name: 'gantt-drag-to' })
     const { id, guest } = await book(request, source.id, { check_in: inDays(0), check_out: inDays(1) })
@@ -114,7 +114,7 @@ test.describe('Booking Gantt Chart - E2E', () => {
       .toBe(target.id)
   })
 
-  test('two clicks on empty cells start a booking for that range', async ({ page, request }) => {
+  test('two clicks on empty cells start a booking for that range', { tag: '@desktop' }, async ({ page, request }) => {
     const flat = await activeFlat(request)
     const now = new Date()
     // Next month: always ahead, and always on the screen after the arrow
@@ -137,7 +137,7 @@ test.describe('Booking Gantt Chart - E2E', () => {
     expect(url.searchParams.get('check_out')).toBe(local(to))
   })
 
-  test('month navigation shows the bookings of that month', async ({ page, request }) => {
+  test('month navigation shows the bookings of that month', { tag: '@desktop' }, async ({ page, request }) => {
     const flat = await activeFlat(request)
     const now = new Date()
     // The chart shows the month before, the month and the month after: three
