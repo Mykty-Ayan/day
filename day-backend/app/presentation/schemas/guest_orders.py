@@ -70,14 +70,17 @@ class GuestOrderResponse(BaseModel):
 
 
 class GuestOrderDeliver(BaseModel):
-    """Paid at the door (with how), or on the guest's tab."""
+    """Paid at the door (with how), or on the guest's tab. Nothing for an order
+    already paid by its invoice."""
 
-    payment_status: OrderPaymentStatus = OrderPaymentStatus.PAID
+    payment_status: OrderPaymentStatus | None = None
     payment_method: OrderPayment | None = None
 
     @model_validator(mode="after")
     def _how(self) -> GuestOrderDeliver:
-        if (self.payment_status == OrderPaymentStatus.PAID) != (self.payment_method is not None):
+        if self.payment_status is None:
+            self.payment_status = OrderPaymentStatus.PAID if self.payment_method else None
+        elif (self.payment_status == OrderPaymentStatus.PAID) != (self.payment_method is not None):
             raise ValueError("Paid needs how (payment_method); on the tab takes none")
         return self
 

@@ -284,9 +284,24 @@ def test_delivered_paid_needs_how_and_on_the_tab_takes_none():
 
     assert GuestOrderDeliver(payment_method="cash").payment_status == "paid"
     assert GuestOrderDeliver(payment_status="on_booking").payment_method is None
-    for wrong in ({}, {"payment_status": "on_booking", "payment_method": "cash"}):
+    assert GuestOrderDeliver().payment_status is None  # the order may be paid already; the service decides
+    for wrong in ({"payment_status": "paid"}, {"payment_status": "on_booking", "payment_method": "cash"}):
         with pytest.raises(ValidationError):
             GuestOrderDeliver(**wrong)
+
+
+async def test_delivering_says_nothing_of_payment_only_for_an_order_already_paid():
+    svc, *_, cola, _ = await _setup()
+    order = (await svc.place(CODE, [(cola.id, 1)], None, "ru", NOW)).order
+    await svc.accept(COMPANY_ID, order.id, None)
+    with pytest.raises(ValueError):  # not paid yet: the host must say how it was settled
+        await svc.deliver(COMPANY_ID, order.id, None, None, on_tab=False)
+    assert (await svc._orders.get(COMPANY_ID, order.id)).status == OrderStatus.AWAITING_PAYMENT
+    paid = await svc.mark_paid(COMPANY_ID, order.id, OrderPayment.KASPI, None)
+    done = await svc.deliver(COMPANY_ID, order.id, None, None, on_tab=False)
+    assert (done.status, done.payment_status, done.payment_method, done.paid_at) == (
+        OrderStatus.DELIVERED, OrderPaymentStatus.PAID, OrderPayment.KASPI, paid.paid_at
+    )
 
 
 async def test_no_whatsapp_number_no_link_but_the_order_is_in_day():
@@ -404,7 +419,7 @@ async def test_a_guest_orders_from_the_page_and_the_host_delivers(flat):  # noqa
     assert [owed(b) for b in (await client.get("/api/v1/bookings")).json()["items"]] == [800]
     page = (await client.get(f"/api/v1/public/guest/{code}")).json()["booking"]
     assert (page["orders_due"], page["remaining"]) == (800, 40800)
-    assert (await client.post(f"/api/v1/guest-orders/{new['id']}/deliver", json={})).status_code == 422
+    assert (await client.post(f"/api/v1/guest-orders/{new['id']}/deliver", json={})).status_code == 409
     paid = await client.post(f"/api/v1/guest-orders/{new['id']}/paid", json={"payment_method": "cash"})
     assert (paid.status_code, paid.json()["payment_status"]) == (200, "paid")
     assert owed((await client.get(f"/api/v1/bookings/{booking}")).json()["booking"]) == 0

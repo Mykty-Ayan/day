@@ -13,7 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.application.inventory.guest_orders import GuestOrderService
 from app.domain.auth.permissions import Permission
-from app.domain.inventory.entities import GuestOrder, OrderStatus
+from app.domain.inventory.entities import GuestOrder, OrderPaymentStatus, OrderStatus
 from app.infrastructure.database import get_session
 from app.infrastructure.repositories.booking import SqlBookingRepository, SqlGuestRepository
 from app.infrastructure.repositories.property import SqlPropertyRepository
@@ -105,9 +105,13 @@ async def deliver_order(
     company_id: uuid.UUID = Depends(get_company_id),
     principal: Principal = Depends(get_principal),
 ):
-    """Delivered, paid at the door or on the guest's tab: the stock goes down by each line."""
+    """Delivered, paid at the door, on the guest's tab, or paid already by its
+    invoice (an empty body): the stock goes down by each line."""
     service = guest_orders(session)
-    return await _handled(session, service.deliver(company_id, order_id, body.payment_method, principal.actor_id))
+    on_tab = body.payment_status == OrderPaymentStatus.ON_BOOKING
+    return await _handled(
+        session, service.deliver(company_id, order_id, body.payment_method, principal.actor_id, on_tab=on_tab)
+    )
 
 
 @guest_order_router.post("/{order_id}/paid", response_model=GuestOrderResponse, dependencies=_write)
