@@ -15,7 +15,7 @@ import {
   Clock,
   Wallet,
   Package,
-  Handshake,
+  Handshake, ShieldAlert,
   ClipboardCheck,
   Globe,
 } from 'lucide-react'
@@ -65,6 +65,7 @@ export default function MobileShell({
       { to: '/bookings/today', label: t('nav.today'), icon: Clock },
       { to: '/cleaning/checklists', label: t('nav.checklists'), icon: ClipboardList },
       { to: '/agents', label: t('nav.agents'), icon: Handshake },
+      ...(keepsStock ? [{ to: '/blacklist', label: t('nav.blacklist'), icon: ShieldAlert }] : []),
       ...(isOwner ? [{ to: '/expenses', label: t('nav.expenses'), icon: Wallet }] : []),
       ...(keepsStock ? [{ to: '/inventory', label: t('nav.inventory'), icon: Package }] : []),
       ...(isOwner ? [{ to: '/site', label: t('nav.site'), icon: Globe }] : []),
