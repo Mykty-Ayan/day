@@ -5,8 +5,9 @@ from __future__ import annotations
 import uuid
 from dataclasses import dataclass
 
-from app.domain.booking.entities import Guest
-from app.domain.booking.repositories import GuestRepository
+from app.domain.booking.entities import BookingAuditLog, Guest
+from app.domain.booking.repositories import BookingAuditLogRepository, BookingRepository, GuestRepository
+from app.domain.booking.value_objects import BookingAuditAction
 
 
 class GuestNotFound(LookupError):
@@ -29,16 +30,25 @@ class UpdateGuestInput:
     name: str | None = None
     # None: leave as it is; "": the guest has no phone.
     phone: str | None = None
+    changed_by: uuid.UUID | None = None
 
 
 class UpdateGuestService:
-    def __init__(self, guest_repo: GuestRepository) -> None:
+    def __init__(
+        self,
+        guest_repo: GuestRepository,
+        booking_repo: BookingRepository,
+        audit_repo: BookingAuditLogRepository,
+    ) -> None:
         self._guests = guest_repo
+        self._bookings = booking_repo
+        self._audit = audit_repo
 
     async def execute(self, inp: UpdateGuestInput) -> Guest:
         guest = await self._guests.get_by_id(inp.guest_id)
         if guest is None or guest.company_id != inp.company_id:
             raise GuestNotFound("Guest not found")
+        was = {"guest_name": guest.name, "guest_phone": guest.phone}
 
         if inp.name is not None:
             name = inp.name.strip()
@@ -55,4 +65,26 @@ class UpdateGuestService:
                     raise GuestPhoneTaken()
             guest.phone = phone
 
-        return await self._guests.update(guest)
+        saved = await self._guests.update(guest)
+        await self._log(saved, was, inp.changed_by)
+        return saved
+
+    async def _log(self, guest: Guest, was: dict[str, str | None], by: uuid.UUID | None) -> None:
+        """The history lives on bookings, so the change goes on each of the guest's;
+        a guest with none leaves no trace. A guest's own log would need a table."""
+        now = {"guest_name": guest.name, "guest_phone": guest.phone}
+        changed = [field for field in was if was[field] != now[field]]
+        if not changed:
+            return
+        for booking in await self._bookings.list_by_guest(guest.company_id, guest.id):
+            for field in changed:
+                await self._audit.create(
+                    BookingAuditLog(
+                        booking_id=booking.id,
+                        changed_by=by,
+                        field_name=field,
+                        old_value=was[field],
+                        new_value=now[field],
+                        action=BookingAuditAction.UPDATE,
+                    )
+                )

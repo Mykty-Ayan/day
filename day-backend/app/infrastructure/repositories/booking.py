@@ -420,6 +420,10 @@ class SqlBookingRepository(BookingRepository):
         result = await self._session.scalar(select(BookingModel).where(BookingModel.guest_code == code))
         return _model_to_booking(result) if result else None
 
+    async def list_by_guest(self, company_id: uuid.UUID, guest_id: uuid.UUID) -> list[Booking]:
+        stmt = select(BookingModel).where(BookingModel.company_id == company_id, BookingModel.guest_id == guest_id)
+        return [_model_to_booking(row) for row in (await self._session.scalars(stmt)).all()]
+
     async def get_for_update(self, booking_id: uuid.UUID) -> Booking | None:
         # populate_existing: the row may already sit in this session from an
         # earlier read; the locked read must replace it, not return it stale.

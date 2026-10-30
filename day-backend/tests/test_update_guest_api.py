@@ -42,6 +42,13 @@ async def test_a_guest_is_corrected_from_the_booking_card(flat):  # noqa: F811  
     )
 
     # Bob's number written another way is still Bob's.
+    # The change shows in the history of the guest's booking.
+    booking = next(b for b in (await client.get("/api/v1/bookings")).json()["items"] if b["guest_id"] == ann)
+    history = (await client.get(f"/api/v1/bookings/{booking['id']}")).json()["audit_logs"]
+    assert {(x["field_name"], x["new_value"]) for x in history} >= {
+        ("guest_name", "Анна"), ("guest_phone", "+77005554433")
+    }
+
     taken = await client.patch(f"/api/v1/guests/{ann}", json={"phone": "+7 (700) 999-88-77"})
     assert taken.status_code == 409
     assert "another guest" in taken.json()["detail"].lower()
