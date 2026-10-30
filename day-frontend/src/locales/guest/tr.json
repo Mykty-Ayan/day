@@ -14,6 +14,12 @@
     "floorOf": "{{floor}}. kat (toplam {{total}} kat)",
     "perNight": "gecelik",
     "hourly": "Saatlik: saati {{price}}",
+    "tariffs": "Saatlik",
+    "tariff_3h": "3 saat",
+    "tariff_6h": "6 saat",
+    "tariff_night": "Gece",
+    "tariffWeekend": "Cum–Cmt {{price}}",
+    "lateRule": "{{late}} sonrası yalnızca gece, çıkış {{morning}} saatine kadar",
     "deposit": "Depozito {{price}}, çıkıştan sonra iade edilir",
     "nightDeposit": "Gecelik konaklama depozitosu {{price}}, çıkıştan sonra iade edilir",
     "hourDeposit": "Saatlik konaklama depozitosu {{price}}, çıkıştan sonra iade edilir",
@@ -41,7 +47,13 @@
     "area": "{{area}} m²",
     "minNights": "En az {{count}} gece",
     "totalHint": "Yalnızca geceler; indirimler ve ek misafir ücretleri hariç.",
-    "hours": "{{count}} saat"
+    "hours": "{{count}} saat",
+    "allPhotos": "Tüm fotoğraflar · {{count}}",
+    "allAmenities": "Tümünü göster · {{count}}",
+    "readMore": "Devamını oku",
+    "showLess": "Daha az göster",
+    "share": "Paylaş",
+    "linkCopied": "Bağlantı kopyalandı"
   },
   "guestOffer": {
     "hello": "{{name}}, tarihleriniz için daireler",
@@ -123,5 +135,19 @@
     "refused": "Bu tarihler ayrılamadı. Başka tarih seçin ya da bize yazın.",
     "tooMany": "Çok fazla deneme. Bir dakika sonra tekrar deneyin.",
     "nameNeeded": "Rezervasyonun yapılacağı adı yazın."
+  },
+  "stayHere": {
+    "title": "Burada mı kalıyorsunuz?",
+    "hint": "Kapı kodu, Wi-Fi, minibar ve ödeme rezervasyon sayfanızda.",
+    "open": "Rezervasyonumu aç",
+    "digits": "Telefonunuzun son 4 hanesi",
+    "digitsHint": "Rezervasyonun yapıldığı numaranın.",
+    "submit": "Aç",
+    "wrong": "Rakamlar rezervasyonla eşleşmiyor. Numarayı kontrol edin.",
+    "locked": "Çok fazla deneme. Rezervasyonunuzu mesajdaki bağlantıdan açın veya ev sahibine yazın.",
+    "nobody": "Şu anda bu dairede rezervasyon yok.",
+    "noPhone": "Rezervasyon bağlantınızı ev sahibinden isteyin.",
+    "askHost": "Ev sahibine yaz",
+    "failed": "Olmadı. Tekrar deneyin."
   }
 }

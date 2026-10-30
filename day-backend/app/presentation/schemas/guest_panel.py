@@ -4,7 +4,7 @@ on the booking or the flat stays private until it is added to this list."""
 from __future__ import annotations
 
 import uuid
-from datetime import date, datetime
+from datetime import date, datetime, time
 
 from pydantic import BaseModel
 
@@ -27,7 +27,8 @@ class GuestPanelBooking(BaseModel):
     adults: int
     total: float
     paid: float
-    # Minibar orders on the guest's tab; part of remaining.
+    # Minibar orders owed with the stay (confirmed with the booking, or delivered on
+    # the tab; unpaid); part of remaining.
     orders_due: float = 0
     remaining: float
 
@@ -64,6 +65,28 @@ class GuestPanelProduct(BaseModel):
     max_quantity: int
 
 
+class GuestPanelMinibar(BaseModel):
+    # The ways the company takes: invoice (Kaspi, before delivery), booking (with the stay).
+    billings: list[str]
+    # Local hours; both null: round the clock.
+    opens: time | None = None
+    closes: time | None = None
+    open_now: bool = True
+
+
+class GuestPanelOrder(BaseModel):
+    number: int
+    # new, awaiting_payment, accepted (on its way), delivered, cancelled.
+    status: str
+    billing: str
+    # null until paid or delivered on the tab: paid, on_booking.
+    payment_status: str | None = None
+    # The host sent the Kaspi invoice.
+    invoiced: bool = False
+    total: float
+    lines: list[str]
+
+
 class GuestPanelResponse(BaseModel):
     closed: bool
     today: date
@@ -77,6 +100,9 @@ class GuestPanelResponse(BaseModel):
     lead_hours: int = 24
     # The minibar during the stay; None outside it.
     menu: list[GuestPanelProduct] | None = None
+    minibar: GuestPanelMinibar | None = None
+    # This booking's own orders, newest first.
+    orders: list[GuestPanelOrder] = []
 
     @classmethod
     def from_panel(cls, panel: GuestPanel) -> GuestPanelResponse:
@@ -128,6 +154,22 @@ class GuestPanelResponse(BaseModel):
                 )
                 for p in panel.menu
             ]
+        if (m := panel.minibar) is not None:
+            page.minibar = GuestPanelMinibar(
+                billings=[b.value for b in m.billings], opens=m.opens, closes=m.closes, open_now=m.open_now
+            )
+        page.orders = [
+            GuestPanelOrder(
+                number=o.number,
+                status=o.status.value,
+                billing=o.billing.value,
+                payment_status=o.payment_status.value if o.payment_status else None,
+                invoiced=o.invoiced_at is not None,
+                total=float(o.total),
+                lines=[f"{i.name} × {i.quantity}" if i.quantity > 1 else i.name for i in o.items],
+            )
+            for o in panel.orders
+        ]
         if (a := panel.access) is not None:
             page.access = GuestPanelAccess(
                 instructions=a.instructions, wifi_name=a.wifi_name, wifi_password=a.wifi_password, facts=a.facts

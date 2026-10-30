@@ -32,6 +32,12 @@ from app.application.booking.update_booking import (
     UpdateBookingInput,
     UpdateBookingService,
 )
+from app.application.booking.update_guest import (
+    GuestNotFound,
+    GuestPhoneTaken,
+    UpdateGuestInput,
+    UpdateGuestService,
+)
 from app.application.leads.check_guest import normalise_phone
 from app.config import settings
 from app.domain.auth.permissions import Permission
@@ -106,6 +112,7 @@ from app.presentation.schemas.booking import (
     GanttPropertyResponse,
     GuestListResponse,
     GuestResponse,
+    GuestUpdate,
     PaymentCreate,
     PaymentKeyVoidResponse,
     PaymentResponse,
@@ -857,6 +864,9 @@ async def get_availability(
                 bathrooms=item.property.bathrooms,
                 total_price=item.total_price,
                 price_error=item.price_error,
+                tariff=item.tariff,
+                tariff_reason=item.tariff_reason,
+                tariff_check_out=item.tariff_check_out,
                 check_in=item.check_in,
                 check_out=item.check_out,
                 photos=[
@@ -908,6 +918,9 @@ async def calculate_price(
             extra_guest_surcharge=result.extra_guest_surcharge,
             discount_amount=result.discount_amount,
             total=result.total,
+            tariff=result.tariff,
+            tariff_reason=result.tariff_reason,
+            tariff_check_out=result.tariff_check_out,
         )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -1468,4 +1481,34 @@ async def get_guest(
     guest = await repos["guest"].get_by_id(guest_id)
     if guest is None or guest.company_id != company_id:
         raise HTTPException(status_code=404, detail="Guest not found")
+    return GuestResponse.model_validate(guest, from_attributes=True)
+
+
+@guest_router.patch(
+    "/{guest_id}",
+    response_model=GuestResponse,
+    dependencies=[Depends(require(Permission.BOOKINGS_WRITE))],
+)
+async def update_guest(
+    guest_id: uuid.UUID,
+    body: GuestUpdate,
+    session: AsyncSession = Depends(get_session),
+    company_id: uuid.UUID = Depends(get_company_id),
+    user_id: uuid.UUID | None = Depends(get_user_id),
+):
+    phone = None
+    if "phone" in body.model_fields_set:
+        phone = body.phone or ""
+    repos = _repos(session)
+    try:
+        guest = await UpdateGuestService(repos["guest"], repos["booking"], repos["audit"]).execute(
+            UpdateGuestInput(company_id=company_id, guest_id=guest_id, name=body.name, phone=phone, changed_by=user_id)
+        )
+    except GuestNotFound:
+        raise HTTPException(status_code=404, detail="Guest not found")
+    except GuestPhoneTaken as taken:
+        raise HTTPException(status_code=409, detail=str(taken))
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    await session.commit()
     return GuestResponse.model_validate(guest, from_attributes=True)

@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { isAxiosError } from 'axios'
 import { Globe, X } from 'lucide-react'
 import i18n from '../../i18n'
+import { loadClarity, MASK } from '../../lib/clarity'
 import { guestLanguage, type GuestLanguage } from '../../lib/public-stay'
 
 const LANGUAGES: { code: GuestLanguage; name: string; locale: string }[] = [
@@ -47,17 +48,36 @@ function savedLanguage(): string | null {
 /** A guest page's frame: the language picker on top, the page in the guest's
  *  language (the phone's, or the one picked here) below. `only`: a page written in
  *  fewer languages offers just those, and English for any other. `overlay`: the
- *  picker floats over the page's own header photo instead of a bar above it. */
+ *  picker floats over the page's own header photo instead of a bar above it.
+ *  `personal`: the page is one guest's (their booking, their offer): recordings
+ *  keep its layout and taps, never its text. */
+// The guest pages' heading font: loaded with the first guest page, never by the operator's app.
+const DISPLAY_FONT = 'https://fonts.googleapis.com/css2?family=Onest:wght@600;700&display=swap'
+
+function useDisplayFont() {
+  useEffect(() => {
+    if (document.querySelector(`link[href="${DISPLAY_FONT}"]`)) return
+    const link = document.createElement('link')
+    link.rel = 'stylesheet'
+    link.href = DISPLAY_FONT
+    document.head.appendChild(link)
+  }, [])
+}
+
 export function GuestFrame({
   children,
   only,
   overlay = false,
+  personal = false,
 }: {
   children: (locale: string) => ReactNode
   only?: GuestLanguage[]
   overlay?: boolean
+  personal?: boolean
 }) {
   const { t } = useTranslation()
+  useDisplayFont()
+  useEffect(() => loadClarity(), [])
   const languages = only ? LANGUAGES.filter((l) => only.includes(l.code)) : LANGUAGES
   const [language, setLanguage] = useState<GuestLanguage>(() => {
     const picked = guestLanguage(savedLanguage(), typeof navigator === 'undefined' ? null : navigator.language)
@@ -129,7 +149,9 @@ export function GuestFrame({
             {language.toUpperCase()}
           </button>
         </header>
-        {shown === null ? <p className="p-6 text-sm text-gray-500">…</p> : children(locale)}
+        <div {...(personal ? MASK : {})}>
+          {shown === null ? <p className="p-6 text-sm text-gray-500">…</p> : children(locale)}
+        </div>
       </div>
       {picking && (
         <div className="fixed inset-0 z-overlay flex items-end justify-center bg-black/40 sm:items-center" onClick={closeLanguages}>

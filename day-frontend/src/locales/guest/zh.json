@@ -14,6 +14,12 @@
     "floorOf": "{{floor}} 楼，共 {{total}} 层",
     "perNight": "每晚",
     "hourly": "按小时：每小时 {{price}}",
+    "tariffs": "按小时",
+    "tariff_3h": "3小时",
+    "tariff_6h": "6小时",
+    "tariff_night": "过夜",
+    "tariffWeekend": "周五至周六 {{price}}",
+    "lateRule": "{{late}} 之后仅提供过夜，{{morning}} 前退房",
     "deposit": "押金 {{price}}，退房后退还",
     "nightDeposit": "按晚入住押金 {{price}}，退房后退还",
     "hourDeposit": "按小时入住押金 {{price}}，退房后退还",
@@ -41,7 +47,13 @@
     "area": "{{area}} 平方米",
     "minNights": "至少 {{count}} 晚",
     "totalHint": "仅为住宿费用，未计折扣和额外客人费用。",
-    "hours": "{{count}} 小时"
+    "hours": "{{count}} 小时",
+    "allPhotos": "全部照片 · {{count}}",
+    "allAmenities": "显示全部 · {{count}}",
+    "readMore": "阅读全文",
+    "showLess": "收起",
+    "share": "分享",
+    "linkCopied": "链接已复制"
   },
   "guestOffer": {
     "hello": "{{name}}，这些是适合您日期的房源",
@@ -123,5 +135,19 @@
     "refused": "无法保留这些日期。请选择其他日期或联系我们。",
     "tooMany": "尝试次数过多，请一分钟后再试。",
     "nameNeeded": "请输入预订人姓名。"
+  },
+  "stayHere": {
+    "title": "您住在这里吗？",
+    "hint": "门锁密码、Wi-Fi、迷你吧和付款都在您的预订页面上。",
+    "open": "打开我的预订",
+    "digits": "您手机号码的后 4 位",
+    "digitsHint": "预订时使用的号码。",
+    "submit": "打开",
+    "wrong": "数字与预订不符，请检查号码。",
+    "locked": "尝试次数过多。请通过消息中的链接打开预订，或联系房东。",
+    "nobody": "此房源目前没有预订。",
+    "noPhone": "请向房东索取您的预订链接。",
+    "askHost": "联系房东",
+    "failed": "未成功，请重试。"
   }
 }

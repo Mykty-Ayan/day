@@ -104,6 +104,7 @@ test("the owner reads guests' orders by status", async ({ page, request }) => {
   await page.locator('#orders-status').selectOption('delivered')
   await expect(orders).toHaveCount(1)
   await expect(orders.first()).toContainText('on the tab')
+  await expect(orders.first()).toContainText('by invoice')
   await expect(orders.first()).toContainText('Кола 0,5 × 2')
   await expect(orders.first()).toContainText('«без льда»')
 })

@@ -17,6 +17,12 @@
     "floorOf": "{{floor}}. Etage von {{total}}",
     "perNight": "pro Nacht",
     "hourly": "Stundenweise: {{price}} pro Stunde",
+    "tariffs": "Stundenweise",
+    "tariff_3h": "3 Stunden",
+    "tariff_6h": "6 Stunden",
+    "tariff_night": "Nacht",
+    "tariffWeekend": "Fr–Sa {{price}}",
+    "lateRule": "Nach {{late}} nur die Nacht, Check-out bis {{morning}}",
     "deposit": "Kaution {{price}}, Rückzahlung nach dem Check-out",
     "nightDeposit": "Kaution für Übernachtungen {{price}}, Rückzahlung nach dem Check-out",
     "hourDeposit": "Kaution für stundenweise Aufenthalte {{price}}, Rückzahlung nach dem Check-out",
@@ -47,7 +53,13 @@
     "minNights_other": "Mindestens {{count}} Nächte",
     "totalHint": "Nur die Nächte, vor Rabatten und Aufpreisen für weitere Gäste.",
     "hours_one": "{{count}} Stunde",
-    "hours_other": "{{count}} Stunden"
+    "hours_other": "{{count}} Stunden",
+    "allPhotos": "Alle Fotos · {{count}}",
+    "allAmenities": "Alle anzeigen · {{count}}",
+    "readMore": "Weiterlesen",
+    "showLess": "Weniger anzeigen",
+    "share": "Teilen",
+    "linkCopied": "Link kopiert"
   },
   "guestOffer": {
     "hello": "{{name}}, hier sind Wohnungen für Ihre Reisedaten",
@@ -130,5 +142,19 @@
     "refused": "Diese Daten konnten nicht reserviert werden. Wählen Sie andere oder schreiben Sie uns.",
     "tooMany": "Zu viele Versuche. Bitte in einer Minute erneut.",
     "nameNeeded": "Geben Sie den Namen für die Buchung ein."
+  },
+  "stayHere": {
+    "title": "Wohnen Sie hier?",
+    "hint": "Türcode, WLAN, Minibar und Zahlung finden Sie auf der Seite Ihrer Buchung.",
+    "open": "Meine Buchung öffnen",
+    "digits": "Die letzten 4 Ziffern Ihrer Telefonnummer",
+    "digitsHint": "Der Nummer, auf die gebucht wurde.",
+    "submit": "Öffnen",
+    "wrong": "Die Ziffern passen nicht zur Buchung. Prüfen Sie die Nummer.",
+    "locked": "Zu viele Versuche. Öffnen Sie Ihre Buchung über den Link in Ihren Nachrichten oder schreiben Sie dem Gastgeber.",
+    "nobody": "Für diese Wohnung gibt es gerade keine Buchung.",
+    "noPhone": "Bitten Sie den Gastgeber um den Link zu Ihrer Buchung.",
+    "askHost": "Gastgeber schreiben",
+    "failed": "Das hat nicht geklappt. Versuchen Sie es erneut."
   }
 }

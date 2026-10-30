@@ -14,6 +14,12 @@
     "floorOf": "{{floor}}-qavat, jami {{total}} qavat",
     "perNight": "kechasiga",
     "hourly": "Soatbay: soatiga {{price}}",
+    "tariffs": "Soatbay",
+    "tariff_3h": "3 soat",
+    "tariff_6h": "6 soat",
+    "tariff_night": "Tun",
+    "tariffWeekend": "Ju–Sh {{price}}",
+    "lateRule": "{{late}} dan keyin faqat tun, chiqish {{morning}} gacha",
     "deposit": "Garov {{price}}, chiqib ketgandan keyin qaytariladi",
     "nightDeposit": "Sutkalik turish uchun garov {{price}}, chiqib ketgandan keyin qaytariladi",
     "hourDeposit": "Soatbay turish uchun garov {{price}}, chiqib ketgandan keyin qaytariladi",
@@ -41,7 +47,13 @@
     "area": "{{area}} m²",
     "minNights": "Kamida {{count}} kecha",
     "totalHint": "Faqat kechalar narxi: chegirmalar va qo‘shimcha mehmonlar uchun to‘lovlar hisobga olinmagan.",
-    "hours": "{{count}} soat"
+    "hours": "{{count}} soat",
+    "allPhotos": "Barcha suratlar · {{count}}",
+    "allAmenities": "Hammasini ko'rsatish · {{count}}",
+    "readMore": "To'liq o'qish",
+    "showLess": "Yig'ish",
+    "share": "Ulashish",
+    "linkCopied": "Havola nusxalandi"
   },
   "guestOffer": {
     "hello": "{{name}}, sanalaringiz uchun kvartiralar",
@@ -123,5 +135,19 @@
     "refused": "Bu sanalarni band qilib bo‘lmadi. Boshqasini tanlang yoki bizga yozing.",
     "tooMany": "Urinishlar juda ko‘p. Bir daqiqadan so‘ng qayta urining.",
     "nameNeeded": "Bron kimning nomiga ekanini yozing."
+  },
+  "stayHere": {
+    "title": "Shu yerda yashayapsizmi?",
+    "hint": "Eshik kodi, Wi-Fi, mini-bar va to'lov — bron sahifangizda.",
+    "open": "Bronimni ochish",
+    "digits": "Telefoningizning oxirgi 4 raqami",
+    "digitsHint": "Bron rasmiylashtirilgan raqamning.",
+    "submit": "Ochish",
+    "wrong": "Raqamlar bronga mos kelmadi. Raqamni tekshiring.",
+    "locked": "Urinishlar juda ko'p. Bronni xabardagi havola orqali oching yoki uy egasiga yozing.",
+    "nobody": "Hozir bu kvartirada bron yo'q.",
+    "noPhone": "Bron havolasini uy egasidan so'rang.",
+    "askHost": "Uy egasiga yozish",
+    "failed": "Bo'lmadi. Qayta urining."
   }
 }

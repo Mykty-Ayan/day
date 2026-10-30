@@ -72,7 +72,7 @@ test.describe('Gantt/Chess Chart - E2E', () => {
     await expect(page.getByText(label(now), { exact: true })).toBeVisible()
   })
 
-  test('today is highlighted', async ({ page, request }) => {
+  test('today is highlighted', { tag: '@desktop' }, async ({ page, request }) => {
     const flat = await activeFlat(request)
     const now = new Date()
 
@@ -89,7 +89,7 @@ test.describe('Gantt/Chess Chart - E2E', () => {
     await expect(cell(other)).not.toHaveClass(/bg-blue-50/)
   })
 
-  test('weekend columns highlighted', async ({ page, request }) => {
+  test('weekend columns highlighted', { tag: '@desktop' }, async ({ page, request }) => {
     const flat = await activeFlat(request)
 
     await page.goto('/properties/gantt')
@@ -106,7 +106,7 @@ test.describe('Gantt/Chess Chart - E2E', () => {
     )
   })
 
-  test('chart is scrollable horizontally', async ({ page, request }) => {
+  test('chart is scrollable horizontally', { tag: '@desktop' }, async ({ page, request }) => {
     await activeFlat(request)
 
     await page.goto('/properties/gantt')

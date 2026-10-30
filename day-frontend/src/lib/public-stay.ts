@@ -21,6 +21,13 @@ export function monthCells(year: number, month: number): (string | null)[] {
   ]
 }
 
+/** A month's cells without its weeks that are all past: the calendar opens on this week. */
+export function fromThisWeek(cells: (string | null)[], today: string): (string | null)[] {
+  let start = 0
+  while (start + 7 <= cells.length && cells.slice(start, start + 7).every((d) => d === null || d < today)) start += 7
+  return cells.slice(start)
+}
+
 /** The nights from check-in to the night before check-out: how many, what they
  *  cost, and whether every one is free. A night the page has not loaded is not free. */
 export function stayQuote(nights: PublicNight[], checkIn: string, checkOut: string) {
@@ -69,10 +76,16 @@ export function isHourly(offer: PublicOffer): boolean {
 }
 
 export function money(value: number, locale: string): string {
-  return `${Math.round(value).toLocaleString(locale)} ₸`
+  return `${Math.round(value).toLocaleString(locale)}\u00a0₸`
 }
 
 /** A link that leads nowhere stays so: only a failed network is tried again. */
+/** The flat's page opened from an NFC tag (?nfc) or a QR code (?qr) in the flat. */
+export function openedInFlat(search: string): boolean {
+  const params = new URLSearchParams(search)
+  return params.has('nfc') || params.has('qr')
+}
+
 export function retryNetwork(count: number, error: unknown): boolean {
   return !(isAxiosError(error) && error.response && error.response.status < 500) && count < 2
 }

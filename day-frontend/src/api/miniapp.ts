@@ -14,6 +14,9 @@ export interface AvailableProperty {
   total_price: number | null
   /** Set when the unit is free but has no pricing configured. */
   price_error: string | null
+  /** By the hour: the tariff that priced the stay, and why it is not the hours asked. */
+  tariff?: '3h' | '6h' | 'night' | 'day' | null
+  tariff_reason?: 'rounded_up' | 'late' | 'longer' | null
   /** The stay as this flat books it, with its own check-in and check-out hours. */
   check_in?: string | null
   check_out?: string | null

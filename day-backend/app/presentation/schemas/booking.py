@@ -39,6 +39,13 @@ class GuestCreate(BaseModel):
     notes: str | None = None
 
 
+class GuestUpdate(BaseModel):
+    """Only what is sent changes; a phone of null or "" removes it."""
+
+    name: str | None = Field(default=None, min_length=1, max_length=255)
+    phone: str | None = Field(default=None, max_length=50)
+
+
 class GuestResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -136,8 +143,8 @@ class BookingResponse(BaseModel):
     # What has actually been received, so a list can show who still owes without
     # asking for every booking's payments one at a time.
     paid_amount: Decimal = Decimal("0")
-    # Minibar orders delivered on the guest's tab: owed on top of the stay, apart
-    # from total_price and its payments.
+    # Minibar orders owed with the stay (confirmed with the booking, or delivered on
+    # the tab; unpaid): on top of it, apart from total_price and its payments.
     orders_due: Decimal = Decimal("0")
     adults_count: int
     children_count: int
@@ -385,6 +392,12 @@ class AvailablePropertyResponse(BaseModel):
     # Set when the unit is free but has no pricing configured, so the caller can
     # tell "costs nothing" apart from "cannot be quoted".
     price_error: str | None = None
+    # By the hour: the tariff that priced the stay ("3h", "6h", "night", "day") and
+    # why it is not the hours asked ("rounded_up", "late", "longer"), to tell the guest.
+    tariff: str | None = None
+    tariff_reason: str | None = None
+    # When what was sold ends: the time to book and to tell the guest. None for whole days.
+    tariff_check_out: datetime | None = None
     # The stay as this flat books it: its own check-in and check-out hours.
     check_in: datetime | None = None
     check_out: datetime | None = None
@@ -413,6 +426,11 @@ class PriceCalculateResponse(BaseModel):
     extra_guest_surcharge: Decimal
     discount_amount: Decimal
     total: Decimal
+    # The hourly tariff that priced the stay ("3h", "6h", "night", "day"), if any.
+    tariff: str | None = None
+    tariff_reason: str | None = None
+    # When what was sold ends: the time to book and to tell the guest. None for whole days.
+    tariff_check_out: datetime | None = None
 
 
 # ---------- Gantt ----------

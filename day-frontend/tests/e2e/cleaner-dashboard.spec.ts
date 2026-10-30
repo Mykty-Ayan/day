@@ -110,7 +110,7 @@ test.describe('Cleaner Dashboard - E2E', () => {
     await expect(page.getByText(prop.name as string).first()).toBeVisible({ timeout: 5000 })
   })
 
-  test('task cards show property info', async ({ page, request }) => {
+  test('task cards show property info', async ({ page, request, isMobile }) => {
     const prop = await setupActiveProperty(request)
     await createAssignedTask(request, prop.id)
 
@@ -119,6 +119,9 @@ test.describe('Cleaner Dashboard - E2E', () => {
 
     // Should show property name
     await expect(page.getByText(prop.name as string).first()).toBeVisible({ timeout: 5000 })
+
+    // A phone shows cards, not the table.
+    if (isMobile) return
 
     // Row should include non-empty type cell
     const firstTypeCell = page.locator('tbody tr').first().locator('td').nth(1)

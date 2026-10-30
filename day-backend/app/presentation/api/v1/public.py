@@ -6,6 +6,7 @@ from __future__ import annotations
 from datetime import date, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.application.booking.create_booking import CreateBookingService
@@ -14,6 +15,7 @@ from app.application.booking.guest_hold import GuestHoldService, OfferTakenError
 from app.application.booking.guest_offers import OfferExpiredError
 from app.application.booking.guest_panel import GuestPanelService
 from app.application.booking.price_calculator import PriceCalculatorService
+from app.application.booking.stay_key import NobodyStayingError, StayKeyService, WrongDigitsError
 from app.application.inventory.guest_orders import (
     GuestOrderService,
     MinibarClosedError,
@@ -25,6 +27,7 @@ from app.domain.booking.exceptions import BookingOverlapError, PropertyBlockedEr
 from app.domain.booking.value_objects import RentalMode
 from app.domain.messaging.value_objects import NotificationEvent
 from app.infrastructure.database import get_session
+from app.infrastructure.login_throttle import StayKeyThrottle, get_stay_key_throttle
 from app.infrastructure.messaging.booking_notice import notify_guest_hold
 from app.infrastructure.messaging.factory import build_notification_service
 from app.infrastructure.repositories.booking import (
@@ -64,6 +67,9 @@ from app.presentation.schemas.public import (
     PublicStayBook,
     PublicStayCompany,
     PublicStayResponse,
+    StayHereResponse,
+    StayKeyBody,
+    StayKeyResponse,
 )
 
 public_router = APIRouter(prefix="/public", tags=["public"])
@@ -218,6 +224,53 @@ async def book_from_stay(code: str, body: PublicStayBook, session: AsyncSession 
     return PublicOfferBooking.from_hold(held)
 
 
+def _stay_key(session: AsyncSession) -> StayKeyService:
+    return StayKeyService(
+        SqlPropertyRepository(session),
+        SqlBookingRepository(session),
+        SqlGuestRepository(session),
+        SqlCompanySettingsRepository(session),
+    )
+
+
+@public_router.get("/stays/{code}/here", response_model=StayHereResponse)
+async def stay_here(
+    code: str, mine: str | None = Query(None, max_length=16), session: AsyncSession = Depends(get_session)
+):
+    """Whether anyone stays in the flat now, for the page opened from a tag or a QR code
+    in the flat; mine: the booking code this device remembers is one of them."""
+    try:
+        here = await _stay_key(session).here(code, mine)
+    except ValueError:
+        raise HTTPException(status_code=404, detail="Not found")
+    return StayHereResponse(staying=here.staying, by_phone=here.by_phone, mine=here.mine, hints=here.hints)
+
+
+@public_router.post("/stays/{code}/here", response_model=StayKeyResponse)
+async def stay_key(
+    code: str,
+    body: StayKeyBody,
+    session: AsyncSession = Depends(get_session),
+    throttle: StayKeyThrottle = Depends(get_stay_key_throttle),
+):
+    """The guest staying now opens their own page by the last 4 digits of their phone.
+    A few wrong tries lock the flat for a while, the right digits included; so does
+    Redis being down, as 4 digits cannot stand a guesser unbraked."""
+    wait = throttle.attempt(code)
+    if wait:
+        return JSONResponse(status_code=429, content={"detail": "Too many tries"}, headers={"Retry-After": str(wait)})
+    try:
+        guest_code = await _stay_key(session).unlock(code, body.digits)
+    except NobodyStayingError:
+        raise HTTPException(status_code=409, detail="Nobody is staying now")
+    except WrongDigitsError:
+        raise HTTPException(status_code=403, detail="Wrong digits")
+    except ValueError:
+        raise HTTPException(status_code=404, detail="Not found")
+    throttle.succeeded(code)
+    return StayKeyResponse(guest_code=guest_code)
+
+
 @public_router.get("/guest/{code}", response_model=GuestPanelResponse)
 async def guest_panel(code: str, session: AsyncSession = Depends(get_session)):
     """A guest's own page for their booking. How to get in (instructions, Wi-Fi,
@@ -292,7 +345,11 @@ async def place_guest_order(code: str, body: GuestOrderCreate, session: AsyncSes
     the bot; the answer holds the WhatsApp link with the order's text."""
     try:
         placed = await guest_orders(session).place(
-            code, [(line.product_id, line.quantity) for line in body.items], body.note, body.language
+            code,
+            [(line.product_id, line.quantity) for line in body.items],
+            body.note,
+            body.language,
+            billing=body.billing,
         )
         order = placed.order
         if not placed.repeated:
@@ -305,6 +362,7 @@ async def place_guest_order(code: str, body: GuestOrderCreate, session: AsyncSes
                     "lines": [f"{i.name} × {i.quantity}" for i in order.items],
                     "total": str(order.total),
                     "note": order.guest_note,
+                    "billing": order.billing.value,
                     "order_id": str(order.id),
                 },
             )
@@ -322,3 +380,24 @@ async def place_guest_order(code: str, body: GuestOrderCreate, session: AsyncSes
         raise HTTPException(status_code=422, detail=str(e))
     await session.commit()
     return GuestOrderPlaced(number=order.number, total=float(order.total), whatsapp_url=placed.whatsapp_url)
+
+
+@public_router.post("/guest/{code}/orders/{number}/cancel")
+async def cancel_guest_order(code: str, number: int, session: AsyncSession = Depends(get_session)):
+    """The guest calls off their own order while it is new or awaiting the invoice's
+    payment and unpaid; 409 once it is paid or on its way. The host is told in the bot."""
+    try:
+        done = await guest_orders(session).cancel_by_guest(code, number)
+        await build_notification_service(session).notify_company(
+            done.order.company_id,
+            NotificationEvent.GUEST_ORDER_CANCELLED,
+            {"number": done.order.number, "property_name": done.flat_name or "—", "order_id": str(done.order.id)},
+        )
+    except LookupError:
+        await session.rollback()
+        raise HTTPException(status_code=404, detail="Not found")
+    except ValueError as e:
+        await session.rollback()
+        raise HTTPException(status_code=409, detail=str(e))
+    await session.commit()
+    return {"number": done.order.number, "status": done.order.status.value}

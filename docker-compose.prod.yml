@@ -132,6 +132,8 @@ services:
         VITE_API_URL: ${VITE_API_URL:?VITE_API_URL is required}
         # "on" once the ai-service runs here; unset hides AI import in the menu.
         VITE_AI_IMPORT: ${VITE_AI_IMPORT:-}
+        # Microsoft Clarity on the guest pages; unset, it never loads.
+        VITE_CLARITY_ID: ${VITE_CLARITY_ID:-}
     restart: unless-stopped
     depends_on:
       - backend

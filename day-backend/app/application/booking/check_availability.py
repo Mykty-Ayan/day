@@ -50,6 +50,10 @@ class AvailableProperty:
     price_error: str | None = None
     # The flat's stay rules this stay breaks; only an operator's search sees such a flat.
     rule_breaches: list[RuleBreach] = field(default_factory=list)
+    # By the hour: the tariff that priced the stay and why it is not the hours asked.
+    tariff: str | None = None
+    tariff_reason: str | None = None
+    tariff_check_out: datetime | None = None
 
 
 def _as_datetime(value: date | datetime, hour: int) -> datetime:
@@ -155,7 +159,7 @@ class CheckAvailabilityService:
             if breaches and not with_rule_breaches:
                 continue
 
-            total, error = None, None
+            total, error, breakdown = None, None, None
             if with_prices:
                 try:
                     breakdown = await self._prices.calculate(
@@ -173,6 +177,9 @@ class CheckAvailabilityService:
                     check_out=end,
                     price_error=error,
                     rule_breaches=breaches,
+                    tariff=breakdown.tariff if breakdown else None,
+                    tariff_reason=breakdown.tariff_reason if breakdown else None,
+                    tariff_check_out=breakdown.tariff_check_out if breakdown else None,
                 )
             )
 

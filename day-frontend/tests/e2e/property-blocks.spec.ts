@@ -4,7 +4,7 @@
  */
 
 import { test, expect } from '../fixtures/e2e-auth'
-import { createTestProperty, futureDate, API_BASE } from '../fixtures/test-data'
+import { calendarDay, createTestProperty, futureDate, API_BASE } from '../fixtures/test-data'
 
 test('closed nights are set on the flat page and kept off by the booking calendar', async ({ page, request }) => {
   const data = createTestProperty()
@@ -17,8 +17,8 @@ test('closed nights are set on the flat page and kept off by the booking calenda
 
   await page.goto(`/properties/${id}`)
   await page.locator('#block-range').click()
-  await page.locator(`[data-radix-popper-content-wrapper] td[data-day="${first}"] button`).click()
-  await page.locator(`[data-radix-popper-content-wrapper] td[data-day="${out}"] button`).click()
+  await (await calendarDay(page, first)).click()
+  await (await calendarDay(page, out)).click()
   await expect(page.locator('#block-range')).not.toContainText('First night')
   await page.getByPlaceholder('Reason, e.g. "repairs"').fill('Plumber visit')
   const saved = page.waitForResponse((r) => r.request().method() === 'POST' && r.url().endsWith(`/properties/${id}/blocks`))
@@ -30,8 +30,8 @@ test('closed nights are set on the flat page and kept off by the booking calenda
   await page.goto(`/bookings/new?property_id=${id}`)
   await expect(page.locator('#create-property')).toContainText(data.internal_name)
   await page.locator('#create-date-range').click()
-  await expect(page.locator(`[data-radix-popper-content-wrapper] td[data-day="${first}"] button`)).toBeDisabled()
-  await expect(page.locator(`[data-radix-popper-content-wrapper] td[data-day="${out}"] button`)).toBeEnabled()
+  await expect(await calendarDay(page, first)).toBeDisabled()
+  await expect(await calendarDay(page, out)).toBeEnabled()
   await page.keyboard.press('Escape')
 
   // Reopen from the flat page.
@@ -67,7 +67,7 @@ async function closedFlat(
   return data.internal_name
 }
 
-test('the chessboard starts no stay on a closed night and ends one at its morning', async ({ page, request }) => {
+test('the chessboard starts no stay on a closed night and ends one at its morning', { tag: '@desktop' }, async ({ page, request }) => {
   const day = (offset: number) => {
     const d = new Date()
     d.setDate(d.getDate() + offset)
@@ -93,7 +93,7 @@ test('the chessboard starts no stay on a closed night and ends one at its mornin
   await page.waitForURL((url) => url.searchParams.get('check_in') === local(day(8)) && url.searchParams.get('check_out') === local(day(10)))
 })
 
-test('an hourly flat keeps the free hours of a block\'s first and last days', async ({ page, request }) => {
+test('an hourly flat keeps the free hours of a block\'s first and last days', { tag: '@desktop' }, async ({ page, request }) => {
   // Closed from noon of the 10th to noon of the 12th: the 10th's morning and the
   // 12th's afternoon are free by the hour; the 11th is closed around the clock.
   const day = (offset: number) => {
@@ -111,7 +111,7 @@ test('an hourly flat keeps the free hours of a block\'s first and last days', as
   await page.waitForURL((url) => url.searchParams.get('check_in')?.startsWith(`${local(day(10))}T`) ?? false)
 })
 
-test('a block that starts on the last day shown is drawn', async ({ page, request }) => {
+test('a block that starts on the last day shown is drawn', { tag: '@desktop' }, async ({ page, request }) => {
   // The chessboard shows last month to the end of next month.
   const now = new Date()
   const last = new Date(now.getFullYear(), now.getMonth() + 2, 0)
@@ -132,11 +132,6 @@ test('the flat page closes no further ahead than it lists', async ({ page, reque
 
   await page.goto(`/properties/${id}`)
   await page.locator('#block-range').click()
-  const popover = page.locator('[data-radix-popper-content-wrapper]')
-  const cell = (d: Date) => popover.locator(`td[data-day="${local(d)}"] button`)
-  for (let turn = 0; turn < 20 && (await cell(past).count()) === 0; turn++) {
-    await popover.getByRole('button', { name: /next month/i }).click()
-  }
-  await expect(cell(horizon)).toBeEnabled()
-  await expect(cell(past)).toBeDisabled()
+  await expect(await calendarDay(page, local(horizon))).toBeEnabled()
+  await expect(await calendarDay(page, local(past))).toBeDisabled()
 })

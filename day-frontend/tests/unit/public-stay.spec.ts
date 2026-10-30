@@ -4,7 +4,7 @@
  */
 
 import { expect, test } from '@playwright/test'
-import { guestLanguage, isHourly, monthCells, offerDates, onAccent, stayDates, stayQuote } from '../../src/lib/public-stay'
+import { fromThisWeek, guestLanguage, isHourly, monthCells, offerDates, onAccent, openedInFlat, stayDates, stayQuote } from '../../src/lib/public-stay'
 
 test('a month is laid out from Monday, with blanks before its first day', () => {
   // 1 October 2026 is a Thursday.
@@ -72,4 +72,23 @@ test('a button reads on the company color: dark text on a light one', () => {
   expect(onAccent('#facc15')).toBe('#111827')
   expect(onAccent('#ffffff')).toBe('#111827')
   expect(onAccent('#1e3a8a')).toBe('#ffffff')
+})
+
+test("the flat's page knows it was opened from a tag or a QR code in the flat", () => {
+  expect(openedInFlat('?nfc')).toBe(true)
+  expect(openedInFlat('?qr')).toBe(true)
+  expect(openedInFlat('?utm_source=x&nfc=1')).toBe(true)
+  // The catalog's link: no "I am staying here" for someone choosing a flat.
+  expect(openedInFlat('')).toBe(false)
+  expect(openedInFlat('?utm_source=whatsapp')).toBe(false)
+})
+
+test("the calendar opens on this week: the month's weeks that are all past are left out", () => {
+  // October 2026 starts on a Thursday: 3 blanks, then the 1st.
+  const october = monthCells(2026, 9)
+  const shown = fromThisWeek(october, '2026-10-27')
+  expect(shown[0]).toBe('2026-10-26')
+  expect(shown.at(-1)).toBe('2026-10-31')
+  // A month still ahead keeps every week, its leading blanks too.
+  expect(fromThisWeek(monthCells(2026, 10), '2026-10-27')).toEqual(monthCells(2026, 10))
 })

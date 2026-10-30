@@ -124,6 +124,9 @@ class FakeBookingRepository(BookingRepository):
     async def get_by_guest_code(self, code):
         return None
 
+    async def list_by_guest(self, company_id, guest_id):
+        return []
+
     async def lock_idempotency_key(self, company_id, key):
         pass
 
@@ -191,6 +194,10 @@ class FakeGuestRepository(GuestRepository):
 
     async def get_by_id(self, guest_id):
         return self.items.get(guest_id)
+
+    async def update(self, guest):
+        self.items[guest.id] = guest
+        return guest
 
     async def get_by_company(self, company_id, **kwargs):
         return [g for g in self.items.values() if g.company_id == company_id]

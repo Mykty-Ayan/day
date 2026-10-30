@@ -7,7 +7,7 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from app.domain.inventory.entities import OrderPayment, OrderPaymentStatus, OrderStatus
+from app.domain.inventory.entities import OrderBilling, OrderPayment, OrderPaymentStatus, OrderStatus
 
 
 class GuestOrderLine(BaseModel):
@@ -22,6 +22,8 @@ class GuestOrderCreate(BaseModel):
     note: str | None = Field(default=None, max_length=500)
     # The language of the WhatsApp text the page opens.
     language: Literal["ru", "kz", "en"] = "ru"
+    # How the guest pays, one of the company's ways; none: the company's first.
+    billing: OrderBilling | None = None
 
 
 class GuestOrderPlaced(BaseModel):
@@ -45,6 +47,8 @@ class GuestOrderResponse(BaseModel):
     id: uuid.UUID
     number: int
     status: OrderStatus
+    # How the guest chose to pay: invoice (Kaspi, before delivery) or booking (with the stay).
+    billing: OrderBilling = OrderBilling.INVOICE
     total: Decimal
     guest_note: str | None = None
     # null until delivered; paid, or on_booking (on the guest's tab, to be paid later).
@@ -55,22 +59,28 @@ class GuestOrderResponse(BaseModel):
     property_id: uuid.UUID
     property_name: str | None = None
     guest_name: str | None = None
+    # Where the host sends the Kaspi invoice.
+    guest_phone: str | None = None
     created_at: datetime | None = None
     accepted_at: datetime | None = None
+    invoiced_at: datetime | None = None
     delivered_at: datetime | None = None
     cancelled_at: datetime | None = None
     items: list[GuestOrderItemResponse]
 
 
 class GuestOrderDeliver(BaseModel):
-    """Paid at the door (with how), or on the guest's tab."""
+    """Paid at the door (with how), or on the guest's tab. Nothing for an order
+    already paid by its invoice."""
 
-    payment_status: OrderPaymentStatus = OrderPaymentStatus.PAID
+    payment_status: OrderPaymentStatus | None = None
     payment_method: OrderPayment | None = None
 
     @model_validator(mode="after")
     def _how(self) -> GuestOrderDeliver:
-        if (self.payment_status == OrderPaymentStatus.PAID) != (self.payment_method is not None):
+        if self.payment_status is None:
+            self.payment_status = OrderPaymentStatus.PAID if self.payment_method else None
+        elif (self.payment_status == OrderPaymentStatus.PAID) != (self.payment_method is not None):
             raise ValueError("Paid needs how (payment_method); on the tab takes none")
         return self
 

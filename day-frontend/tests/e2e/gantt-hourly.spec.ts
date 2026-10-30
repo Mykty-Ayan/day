@@ -41,7 +41,7 @@ const inDays = (n: number) => {
   return local(d)
 }
 
-test('two hourly bookings on one day show as one plate that lists both', async ({ page, request }) => {
+test('two hourly bookings on one day show as one plate that lists both', { tag: '@desktop' }, async ({ page, request }) => {
   // First in the chessboard, whose rows go by internal name (see property-blocks.spec.ts).
   const newest = String(1e13 - Date.now()).padStart(13, '0')
   const data = createTestProperty({ internal_name: `000-0-${newest}-${Math.random().toString(36).slice(2, 6)}` })
@@ -75,7 +75,7 @@ test('two hourly bookings on one day show as one plate that lists both', async (
 })
 
 for (const mode of ['daily', 'hourly'] as const) {
-  test(`a ${mode} stay that starts on the plate's day keeps its bar`, async ({ page, request }) => {
+  test(`a ${mode} stay that starts on the plate's day keeps its bar`, { tag: '@desktop' }, async ({ page, request }) => {
     // The morning's hourly guests take the left half of the day; the stay from
     // 14:00 shows and takes a click in the rest of its cells.
     const flat = await hourlyFlat(request)
@@ -94,7 +94,7 @@ for (const mode of ['daily', 'hourly'] as const) {
   })
 }
 
-test('a booking in the plate moves to another flat by drag and drop', async ({ page, request }) => {
+test('a booking in the plate moves to another flat by drag and drop', { tag: '@desktop' }, async ({ page, request }) => {
   const flat = await hourlyFlat(request)
   const target = await hourlyFlat(request)
   const day = inDays(6)
@@ -113,7 +113,7 @@ test('a booking in the plate moves to another flat by drag and drop', async ({ p
     .toBe(target.id)
 })
 
-test('a plate that holds an overbooking says so, and so does its line', async ({ page, request }) => {
+test('a plate that holds an overbooking says so, and so does its line', { tag: '@desktop' }, async ({ page, request }) => {
   // A platform booking for hours already taken (from Channex): the bar shows it in
   // red, and the plate must not hide it. The flag is set on the chessboard answer.
   const flat = await hourlyFlat(request)
@@ -136,6 +136,11 @@ test('a plate that holds an overbooking says so, and so does its line', async ({
 
 test.describe('on a touch screen', () => {
   test.use({ hasTouch: true })
+
+  // A phone opens the agenda; the chessboard is a tap away, and it remembers.
+  test.beforeEach(async ({ page }) => {
+    await page.addInitScript(() => window.localStorage.setItem('day:gantt:view-mode', 'gantt'))
+  })
 
   test('a booking in the plate opens its card with "Move to…"', async ({ page, request }) => {
     const flat = await hourlyFlat(request)

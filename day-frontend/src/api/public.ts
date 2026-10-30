@@ -28,7 +28,17 @@ export interface PublicStay {
   min_nights: number | null
   photos: string[]
   amenities: { name: string; category: string }[]
-  prices: { night: number | null; hour: number | null; deposit: number | null; hour_deposit: number | null }
+  prices: {
+    night: number | null
+    hour: number | null
+    /** By the hour, when the flat sells by tariffs; the weekend price only where it differs. */
+    tariffs?: { name: '3h' | '6h' | 'night'; price: number; weekend: number | null }[]
+    /** Out after late_from only the night is sold, out by night_to. */
+    late_from?: string | null
+    night_to?: string | null
+    deposit: number | null
+    hour_deposit: number | null
+  }
   nights: PublicNight[]
   /** The company, once it has set up its site: the page links to it and books. */
   company?: { slug: string; title: string; logo_url: string | null; accent_color: string | null; whatsapp: string | null } | null
@@ -159,7 +169,7 @@ export interface GuestPanel {
     adults: number
     total: number
     paid: number
-    /** Minibar orders delivered on the guest's tab; part of remaining. */
+    /** Minibar orders owed with the stay, by the server's one rule; part of remaining. */
     orders_due?: number
     remaining: number
   } | null
@@ -182,6 +192,30 @@ export interface GuestPanel {
   lead_hours: number
   /** The minibar during the stay; null outside it. */
   menu: MenuItem[] | null
+  /** With the menu: the ways the company takes and its hours. */
+  minibar?: {
+    billings: GuestBilling[]
+    /** "HH:MM:SS", local; both null: round the clock. */
+    opens: string | null
+    closes: string | null
+    open_now: boolean
+  } | null
+  /** This booking's own orders, newest first. */
+  orders?: GuestPanelOrder[]
+}
+
+/** invoice: a Kaspi invoice before delivery; booking: added to the booking's bill. */
+export type GuestBilling = 'invoice' | 'booking'
+
+export interface GuestPanelOrder {
+  number: number
+  status: 'new' | 'awaiting_payment' | 'accepted' | 'delivered' | 'cancelled'
+  billing: GuestBilling
+  payment_status: 'paid' | 'on_booking' | null
+  /** The host sent the Kaspi invoice. */
+  invoiced: boolean
+  total: number
+  lines: string[]
 }
 
 export interface MenuItem {
@@ -202,16 +236,23 @@ export interface PlacedOrder {
   whatsapp_url: string | null
 }
 
+/** The guest calls off their own order while it is new or awaiting the invoice's payment. */
+export async function cancelOwnOrder(code: string, number: number): Promise<void> {
+  await publicClient.post(`/public/guest/${encodeURIComponent(code)}/orders/${number}/cancel`)
+}
+
 export async function placeGuestOrder(
   code: string,
   items: { product_id: string; quantity: number }[],
   note: string | null,
   language: 'ru' | 'kz' | 'en',
+  billing: GuestBilling,
 ): Promise<PlacedOrder> {
   const res = await publicClient.post<PlacedOrder>(`/public/guest/${encodeURIComponent(code)}/orders`, {
     items,
     note,
     language,
+    billing,
   })
   return res.data
 }
@@ -223,4 +264,28 @@ export async function getGuestPanel(code: string): Promise<GuestPanel> {
 /** «I have left»: the host is told and the flat gets a cleaning task. */
 export async function markGuestLeft(code: string): Promise<void> {
   await publicClient.post(`/public/guest/${encodeURIComponent(code)}/checked-out`, null, { timeout: 8_000 })
+}
+
+/** Whether anyone stays in the flat now, for its page opened from a tag or a QR code
+ *  in the flat; mine: the booking code this device remembers is one of them. */
+export interface StayHere {
+  staying: boolean
+  /** The stay has a phone to check the digits against; if not, the guest asks the host. */
+  by_phone: boolean
+  mine: boolean
+  /** The phones of the stays going on now, last 4 digits hidden: "+7 (702) 377 ****". */
+  hints: string[]
+}
+
+export async function getStayHere(code: string, mine: string | null): Promise<StayHere> {
+  const res = await publicClient.get(`/public/stays/${encodeURIComponent(code)}/here`, {
+    params: mine ? { mine } : undefined,
+  })
+  return res.data
+}
+
+/** The last 4 digits of the guest's phone open their own page: /g/<guest_code>. */
+export async function unlockStay(code: string, digits: string): Promise<{ guest_code: string }> {
+  const res = await publicClient.post(`/public/stays/${encodeURIComponent(code)}/here`, { digits })
+  return res.data
 }

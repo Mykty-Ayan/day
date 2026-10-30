@@ -302,6 +302,18 @@ class SqlGuestRepository(GuestRepository):
         result = await self._session.get(GuestModel, guest_id)
         return _model_to_guest(result) if result else None
 
+    async def update(self, guest: Guest) -> Guest:
+        model = await self._session.scalar(
+            select(GuestModel).where(GuestModel.id == guest.id, GuestModel.company_id == guest.company_id)
+        )
+        if model is None:
+            raise LookupError("Guest not found")
+        model.name = guest.name
+        model.phone = guest.phone
+        await self._session.flush()
+        await self._session.refresh(model)
+        return _model_to_guest(model)
+
     async def get_by_company(
         self,
         company_id: uuid.UUID,
@@ -407,6 +419,10 @@ class SqlBookingRepository(BookingRepository):
     async def get_by_guest_code(self, code: str) -> Booking | None:
         result = await self._session.scalar(select(BookingModel).where(BookingModel.guest_code == code))
         return _model_to_booking(result) if result else None
+
+    async def list_by_guest(self, company_id: uuid.UUID, guest_id: uuid.UUID) -> list[Booking]:
+        stmt = select(BookingModel).where(BookingModel.company_id == company_id, BookingModel.guest_id == guest_id)
+        return [_model_to_booking(row) for row in (await self._session.scalars(stmt)).all()]
 
     async def get_for_update(self, booking_id: uuid.UUID) -> Booking | None:
         # populate_existing: the row may already sit in this session from an

@@ -2,9 +2,10 @@ from __future__ import annotations
 
 import uuid
 from dataclasses import dataclass
+from datetime import time
 from decimal import Decimal
 
-from app.domain.property.entities import DiscountRule, PricingConfig, SeasonalPrice
+from app.domain.property.entities import TARIFF_FIELDS, DiscountRule, PricingConfig, SeasonalPrice
 from app.domain.property.repositories import (
     DiscountRuleRepository,
     PricingConfigRepository,
@@ -23,6 +24,26 @@ class PricingConfigInput:
     extra_adult_price: Decimal = Decimal("0")
     extra_child_price: Decimal = Decimal("0")
     base_guests: int = 1
+    # None keeps the saved tariff: a client that does not know tariffs never clears them.
+    price_3h: Decimal | None = None
+    price_3h_weekend: Decimal | None = None
+    price_6h: Decimal | None = None
+    price_6h_weekend: Decimal | None = None
+    price_night: Decimal | None = None
+    price_night_weekend: Decimal | None = None
+    late_from: time | None = None
+    night_to: time | None = None
+    night_max_hours: int | None = None
+
+    def tariffs(self) -> dict:
+        return {f: getattr(self, f) for f in TARIFF_FIELDS if getattr(self, f) is not None}
+
+
+def _check_night(config: PricingConfig) -> None:
+    """The night runs from the late hour over midnight to the morning: checked on the
+    values as saved, since a save may send one of the two times alone."""
+    if config.night_to >= config.late_from:
+        raise ValueError("Late hours start in the evening, the night ends next morning: night_to before late_from")
 
 
 class ManagePricingService:
@@ -62,6 +83,9 @@ class ManagePricingService:
             existing.extra_adult_price = inp.extra_adult_price
             existing.extra_child_price = inp.extra_child_price
             existing.base_guests = inp.base_guests
+            for name, value in inp.tariffs().items():
+                setattr(existing, name, value)
+            _check_night(existing)
             return await self._pricing_repo.update(existing)
         config = PricingConfig(
             property_id=property_id,
@@ -73,8 +97,31 @@ class ManagePricingService:
             extra_adult_price=inp.extra_adult_price,
             extra_child_price=inp.extra_child_price,
             base_guests=inp.base_guests,
+            **inp.tariffs(),
         )
+        _check_night(config)
         return await self._pricing_repo.save(config)
+
+    async def copy_tariffs_to_all(self, property_id: uuid.UUID, company_id: uuid.UUID) -> int:
+        """Give every other flat of the company this flat's hourly tariffs and late
+        hours; their other prices stay. A flat with no prices yet is skipped. Returns
+        how many flats changed."""
+        await self._check_property(property_id, company_id)
+        source = await self._pricing_repo.get_by_property(property_id)
+        if source is None:
+            raise ValueError("Pricing config not found. Create pricing first.")
+        # One page of 1 000 flats covers every company today; page through if one outgrows it.
+        flats = await self._property_repo.list_by_company(company_id, limit=1000)
+        changed = 0
+        for flat in flats:
+            config = None if flat.id == property_id else await self._pricing_repo.get_by_property(flat.id)
+            if config is None:
+                continue
+            for name in TARIFF_FIELDS:
+                setattr(config, name, getattr(source, name))
+            await self._pricing_repo.update(config)
+            changed += 1
+        return changed
 
     async def get_pricing(
         self, property_id: uuid.UUID, company_id: uuid.UUID

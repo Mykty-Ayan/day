@@ -1,5 +1,34 @@
 # Changelog
 
+## 0.9.0 — 2026-10-30
+
+Hourly stays sell by fixed tariffs, the minibar is paid before it arrives, and profit comes from the expense journal.
+
+**Changes the numbers:** profit is now revenue minus commission minus the expense journal. The planned costs of a flat are no longer subtracted.
+
+### Added
+- Hourly tariffs: 3 hours, 6 hours and the night, a price per flat for weekdays and weekends, applied to all flats at once. A stay between tariffs sells at the next one up; check-out decides: after the late hour the night, past its morning whole days (#234–#237)
+- `tariff`, `tariff_reason` and `tariff_check_out` in `calculate-price` and `availability`: which tariff priced a stay, why, and when what was sold ends (#236, #256)
+- The guest's flat page lists the tariffs (#237)
+- Minibar payment: each company chooses a Kaspi invoice, payment with the booking, or both, and its delivery hours; a guest cancels an order of their own; the host cancels a paid one and returns the money by hand (#238–#241)
+- Kaspi as a payment method (#239)
+- A guest's name and phone can be corrected, and the edit shows in the history of their bookings (#244, #253)
+- A blacklist page for the company's warned numbers (#255)
+- A cleaner is told in Telegram when a cleaning is given to them (#243)
+- The Mini App's Today shows what a guest owes on each row (#245)
+- A guest in the flat opens their booking from an NFC tag or a QR code (#224)
+- Microsoft Clarity on the guest pages, personal pages masked (#228, #257)
+
+### Changed
+- Guest pages lead with photos, with Onest headings, a share button and round calendar days (#226, #227)
+- Screen texts in Russian, Kazakh and English use one vocabulary and say what failed (#229–#233, #251)
+- `POST /guest-orders/{id}/deliver` takes an empty body for an order already paid; an unpaid order with an empty body answers 409, it was 422 (#252)
+
+### Fixed
+- The Mini App's month counts its last day (#246)
+- The booking card writes money in the reader's format and the source as named (#247)
+- A flat's card leaves out an unknown number of rooms or beds (#248)
+
 ## 0.8.0 — 2026-10-26
 
 The Telegram Mini App becomes the operator's phone app, and the bot keeps to notices and the assistant. A guest gets a page of their own booking with the way in once paid, and orders from the company's minibar; the owner keeps the minibar's stock on the web. Migrations 053–056 run on start; 055 gives every booking its guest link. No environment variable has to change.

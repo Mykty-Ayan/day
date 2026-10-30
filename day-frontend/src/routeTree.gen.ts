@@ -23,6 +23,7 @@ import { Route as ExpensesIndexRouteImport } from './routes/expenses/index'
 import { Route as CleaningIndexRouteImport } from './routes/cleaning/index'
 import { Route as CleanerIndexRouteImport } from './routes/cleaner/index'
 import { Route as BookingsIndexRouteImport } from './routes/bookings/index'
+import { Route as BlacklistIndexRouteImport } from './routes/blacklist/index'
 import { Route as AnalyticsIndexRouteImport } from './routes/analytics/index'
 import { Route as AiImportIndexRouteImport } from './routes/ai-import/index'
 import { Route as AgentsIndexRouteImport } from './routes/agents/index'
@@ -115,6 +116,11 @@ const CleanerIndexRoute = CleanerIndexRouteImport.update({
 const BookingsIndexRoute = BookingsIndexRouteImport.update({
   id: '/bookings/',
   path: '/bookings/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const BlacklistIndexRoute = BlacklistIndexRouteImport.update({
+  id: '/blacklist/',
+  path: '/blacklist/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AnalyticsIndexRoute = AnalyticsIndexRouteImport.update({
@@ -260,6 +266,7 @@ export interface FileRoutesByFullPath {
   '/agents/': typeof AgentsIndexRoute
   '/ai-import/': typeof AiImportIndexRoute
   '/analytics/': typeof AnalyticsIndexRoute
+  '/blacklist/': typeof BlacklistIndexRoute
   '/bookings/': typeof BookingsIndexRoute
   '/cleaner/': typeof CleanerIndexRoute
   '/cleaning/': typeof CleaningIndexRoute
@@ -297,6 +304,7 @@ export interface FileRoutesByTo {
   '/agents': typeof AgentsIndexRoute
   '/ai-import': typeof AiImportIndexRoute
   '/analytics': typeof AnalyticsIndexRoute
+  '/blacklist': typeof BlacklistIndexRoute
   '/bookings': typeof BookingsIndexRoute
   '/cleaner': typeof CleanerIndexRoute
   '/cleaning': typeof CleaningIndexRoute
@@ -337,6 +345,7 @@ export interface FileRoutesById {
   '/agents/': typeof AgentsIndexRoute
   '/ai-import/': typeof AiImportIndexRoute
   '/analytics/': typeof AnalyticsIndexRoute
+  '/blacklist/': typeof BlacklistIndexRoute
   '/bookings/': typeof BookingsIndexRoute
   '/cleaner/': typeof CleanerIndexRoute
   '/cleaning/': typeof CleaningIndexRoute
@@ -378,6 +387,7 @@ export interface FileRouteTypes {
     | '/agents/'
     | '/ai-import/'
     | '/analytics/'
+    | '/blacklist/'
     | '/bookings/'
     | '/cleaner/'
     | '/cleaning/'
@@ -415,6 +425,7 @@ export interface FileRouteTypes {
     | '/agents'
     | '/ai-import'
     | '/analytics'
+    | '/blacklist'
     | '/bookings'
     | '/cleaner'
     | '/cleaning'
@@ -454,6 +465,7 @@ export interface FileRouteTypes {
     | '/agents/'
     | '/ai-import/'
     | '/analytics/'
+    | '/blacklist/'
     | '/bookings/'
     | '/cleaner/'
     | '/cleaning/'
@@ -494,6 +506,7 @@ export interface RootRouteChildren {
   AgentsIndexRoute: typeof AgentsIndexRoute
   AiImportIndexRoute: typeof AiImportIndexRoute
   AnalyticsIndexRoute: typeof AnalyticsIndexRoute
+  BlacklistIndexRoute: typeof BlacklistIndexRoute
   BookingsIndexRoute: typeof BookingsIndexRoute
   CleanerIndexRoute: typeof CleanerIndexRoute
   CleaningIndexRoute: typeof CleaningIndexRoute
@@ -603,6 +616,13 @@ declare module '@tanstack/react-router' {
       path: '/bookings'
       fullPath: '/bookings/'
       preLoaderRoute: typeof BookingsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/blacklist/': {
+      id: '/blacklist/'
+      path: '/blacklist'
+      fullPath: '/blacklist/'
+      preLoaderRoute: typeof BlacklistIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/analytics/': {
@@ -820,6 +840,7 @@ const rootRouteChildren: RootRouteChildren = {
   AgentsIndexRoute: AgentsIndexRoute,
   AiImportIndexRoute: AiImportIndexRoute,
   AnalyticsIndexRoute: AnalyticsIndexRoute,
+  BlacklistIndexRoute: BlacklistIndexRoute,
   BookingsIndexRoute: BookingsIndexRoute,
   CleanerIndexRoute: CleanerIndexRoute,
   CleaningIndexRoute: CleaningIndexRoute,

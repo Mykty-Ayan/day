@@ -49,7 +49,7 @@ const ICONS: Record<PanelButton, typeof Wallet> = {
  *  in once paid, the address, the rules, the minibar, and a way to write to the host. */
 export default function GuestPanelPage({ code }: { code: string }) {
   return (
-    <GuestFrame only={['ru', 'kz', 'en']} overlay>
+    <GuestFrame only={['ru', 'kz', 'en']} overlay personal>
       {(locale) => <Panel code={code} locale={locale} />}
     </GuestFrame>
   )
@@ -177,6 +177,10 @@ function PanelView({ code, panel, locale }: { code: string; panel: GuestPanel; l
   const maps = flat ? [...(flat.map_url ? [{ name: t('guestPanel.map'), url: flat.map_url }] : []), ...mapLinks(flat)] : []
   const opensAt = accessOpensAt(panel)
   const paidInFull = b ? b.paid >= b.total : false
+  // What is owed for the minibar is the server's figure, part of remaining: one rule
+  // for the guest's page, the Mini App and the booking card.
+  const minibarDue = b?.orders_due ?? 0
+  const due = b?.remaining ?? 0
   const timeReached = accessTimeReached(panel, new Date().toTimeString().slice(0, 5))
 
   function message(key: PanelButton): string {
@@ -250,7 +254,7 @@ function PanelView({ code, panel, locale }: { code: string; panel: GuestPanel; l
             </p>
           )}
           {panel.guest_name && <p className="text-[15px] text-white/90">{t('guestPanel.hello', { name: panel.guest_name })}</p>}
-          <h1 dir="auto" className="text-[28px] font-bold leading-tight tracking-tight">{flat?.name}</h1>
+          <h1 dir="auto" className="font-guest-display text-[30px] font-bold leading-tight tracking-tight">{flat?.name}</h1>
         </div>
       </header>
 
@@ -344,15 +348,17 @@ function PanelView({ code, panel, locale }: { code: string; panel: GuestPanel; l
               </Card>
             )}
 
-            {b && b.remaining > 0 && (
+            {b && due > 0 && (
               <Card aria-label={t('guestPanel.payment')}>
                 <CardTitle icon={<Wallet className="h-4 w-4" aria-hidden />}>{t('guestPanel.payment')}</CardTitle>
                 <p data-testid="guest-remaining" className="text-[28px] font-bold tabular-nums tracking-tight text-gray-900">
-                  {money(b.remaining, locale)}
+                  {money(due, locale)}
                 </p>
                 <p className="text-[13px] text-gray-500">{t('guestPanel.paid', { paid: money(b.paid, locale), total: money(b.total, locale) })}</p>
-                {(b.orders_due ?? 0) > 0 && (
-                  <p className="text-[13px] text-gray-500">{t('guestPanel.ordersDue', { amount: money(b.orders_due ?? 0, locale) })}</p>
+                {minibarDue > 0 && (
+                  <p data-testid="guest-minibar-due" className="text-[13px] text-gray-500">
+                    {t('guestPanel.ordersDue', { amount: money(minibarDue, locale) })}
+                  </p>
                 )}
                 {buttons.includes('pay') && (
                   <a
@@ -451,7 +457,7 @@ function PanelView({ code, panel, locale }: { code: string; panel: GuestPanel; l
 
             {panel.menu && (
               <div id="minibar" className="scroll-mt-4">
-                <GuestMinibar code={code} menu={panel.menu} locale={locale} />
+                <GuestMinibar code={code} menu={panel.menu} minibar={panel.minibar} orders={panel.orders} locale={locale} />
               </div>
             )}
 

@@ -8,6 +8,12 @@ export interface UserSettings {
   /** Hours before check-in the guest's page shows the door code, once paid. */
   secrets_lead_hours_daily: number
   secrets_lead_hours_hourly: number
+  /** How a guest may pay for a minibar order; at least one is on. */
+  minibar_invoice: boolean
+  minibar_on_booking: boolean
+  /** "HH:MM:SS", local; both null: round the clock. */
+  minibar_opens: string | null
+  minibar_closes: string | null
 }
 
 export async function getUserSettings(): Promise<UserSettings> {

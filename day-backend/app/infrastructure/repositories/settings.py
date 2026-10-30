@@ -21,6 +21,10 @@ def _model_to_settings(m: CompanySettingsModel) -> CompanySettings:
         time_zone=m.time_zone,
         secrets_lead_hours_daily=m.secrets_lead_hours_daily,
         secrets_lead_hours_hourly=m.secrets_lead_hours_hourly,
+        minibar_invoice=m.minibar_invoice,
+        minibar_on_booking=m.minibar_on_booking,
+        minibar_opens=m.minibar_opens,
+        minibar_closes=m.minibar_closes,
         created_at=m.created_at,
         updated_at=m.updated_at,
     )
@@ -44,6 +48,10 @@ class SqlCompanySettingsRepository(CompanySettingsRepository):
             time_zone=settings.time_zone,
             secrets_lead_hours_daily=settings.secrets_lead_hours_daily,
             secrets_lead_hours_hourly=settings.secrets_lead_hours_hourly,
+            minibar_invoice=settings.minibar_invoice,
+            minibar_on_booking=settings.minibar_on_booking,
+            minibar_opens=settings.minibar_opens,
+            minibar_closes=settings.minibar_closes,
         )
         self._session.add(model)
         await self._session.flush()
@@ -60,6 +68,10 @@ class SqlCompanySettingsRepository(CompanySettingsRepository):
                 time_zone=settings.time_zone,
                 secrets_lead_hours_daily=settings.secrets_lead_hours_daily,
                 secrets_lead_hours_hourly=settings.secrets_lead_hours_hourly,
+                minibar_invoice=settings.minibar_invoice,
+                minibar_on_booking=settings.minibar_on_booking,
+                minibar_opens=settings.minibar_opens,
+                minibar_closes=settings.minibar_closes,
                 updated_at=datetime.utcnow(),
             )
         )

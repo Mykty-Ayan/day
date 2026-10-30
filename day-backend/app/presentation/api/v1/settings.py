@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import uuid
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.application.settings.get_settings import GetSettingsService
@@ -38,6 +38,10 @@ async def update_settings(
     repo = SqlCompanySettingsRepository(session)
     svc = UpdateSettingsService(repo)
     provided = body.model_dump(exclude_unset=True)
-    result = await svc.execute(company_id, **provided)
+    try:
+        result = await svc.execute(company_id, **provided)
+    except ValueError as e:
+        await session.rollback()
+        raise HTTPException(status_code=422, detail=str(e))
     await session.commit()
     return SettingsResponse.model_validate(result, from_attributes=True)

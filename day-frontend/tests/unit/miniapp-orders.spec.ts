@@ -13,6 +13,7 @@ const order = (number: number, status: GuestOrder['status'], created_at: string)
   id: `id-${number}`,
   number,
   status,
+  billing: 'invoice',
   total: 800,
   guest_note: null,
   payment_status: null,
@@ -21,7 +22,9 @@ const order = (number: number, status: GuestOrder['status'], created_at: string)
   property_id: 'p',
   property_name: 'Т13',
   guest_name: 'Жалгас',
+  guest_phone: '+77079011161',
   created_at,
+  invoiced_at: null,
   delivered_at: null,
   items: [],
 })
@@ -41,6 +44,16 @@ test('new orders first, oldest first; then accepted; done ones apart, newest fir
   expect(splitOrders([tab, order(7, 'new', '2026-10-26T10:00:00')]).open.map((o) => o.number)).toEqual([7, 6])
 })
 
+test('an order awaiting its invoice\'s payment waits between the new ones and the ones on their way', () => {
+  const { open, done } = splitOrders([
+    order(3, 'accepted', '2026-10-26T07:00:00'),
+    order(2, 'awaiting_payment', '2026-10-26T08:00:00'),
+    order(1, 'new', '2026-10-26T09:00:00'),
+  ])
+  expect(open.map((o) => o.number)).toEqual([1, 2, 3])
+  expect(done).toEqual([])
+})
+
 test('a notice with ?order= opens the orders and leaves it behind with them', () => {
   expect(tabFromSearch(`?order=${ID}`)).toBe('orders')
   expect(tabFromSearch('?tab=orders')).toBe('orders')
@@ -58,4 +71,22 @@ test('orders on the tab count in what a guest owes, even with the stay paid', as
   const clear = { ...stay, orders_due: 0 }
   expect([owed(clear), owes(clear)]).toEqual([0, false])
   expect(owed({ ...stay, paid_amount: 30000 })).toBe(11600)
+})
+
+test('the minibar settings keep one way to pay and whole hours', async () => {
+  const { minibarSettings } = await import('../../src/pages/settings/minibar')
+  const draft = { invoice: true, onBooking: false, allDay: true, opens: '10:00', closes: '22:00' }
+  expect(minibarSettings(draft)).toEqual({
+    minibar_invoice: true,
+    minibar_on_booking: false,
+    minibar_opens: null,
+    minibar_closes: null,
+  })
+  expect(minibarSettings({ ...draft, allDay: false, closes: '02:00' })).toMatchObject({
+    minibar_opens: '10:00',
+    minibar_closes: '02:00',
+  })
+  expect(minibarSettings({ ...draft, invoice: false })).toBeNull()
+  expect(minibarSettings({ ...draft, allDay: false, closes: '10:00' })).toBeNull()
+  expect(minibarSettings({ ...draft, allDay: false, opens: '' })).toBeNull()
 })
