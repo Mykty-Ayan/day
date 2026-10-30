@@ -53,6 +53,7 @@ class AvailableProperty:
     # By the hour: the tariff that priced the stay and why it is not the hours asked.
     tariff: str | None = None
     tariff_reason: str | None = None
+    tariff_check_out: datetime | None = None
 
 
 def _as_datetime(value: date | datetime, hour: int) -> datetime:
@@ -178,6 +179,7 @@ class CheckAvailabilityService:
                     rule_breaches=breaches,
                     tariff=breakdown.tariff if breakdown else None,
                     tariff_reason=breakdown.tariff_reason if breakdown else None,
+                    tariff_check_out=breakdown.tariff_check_out if breakdown else None,
                 )
             )
 
