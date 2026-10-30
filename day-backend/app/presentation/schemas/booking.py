@@ -396,6 +396,8 @@ class AvailablePropertyResponse(BaseModel):
     # why it is not the hours asked ("rounded_up", "late", "longer"), to tell the guest.
     tariff: str | None = None
     tariff_reason: str | None = None
+    # When what was sold ends: the time to book and to tell the guest. None for whole days.
+    tariff_check_out: datetime | None = None
     # The stay as this flat books it: its own check-in and check-out hours.
     check_in: datetime | None = None
     check_out: datetime | None = None
@@ -427,6 +429,8 @@ class PriceCalculateResponse(BaseModel):
     # The hourly tariff that priced the stay ("3h", "6h", "night", "day"), if any.
     tariff: str | None = None
     tariff_reason: str | None = None
+    # When what was sold ends: the time to book and to tell the guest. None for whole days.
+    tariff_check_out: datetime | None = None
 
 
 # ---------- Gantt ----------

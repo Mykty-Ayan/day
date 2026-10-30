@@ -866,6 +866,7 @@ async def get_availability(
                 price_error=item.price_error,
                 tariff=item.tariff,
                 tariff_reason=item.tariff_reason,
+                tariff_check_out=item.tariff_check_out,
                 check_in=item.check_in,
                 check_out=item.check_out,
                 photos=[
@@ -919,6 +920,7 @@ async def calculate_price(
             total=result.total,
             tariff=result.tariff,
             tariff_reason=result.tariff_reason,
+            tariff_check_out=result.tariff_check_out,
         )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))

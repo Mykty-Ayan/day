@@ -375,6 +375,7 @@ async def test_tariffs_are_saved_and_price_an_hourly_stay(flat):  # noqa: F811  
     assert (await quote("2026-11-06T14:00:00", "2026-11-06T18:00:00"))["total"] == 14000
     night = await quote("2026-11-02T19:00:00", "2026-11-03T00:00:00")
     assert (night["tariff"], night["total"], night["tariff_reason"]) == ("night", 15000, "late")
+    assert night["tariff_check_out"].endswith("T10:00:00")
 
     # The CRM's search by the hour names the tariff and why: 22:00–01:00 is the night.
     use(Permission.PROPERTIES_WRITE, Permission.BOOKINGS_READ)
@@ -384,6 +385,7 @@ async def test_tariffs_are_saved_and_price_an_hourly_stay(flat):  # noqa: F811  
     assert found.status_code == 200, found.text
     item = next(i for i in found.json()["items"] if i["property_id"] == str(prop))
     assert (item["tariff"], item["tariff_reason"], item["total_price"]) == ("night", "late", 15000)
+    assert item["tariff_check_out"].endswith("T10:00:00")
 
 
 async def test_the_guest_page_shows_the_tariffs_instead_of_an_hourly_price():
@@ -404,3 +406,16 @@ async def test_the_guest_page_shows_the_tariffs_instead_of_an_hourly_price():
     assert prices.hour is None
     assert [(t.name, t.price, t.weekend) for t in prices.tariffs] == [("3h", 8000, 10000), ("night", 15000, None)]
     assert (prices.late_from, prices.night_to) == ("23:00", "10:00")
+
+
+async def test_what_was_sold_ends_at_the_tariff_not_at_the_hours_asked():
+    calc, prop_id = await _munar()
+    four = await _price(calc, prop_id, datetime(2026, 11, 3, 10), datetime(2026, 11, 3, 14))
+    assert (four.tariff, four.tariff_check_out) == ("6h", datetime(2026, 11, 3, 16))
+    # Never past the late hour, even with hours paid for.
+    late = await _price(calc, prop_id, datetime(2026, 11, 3, 21), datetime(2026, 11, 3, 22))
+    assert (late.tariff, late.tariff_check_out) == ("3h", datetime(2026, 11, 3, 23))
+    night = await _price(calc, prop_id, datetime(2026, 11, 3, 22), datetime(2026, 11, 4, 7))
+    assert (night.tariff, night.tariff_check_out) == ("night", datetime(2026, 11, 4, 10))
+    days = await _price(calc, prop_id, datetime(2026, 11, 3, 10), datetime(2026, 11, 4, 16))
+    assert (days.tariff, days.tariff_check_out) == ("day", None)
