@@ -12,6 +12,7 @@
     "more": "More",
     "expenses": "Expenses",
     "agents": "Agents",
+    "blacklist": "Blacklist",
     "readiness": "Readiness",
     "site": "Site",
     "inventory": "Stock"
@@ -1576,6 +1577,24 @@
     "booking": "Booking",
     "bookingNone": "No booking",
     "agentChoose": "Choose the agent"
+  },
+  "blacklist": {
+    "title": "Blacklist",
+    "hint": "Numbers of guests who caused trouble. This is a warning: the booking is your decision. Do not tell the guest about the entry.",
+    "add": "New number",
+    "phone": "Phone",
+    "reason": "Reason",
+    "save": "Add",
+    "saved": "Number added",
+    "removed": "Number removed",
+    "failed": "Could not save. Check your connection and try again",
+    "loadFailed": "Could not load the list. Refresh the page",
+    "phoneRequired": "Enter the phone number",
+    "badPhone": "Enter the number as +7XXXXXXXXXX",
+    "empty": "No numbers in the blacklist yet",
+    "remove": "Remove",
+    "removeTitle": "Remove from the blacklist?",
+    "removeMessage": "The number {{phone}} will no longer be flagged on bookings."
   },
   "agents": {
     "title": "Agents",

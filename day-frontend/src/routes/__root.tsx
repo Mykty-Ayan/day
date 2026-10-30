@@ -1,5 +1,5 @@
 import { createRootRoute, Outlet, Link, useRouterState, redirect } from '@tanstack/react-router'
-import { Building2, CalendarRange, CalendarDays, Clock, SprayCan, ClipboardList, BarChart3, Sparkles, Settings, LogOut, Wallet, Handshake, ClipboardCheck, Globe, Package } from 'lucide-react'
+import { Building2, CalendarRange, CalendarDays, Clock, SprayCan, ClipboardList, BarChart3, Sparkles, Settings, LogOut, Wallet, Handshake, ShieldAlert, ClipboardCheck, Globe, Package } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import MobileShell from '../components/layout/MobileShell'
 import ToastContainer from '../components/ui/Toast'
@@ -77,6 +77,8 @@ function AuthenticatedLayout() {
     { to: '/bookings', label: t('nav.bookings'), icon: CalendarDays },
     { to: '/bookings/today', label: t('nav.today'), icon: Clock },
     { to: '/agents', label: t('nav.agents'), icon: Handshake },
+    // Warnings about guests: for those who take bookings, not for a cleaner.
+    ...(keepsStock ? [{ to: '/blacklist', label: t('nav.blacklist'), icon: ShieldAlert }] : []),
     { to: '/cleaning', label: t('nav.cleaning'), icon: SprayCan },
     { to: '/cleaning/checklists', label: t('nav.checklists'), icon: ClipboardList },
     { to: '/analytics', label: t('nav.analytics'), icon: BarChart3 },
