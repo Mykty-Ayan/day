@@ -1492,13 +1492,15 @@ async def update_guest(
     body: GuestUpdate,
     session: AsyncSession = Depends(get_session),
     company_id: uuid.UUID = Depends(get_company_id),
+    user_id: uuid.UUID | None = Depends(get_user_id),
 ):
     phone = None
     if "phone" in body.model_fields_set:
         phone = body.phone or ""
+    repos = _repos(session)
     try:
-        guest = await UpdateGuestService(_repos(session)["guest"]).execute(
-            UpdateGuestInput(company_id=company_id, guest_id=guest_id, name=body.name, phone=phone)
+        guest = await UpdateGuestService(repos["guest"], repos["booking"], repos["audit"]).execute(
+            UpdateGuestInput(company_id=company_id, guest_id=guest_id, name=body.name, phone=phone, changed_by=user_id)
         )
     except GuestNotFound:
         raise HTTPException(status_code=404, detail="Guest not found")

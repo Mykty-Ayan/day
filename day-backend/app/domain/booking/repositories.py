@@ -76,6 +76,10 @@ class BookingRepository(abc.ABC):
         """The booking behind a guest's page link, of whichever company: the code is the key."""
 
     @abc.abstractmethod
+    async def list_by_guest(self, company_id: uuid.UUID, guest_id: uuid.UUID) -> list[Booking]:
+        """Every booking of the guest in the company, whatever its status."""
+
+    @abc.abstractmethod
     async def lock_idempotency_key(self, company_id: uuid.UUID, key: str) -> None:
         """Serialize requests carrying one Idempotency-Key until the transaction ends."""
 
