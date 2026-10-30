@@ -272,15 +272,23 @@ class GuestOrderService:
         return await self._move(company_id, order_id, _OPEN, order, was)
 
     async def deliver(
-        self, company_id: uuid.UUID, order_id: uuid.UUID, payment: OrderPayment | None, by: uuid.UUID | None
+        self,
+        company_id: uuid.UUID,
+        order_id: uuid.UUID,
+        payment: OrderPayment | None,
+        by: uuid.UUID | None,
+        on_tab: bool = True,
     ) -> GuestOrder:
         """Delivered: paid at the door (`payment`, how) or on the guest's tab (None),
-        whatever way was chosen when ordering — the host settles it as it went. An
-        order already paid by its invoice stays paid as it was. A sale per line, in
-        the same transaction. The stock may go below zero — the goods are with the
+        whatever way was chosen when ordering — the host settles it as it went;
+        with neither (`on_tab` False) the order must be paid already. An order
+        already paid by its invoice stays paid as it was. A sale per line, in the
+        same transaction. The stock may go below zero — the goods are with the
         guest; the purchase was not recorded."""
         order = await self._get(company_id, order_id)
         was = order.payment_status
+        if was != OrderPaymentStatus.PAID and payment is None and not on_tab:
+            raise ValueError("The order is not paid: say how it was settled")
         now = datetime.utcnow()
         order.status, order.delivered_at, order.handled_by = OrderStatus.DELIVERED, now, by
         if order.payment_status != OrderPaymentStatus.PAID:
