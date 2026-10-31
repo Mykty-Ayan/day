@@ -222,7 +222,9 @@ function OverviewTab({ data }: { data: CleaningTaskDetail }) {
               className="w-full sm:w-auto"
               data-testid={`cleaning-transition-${status}`}
             >
-              {t('cleaning.transitionTo', { status })}
+              {t('cleaning.transitionTo', {
+                status: t(`cleaning.status.${status === 'in_progress' ? 'inProgress' : status}`),
+              })}
             </Button>
           ))}
         </div>
