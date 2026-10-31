@@ -19,12 +19,14 @@ from app.application.analytics.get_time_series import (
     GetTimeSeriesInput,
     GetTimeSeriesService,
 )
+from app.application.booking.stay_rules import company_now
 from app.domain.analytics.value_objects import Granularity, PeriodPreset
 from app.domain.auth.permissions import Permission
 from app.infrastructure.database import get_session
 from app.infrastructure.repositories.analytics import SqlAnalyticsRepository
 from app.infrastructure.repositories.expenses import SqlExpenseRepository
 from app.infrastructure.repositories.property import SqlPropertyCostsRepository
+from app.infrastructure.repositories.settings import SqlCompanySettingsRepository
 from app.presentation.api.deps import get_company_id, require
 from app.presentation.schemas.analytics import (
     AnalyticsMetricsResponse,
@@ -37,14 +39,18 @@ from app.presentation.schemas.analytics import (
 analytics_router = APIRouter(prefix="/analytics", tags=["analytics"])
 
 
+async def _today(session: AsyncSession, company_id: uuid.UUID) -> date:
+    """The company's today: after its midnight the server's clock is still on yesterday."""
+    return (await company_now(SqlCompanySettingsRepository(session), company_id)).date()
+
+
 def _resolve_dates(
     date_from: date | None,
     date_to: date | None,
     period: PeriodPreset | None,
+    today: date,
 ) -> tuple[date, date]:
     """Resolve date range from explicit dates or period preset."""
-    today = date.today()
-
     if date_from and date_to:
         return date_from, date_to
 
@@ -80,7 +86,7 @@ async def get_metrics(
     session: AsyncSession = Depends(get_session),
     company_id: uuid.UUID = Depends(get_company_id),
 ):
-    resolved_from, resolved_to = _resolve_dates(date_from, date_to, period)
+    resolved_from, resolved_to = _resolve_dates(date_from, date_to, period, await _today(session, company_id))
 
     repo = SqlAnalyticsRepository(session)
     svc = CalculateMetricsService(repo, SqlPropertyCostsRepository(session), SqlExpenseRepository(session))
@@ -158,7 +164,7 @@ async def get_time_series(
     session: AsyncSession = Depends(get_session),
     company_id: uuid.UUID = Depends(get_company_id),
 ):
-    resolved_from, resolved_to = _resolve_dates(date_from, date_to, period)
+    resolved_from, resolved_to = _resolve_dates(date_from, date_to, period, await _today(session, company_id))
 
     repo = SqlAnalyticsRepository(session)
     svc = GetTimeSeriesService(repo)
@@ -205,7 +211,7 @@ async def export_csv(
     session: AsyncSession = Depends(get_session),
     company_id: uuid.UUID = Depends(get_company_id),
 ):
-    resolved_from, resolved_to = _resolve_dates(date_from, date_to, period)
+    resolved_from, resolved_to = _resolve_dates(date_from, date_to, period, await _today(session, company_id))
 
     repo = SqlAnalyticsRepository(session)
     svc = CalculateMetricsService(repo, SqlPropertyCostsRepository(session), SqlExpenseRepository(session))
