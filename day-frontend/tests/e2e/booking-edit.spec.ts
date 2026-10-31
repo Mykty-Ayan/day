@@ -160,7 +160,7 @@ test.describe('Booking Edit - E2E', () => {
     }
 
     // Try to find audit/history tab or section on the page.
-    const historyTab = page.getByRole('button', { name: /history|audit|log|история/i })
+    const historyTab = page.getByRole('button', { name: /history|audit|история/i })
     if (await historyTab.isVisible({ timeout: 3000 }).catch(() => false)) {
       await historyTab.first().click()
       await page.waitForTimeout(500)

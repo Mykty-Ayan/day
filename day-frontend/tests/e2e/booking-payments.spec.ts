@@ -174,7 +174,7 @@ test.describe('Booking Payments - E2E', () => {
     await openBookingTab(page, booking.id, /deposit/i)
     await page.getByRole('button', { name: /create deposit/i }).click()
     await page.getByLabel(/amount/i).fill('75')
-    await page.getByRole('button', { name: 'Create', exact: true }).click()
+    await page.locator('main').getByRole('button', { name: 'Create', exact: true }).click()
 
     // The deposit is a row of its own: the amount and the status are read inside it
     const row = page.getByRole('row', { name: /75\.00/ })
