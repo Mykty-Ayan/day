@@ -70,17 +70,12 @@ async function setupBookingWithPayment(
 }
 
 test.describe('Analytics Dashboard - Navigation', () => {
-  test('navigate to analytics from header', async ({ page }) => {
+  test('navigate to analytics from the menu', async ({ page, isMobile }) => {
     await page.goto('/')
     await page.waitForLoadState('networkidle')
 
-    const analyticsLink = page.getByRole('link', { name: /analytics/i })
-    if (await analyticsLink.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await analyticsLink.click()
-      await page.waitForURL(/\/analytics/, { timeout: 5000 })
-    } else {
-      await page.goto('/analytics')
-    }
+    if (isMobile) await page.getByRole('button', { name: 'More' }).first().click()
+    await page.getByRole('link', { name: 'Money', exact: true }).click()
 
     await expect(page).toHaveURL(/\/analytics/)
   })

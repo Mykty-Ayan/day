@@ -2,7 +2,7 @@ import { test, expect, type Page } from '../fixtures/e2e-auth'
 
 type Lang = 'ru' | 'kz' | 'en'
 
-// The menu's first item and the settings title in each language
+// A menu item and the settings title in each language
 // (nav.properties and settings.title in src/locales/*/translation.json).
 const MENU: Record<Lang, string> = { ru: 'Объекты', kz: 'Нысандар', en: 'Properties' }
 const SETTINGS: Record<Lang, string> = { ru: 'Настройки', kz: 'Баптаулар', en: 'Settings' }

@@ -138,7 +138,7 @@ function SideLink({ section, isActive }: { section: NavSection; isActive: boolea
   return (
     <Link
       to={section.to}
-      aria-current={isActive ? 'page' : undefined}
+      aria-current={isActive ? 'true' : undefined}
       className={`flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-bold transition-colors ${
         isActive ? 'bg-gray-100 text-gray-900' : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900'
       }`}
