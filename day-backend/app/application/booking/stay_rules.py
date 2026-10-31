@@ -6,9 +6,10 @@ import uuid
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
+from app.domain.booking.entities import Booking
 from app.domain.booking.repositories import BookingRepository
 from app.domain.booking.stay_rules import RuleBreach, StayRules, stay_breaches
-from app.domain.booking.value_objects import RentalMode
+from app.domain.booking.value_objects import BookingStatus, RentalMode
 from app.domain.settings.entities import DEFAULT_TIME_ZONE
 from app.domain.settings.repositories import CompanySettingsRepository
 
@@ -21,6 +22,41 @@ async def company_now(settings_repo: CompanySettingsRepository | None, company_i
         if settings is not None and settings.time_zone:
             zone = settings.time_zone
     return datetime.now(ZoneInfo(zone)).replace(tzinfo=None)
+
+
+async def overlapping_stays(
+    booking_repo: BookingRepository,
+    property_id: uuid.UUID,
+    check_in: datetime,
+    check_out: datetime,
+    *,
+    now: datetime,
+    exclude_id: uuid.UUID | None = None,
+    settled: tuple[datetime, datetime] | None = None,
+) -> list[Booking]:
+    """The stays a booking on these dates collides with. A completed stay is over, so
+    from today on the flat is free; before today it keeps its dates. `settled` is the
+    time the booking already holds: only new time can clash with a completed stay.
+
+    Day does not store the real departure, so a stay entered late over the planned
+    nights of an early departure is refused. Storing the departure would lift this."""
+    found = await booking_repo.get_by_property_and_dates(
+        property_id, check_in, check_out, exclude_id=exclude_id, include_completed=True
+    )
+    today = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    new_time = [(check_in, check_out)]
+    if settled is not None:
+        new_time = [(check_in, min(check_out, settled[0])), (max(check_in, settled[1]), check_out)]
+
+    def clashes(stay: Booking) -> bool:
+        if stay.status != BookingStatus.COMPLETED:
+            return True
+        ended = min(stay.check_out, today)
+        return stay.check_in < ended and any(
+            start < end and start < ended and end > stay.check_in for start, end in new_time
+        )
+
+    return [stay for stay in found if clashes(stay)]
 
 
 async def stay_rule_breaches(

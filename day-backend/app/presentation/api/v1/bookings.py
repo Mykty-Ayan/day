@@ -785,7 +785,7 @@ async def move_booking(
     user_id: uuid.UUID | None = Depends(get_user_id),
 ):
     repos = _repos(session)
-    svc = MoveBookingService(repos["booking"], repos["property"], repos["audit"])
+    svc = MoveBookingService(repos["booking"], repos["property"], repos["audit"], repos["settings"])
     try:
         result = await svc.execute(
             booking_id, company_id, body.target_property_id, changed_by=user_id, override_rules=body.override_rules
