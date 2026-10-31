@@ -23,7 +23,10 @@
     "company": "Компания",
     "createBooking": "Бронь",
     "createExpense": "Шығыс",
-    "createCleaning": "Тазалау"
+    "createCleaning": "Тазалау",
+    "searchPlaceholder": "Қонақ, телефон немесе нысан",
+    "searchEmpty": "Ештеңе табылмады",
+    "searchFailed": "Табу мүмкін болмады. Қайталап көріңіз"
   },
   "common": {
     "date": "Күні",

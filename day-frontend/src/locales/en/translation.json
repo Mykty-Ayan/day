@@ -23,7 +23,10 @@
     "company": "Company",
     "createBooking": "Booking",
     "createExpense": "Expense",
-    "createCleaning": "Cleaning"
+    "createCleaning": "Cleaning",
+    "searchPlaceholder": "Guest, phone or property",
+    "searchEmpty": "Nothing found",
+    "searchFailed": "Search failed. Try again"
   },
   "common": {
     "date": "Date",

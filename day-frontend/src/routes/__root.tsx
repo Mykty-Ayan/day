@@ -2,6 +2,7 @@ import { createRootRoute, Outlet, Link, useRouterState, redirect } from '@tansta
 import { LogOut } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import CreateMenu from '../components/layout/CreateMenu'
+import GlobalSearch from '../components/layout/GlobalSearch'
 import MobileShell from '../components/layout/MobileShell'
 import SectionTabs from '../components/layout/SectionTabs'
 import ToastContainer from '../components/ui/Toast'
@@ -118,7 +119,8 @@ function AuthenticatedLayout() {
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="flex min-h-[57px] items-center gap-4 border-b border-gray-100 bg-white px-6 py-2">
           {active && <SectionTabs section={active.section} activeTo={active.to} />}
-          <div className="ml-auto">
+          <div className="ml-auto flex items-center gap-3">
+            <GlobalSearch />
             <CreateMenu isOwner={isOwner} />
           </div>
         </header>
