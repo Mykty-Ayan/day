@@ -15,7 +15,15 @@
     "blacklist": "Blacklist",
     "readiness": "Readiness",
     "site": "Site",
-    "inventory": "Stock"
+    "inventory": "Stock",
+    "money": "Money",
+    "allBookings": "All bookings",
+    "allProperties": "All properties",
+    "cleaningTasks": "Tasks",
+    "company": "Company",
+    "createBooking": "Booking",
+    "createExpense": "Expense",
+    "createCleaning": "Cleaning"
   },
   "common": {
     "date": "Date",

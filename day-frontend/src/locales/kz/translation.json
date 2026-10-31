@@ -15,7 +15,15 @@
     "blacklist": "Қара тізім",
     "readiness": "Дайындық",
     "site": "Сайт",
-    "inventory": "Қойма"
+    "inventory": "Қойма",
+    "money": "Ақша",
+    "allBookings": "Барлық броньдар",
+    "allProperties": "Барлық нысандар",
+    "cleaningTasks": "Тапсырмалар",
+    "company": "Компания",
+    "createBooking": "Бронь",
+    "createExpense": "Шығыс",
+    "createCleaning": "Тазалау"
   },
   "common": {
     "date": "Күні",

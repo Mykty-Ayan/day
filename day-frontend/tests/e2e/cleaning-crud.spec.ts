@@ -81,21 +81,21 @@ test.describe('Cleaning Task CRUD - E2E', () => {
 
   // ── Navigation ────────────────────────────────────────────────────
 
-  test('navigate to cleaning list via nav bar', async ({ page }) => {
+  test('navigate to cleaning list via nav bar', async ({ page, isMobile }) => {
     await page.goto('/')
     await page.waitForLoadState('networkidle')
 
+    if (isMobile) await page.getByRole('button', { name: 'More' }).first().click()
     await page.getByRole('link', { name: /cleaning/i }).first().click()
     await page.waitForURL(/\/cleaning/, { timeout: 5000 })
 
     await expect(page.getByRole('heading', { name: /cleaning tasks/i })).toBeVisible({ timeout: 5000 })
   })
 
-  test('navigate to checklists via nav bar', async ({ page, isMobile }) => {
-    await page.goto('/')
+  test('navigate to checklists via the section tabs', async ({ page }) => {
+    await page.goto('/cleaning')
     await page.waitForLoadState('networkidle')
 
-    if (isMobile) await page.getByRole('button', { name: 'More' }).first().click()
     await page.getByRole('link', { name: /checklists/i }).click()
     await page.waitForURL(/\/cleaning\/checklists/, { timeout: 5000 })
 
@@ -436,7 +436,7 @@ test.describe('Checklist Templates - E2E', () => {
     await nameInput.fill(templateName)
 
     // Click Create
-    await page.getByRole('button', { name: /^Create$/i }).click()
+    await page.locator('main').getByRole('button', { name: /^Create$/i }).click()
 
     // Template should appear in the list
     await expect(page.getByText(templateName)).toBeVisible({ timeout: 5000 })

@@ -76,15 +76,33 @@ test.describe('Navigation - E2E', () => {
     await expect(page.getByText(data.name)).toBeVisible({ timeout: 5000 })
   })
 
-  test('navigate to Gantt chart', async ({ page, isMobile }) => {
+  test('navigate to Gantt chart', async ({ page }) => {
     await page.goto('/')
     await page.waitForLoadState('networkidle')
 
-    if (isMobile) await page.getByRole('button', { name: 'More' }).first().click()
     await page.getByRole('link', { name: 'Gantt Chart' }).click()
 
     await expect(page).toHaveURL(/\/properties\/gantt$/)
     await expect(page.getByRole('heading', { name: 'Gantt Chart' })).toBeVisible()
+  })
+
+  test('a section with several pages shows them as tabs', async ({ page }) => {
+    await page.goto('/bookings')
+    await page.getByRole('link', { name: 'Agents' }).click()
+
+    await expect(page).toHaveURL(/\/agents$/)
+    await expect(page.getByRole('link', { name: 'Agents' })).toHaveAttribute('aria-current', 'page')
+    await page.getByRole('link', { name: 'All bookings' }).click()
+    await expect(page).toHaveURL(/\/bookings$/)
+  })
+
+  test('Create opens the new booking from any section', async ({ page }) => {
+    await page.goto('/properties/gantt')
+    await page.getByRole('button', { name: 'Create', exact: true }).click()
+    await page.getByRole('link', { name: 'Booking', exact: true }).click()
+
+    await expect(page).toHaveURL(/\/bookings\/new$/)
+    await expect(page.getByRole('link', { name: 'Booking', exact: true })).toHaveCount(0)
   })
 
   test('URL routing works - direct navigation to property detail', async ({

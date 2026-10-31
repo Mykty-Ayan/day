@@ -1,94 +1,41 @@
-import { useMemo, useState, type ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import { Link } from '@tanstack/react-router'
-import {
-  BarChart3,
-  Building2,
-  CalendarDays,
-  CalendarRange,
-  ChevronRight,
-  ClipboardList,
-  Ellipsis,
-  LogOut,
-  Settings,
-  Sparkles,
-  SprayCan,
-  Clock,
-  Wallet,
-  Package,
-  Handshake, ShieldAlert,
-  ClipboardCheck,
-  Globe,
-} from 'lucide-react'
+import { ChevronRight, Ellipsis, LogOut } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
-import { AI_IMPORT_ENABLED } from '../../lib/features'
+import { activeNav, type NavSection } from '../../lib/navigation'
+import CreateMenu from './CreateMenu'
+import SectionTabs from './SectionTabs'
 
 type MobileShellProps = {
   pathname: string
+  sections: NavSection[]
   userEmail?: string
-  /** The owner also sees the company's expenses. */
+  /** The owner also adds the company's expenses. */
   isOwner?: boolean
-  /** The owner and the manager also keep the minibar's stock. */
-  keepsStock?: boolean
   onLogout: () => void
   children: ReactNode
 }
 
-function isRouteActive(pathname: string, route: string): boolean {
-  return pathname === route || pathname.startsWith(`${route}/`)
-}
+// Four sections fit the bottom bar; the rest stay under «Ещё».
+const BOTTOM_TABS = 4
 
 export default function MobileShell({
   pathname,
+  sections,
   userEmail,
   isOwner = false,
-  keepsStock = false,
   onLogout,
   children,
 }: MobileShellProps) {
   const { t } = useTranslation()
   const [isMoreOpen, setIsMoreOpen] = useState(false)
 
-  const primaryTabs = useMemo(
-    () => [
-      { to: '/properties', label: t('nav.properties'), icon: Building2 },
-      { to: '/bookings', label: t('nav.bookings'), icon: CalendarDays },
-      { to: '/cleaning', label: t('nav.cleaning'), icon: SprayCan },
-      { to: '/analytics', label: t('nav.analytics'), icon: BarChart3 },
-    ],
-    [t],
-  )
-
-  const moreLinks = useMemo(
-    () => [
-      { to: '/properties/gantt', label: t('nav.chessChart'), icon: CalendarRange },
-      { to: '/readiness', label: t('nav.readiness'), icon: ClipboardCheck },
-      { to: '/bookings/today', label: t('nav.today'), icon: Clock },
-      { to: '/cleaning/checklists', label: t('nav.checklists'), icon: ClipboardList },
-      { to: '/agents', label: t('nav.agents'), icon: Handshake },
-      ...(keepsStock ? [{ to: '/blacklist', label: t('nav.blacklist'), icon: ShieldAlert }] : []),
-      ...(isOwner ? [{ to: '/expenses', label: t('nav.expenses'), icon: Wallet }] : []),
-      ...(keepsStock ? [{ to: '/inventory', label: t('nav.inventory'), icon: Package }] : []),
-      ...(isOwner ? [{ to: '/site', label: t('nav.site'), icon: Globe }] : []),
-      ...(AI_IMPORT_ENABLED ? [{ to: '/ai-import', label: t('nav.aiImport'), icon: Sparkles }] : []),
-      { to: '/settings', label: t('nav.settings'), icon: Settings },
-    ],
-    [t, isOwner, keepsStock],
-  )
-
-  const morePrefixes = useMemo(() => moreLinks.map((item) => item.to), [moreLinks])
-  const isMoreActive = morePrefixes.some((route) => isRouteActive(pathname, route))
-
-  const pageTitle = useMemo(() => {
-    const titles = [...primaryTabs, ...moreLinks]
-    const match = titles.reduce<{ to: string; label: string } | null>((best, item) => {
-      if (!isRouteActive(pathname, item.to)) return best
-      if (!best || item.to.length > best.to.length) {
-        return item
-      }
-      return best
-    }, null)
-    return match?.label ?? 'Day'
-  }, [pathname, primaryTabs, moreLinks])
+  const primaryTabs = sections.slice(0, BOTTOM_TABS)
+  const moreLinks = sections.slice(BOTTOM_TABS)
+  const active = activeNav(sections, pathname)
+  const isMoreActive = !!active && moreLinks.includes(active.section)
+  const pageLink = active && [active.section, ...active.section.children].find(({ to }) => to === active.to)
+  const pageTitle = pageLink ? t(pageLink.labelKey) : 'Day'
 
   return (
     <div className="min-h-screen bg-white flex flex-col">
@@ -103,40 +50,41 @@ export default function MobileShell({
               <p className="truncate text-[11px] text-gray-400">{userEmail}</p>
             )}
           </div>
+          <CreateMenu isOwner={isOwner} iconOnly />
           <button
             type="button"
             onClick={() => setIsMoreOpen(true)}
-            className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg border border-gray-200 text-gray-600 transition-colors hover:bg-gray-50 hover:text-gray-900"
+            className="ml-2 flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg border border-gray-200 text-gray-600 transition-colors hover:bg-gray-50 hover:text-gray-900"
             aria-label={t('nav.more')}
           >
             <Ellipsis className="h-5 w-5" />
           </button>
         </div>
+        {active && active.section.children.length > 1 && (
+          <div className="px-3 pb-2">
+            <SectionTabs section={active.section} activeTo={active.to} />
+          </div>
+        )}
       </header>
 
       <main className="flex min-w-0 flex-1 flex-col overflow-x-hidden pb-[calc(6rem+env(safe-area-inset-bottom))]">{children}</main>
 
       <nav className="fixed inset-x-0 bottom-0 z-sticky border-t border-gray-100 bg-white safe-area-bottom">
         <div className="grid grid-cols-5 gap-1 px-2 py-2">
-          {primaryTabs.map(({ to, label, icon: Icon }) => {
-            const excludedByMore =
-              (to === '/properties' && isRouteActive(pathname, '/properties/gantt')) ||
-              (to === '/bookings' && isRouteActive(pathname, '/bookings/today')) ||
-              (to === '/cleaning' && isRouteActive(pathname, '/cleaning/checklists'))
-            const isActive = !excludedByMore && isRouteActive(pathname, to)
-
+          {primaryTabs.map((section) => {
+            const { to, labelKey, icon: Icon } = section
             return (
               <Link
                 key={to}
                 to={to}
                 className={`flex min-h-[48px] min-w-[48px] flex-col items-center justify-center gap-1 rounded-lg px-1 text-[11px] font-bold leading-tight tracking-tight transition-colors ${
-                  isActive
+                  active?.section === section
                     ? 'bg-gray-100 text-gray-900'
                     : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900'
                 }`}
               >
                 <Icon className="h-4 w-4" />
-                <span className="truncate">{label}</span>
+                <span className="truncate">{t(labelKey)}</span>
               </Link>
             )
           })}
@@ -174,7 +122,7 @@ export default function MobileShell({
             </div>
 
             <div className="space-y-2">
-              {moreLinks.map(({ to, label, icon: Icon }) => (
+              {moreLinks.map(({ to, labelKey, icon: Icon }) => (
                 <Link
                   key={to}
                   to={to}
@@ -183,7 +131,7 @@ export default function MobileShell({
                 >
                   <span className="flex items-center gap-2">
                     <Icon className="h-4 w-4 text-gray-500" />
-                    {label}
+                    {t(labelKey)}
                   </span>
                   <ChevronRight className="h-4 w-4 text-gray-300" />
                 </Link>

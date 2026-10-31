@@ -15,7 +15,15 @@
     "blacklist": "Чёрный список",
     "readiness": "Готовность",
     "site": "Сайт",
-    "inventory": "Склад"
+    "inventory": "Склад",
+    "money": "Деньги",
+    "allBookings": "Все брони",
+    "allProperties": "Все объекты",
+    "cleaningTasks": "Задачи",
+    "company": "Компания",
+    "createBooking": "Бронь",
+    "createExpense": "Расход",
+    "createCleaning": "Уборка"
   },
   "common": {
     "date": "Дата",

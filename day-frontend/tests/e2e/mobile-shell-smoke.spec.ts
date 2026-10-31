@@ -79,40 +79,34 @@ test.describe('Mobile shell/nav smoke', () => {
       await page.goto('/properties')
       await page.waitForLoadState('networkidle')
 
-      await expect(page.locator('header nav')).toHaveCount(0)
       await expect(page.getByRole('button', { name: /^More$/i }).first()).toBeVisible()
-      await expect(page.getByRole('link', { name: /^Properties$/i }).first()).toBeVisible()
-      await expect(page.getByRole('link', { name: /^Bookings$/i }).first()).toBeVisible()
-      await expect(page.getByRole('link', { name: /^Cleaning$/i }).first()).toBeVisible()
-      await expect(page.getByRole('link', { name: /^Analytics$/i }).first()).toBeVisible()
+      await expect(page.getByRole('link', { name: /^Today$/i })).toBeVisible()
+      await expect(page.getByRole('link', { name: /^Gantt Chart$/i })).toBeVisible()
+      await expect(page.getByRole('link', { name: /^Bookings$/i })).toBeVisible()
+      await expect(page.getByRole('link', { name: /^Properties$/i })).toBeVisible()
       await expectNoHorizontalOverflow(page)
 
-      await page.getByRole('link', { name: /^Bookings$/i }).first().click()
+      await page.getByRole('link', { name: /^Bookings$/i }).click()
       await page.waitForURL(/\/bookings/)
       await page.waitForLoadState('networkidle')
       await expect(page.getByRole('heading', { name: /^Bookings$/i })).toBeVisible()
       await expectNoHorizontalOverflow(page)
 
-      await page.getByRole('link', { name: /^Cleaning$/i }).first().click()
+      await page.locator('nav').getByRole('button', { name: /^More$/i }).click()
+      await page.getByRole('link', { name: /^Cleaning$/i }).click()
       await page.waitForURL(/\/cleaning/)
       await page.waitForLoadState('networkidle')
       await expect(page.getByRole('heading', { name: /cleaning/i }).first()).toBeVisible()
       await expectNoHorizontalOverflow(page)
 
-      await page.getByRole('link', { name: /^Analytics$/i }).first().click()
+      await page.locator('nav').getByRole('button', { name: /^More$/i }).click()
+      await page.getByRole('link', { name: /^Money$/i }).click()
       await page.waitForURL(/\/analytics/)
       await page.waitForLoadState('networkidle')
       await expect(page.getByRole('heading', { name: /analytics/i }).first()).toBeVisible()
       await expectNoHorizontalOverflow(page)
 
       await page.locator('nav').getByRole('button', { name: /^More$/i }).click()
-      await expect(page.getByRole('link', { name: /^Gantt Chart$/i })).toBeVisible()
-      await expect(page.getByRole('link', { name: /^Today$/i })).toBeVisible()
-      await expect(page.getByRole('link', { name: /^Checklists$/i })).toBeVisible()
-      // Only in a build that has the ai-service: the dev server reads the same env.
-      await expect(page.getByRole('link', { name: /^AI Import$/i })).toHaveCount(
-        process.env.VITE_AI_IMPORT === 'on' ? 1 : 0,
-      )
       await expect(page.getByRole('link', { name: /^Settings$/i })).toBeVisible()
 
       await page.getByRole('link', { name: /^Settings$/i }).click()
