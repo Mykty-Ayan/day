@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.9.1 — 2026-10-31
+
+Fixes from the owner's walk through ten daily tasks: dates, money and raw text on the screen.
+
+**Changes the numbers:** income and profit now include a prepayment kept after a cancellation. ADR, RevPAR, nights and bookings do not. Analytics presets now include today.
+
+### Changed
+- A prepayment kept on a cancelled stay counts as income, by flat and by source (#267)
+- Checking a guest out in the cabinet puts a cleaning on the flat, unless one is open or the stay already had one (#264)
+- Returning a deposit names the amount and asks first, on the web and in the Mini App (#263)
+
+### Fixed
+- A booking can no longer be created, extended or moved over a completed stay in the past (#261)
+- The mouse wheel no longer changes a number field (#262)
+- A wrong password says so instead of reloading the page (#265)
+- Missing strings and raw cleaning statuses on the screen; a test now fails on a key that a language lacks (#265)
+- Times in records follow the viewer's clock, and analytics presets follow the company's date (#266)
+
 ## 0.9.0 — 2026-10-30
 
 Hourly stays sell by fixed tariffs, the minibar is paid before it arrives, and profit comes from the expense journal.
