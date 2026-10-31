@@ -357,6 +357,7 @@ async def test_a_kept_prepayment_is_income_but_not_a_stay():
         assert pm.total_bookings == 1
         assert pm.booked_nights == Decimal("2")
         assert pm.adr == Decimal("100")  # 200 / 2: the stay alone
+        assert pm.revpar == Decimal("200") / Decimal("29")
 
         await session.rollback()
 
@@ -376,7 +377,8 @@ async def test_a_kept_prepayment_stays_inside_its_company_and_source():
             other_guest.company_id, other.id, other_guest.id,
             datetime(2025, 6, 10), datetime(2025, 6, 12), "200", "daily",
         ))
-        session.add_all([guest, other_guest, prop, other, kept, foreign])
+        stay = _booking(company_id, prop.id, guest.id, datetime(2025, 6, 1), datetime(2025, 6, 3), "200", "daily")
+        session.add_all([guest, other_guest, prop, other, stay, kept, foreign])
         session.add_all([_payment(kept.id, "50"), _payment(foreign.id, "60")])
         await session.flush()
         repo = SqlAnalyticsRepository(session)
@@ -387,7 +389,7 @@ async def test_a_kept_prepayment_stays_inside_its_company_and_source():
 
         assert pm.revenue == Decimal("50")
         assert [m.revenue for m in by_source] == [Decimal("50")]
-        assert no_source == []
+        assert no_source == []  # a source with no stays lists no flat, kept money or not
 
         await session.rollback()
 

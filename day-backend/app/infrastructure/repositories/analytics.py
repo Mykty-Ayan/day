@@ -161,8 +161,6 @@ class SqlAnalyticsRepository(AnalyticsRepository):
         kept_stmt = (
             select(
                 PropertyModel.id.label("property_id"),
-                PropertyModel.name.label("property_name"),
-                PropertyModel.internal_name.label("property_internal_name"),
                 BookingModel.source.label("booking_source"),
                 func.sum(payment_sub.c.net_revenue).label("kept"),
             )
@@ -176,7 +174,7 @@ class SqlAnalyticsRepository(AnalyticsRepository):
                 BookingModel.check_out > date_from,
                 payment_sub.c.net_revenue > 0,
             )
-            .group_by(PropertyModel.id, PropertyModel.name, PropertyModel.internal_name, BookingModel.source)
+            .group_by(PropertyModel.id, BookingModel.source)
         )
         if property_ids is not None:
             kept_stmt = kept_stmt.where(PropertyModel.id.in_(property_ids))
@@ -184,14 +182,9 @@ class SqlAnalyticsRepository(AnalyticsRepository):
             kept_stmt = kept_stmt.where(BookingModel.source == source)
 
         for row in (await self._session.execute(kept_stmt)).all():
-            pm = props_map.setdefault(
-                row.property_id,
-                PropertyMetrics(
-                    property_id=row.property_id,
-                    property_name=row.property_name,
-                    property_internal_name=row.property_internal_name,
-                ),
-            )
+            pm = props_map.get(row.property_id)
+            if pm is None:  # a flat the report leaves out, as it does its stays
+                continue
             kept = Decimal(str(row.kept))
             pm.revenue += kept
             pm.retained_prepayments += kept
@@ -212,10 +205,13 @@ class SqlAnalyticsRepository(AnalyticsRepository):
             # All denominators below are guarded; booked_nights is now a
             # (possibly fractional) Decimal, so `> 0` still holds for sub-day
             # occupancy and division stays safe.
+            # Kept prepayments are no income from a night: ADR and RevPAR leave them
+            # out, and the price suggestions built on RevPAR stay honest.
+            stay_revenue = pm.revenue - pm.retained_prepayments
             if pm.booked_nights > 0:
-                pm.adr = (pm.revenue - pm.retained_prepayments) / pm.booked_nights
+                pm.adr = stay_revenue / pm.booked_nights
             if total_period_days > 0:
-                pm.revpar = pm.revenue / total_period_days
+                pm.revpar = stay_revenue / total_period_days
                 pm.occupancy_rate = (
                     pm.booked_nights / Decimal(total_period_days) * 100
                 )
