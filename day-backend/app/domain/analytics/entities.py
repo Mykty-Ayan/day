@@ -16,6 +16,8 @@ class PropertyMetrics:
     property_name: str = ""
     property_internal_name: str = ""
     revenue: Decimal = Decimal("0")
+    #: Part of the revenue: prepayments kept after a cancellation. Money, but no stay.
+    retained_prepayments: Decimal = Decimal("0")
     adr: Decimal = Decimal("0")  # Average Daily Rate
     revpar: Decimal = Decimal("0")  # Revenue Per Available Room-night
     #: Everything the flat cost over the period: commission, rent, utilities,

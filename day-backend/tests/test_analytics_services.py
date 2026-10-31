@@ -186,6 +186,31 @@ class TestCalculateMetricsService:
         assert result.summary.total_profit == Decimal("6550")
 
     @pytest.mark.asyncio
+    async def test_a_kept_prepayment_lifts_income_but_not_adr_or_revpar(self):
+        pm = PropertyMetrics(
+            revenue=Decimal("3500"),
+            retained_prepayments=Decimal("500"),
+            booked_nights=10,
+            vacancy_days=20,
+            total_bookings=3,
+            avg_stay_duration=Decimal("3.33"),
+        )
+        repo = FakeAnalyticsRepository(metrics=[pm])
+        svc = CalculateMetricsService(repo, FakePropertyCostsRepository())
+
+        result = await svc.execute(
+            CalculateMetricsInput(
+                company_id=COMPANY_ID,
+                date_from=date(2025, 1, 1),
+                date_to=date(2025, 1, 31),
+            )
+        )
+
+        assert result.summary.total_revenue == Decimal("3500")
+        assert result.summary.overall_adr == Decimal("300")  # 3000 / 10
+        assert result.summary.overall_revpar == Decimal("100")  # 3000 / 30
+
+    @pytest.mark.asyncio
     async def test_overall_adr_calculation(self):
         pm = PropertyMetrics(
             revenue=Decimal("3000"),
