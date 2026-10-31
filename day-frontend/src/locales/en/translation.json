@@ -18,6 +18,9 @@
     "inventory": "Stock"
   },
   "common": {
+    "date": "Date",
+    "method": "Method",
+    "note": "Note",
     "save": "Save",
     "cancel": "Cancel",
     "edit": "Edit",
@@ -300,6 +303,8 @@
       "bufferMinutes": "15 to 1440 minutes, in steps of 15"
     },
     "amenityCategories": {
+      "accessibility": "Accessibility",
+      "other": "Other",
       "bathroom": "Bathroom",
       "kitchen": "Kitchen",
       "entertainment": "Entertainment",
@@ -496,6 +501,7 @@
       "propertyRequired": "Property is required",
       "propertyUnavailable": "Selected property is unavailable",
       "pausedProperty": "Paused property is unavailable for booking",
+      "adultsRequired": "At least one adult is required",
       "checkInRequired": "Check-in date is required",
       "checkOutRequired": "Check-out date is required",
       "checkOutAfterCheckIn": "Check-out must be after check-in",
@@ -674,7 +680,7 @@
     "started": "Started",
     "completed": "Completed",
     "verified": "Verified",
-    "transitionTo": "Transition to {{status}}",
+    "transitionTo": "Move to {{status}}",
     "statusChangedTo": "Status changed to {{status}}",
     "failedChangeStatus": "Failed to change status",
     "createCleaningTask": "Create Cleaning Task",
@@ -1384,6 +1390,9 @@
     }
   },
   "auth": {
+    "login": {
+      "wrongPassword": "Wrong email or password"
+    },
     "forgot": {
       "link": "Forgot your password?",
       "title": "Reset password",

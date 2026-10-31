@@ -18,6 +18,9 @@
     "inventory": "Склад"
   },
   "common": {
+    "date": "Дата",
+    "method": "Способ",
+    "note": "Заметка",
     "save": "Сохранить",
     "cancel": "Отмена",
     "edit": "Изменить",
@@ -306,6 +309,8 @@
       "bufferMinutes": "От 15 до 1440 минут, шагом 15"
     },
     "amenityCategories": {
+      "accessibility": "Доступность",
+      "other": "Другое",
       "bathroom": "Ванная",
       "kitchen": "Кухня",
       "entertainment": "Развлечения",
@@ -506,6 +511,7 @@
       "propertyRequired": "Выберите объект",
       "propertyUnavailable": "Выбранный объект недоступен",
       "pausedProperty": "Объект на паузе — бронь на него создать нельзя",
+      "adultsRequired": "Нужен хотя бы один взрослый",
       "checkInRequired": "Укажите дату заезда",
       "checkOutRequired": "Укажите дату выезда",
       "checkOutAfterCheckIn": "Выезд должен быть после заезда",
@@ -690,7 +696,7 @@
     "started": "Начата",
     "completed": "Завершена",
     "verified": "Проверена",
-    "transitionTo": "Перевести в {{status}}",
+    "transitionTo": "Перевести в статус «{{status}}»",
     "statusChangedTo": "Статус изменён на {{status}}",
     "failedChangeStatus": "Не удалось изменить статус",
     "createCleaningTask": "Создать задачу по уборке",
@@ -1424,6 +1430,9 @@
     }
   },
   "auth": {
+    "login": {
+      "wrongPassword": "Неверный email или пароль"
+    },
     "forgot": {
       "link": "Забыли пароль?",
       "title": "Сброс пароля",

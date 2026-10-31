@@ -18,6 +18,9 @@
     "inventory": "Қойма"
   },
   "common": {
+    "date": "Күні",
+    "method": "Тәсіл",
+    "note": "Ескерту",
     "save": "Сақтау",
     "cancel": "Болдырмау",
     "edit": "Өзгерту",
@@ -300,6 +303,8 @@
       "bufferMinutes": "15-тен 1440 минутқа дейін, 15 минут қадаммен"
     },
     "amenityCategories": {
+      "accessibility": "Қолжетімділік",
+      "other": "Басқа",
       "bathroom": "Жуынатын бөлме",
       "kitchen": "Ас үй",
       "entertainment": "Ойын-сауық",
@@ -496,6 +501,7 @@
       "propertyRequired": "Нысанды таңдаңыз",
       "propertyUnavailable": "Таңдалған нысан қол жетімді емес",
       "pausedProperty": "Тоқтатылған нысан бронь жасау үшін қол жетімді емес",
+      "adultsRequired": "Кемінде бір ересек керек",
       "checkInRequired": "Кіру күнін көрсетіңіз",
       "checkOutRequired": "Шығу күнін көрсетіңіз",
       "checkOutAfterCheckIn": "Шығу кіруден кейін болуы керек",
@@ -674,7 +680,7 @@
     "started": "Басталды",
     "completed": "Аяқталды",
     "verified": "Тексерілді",
-    "transitionTo": "{{status}} күйіне ауыстыру",
+    "transitionTo": "«{{status}}» күйіне ауыстыру",
     "statusChangedTo": "Күй {{status}} болып өзгерді",
     "failedChangeStatus": "Күйді өзгерту сәтсіз аяқталды",
     "createCleaningTask": "Тазалау тапсырмасын жасау",
@@ -1378,6 +1384,9 @@
     }
   },
   "auth": {
+    "login": {
+      "wrongPassword": "Email немесе құпия сөз қате"
+    },
     "forgot": {
       "link": "Құпиясөзді ұмыттыңыз ба?",
       "title": "Құпиясөзді қалпына келтіру",
