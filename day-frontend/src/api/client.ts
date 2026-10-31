@@ -127,7 +127,7 @@ apiClient.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config
     // A wrong password is a 401 too: the sign-in page shows it, there is no session to save.
-    if (originalRequest.url === '/auth/login') return Promise.reject(error)
+    if (originalRequest?.url === '/auth/login') return Promise.reject(error)
     if (error.response?.status === 401 && !originalRequest._retry) {
       const refreshTokenValue = localStorage.getItem('refresh_token')
       if (!refreshTokenValue) {

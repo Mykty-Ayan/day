@@ -13,7 +13,7 @@ export default function LoginPage() {
   const loginMutation = useLogin()
   const verifyMutation = useVerifyLogin()
   const [code, setCode] = useState('')
-  const loginError = (loginMutation.error ?? {}) as { response?: { status?: number; data?: { detail?: string } } }
+  const loginError = (loginMutation.error ?? {}) as { response?: { data?: { detail?: string } } }
   const challenge = loginMutation.data?.two_factor_required ? loginMutation.data.challenge : null
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -97,7 +97,7 @@ export default function LoginPage() {
 
           {loginMutation.isError && (
             <p className="text-xs text-red-600">
-              {loginError.response?.status === 401
+              {loginError.response?.data?.detail === 'Invalid email or password'
                 ? t('auth.login.wrongPassword')
                 : loginError.response?.data?.detail || 'Login failed'}
             </p>
