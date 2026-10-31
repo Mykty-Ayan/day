@@ -156,6 +156,47 @@ class SqlAnalyticsRepository(AnalyticsRepository):
             rate = _COMMISSION_RATES.get(booking_source or "", Decimal("0"))
             pm.commission += revenue * rate
 
+        # A cancelled stay is no stay, but a prepayment the host kept is income.
+        # Only money still held counts: a refund takes it back to nothing.
+        kept_stmt = (
+            select(
+                PropertyModel.id.label("property_id"),
+                PropertyModel.name.label("property_name"),
+                PropertyModel.internal_name.label("property_internal_name"),
+                BookingModel.source.label("booking_source"),
+                func.sum(payment_sub.c.net_revenue).label("kept"),
+            )
+            .select_from(BookingModel)
+            .join(PropertyModel, PropertyModel.id == BookingModel.property_id)
+            .join(payment_sub, payment_sub.c.booking_id == BookingModel.id)
+            .where(
+                PropertyModel.company_id == company_id,
+                BookingModel.status == "cancelled",
+                BookingModel.check_in < date_to,
+                BookingModel.check_out > date_from,
+                payment_sub.c.net_revenue > 0,
+            )
+            .group_by(PropertyModel.id, PropertyModel.name, PropertyModel.internal_name, BookingModel.source)
+        )
+        if property_ids is not None:
+            kept_stmt = kept_stmt.where(PropertyModel.id.in_(property_ids))
+        if source is not None:
+            kept_stmt = kept_stmt.where(BookingModel.source == source)
+
+        for row in (await self._session.execute(kept_stmt)).all():
+            pm = props_map.setdefault(
+                row.property_id,
+                PropertyMetrics(
+                    property_id=row.property_id,
+                    property_name=row.property_name,
+                    property_internal_name=row.property_internal_name,
+                ),
+            )
+            kept = Decimal(str(row.kept))
+            pm.revenue += kept
+            pm.retained_prepayments += kept
+            pm.commission += kept * _COMMISSION_RATES.get(row.booking_source or "", Decimal("0"))
+
         # Compute derived metrics
         for pm in props_map.values():
             # Expenses and profit are not computed here. Rent, utilities and
@@ -172,7 +213,7 @@ class SqlAnalyticsRepository(AnalyticsRepository):
             # (possibly fractional) Decimal, so `> 0` still holds for sub-day
             # occupancy and division stays safe.
             if pm.booked_nights > 0:
-                pm.adr = pm.revenue / pm.booked_nights
+                pm.adr = (pm.revenue - pm.retained_prepayments) / pm.booked_nights
             if total_period_days > 0:
                 pm.revpar = pm.revenue / total_period_days
                 pm.occupancy_rate = (
