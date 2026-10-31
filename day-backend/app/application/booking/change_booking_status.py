@@ -2,12 +2,17 @@ from __future__ import annotations
 
 import uuid
 
+from app.application.booking.stay_rules import company_now
+from app.application.cleaning.create_task import clean_after_stay
 from app.domain.booking.entities import Booking, BookingAuditLog
 from app.domain.booking.repositories import (
     BookingAuditLogRepository,
     BookingRepository,
 )
 from app.domain.booking.value_objects import BookingAuditAction, BookingStatus
+from app.domain.cleaning.repositories import CleaningTaskRepository
+from app.domain.property.repositories import PropertyRepository
+from app.domain.settings.repositories import CompanySettingsRepository
 
 
 class ChangeBookingStatusService:
@@ -15,9 +20,16 @@ class ChangeBookingStatusService:
         self,
         booking_repo: BookingRepository,
         audit_repo: BookingAuditLogRepository,
+        *,
+        task_repo: CleaningTaskRepository | None = None,
+        property_repo: PropertyRepository | None = None,
+        settings_repo: CompanySettingsRepository | None = None,
     ) -> None:
         self._booking_repo = booking_repo
         self._audit_repo = audit_repo
+        self._task_repo = task_repo
+        self._property_repo = property_repo
+        self._settings_repo = settings_repo
 
     async def execute(
         self,
@@ -48,5 +60,13 @@ class ChangeBookingStatusService:
                 action=BookingAuditAction.STATUS_CHANGE,
             )
         )
+
+        if target_status == BookingStatus.CHECKED_OUT and self._task_repo and self._property_repo:
+            today = (await company_now(self._settings_repo, company_id)).date()
+            # A stay closed days late was cleaned long ago: the task would only be noise.
+            if updated.check_out.date() >= today:
+                await clean_after_stay(
+                    self._task_repo, self._property_repo, updated, today=today, notes="Гость выехал"
+                )
 
         return updated
