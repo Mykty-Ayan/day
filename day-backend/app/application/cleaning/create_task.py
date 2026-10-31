@@ -67,9 +67,10 @@ async def clean_after_stay(
     today: date,
     notes: str,
 ) -> bool:
-    """A guest left: the flat gets a cleaning for today unless one is open. Says if it made one."""
-    open_tasks = [t for t in await tasks.list_by_property(booking.property_id, limit=100) if t.status in _OPEN]
-    if open_tasks:
+    """A guest left: the flat gets a cleaning for today, unless one is open or this stay
+    already had one (the guest marked leaving and the maid finished). Says if it made one."""
+    flat_tasks = await tasks.list_by_property(booking.property_id, limit=100)
+    if any(t.status in _OPEN or t.booking_id == booking.id for t in flat_tasks):
         return False
     await CreateCleaningTaskService(tasks, properties).execute(
         CreateCleaningTaskInput(

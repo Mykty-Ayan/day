@@ -3,7 +3,8 @@ checked out a stay on production and no cleaning appeared."""
 
 from __future__ import annotations
 
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
+from zoneinfo import ZoneInfo
 
 import pytest
 from sqlalchemy import delete, select
@@ -14,10 +15,15 @@ from app.application.booking.change_booking_status import ChangeBookingStatusSer
 from app.config import settings
 from app.domain.booking.value_objects import BookingStatus
 from app.domain.cleaning.value_objects import CleaningStatus, CleaningType
+from app.domain.settings.entities import DEFAULT_TIME_ZONE
 from app.infrastructure.models.cleaning import CleaningTaskModel
 from tests.test_booking_services import COMPANY_ID, FakeBookingAuditLogRepository, FakeBookingRepository, _make_booking
 from tests.test_cleaning_services import FakeCleaningTaskRepository, FakePropertyRepository, _make_property, _make_task
 from tests.test_crm_booking_create import _body, crm  # noqa: F401  (a fixture)
+
+
+def _today() -> date:
+    return datetime.now(ZoneInfo(DEFAULT_TIME_ZONE)).date()
 
 
 async def _setup(check_out: date, status=BookingStatus.CHECKED_IN):
@@ -37,7 +43,7 @@ async def _setup(check_out: date, status=BookingStatus.CHECKED_IN):
 
 @pytest.mark.asyncio
 async def test_a_check_out_puts_a_cleaning_on_the_flat():
-    today = date.today()
+    today = _today()
     service, booking, tasks, prop = await _setup(today)
 
     await service.execute(booking.id, COMPANY_ID, BookingStatus.CHECKED_OUT)
@@ -51,7 +57,7 @@ async def test_a_check_out_puts_a_cleaning_on_the_flat():
 
 @pytest.mark.asyncio
 async def test_an_open_cleaning_is_not_doubled():
-    service, booking, tasks, prop = await _setup(date.today())
+    service, booking, tasks, prop = await _setup(_today())
     await tasks.create(_make_task(property_id=prop.id))
 
     await service.execute(booking.id, COMPANY_ID, BookingStatus.CHECKED_OUT)
@@ -60,8 +66,27 @@ async def test_an_open_cleaning_is_not_doubled():
 
 
 @pytest.mark.asyncio
+async def test_a_stay_the_maid_already_cleaned_is_not_cleaned_twice():
+    service, booking, tasks, prop = await _setup(_today())
+    await tasks.create(_make_task(property_id=prop.id, status=CleaningStatus.DONE, booking_id=booking.id))
+
+    await service.execute(booking.id, COMPANY_ID, BookingStatus.CHECKED_OUT)
+
+    assert len(await tasks.list_by_property(prop.id)) == 1
+
+
+@pytest.mark.asyncio
+async def test_a_stay_closed_the_next_morning_still_gets_its_cleaning():
+    service, booking, tasks, prop = await _setup(_today() - timedelta(days=1))
+
+    await service.execute(booking.id, COMPANY_ID, BookingStatus.CHECKED_OUT)
+
+    assert len(await tasks.list_by_property(prop.id)) == 1
+
+
+@pytest.mark.asyncio
 async def test_a_stay_closed_days_late_gets_no_cleaning():
-    service, booking, tasks, prop = await _setup(date.today() - timedelta(days=3))
+    service, booking, tasks, prop = await _setup(_today() - timedelta(days=3))
 
     await service.execute(booking.id, COMPANY_ID, BookingStatus.CHECKED_OUT)
 
@@ -70,7 +95,7 @@ async def test_a_stay_closed_days_late_gets_no_cleaning():
 
 @pytest.mark.asyncio
 async def test_other_status_changes_make_no_cleaning():
-    service, booking, tasks, prop = await _setup(date.today(), status=BookingStatus.CHECKED_OUT)
+    service, booking, tasks, prop = await _setup(_today(), status=BookingStatus.CHECKED_OUT)
 
     await service.execute(booking.id, COMPANY_ID, BookingStatus.COMPLETED)
 
@@ -80,7 +105,7 @@ async def test_other_status_changes_make_no_cleaning():
 @pytest.mark.integration
 async def test_a_check_out_through_the_api_leaves_a_cleaning(crm):  # noqa: F811  (the imported fixture)
     client, prop = crm
-    tomorrow = date.today() + timedelta(days=1)
+    tomorrow = _today() + timedelta(days=1)
     created = await client.post(
         "/api/v1/bookings",
         json=_body(prop, check_in=f"{tomorrow}T14:00:00", check_out=f"{tomorrow + timedelta(days=1)}T12:00:00"),

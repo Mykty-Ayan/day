@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import uuid
+from datetime import timedelta
 
 from app.application.booking.stay_rules import company_now
 from app.application.cleaning.create_task import clean_after_stay
@@ -63,8 +64,9 @@ class ChangeBookingStatusService:
 
         if target_status == BookingStatus.CHECKED_OUT and self._task_repo and self._property_repo:
             today = (await company_now(self._settings_repo, company_id)).date()
-            # A stay closed days late was cleaned long ago: the task would only be noise.
-            if updated.check_out.date() >= today:
+            # Closed the next morning it may still wait for a maid; closed days late
+            # it was cleaned long ago, and the task would only be noise.
+            if updated.check_out.date() >= today - timedelta(days=1):
                 await clean_after_stay(
                     self._task_repo, self._property_repo, updated, today=today, notes="Гость выехал"
                 )
