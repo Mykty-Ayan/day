@@ -151,7 +151,8 @@ export default function MiniAppPage() {
     queryFn: () =>
       listBookings({
         date_from: toISODate(today),
-        date_to: toISODate(addDays(today, UPCOMING_DAYS)),
+        // date_to is a whole day: the window is today and the days after it.
+        date_to: toISODate(addDays(today, UPCOMING_DAYS - 1)),
         per_page: 50,
       }),
     enabled: enabled && tab === 'today',
