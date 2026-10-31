@@ -4,7 +4,7 @@ import contextlib
 import re
 import uuid
 from collections.abc import Sequence
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from decimal import Decimal
 
 from sqlalchemy import and_, case, delete, func, select, text, tuple_, update
@@ -571,7 +571,9 @@ class SqlBookingRepository(BookingRepository):
         if date_from is not None:
             stmt = stmt.where(BookingModel.check_out >= date_from)
         if date_to is not None:
-            stmt = stmt.where(BookingModel.check_in <= date_to)
+            # date_to is a whole day: compared as a date it is midnight, and a stay
+            # arriving that afternoon was left out.
+            stmt = stmt.where(BookingModel.check_in < date_to + timedelta(days=1))
         return stmt
 
     async def list_by_company(
