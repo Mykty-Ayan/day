@@ -18,6 +18,7 @@ import {
 } from 'lucide-react'
 import { useNavigate, useParams } from '@tanstack/react-router'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
+import { showToast } from '../../components/ui/Toast'
 import Spinner from '../../components/ui/Spinner'
 import { useMediaQuery } from '../../hooks/useMediaQuery'
 import Button from '../../components/ui/Button'
@@ -971,6 +972,16 @@ function DepositCard({ bookingId, deposit }: { bookingId: string; deposit: Booki
   const [actionForm, setActionForm] = useState<{ action: DepositAction; held_amount: string; reason: string } | null>(null)
   const [confirmingReturn, setConfirmingReturn] = useState(false)
 
+  function returnDeposit() {
+    depAction.mutate(
+      { action: 'return' },
+      {
+        onSuccess: () => setConfirmingReturn(false),
+        onError: () => showToast('error', t('bookings.deposits.returnFailed')),
+      },
+    )
+  }
+
   function handleAction() {
     if (!actionForm) return
     const input: DepositActionInput = {
@@ -1106,9 +1117,7 @@ function DepositCard({ bookingId, deposit }: { bookingId: string; deposit: Booki
         confirmLabel={t('bookings.deposits.returnConfirm')}
         loading={depAction.isPending}
         onCancel={() => setConfirmingReturn(false)}
-        onConfirm={() =>
-          depAction.mutate({ action: 'return' }, { onSettled: () => setConfirmingReturn(false) })
-        }
+        onConfirm={returnDeposit}
       />
     </div>
   )
@@ -1120,6 +1129,16 @@ function DepositTableRow({ bookingId, deposit }: { bookingId: string; deposit: B
   const depAction = useDepositAction(bookingId, deposit.id)
   const [actionForm, setActionForm] = useState<{ action: DepositAction; held_amount: string; reason: string } | null>(null)
   const [confirmingReturn, setConfirmingReturn] = useState(false)
+
+  function returnDeposit() {
+    depAction.mutate(
+      { action: 'return' },
+      {
+        onSuccess: () => setConfirmingReturn(false),
+        onError: () => showToast('error', t('bookings.deposits.returnFailed')),
+      },
+    )
+  }
 
   function handleAction() {
     if (!actionForm) return
@@ -1254,9 +1273,7 @@ function DepositTableRow({ bookingId, deposit }: { bookingId: string; deposit: B
           confirmLabel={t('bookings.deposits.returnConfirm')}
           loading={depAction.isPending}
           onCancel={() => setConfirmingReturn(false)}
-          onConfirm={() =>
-            depAction.mutate({ action: 'return' }, { onSettled: () => setConfirmingReturn(false) })
-          }
+          onConfirm={returnDeposit}
         />
       </td>
     </tr>

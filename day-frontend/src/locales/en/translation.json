@@ -452,6 +452,7 @@
       "returnAsk": "Return the deposit of {{amount}}?",
       "returnWarning": "The status becomes Returned. You cannot undo this.",
       "returnConfirm": "Return deposit",
+      "returnFailed": "Could not return the deposit. Check your connection and try again.",
       "hold": "Hold",
       "partiallyHold": "Partially Hold",
       "held": "Held",
