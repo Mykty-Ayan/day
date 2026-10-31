@@ -52,7 +52,9 @@ async def overlapping_stays(
         if stay.status != BookingStatus.COMPLETED:
             return True
         ended = min(stay.check_out, today)
-        return any(start < end and start < ended and end > stay.check_in for start, end in new_time)
+        return stay.check_in < ended and any(
+            start < end and start < ended and end > stay.check_in for start, end in new_time
+        )
 
     return [stay for stay in found if clashes(stay)]
 

@@ -910,6 +910,27 @@ class TestCreateBookingService:
         assert result.property_id == prop.id
 
     @pytest.mark.asyncio
+    async def test_a_no_show_marked_completed_today_holds_no_past_time(self):
+        booking_repo, _, _, svc, prop = await self._setup()
+        today = date.today()
+        no_show = _make_booking(
+            prop.id, check_in=today, check_out=today + timedelta(days=2), status=BookingStatus.COMPLETED
+        )
+        await booking_repo.create(no_show)
+
+        result = await svc.execute(
+            CreateBookingInput(
+                company_id=COMPANY_ID,
+                property_id=prop.id,
+                guest_name="Guest",
+                check_in=today - timedelta(days=1),
+                check_out=today + timedelta(days=1),
+            )
+        )
+
+        assert result.property_id == prop.id
+
+    @pytest.mark.asyncio
     async def test_reuse_existing_guest_by_phone(self):
         _, guest_repo, _, svc, prop = await self._setup()
         existing_guest = Guest(company_id=COMPANY_ID, name="Existing", phone="+77001112233")
