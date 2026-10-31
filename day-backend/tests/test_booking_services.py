@@ -1,7 +1,7 @@
 """Unit tests for booking application services."""
 
 import uuid
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, time, timedelta
 from decimal import Decimal
 
 import pytest
@@ -889,6 +889,27 @@ class TestCreateBookingService:
         assert result.property_id == prop.id
 
     @pytest.mark.asyncio
+    async def test_a_stay_finished_today_does_not_stop_tonights_sale(self):
+        booking_repo, _, _, svc, prop = await self._setup()
+        today = date.today()
+        earlier_today = datetime.combine(today, time(0, 30))
+        hourly = _make_booking(prop.id, status=BookingStatus.COMPLETED, rental_mode=RentalMode.HOURLY)
+        hourly.check_in, hourly.check_out = earlier_today, earlier_today + timedelta(hours=16)
+        await booking_repo.create(hourly)
+
+        result = await svc.execute(
+            CreateBookingInput(
+                company_id=COMPANY_ID,
+                property_id=prop.id,
+                guest_name="Guest",
+                check_in=today,
+                check_out=today + timedelta(days=1),
+            )
+        )
+
+        assert result.property_id == prop.id
+
+    @pytest.mark.asyncio
     async def test_reuse_existing_guest_by_phone(self):
         _, guest_repo, _, svc, prop = await self._setup()
         existing_guest = Guest(company_id=COMPANY_ID, name="Existing", phone="+77001112233")
@@ -1290,6 +1311,47 @@ class TestUpdateBookingService:
             )
 
     @pytest.mark.asyncio
+    async def test_a_stay_sold_after_an_early_departure_can_still_be_extended(self):
+        booking_repo, _, svc, booking, prop_id = await self._setup()
+        today = date.today()
+        booking.check_in = datetime.combine(today - timedelta(days=2), time(14))
+        booking.check_out = datetime.combine(today + timedelta(days=1), time(12))
+        left_early = _make_booking(
+            prop_id,
+            check_in=today - timedelta(days=5),
+            check_out=today + timedelta(days=5),
+            status=BookingStatus.COMPLETED,
+        )
+        await booking_repo.create(left_early)
+
+        result = await svc.execute(
+            UpdateBookingInput(booking_id=booking.id, company_id=COMPANY_ID, check_out=today + timedelta(days=2))
+        )
+
+        assert result.check_out.date() == today + timedelta(days=2)
+
+    @pytest.mark.asyncio
+    async def test_a_note_keeps_the_refusal_for_two_active_stays_that_clash(self):
+        booking_repo, _, svc, booking, prop_id = await self._setup()
+        booking.overbooking = True
+        twin = _make_booking(
+            prop_id, check_in=booking.check_in.date(), check_out=booking.check_out.date(), overbooking=True
+        )
+        await booking_repo.create(twin)
+
+        with pytest.raises(BookingOverlapError, match="overlaps"):
+            await svc.execute(
+                UpdateBookingInput(
+                    booking_id=booking.id,
+                    company_id=COMPANY_ID,
+                    check_in=booking.check_in.date(),
+                    check_out=booking.check_out.date(),
+                    notes="Позвонить гостю",
+                )
+            )
+        assert booking.overbooking is True
+
+    @pytest.mark.asyncio
     async def test_a_note_can_be_saved_on_a_stay_that_shares_dates_with_a_completed_one(self):
         booking_repo, _, svc, booking, prop_id = await self._setup()
         done = _make_booking(
@@ -1613,6 +1675,24 @@ class TestMoveBookingService:
 
         with pytest.raises(BookingOverlapError, match="overlaps"):
             await svc.execute(booking.id, COMPANY_ID, prop_b.id)
+
+    @pytest.mark.asyncio
+    async def test_a_guest_in_house_can_move_to_a_flat_with_a_finished_stay(self):
+        booking_repo, _, _, svc, booking, _, prop_b = await self._setup()
+        today = date.today()
+        booking.check_in = datetime.combine(today - timedelta(days=3), time(14))
+        booking.check_out = datetime.combine(today + timedelta(days=2), time(12))
+        finished = _make_booking(
+            prop_b.id,
+            check_in=today - timedelta(days=4),
+            check_out=today - timedelta(days=1),
+            status=BookingStatus.COMPLETED,
+        )
+        await booking_repo.create(finished)
+
+        result = await svc.execute(booking.id, COMPANY_ID, prop_b.id)
+
+        assert result.property_id == prop_b.id
 
     @pytest.mark.asyncio
     async def test_target_not_found_raises(self):

@@ -32,13 +32,29 @@ async def overlapping_stays(
     *,
     now: datetime,
     exclude_id: uuid.UUID | None = None,
+    settled: tuple[datetime, datetime] | None = None,
 ) -> list[Booking]:
-    """The stays a booking on these dates collides with. A completed stay keeps the
-    time it took; the nights left after an early departure are free to sell."""
+    """The stays a booking on these dates collides with. A completed stay is over, so
+    from today on the flat is free; before today it keeps its dates. `settled` is the
+    time the booking already holds: only new time can clash with a completed stay.
+
+    Day does not store the real departure, so a stay entered late over the planned
+    nights of an early departure is refused. Storing the departure would lift this."""
     found = await booking_repo.get_by_property_and_dates(
         property_id, check_in, check_out, exclude_id=exclude_id, include_completed=True
     )
-    return [b for b in found if b.status != BookingStatus.COMPLETED or min(b.check_out, now) > check_in]
+    today = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    new_time = [(check_in, check_out)]
+    if settled is not None:
+        new_time = [(check_in, min(check_out, settled[0])), (max(check_in, settled[1]), check_out)]
+
+    def clashes(stay: Booking) -> bool:
+        if stay.status != BookingStatus.COMPLETED:
+            return True
+        ended = min(stay.check_out, today)
+        return any(start < end and start < ended and end > stay.check_in for start, end in new_time)
+
+    return [stay for stay in found if clashes(stay)]
 
 
 async def stay_rule_breaches(
