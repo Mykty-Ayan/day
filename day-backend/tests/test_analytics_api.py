@@ -80,7 +80,7 @@ async def test_get_metrics_default_period(client):
 
 
 @pytest.mark.asyncio
-async def test_a_period_ends_on_the_companys_today(client, monkeypatch):
+async def test_a_period_includes_the_companys_today(client, monkeypatch):
     # 00:30 in Almaty on 31 October: the server's clock in UTC is still on the 30th.
     async def company_now(_settings_repo, _company_id):
         return datetime(2026, 10, 31, 0, 30)
@@ -90,9 +90,11 @@ async def test_a_period_ends_on_the_companys_today(client, monkeypatch):
     resp = await client.get("/api/v1/analytics/metrics", params={"period": "month"})
 
     assert resp.status_code == 200
-    assert resp.json()["date_to"] == "2026-10-31"
+    # date_to is the first day after the period.
+    assert resp.json()["date_to"] == "2026-11-01"
 
 
+@pytest.mark.asyncio
 async def test_get_metrics_period_week(client):
     response = await client.get("/api/v1/analytics/metrics?period=week")
     assert response.status_code == 200

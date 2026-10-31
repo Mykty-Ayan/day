@@ -2,7 +2,7 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { Check, ClipboardList, GripVertical, Pencil, Plus, Trash2, X } from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { serverTime } from '../../lib/server-time'
+import { parseApiDateTime } from '../../utils/date-time'
 
 import Button from '../../components/ui/Button'
 import { showToast } from '../../components/ui/Toast'
@@ -242,7 +242,7 @@ export default function ChecklistTemplatesPage() {
                   </div>
                 </div>
                 <p className="text-xs text-gray-400 mt-1">
-                  {t('checklists.created', { date: serverTime(tmpl.created_at).toLocaleDateString() })}
+                  {t('checklists.created', { date: parseApiDateTime(tmpl.created_at).toLocaleDateString() })}
                 </p>
               </motion.div>
             ))

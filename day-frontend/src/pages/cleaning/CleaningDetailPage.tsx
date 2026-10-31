@@ -3,7 +3,7 @@ import { ArrowLeft, Camera, CheckCircle2, ClipboardList, Info } from 'lucide-rea
 import { useState } from 'react'
 import { Link, useParams } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
-import { serverTime } from '../../lib/server-time'
+import { parseApiDateTime } from '../../utils/date-time'
 
 import CleaningStatusBadge from '../../components/cleaning/CleaningStatusBadge'
 import CleaningTypeBadge from '../../components/cleaning/CleaningTypeBadge'
@@ -184,7 +184,7 @@ function OverviewTab({ data }: { data: CleaningTaskDetail }) {
             <div>
               <span className="text-gray-400">{t('cleaning.started')}</span>
               <p className="font-medium mt-1">
-                {serverTime(task.started_at).toLocaleString()}
+                {parseApiDateTime(task.started_at).toLocaleString()}
               </p>
             </div>
           )}
@@ -192,7 +192,7 @@ function OverviewTab({ data }: { data: CleaningTaskDetail }) {
             <div>
               <span className="text-gray-400">{t('cleaning.completed')}</span>
               <p className="font-medium mt-1">
-                {serverTime(task.completed_at).toLocaleString()}
+                {parseApiDateTime(task.completed_at).toLocaleString()}
               </p>
             </div>
           )}
@@ -200,7 +200,7 @@ function OverviewTab({ data }: { data: CleaningTaskDetail }) {
             <div>
               <span className="text-gray-400">{t('cleaning.verified')}</span>
               <p className="font-medium mt-1">
-                {serverTime(task.verified_at).toLocaleString()}
+                {parseApiDateTime(task.verified_at).toLocaleString()}
               </p>
             </div>
           )}
@@ -262,7 +262,7 @@ function ReportTab({ data }: { data: CleaningTaskDetail }) {
             <span className="text-gray-400">{t('cleaning.submitted')}</span>
             <p className="font-medium mt-1">
               {report.report.submitted_at
-                ? serverTime(report.report.submitted_at).toLocaleString()
+                ? parseApiDateTime(report.report.submitted_at).toLocaleString()
                 : '—'}
             </p>
           </div>

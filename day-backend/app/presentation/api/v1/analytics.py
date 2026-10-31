@@ -57,18 +57,20 @@ def _resolve_dates(
     if period is None:
         period = PeriodPreset.MONTH
 
+    # date_to is the first day after the period: a preset must not lose today.
+    tomorrow = today + timedelta(days=1)
     if period == PeriodPreset.WEEK:
-        return today - timedelta(days=7), today
+        return today - timedelta(days=7), tomorrow
     elif period == PeriodPreset.MONTH:
-        return today - timedelta(days=30), today
+        return today - timedelta(days=30), tomorrow
     elif period == PeriodPreset.QUARTER:
-        return today - timedelta(days=90), today
+        return today - timedelta(days=90), tomorrow
     elif period == PeriodPreset.YEAR:
-        return today - timedelta(days=365), today
+        return today - timedelta(days=365), tomorrow
     else:
         # CUSTOM requires explicit dates
         if not date_from or not date_to:
-            return today - timedelta(days=30), today
+            return today - timedelta(days=30), tomorrow
         return date_from, date_to
 
 

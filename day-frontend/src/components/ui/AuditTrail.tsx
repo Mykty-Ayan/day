@@ -1,6 +1,6 @@
 import { ArrowRight, Clock, Plus, Pencil, Trash2, RefreshCw } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
-import { serverTime } from '../../lib/server-time'
+import { parseApiDateTime } from '../../utils/date-time'
 
 interface AuditEntry {
   id: string
@@ -79,7 +79,7 @@ export default function AuditTrail({ entries, title }: Props) {
                   ) : null}
                   <p className="text-xs text-gray-400 mt-0.5">
                     {entry.changed_by && `${t('audit.by', { name: entry.changed_by })} · `}
-                    {serverTime(entry.created_at).toLocaleString()}
+                    {parseApiDateTime(entry.created_at).toLocaleString()}
                   </p>
                 </div>
               </div>
