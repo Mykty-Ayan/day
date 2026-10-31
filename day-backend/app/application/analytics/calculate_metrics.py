@@ -101,13 +101,15 @@ class CalculateMetricsService:
             total_available_nights += pm.booked_nights + pm.vacancy_days
             weighted_stay_sum += pm.avg_stay_duration * pm.total_bookings
 
+        stay_revenue = summary.total_revenue - sum((pm.retained_prepayments for pm in properties), Decimal("0"))
+
         # Overall ADR (guarded against fractional/zero denominators)
         if total_booked_nights > 0:
-            summary.overall_adr = summary.total_revenue / total_booked_nights
+            summary.overall_adr = stay_revenue / total_booked_nights
 
         # Overall RevPAR
         if total_available_nights > 0:
-            summary.overall_revpar = summary.total_revenue / total_available_nights
+            summary.overall_revpar = stay_revenue / total_available_nights
             summary.overall_occupancy_rate = (
                 total_booked_nights / total_available_nights * 100
             )

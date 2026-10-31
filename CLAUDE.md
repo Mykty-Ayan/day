@@ -85,7 +85,7 @@ Ports: Backend `:8000` (API at `/api/v1`), Frontend `:3000`, PostgreSQL `:5432`,
 ## Status
 
 Core PMS (auth, properties, bookings, cleaning, analytics) is complete and in production.
-Production runs 0.9.0 (`CHANGELOG.md`). On top of the core:
+Production runs 0.9.1 (`CHANGELOG.md`). On top of the core:
 - the API the CRM `aidyn_crm` uses: booking feed, bookings and payments with `Idempotency-Key`,
   holds with an expiry, guest by phone, flat facts and company rules, availability with the stay
   rules a stay breaks, personal links (`/o/`, by the night or the hour), a readiness report;

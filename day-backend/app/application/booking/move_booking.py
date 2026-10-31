@@ -4,7 +4,7 @@ import uuid
 
 from app.application.booking.blocks import ensure_not_blocked
 from app.application.booking.create_booking import validate_rental_mode_allowed
-from app.application.booking.stay_rules import overridden_rules, stay_rule_breaches
+from app.application.booking.stay_rules import company_now, overlapping_stays, overridden_rules, stay_rule_breaches
 from app.domain.booking.entities import Booking, BookingAuditLog
 from app.domain.booking.exceptions import BookingOverlapError, StayRulesError
 from app.domain.booking.repositories import (
@@ -14,6 +14,7 @@ from app.domain.booking.repositories import (
 from app.domain.booking.value_objects import BookingAuditAction
 from app.domain.property.repositories import PropertyRepository
 from app.domain.property.value_objects import PropertyStatus
+from app.domain.settings.repositories import CompanySettingsRepository
 
 
 class MoveBookingService:
@@ -22,10 +23,12 @@ class MoveBookingService:
         booking_repo: BookingRepository,
         property_repo: PropertyRepository,
         audit_repo: BookingAuditLogRepository,
+        settings_repo: CompanySettingsRepository | None = None,
     ) -> None:
         self._booking_repo = booking_repo
         self._property_repo = property_repo
         self._audit_repo = audit_repo
+        self._settings_repo = settings_repo
 
     async def execute(
         self,
@@ -55,9 +58,16 @@ class MoveBookingService:
         validate_rental_mode_allowed(booking.rental_mode, target.rental_mode)
 
         # Check overlaps on target property
-        overlapping = await self._booking_repo.get_by_property_and_dates(
-            target_property_id, booking.check_in, booking.check_out,
+        now = await company_now(self._settings_repo, company_id)
+        overlapping = await overlapping_stays(
+            self._booking_repo,
+            target_property_id,
+            booking.check_in,
+            booking.check_out,
+            now=now,
             exclude_id=booking.id,
+            # A guest moved mid-stay spent the past nights in the other flat.
+            settled=(booking.check_in, now) if booking.check_in < now < booking.check_out else None,
         )
         if overlapping:
             raise BookingOverlapError("Date range overlaps with existing booking on target property")

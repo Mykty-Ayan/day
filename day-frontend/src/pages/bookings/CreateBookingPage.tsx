@@ -257,7 +257,7 @@ export default function CreateBookingPage() {
     const errs: Record<string, string> = {}
     if (!form.property_id) errs.property_id = t('bookings.validation.propertyRequired')
     else if (!selectedProperty) errs.property_id = t('bookings.validation.propertyUnavailable')
-    else if (selectedProperty.status === 'paused') errs.property_id = t('bookings.validation.propertyPaused')
+    else if (selectedProperty.status === 'paused') errs.property_id = t('bookings.validation.pausedProperty')
     if (isHourly) {
       if (!form.hourly_date) errs.check_in = t('bookings.validation.dateRequired')
       if (!form.start_time) errs.start_time = t('bookings.validation.startTimeRequired')

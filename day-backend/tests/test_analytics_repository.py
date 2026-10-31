@@ -309,6 +309,91 @@ async def test_metrics_mixed_hourly_and_daily_does_not_raise_and_prorates():
         await session.rollback()
 
 
+def _refund(booking_id: uuid.UUID, amount: str) -> BookingPaymentModel:
+    payment = _payment(booking_id, amount)
+    payment.type = "refund"
+    return payment
+
+
+def _cancelled(booking: BookingModel) -> BookingModel:
+    booking.status = "cancelled"
+    return booking
+
+
+@pytestmark_integration
+@pytest.mark.asyncio
+async def test_a_kept_prepayment_is_income_but_not_a_stay():
+    """A guest cancelled and the host kept the prepayment: the money counts, the
+    nights do not, and the average price of a night is not lifted by it."""
+    company_id = uuid.uuid4()
+    async with _fresh_session() as session:
+        guest = _guest(company_id)
+        prop = _property(company_id, f"kept-{uuid.uuid4().hex[:8]}", "daily")
+        stay = _booking(
+            company_id, prop.id, guest.id, datetime(2025, 6, 1), datetime(2025, 6, 3), "200", "daily"
+        )
+        kept = _cancelled(_booking(
+            company_id, prop.id, guest.id, datetime(2025, 6, 10), datetime(2025, 6, 12), "200", "daily"
+        ))
+        refunded = _cancelled(_booking(
+            company_id, prop.id, guest.id, datetime(2025, 6, 14), datetime(2025, 6, 16), "200", "daily"
+        ))
+        outside = _cancelled(_booking(
+            company_id, prop.id, guest.id, datetime(2025, 8, 1), datetime(2025, 8, 3), "200", "daily"
+        ))
+        session.add_all([
+            guest, prop, stay, kept, refunded, outside,
+            _payment(stay.id, "200"), _payment(kept.id, "50"),
+            _payment(refunded.id, "70"), _refund(refunded.id, "70"), _payment(outside.id, "90"),
+        ])
+        await session.flush()
+
+        [pm] = await SqlAnalyticsRepository(session).get_property_metrics(
+            company_id, DATE_FROM, DATE_TO, property_ids=[prop.id]
+        )
+
+        assert pm.revenue == Decimal("250")
+        assert pm.retained_prepayments == Decimal("50")
+        assert pm.total_bookings == 1
+        assert pm.booked_nights == Decimal("2")
+        assert pm.adr == Decimal("100")  # 200 / 2: the stay alone
+        assert pm.revpar == Decimal("200") / Decimal("29")
+
+        await session.rollback()
+
+
+@pytestmark_integration
+@pytest.mark.asyncio
+async def test_a_kept_prepayment_stays_inside_its_company_and_source():
+    company_id = uuid.uuid4()
+    async with _fresh_session() as session:
+        guest, other_guest = _guest(company_id), _guest(uuid.uuid4())
+        prop = _property(company_id, f"kept-{uuid.uuid4().hex[:8]}", "daily")
+        other = _property(other_guest.company_id, f"kept-{uuid.uuid4().hex[:8]}", "daily")
+        kept = _cancelled(_booking(
+            company_id, prop.id, guest.id, datetime(2025, 6, 10), datetime(2025, 6, 12), "200", "daily"
+        ))
+        foreign = _cancelled(_booking(
+            other_guest.company_id, other.id, other_guest.id,
+            datetime(2025, 6, 10), datetime(2025, 6, 12), "200", "daily",
+        ))
+        stay = _booking(company_id, prop.id, guest.id, datetime(2025, 6, 1), datetime(2025, 6, 3), "200", "daily")
+        session.add_all([guest, other_guest, prop, other, stay, kept, foreign])
+        session.add_all([_payment(kept.id, "50"), _payment(foreign.id, "60")])
+        await session.flush()
+        repo = SqlAnalyticsRepository(session)
+
+        [pm] = await repo.get_property_metrics(company_id, DATE_FROM, DATE_TO)
+        by_source = await repo.get_property_metrics(company_id, DATE_FROM, DATE_TO, source="direct")
+        no_source = await repo.get_property_metrics(company_id, DATE_FROM, DATE_TO, source="airbnb")
+
+        assert pm.revenue == Decimal("50")
+        assert [m.revenue for m in by_source] == [Decimal("50")]
+        assert no_source == []  # a source with no stays lists no flat, kept money or not
+
+        await session.rollback()
+
+
 @pytestmark_integration
 @pytest.mark.asyncio
 async def test_metrics_empty_property_has_zero_occupancy():

@@ -8,17 +8,14 @@ from dataclasses import dataclass
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
-from app.application.cleaning.create_task import CreateCleaningTaskInput, CreateCleaningTaskService
+from app.application.cleaning.create_task import clean_after_stay
 from app.domain.booking.entities import Booking
 from app.domain.booking.repositories import BookingRepository, GuestRepository
 from app.domain.booking.value_objects import BookingStatus
 from app.domain.cleaning.repositories import CleaningTaskRepository
-from app.domain.cleaning.value_objects import CleaningStatus, CleaningType
 from app.domain.property.repositories import PropertyRepository
 from app.domain.settings.entities import DEFAULT_TIME_ZONE
 from app.domain.settings.repositories import CompanySettingsRepository
-
-_OPEN = {CleaningStatus.PENDING, CleaningStatus.ASSIGNED, CleaningStatus.IN_PROGRESS}
 
 
 class NotStayingError(Exception):
@@ -63,22 +60,9 @@ class GuestCheckoutService:
             raise NotStayingError("The stay is over")
         prop = await self._properties.get_by_id(booking.property_id)
         guest = await self._guests.get_by_id(booking.guest_id)
-        open_tasks = [
-            t for t in await self._tasks.list_by_property(booking.property_id, limit=100) if t.status in _OPEN
-        ]
-        created = False
-        if not open_tasks:
-            await CreateCleaningTaskService(self._tasks, self._properties).execute(
-                CreateCleaningTaskInput(
-                    company_id=booking.company_id,
-                    property_id=booking.property_id,
-                    type=CleaningType.POST_CHECKOUT,
-                    booking_id=booking.id,
-                    scheduled_date=today,
-                    notes="Гость отметил выезд на своей странице",
-                )
-            )
-            created = True
+        created = await clean_after_stay(
+            self._tasks, self._properties, booking, today=today, notes="Гость отметил выезд на своей странице"
+        )
         return GuestLeft(
             booking=booking,
             flat_name=prop.name if prop and prop.company_id == booking.company_id else "",

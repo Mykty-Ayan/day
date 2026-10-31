@@ -12,7 +12,7 @@ import { HandCoins, ShieldCheck, Undo2, Wallet } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { createDeposit, depositAction, listDeposits } from '../../api/bookings'
 import type { BookingDeposit } from '../../types/booking'
-import { resultFeedback } from '../../lib/telegram'
+import { confirmAction, resultFeedback } from '../../lib/telegram'
 import { cardRead, readyToAct } from './card-state'
 import { formatMoney } from './format'
 import { ActionButton, Field } from './miniapp-ui'
@@ -80,6 +80,12 @@ export default function DepositRow({
     onSuccess: refresh,
     onError,
   })
+
+  const askToReturn = async (deposit: BookingDeposit) => {
+    if (await confirmAction(t('miniapp.deposit.give_backAsk', { amount: formatMoney(deposit.amount, i18n.language) }))) {
+      act.mutate({ deposit, action: 'return' })
+    }
+  }
 
   const hold = useMutation({
     mutationKey: writeKey,
@@ -160,7 +166,7 @@ export default function DepositRow({
             <div className="mt-2 grid grid-cols-2 gap-2">
               <ActionButton
                 disabled={blocked || act.isPending}
-                onClick={() => act.mutate({ deposit, action: 'return' })}
+                onClick={() => void askToReturn(deposit)}
               >
                 <Undo2 className="h-4 w-4" />
                 {t('miniapp.deposit.give_back')}

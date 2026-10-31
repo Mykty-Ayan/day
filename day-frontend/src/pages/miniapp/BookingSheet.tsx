@@ -21,6 +21,7 @@ import {
 import { getProperty } from '../../api/properties'
 import type { Booking, BookingPayment, BookingStatus, PaymentMethod } from '../../types/booking'
 import { confirmAction, copyText, openWhatsApp, resultFeedback } from '../../lib/telegram'
+import { parseApiDateTime } from '../../utils/date-time'
 import {
   canCancel,
   extendedCheckOut,
@@ -466,7 +467,7 @@ export default function BookingSheet({
           {received.map((payment) => (
             <p key={payment.id} className="flex justify-between text-xs">
               <span className="tg-hint">
-                {formatDay(payment.paid_at || payment.created_at, lang)} · {t(`miniapp.methods.${payment.method}`)}
+                {formatDay(parseApiDateTime(payment.paid_at || payment.created_at).toISOString(), lang)} · {t(`miniapp.methods.${payment.method}`)}
               </span>
               <span>{money(payment.type === 'refund' ? -payment.amount : payment.amount)}</span>
             </p>

@@ -17,6 +17,8 @@ import {
   Pencil,
 } from 'lucide-react'
 import { useNavigate, useParams } from '@tanstack/react-router'
+import ConfirmDialog from '../../components/ui/ConfirmDialog'
+import { showToast } from '../../components/ui/Toast'
 import Spinner from '../../components/ui/Spinner'
 import { useMediaQuery } from '../../hooks/useMediaQuery'
 import Button from '../../components/ui/Button'
@@ -65,6 +67,7 @@ import { ToggleGroup, ToggleGroupItem } from '../../components/ui/toggle-group'
 import NumberInput from '../../components/ui/number-input'
 import { useCurrency } from '../../hooks/useCurrency'
 import { downloadFile } from '../../api/bookings'
+import { parseApiDateTime } from '../../utils/date-time'
 
 const TABS = ['overview', 'payments', 'deposits', 'filesComments', 'history'] as const
 type Tab = (typeof TABS)[number]
@@ -757,7 +760,7 @@ function PaymentsTab({
                 </div>
               </div>
               <div className="mt-3 grid grid-cols-1 gap-1 text-xs text-gray-600 sm:grid-cols-2">
-                <span>{new Date(payment.paid_at || payment.created_at).toLocaleDateString()}</span>
+                <span>{parseApiDateTime(payment.paid_at || payment.created_at).toLocaleDateString()}</span>
                 <span className="sm:text-right">{payment.note || '-'}</span>
               </div>
             </div>
@@ -801,7 +804,7 @@ function PaymentsTab({
                       )}
                     </td>
                     <td className="px-4 py-3 text-xs text-gray-500">
-                      {new Date(p.paid_at || p.created_at).toLocaleDateString()}
+                      {parseApiDateTime(p.paid_at || p.created_at).toLocaleDateString()}
                     </td>
                     <td className="px-4 py-3 text-xs text-gray-500">{p.note || '-'}</td>
                   </tr>
@@ -968,6 +971,17 @@ function DepositCard({ bookingId, deposit }: { bookingId: string; deposit: Booki
   const { symbol } = useCurrency()
   const depAction = useDepositAction(bookingId, deposit.id)
   const [actionForm, setActionForm] = useState<{ action: DepositAction; held_amount: string; reason: string } | null>(null)
+  const [confirmingReturn, setConfirmingReturn] = useState(false)
+
+  function returnDeposit() {
+    depAction.mutate(
+      { action: 'return' },
+      {
+        onSuccess: () => setConfirmingReturn(false),
+        onError: () => showToast('error', t('bookings.deposits.returnFailed')),
+      },
+    )
+  }
 
   function handleAction() {
     if (!actionForm) return
@@ -1027,7 +1041,7 @@ function DepositCard({ bookingId, deposit }: { bookingId: string; deposit: Booki
               type="button"
               onClick={() => {
                 setActionForm(null)
-                depAction.mutate({ action: 'return' })
+                setConfirmingReturn(true)
               }}
               disabled={depAction.isPending}
               className="min-h-[44px] w-full rounded-xl bg-green-600 px-3 py-1.5 text-xs font-bold text-white transition-colors hover:bg-green-700 disabled:opacity-50 sm:w-auto"
@@ -1097,6 +1111,15 @@ function DepositCard({ bookingId, deposit }: { bookingId: string; deposit: Booki
           </div>
         </motion.div>
       )}
+      <ConfirmDialog
+        open={confirmingReturn}
+        title={t('bookings.deposits.returnAsk', { amount: `${symbol}${formatMoney(deposit.amount)}` })}
+        message={t('bookings.deposits.returnWarning')}
+        confirmLabel={t('bookings.deposits.returnConfirm')}
+        loading={depAction.isPending}
+        onCancel={() => setConfirmingReturn(false)}
+        onConfirm={returnDeposit}
+      />
     </div>
   )
 }
@@ -1106,6 +1129,17 @@ function DepositTableRow({ bookingId, deposit }: { bookingId: string; deposit: B
   const { symbol } = useCurrency()
   const depAction = useDepositAction(bookingId, deposit.id)
   const [actionForm, setActionForm] = useState<{ action: DepositAction; held_amount: string; reason: string } | null>(null)
+  const [confirmingReturn, setConfirmingReturn] = useState(false)
+
+  function returnDeposit() {
+    depAction.mutate(
+      { action: 'return' },
+      {
+        onSuccess: () => setConfirmingReturn(false),
+        onError: () => showToast('error', t('bookings.deposits.returnFailed')),
+      },
+    )
+  }
 
   function handleAction() {
     if (!actionForm) return
@@ -1139,7 +1173,7 @@ function DepositTableRow({ bookingId, deposit }: { bookingId: string; deposit: B
         {deposit.held_amount > 0 ? `${symbol}${formatMoney(deposit.held_amount)}` : '-'}
       </td>
       <td className="px-4 py-3 text-xs text-gray-600">{deposit.reason || '-'}</td>
-      <td className="px-4 py-3 text-xs text-gray-500">{new Date(deposit.created_at).toLocaleDateString()}</td>
+      <td className="px-4 py-3 text-xs text-gray-500">{parseApiDateTime(deposit.created_at).toLocaleDateString()}</td>
       <td className="px-4 py-3">
         <div className="space-y-2">
           <div className="flex flex-wrap gap-2">
@@ -1164,7 +1198,7 @@ function DepositTableRow({ bookingId, deposit }: { bookingId: string; deposit: B
                   type="button"
                   onClick={() => {
                     setActionForm(null)
-                    depAction.mutate({ action: 'return' })
+                    setConfirmingReturn(true)
                   }}
                   disabled={depAction.isPending}
                   className="rounded-lg bg-green-600 px-2.5 py-1 text-[11px] font-semibold text-white transition-colors hover:bg-green-700 disabled:opacity-50"
@@ -1233,6 +1267,15 @@ function DepositTableRow({ bookingId, deposit }: { bookingId: string; deposit: B
             </motion.div>
           )}
         </div>
+        <ConfirmDialog
+          open={confirmingReturn}
+          title={t('bookings.deposits.returnAsk', { amount: `${symbol}${formatMoney(deposit.amount)}` })}
+          message={t('bookings.deposits.returnWarning')}
+          confirmLabel={t('bookings.deposits.returnConfirm')}
+          loading={depAction.isPending}
+          onCancel={() => setConfirmingReturn(false)}
+          onConfirm={returnDeposit}
+        />
       </td>
     </tr>
   )
@@ -1338,7 +1381,7 @@ function FilesCommentsTab({ bookingId, files, comments }: { bookingId: string; f
               <div key={c.id} className="bg-gray-50 rounded-lg px-3 py-2">
                 <p className="text-sm text-gray-800">{c.content}</p>
                 <p className="text-xs text-gray-400 mt-1">
-                  {new Date(c.created_at).toLocaleString()}
+                  {parseApiDateTime(c.created_at).toLocaleString()}
                 </p>
               </div>
             ))
