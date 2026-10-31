@@ -25,7 +25,8 @@
     "createExpense": "Расход",
     "createCleaning": "Уборка",
     "searchPlaceholder": "Гость, телефон или объект",
-    "searchEmpty": "Ничего не найдено"
+    "searchEmpty": "Ничего не найдено",
+    "searchFailed": "Не получилось найти. Попробуйте ещё раз"
   },
   "common": {
     "date": "Дата",

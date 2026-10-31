@@ -29,3 +29,13 @@ test('the top search finds a stay by the guest and a flat by its name @desktop',
   await field.press('Escape')
   await expect(page.getByText('Nothing found')).toHaveCount(0)
 })
+
+test('a failed search says so instead of saying nothing was found @desktop', async ({ page }) => {
+  await page.goto('/cleaning')
+  await page.route('**/api/v1/bookings?*', (route) => route.fulfill({ status: 500, json: {} }))
+
+  await page.getByRole('searchbox', { name: 'Search' }).first().fill('Айгерим')
+
+  await expect(page.getByText('Search failed. Try again')).toBeVisible()
+  await expect(page.getByText('Nothing found')).toHaveCount(0)
+})

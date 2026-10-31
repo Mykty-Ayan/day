@@ -25,7 +25,8 @@
     "createExpense": "Шығыс",
     "createCleaning": "Тазалау",
     "searchPlaceholder": "Қонақ, телефон немесе нысан",
-    "searchEmpty": "Ештеңе табылмады"
+    "searchEmpty": "Ештеңе табылмады",
+    "searchFailed": "Табу мүмкін болмады. Қайталап көріңіз"
   },
   "common": {
     "date": "Күні",

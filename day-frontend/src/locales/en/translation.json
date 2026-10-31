@@ -25,7 +25,8 @@
     "createExpense": "Expense",
     "createCleaning": "Cleaning",
     "searchPlaceholder": "Guest, phone or property",
-    "searchEmpty": "Nothing found"
+    "searchEmpty": "Nothing found",
+    "searchFailed": "Search failed. Try again"
   },
   "common": {
     "date": "Date",

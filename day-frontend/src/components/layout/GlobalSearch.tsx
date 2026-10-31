@@ -55,8 +55,8 @@ export default function GlobalSearch() {
 /** Apart from the field: flats and stays are read only once something is typed. */
 function SearchResults({ query, onPick }: { query: string; onPick: () => void }) {
   const { t, i18n } = useTranslation()
-  const { data: bookings, isFetching } = useBookings({ search: query, per_page: SHOWN })
-  const { data: properties } = useAllProperties()
+  const { data: bookings, isFetching, isError } = useBookings({ search: query, per_page: SHOWN })
+  const { data: properties, isLoading: flatsLoading } = useAllProperties()
 
   const needle = query.toLowerCase()
   const flats = (properties?.items ?? [])
@@ -67,7 +67,11 @@ function SearchResults({ query, onPick }: { query: string; onPick: () => void })
   const row = 'flex min-h-[40px] items-center gap-2 rounded-lg px-3 py-2 text-sm text-gray-800 transition-colors hover:bg-gray-50'
 
   return (
-    <div className="absolute left-0 right-0 top-full z-popover mt-1 max-h-96 overflow-y-auto rounded-xl border border-gray-200 bg-white p-1 shadow-lg">
+    <div
+      // Safari does not focus a link on click: the field's blur would close the list first.
+      onMouseDown={(event) => event.preventDefault()}
+      className="absolute left-0 right-0 top-full z-popover mt-1 max-h-96 overflow-y-auto rounded-xl border border-gray-200 bg-white p-1 shadow-lg"
+    >
       {stays.map((booking) => (
         <Link key={booking.id} to="/bookings/$bookingId" params={{ bookingId: booking.id }} onClick={onPick} className={row}>
           <span className="min-w-0 flex-1 truncate font-semibold">{booking.guest_name}</span>
@@ -82,7 +86,8 @@ function SearchResults({ query, onPick }: { query: string; onPick: () => void })
           <span className="min-w-0 flex-1 truncate font-semibold">{flat.internal_name || flat.name}</span>
         </Link>
       ))}
-      {!isFetching && stays.length === 0 && flats.length === 0 && (
+      {isError && <p className="px-3 py-2 text-sm text-gray-500">{t('nav.searchFailed')}</p>}
+      {!isError && !isFetching && !flatsLoading && stays.length === 0 && flats.length === 0 && (
         <p className="px-3 py-2 text-sm text-gray-500">{t('nav.searchEmpty')}</p>
       )}
     </div>
