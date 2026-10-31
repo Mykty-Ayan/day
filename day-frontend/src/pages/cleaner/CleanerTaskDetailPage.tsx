@@ -25,6 +25,7 @@ import {
 import type { CleaningStatus, CleaningType, RoomType } from '../../types/cleaning'
 import { getChecklistTemplate as fetchChecklistTemplate } from '../../api/cleaning'
 import { showToast } from '../../components/ui/Toast'
+import { cleaningStatusKey } from '../../lib/cleaning-status'
 
 // A cleaner's own steps: start, then finish. Assigning and checking the work
 // are the manager's (the server refuses them to a cleaner).
@@ -146,7 +147,7 @@ export default function CleanerTaskDetailPage() {
 
     changeStatus.mutate(nextStatus, {
       onSuccess: () => {
-        showToast('success', t('cleaner.statusChangedTo', { status: t('cleaning.status.' + nextStatus) }))
+        showToast('success', t('cleaner.statusChangedTo', { status: t(cleaningStatusKey(nextStatus)) }))
       },
       onError: () => {
         showToast('error', t('cleaner.failedChangeStatus'))

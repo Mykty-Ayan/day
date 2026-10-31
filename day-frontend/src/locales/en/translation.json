@@ -18,6 +18,9 @@
     "inventory": "Stock"
   },
   "common": {
+    "date": "Date",
+    "method": "Method",
+    "note": "Note",
     "save": "Save",
     "cancel": "Cancel",
     "edit": "Edit",
@@ -300,6 +303,8 @@
       "bufferMinutes": "15 to 1440 minutes, in steps of 15"
     },
     "amenityCategories": {
+      "accessibility": "Accessibility",
+      "other": "Other",
       "bathroom": "Bathroom",
       "kitchen": "Kitchen",
       "entertainment": "Entertainment",
@@ -449,6 +454,10 @@
       "noDeposits": "No deposits",
       "markAsPaid": "Mark as Paid",
       "return": "Return",
+      "returnAsk": "Return the deposit of {{amount}}?",
+      "returnWarning": "The status becomes Returned. You cannot undo this.",
+      "returnConfirm": "Return deposit",
+      "returnFailed": "Could not return the deposit. Check your connection and try again.",
       "hold": "Hold",
       "partiallyHold": "Partially Hold",
       "held": "Held",
@@ -492,6 +501,7 @@
       "propertyRequired": "Property is required",
       "propertyUnavailable": "Selected property is unavailable",
       "pausedProperty": "Paused property is unavailable for booking",
+      "adultsRequired": "At least one adult is required",
       "checkInRequired": "Check-in date is required",
       "checkOutRequired": "Check-out date is required",
       "checkOutAfterCheckIn": "Check-out must be after check-in",
@@ -670,7 +680,7 @@
     "started": "Started",
     "completed": "Completed",
     "verified": "Verified",
-    "transitionTo": "Transition to {{status}}",
+    "transitionTo": "Move to {{status}}",
     "statusChangedTo": "Status changed to {{status}}",
     "failedChangeStatus": "Failed to change status",
     "createCleaningTask": "Create Cleaning Task",
@@ -1164,6 +1174,7 @@
       "take": "Take",
       "received": "Received",
       "give_back": "Return",
+      "give_backAsk": "Return the deposit of {{amount}} ₸? You cannot undo this.",
       "held": "{{amount}} ₸ held",
       "status": {
         "pending": "Deposit expected",
@@ -1379,6 +1390,9 @@
     }
   },
   "auth": {
+    "login": {
+      "wrongPassword": "Wrong email or password"
+    },
     "forgot": {
       "link": "Forgot your password?",
       "title": "Reset password",

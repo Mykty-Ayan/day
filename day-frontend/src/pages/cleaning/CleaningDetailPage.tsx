@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { Link, useParams } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 import { parseApiDateTime } from '../../utils/date-time'
+import { cleaningStatusKey } from '../../lib/cleaning-status'
 
 import CleaningStatusBadge from '../../components/cleaning/CleaningStatusBadge'
 import CleaningTypeBadge from '../../components/cleaning/CleaningTypeBadge'
@@ -138,7 +139,7 @@ function OverviewTab({ data }: { data: CleaningTaskDetail }) {
 
   function handleStatusChange(status: CleaningStatus) {
     statusMutation.mutate(status, {
-      onSuccess: () => showToast('success', t('cleaning.statusChangedTo', { status })),
+      onSuccess: () => showToast('success', t('cleaning.statusChangedTo', { status: t(cleaningStatusKey(status)) })),
       onError: (err: Error) =>
         showToast('error', err.message || t('cleaning.failedChangeStatus')),
     })
@@ -223,7 +224,7 @@ function OverviewTab({ data }: { data: CleaningTaskDetail }) {
               className="w-full sm:w-auto"
               data-testid={`cleaning-transition-${status}`}
             >
-              {t('cleaning.transitionTo', { status })}
+              {t('cleaning.transitionTo', { status: t(cleaningStatusKey(status)) })}
             </Button>
           ))}
         </div>

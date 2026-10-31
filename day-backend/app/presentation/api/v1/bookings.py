@@ -68,6 +68,7 @@ from app.infrastructure.repositories.booking import (
     SqlBookingRepository,
     SqlGuestRepository,
 )
+from app.infrastructure.repositories.cleaning import SqlCleaningTaskRepository
 from app.infrastructure.repositories.inventory import SqlGuestOrderRepository
 from app.infrastructure.repositories.property import (
     SqlDayPriceRepository,
@@ -758,7 +759,13 @@ async def change_booking_status(
     user_id: uuid.UUID | None = Depends(get_user_id),
 ):
     repos = _repos(session)
-    svc = ChangeBookingStatusService(repos["booking"], repos["audit"])
+    svc = ChangeBookingStatusService(
+        repos["booking"],
+        repos["audit"],
+        task_repo=SqlCleaningTaskRepository(session),
+        property_repo=repos["property"],
+        settings_repo=repos["settings"],
+    )
     try:
         result = await svc.execute(booking_id, company_id, body.target_status, changed_by=user_id)
         if body.target_status == BookingStatus.CANCELLED:
