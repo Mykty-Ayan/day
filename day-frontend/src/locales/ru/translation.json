@@ -23,7 +23,9 @@
     "company": "Компания",
     "createBooking": "Бронь",
     "createExpense": "Расход",
-    "createCleaning": "Уборка"
+    "createCleaning": "Уборка",
+    "searchPlaceholder": "Гость, телефон или объект",
+    "searchEmpty": "Ничего не найдено"
   },
   "common": {
     "date": "Дата",
