@@ -67,6 +67,7 @@ import { ToggleGroup, ToggleGroupItem } from '../../components/ui/toggle-group'
 import NumberInput from '../../components/ui/number-input'
 import { useCurrency } from '../../hooks/useCurrency'
 import { downloadFile } from '../../api/bookings'
+import { parseApiDateTime } from '../../utils/date-time'
 
 const TABS = ['overview', 'payments', 'deposits', 'filesComments', 'history'] as const
 type Tab = (typeof TABS)[number]
@@ -759,7 +760,7 @@ function PaymentsTab({
                 </div>
               </div>
               <div className="mt-3 grid grid-cols-1 gap-1 text-xs text-gray-600 sm:grid-cols-2">
-                <span>{new Date(payment.paid_at || payment.created_at).toLocaleDateString()}</span>
+                <span>{parseApiDateTime(payment.paid_at || payment.created_at).toLocaleDateString()}</span>
                 <span className="sm:text-right">{payment.note || '-'}</span>
               </div>
             </div>
@@ -803,7 +804,7 @@ function PaymentsTab({
                       )}
                     </td>
                     <td className="px-4 py-3 text-xs text-gray-500">
-                      {new Date(p.paid_at || p.created_at).toLocaleDateString()}
+                      {parseApiDateTime(p.paid_at || p.created_at).toLocaleDateString()}
                     </td>
                     <td className="px-4 py-3 text-xs text-gray-500">{p.note || '-'}</td>
                   </tr>
@@ -1172,7 +1173,7 @@ function DepositTableRow({ bookingId, deposit }: { bookingId: string; deposit: B
         {deposit.held_amount > 0 ? `${symbol}${formatMoney(deposit.held_amount)}` : '-'}
       </td>
       <td className="px-4 py-3 text-xs text-gray-600">{deposit.reason || '-'}</td>
-      <td className="px-4 py-3 text-xs text-gray-500">{new Date(deposit.created_at).toLocaleDateString()}</td>
+      <td className="px-4 py-3 text-xs text-gray-500">{parseApiDateTime(deposit.created_at).toLocaleDateString()}</td>
       <td className="px-4 py-3">
         <div className="space-y-2">
           <div className="flex flex-wrap gap-2">
@@ -1380,7 +1381,7 @@ function FilesCommentsTab({ bookingId, files, comments }: { bookingId: string; f
               <div key={c.id} className="bg-gray-50 rounded-lg px-3 py-2">
                 <p className="text-sm text-gray-800">{c.content}</p>
                 <p className="text-xs text-gray-400 mt-1">
-                  {new Date(c.created_at).toLocaleString()}
+                  {parseApiDateTime(c.created_at).toLocaleString()}
                 </p>
               </div>
             ))
