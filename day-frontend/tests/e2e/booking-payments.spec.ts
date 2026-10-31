@@ -204,6 +204,7 @@ test.describe('Booking Payments - E2E', () => {
 
     await openBookingTab(page, booking.id, /deposit/i)
     await page.getByRole('button', { name: /return/i }).click()
+    await page.getByRole('button', { name: 'Return deposit' }).click()
 
     await expect(page.getByText(/returned/i).first()).toBeVisible({ timeout: 5000 })
   })

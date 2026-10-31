@@ -17,6 +17,7 @@ import {
   Pencil,
 } from 'lucide-react'
 import { useNavigate, useParams } from '@tanstack/react-router'
+import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import Spinner from '../../components/ui/Spinner'
 import { useMediaQuery } from '../../hooks/useMediaQuery'
 import Button from '../../components/ui/Button'
@@ -968,6 +969,7 @@ function DepositCard({ bookingId, deposit }: { bookingId: string; deposit: Booki
   const { symbol } = useCurrency()
   const depAction = useDepositAction(bookingId, deposit.id)
   const [actionForm, setActionForm] = useState<{ action: DepositAction; held_amount: string; reason: string } | null>(null)
+  const [confirmingReturn, setConfirmingReturn] = useState(false)
 
   function handleAction() {
     if (!actionForm) return
@@ -1027,7 +1029,7 @@ function DepositCard({ bookingId, deposit }: { bookingId: string; deposit: Booki
               type="button"
               onClick={() => {
                 setActionForm(null)
-                depAction.mutate({ action: 'return' })
+                setConfirmingReturn(true)
               }}
               disabled={depAction.isPending}
               className="min-h-[44px] w-full rounded-xl bg-green-600 px-3 py-1.5 text-xs font-bold text-white transition-colors hover:bg-green-700 disabled:opacity-50 sm:w-auto"
@@ -1097,6 +1099,17 @@ function DepositCard({ bookingId, deposit }: { bookingId: string; deposit: Booki
           </div>
         </motion.div>
       )}
+      <ConfirmDialog
+        open={confirmingReturn}
+        title={t('bookings.deposits.returnAsk', { amount: `${symbol}${formatMoney(deposit.amount)}` })}
+        message={t('bookings.deposits.returnWarning')}
+        confirmLabel={t('bookings.deposits.returnConfirm')}
+        loading={depAction.isPending}
+        onCancel={() => setConfirmingReturn(false)}
+        onConfirm={() =>
+          depAction.mutate({ action: 'return' }, { onSettled: () => setConfirmingReturn(false) })
+        }
+      />
     </div>
   )
 }
@@ -1106,6 +1119,7 @@ function DepositTableRow({ bookingId, deposit }: { bookingId: string; deposit: B
   const { symbol } = useCurrency()
   const depAction = useDepositAction(bookingId, deposit.id)
   const [actionForm, setActionForm] = useState<{ action: DepositAction; held_amount: string; reason: string } | null>(null)
+  const [confirmingReturn, setConfirmingReturn] = useState(false)
 
   function handleAction() {
     if (!actionForm) return
@@ -1164,7 +1178,7 @@ function DepositTableRow({ bookingId, deposit }: { bookingId: string; deposit: B
                   type="button"
                   onClick={() => {
                     setActionForm(null)
-                    depAction.mutate({ action: 'return' })
+                    setConfirmingReturn(true)
                   }}
                   disabled={depAction.isPending}
                   className="rounded-lg bg-green-600 px-2.5 py-1 text-[11px] font-semibold text-white transition-colors hover:bg-green-700 disabled:opacity-50"
@@ -1233,6 +1247,17 @@ function DepositTableRow({ bookingId, deposit }: { bookingId: string; deposit: B
             </motion.div>
           )}
         </div>
+        <ConfirmDialog
+          open={confirmingReturn}
+          title={t('bookings.deposits.returnAsk', { amount: `${symbol}${formatMoney(deposit.amount)}` })}
+          message={t('bookings.deposits.returnWarning')}
+          confirmLabel={t('bookings.deposits.returnConfirm')}
+          loading={depAction.isPending}
+          onCancel={() => setConfirmingReturn(false)}
+          onConfirm={() =>
+            depAction.mutate({ action: 'return' }, { onSettled: () => setConfirmingReturn(false) })
+          }
+        />
       </td>
     </tr>
   )

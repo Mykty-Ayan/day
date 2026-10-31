@@ -449,6 +449,9 @@
       "noDeposits": "No deposits",
       "markAsPaid": "Mark as Paid",
       "return": "Return",
+      "returnAsk": "Return the deposit of {{amount}}?",
+      "returnWarning": "The status becomes Returned. You cannot undo this.",
+      "returnConfirm": "Return deposit",
       "hold": "Hold",
       "partiallyHold": "Partially Hold",
       "held": "Held",
@@ -1164,6 +1167,7 @@
       "take": "Take",
       "received": "Received",
       "give_back": "Return",
+      "give_backAsk": "Return the deposit of {{amount}} ₸? You cannot undo this.",
       "held": "{{amount}} ₸ held",
       "status": {
         "pending": "Deposit expected",

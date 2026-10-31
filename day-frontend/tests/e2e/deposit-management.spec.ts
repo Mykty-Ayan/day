@@ -134,10 +134,11 @@ test.describe('Deposit Management - E2E', () => {
 
     await page.getByRole('button', { name: /return/i }).click()
 
-    const confirmBtn = page.getByRole('button', { name: /confirm|yes/i })
-    if (await confirmBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
-      await confirmBtn.click()
-    }
+    await page.getByRole('button', { name: 'Cancel' }).last().click()
+    await expect(page.getByRole('button', { name: 'Return deposit' })).toBeHidden()
+
+    await page.getByRole('button', { name: /return/i }).click()
+    await page.getByRole('button', { name: 'Return deposit' }).click()
 
     await expect(page.getByText(/returned/i).first()).toBeVisible({ timeout: 5000 })
   })
