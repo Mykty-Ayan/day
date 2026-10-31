@@ -6,7 +6,7 @@ from datetime import date, datetime, time
 
 from app.application.booking.blocks import ensure_not_blocked
 from app.application.booking.price_calculator import PriceCalculatorService
-from app.application.booking.stay_rules import overridden_rules, stay_rule_breaches
+from app.application.booking.stay_rules import company_now, overlapping_stays, overridden_rules, stay_rule_breaches
 from app.config import settings
 from app.domain.booking.entities import Booking, BookingAuditLog, Guest
 from app.domain.booking.exceptions import (
@@ -221,8 +221,12 @@ class CreateBookingService:
             raise ValueError("Check-out must be after check-in")
 
         # Check date overlaps
-        overlapping = await self._booking_repo.get_by_property_and_dates(
-            inp.property_id, check_in, check_out
+        overlapping = await overlapping_stays(
+            self._booking_repo,
+            inp.property_id,
+            check_in,
+            check_out,
+            now=await company_now(self._settings_repo, inp.company_id),
         )
         if overlapping:
             raise BookingOverlapError()

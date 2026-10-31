@@ -12,7 +12,7 @@ from app.application.booking.create_booking import (
     validate_rental_mode_allowed,
 )
 from app.application.booking.price_calculator import PriceCalculatorService
-from app.application.booking.stay_rules import overridden_rules, stay_rule_breaches
+from app.application.booking.stay_rules import company_now, overlapping_stays, overridden_rules, stay_rule_breaches
 from app.domain.booking.entities import Booking, BookingAuditLog
 from app.domain.booking.exceptions import BookingOverlapError, StayRulesError
 from app.domain.booking.repositories import (
@@ -166,15 +166,18 @@ class UpdateBookingService:
                 booking.check_out = settle_boundary(booking.check_out, check_out, saved_out)
             if booking.check_out <= booking.check_in:
                 raise ValueError("Check-out must be after check-in")
-            overlapping = await self._booking_repo.get_by_property_and_dates(
-                booking.property_id, booking.check_in, booking.check_out,
-                exclude_id=booking.id,
-            )
-            if overlapping:
-                raise BookingOverlapError()
             # The form sends the saved dates back with any edit: only a stay that
             # really moved is checked, and the lead time only for a new check-in.
             moved = (booking.check_in, booking.check_out, booking.rental_mode) != (saved_in, saved_out, saved_mode)
+            if moved and await overlapping_stays(
+                self._booking_repo,
+                booking.property_id,
+                booking.check_in,
+                booking.check_out,
+                now=await company_now(self._settings_repo, inp.company_id),
+                exclude_id=booking.id,
+            ):
+                raise BookingOverlapError()
             if moved and prop is not None:
                 await ensure_not_blocked(
                     self._booking_repo, prop, booking.check_in, booking.check_out, booking.source.value

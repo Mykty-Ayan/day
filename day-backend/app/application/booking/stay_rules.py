@@ -6,9 +6,10 @@ import uuid
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
+from app.domain.booking.entities import Booking
 from app.domain.booking.repositories import BookingRepository
 from app.domain.booking.stay_rules import RuleBreach, StayRules, stay_breaches
-from app.domain.booking.value_objects import RentalMode
+from app.domain.booking.value_objects import BookingStatus, RentalMode
 from app.domain.settings.entities import DEFAULT_TIME_ZONE
 from app.domain.settings.repositories import CompanySettingsRepository
 
@@ -21,6 +22,23 @@ async def company_now(settings_repo: CompanySettingsRepository | None, company_i
         if settings is not None and settings.time_zone:
             zone = settings.time_zone
     return datetime.now(ZoneInfo(zone)).replace(tzinfo=None)
+
+
+async def overlapping_stays(
+    booking_repo: BookingRepository,
+    property_id: uuid.UUID,
+    check_in: datetime,
+    check_out: datetime,
+    *,
+    now: datetime,
+    exclude_id: uuid.UUID | None = None,
+) -> list[Booking]:
+    """The stays a booking on these dates collides with. A completed stay keeps the
+    time it took; the nights left after an early departure are free to sell."""
+    found = await booking_repo.get_by_property_and_dates(
+        property_id, check_in, check_out, exclude_id=exclude_id, include_completed=True
+    )
+    return [b for b in found if b.status != BookingStatus.COMPLETED or min(b.check_out, now) > check_in]
 
 
 async def stay_rule_breaches(

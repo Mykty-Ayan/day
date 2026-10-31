@@ -4,7 +4,7 @@ import uuid
 
 from app.application.booking.blocks import ensure_not_blocked
 from app.application.booking.create_booking import validate_rental_mode_allowed
-from app.application.booking.stay_rules import overridden_rules, stay_rule_breaches
+from app.application.booking.stay_rules import company_now, overlapping_stays, overridden_rules, stay_rule_breaches
 from app.domain.booking.entities import Booking, BookingAuditLog
 from app.domain.booking.exceptions import BookingOverlapError, StayRulesError
 from app.domain.booking.repositories import (
@@ -55,8 +55,12 @@ class MoveBookingService:
         validate_rental_mode_allowed(booking.rental_mode, target.rental_mode)
 
         # Check overlaps on target property
-        overlapping = await self._booking_repo.get_by_property_and_dates(
-            target_property_id, booking.check_in, booking.check_out,
+        overlapping = await overlapping_stays(
+            self._booking_repo,
+            target_property_id,
+            booking.check_in,
+            booking.check_out,
+            now=await company_now(None, company_id),
             exclude_id=booking.id,
         )
         if overlapping:

@@ -182,6 +182,8 @@ class FakeBookingRepository(BookingRepository):
                 continue
             if b.status == BookingStatus.CANCELLED:
                 continue
+            if b.status == BookingStatus.COMPLETED and not include_completed:
+                continue
             # Overlap: check_in < b.check_out and check_out > b.check_in
             if b.check_in and b.check_out and check_in < b.check_out and check_out > b.check_in:
                 result.append(b)
@@ -844,6 +846,49 @@ class TestCreateBookingService:
         assert guest.email == "jane@example.com"
 
     @pytest.mark.asyncio
+    async def test_a_past_completed_stay_keeps_its_dates(self):
+        booking_repo, _, _, svc, prop = await self._setup()
+        done = _make_booking(
+            prop.id, check_in=date(2025, 6, 1), check_out=date(2025, 6, 5), status=BookingStatus.COMPLETED
+        )
+        await booking_repo.create(done)
+
+        with pytest.raises(BookingOverlapError, match="overlaps"):
+            await svc.execute(
+                CreateBookingInput(
+                    company_id=COMPANY_ID,
+                    property_id=prop.id,
+                    guest_name="Guest",
+                    check_in=date(2025, 6, 3),
+                    check_out=date(2025, 6, 7),
+                )
+            )
+
+    @pytest.mark.asyncio
+    async def test_nights_left_after_an_early_departure_can_be_sold(self):
+        booking_repo, _, _, svc, prop = await self._setup()
+        today = date.today()
+        left_early = _make_booking(
+            prop.id,
+            check_in=today - timedelta(days=2),
+            check_out=today + timedelta(days=5),
+            status=BookingStatus.COMPLETED,
+        )
+        await booking_repo.create(left_early)
+
+        result = await svc.execute(
+            CreateBookingInput(
+                company_id=COMPANY_ID,
+                property_id=prop.id,
+                guest_name="Guest",
+                check_in=today + timedelta(days=1),
+                check_out=today + timedelta(days=3),
+            )
+        )
+
+        assert result.property_id == prop.id
+
+    @pytest.mark.asyncio
     async def test_reuse_existing_guest_by_phone(self):
         _, guest_repo, _, svc, prop = await self._setup()
         existing_guest = Guest(company_id=COMPANY_ID, name="Existing", phone="+77001112233")
@@ -1228,6 +1273,44 @@ class TestUpdateBookingService:
             )
 
     @pytest.mark.asyncio
+    async def test_an_extension_cannot_run_over_a_past_completed_stay(self):
+        booking_repo, _, svc, booking, prop_id = await self._setup()
+        done = _make_booking(
+            prop_id, check_in=date(2025, 6, 10), check_out=date(2025, 6, 11), status=BookingStatus.COMPLETED
+        )
+        await booking_repo.create(done)
+
+        with pytest.raises(BookingOverlapError, match="overlaps"):
+            await svc.execute(
+                UpdateBookingInput(
+                    booking_id=booking.id,
+                    company_id=COMPANY_ID,
+                    check_out=date(2025, 6, 12),
+                )
+            )
+
+    @pytest.mark.asyncio
+    async def test_a_note_can_be_saved_on_a_stay_that_shares_dates_with_a_completed_one(self):
+        booking_repo, _, svc, booking, prop_id = await self._setup()
+        done = _make_booking(
+            prop_id, check_in=booking.check_in.date(), check_out=booking.check_out.date(),
+            status=BookingStatus.COMPLETED,
+        )
+        await booking_repo.create(done)
+
+        result = await svc.execute(
+            UpdateBookingInput(
+                booking_id=booking.id,
+                company_id=COMPANY_ID,
+                check_in=booking.check_in.date(),
+                check_out=booking.check_out.date(),
+                notes="Позвонить гостю",
+            )
+        )
+
+        assert result.notes == "Позвонить гостю"
+
+    @pytest.mark.asyncio
     async def test_update_dates_recalculates_price(self):
         _, _, svc, booking, _ = await self._setup()
         old_calc_price = booking.calculated_price
@@ -1513,6 +1596,20 @@ class TestMoveBookingService:
             check_out=booking.check_out,
         )
         await booking_repo.create(conflicting)
+
+        with pytest.raises(BookingOverlapError, match="overlaps"):
+            await svc.execute(booking.id, COMPANY_ID, prop_b.id)
+
+    @pytest.mark.asyncio
+    async def test_move_onto_a_past_completed_stay_raises(self):
+        booking_repo, _, _, svc, booking, _, prop_b = await self._setup()
+        done = _make_booking(
+            prop_b.id,
+            check_in=booking.check_in.date(),
+            check_out=booking.check_out.date(),
+            status=BookingStatus.COMPLETED,
+        )
+        await booking_repo.create(done)
 
         with pytest.raises(BookingOverlapError, match="overlaps"):
             await svc.execute(booking.id, COMPANY_ID, prop_b.id)
