@@ -12,6 +12,7 @@ from app.application.booking.manage_deposits import ManageDepositsService
 from app.application.booking.manage_payments import ManagePaymentsService
 from app.application.booking.move_booking import MoveBookingService
 from app.application.booking.price_calculator import PriceCalculatorService
+from app.application.booking.stay_rules import company_now
 from app.application.booking.update_booking import UpdateBookingInput, UpdateBookingService
 from app.domain.booking.entities import (
     Booking,
@@ -891,7 +892,7 @@ class TestCreateBookingService:
     @pytest.mark.asyncio
     async def test_a_stay_finished_today_does_not_stop_tonights_sale(self):
         booking_repo, _, _, svc, prop = await self._setup()
-        today = date.today()
+        today = (await company_now(None, COMPANY_ID)).date()
         earlier_today = datetime.combine(today, time(0, 30))
         hourly = _make_booking(prop.id, status=BookingStatus.COMPLETED, rental_mode=RentalMode.HOURLY)
         hourly.check_in, hourly.check_out = earlier_today, earlier_today + timedelta(hours=16)
@@ -912,7 +913,7 @@ class TestCreateBookingService:
     @pytest.mark.asyncio
     async def test_a_no_show_marked_completed_today_holds_no_past_time(self):
         booking_repo, _, _, svc, prop = await self._setup()
-        today = date.today()
+        today = (await company_now(None, COMPANY_ID)).date()
         no_show = _make_booking(
             prop.id, check_in=today, check_out=today + timedelta(days=2), status=BookingStatus.COMPLETED
         )
