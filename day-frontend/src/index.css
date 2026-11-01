@@ -1,5 +1,29 @@
 @import "tailwindcss";
 
+/* The operator's web. A screen moves to these tokens when it is redone; the rest keep
+   Tailwind's own colors until then. The Mini App and the guest pages do not use them. */
+@theme {
+  --font-app: 'Onest', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+
+  --color-surface-page: #f2f3f7;
+  --color-surface-card: #fdfdff;
+  --color-line: #e2e2e8;
+  --color-ink: #181a23;
+  --color-ink-muted: #61626c;
+
+  --color-accent: #334fb8;
+  --color-accent-hover: #28409a;
+  --color-accent-soft: #e5edfe;
+  --color-accent-ink: #2b44a6;
+
+  --color-danger: #af283d;
+  --color-danger-soft: #ffebea;
+  --color-warning: #7e4f04;
+  --color-warning-soft: #fdefd2;
+  --color-success: #1d6835;
+  --color-success-soft: #e3f6e6;
+}
+
 :root {
   color-scheme: light;
 }

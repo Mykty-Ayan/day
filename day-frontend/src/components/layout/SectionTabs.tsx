@@ -16,7 +16,7 @@ export default function SectionTabs({ section, activeTo }: { section: NavSection
           to={to}
           aria-current={to === activeTo ? 'page' : undefined}
           className={`whitespace-nowrap rounded-lg px-3 py-2 text-xs font-bold transition-colors ${
-            to === activeTo ? 'bg-gray-100 text-gray-900' : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900'
+            to === activeTo ? 'bg-accent-soft text-accent-ink' : 'text-ink-muted hover:bg-surface-page hover:text-ink'
           }`}
         >
           {t(labelKey)}
