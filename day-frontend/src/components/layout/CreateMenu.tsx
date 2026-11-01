@@ -18,7 +18,7 @@ export default function CreateMenu({ isOwner, iconOnly = false }: { isOwner: boo
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger
         aria-label={iconOnly ? t('common.create') : undefined}
-        className={`flex shrink-0 items-center justify-center gap-1.5 rounded-lg bg-gray-900 font-bold text-white transition-colors hover:bg-gray-700 ${
+        className={`flex shrink-0 items-center justify-center gap-1.5 rounded-lg bg-accent font-bold text-white transition-colors hover:bg-accent-hover ${
           iconOnly ? 'min-h-[44px] min-w-[44px]' : 'px-3 py-2 text-xs'
         }`}
       >

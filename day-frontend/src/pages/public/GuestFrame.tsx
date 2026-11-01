@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { isAxiosError } from 'axios'
 import { Globe, X } from 'lucide-react'
+import { useStylesheet } from '../../hooks/useStylesheet'
 import i18n from '../../i18n'
 import { loadClarity, MASK } from '../../lib/clarity'
 import { guestLanguage, type GuestLanguage } from '../../lib/public-stay'
@@ -51,18 +52,8 @@ function savedLanguage(): string | null {
  *  picker floats over the page's own header photo instead of a bar above it.
  *  `personal`: the page is one guest's (their booking, their offer): recordings
  *  keep its layout and taps, never its text. */
-// The guest pages' heading font: loaded with the first guest page, never by the operator's app.
+// The guest pages' heading font: loaded with the first guest page.
 const DISPLAY_FONT = 'https://fonts.googleapis.com/css2?family=Onest:wght@600;700&display=swap'
-
-function useDisplayFont() {
-  useEffect(() => {
-    if (document.querySelector(`link[href="${DISPLAY_FONT}"]`)) return
-    const link = document.createElement('link')
-    link.rel = 'stylesheet'
-    link.href = DISPLAY_FONT
-    document.head.appendChild(link)
-  }, [])
-}
 
 export function GuestFrame({
   children,
@@ -76,7 +67,7 @@ export function GuestFrame({
   personal?: boolean
 }) {
   const { t } = useTranslation()
-  useDisplayFont()
+  useStylesheet(DISPLAY_FONT)
   useEffect(() => loadClarity(), [])
   const languages = only ? LANGUAGES.filter((l) => only.includes(l.code)) : LANGUAGES
   const [language, setLanguage] = useState<GuestLanguage>(() => {

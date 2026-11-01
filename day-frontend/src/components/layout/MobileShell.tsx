@@ -38,8 +38,8 @@ export default function MobileShell({
   const pageTitle = pageLink ? t(pageLink.labelKey) : 'Day'
 
   return (
-    <div className="min-h-screen bg-white flex flex-col">
-      <header className="sticky top-0 z-sticky border-b border-gray-100 bg-white safe-area-top">
+    <div className="min-h-screen bg-surface-page font-app text-ink flex flex-col">
+      <header className="sticky top-0 z-sticky border-b border-line bg-surface-card safe-area-top">
         <div className="flex items-center px-4 py-3">
           <Link to="/bookings/today" className="text-sm font-bold text-gray-900">
             Day
@@ -69,7 +69,7 @@ export default function MobileShell({
 
       <main className="flex min-w-0 flex-1 flex-col overflow-x-hidden pb-[calc(6rem+env(safe-area-inset-bottom))]">{children}</main>
 
-      <nav className="fixed inset-x-0 bottom-0 z-sticky border-t border-gray-100 bg-white safe-area-bottom">
+      <nav className="fixed inset-x-0 bottom-0 z-sticky border-t border-line bg-surface-card safe-area-bottom">
         <div className="grid grid-cols-5 gap-1 px-2 py-2">
           {primaryTabs.map((section) => {
             const { to, labelKey, icon: Icon } = section
@@ -79,8 +79,8 @@ export default function MobileShell({
                 to={to}
                 className={`flex min-h-[48px] min-w-[48px] flex-col items-center justify-center gap-1 rounded-lg px-1 text-[11px] font-bold leading-tight tracking-tight transition-colors ${
                   active?.section === section
-                    ? 'bg-gray-100 text-gray-900'
-                    : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900'
+                    ? 'bg-accent-soft text-accent-ink'
+                    : 'text-ink-muted hover:bg-surface-page hover:text-ink'
                 }`}
               >
                 <Icon className="h-4 w-4" />
@@ -94,8 +94,8 @@ export default function MobileShell({
             onClick={() => setIsMoreOpen(true)}
             className={`flex min-h-[48px] min-w-[48px] flex-col items-center justify-center gap-1 rounded-lg px-1 text-[11px] font-bold leading-tight tracking-tight transition-colors ${
               isMoreActive || isMoreOpen
-                ? 'bg-gray-100 text-gray-900'
-                : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900'
+                ? 'bg-accent-soft text-accent-ink'
+                : 'text-ink-muted hover:bg-surface-page hover:text-ink'
             }`}
           >
             <Ellipsis className="h-4 w-4" />

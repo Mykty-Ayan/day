@@ -8,6 +8,7 @@ import SectionTabs from '../components/layout/SectionTabs'
 import ToastContainer from '../components/ui/Toast'
 import { useCurrentUser, useLogout } from '../hooks/useAuth'
 import { useMediaQuery } from '../hooks/useMediaQuery'
+import { useStylesheet } from '../hooks/useStylesheet'
 import { AI_IMPORT_ENABLED } from '../lib/features'
 import { activeNav, navSections, type NavSection } from '../lib/navigation'
 
@@ -19,6 +20,7 @@ const MINIAPP_ROUTE = '/tma'
 // Guest pages, opened by a link, nobody signs in: a flat's page and a personal link.
 const GUEST_PAGE_PREFIXES = ['/s/', '/o/', '/c/', '/g/']
 const isGuestPage = (pathname: string) => GUEST_PAGE_PREFIXES.some((prefix) => pathname.startsWith(prefix))
+const APP_FONT = 'https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700&display=swap'
 
 export const Route = createRootRoute({
   beforeLoad: ({ location }) => {
@@ -75,6 +77,7 @@ function AuthenticatedLayout() {
   const isOwner = user?.role === 'owner'
   const sections = navSections(user?.role, AI_IMPORT_ENABLED)
   const active = activeNav(sections, pathname)
+  useStylesheet(APP_FONT)
 
   if (isMobileShell) {
     return (
@@ -88,9 +91,9 @@ function AuthenticatedLayout() {
   }
 
   return (
-    <div className="flex min-h-screen bg-white">
-      <aside className="sticky top-0 flex h-screen w-52 shrink-0 flex-col border-r border-gray-100 px-3 py-3">
-        <Link to="/bookings/today" className="px-3 py-2 text-sm font-bold text-gray-900">
+    <div className="flex min-h-screen bg-surface-page font-app text-ink">
+      <aside className="sticky top-0 flex h-screen w-52 shrink-0 flex-col border-r border-line bg-surface-card px-3 py-3">
+        <Link to="/bookings/today" className="px-3 py-2 text-sm font-bold text-ink">
           Day
         </Link>
         <nav className="mt-2 flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto">
@@ -103,21 +106,21 @@ function AuthenticatedLayout() {
             ))}
           </div>
         </nav>
-        <div className="mt-2 flex items-center gap-2 border-t border-gray-100 px-3 pt-3">
+        <div className="mt-2 flex items-center gap-2 border-t border-line px-3 pt-3">
           {user && (
-            <span className="min-w-0 flex-1 truncate text-xs text-gray-500" title={user.email}>{user.email}</span>
+            <span className="min-w-0 flex-1 truncate text-xs text-ink-muted" title={user.email}>{user.email}</span>
           )}
           <button
             onClick={logout}
             aria-label={t('common.logout')}
-            className="ml-auto flex items-center text-gray-400 transition-colors hover:text-gray-900"
+            className="ml-auto flex items-center text-ink-muted transition-colors hover:text-ink"
           >
             <LogOut className="h-3.5 w-3.5" />
           </button>
         </div>
       </aside>
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex min-h-[57px] items-center gap-4 border-b border-gray-100 bg-white px-6 py-2">
+        <header className="flex min-h-[57px] items-center gap-4 border-b border-line bg-surface-card px-6 py-2">
           {active && <SectionTabs section={active.section} activeTo={active.to} />}
           <div className="ml-auto flex items-center gap-3">
             <GlobalSearch />
@@ -142,7 +145,7 @@ function SideLink({ section, isActive }: { section: NavSection; isActive: boolea
       to={section.to}
       aria-current={isActive ? 'true' : undefined}
       className={`flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-bold transition-colors ${
-        isActive ? 'bg-gray-100 text-gray-900' : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900'
+        isActive ? 'bg-accent-soft text-accent-ink' : 'text-ink-muted hover:bg-surface-page hover:text-ink'
       }`}
     >
       <Icon className="h-4 w-4" />
