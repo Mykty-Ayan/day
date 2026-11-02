@@ -5,6 +5,7 @@ import {
 } from '@tanstack/react-query'
 import { blockNights, bookedNights } from '../lib/booking-dates'
 import { listBlocks } from '../api/properties'
+import { CLEANING_KEY } from './useCleaning'
 import type {
   BookingFilters,
   BookingCreateInput,
@@ -50,6 +51,7 @@ const DEPOSITS_KEY = 'booking-deposits'
 const COMMENTS_KEY = 'booking-comments'
 const GANTT_KEY = 'gantt-data'
 const TODAY_KEY = 'today-checks'
+export const TODAY_REFRESH = 60_000
 const GUESTS_KEY = 'guests'
 const PRICE_KEY = 'price-calculation'
 
@@ -122,6 +124,9 @@ export function useUpdateBooking(id: string) {
       qc.invalidateQueries({ queryKey: [BOOKINGS_KEY] })
       qc.invalidateQueries({ queryKey: [BOOKING_KEY, id] })
       qc.invalidateQueries({ queryKey: [GANTT_KEY] })
+      qc.invalidateQueries({ queryKey: [TODAY_KEY] })
+      // A guest left, or the stay's end moved: its cleaning changed on the server.
+      qc.invalidateQueries({ queryKey: [CLEANING_KEY] })
     },
   })
 }
@@ -150,6 +155,8 @@ export function useChangeBookingStatus(id: string) {
       qc.invalidateQueries({ queryKey: [BOOKING_KEY, id] })
       qc.invalidateQueries({ queryKey: [GANTT_KEY] })
       qc.invalidateQueries({ queryKey: [TODAY_KEY] })
+      // A guest left, or the stay's end moved: its cleaning changed on the server.
+      qc.invalidateQueries({ queryKey: [CLEANING_KEY] })
     },
   })
 }
@@ -187,10 +194,15 @@ export function useBookingPayments(bookingId: string) {
 export function useAddPayment(bookingId: string) {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (data: PaymentInput) => addPayment(bookingId, data),
+    mutationFn: ({ idempotencyKey, ...data }: PaymentInput & { idempotencyKey?: string }) =>
+      addPayment(bookingId, data, idempotencyKey),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: [PAYMENTS_KEY, bookingId] })
       qc.invalidateQueries({ queryKey: [BOOKING_KEY, bookingId] })
+    },
+    // After a failure too: the answer may be lost with the money recorded.
+    onSettled: () => {
+      qc.invalidateQueries({ queryKey: [TODAY_KEY] })
     },
   })
 }
@@ -203,6 +215,7 @@ export function useConfirmPayment(bookingId: string) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: [PAYMENTS_KEY, bookingId] })
       qc.invalidateQueries({ queryKey: [BOOKING_KEY, bookingId] })
+      qc.invalidateQueries({ queryKey: [TODAY_KEY] })
     },
   })
 }
@@ -298,6 +311,9 @@ export function useTodayChecks() {
   return useQuery({
     queryKey: [TODAY_KEY],
     queryFn: getTodayChecks,
+    // The screen stays open on a desk: a booking from the CRM, a new day.
+    refetchInterval: TODAY_REFRESH,
+    staleTime: TODAY_REFRESH,
   })
 }
 

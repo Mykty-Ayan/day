@@ -58,6 +58,9 @@ test.describe('what can still happen', () => {
     expect(extendedCheckOut({ status: 'checked_in', rental_mode: 'daily', check_out: '2026-11-03T11:00:00' })).toBe(
       '2026-11-04T11:00:00',
     )
+    expect(extendedCheckOut({ status: 'checked_in', rental_mode: 'daily', check_out: '2026-10-31T12:00:00' }, 3)).toBe(
+      '2026-11-03T12:00:00',
+    )
     expect(extendedCheckOut({ status: 'confirmed', rental_mode: 'hourly', check_out: '2026-11-03T16:00:00' })).toBe(
       '2026-11-03T17:00:00',
     )
