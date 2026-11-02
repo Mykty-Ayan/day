@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import uuid
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from decimal import Decimal
 
@@ -13,6 +14,7 @@ from app.application.booking.create_booking import (
 )
 from app.application.booking.price_calculator import PriceCalculatorService
 from app.application.booking.stay_rules import company_now, overlapping_stays, overridden_rules, stay_rule_breaches
+from app.application.cleaning.create_task import follow_stay
 from app.domain.booking.entities import Booking, BookingAuditLog
 from app.domain.booking.exceptions import BookingOverlapError, StayRulesError
 from app.domain.booking.repositories import (
@@ -25,6 +27,8 @@ from app.domain.booking.value_objects import (
     BookingStatus,
     RentalMode,
 )
+from app.domain.cleaning.entities import CleaningTask
+from app.domain.cleaning.repositories import CleaningTaskRepository
 from app.domain.property.repositories import PropertyRepository
 from app.domain.settings.repositories import CompanySettingsRepository
 
@@ -61,11 +65,16 @@ class UpdateBookingService:
         audit_repo: BookingAuditLogRepository,
         price_calculator: PriceCalculatorService,
         settings_repo: CompanySettingsRepository | None = None,
+        task_repo: CleaningTaskRepository | None = None,
+        tell_cleaner: Callable[[CleaningTask], Awaitable[None]] | None = None,
     ) -> None:
         self._booking_repo = booking_repo
         self._property_repo = property_repo
         self._audit_repo = audit_repo
         self._price_calculator = price_calculator
+        # The stay's cleaning follows new dates, and its maid hears of it.
+        self._task_repo = task_repo
+        self._tell_cleaner = tell_cleaner
         # The company's clock for the lead-time rule; without it, the default zone.
         self._settings_repo = settings_repo
 
@@ -227,6 +236,12 @@ class UpdateBookingService:
                     pass  # No pricing config, keep existing calculated_price
 
         updated = await self._booking_repo.update(booking)
+
+        if self._task_repo is not None and updated.check_out != saved_out:
+            for task in await follow_stay(self._task_repo, updated, saved_out):
+                changes.append(("cleaning_moved", str(task.id), str(task.scheduled_date)))
+                if self._tell_cleaner is not None:
+                    await self._tell_cleaner(task)
 
         for field_name, old_val, new_val in changes:
             await self._audit_repo.create(

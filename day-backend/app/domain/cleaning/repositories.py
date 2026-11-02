@@ -36,6 +36,7 @@ class CleaningTaskRepository(abc.ABC):
         cleaner_id: uuid.UUID | None = None,
         date_from: date | None = None,
         date_to: date | None = None,
+        due_by: date | None = None,
     ) -> list[CleaningTask]: ...
 
     @abc.abstractmethod
@@ -48,6 +49,7 @@ class CleaningTaskRepository(abc.ABC):
         cleaner_id: uuid.UUID | None = None,
         date_from: date | None = None,
         date_to: date | None = None,
+        due_by: date | None = None,
     ) -> int: ...
 
     @abc.abstractmethod

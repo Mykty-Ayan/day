@@ -145,6 +145,10 @@ export default function MiniAppPage() {
     queryFn: getTodayChecks,
     enabled: enabled && tab === 'today',
   })
+  // An hourly guest leaving today stays under departures, not twice.
+  const inHouse = (todayQuery.data?.in_house ?? []).filter(
+    (stay) => !todayQuery.data?.check_outs.some((item) => item.id === stay.id),
+  )
 
   const upcomingQuery = useQuery({
     queryKey: ['miniapp', 'upcoming'],
@@ -346,10 +350,10 @@ export default function MiniAppPage() {
                 <Section
                   icon={<Users className="h-4 w-4" />}
                   title={t('miniapp.inHouse')}
-                  count={todayQuery.data.in_house.length}
+                  count={inHouse.length}
                   emptyLabel={t('miniapp.empty')}
                 >
-                  {todayQuery.data.in_house.map((item) => (
+                  {inHouse.map((item) => (
                     <BookingRow
                       key={item.id}
                       booking={item}

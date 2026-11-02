@@ -111,6 +111,12 @@ class FakePricingRepository:
 
 
 class FakeBookingRepository(BookingRepository):
+    async def list_ended_owing(self, company_id, before, with_orders_due):
+        return []
+
+    async def list_unclosed(self, company_id, before):
+        return []
+
     def __init__(self):
         self.items: dict[uuid.UUID, Booking] = {}
 

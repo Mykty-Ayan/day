@@ -28,6 +28,7 @@ from app.application.booking.manage_deposits import ManageDepositsService
 from app.application.booking.manage_payments import ManagePaymentsService
 from app.application.booking.move_booking import MoveBookingService
 from app.application.booking.price_calculator import PriceCalculatorService
+from app.application.booking.stay_rules import company_day_utc, company_now
 from app.application.booking.update_booking import (
     UpdateBookingInput,
     UpdateBookingService,
@@ -41,7 +42,7 @@ from app.application.booking.update_guest import (
 from app.application.leads.check_guest import normalise_phone
 from app.config import settings
 from app.domain.auth.permissions import Permission
-from app.domain.booking.entities import BookingComment, BookingFile
+from app.domain.booking.entities import Booking, BookingComment, BookingFile
 from app.domain.booking.exceptions import (
     BookingOverlapError,
     DepositAlreadyOpenError,
@@ -57,6 +58,7 @@ from app.domain.property.value_objects import FactAudience
 from app.domain.settings.entities import CompanySettings
 from app.infrastructure.database import get_session
 from app.infrastructure.messaging.booking_notice import notify_booking
+from app.infrastructure.messaging.cleaning_notice import notify_cleaner
 from app.infrastructure.repositories.agents import SqlAgentRepository
 from app.infrastructure.repositories.booking import (
     SqlBookingAuditLogRepository,
@@ -591,9 +593,10 @@ async def get_today(
     date_value: date | None = Query(default=None, alias="date"),
     session: AsyncSession = Depends(get_session),
     company_id: uuid.UUID = Depends(get_company_id),
+    principal: Principal = Depends(get_principal),
 ):
     repos = _repos(session)
-    today = date_value or date.today()
+    today = date_value or (await company_now(repos["settings"], company_id)).date()
     yesterday = today - timedelta(days=1)
     tomorrow = today + timedelta(days=1)
 
@@ -605,16 +608,23 @@ async def get_today(
         tomorrow,
     )
 
+    ended = await repos["booking"].list_ended_owing(
+        company_id, today, await repos["orders"].booking_ids_with_due(company_id)
+    )
+    unclosed = await repos["booking"].list_unclosed(company_id, today)
+
     check_ins = []
     check_outs = []
     in_house = []
 
-    paid = await repos["payment"].sum_paid_by_bookings([b.id for b in all_bookings])
-    due = await repos["orders"].due_by_bookings(company_id, [b.id for b in all_bookings])
-    for b in all_bookings:
+    ids = list({b.id for b in [*all_bookings, *ended, *unclosed]})
+    paid = await repos["payment"].sum_paid_by_bookings(ids)
+    due = await repos["orders"].due_by_bookings(company_id, ids)
+
+    async def row(b: Booking) -> TodayBookingItem:
         guest = await repos["guest"].get_by_id(b.guest_id)
         prop = await repos["property"].get_by_id(b.property_id)
-        item = TodayBookingItem(
+        return TodayBookingItem(
             **_to_booking_response(
                 b,
                 guest_name=guest.name if guest else None,
@@ -626,6 +636,9 @@ async def get_today(
             ).model_dump(),
             property_status=prop.status if prop else None,
         )
+
+    for b in all_bookings:
+        item = await row(b)
         # check_in/check_out are datetimes; compare on their calendar date.
         check_in_date = b.check_in.date() if b.check_in is not None else None
         check_out_date = b.check_out.date() if b.check_out is not None else None
@@ -645,14 +658,24 @@ async def get_today(
             b.status == BookingStatus.CHECKED_IN
             and check_in_date is not None
             and check_out_date is not None
-            and check_in_date <= today < check_out_date
+            and check_in_date <= today
+            # Hours end the day they are sold: the guest is in until then.
+            and (today < check_out_date or (today == check_out_date and b.rental_mode == RentalMode.HOURLY))
         ):
             in_house.append(item)
+
+    received_today = None
+    if Permission.ANALYTICS_READ in principal.permissions:
+        start, end = await company_day_utc(repos["settings"], company_id, today)
+        received_today = await repos["payment"].sum_received_between(company_id, start, end)
 
     return TodayCheckResponse(
         check_ins=check_ins,
         check_outs=check_outs,
         in_house=in_house,
+        past_debts=[await row(b) for b in ended],
+        unclosed=[await row(b) for b in unclosed],
+        received_today=received_today,
     )
 
 
@@ -717,7 +740,13 @@ async def update_booking(
 ):
     repos = _repos(session)
     svc = UpdateBookingService(
-        repos["booking"], repos["property"], repos["audit"], _price_calculator(repos), repos["settings"]
+        repos["booking"],
+        repos["property"],
+        repos["audit"],
+        _price_calculator(repos),
+        repos["settings"],
+        SqlCleaningTaskRepository(session),
+        lambda task: notify_cleaner(session, task, repos["property"], NotificationEvent.CLEANING_MOVED),
     )
 
     provided = body.model_dump(exclude_unset=True)

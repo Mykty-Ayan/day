@@ -100,6 +100,12 @@ class FakePropertyRepository(PropertyRepository):
 
 
 class FakeBookingRepository(BookingRepository):
+    async def list_ended_owing(self, company_id, before, with_orders_due):
+        return []
+
+    async def list_unclosed(self, company_id, before):
+        return []
+
     def __init__(self) -> None:
         self._bookings: dict[uuid.UUID, Booking] = {}
         self._voided: set[tuple[uuid.UUID, str]] = set()
@@ -368,6 +374,9 @@ class FakeBookingPaymentRepository(BookingPaymentRepository):
             signed = -payment.amount if payment.type == PaymentType.REFUND else payment.amount
             totals[payment.booking_id] = totals.get(payment.booking_id, Decimal("0")) + signed
         return totals
+
+    async def sum_received_between(self, company_id, start, end) -> Decimal:
+        raise NotImplementedError
 
 
 class FakeBookingDepositRepository(BookingDepositRepository):

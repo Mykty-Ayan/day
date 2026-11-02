@@ -3,7 +3,7 @@ plus integration tests for interval-safe day math and sub-day proration."""
 
 import contextlib
 import uuid
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from decimal import Decimal
 
 import pytest
@@ -22,6 +22,7 @@ from app.infrastructure.repositories.analytics import (
     SqlAnalyticsRepository,
     _generate_buckets,
 )
+from app.infrastructure.repositories.booking import SqlBookingPaymentRepository
 
 
 @contextlib.asynccontextmanager
@@ -262,6 +263,24 @@ def _payment(booking_id: uuid.UUID, amount: str) -> BookingPaymentModel:
     )
 
 
+def _at(payment: BookingPaymentModel, paid_at: datetime) -> BookingPaymentModel:
+    payment.paid_at = paid_at
+    return payment
+
+
+def _refund(booking_id: uuid.UUID, amount: str) -> BookingPaymentModel:
+    payment = _payment(booking_id, amount)
+    payment.type = "refund"
+    return payment
+
+
+def _pending(booking_id: uuid.UUID, amount: str) -> BookingPaymentModel:
+    payment = _payment(booking_id, amount)
+    payment.status = "pending"
+    payment.paid_at = datetime(2025, 6, 10, 2)
+    return payment
+
+
 @pytestmark_integration
 @pytest.mark.asyncio
 async def test_metrics_mixed_hourly_and_daily_does_not_raise_and_prorates():
@@ -359,6 +378,40 @@ async def test_a_kept_prepayment_is_income_but_not_a_stay():
         assert pm.adr == Decimal("100")  # 200 / 2: the stay alone
         assert pm.revpar == Decimal("200") / Decimal("29")
 
+        await session.rollback()
+
+
+@pytestmark_integration
+@pytest.mark.asyncio
+async def test_money_received_today_stays_inside_the_company_and_the_day():
+    company_id = uuid.uuid4()
+    start, end = datetime(2025, 6, 9, 19), datetime(2025, 6, 10, 19)
+    async with _fresh_session() as session:
+        guest, other_guest = _guest(company_id), _guest(uuid.uuid4())
+        prop = _property(company_id, f"day-{uuid.uuid4().hex[:8]}", "daily")
+        other = _property(other_guest.company_id, f"day-{uuid.uuid4().hex[:8]}", "daily")
+        stay = _booking(company_id, prop.id, guest.id, datetime(2025, 6, 10), datetime(2025, 6, 12), "900", "daily")
+        foreign = _booking(
+            other_guest.company_id, other.id, other_guest.id,
+            datetime(2025, 6, 10), datetime(2025, 6, 12), "900", "daily",
+        )
+        session.add_all([guest, other_guest, prop, other, stay, foreign])
+        await session.flush()
+
+        session.add_all([
+            _at(_payment(stay.id, "100"), start),
+            _at(_payment(stay.id, "50"), end - timedelta(seconds=1)),
+            _at(_refund(stay.id, "30"), start + timedelta(hours=1)),
+            _at(_payment(stay.id, "7"), end),  # the next day
+            _at(_payment(stay.id, "9"), start - timedelta(seconds=1)),  # the day before
+            _at(_payment(foreign.id, "1000"), start + timedelta(hours=1)),  # another company
+            _pending(stay.id, "5"),
+        ])
+        await session.flush()
+
+        received = await SqlBookingPaymentRepository(session).sum_received_between(company_id, start, end)
+
+        assert received == Decimal("120")
         await session.rollback()
 
 

@@ -21,6 +21,7 @@ from app.application.booking.price_calculator import PriceCalculatorService
 from app.application.booking.update_booking import UpdateBookingInput, UpdateBookingService
 from app.application.cleaning.create_task import CreateCleaningTaskInput, CreateCleaningTaskService
 from app.domain.booking.value_objects import PaymentMethod, PaymentType
+from app.domain.messaging.value_objects import NotificationEvent
 from app.infrastructure.repositories.analytics import SqlAnalyticsRepository
 from app.infrastructure.repositories.booking import (
     SqlBookingAuditLogRepository,
@@ -63,7 +64,18 @@ def build_assistant_tools(
 
     company_settings = SqlCompanySettingsRepository(session)
     create_booking = CreateBookingService(bookings, guests, properties, audit, prices, company_settings)
-    update_booking = UpdateBookingService(bookings, properties, audit, prices, company_settings)
+    # Here, not at the top: the messaging factory imports this module.
+    from app.infrastructure.messaging.cleaning_notice import notify_cleaner
+
+    update_booking = UpdateBookingService(
+        bookings,
+        properties,
+        audit,
+        prices,
+        company_settings,
+        SqlCleaningTaskRepository(session),
+        lambda task: notify_cleaner(session, task, properties, NotificationEvent.CLEANING_MOVED),
+    )
     manage_payments = ManagePaymentsService(bookings, payments, audit)
     create_cleaning = CreateCleaningTaskService(SqlCleaningTaskRepository(session), properties)
     metrics = CalculateMetricsService(
