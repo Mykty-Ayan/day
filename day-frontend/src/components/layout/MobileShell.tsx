@@ -38,7 +38,7 @@ export default function MobileShell({
   const pageTitle = pageLink ? t(pageLink.labelKey) : 'Day'
 
   return (
-    <div className="min-h-screen bg-surface-page font-app text-ink flex flex-col">
+    <div className="min-h-screen bg-surface-page text-ink flex flex-col">
       <header className="sticky top-0 z-sticky border-b border-line bg-surface-card safe-area-top">
         <div className="flex items-center px-4 py-3">
           <Link to="/bookings/today" className="text-sm font-bold text-gray-900">

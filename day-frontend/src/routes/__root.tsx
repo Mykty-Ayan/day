@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { createRootRoute, Outlet, Link, useRouterState, redirect } from '@tanstack/react-router'
 import { LogOut } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
@@ -78,6 +79,11 @@ function AuthenticatedLayout() {
   const sections = navSections(user?.role, AI_IMPORT_ENABLED)
   const active = activeNav(sections, pathname)
   useStylesheet(APP_FONT)
+  // On the body: menus and toasts render outside the shell.
+  useEffect(() => {
+    document.body.classList.add('font-app')
+    return () => document.body.classList.remove('font-app')
+  }, [])
 
   if (isMobileShell) {
     return (
@@ -91,7 +97,7 @@ function AuthenticatedLayout() {
   }
 
   return (
-    <div className="flex min-h-screen bg-surface-page font-app text-ink">
+    <div className="flex min-h-screen bg-surface-page text-ink">
       <aside className="sticky top-0 flex h-screen w-52 shrink-0 flex-col border-r border-line bg-surface-card px-3 py-3">
         <Link to="/bookings/today" className="px-3 py-2 text-sm font-bold text-ink">
           Day
