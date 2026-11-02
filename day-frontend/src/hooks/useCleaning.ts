@@ -33,7 +33,7 @@ import type {
   SubmitReportInput,
 } from '../types/cleaning'
 
-const CLEANING_KEY = 'cleaning-tasks'
+export const CLEANING_KEY = 'cleaning-tasks'
 const CLEANING_TASK_KEY = 'cleaning-task'
 const CHECKLISTS_KEY = 'checklists'
 const CHECKLIST_KEY = 'checklist'
@@ -43,10 +43,12 @@ const PROPERTY_CLEANING_KEY = 'property-cleaning'
 
 // ---------- Cleaning Tasks ----------
 
-export function useCleaningTasks(filters: CleaningTaskFilters = {}) {
+export function useCleaningTasks(filters: CleaningTaskFilters = {}, refetchInterval?: number) {
   return useQuery({
     queryKey: [CLEANING_KEY, filters],
     queryFn: () => listCleaningTasks(filters),
+    refetchInterval,
+    staleTime: refetchInterval,
   })
 }
 
@@ -87,6 +89,22 @@ export function useAssignCleaner(taskId: string) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: [CLEANING_KEY] })
       qc.invalidateQueries({ queryKey: [CLEANING_TASK_KEY, taskId] })
+    },
+  })
+}
+
+/** Several at once: what failed stays, what passed is on the list as assigned. */
+export function useAssignCleaners() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (assignments: { taskId: string; cleanerId: string }[]) => {
+      const results = await Promise.allSettled(
+        assignments.map(({ taskId, cleanerId }) => assignCleaner(taskId, cleanerId)),
+      )
+      if (results.some((result) => result.status === 'rejected')) throw new Error('assign failed')
+    },
+    onSettled: () => {
+      qc.invalidateQueries({ queryKey: [CLEANING_KEY] })
     },
   })
 }

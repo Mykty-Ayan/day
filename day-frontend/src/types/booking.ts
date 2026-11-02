@@ -188,6 +188,12 @@ export interface TodayChecks {
   check_ins: Booking[]
   check_outs: Booking[]
   in_house: Booking[]
+  /** Stays that ended before today with money still owed, the latest first. */
+  past_debts?: Booking[]
+  /** Still marked in after the last day, or never marked in after the first. */
+  unclosed?: Booking[]
+  /** Money received today; null for who may not read analytics. */
+  received_today?: number | string | null
 }
 
 export interface BookingCreateInput {

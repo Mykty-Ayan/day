@@ -50,6 +50,8 @@ export interface CleaningTaskFilters {
   cleaner_id?: string
   date_from?: string
   date_to?: string
+  /** Due by this day: past days and no date count. */
+  due_by?: string
 }
 
 // Checklist Template
