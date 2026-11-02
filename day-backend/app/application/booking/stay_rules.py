@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timedelta
+from datetime import date, datetime, time, timedelta, timezone
 from zoneinfo import ZoneInfo
 
 from app.domain.booking.entities import Booking
@@ -14,14 +14,27 @@ from app.domain.settings.entities import DEFAULT_TIME_ZONE
 from app.domain.settings.repositories import CompanySettingsRepository
 
 
-async def company_now(settings_repo: CompanySettingsRepository | None, company_id: uuid.UUID) -> datetime:
-    """Now on the company's clock, naive like every check-in in Day."""
-    zone = DEFAULT_TIME_ZONE
+async def _company_zone(settings_repo: CompanySettingsRepository | None, company_id: uuid.UUID) -> ZoneInfo:
     if settings_repo is not None:
         settings = await settings_repo.get_by_company(company_id)
         if settings is not None and settings.time_zone:
-            zone = settings.time_zone
-    return datetime.now(ZoneInfo(zone)).replace(tzinfo=None)
+            return ZoneInfo(settings.time_zone)
+    return ZoneInfo(DEFAULT_TIME_ZONE)
+
+
+async def company_now(settings_repo: CompanySettingsRepository | None, company_id: uuid.UUID) -> datetime:
+    """Now on the company's clock, naive like every check-in in Day."""
+    return datetime.now(await _company_zone(settings_repo, company_id)).replace(tzinfo=None)
+
+
+async def company_day_utc(
+    settings_repo: CompanySettingsRepository | None, company_id: uuid.UUID, day: date
+) -> tuple[datetime, datetime]:
+    """A day on the company's clock as naive UTC bounds, the way payments store paid_at."""
+    zone = await _company_zone(settings_repo, company_id)
+    start = datetime.combine(day, time.min, zone).astimezone(timezone.utc).replace(tzinfo=None)
+    end = datetime.combine(day + timedelta(days=1), time.min, zone).astimezone(timezone.utc).replace(tzinfo=None)
+    return start, end
 
 
 async def overlapping_stays(

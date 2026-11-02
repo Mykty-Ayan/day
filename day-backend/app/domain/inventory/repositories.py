@@ -65,6 +65,10 @@ class GuestOrderRepository(abc.ABC):
         """The booking's orders, newest first, with their items: for the guest's page."""
 
     @abc.abstractmethod
+    async def booking_ids_with_due(self, company_id: uuid.UUID) -> list[uuid.UUID]:
+        """Every booking of the company with an order still owed on its tab."""
+
+    @abc.abstractmethod
     async def due_by_bookings(
         self, company_id: uuid.UUID, booking_ids: Sequence[uuid.UUID]
     ) -> dict[uuid.UUID, Decimal]:

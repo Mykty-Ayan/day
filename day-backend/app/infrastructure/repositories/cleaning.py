@@ -3,7 +3,7 @@ from __future__ import annotations
 import uuid
 from datetime import date, datetime
 
-from sqlalchemy import delete, func, select, update
+from sqlalchemy import delete, func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.domain.cleaning.entities import (
@@ -183,7 +183,9 @@ class SqlCleaningTaskRepository(CleaningTaskRepository):
         result = await self._session.get(CleaningTaskModel, task_id)
         return _model_to_task(result) if result else None
 
-    def _apply_filters(self, stmt, *, status=None, property_id=None, cleaner_id=None, date_from=None, date_to=None):
+    def _apply_filters(
+        self, stmt, *, status=None, property_id=None, cleaner_id=None, date_from=None, date_to=None, due_by=None
+    ):
         if status is not None:
             if status == CleaningStatus.DONE:
                 stmt = stmt.where(CleaningTaskModel.status.in_(["done", "completed"]))
@@ -197,6 +199,12 @@ class SqlCleaningTaskRepository(CleaningTaskRepository):
             stmt = stmt.where(CleaningTaskModel.scheduled_date >= date_from)
         if date_to is not None:
             stmt = stmt.where(CleaningTaskModel.scheduled_date <= date_to)
+        if due_by is not None:
+            # Still to do by then: one with no date is as late as one from a past day.
+            stmt = stmt.where(
+                CleaningTaskModel.status.notin_(["done", "completed", "verified"]),
+                or_(CleaningTaskModel.scheduled_date.is_(None), CleaningTaskModel.scheduled_date <= due_by),
+            )
         return stmt
 
     async def list_by_company(
@@ -210,11 +218,12 @@ class SqlCleaningTaskRepository(CleaningTaskRepository):
         cleaner_id: uuid.UUID | None = None,
         date_from: date | None = None,
         date_to: date | None = None,
+        due_by: date | None = None,
     ) -> list[CleaningTask]:
         stmt = select(CleaningTaskModel).where(CleaningTaskModel.company_id == company_id)
         stmt = self._apply_filters(
             stmt, status=status, property_id=property_id,
-            cleaner_id=cleaner_id, date_from=date_from, date_to=date_to,
+            cleaner_id=cleaner_id, date_from=date_from, date_to=date_to, due_by=due_by,
         )
         stmt = stmt.order_by(CleaningTaskModel.created_at.desc()).offset(offset).limit(limit)
         result = await self._session.scalars(stmt)
@@ -229,13 +238,14 @@ class SqlCleaningTaskRepository(CleaningTaskRepository):
         cleaner_id: uuid.UUID | None = None,
         date_from: date | None = None,
         date_to: date | None = None,
+        due_by: date | None = None,
     ) -> int:
         stmt = select(func.count()).select_from(CleaningTaskModel).where(
             CleaningTaskModel.company_id == company_id
         )
         stmt = self._apply_filters(
             stmt, status=status, property_id=property_id,
-            cleaner_id=cleaner_id, date_from=date_from, date_to=date_to,
+            cleaner_id=cleaner_id, date_from=date_from, date_to=date_to, due_by=due_by,
         )
         result = await self._session.scalar(stmt)
         return result or 0

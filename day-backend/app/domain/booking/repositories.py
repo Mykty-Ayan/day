@@ -175,6 +175,18 @@ class BookingRepository(abc.ABC):
     ) -> list[Booking]: ...
 
     @abc.abstractmethod
+    async def list_ended_owing(
+        self, company_id: uuid.UUID, before: date, with_orders_due: Sequence[uuid.UUID]
+    ) -> list[Booking]:
+        """Stays that ended before the day or whose guest has left, not paid in full or
+        among with_orders_due; the latest first. A pending or cancelled stay owes nothing."""
+
+    @abc.abstractmethod
+    async def list_unclosed(self, company_id: uuid.UUID, before: date) -> list[Booking]:
+        """Stays nobody closed: a guest still marked in after their last day, or one
+        never marked in after their first."""
+
+    @abc.abstractmethod
     async def list_by_company_date_range(
         self,
         company_id: uuid.UUID,
@@ -266,6 +278,11 @@ class BookingPaymentRepository(abc.ABC):
         A list of bookings needs one figure each, and asking per booking turns a
         single screen into fifty round trips.
         """
+        ...
+
+    @abc.abstractmethod
+    async def sum_received_between(self, company_id: uuid.UUID, start: datetime, end: datetime) -> Decimal:
+        """Net amount the company received in [start, end): payments less refunds."""
         ...
 
 

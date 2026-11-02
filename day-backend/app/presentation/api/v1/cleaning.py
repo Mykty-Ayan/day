@@ -223,6 +223,7 @@ async def list_cleaning_tasks(
     cleaner_id: uuid.UUID | None = None,
     date_from: date | None = None,
     date_to: date | None = None,
+    due_by: date | None = None,
     session: AsyncSession = Depends(get_session),
     company_id: uuid.UUID = Depends(get_company_id),
     scope: uuid.UUID | None = Depends(cleaner_scope),
@@ -241,6 +242,7 @@ async def list_cleaning_tasks(
         cleaner_id=cleaner_id,
         date_from=date_from,
         date_to=date_to,
+        due_by=due_by,
     )
     total = await repos["task"].count_by_company(
         company_id,
@@ -249,6 +251,7 @@ async def list_cleaning_tasks(
         cleaner_id=cleaner_id,
         date_from=date_from,
         date_to=date_to,
+        due_by=due_by,
     )
 
     names = await _cleaner_names(session, [t.cleaner_id for t in tasks])

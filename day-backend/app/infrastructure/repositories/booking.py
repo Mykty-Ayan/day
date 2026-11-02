@@ -7,7 +7,7 @@ from collections.abc import Sequence
 from datetime import date, datetime, timedelta
 from decimal import Decimal
 
-from sqlalchemy import and_, case, delete, func, select, text, tuple_, update
+from sqlalchemy import and_, case, delete, func, or_, select, text, tuple_, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -663,6 +663,53 @@ class SqlBookingRepository(BookingRepository):
         result = await self._session.scalars(stmt)
         return [_model_to_booking(m) for m in result.all()]
 
+    async def list_ended_owing(
+        self,
+        company_id: uuid.UUID,
+        before: date,
+        with_orders_due: Sequence[uuid.UUID],
+    ) -> list[Booking]:
+        signed = case(
+            (BookingPaymentModel.type == PaymentType.REFUND.value, -BookingPaymentModel.amount),
+            else_=BookingPaymentModel.amount,
+        )
+        paid = (
+            select(func.coalesce(func.sum(signed), 0))
+            .where(
+                BookingPaymentModel.booking_id == BookingModel.id,
+                BookingPaymentModel.status == PaymentStatus.COMPLETED.value,
+            )
+            .scalar_subquery()
+        )
+        stmt = (
+            select(BookingModel)
+            .where(
+                BookingModel.company_id == company_id,
+                BookingModel.status.notin_(["cancelled", "pending"]),
+                # A guest can leave before their last day: gone is gone.
+                or_(BookingModel.check_out < before, BookingModel.status.in_(["checked_out", "completed"])),
+                or_(BookingModel.total_price > paid, BookingModel.id.in_(with_orders_due)),
+            )
+            .order_by(BookingModel.check_out.desc())
+        )
+        result = await self._session.scalars(stmt)
+        return [_model_to_booking(m) for m in result.all()]
+
+    async def list_unclosed(self, company_id: uuid.UUID, before: date) -> list[Booking]:
+        stmt = (
+            select(BookingModel)
+            .where(
+                BookingModel.company_id == company_id,
+                or_(
+                    and_(BookingModel.status == "checked_in", BookingModel.check_out < before),
+                    and_(BookingModel.status == "confirmed", BookingModel.check_in < before),
+                ),
+            )
+            .order_by(BookingModel.check_in)
+        )
+        result = await self._session.scalars(stmt)
+        return [_model_to_booking(m) for m in result.all()]
+
     async def list_changed(
         self,
         company_id: uuid.UUID,
@@ -932,6 +979,23 @@ class SqlBookingPaymentRepository(BookingPaymentRepository):
         )
         rows = await self._session.execute(stmt)
         return {booking_id: Decimal(str(total)) for booking_id, total in rows.all()}
+
+    async def sum_received_between(self, company_id: uuid.UUID, start: datetime, end: datetime) -> Decimal:
+        signed = case(
+            (BookingPaymentModel.type == PaymentType.REFUND.value, -BookingPaymentModel.amount),
+            else_=BookingPaymentModel.amount,
+        )
+        stmt = (
+            select(func.coalesce(func.sum(signed), 0))
+            .join(BookingModel, BookingModel.id == BookingPaymentModel.booking_id)
+            .where(
+                BookingModel.company_id == company_id,
+                BookingPaymentModel.status == PaymentStatus.COMPLETED.value,
+                BookingPaymentModel.paid_at >= start,
+                BookingPaymentModel.paid_at < end,
+            )
+        )
+        return Decimal(str((await self._session.execute(stmt)).scalar_one()))
 
 
 class SqlBookingDepositRepository(BookingDepositRepository):

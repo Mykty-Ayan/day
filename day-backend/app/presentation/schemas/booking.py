@@ -497,6 +497,12 @@ class TodayCheckResponse(BaseModel):
     check_ins: list[TodayBookingItem]
     check_outs: list[TodayBookingItem]
     in_house: list[TodayBookingItem]
+    # Stays that ended before this day with money still owed, the latest first.
+    past_debts: list[TodayBookingItem] = []
+    # Still marked in after the last day, or never marked in after the first.
+    unclosed: list[TodayBookingItem] = []
+    # Money received this day; null for a caller who may not read analytics.
+    received_today: Decimal | None = None
 
 
 # ---------- Audit ----------

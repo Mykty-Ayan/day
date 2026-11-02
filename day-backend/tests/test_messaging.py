@@ -943,6 +943,26 @@ class TestCleanerHearsOfANewCleaning:
         assert await svc.notify_user(COMPANY_ID, uuid.uuid4(), NotificationEvent.CLEANING_ASSIGNED, {}) == []
 
     @pytest.mark.asyncio
+    async def test_a_moved_cleaning_says_so_to_its_cleaner_alone(self):
+        repo = FakeNotificationRepository()
+        svc = NotificationService(repo, self._chats(), StubUsers([OWNER, CLEANER]))
+        await svc.notify_user(
+            COMPANY_ID,
+            CLEANER.id,
+            NotificationEvent.CLEANING_MOVED,
+            {"property_name": "Абая 28", "date": "02.11.2026", "time": None, "type": "post_checkout"},
+        )
+        provider = FakeProvider()
+        dispatcher = NotificationDispatcher(
+            repo, {Channel.TELEGRAM: provider}, identity_repo=self._chats(), user_repo=StubUsers([OWNER, CLEANER])
+        )
+
+        assert await dispatcher.dispatch_due() == 1
+        target, text = provider.sent[0][:2]
+        assert target == "2"
+        assert "Уборка перенесена" in text and "02.11.2026" in text
+
+    @pytest.mark.asyncio
     async def test_the_notice_reaches_the_cleaner_with_a_button_to_their_cleanings(self):
         repo = FakeNotificationRepository()
         svc = NotificationService(repo, self._chats(), StubUsers([OWNER, CLEANER]))
