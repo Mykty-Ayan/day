@@ -60,6 +60,7 @@ from app.infrastructure.database import get_session
 from app.infrastructure.messaging.booking_notice import notify_booking
 from app.infrastructure.messaging.cleaning_notice import notify_cleaner
 from app.infrastructure.repositories.agents import SqlAgentRepository
+from app.infrastructure.repositories.auth import SqlUserRepository
 from app.infrastructure.repositories.booking import (
     SqlBookingAuditLogRepository,
     SqlBookingCommentRepository,
@@ -83,6 +84,7 @@ from app.infrastructure.repositories.property import (
 from app.infrastructure.repositories.settings import SqlCompanySettingsRepository
 from app.infrastructure.storage.s3 import (
     FileTooLargeError,
+    delete_booking_file,
     download_booking_file,
     upload_booking_file,
 )
@@ -701,6 +703,7 @@ async def get_booking(
         repos["comment"],
         repos["contract"],
         repos["audit"],
+        SqlUserRepository(session),
     )
     try:
         detail = await svc.execute(booking_id, company_id)
@@ -723,6 +726,8 @@ async def get_booking(
         files=[_to_file_response(f) for f in detail.files],
         comments=[BookingCommentResponse.model_validate(c, from_attributes=True) for c in detail.comments],
         audit_logs=[BookingAuditLogResponse.model_validate(a, from_attributes=True) for a in detail.audit_logs],
+        guest_stays=detail.guest_stays,
+        people=detail.people,
     )
 
 
@@ -1328,6 +1333,11 @@ async def delete_file(
     file_rec = await repos["file"].get_by_id(file_id)
     if file_rec is None or file_rec.booking_id != booking_id:
         raise HTTPException(status_code=404, detail="File not found")
+    # The bucket first: if it fails the record stays, and the file can be deleted again.
+    try:
+        await delete_booking_file(file_url=file_rec.file_url)
+    except Exception:
+        raise HTTPException(status_code=500, detail="Failed to delete file")
     await repos["file"].delete(file_id)
     await session.commit()
 
