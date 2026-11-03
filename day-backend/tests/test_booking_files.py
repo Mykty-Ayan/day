@@ -69,6 +69,82 @@ async def test_an_oversized_file_is_refused(uploads, monkeypatch):
     assert sent == [] and files.created == []
 
 
+class _StoredFile(_Repo):
+    def __init__(self, booking_id):
+        self.file = _Obj(id=uuid.uuid4(), booking_id=booking_id, file_url="http://minio:9000/day-uploads/bookings/x/file")
+        self.deleted = []
+
+    async def get_by_id(self, file_id):
+        return self.file if file_id == self.file.id else None
+
+    async def delete(self, file_id):
+        self.deleted.append(file_id)
+
+
+@pytest.fixture
+def stored(monkeypatch, fake_repos):  # noqa: F811  (the imported fixture)
+    booking_id = uuid.uuid4()
+    files = _StoredFile(booking_id)
+    removed = []
+
+    async def fake_delete(*, file_url):
+        removed.append(file_url)
+
+    monkeypatch.setattr(bookings, "delete_booking_file", fake_delete)
+    fake_repos(booking=_Repo(_Obj(company_id=COMPANY_ID)), file=files)
+    return booking_id, files, removed
+
+
+async def _delete(booking_id, file_id) -> int:
+    path = f"/api/v1/bookings/{booking_id}/files/{file_id}"
+    return await _request("DELETE", path, _user_principal(UserRole.MANAGER))
+
+
+@pytest.mark.asyncio
+async def test_a_removed_file_leaves_the_storage_too(stored):
+    booking_id, files, removed = stored
+    assert await _delete(booking_id, files.file.id) == 204
+    assert removed == [files.file.file_url]
+    assert files.deleted == [files.file.id]
+
+
+@pytest.mark.asyncio
+async def test_a_file_the_storage_keeps_stays_listed(stored, monkeypatch):
+    # A guest's document must not stay in the bucket with nothing pointing at it.
+    booking_id, files, _ = stored
+
+    async def broken(*, file_url):
+        raise RuntimeError("storage is down")
+
+    monkeypatch.setattr(bookings, "delete_booking_file", broken)
+    assert await _delete(booking_id, files.file.id) == 500
+    assert files.deleted == []
+
+
+@pytest.mark.asyncio
+async def test_a_file_of_another_booking_is_not_removed(stored):
+    _, files, removed = stored
+    assert await _delete(uuid.uuid4(), files.file.id) == 404
+    assert removed == [] and files.deleted == []
+
+
+class _Removing:
+    def __init__(self):
+        self.calls = []
+
+    def delete_object(self, **kwargs):
+        self.calls.append(kwargs)
+
+
+@pytest.mark.asyncio
+async def test_the_file_is_deleted_by_its_key(monkeypatch):
+    client = _Removing()
+    monkeypatch.setattr(s3, "_s3_client", lambda: client)
+    url = f"http://minio:9000/{settings.S3_BUCKET}/bookings/x/passport.pdf"
+    await s3.delete_booking_file(file_url=url)
+    assert client.calls == [{"Bucket": settings.S3_BUCKET, "Key": "bookings/x/passport.pdf"}]
+
+
 class _Bucket:
     def __init__(self):
         self.policies = []

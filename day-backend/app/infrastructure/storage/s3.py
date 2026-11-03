@@ -224,3 +224,10 @@ async def download_booking_file(*, file_url: str) -> tuple[bytes, str | None]:
         return body, obj.get("ContentType")
 
     return await asyncio.to_thread(_get)
+
+
+async def delete_booking_file(*, file_url: str) -> None:
+    """A key already gone counts as deleted: pressing delete again finishes the job."""
+    client = _s3_client()
+    key = _extract_key(file_url)
+    await asyncio.to_thread(client.delete_object, Bucket=settings.S3_BUCKET, Key=key)
