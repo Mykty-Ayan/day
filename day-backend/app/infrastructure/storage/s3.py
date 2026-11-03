@@ -5,7 +5,6 @@ import functools
 import json
 import os
 import uuid
-from urllib.parse import unquote, urlparse
 
 import boto3
 from botocore.client import Config
@@ -103,11 +102,13 @@ def _sanitize_filename(name: str | None) -> str:
 
 
 def _extract_key(file_url: str) -> str:
+    """The key as build_public_url glued it on: nothing is encoded there, so the path
+    is not parsed as a URL. A '#', '?' or '%20' in a file's name belongs to the key."""
     if not file_url:
         raise ValueError("Empty file URL")
 
-    parsed = urlparse(file_url)
-    path = unquote(parsed.path or "").lstrip("/")
+    _, _, rest = file_url.partition("://")
+    path = (rest.partition("/")[2] if rest else file_url).lstrip("/")
     bucket_prefix = f"{settings.S3_BUCKET}/"
     if path.startswith(bucket_prefix):
         return path[len(bucket_prefix):]

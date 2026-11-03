@@ -145,6 +145,13 @@ async def test_the_file_is_deleted_by_its_key(monkeypatch):
     assert client.calls == [{"Bucket": settings.S3_BUCKET, "Key": "bookings/x/passport.pdf"}]
 
 
+@pytest.mark.parametrize("name", ["passport#1.pdf", "passport?copy.pdf", "passport%20scan.pdf", "паспорт.pdf"])
+def test_the_key_is_read_back_as_it_was_written(name):
+    # The URL is the key glued on, not encoded: '#', '?' and '%' are part of the name.
+    key = f"bookings/x/{uuid.uuid4()}-{name}"
+    assert s3._extract_key(s3.build_public_url(key)) == key
+
+
 class _Bucket:
     def __init__(self):
         self.policies = []
