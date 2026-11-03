@@ -26,6 +26,7 @@ import { dateLocale } from '../../lib/date-locale'
 import { attentionItems, hourlyStays, occupiedTonight, totalDebt, type AttentionItem, type StayStage } from '../../lib/today-attention'
 import { formatMoney, formatTime, toISODate } from '../miniapp/format'
 import type { Booking, BookingStatus, TodayChecks } from '../../types/booking'
+import StatusStepDialog from '../../components/booking/StatusStepDialog'
 import BookingStatusBadge from '../../components/booking/BookingStatusBadge'
 import ExtendStayButton from '../../components/booking/ExtendStayButton'
 import TakePaymentPanel from '../../components/booking/TakePaymentPanel'
@@ -393,12 +394,19 @@ function StatusButton({
 }) {
   const { t } = useTranslation()
   const changeStatus = useChangeBookingStatus(booking.id)
+  const [asking, setAsking] = useState(false)
+  // The step as it was when pressed: a refresh while the question is open may turn
+  // the row's button into the next step, and "yes" must not take that one.
+  const [asked, setAsked] = useState({ target, label })
 
   return (
     <>
       <button
         type="button"
-        onClick={() => changeStatus.mutate(target)}
+        onClick={() => {
+          setAsked({ target, label })
+          setAsking(true)
+        }}
         disabled={changeStatus.isPending}
         className={ROW_BUTTON}
       >
@@ -408,6 +416,14 @@ function StatusButton({
       {changeStatus.isError && (
         <p role="alert" className="max-w-28 text-xs text-danger">{t('today.statusFailed')}</p>
       )}
+      <StatusStepDialog
+        target={asked.target}
+        label={asked.label}
+        open={asking}
+        loading={changeStatus.isPending}
+        onCancel={() => setAsking(false)}
+        onConfirm={() => changeStatus.mutate(asked.target, { onSettled: () => setAsking(false) })}
+      />
     </>
   )
 }
