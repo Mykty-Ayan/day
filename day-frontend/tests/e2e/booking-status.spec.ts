@@ -135,6 +135,30 @@ test.describe('Booking Status Transitions - E2E', () => {
     await expectStatus(page, request, booking.id, 'checked_out', 'Checked Out')
   })
 
+  test('a step asked about stays that step when the booking changes meanwhile', async ({ page, request }) => {
+    const prop = await setupActiveProperty(request)
+    const booking = await createBookingViaApi(request, prop.id)
+    await transitionViaApi(request, booking.id, 'confirmed')
+    await page.clock.install()
+
+    await page.goto(`/bookings/${booking.id}`)
+    await page.getByRole('button', { name: /check.?in/i }).click()
+    await expect(page.getByRole('dialog')).toBeVisible()
+    // Someone else lets the guest in; coming back to the tab later, the page reads the
+    // booking again (it is kept fresh for 5 minutes)
+    await transitionViaApi(request, booking.id, 'checked_in')
+    await page.clock.runFor(6 * 60_000)
+    const reread = page.waitForResponse((response) => response.url().endsWith(`/bookings/${booking.id}`))
+    await page.evaluate(() => window.dispatchEvent(new Event('visibilitychange')))
+    await reread
+    await expect(page.getByText('Checked In', { exact: true }).first()).toBeAttached()
+
+    await page.getByRole('dialog').getByRole('button', { name: /check.?in/i }).click()
+    await expect(page.getByRole('dialog')).toBeHidden()
+    const after = await (await request.get(`${API_BASE}/bookings/${booking.id}`)).json()
+    expect(after.booking.status).toBe('checked_in')
+  })
+
   test('a status step can be called off', async ({ page, request }) => {
     const prop = await setupActiveProperty(request)
     const booking = await createBookingViaApi(request, prop.id)

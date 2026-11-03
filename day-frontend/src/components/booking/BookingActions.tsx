@@ -46,6 +46,9 @@ export default function BookingActions({
   const [menuOpen, setMenuOpen] = useState(false)
   const [cancelling, setCancelling] = useState(false)
   const [asking, setAsking] = useState(false)
+  // The step as it was when pressed: a refetch while the question is open must not
+  // turn "yes" into the step after it.
+  const [asked, setAsked] = useState<{ target: BookingStatus; label: string; warnings: string[] } | null>(null)
   // Kept after the deposit is back: the dialog must outlive the button to close softly.
   const [returning, setReturning] = useState<BookingDeposit | null>(null)
   const [returnOpen, setReturnOpen] = useState(false)
@@ -58,6 +61,12 @@ export default function BookingActions({
   )
   const main = mainStep(booking.status, money.owes, deposits)
   const paidDeposit = deposits.find((deposit) => deposit.status === 'paid')
+
+  function ask() {
+    if (!next) return
+    setAsked({ target: next.target, label: t(next.labelKey), warnings })
+    setAsking(true)
+  }
 
   return (
     <div className="flex flex-col gap-3">
@@ -88,12 +97,12 @@ export default function BookingActions({
         )}
         {next &&
           (main === 'status' ? (
-            <Button disabled={changeStatus.isPending} onClick={() => setAsking(true)}>
+            <Button disabled={changeStatus.isPending} onClick={ask}>
               <next.icon className="h-4 w-4" aria-hidden="true" />
               {t(next.labelKey)}
             </Button>
           ) : (
-            <button type="button" disabled={changeStatus.isPending} onClick={() => setAsking(true)} className={SECONDARY}>
+            <button type="button" disabled={changeStatus.isPending} onClick={ask} className={SECONDARY}>
               <next.icon className="h-3.5 w-3.5" aria-hidden="true" />
               {t(next.labelKey)}
             </button>
@@ -140,15 +149,15 @@ export default function BookingActions({
         onCancel={() => setCancelling(false)}
         onConfirm={() => changeStatus.mutate('cancelled', { onSettled: () => setCancelling(false) })}
       />
-      {next && (
+      {asked && (
         <StatusStepDialog
-          target={next.target}
-          label={t(next.labelKey)}
-          warnings={warnings}
+          target={asked.target}
+          label={asked.label}
+          warnings={asked.warnings}
           open={asking}
           loading={changeStatus.isPending}
           onCancel={() => setAsking(false)}
-          onConfirm={() => changeStatus.mutate(next.target, { onSettled: () => setAsking(false) })}
+          onConfirm={() => changeStatus.mutate(asked.target, { onSettled: () => setAsking(false) })}
         />
       )}
       {returning && (
