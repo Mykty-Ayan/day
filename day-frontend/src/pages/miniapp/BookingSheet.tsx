@@ -47,6 +47,7 @@ import GuestSheet from './GuestSheet'
 import { errorText } from './errors'
 import { buildCheckInMessage } from './messages'
 import { ActionButton, Chip, Field, Sheet } from './miniapp-ui'
+import { stepAskKeys } from '../../lib/booking-status'
 import { useClosingConfirmation } from './useClosingConfirmation'
 
 /** The single legal step forward from each status.
@@ -298,6 +299,11 @@ export default function BookingSheet({
     if ((await confirmAction(message)) && alive.current) extend.mutate(target)
   }
 
+  async function askStep(status: BookingStatus) {
+    const question = `${t(stepAskKeys[status] ?? '')} ${t(status === 'confirmed' ? 'bookings.steps.canCancel' : 'bookings.steps.noUndo')}`
+    if ((await confirmAction(question)) && alive.current) setStatus.mutate(status)
+  }
+
   async function askCancel() {
     if ((await confirmAction(t('miniapp.booking.cancelAsk'))) && alive.current) setStatus.mutate('cancelled')
   }
@@ -453,7 +459,7 @@ export default function BookingSheet({
           </ActionButton>
         )}
         {next && (
-          <ActionButton disabled={settling || setStatus.isPending} onClick={() => setStatus.mutate(next.status)}>
+          <ActionButton disabled={settling || setStatus.isPending} onClick={() => askStep(next.status)}>
             <next.Icon className="h-4 w-4" />
             {t(next.labelKey)}
           </ActionButton>

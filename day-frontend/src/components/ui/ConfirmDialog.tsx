@@ -1,4 +1,4 @@
-import { motion, AnimatePresence } from 'framer-motion'
+import * as DialogPrimitive from '@radix-ui/react-dialog'
 import { AlertTriangle, X } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
@@ -14,6 +14,8 @@ interface Props {
   loading?: boolean
 }
 
+/** Radix and CSS, as the Sheet: framer's opacity dropped to 0 for one frame as it
+ *  finished, and the whole screen blinked. */
 export default function ConfirmDialog({
   open,
   title,
@@ -30,77 +32,51 @@ export default function ConfirmDialog({
   const resolvedCancelLabel = cancelLabel ?? t('common.cancel')
 
   return (
-    <AnimatePresence>
-      {open && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          className="fixed inset-0 z-overlay flex items-center justify-center p-4"
-        >
-          {/* Backdrop */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="absolute inset-0 bg-black/40"
-            onClick={onCancel}
-          />
-
-          {/* Dialog */}
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95, y: 10 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: 10 }}
-            transition={{ duration: 0.2 }}
-            className="relative bg-white rounded-2xl shadow-xl max-w-sm w-full p-6"
+    <DialogPrimitive.Root open={open} onOpenChange={(next) => !next && !loading && onCancel()}>
+      <DialogPrimitive.Portal>
+        <DialogPrimitive.Overlay className="dialog-fade fixed inset-0 z-overlay bg-black/40" />
+        <DialogPrimitive.Content className="dialog-pop fixed left-1/2 top-1/2 z-overlay w-[calc(100%-2rem)] max-w-sm rounded-2xl bg-white p-6 shadow-xl outline-none">
+          <DialogPrimitive.Close
+            aria-label={t('common.close')}
+            className="absolute right-3 top-3 flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg text-gray-400 transition-colors hover:bg-gray-50 hover:text-gray-600"
           >
+            <X className="h-4 w-4" />
+          </DialogPrimitive.Close>
+
+          <div className="mb-4 flex items-start gap-3 pr-8">
+            {variant === 'danger' && (
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-red-100">
+                <AlertTriangle className="h-5 w-5 text-red-600" />
+              </div>
+            )}
+            <div>
+              <DialogPrimitive.Title className="text-sm font-bold text-gray-900">{title}</DialogPrimitive.Title>
+              <DialogPrimitive.Description className="mt-1 text-sm text-gray-500">{message}</DialogPrimitive.Description>
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
             <button
               type="button"
               onClick={onCancel}
-              className="absolute right-3 top-3 flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg text-gray-400 transition-colors hover:bg-gray-50 hover:text-gray-600"
+              disabled={loading}
+              className="min-h-[44px] w-full rounded-xl border border-gray-200 px-4 py-2 text-xs font-bold text-gray-700 transition-colors hover:bg-gray-50 disabled:opacity-50 sm:w-auto"
             >
-              <X className="w-4 h-4" />
+              {resolvedCancelLabel}
             </button>
-
-            <div className="flex items-start gap-3 mb-4">
-              {variant === 'danger' && (
-                <div className="w-10 h-10 rounded-xl bg-red-100 flex items-center justify-center shrink-0">
-                  <AlertTriangle className="w-5 h-5 text-red-600" />
-                </div>
-              )}
-              <div>
-                <h3 className="text-sm font-bold text-gray-900">{title}</h3>
-                <p className="text-sm text-gray-500 mt-1">{message}</p>
-              </div>
-            </div>
-
-            <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
-              <button
-                type="button"
-                onClick={onCancel}
-                disabled={loading}
-                className="min-h-[44px] w-full rounded-xl border border-gray-200 px-4 py-2 text-xs font-bold text-gray-700 transition-colors hover:bg-gray-50 disabled:opacity-50 sm:w-auto"
-              >
-                {resolvedCancelLabel}
-              </button>
-              <motion.button
-                whileTap={{ scale: 0.97 }}
-                type="button"
-                onClick={onConfirm}
-                disabled={loading}
-                className={`min-h-[44px] w-full rounded-xl px-4 py-2 text-xs font-bold text-white transition-colors disabled:opacity-50 sm:w-auto ${
-                  variant === 'danger'
-                    ? 'bg-red-600 hover:bg-red-700'
-                    : 'bg-black hover:bg-gray-800'
-                }`}
-              >
-                {loading ? t('common.processing') : resolvedConfirmLabel}
-              </motion.button>
-            </div>
-          </motion.div>
-        </motion.div>
-      )}
-    </AnimatePresence>
+            <button
+              type="button"
+              onClick={onConfirm}
+              disabled={loading}
+              className={`min-h-[44px] w-full rounded-xl px-4 py-2 text-xs font-bold text-white transition-colors disabled:opacity-50 sm:w-auto ${
+                variant === 'danger' ? 'bg-red-600 hover:bg-red-700' : 'bg-black hover:bg-gray-800'
+              }`}
+            >
+              {loading ? t('common.processing') : resolvedConfirmLabel}
+            </button>
+          </div>
+        </DialogPrimitive.Content>
+      </DialogPrimitive.Portal>
+    </DialogPrimitive.Root>
   )
 }

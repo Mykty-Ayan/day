@@ -460,6 +460,14 @@
       },
       "confirm": "Confirm"
     },
+    "steps": {
+      "confirmAsk": "Confirm the booking?",
+      "completeAsk": "Complete the booking?",
+      "noUndo": "You cannot move the status back.",
+      "canCancel": "You can still cancel the booking.",
+      "checkInAsk": "Check the guest in?",
+      "checkOutAsk": "Check the guest out?"
+    },
     "deposits": {
       "createDeposit": "Create Deposit",
       "newDeposit": "New Deposit",
