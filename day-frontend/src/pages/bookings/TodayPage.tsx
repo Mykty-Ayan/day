@@ -395,12 +395,18 @@ function StatusButton({
   const { t } = useTranslation()
   const changeStatus = useChangeBookingStatus(booking.id)
   const [asking, setAsking] = useState(false)
+  // The step as it was when pressed: a refresh while the question is open may turn
+  // the row's button into the next step, and "yes" must not take that one.
+  const [asked, setAsked] = useState({ target, label })
 
   return (
     <>
       <button
         type="button"
-        onClick={() => setAsking(true)}
+        onClick={() => {
+          setAsked({ target, label })
+          setAsking(true)
+        }}
         disabled={changeStatus.isPending}
         className={ROW_BUTTON}
       >
@@ -411,12 +417,12 @@ function StatusButton({
         <p role="alert" className="max-w-28 text-xs text-danger">{t('today.statusFailed')}</p>
       )}
       <StatusStepDialog
-        target={target}
-        label={label}
+        target={asked.target}
+        label={asked.label}
         open={asking}
         loading={changeStatus.isPending}
         onCancel={() => setAsking(false)}
-        onConfirm={() => changeStatus.mutate(target, { onSettled: () => setAsking(false) })}
+        onConfirm={() => changeStatus.mutate(asked.target, { onSettled: () => setAsking(false) })}
       />
     </>
   )

@@ -134,6 +134,32 @@ test.describe('Booking Today View - E2E', () => {
     await expect(page.getByText('CheckOut Today Guest').last()).toBeVisible()
   })
 
+  test('a step asked about stays that step when the booking changes meanwhile', async ({ page, request }) => {
+    // Someone else confirms the booking while the question is open; the next refresh
+    // turns the row's button into "Check In". The dialog must still confirm, not let in.
+    await page.clock.install()
+    const prop = await setupActiveProperty(request)
+    const booking = await createBookingViaApi(request, prop.id, {
+      check_in: await browserDate(page),
+      check_out: await browserDate(page, 2),
+      guest_name: 'Raced Guest',
+    })
+
+    await page.goto('/bookings/today')
+    await page.getByRole('button', { name: 'Confirm', exact: true }).first().click()
+    await expect(page.getByRole('dialog')).toBeVisible()
+    await transitionViaApi(request, booking.id, 'confirmed')
+    const refreshed = page.waitForResponse((response) => response.url().includes('/bookings/today'))
+    await page.clock.runFor(61_000)
+    await refreshed
+    // The row behind the dialog now offers the next step
+    await expect(page.getByText('Check In', { exact: true }).first()).toBeAttached()
+
+    await page.getByRole('dialog').getByRole('button', { name: 'Confirm', exact: true }).click()
+    await expect(page.getByRole('dialog')).toBeHidden()
+    expect(await bookingStatus(request, booking.id)).toBe('confirmed')
+  })
+
   test('quick check-in action works', async ({ page, request }) => {
     const prop = await setupActiveProperty(request)
 
