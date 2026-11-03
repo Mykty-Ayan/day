@@ -174,6 +174,58 @@ test.describe('Booking Payments - E2E', () => {
     await expect.poll(() => paymentsOf(request, booking.id)).toHaveLength(2)
   })
 
+  test('the refund stays off until the new balance is read', async ({ page, request }) => {
+    const prop = await setupActiveProperty(request)
+    const booking = await createBookingViaApi(request, prop.id)
+    await addPaymentViaApi(request, booking.id, { amount: Number(booking.total_price) + 500, type: 'payment', method: 'cash' })
+
+    await page.goto(`/bookings/${booking.id}`)
+    await page.getByRole('button', { name: /^Refund 500/ }).click()
+    let release = () => {}
+    let saved = false
+    await page.route(`**/bookings/${booking.id}`, async (route) => {
+      if (!saved || route.request().method() !== 'GET') return route.continue()
+      await new Promise<void>((resolve) => (release = resolve))
+      await route.continue()
+    })
+    page.on('response', (response) => {
+      if (response.request().method() === 'POST' && response.url().endsWith('/payments')) saved = true
+    })
+    await page.getByRole('button', { name: 'Save' }).click()
+    await expect.poll(() => saved).toBe(true)
+    // The refund is saved, the old balance is still on screen: no second refund
+    await expect(page.getByRole('button', { name: /^Refund 500/ })).toBeDisabled()
+    release()
+    await expect(page.getByRole('button', { name: /^Refund 500/ })).toBeHidden()
+    await expect.poll(() => paymentsOf(request, booking.id)).toHaveLength(2)
+  })
+
+  test('a payment on its way from one panel holds the other', async ({ page, request }) => {
+    const prop = await setupActiveProperty(request)
+    const booking = await createBookingViaApi(request, prop.id)
+    for (const status of ['confirmed', 'checked_in', 'checked_out']) {
+      await request.post(`${API_BASE}/bookings/${booking.id}/status`, { data: { status } })
+    }
+
+    await page.goto(`/bookings/${booking.id}`)
+    let release = () => {}
+    await page.route('**/payments', async (route) => {
+      if (route.request().method() !== 'POST') return route.continue()
+      await new Promise<void>((resolve) => (release = resolve))
+      await route.continue()
+    })
+    // The guest has left owing: the stay card's first step and the money card both take it
+    const buttons = page.getByRole('button', { name: /add payment/i })
+    await expect(buttons).toHaveCount(2)
+    await buttons.first().click()
+    await page.getByRole('dialog').getByRole('button', { name: /^Add \d/ }).click()
+    await page.keyboard.press('Escape')
+    await buttons.last().click()
+    await expect(page.getByRole('dialog').getByRole('button', { name: /^Add|…/ }).last()).toBeDisabled()
+    release()
+    await expect.poll(() => paymentsOf(request, booking.id)).toHaveLength(1)
+  })
+
   test('a payment can be added with nothing owed', async ({ page, request }) => {
     const prop = await setupActiveProperty(request)
     const booking = await createBookingViaApi(request, prop.id)

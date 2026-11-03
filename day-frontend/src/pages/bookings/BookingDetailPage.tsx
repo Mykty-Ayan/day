@@ -219,6 +219,7 @@ function PaymentsTab({
   const { t } = useTranslation()
   const { symbol } = useCurrency()
   const addPayment = useAddPayment(bookingId)
+  const paying = useIsMutating({ mutationKey: ['add-payment', bookingId] }) > 0
   const confirmPayment = useConfirmPayment(bookingId)
   const [showForm, setShowForm] = useState(refundAmount > 0)
   const [toConfirm, setToConfirm] = useState<BookingPayment | null>(null)
@@ -346,7 +347,7 @@ function PaymentsTab({
               whileTap={{ scale: 0.97 }}
               type="button"
               onClick={handleSubmit}
-              disabled={addPayment.isPending}
+              disabled={paying}
               aria-label="Save"
               className="min-h-[44px] w-full rounded-xl bg-accent px-4 py-2 text-xs font-bold text-white transition-colors hover:bg-accent-hover disabled:opacity-50 sm:w-auto"
             >

@@ -1,10 +1,11 @@
 import { useState } from 'react'
+import { useIsMutating } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { ArrowLeftRight, Banknote, CreditCard, Plus } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { useAddPayment } from '../../hooks/useBookings'
 import { useCurrency } from '../../hooks/useCurrency'
-import { formatMoney } from '../../pages/miniapp/format'
+import { formatMoneyExact as formatMoney } from '../../pages/miniapp/format'
 import type { Booking, PaymentMethod } from '../../types/booking'
 import Button from '../ui/Button'
 import NumberInput from '../ui/number-input'
@@ -66,6 +67,9 @@ function PaymentForm({
   const value = Number(amount)
   const { symbol } = useCurrency()
   const money = (sum: number) => formatMoney(sum, i18n.language)
+  // Any payment of this booking on its way, from this panel or another one on the
+  // screen: each has its own idempotency key, and both would be recorded.
+  const paying = useIsMutating({ mutationKey: ['add-payment', booking.id] }) > 0
 
   return (
     <div className="flex flex-col gap-5">
@@ -126,7 +130,7 @@ function PaymentForm({
       )}
 
       <Button
-        disabled={addPayment.isPending || !(value > 0)}
+        disabled={paying || !(value > 0)}
         onClick={() =>
           addPayment.mutate(
             { amount: value, type: 'payment', method, idempotencyKey },
