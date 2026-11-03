@@ -9,7 +9,6 @@ import {
 test.describe('Booking Comments - E2E', () => {
   let bookingIdsToCleanup: string[] = []
   let propertyIdsToCleanup: string[] = []
-  const filesCommentsTabName = /files\s*&\s*comments|файлы\s*и\s*комментарии|файлдар\s*мен\s*пікірлер/i
   const addCommentPlaceholder = /add a comment|добавить комментарий|пікір қосу/i
 
   async function setupActiveProperty(
@@ -55,7 +54,6 @@ test.describe('Booking Comments - E2E', () => {
   }
 
   async function openFilesCommentsTab(page: import('@playwright/test').Page) {
-    await page.getByRole('tab', { name: filesCommentsTabName }).click()
     await expect(page.getByPlaceholder(addCommentPlaceholder)).toBeVisible()
   }
 
@@ -121,5 +119,55 @@ test.describe('Booking Comments - E2E', () => {
       'Comment Beta',
       'Comment Alpha',
     ])
+  })
+  test('attaches a file to a booking and deletes it from storage', async ({ page, request }) => {
+    const prop = await setupActiveProperty(request)
+    const booking = await createBookingViaApi(request, prop.id)
+
+    await page.goto(`/bookings/${booking.id}`)
+    await openFilesCommentsTab(page)
+    await page.locator('input[type="file"]').setInputFiles({
+      name: 'passport.pdf',
+      mimeType: 'application/pdf',
+      buffer: Buffer.from('%PDF-1.4 test'),
+    })
+    await expect(page.getByText('passport.pdf')).toBeVisible({ timeout: 10000 })
+
+    const files = await (await request.get(`${API_BASE}/bookings/${booking.id}/files`)).json()
+    expect(files).toHaveLength(1)
+    const download = await request.get(`${API_BASE}/bookings/${booking.id}/files/${files[0].id}/download`)
+    expect(download.ok(), `download: ${download.status()}`).toBeTruthy()
+    expect((await download.body()).toString()).toBe('%PDF-1.4 test')
+
+    await page.getByRole('button', { name: 'Delete', exact: true }).click()
+    await expect(page.getByText('You cannot undo this')).toBeVisible()
+    const stored = await (await request.get(`${API_BASE}/bookings/${booking.id}/files`)).json()
+    expect(stored).toHaveLength(1)
+    await page.getByRole('button', { name: 'Delete', exact: true }).last().click()
+    await expect(page.getByText('passport.pdf', { exact: true })).toBeHidden()
+    await expect.poll(async () => (await (await request.get(`${API_BASE}/bookings/${booking.id}/files`)).json()).length).toBe(0)
+  })
+
+  test('shows a dropped photo in the list and names a refused file in words', async ({ page, request }) => {
+    const prop = await setupActiveProperty(request)
+    const booking = await createBookingViaApi(request, prop.id)
+
+    await page.goto(`/bookings/${booking.id}`)
+    await openFilesCommentsTab(page)
+    await page.getByText(/drop a contract/i).evaluate((target) => {
+      const pixel = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=='
+      const bytes = Uint8Array.from(atob(pixel), (char) => char.charCodeAt(0))
+      const dataTransfer = new DataTransfer()
+      dataTransfer.items.add(new File([bytes], 'id-card.png', { type: 'image/png' }))
+      target.dispatchEvent(new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer }))
+    })
+    await expect(page.getByRole('link', { name: 'Open photo id-card.png' })).toBeVisible({ timeout: 10000 })
+
+    await page.locator('input[type="file"]').setInputFiles({
+      name: 'page.html',
+      mimeType: 'text/html',
+      buffer: Buffer.from('<p>no</p>'),
+    })
+    await expect(page.getByText(/this file cannot be attached/i)).toBeVisible()
   })
 })

@@ -133,6 +133,10 @@ export interface BookingDetail {
   files: BookingFile[]
   comments: BookingComment[]
   contract?: BookingContract
+  /** The guest's stays with the company, this one included; cancelled ones don't count. */
+  guest_stays: number
+  /** Who changed the booking or commented on it, by user id. */
+  people: Record<string, string>
   audit_logs: BookingAuditLog[]
 }
 
@@ -147,6 +151,7 @@ export interface PriceCalculation {
   extra_guest_surcharge: number
   discount_amount: number
   total: number
+  tariff?: string | null
 }
 
 export interface GanttPropertySummary {

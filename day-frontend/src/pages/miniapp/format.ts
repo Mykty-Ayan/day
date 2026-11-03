@@ -10,6 +10,11 @@ export function formatMoney(value: number, language: string): string {
   return new Intl.NumberFormat(intlLocale(language), { maximumFractionDigits: 0 }).format(value)
 }
 
+/** Kopecks kept: what a confirmation names is what the operation sends. */
+export function formatMoneyExact(value: number, language: string): string {
+  return new Intl.NumberFormat(intlLocale(language), { maximumFractionDigits: 2 }).format(value)
+}
+
 export function formatDay(value: string, language: string): string {
   return new Date(value).toLocaleDateString(intlLocale(language), { day: '2-digit', month: 'short' })
 }

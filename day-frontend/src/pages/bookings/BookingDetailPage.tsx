@@ -1,61 +1,40 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { motion, AnimatePresence } from 'framer-motion'
+import i18next from 'i18next'
+import { format } from 'date-fns'
+import { motion } from 'framer-motion'
 import {
   ArrowLeft,
-  ArrowRight,
-  Calendar,
-  Users,
-  DollarSign,
-  FileText,
-  MessageSquare,
   Plus,
-  Download,
-  Trash2,
   Loader2,
-  Send,
-  Pencil,
 } from 'lucide-react'
 import { useNavigate, useParams } from '@tanstack/react-router'
+import { useIsMutating } from '@tanstack/react-query'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
-import { showToast } from '../../components/ui/Toast'
 import Spinner from '../../components/ui/Spinner'
 import { useMediaQuery } from '../../hooks/useMediaQuery'
+import { bookingMoney } from '../../lib/booking-money'
+import { depositStatusKeys } from '../../lib/booking-status'
+import { Badge, type BadgeTone } from '../../components/ui/badge'
 import Button from '../../components/ui/Button'
 import {
   useBooking,
-  useChangeBookingStatus,
   useAddPayment,
   useConfirmPayment,
-  useCreateDeposit,
-  useDepositAction,
-  useAddComment,
-  useUploadBookingFile,
-  useDeleteBookingFile,
-  useUpdateGuest,
 } from '../../hooks/useBookings'
-import { guestPatch, guestSaveError, type GuestForm } from '../../lib/guest-edit'
 import type {
-  Booking,
-  BookingAuditLog,
-  BookingComment,
-  BookingDeposit,
-  BookingFile,
   BookingPayment,
-  BookingStatus,
-  DepositAction,
-  DepositActionInput,
-  DepositStatus,
-  Guest,
   PaymentInput,
   PaymentMethod,
   PaymentStatus,
   PaymentType,
 } from '../../types/booking'
-import type { ViewMode } from '../../types/view-mode'
-import { isViewMode } from '../../types/view-mode'
-import BookingStatusBadge from '../../components/booking/BookingStatusBadge'
-import AuditTrail from '../../components/ui/AuditTrail'
+import BookingDeposits from '../../components/booking/BookingDeposits'
+import BookingFiles from '../../components/booking/BookingFiles'
+import BookingGuestCard from '../../components/booking/BookingGuestCard'
+import BookingMoneyCard from '../../components/booking/BookingMoneyCard'
+import BookingTimeline from '../../components/booking/BookingTimeline'
+import StayCard from '../../components/booking/StayCard'
 import {
   Select,
   SelectContent,
@@ -63,83 +42,30 @@ import {
   SelectTrigger,
   SelectValue,
 } from '../../components/ui/select'
-import { ToggleGroup, ToggleGroupItem } from '../../components/ui/toggle-group'
 import NumberInput from '../../components/ui/number-input'
 import { useCurrency } from '../../hooks/useCurrency'
-import { downloadFile } from '../../api/bookings'
 import { parseApiDateTime } from '../../utils/date-time'
+import { dateLocale } from '../../lib/date-locale'
+import { intlLocale } from '../miniapp/format'
 
-const TABS = ['overview', 'payments', 'deposits', 'filesComments', 'history'] as const
-type Tab = (typeof TABS)[number]
-
-const BOOKING_DETAIL_PAYMENTS_VIEW_MODE_STORAGE_KEY = 'day:bookings:detail:payments-view-mode'
-const BOOKING_DETAIL_DEPOSITS_VIEW_MODE_STORAGE_KEY = 'day:bookings:detail:deposits-view-mode'
-
-function readInitialViewMode(storageKey: string): ViewMode {
-  if (typeof window === 'undefined') return 'table'
-
-  try {
-    const stored = window.localStorage.getItem(storageKey)
-    if (isViewMode(stored)) {
-      return stored
-    }
-  } catch {
-    // Ignore storage errors and fallback to viewport-aware default.
-  }
-
-  return window.matchMedia('(max-width: 1023px)').matches ? 'cards' : 'table'
-}
-
-interface StatusAction {
-  label: string
-  target: BookingStatus
-  color: string
-}
-
-function getStatusActions(status: BookingStatus, t: (key: string) => string): StatusAction[] {
-  switch (status) {
-    case 'pending':
-      return [
-        { label: t('bookings.status.confirm'), target: 'confirmed', color: 'bg-blue-600 hover:bg-blue-700' },
-        { label: t('bookings.status.cancel'), target: 'cancelled', color: 'bg-red-600 hover:bg-red-700' },
-      ]
-    case 'confirmed':
-      return [
-        { label: t('bookings.status.checkIn'), target: 'checked_in', color: 'bg-emerald-600 hover:bg-emerald-700' },
-        { label: t('bookings.status.cancel'), target: 'cancelled', color: 'bg-red-600 hover:bg-red-700' },
-      ]
-    case 'checked_in':
-      return [
-        { label: t('bookings.status.checkOut'), target: 'checked_out', color: 'bg-amber-600 hover:bg-amber-700' },
-      ]
-    case 'checked_out':
-      return [
-        { label: t('bookings.status.complete'), target: 'completed', color: 'bg-green-600 hover:bg-green-700' },
-      ]
-    default:
-      return []
-  }
-}
-
+/** One booking's screen per booking: going to another one, or back, starts it
+ *  afresh, so a dialog or an upload begun on one never acts on the next. */
 export default function BookingDetailPage() {
-  const { t, i18n } = useTranslation()
   const { bookingId } = useParams({ strict: false }) as { bookingId: string }
+  return <BookingScreen key={bookingId} bookingId={bookingId} />
+}
+
+function BookingScreen({ bookingId }: { bookingId: string }) {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const { data: detail, isLoading } = useBooking(bookingId)
-  const changeStatus = useChangeBookingStatus(bookingId)
-  const [activeTab, setActiveTab] = useState<Tab>('overview')
-  const [paymentsViewMode, setPaymentsViewMode] = useState<ViewMode>(() =>
-    readInitialViewMode(BOOKING_DETAIL_PAYMENTS_VIEW_MODE_STORAGE_KEY),
-  )
-  const [depositsViewMode, setDepositsViewMode] = useState<ViewMode>(() =>
-    readInitialViewMode(BOOKING_DETAIL_DEPOSITS_VIEW_MODE_STORAGE_KEY),
-  )
-  // A "table" preference persisted from desktop must not force a horizontally
-  // scrolling table onto a phone. The stored choice is kept, only the render
-  // falls back to cards while the viewport is narrow.
-  const isSmallScreen = useMediaQuery('(max-width: 640px)')
-  const effectivePaymentsViewMode: ViewMode = isSmallScreen ? 'cards' : paymentsViewMode
-  const effectiveDepositsViewMode: ViewMode = isSmallScreen ? 'cards' : depositsViewMode
+  const { symbol } = useCurrency()
+  // A table from 1024px wide, cards on a phone: a wide table would scroll sideways.
+  const compact = useMediaQuery('(max-width: 1023px)')
+  // Each press opens the refund form anew, with the sum the guest is owed; not while a
+  // payment is on its way: the new form would forget it and take it again.
+  const [refund, setRefund] = useState({ amount: 0, round: 0 })
+  const refunding = useIsMutating({ mutationKey: ['add-payment', bookingId] })
 
   const from = useMemo(() => {
     if (typeof window === 'undefined') return ''
@@ -147,24 +73,6 @@ export default function BookingDetailPage() {
     return params.get('from') || ''
   }, [])
   const isFromGantt = from === 'gantt'
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return
-    try {
-      window.localStorage.setItem(BOOKING_DETAIL_PAYMENTS_VIEW_MODE_STORAGE_KEY, paymentsViewMode)
-    } catch {
-      // Ignore storage write errors.
-    }
-  }, [paymentsViewMode])
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return
-    try {
-      window.localStorage.setItem(BOOKING_DETAIL_DEPOSITS_VIEW_MODE_STORAGE_KEY, depositsViewMode)
-    } catch {
-      // Ignore storage write errors.
-    }
-  }, [depositsViewMode])
 
   function handleBack() {
     if (isFromGantt) {
@@ -190,10 +98,17 @@ export default function BookingDetailPage() {
   }
 
   const { booking, guest } = detail
-  const statusActions = getStatusActions(booking.status, t)
+  const money = bookingMoney(booking.status, normalizeNumber(booking.total_price), detail.payments)
+  // The detail call brings no paid sum: the panels read it from here.
+  const stay = { ...booking, paid_amount: money.paid }
+
+  function startRefund() {
+    setRefund({ amount: money.toReturn, round: refund.round + 1 })
+    document.getElementById('payments')?.scrollIntoView({ behavior: 'smooth' })
+  }
 
   return (
-    <div className="px-4 py-4 sm:px-6 sm:py-6 max-w-5xl mx-auto w-full">
+    <div className="px-4 py-4 sm:px-6 sm:py-6 max-w-6xl mx-auto w-full">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -209,274 +124,63 @@ export default function BookingDetailPage() {
           {isFromGantt ? t('bookings.backToGantt') : t('bookings.backToBookings')}
         </button>
 
-        {/* Header */}
-        <div className="mb-6 flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-          <div className="min-w-0">
-            <div className="mb-1 flex flex-wrap items-center gap-2 sm:gap-3">
-              <h1 className="text-xl font-bold text-gray-900">
-                {booking.property_internal_name || booking.property_name}
-              </h1>
-              <BookingStatusBadge status={booking.status} />
+        <div className="flex flex-col gap-5">
+          <StayCard booking={stay} money={money} deposits={detail.deposits} />
+          {/* On a phone: the money right under the stay, the guest and the history last.
+              On a wide screen the money and the rest share the right column. */}
+          <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-[minmax(0,1fr)_320px] lg:grid-rows-[auto_1fr]">
+            <div className="lg:col-start-2 lg:row-start-1">
+              <BookingMoneyCard
+                booking={stay}
+                money={money}
+                deposits={detail.deposits}
+                depositLabel={(deposit) =>
+                  `${formatMoneyChip(deposit.amount)} ${symbol} · ${t(depositStatusKeys[deposit.status])}`
+                }
+                onRefund={startRefund}
+                refunding={refunding > 0}
+              />
             </div>
-            {booking.overbooking && (
-              <p role="alert" className="mt-2 rounded-lg bg-red-50 px-3 py-2 text-xs font-semibold text-red-700">
-                {t('bookings.overbooking.detail')}
-              </p>
-            )}
-            <p className="text-sm text-gray-500">
-              {booking.guest_name} &middot; {formatDate(booking.check_in, i18n.language)} <ArrowRight className="w-3 h-3 inline text-gray-400" /> {formatDate(booking.check_out, i18n.language)}
-            </p>
-          </div>
-          <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-            <motion.button
-              whileTap={{ scale: 0.97 }}
-              onClick={() => navigate({ to: '/bookings/$bookingId/edit', params: { bookingId } })}
-              className="flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl border border-gray-200 bg-gray-50 px-4 py-2 text-xs font-bold text-gray-700 transition-colors hover:bg-gray-100 sm:w-auto"
-            >
-              <Pencil className="w-3.5 h-3.5" />
-              {t('common.edit')}
-            </motion.button>
-            {statusActions.map((action) => (
-              <motion.button
-                key={action.target}
-                whileTap={{ scale: 0.97 }}
-                onClick={() => changeStatus.mutate(action.target)}
-                disabled={changeStatus.isPending}
-                className={`${action.color} min-h-[44px] w-full rounded-xl px-4 py-2 text-xs font-bold text-white transition-colors disabled:opacity-50 sm:w-auto`}
-              >
-                {action.label}
-              </motion.button>
-            ))}
-          </div>
-        </div>
-
-        {/* Tab bar */}
-        <div className="mb-6 -mx-1 overflow-x-auto px-1">
-          <div className="inline-flex min-w-full gap-1 rounded-xl bg-gray-50 p-1 sm:min-w-0" role="tablist">
-            {TABS.map((tab) => (
-              <button
-                key={tab}
-                role="tab"
-                aria-selected={activeTab === tab}
-                onClick={() => setActiveTab(tab)}
-                className={`min-h-[44px] whitespace-nowrap rounded-lg px-3 py-2 text-xs font-bold transition-colors ${
-                  activeTab === tab
-                    ? 'bg-white text-gray-900 shadow-sm'
-                    : 'text-gray-500 hover:text-gray-700'
-                }`}
-              >
-                {t(`bookings.tabs.${tab}`)}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Tab content */}
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={activeTab}
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }}
-            transition={{ duration: 0.2 }}
-          >
-            {activeTab === 'overview' && (
-              <OverviewTab booking={booking} guest={guest} />
-            )}
-            {activeTab === 'payments' && (
+            <div className="flex min-w-0 flex-col gap-5 lg:col-start-1 lg:row-span-2 lg:row-start-1">
               <PaymentsTab
+                key={refund.round}
+                refundAmount={refund.amount}
                 bookingId={bookingId}
                 payments={detail.payments}
-                totalPrice={booking.total_price}
-                checkIn={booking.check_in}
-                checkOut={booking.check_out}
-                viewMode={effectivePaymentsViewMode}
-                onViewModeChange={setPaymentsViewMode}
+                money={money}
+                compact={compact}
               />
-            )}
-            {activeTab === 'deposits' && (
-              <DepositsTab
+              <BookingDeposits booking={booking} deposits={detail.deposits} />
+              <BookingFiles bookingId={bookingId} files={detail.files} />
+            </div>
+            <aside className="flex flex-col gap-5 lg:col-start-2 lg:row-start-2">
+              <BookingGuestCard booking={booking} guest={guest} stays={detail.guest_stays} />
+              <BookingTimeline
                 bookingId={bookingId}
-                deposits={detail.deposits}
-                viewMode={effectiveDepositsViewMode}
-                onViewModeChange={setDepositsViewMode}
+                logs={detail.audit_logs}
+                payments={detail.payments}
+                comments={detail.comments}
+                people={detail.people}
               />
-            )}
-            {activeTab === 'filesComments' && (
-              <FilesCommentsTab bookingId={bookingId} files={detail.files} comments={detail.comments} />
-            )}
-            {activeTab === 'history' && (
-              <HistoryTab auditLogs={detail.audit_logs} />
-            )}
-          </motion.div>
-        </AnimatePresence>
+            </aside>
+          </div>
+        </div>
       </motion.div>
     </div>
   )
 }
 
-// --- Overview Tab ---
-function OverviewTab({ booking, guest }: { booking: Booking; guest: Guest }) {
-  const { t, i18n } = useTranslation()
-  const { symbol } = useCurrency()
-  const [editingGuest, setEditingGuest] = useState(false)
+// The cabinet's language, not the browser's: a Russian screen in an English browser
+// wrote «20,000 ₸» and «11/3/2026».
+const moneyFormat = (digits: number) =>
+  new Intl.NumberFormat(intlLocale(i18next.language), { maximumFractionDigits: digits })
 
-  const guestCountStr = (() => {
-    let str = t('bookings.adultsCount', { count: booking.adults_count })
-    if (booking.children_count > 0) {
-      str += `, ${t('bookings.childrenCount', { count: booking.children_count })}`
-    }
-    return str
-  })()
-
-  return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      {/* Booking Info */}
-      <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
-        <h2 className="text-sm font-bold text-gray-900 mb-4">{t('bookings.bookingDetails')}</h2>
-        <div className="space-y-3">
-          <InfoRow icon={Calendar} label={t('properties.checkIn')} value={formatDate(booking.check_in, i18n.language)} />
-          <InfoRow icon={Calendar} label={t('properties.checkOut')} value={formatDate(booking.check_out, i18n.language)} />
-          <InfoRow icon={Users} label={t('bookings.guest')} value={guestCountStr} />
-          <InfoRow icon={DollarSign} label={t('bookings.totalPrice')} value={`${symbol}${formatMoney(booking.total_price)}`} />
-          <div className="flex items-center gap-3 pt-1">
-            <span className="text-xs text-gray-500 w-24">{t('bookings.source')}</span>
-            <span className="text-sm text-gray-900">{t('bookings.sources.' + booking.source)}</span>
-          </div>
-          <div className="flex items-center gap-3 pt-1">
-            <span className="text-xs text-gray-500 w-24">{t('bookings.calendarColor')}</span>
-            <div className="w-5 h-5 rounded-full" style={{ backgroundColor: booking.gantt_color || '#3B82F6' }} />
-          </div>
-        </div>
-      </div>
-
-      {/* Guest Info */}
-      <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
-        <div className="mb-4 flex items-center justify-between gap-2">
-          <h2 className="text-sm font-bold text-gray-900">{t('bookings.guest')}</h2>
-          {!editingGuest && (
-            <button
-              type="button"
-              onClick={() => setEditingGuest(true)}
-              className="flex items-center gap-1 text-xs font-semibold text-gray-500 hover:text-black"
-            >
-              <Pencil className="h-3.5 w-3.5" />
-              {t('bookings.guestEdit.open')}
-            </button>
-          )}
-        </div>
-        <div className="space-y-3">
-          {editingGuest ? (
-            <GuestEditForm guest={guest} onDone={() => setEditingGuest(false)} />
-          ) : (
-            <>
-              <div>
-                <p className="text-xs text-gray-500">{t('bookings.guestName')}</p>
-                <p className="text-sm font-semibold text-gray-900">{guest.name}</p>
-              </div>
-              <div>
-                <p className="text-xs text-gray-500">{t('bookings.phone')}</p>
-                <p className="text-sm text-gray-900">{guest.phone}</p>
-              </div>
-            </>
-          )}
-          {guest.email && (
-            <div>
-              <p className="text-xs text-gray-500">{t('bookings.email')}</p>
-              <p className="text-sm text-gray-900">{guest.email}</p>
-            </div>
-          )}
-          {guest.notes && (
-            <div>
-              <p className="text-xs text-gray-500">{t('common.notes')}</p>
-              <p className="text-sm text-gray-700 whitespace-pre-line">{guest.notes}</p>
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  )
+/** To the minute: two payments of one day are told apart by the time. */
+function paidAt(value: string): string {
+  return format(parseApiDateTime(value), i18next.language === 'en' ? 'MMM d, HH:mm' : 'd MMM, HH:mm', {
+    locale: dateLocale(i18next.language),
+  })
 }
-
-function GuestEditForm({ guest, onDone }: { guest: Guest; onDone: () => void }) {
-  const { t } = useTranslation()
-  const [form, setForm] = useState<GuestForm>({ name: guest.name, phone: guest.phone ?? '' })
-  const [error, setError] = useState('')
-  const save = useUpdateGuest(guest.id)
-  const field = 'w-full bg-gray-50 border border-gray-200 rounded-xl p-3 outline-none focus:ring-2 focus:ring-black/10 text-sm'
-
-  function submit() {
-    const result = guestPatch(guest, form)
-    if ('error' in result) {
-      setError(t(`bookings.guestEdit.${result.error}`))
-      return
-    }
-    if (Object.keys(result.patch).length === 0) {
-      onDone()
-      return
-    }
-    save.mutate(result.patch, {
-      onSuccess: onDone,
-      onError: (mutationError) => setError(t(`bookings.guestEdit.${guestSaveError(mutationError)}`)),
-    })
-  }
-
-  return (
-    <div className="space-y-3">
-      <label className="block">
-        <span className="text-xs text-gray-500">{t('bookings.guestName')}</span>
-        <input
-          type="text"
-          value={form.name}
-          onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-          className={field}
-        />
-      </label>
-      <label className="block">
-        <span className="text-xs text-gray-500">{t('bookings.phone')}</span>
-        <input
-          type="tel"
-          value={form.phone}
-          onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
-          className={field}
-        />
-      </label>
-      {error && (
-        <p role="alert" className="text-sm font-semibold text-red-600">
-          {error}
-        </p>
-      )}
-      <div className="flex gap-2">
-        <Button onClick={submit} disabled={save.isPending}>
-          {save.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : t('common.save')}
-        </Button>
-        <Button variant="secondary" onClick={onDone} disabled={save.isPending}>
-          {t('common.cancel')}
-        </Button>
-      </div>
-    </div>
-  )
-}
-
-function InfoRow({ icon: Icon, label, value }: { icon: React.ComponentType<{ className?: string }>; label: string; value: string }) {
-  return (
-    <div className="flex items-center gap-3">
-      <Icon className="w-4 h-4 text-gray-400" />
-      <span className="text-xs text-gray-500 w-20">{label}</span>
-      <span className="text-sm font-semibold text-gray-900">{value}</span>
-    </div>
-  )
-}
-
-// The reader's own number format, as everywhere else in the cabinet: forced en-US
-// wrote «₸79,000.00» on a Russian screen.
-const moneyFormatter = new Intl.NumberFormat(undefined, {
-  minimumFractionDigits: 2,
-  maximumFractionDigits: 2,
-})
-const moneyChipFormatter = new Intl.NumberFormat(undefined, {
-  maximumFractionDigits: 0,
-})
 
 function normalizeNumber(value: number | string | null | undefined): number {
   if (typeof value === 'number') return value
@@ -489,42 +193,42 @@ function normalizeNumber(value: number | string | null | undefined): number {
 }
 
 function formatMoney(value: number | string | null | undefined): string {
-  return moneyFormatter.format(normalizeNumber(value))
+  return moneyFormat(2).format(normalizeNumber(value))
 }
 
 function formatMoneyChip(value: number | string | null | undefined): string {
-  return moneyChipFormatter.format(normalizeNumber(value))
+  return moneyFormat(0).format(normalizeNumber(value))
 }
 
 // --- Payments Tab ---
+const PAYMENT_TONES: Record<PaymentStatus, BadgeTone> = { pending: 'neutral', completed: 'success', failed: 'danger' }
+
 function PaymentsTab({
   bookingId,
   payments,
-  totalPrice,
-  checkIn,
-  checkOut,
-  viewMode,
-  onViewModeChange,
+  money,
+  compact,
+  refundAmount,
 }: {
   bookingId: string
   payments: BookingPayment[]
-  totalPrice: number
-  checkIn: string
-  checkOut: string
-  viewMode: ViewMode
-  onViewModeChange: (mode: ViewMode) => void
+  money: ReturnType<typeof bookingMoney>
+  compact: boolean
+  refundAmount: number
 }) {
   const { t } = useTranslation()
   const { symbol } = useCurrency()
   const addPayment = useAddPayment(bookingId)
+  const paying = useIsMutating({ mutationKey: ['add-payment', bookingId] }) > 0
   const confirmPayment = useConfirmPayment(bookingId)
-  const [showForm, setShowForm] = useState(false)
-  const [form, setForm] = useState({ amount: '', type: 'payment' as PaymentType, method: 'cash' as PaymentMethod, note: '' })
+  const [showForm, setShowForm] = useState(refundAmount > 0)
+  const [toConfirm, setToConfirm] = useState<BookingPayment | null>(null)
+  const [form, setForm] = useState({
+    amount: refundAmount > 0 ? String(refundAmount) : '',
+    method: 'cash' as PaymentMethod,
+    note: '',
+  })
   const amountStep = 1000
-  const VIEW_OPTIONS: { value: ViewMode; label: string }[] = [
-    { value: 'cards', label: t('common.cards') },
-    { value: 'table', label: t('common.table') },
-  ]
 
   const paymentTypeLabels: Record<PaymentType, string> = {
     payment: t('bookings.payments.payment'),
@@ -541,36 +245,12 @@ function PaymentsTab({
     failed: t('bookings.payments.paymentStatus.failed'),
   }
 
-  const totalPaid = payments
-    .filter((p) => p.status === 'completed')
-    .reduce((sum, p) => {
-      const amount = normalizeNumber(p.amount)
-      return sum + (p.type === 'payment' ? amount : -amount)
-    }, 0)
-  const total = normalizeNumber(totalPrice)
-  const remaining = total - totalPaid
-  const isOverpaid = remaining < 0
-  const overpaid = Math.max(0, -remaining)
-  const payableRemaining = Math.max(0, remaining)
-  const refundableAmount = Math.max(0, totalPaid)
-  const nightsMs =
-    new Date(`${checkOut}T00:00:00Z`).getTime() - new Date(`${checkIn}T00:00:00Z`).getTime()
-  const nights = Math.max(1, Math.round(nightsMs / (24 * 60 * 60 * 1000)))
-  const nightlyRate = total > 0 ? total / nights : 0
-
-  const quickOptionsRaw =
-    form.type === 'payment'
-      ? [
-          { label: '100%', value: total },
-          { label: '50%', value: total * 0.5 },
-          { label: t('bookings.payments.daily'), value: nightlyRate },
-        ]
-      : [
-          ...(isOverpaid ? [{ label: t('bookings.payments.overpaid'), value: overpaid }] : []),
-          { label: t('common.total'), value: refundableAmount },
-          { label: '50%', value: refundableAmount * 0.5 },
-          { label: t('bookings.payments.firstDay'), value: nightlyRate },
-        ]
+  const refundableAmount = Math.max(0, money.paid)
+  const quickOptionsRaw = [
+    ...(money.toReturn > 0 ? [{ label: t('bookings.payments.overpaid'), value: money.toReturn }] : []),
+    { label: t('common.total'), value: refundableAmount },
+    { label: '50%', value: refundableAmount * 0.5 },
+  ]
 
   const seenQuickValues = new Set<number>()
   const quickOptions = quickOptionsRaw.filter(({ value }) => {
@@ -584,80 +264,39 @@ function PaymentsTab({
     const amount = normalizeNumber(form.amount)
     if (!amount || amount <= 0) return
     addPayment.mutate(
-      { amount, type: form.type, method: form.method, note: form.note || undefined } as PaymentInput,
+      { amount, type: 'refund', method: form.method, note: form.note || undefined } as PaymentInput,
       {
         onSuccess: () => {
-          setForm({ amount: '', type: 'payment', method: 'cash', note: '' })
+          setForm({ amount: '', method: 'cash', note: '' })
           setShowForm(false)
         },
       },
     )
   }
 
-  function paymentStatusStyle(status: BookingPayment['status']): string {
-    if (status === 'completed') return 'bg-green-100 text-green-700'
-    if (status === 'failed') return 'bg-red-100 text-red-700'
-    return 'bg-gray-100 text-gray-700'
-  }
-
   return (
-    <div className="space-y-4">
-      <ToggleGroup
-        type="single"
-        value={viewMode}
-        onValueChange={(value) => {
-          if (!value) return
-          onViewModeChange(value as ViewMode)
-        }}
-      >
-        {VIEW_OPTIONS.map((option) => (
-          <ToggleGroupItem key={option.value} value={option.value}>
-            {option.label}
-          </ToggleGroupItem>
-        ))}
-      </ToggleGroup>
-
-      {/* Summary */}
-      <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <p className="text-xs text-gray-500">
-            {isOverpaid ? t('bookings.payments.totalPaidOverpaid') : t('bookings.payments.totalPaidRemaining')}
-          </p>
-          <p className="text-sm font-bold text-gray-900">
-            {symbol}{formatMoney(total)} / {symbol}{formatMoney(totalPaid)} /{' '}
-            <span className={isOverpaid ? 'text-red-600' : ''}>
-              {symbol}{formatMoney(isOverpaid ? overpaid : payableRemaining)}
-            </span>
-          </p>
-        </div>
-        <div className="flex flex-col gap-2 sm:flex-row">
+    <section id="payments" className="space-y-3 rounded-2xl border border-line bg-surface-card p-5">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h2 className="text-sm font-bold text-ink">{t('bookings.tabs.payments')}</h2>
+        {money.paid > 0 && (
           <motion.button
             whileTap={{ scale: 0.97 }}
-            onClick={() => { setForm((f) => ({ ...f, type: 'payment' })); setShowForm(true) }}
-            className="flex min-h-[44px] w-full items-center justify-center gap-1 rounded-xl bg-black px-4 py-2 text-xs font-bold text-white transition-colors hover:bg-gray-800 sm:w-auto"
-          >
-            <Plus className="w-3 h-3" /> {t('bookings.payments.addPayment')}
-          </motion.button>
-          <motion.button
-            whileTap={{ scale: 0.97 }}
-            onClick={() => { setForm((f) => ({ ...f, type: 'refund' })); setShowForm(true) }}
-            className="flex min-h-[44px] w-full items-center justify-center gap-1 rounded-xl border border-gray-200 bg-gray-50 px-4 py-2 text-xs font-bold text-gray-700 transition-colors hover:bg-gray-100 sm:w-auto"
+            onClick={() => setShowForm(true)}
+            className="flex min-h-[40px] items-center justify-center gap-1 rounded-lg border border-line px-3 py-2 text-xs font-bold text-ink transition-colors hover:bg-surface-page"
           >
             <Plus className="w-3 h-3" /> {t('bookings.payments.addRefund')}
           </motion.button>
-        </div>
+        )}
       </div>
 
-      {/* Add payment form */}
+      {/* Refund form */}
       {showForm && (
         <motion.div
           initial={{ opacity: 0, height: 0 }}
           animate={{ opacity: 1, height: 'auto' }}
-          className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm"
+          className="rounded-2xl border border-line bg-surface-card p-5"
         >
-          <h3 className="text-sm font-bold text-gray-900 mb-3">
-            {form.type === 'payment' ? t('bookings.payments.addPayment') : t('bookings.payments.addRefund')}
-          </h3>
+          <h3 className="text-sm font-bold text-gray-900 mb-3">{t('bookings.payments.addRefund')}</h3>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
             <NumberInput
               value={form.amount}
@@ -693,12 +332,12 @@ function PaymentsTab({
             <div className="flex flex-wrap gap-2 mt-3">
               {quickOptions.map((option) => (
                 <button
-                  key={`${form.type}-${option.label}-${option.value}`}
+                  key={`${option.label}-${option.value}`}
                   type="button"
                   onClick={() => setForm((f) => ({ ...f, amount: String(option.value) }))}
                   className="px-3 py-1.5 rounded-full border border-gray-200 bg-white hover:bg-gray-900 hover:text-white text-xs font-semibold text-gray-700 transition-all"
                 >
-                  {option.label} ({symbol}{formatMoney(option.value)})
+                  {option.label} ({formatMoneyChip(option.value)} {symbol})
                 </button>
               ))}
             </div>
@@ -708,9 +347,9 @@ function PaymentsTab({
               whileTap={{ scale: 0.97 }}
               type="button"
               onClick={handleSubmit}
-              disabled={addPayment.isPending}
+              disabled={paying}
               aria-label="Save"
-              className="min-h-[44px] w-full rounded-xl bg-black px-4 py-2 text-xs font-bold text-white transition-colors hover:bg-gray-800 disabled:opacity-50 sm:w-auto"
+              className="min-h-[44px] w-full rounded-xl bg-accent px-4 py-2 text-xs font-bold text-white transition-colors hover:bg-accent-hover disabled:opacity-50 sm:w-auto"
             >
               {addPayment.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : t('common.save')}
             </motion.button>
@@ -727,30 +366,26 @@ function PaymentsTab({
 
       {/* Payment list */}
       {payments.length === 0 ? (
-        <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
-          <p className="text-sm text-gray-500 text-center py-4">{t('bookings.payments.noPayments')}</p>
-        </div>
-      ) : viewMode === 'cards' ? (
+        <p className="text-sm text-ink-muted">{t('bookings.payments.noPayments')}</p>
+      ) : compact ? (
         <div className="space-y-3">
           {payments.map((payment) => (
-            <div key={payment.id} className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+            <div key={payment.id} className="rounded-xl border border-line p-4">
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <p className="text-sm font-semibold text-gray-900">
-                    {payment.type === 'refund' ? '-' : ''}{symbol}{formatMoney(Math.abs(normalizeNumber(payment.amount)))}
+                    {payment.type === 'refund' ? '-' : ''}{formatMoney(Math.abs(normalizeNumber(payment.amount)))} {symbol}
                   </p>
                   <p className="mt-0.5 text-xs text-gray-500">
                     {paymentTypeLabels[payment.type]} · {paymentMethodLabels[payment.method]}
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase ${paymentStatusStyle(payment.status)}`}>
-                    {paymentStatusLabels[payment.status]}
-                  </span>
+                  <Badge tone={PAYMENT_TONES[payment.status]}>{paymentStatusLabels[payment.status]}</Badge>
                   {payment.status === 'pending' && (
                     <button
                       type="button"
-                      onClick={() => confirmPayment.mutate(payment.id)}
+                      onClick={() => setToConfirm(payment)}
                       disabled={confirmPayment.isPending}
                       className="text-xs font-semibold text-blue-600 hover:text-blue-800 disabled:opacity-50"
                     >
@@ -760,16 +395,16 @@ function PaymentsTab({
                 </div>
               </div>
               <div className="mt-3 grid grid-cols-1 gap-1 text-xs text-gray-600 sm:grid-cols-2">
-                <span>{parseApiDateTime(payment.paid_at || payment.created_at).toLocaleDateString()}</span>
-                <span className="sm:text-right">{payment.note || '-'}</span>
+                <span>{paidAt(payment.paid_at || payment.created_at)}</span>
+                {payment.note && <span className="sm:text-right">{payment.note}</span>}
               </div>
             </div>
           ))}
         </div>
       ) : (
-        <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
+        <div className="overflow-hidden">
           <div className="w-full overflow-x-auto">
-            <table className="w-full min-w-[680px]">
+            <table className="w-full">
               <thead>
                 <tr className="border-b border-gray-100 bg-gray-50">
                   <th className="text-left px-4 py-3 text-xs font-bold text-gray-400 uppercase">{t('common.amount')}</th>
@@ -784,18 +419,16 @@ function PaymentsTab({
                 {payments.map((p) => (
                   <tr key={p.id} className="border-b border-gray-50">
                     <td className="px-4 py-3 text-sm font-semibold text-gray-900">
-                      {p.type === 'refund' ? '-' : ''}{symbol}{formatMoney(Math.abs(normalizeNumber(p.amount)))}
+                      {p.type === 'refund' ? '-' : ''}{formatMoney(Math.abs(normalizeNumber(p.amount)))} {symbol}
                     </td>
                     <td className="px-4 py-3 text-xs text-gray-600">{paymentTypeLabels[p.type]}</td>
                     <td className="px-4 py-3 text-xs text-gray-600">{paymentMethodLabels[p.method]}</td>
                     <td className="px-4 py-3">
-                      <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase ${paymentStatusStyle(p.status)}`}>
-                        {paymentStatusLabels[p.status]}
-                      </span>
+                      <Badge tone={PAYMENT_TONES[p.status]}>{paymentStatusLabels[p.status]}</Badge>
                       {p.status === 'pending' && (
                         <button
                           type="button"
-                          onClick={() => confirmPayment.mutate(p.id)}
+                          onClick={() => setToConfirm(p)}
                           disabled={confirmPayment.isPending}
                           className="ml-2 text-xs font-semibold text-blue-600 hover:text-blue-800 disabled:opacity-50"
                         >
@@ -804,7 +437,7 @@ function PaymentsTab({
                       )}
                     </td>
                     <td className="px-4 py-3 text-xs text-gray-500">
-                      {parseApiDateTime(p.paid_at || p.created_at).toLocaleDateString()}
+                      {paidAt(p.paid_at || p.created_at)}
                     </td>
                     <td className="px-4 py-3 text-xs text-gray-500">{p.note || '-'}</td>
                   </tr>
@@ -814,622 +447,16 @@ function PaymentsTab({
           </div>
         </div>
       )}
-    </div>
-  )
-}
 
-// --- Deposits Tab ---
-function DepositsTab({
-  bookingId,
-  deposits,
-  viewMode,
-  onViewModeChange,
-}: {
-  bookingId: string
-  deposits: BookingDeposit[]
-  viewMode: ViewMode
-  onViewModeChange: (mode: ViewMode) => void
-}) {
-  const { t } = useTranslation()
-  const { symbol } = useCurrency()
-  const createDep = useCreateDeposit(bookingId)
-  const [newAmount, setNewAmount] = useState('')
-  const [showCreate, setShowCreate] = useState(false)
-  const VIEW_OPTIONS: { value: ViewMode; label: string }[] = [
-    { value: 'cards', label: t('common.cards') },
-    { value: 'table', label: t('common.table') },
-  ]
-  const quickDepositOptions = [
-    { value: 5000 },
-    { value: 10000 },
-    { value: 20000 },
-  ]
-
-  function handleCreate() {
-    const amount = normalizeNumber(newAmount)
-    if (!amount || amount <= 0) return
-    createDep.mutate(
-      { amount },
-      { onSuccess: () => { setNewAmount(''); setShowCreate(false) } },
-    )
-  }
-
-  return (
-    <div className="space-y-4">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <ToggleGroup
-          type="single"
-          value={viewMode}
-          onValueChange={(value) => {
-            if (!value) return
-            onViewModeChange(value as ViewMode)
-          }}
-        >
-          {VIEW_OPTIONS.map((option) => (
-            <ToggleGroupItem key={option.value} value={option.value}>
-              {option.label}
-            </ToggleGroupItem>
-          ))}
-        </ToggleGroup>
-        <motion.button
-          whileTap={{ scale: 0.97 }}
-          onClick={() => setShowCreate(true)}
-          className="flex min-h-[44px] w-full items-center justify-center gap-1 rounded-xl bg-black px-4 py-2 text-xs font-bold text-white transition-colors hover:bg-gray-800 sm:w-auto"
-        >
-          <Plus className="w-3 h-3" /> {t('bookings.deposits.createDeposit')}
-        </motion.button>
-      </div>
-
-      {showCreate && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm"
-        >
-          <h3 className="text-sm font-bold text-gray-900 mb-3">{t('bookings.deposits.newDeposit')}</h3>
-          <div className="space-y-3">
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-start">
-              <NumberInput
-                value={newAmount}
-                onChange={setNewAmount}
-                min={0}
-                step={1000}
-                placeholder={t('common.amount')}
-                ariaLabel={t('common.amount')}
-                className="w-full sm:flex-1"
-              />
-              <motion.button
-                whileTap={{ scale: 0.97 }}
-                type="button"
-                onClick={handleCreate}
-                disabled={createDep.isPending}
-                className="min-h-[44px] w-full rounded-xl bg-black px-4 py-2 text-xs font-bold text-white transition-colors hover:bg-gray-800 disabled:opacity-50 sm:w-auto"
-              >
-                {createDep.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : t('common.create')}
-              </motion.button>
-              <button
-                type="button"
-                onClick={() => setShowCreate(false)}
-                className="min-h-[44px] w-full rounded-xl border border-gray-200 px-2 text-xs font-bold text-gray-500 transition-colors hover:bg-gray-50 hover:text-gray-700 sm:w-auto sm:border-0"
-              >
-                {t('common.cancel')}
-              </button>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {quickDepositOptions.map((option) => (
-                <button
-                  key={option.value}
-                  type="button"
-                  onClick={() => setNewAmount(String(option.value))}
-                  className="px-3 py-1.5 rounded-full border border-gray-200 bg-white hover:bg-gray-900 hover:text-white text-xs font-semibold text-gray-700 transition-all"
-                >
-                  {symbol}{formatMoneyChip(option.value)}
-                </button>
-              ))}
-            </div>
-          </div>
-        </motion.div>
-      )}
-
-      {deposits.length === 0 ? (
-        <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
-          <p className="text-sm text-gray-500 text-center py-4">{t('bookings.deposits.noDeposits')}</p>
-        </div>
-      ) : viewMode === 'cards' ? (
-        deposits.map((dep) => (
-          <DepositCard key={`${dep.id}-${dep.status}`} bookingId={bookingId} deposit={dep} />
-        ))
-      ) : (
-        <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
-          <div className="w-full overflow-x-auto">
-            <table className="w-full min-w-[860px]">
-              <thead>
-                <tr className="border-b border-gray-100 bg-gray-50">
-                  <th className="px-4 py-3 text-left text-xs font-bold uppercase text-gray-400">{t('common.amount')}</th>
-                  <th className="px-4 py-3 text-left text-xs font-bold uppercase text-gray-400">{t('common.status')}</th>
-                  <th className="px-4 py-3 text-left text-xs font-bold uppercase text-gray-400">{t('bookings.deposits.held')}</th>
-                  <th className="px-4 py-3 text-left text-xs font-bold uppercase text-gray-400">{t('common.reason')}</th>
-                  <th className="px-4 py-3 text-left text-xs font-bold uppercase text-gray-400">{t('common.created')}</th>
-                  <th className="px-4 py-3 text-left text-xs font-bold uppercase text-gray-400">{t('common.actions')}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {deposits.map((dep) => (
-                  <DepositTableRow key={`${dep.id}-${dep.status}`} bookingId={bookingId} deposit={dep} />
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-    </div>
-  )
-}
-
-function DepositCard({ bookingId, deposit }: { bookingId: string; deposit: BookingDeposit }) {
-  const { t } = useTranslation()
-  const { symbol } = useCurrency()
-  const depAction = useDepositAction(bookingId, deposit.id)
-  const [actionForm, setActionForm] = useState<{ action: DepositAction; held_amount: string; reason: string } | null>(null)
-  const [confirmingReturn, setConfirmingReturn] = useState(false)
-
-  function returnDeposit() {
-    depAction.mutate(
-      { action: 'return' },
-      {
-        onSuccess: () => setConfirmingReturn(false),
-        onError: () => showToast('error', t('bookings.deposits.returnFailed')),
-      },
-    )
-  }
-
-  function handleAction() {
-    if (!actionForm) return
-    const input: DepositActionInput = {
-      action: actionForm.action,
-      ...(actionForm.action === 'partial_hold' && { held_amount: normalizeNumber(actionForm.held_amount) }),
-      ...((actionForm.action === 'hold' || actionForm.action === 'partial_hold') && actionForm.reason && { reason: actionForm.reason }),
-    }
-    depAction.mutate(input, { onSuccess: () => setActionForm(null) })
-  }
-
-  const depositStatusStyle: Record<string, string> = {
-    pending: 'bg-gray-100 text-gray-700',
-    paid: 'bg-blue-100 text-blue-700',
-    returned: 'bg-green-100 text-green-700',
-    held: 'bg-red-100 text-red-700',
-    partially_held: 'bg-amber-100 text-amber-700',
-  }
-
-  return (
-    <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
-      <div className="flex items-center justify-between mb-3">
-        <div>
-          <p className="text-sm font-bold text-gray-900">{symbol}{formatMoney(deposit.amount)}</p>
-          {deposit.held_amount > 0 && (
-            <p className="text-xs text-gray-500">{t('bookings.deposits.held')} {symbol}{formatMoney(deposit.held_amount)}</p>
-          )}
-        </div>
-        <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase ${depositStatusStyle[deposit.status] || 'bg-gray-100 text-gray-700'}`}>
-          {depositStatusLabel(t, deposit.status)}
-        </span>
-      </div>
-      {deposit.reason && (
-        <p className="text-xs text-gray-500 mb-3">{t('common.reason')} {deposit.reason}</p>
-      )}
-
-      {/* Actions based on status */}
-      <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-        {deposit.status === 'pending' && (
-          <motion.button
-            whileTap={{ scale: 0.97 }}
-            type="button"
-            onClick={() => {
-              setActionForm(null)
-              depAction.mutate({ action: 'pay' })
-            }}
-            disabled={depAction.isPending}
-            className="min-h-[44px] w-full rounded-xl bg-blue-600 px-3 py-1.5 text-xs font-bold text-white transition-colors hover:bg-blue-700 disabled:opacity-50 sm:w-auto"
-          >
-            {t('bookings.deposits.markAsPaid')}
-          </motion.button>
-        )}
-        {deposit.status === 'paid' && (
-          <>
-            <motion.button
-              whileTap={{ scale: 0.97 }}
-              type="button"
-              onClick={() => {
-                setActionForm(null)
-                setConfirmingReturn(true)
-              }}
-              disabled={depAction.isPending}
-              className="min-h-[44px] w-full rounded-xl bg-green-600 px-3 py-1.5 text-xs font-bold text-white transition-colors hover:bg-green-700 disabled:opacity-50 sm:w-auto"
-            >
-              {t('bookings.deposits.return')}
-            </motion.button>
-            <motion.button
-              whileTap={{ scale: 0.97 }}
-              type="button"
-              onClick={() => setActionForm({ action: 'hold', held_amount: '', reason: '' })}
-              aria-label={t('bookings.deposits.hold')}
-              className="min-h-[44px] w-full rounded-xl bg-red-600 px-3 py-1.5 text-xs font-bold text-white transition-colors hover:bg-red-700 sm:w-auto"
-            >
-              {t('bookings.deposits.hold')}
-            </motion.button>
-            <motion.button
-              whileTap={{ scale: 0.97 }}
-              type="button"
-              onClick={() => setActionForm({ action: 'partial_hold', held_amount: '', reason: '' })}
-              aria-label="Partial"
-              className="min-h-[44px] w-full rounded-xl bg-amber-600 px-3 py-1.5 text-xs font-bold text-white transition-colors hover:bg-amber-700 sm:w-auto"
-            >
-              {t('bookings.deposits.partiallyHold')}
-            </motion.button>
-          </>
-        )}
-      </div>
-
-      {/* Action form for hold/partial_hold */}
-      {deposit.status === 'paid' && actionForm && (actionForm.action === 'hold' || actionForm.action === 'partial_hold') && (
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-3 space-y-2">
-          {actionForm.action === 'partial_hold' && (
-            <NumberInput
-              value={actionForm.held_amount}
-              onChange={(value) => setActionForm((f) => f && { ...f, held_amount: value })}
-              min={0}
-              step={1000}
-              placeholder={t('bookings.deposits.amountToHold')}
-              ariaLabel={t('bookings.deposits.amountToHold')}
-            />
-          )}
-          <input
-            type="text"
-            value={actionForm.reason}
-            onChange={(e) => setActionForm((f) => f && { ...f, reason: e.target.value })}
-            placeholder={t('common.reason')}
-            aria-label={t('common.reason')}
-            className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 outline-none focus:ring-2 focus:ring-black/10 text-sm"
-          />
-          <div className="flex flex-col-reverse gap-2 sm:flex-row">
-            <motion.button
-              whileTap={{ scale: 0.97 }}
-              type="button"
-              onClick={handleAction}
-              disabled={depAction.isPending}
-              className="min-h-[44px] w-full rounded-xl bg-black px-4 py-2 text-xs font-bold text-white transition-colors hover:bg-gray-800 disabled:opacity-50 sm:w-auto"
-            >
-              {depAction.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : t('common.confirm')}
-            </motion.button>
-            <button
-              type="button"
-              onClick={() => setActionForm(null)}
-              className="min-h-[44px] w-full rounded-xl border border-gray-200 px-2 text-xs font-bold text-gray-500 transition-colors hover:bg-gray-50 hover:text-gray-700 sm:w-auto sm:border-0"
-            >
-              {t('common.cancel')}
-            </button>
-          </div>
-        </motion.div>
-      )}
       <ConfirmDialog
-        open={confirmingReturn}
-        title={t('bookings.deposits.returnAsk', { amount: `${symbol}${formatMoney(deposit.amount)}` })}
-        message={t('bookings.deposits.returnWarning')}
-        confirmLabel={t('bookings.deposits.returnConfirm')}
-        loading={depAction.isPending}
-        onCancel={() => setConfirmingReturn(false)}
-        onConfirm={returnDeposit}
+        open={toConfirm !== null}
+        title={t('bookings.payments.confirmAsk', { amount: `${formatMoney(Math.abs(normalizeNumber(toConfirm?.amount)))} ${symbol}` })}
+        message={t('bookings.payments.confirmWarning')}
+        confirmLabel={t('bookings.payments.confirm')}
+        loading={confirmPayment.isPending}
+        onCancel={() => setToConfirm(null)}
+        onConfirm={() => toConfirm && confirmPayment.mutate(toConfirm.id, { onSettled: () => setToConfirm(null) })}
       />
-    </div>
+    </section>
   )
-}
-
-function DepositTableRow({ bookingId, deposit }: { bookingId: string; deposit: BookingDeposit }) {
-  const { t } = useTranslation()
-  const { symbol } = useCurrency()
-  const depAction = useDepositAction(bookingId, deposit.id)
-  const [actionForm, setActionForm] = useState<{ action: DepositAction; held_amount: string; reason: string } | null>(null)
-  const [confirmingReturn, setConfirmingReturn] = useState(false)
-
-  function returnDeposit() {
-    depAction.mutate(
-      { action: 'return' },
-      {
-        onSuccess: () => setConfirmingReturn(false),
-        onError: () => showToast('error', t('bookings.deposits.returnFailed')),
-      },
-    )
-  }
-
-  function handleAction() {
-    if (!actionForm) return
-    const input: DepositActionInput = {
-      action: actionForm.action,
-      ...(actionForm.action === 'partial_hold' && { held_amount: normalizeNumber(actionForm.held_amount) }),
-      ...((actionForm.action === 'hold' || actionForm.action === 'partial_hold') && actionForm.reason && { reason: actionForm.reason }),
-    }
-    depAction.mutate(input, { onSuccess: () => setActionForm(null) })
-  }
-
-  const depositStatusStyle: Record<string, string> = {
-    pending: 'bg-gray-100 text-gray-700',
-    paid: 'bg-blue-100 text-blue-700',
-    returned: 'bg-green-100 text-green-700',
-    held: 'bg-red-100 text-red-700',
-    partially_held: 'bg-amber-100 text-amber-700',
-  }
-
-  return (
-    <tr className="align-top border-b border-gray-50">
-      <td className="px-4 py-3 text-sm font-semibold text-gray-900">
-        {symbol}{formatMoney(deposit.amount)}
-      </td>
-      <td className="px-4 py-3">
-        <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase ${depositStatusStyle[deposit.status] || 'bg-gray-100 text-gray-700'}`}>
-          {depositStatusLabel(t, deposit.status)}
-        </span>
-      </td>
-      <td className="px-4 py-3 text-xs text-gray-600">
-        {deposit.held_amount > 0 ? `${symbol}${formatMoney(deposit.held_amount)}` : '-'}
-      </td>
-      <td className="px-4 py-3 text-xs text-gray-600">{deposit.reason || '-'}</td>
-      <td className="px-4 py-3 text-xs text-gray-500">{parseApiDateTime(deposit.created_at).toLocaleDateString()}</td>
-      <td className="px-4 py-3">
-        <div className="space-y-2">
-          <div className="flex flex-wrap gap-2">
-            {deposit.status === 'pending' && (
-              <motion.button
-                whileTap={{ scale: 0.97 }}
-                type="button"
-                onClick={() => {
-                  setActionForm(null)
-                  depAction.mutate({ action: 'pay' })
-                }}
-                disabled={depAction.isPending}
-                className="rounded-lg bg-blue-600 px-2.5 py-1 text-[11px] font-semibold text-white transition-colors hover:bg-blue-700 disabled:opacity-50"
-              >
-                {t('bookings.deposits.markAsPaid')}
-              </motion.button>
-            )}
-            {deposit.status === 'paid' && (
-              <>
-                <motion.button
-                  whileTap={{ scale: 0.97 }}
-                  type="button"
-                  onClick={() => {
-                    setActionForm(null)
-                    setConfirmingReturn(true)
-                  }}
-                  disabled={depAction.isPending}
-                  className="rounded-lg bg-green-600 px-2.5 py-1 text-[11px] font-semibold text-white transition-colors hover:bg-green-700 disabled:opacity-50"
-                >
-                  {t('bookings.deposits.return')}
-                </motion.button>
-                <motion.button
-                  whileTap={{ scale: 0.97 }}
-                  type="button"
-                  onClick={() => setActionForm({ action: 'hold', held_amount: '', reason: '' })}
-                  aria-label={t('bookings.deposits.hold')}
-                  className="rounded-lg bg-red-600 px-2.5 py-1 text-[11px] font-semibold text-white transition-colors hover:bg-red-700"
-                >
-                  {t('bookings.deposits.hold')}
-                </motion.button>
-                <motion.button
-                  whileTap={{ scale: 0.97 }}
-                  type="button"
-                  onClick={() => setActionForm({ action: 'partial_hold', held_amount: '', reason: '' })}
-                  aria-label="Partial"
-                  className="rounded-lg bg-amber-600 px-2.5 py-1 text-[11px] font-semibold text-white transition-colors hover:bg-amber-700"
-                >
-                  {t('bookings.deposits.partiallyHold')}
-                </motion.button>
-              </>
-            )}
-          </div>
-          {deposit.status === 'paid' && actionForm && (actionForm.action === 'hold' || actionForm.action === 'partial_hold') && (
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-2">
-              {actionForm.action === 'partial_hold' && (
-                <NumberInput
-                  value={actionForm.held_amount}
-                  onChange={(value) => setActionForm((f) => f && { ...f, held_amount: value })}
-                  min={0}
-                  step={1000}
-                  placeholder={t('bookings.deposits.amountToHold')}
-                  ariaLabel={t('bookings.deposits.amountToHold')}
-                />
-              )}
-              <input
-                type="text"
-                value={actionForm.reason}
-                onChange={(e) => setActionForm((f) => f && { ...f, reason: e.target.value })}
-                placeholder={t('common.reason')}
-                aria-label={t('common.reason')}
-                className="w-full rounded-lg border border-gray-200 bg-gray-50 p-2 text-xs outline-none focus:ring-2 focus:ring-black/10"
-              />
-              <div className="flex flex-wrap gap-2">
-                <motion.button
-                  whileTap={{ scale: 0.97 }}
-                  type="button"
-                  onClick={handleAction}
-                  disabled={depAction.isPending}
-                  className="rounded-lg bg-black px-2.5 py-1 text-[11px] font-semibold text-white transition-colors hover:bg-gray-800 disabled:opacity-50"
-                >
-                  {depAction.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : t('common.confirm')}
-                </motion.button>
-                <button
-                  type="button"
-                  onClick={() => setActionForm(null)}
-                  className="rounded-lg border border-gray-200 px-2.5 py-1 text-[11px] font-semibold text-gray-600 transition-colors hover:bg-gray-50"
-                >
-                  {t('common.cancel')}
-                </button>
-              </div>
-            </motion.div>
-          )}
-        </div>
-        <ConfirmDialog
-          open={confirmingReturn}
-          title={t('bookings.deposits.returnAsk', { amount: `${symbol}${formatMoney(deposit.amount)}` })}
-          message={t('bookings.deposits.returnWarning')}
-          confirmLabel={t('bookings.deposits.returnConfirm')}
-          loading={depAction.isPending}
-          onCancel={() => setConfirmingReturn(false)}
-          onConfirm={returnDeposit}
-        />
-      </td>
-    </tr>
-  )
-}
-
-// --- Files & Comments Tab ---
-function FilesCommentsTab({ bookingId, files, comments }: { bookingId: string; files: BookingFile[]; comments: BookingComment[] }) {
-  const { t } = useTranslation()
-  const uploadFile = useUploadBookingFile(bookingId)
-  const deleteFile = useDeleteBookingFile(bookingId)
-  const addComment = useAddComment(bookingId)
-  const [commentText, setCommentText] = useState('')
-  const [fileError, setFileError] = useState('')
-
-  function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0]
-    if (!file) return
-    setFileError('')
-    uploadFile.mutate(file, {
-      // 413 / 415 explain themselves: too large, or not a document.
-      onError: (error) =>
-        setFileError(
-          (error as { response?: { data?: { detail?: string } } }).response?.data?.detail ||
-            t('bookings.files.uploadFailed'),
-        ),
-    })
-  }
-
-  function handleComment() {
-    if (!commentText.trim()) return
-    addComment.mutate(
-      { content: commentText },
-      { onSuccess: () => setCommentText('') },
-    )
-  }
-
-  return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      {/* Files */}
-      <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-sm font-bold text-gray-900 flex items-center gap-2">
-            <FileText className="w-4 h-4 text-gray-400" /> {t('bookings.files.files')}
-          </h2>
-          <label className="flex items-center gap-1 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-xl px-3 py-1.5 text-xs font-bold text-gray-700 cursor-pointer transition-colors">
-            <Plus className="w-3 h-3" /> {t('bookings.files.upload')}
-            <input type="file" className="hidden" onChange={handleFileUpload} />
-          </label>
-        </div>
-        {uploadFile.isPending && (
-          <div className="flex items-center gap-2 mb-3 text-xs text-gray-500">
-            <Loader2 className="w-3 h-3 animate-spin" /> {t('bookings.files.uploading')}
-          </div>
-        )}
-        {fileError && (
-          <p role="alert" className="mb-3 text-xs text-red-600">
-            {fileError}
-          </p>
-        )}
-        {files.length === 0 ? (
-          <p className="text-sm text-gray-500 text-center py-4">{t('bookings.files.noFiles')}</p>
-        ) : (
-          <div className="space-y-2">
-            {files.map((f) => (
-              <div key={f.id} className="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-2">
-                <span className="text-sm text-gray-700 truncate">{f.file_name}</span>
-                <div className="flex gap-1">
-                  <button
-                    type="button"
-                    onClick={() =>
-                      downloadFile(bookingId, f.id, f.file_name).catch(() =>
-                        setFileError(t('bookings.files.downloadFailed')),
-                      )
-                    }
-                    aria-label={t('bookings.files.download')}
-                    className="p-1 hover:bg-gray-200 rounded transition-colors"
-                  >
-                    <Download className="w-3.5 h-3.5 text-gray-500" />
-                  </button>
-                  <button
-                    onClick={() => deleteFile.mutate(f.id)}
-                    className="p-1 hover:bg-red-50 rounded transition-colors"
-                  >
-                    <Trash2 className="w-3.5 h-3.5 text-red-400" />
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* Comments */}
-      <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
-        <h2 className="text-sm font-bold text-gray-900 flex items-center gap-2 mb-4">
-          <MessageSquare className="w-4 h-4 text-gray-400" /> {t('bookings.files.comments')}
-        </h2>
-        <div className="space-y-3 mb-4 max-h-80 overflow-y-auto">
-          {comments.length === 0 ? (
-            <p className="text-sm text-gray-500 text-center py-4">{t('bookings.files.noComments')}</p>
-          ) : (
-            comments.map((c) => (
-              <div key={c.id} className="bg-gray-50 rounded-lg px-3 py-2">
-                <p className="text-sm text-gray-800">{c.content}</p>
-                <p className="text-xs text-gray-400 mt-1">
-                  {parseApiDateTime(c.created_at).toLocaleString()}
-                </p>
-              </div>
-            ))
-          )}
-        </div>
-        <div className="flex gap-2">
-          <input
-            type="text"
-            value={commentText}
-            onChange={(e) => setCommentText(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handleComment()}
-            placeholder={t('bookings.files.addComment')}
-            className="flex-1 bg-gray-50 border border-gray-200 rounded-xl p-3 outline-none focus:ring-2 focus:ring-black/10 text-sm"
-          />
-          <motion.button
-            whileTap={{ scale: 0.97 }}
-            onClick={handleComment}
-            disabled={addComment.isPending || !commentText.trim()}
-            className="bg-black text-white hover:bg-gray-800 rounded-xl px-4 py-2 transition-colors disabled:opacity-50"
-          >
-            {addComment.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-          </motion.button>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-// --- History Tab ---
-function HistoryTab({ auditLogs }: { auditLogs: BookingAuditLog[] }) {
-  const { t } = useTranslation()
-  return (
-    <AuditTrail entries={auditLogs} title={t('bookings.activityHistory')} />
-  )
-}
-
-function depositStatusLabel(t: (key: string) => string, status: DepositStatus): string {
-  const map: Record<DepositStatus, string> = {
-    pending: t('bookings.deposits.status.pending'),
-    paid: t('bookings.deposits.status.paid'),
-    returned: t('bookings.deposits.status.returned'),
-    held: t('bookings.deposits.status.held'),
-    partially_held: t('bookings.deposits.status.partiallyHeld'),
-  }
-  return map[status] ?? status
-}
-
-function formatDate(dateStr: string, locale: string): string {
-  const d = new Date(dateStr)
-  return d.toLocaleDateString(locale, { month: 'short', day: 'numeric', year: 'numeric' })
 }

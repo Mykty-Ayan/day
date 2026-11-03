@@ -194,12 +194,16 @@ export function useBookingPayments(bookingId: string) {
 export function useAddPayment(bookingId: string) {
   const qc = useQueryClient()
   return useMutation({
+    mutationKey: ['add-payment', bookingId],
     mutationFn: ({ idempotencyKey, ...data }: PaymentInput & { idempotencyKey?: string }) =>
       addPayment(bookingId, data, idempotencyKey),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: [PAYMENTS_KEY, bookingId] })
-      qc.invalidateQueries({ queryKey: [BOOKING_KEY, bookingId] })
-    },
+    // Pending until the new balance is read: the screen offers what is owed or due back
+    // from it, and the old one would offer the same sum again.
+    onSuccess: () =>
+      Promise.all([
+        qc.invalidateQueries({ queryKey: [PAYMENTS_KEY, bookingId] }),
+        qc.invalidateQueries({ queryKey: [BOOKING_KEY, bookingId] }),
+      ]),
     // After a failure too: the answer may be lost with the money recorded.
     onSettled: () => {
       qc.invalidateQueries({ queryKey: [TODAY_KEY] })

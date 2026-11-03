@@ -94,7 +94,7 @@ test.describe('Booking CRUD - E2E', () => {
     await page.waitForURL(/\/bookings\/[^/]+$/, { timeout: 10000 })
 
     // Booking should be visible
-    await expect(page.getByText(guestName, { exact: true })).toBeVisible({ timeout: 5000 })
+    await expect(page.getByText(guestName, { exact: true }).first()).toBeVisible({ timeout: 5000 })
 
     // Cleanup
     const searchRes = await request.get(

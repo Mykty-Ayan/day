@@ -79,7 +79,7 @@ test.describe('Booking Edit - E2E', () => {
     })
 
     await openEditPage(page, booking.id)
-    await expect(page.getByText(guestName, { exact: true })).toBeVisible({ timeout: 5000 })
+    await expect(page.getByText(guestName, { exact: true }).first()).toBeVisible({ timeout: 5000 })
     await expect(page.locator('input[type="number"]').first()).toHaveValue('3')
   })
 
