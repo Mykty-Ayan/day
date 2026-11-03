@@ -89,9 +89,9 @@ test.describe('Deposit Management - E2E', () => {
     const amountField = page.getByLabel(/amount/i)
     await amountField.fill('200')
 
-    await page.getByRole('button', { name: /save|submit|create|add/i }).last().click()
+    await page.locator('#deposits').getByRole('button', { name: 'Create', exact: true }).click()
 
-    await expect(page.getByText('200')).toBeVisible({ timeout: 5000 })
+    await expect(page.locator('#deposits').getByText('200')).toBeVisible({ timeout: 5000 })
     await expect(page.getByText(/pending/i).first()).toBeVisible({ timeout: 3000 })
   })
 
@@ -108,12 +108,8 @@ test.describe('Deposit Management - E2E', () => {
       await depositsTab.click()
     }
 
-    await page.getByRole('button', { name: /pay|mark.*paid/i }).click()
-
-    const confirmBtn = page.getByRole('button', { name: /confirm|yes/i })
-    if (await confirmBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
-      await confirmBtn.click()
-    }
+    await page.getByRole('button', { name: /mark.*paid/i }).click()
+    await page.getByRole('dialog').getByRole('button', { name: /mark.*paid/i }).click()
 
     await expect(page.getByText(/paid/i).first()).toBeVisible({ timeout: 5000 })
   })
@@ -162,20 +158,14 @@ test.describe('Deposit Management - E2E', () => {
       await depositsTab.click()
     }
 
-    await page.getByRole('button', { name: /hold/i }).click()
+    await page.getByRole('button', { name: 'Hold', exact: true }).click()
+    await page.getByLabel('Reason').fill('Broken window')
+    await page.getByRole('button', { name: /^Hold 100/ }).click()
 
-    const reasonField = page.getByLabel(/reason/i)
-    if (await reasonField.isVisible({ timeout: 2000 }).catch(() => false)) {
-      await reasonField.fill('Broken window')
-    }
-
-    // The form's own: a phone also keeps the booking's "Confirm" on the page.
-    const confirmBtn = page.getByRole('button', { name: /confirm|yes|submit|save/i }).last()
-    if (await confirmBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
-      await confirmBtn.click()
-    }
-
-    await expect(page.getByText(/held/i).first()).toBeVisible({ timeout: 5000 })
+    const deposits = page.locator('#deposits')
+    await expect(deposits.getByText('Held', { exact: true })).toBeVisible({ timeout: 5000 })
+    await expect(deposits.getByText('Reason: Broken window')).toBeVisible()
+    await expect(deposits.getByRole('button', { name: 'Return' })).toBeHidden()
   })
 
   test('partially hold deposit', async ({ page, request }) => {
@@ -192,35 +182,15 @@ test.describe('Deposit Management - E2E', () => {
       await depositsTab.click()
     }
 
-    // Look for partial hold action
-    const partialHoldBtn = page.getByRole('button', { name: /partial.*hold/i })
-    if (await partialHoldBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
-      await partialHoldBtn.click()
-    } else {
-      // May be a "hold" button with amount field
-      await page.getByRole('button', { name: /hold/i }).click()
-    }
+    await page.getByRole('button', { name: 'Hold part' }).click()
+    await page.getByRole('spinbutton', { name: 'Amount to hold' }).fill('50')
+    await page.getByLabel('Reason').fill('Minor stain on carpet')
+    await expect(page.getByText(/150 \S+ goes back to the guest/)).toBeVisible()
+    await page.getByRole('button', { name: /^Hold 50/ }).click()
 
-    const heldAmountField = page.getByLabel(/amount|held/i)
-    if (await heldAmountField.isVisible({ timeout: 2000 }).catch(() => false)) {
-      await heldAmountField.fill('50')
-    }
-
-    const reasonField = page.getByLabel(/reason/i)
-    if (await reasonField.isVisible({ timeout: 2000 }).catch(() => false)) {
-      await reasonField.fill('Minor stain on carpet')
-    }
-
-    // The form's own: a phone also keeps the booking's "Confirm" on the page.
-    const confirmBtn = page.getByRole('button', { name: /confirm|yes|submit|save/i }).last()
-    if (await confirmBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
-      await confirmBtn.click()
-    }
-
-    // Should show partially held or held status
-    await expect(
-      page.getByText(/partially.*held|held/i).first(),
-    ).toBeVisible({ timeout: 5000 })
+    const deposits = page.locator('#deposits')
+    await expect(deposits.getByText('Partially Held', { exact: true })).toBeVisible({ timeout: 5000 })
+    await expect(deposits.getByText(/Held 50 \S+, 150 \S+ to the guest/)).toBeVisible()
   })
 
   test('multiple deposits on one booking', async ({ page, request }) => {
@@ -240,9 +210,9 @@ test.describe('Deposit Management - E2E', () => {
     }
 
     // Both deposit amounts should be visible. The whole text of the amount, as
-    // the card writes it (₸100.00): a bare '100' also matches the random digits
+    // the card writes it (100 ₸): a bare '100' also matches the random digits
     // in the names of the test flat and guest.
-    await expect(page.getByText(/^\D*100\.00$/)).toBeVisible({ timeout: 5000 })
-    await expect(page.getByText(/^\D*200\.00$/)).toBeVisible({ timeout: 5000 })
+    await expect(page.locator('#deposits').getByText(/^100\s\D*$/)).toBeVisible({ timeout: 5000 })
+    await expect(page.locator('#deposits').getByText(/^200\s\D*$/)).toBeVisible({ timeout: 5000 })
   })
 })

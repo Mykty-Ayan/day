@@ -9,3 +9,10 @@ export function phoneDigits(raw: string | null | undefined): string {
   if (digits.length === 10 && digits.startsWith('7')) return `7${digits}`
   return digits
 }
+
+/** "+7 702 377 45 67" for a Kazakh number; any other stays as it was typed. */
+export function formatPhone(raw: string): string {
+  const digits = phoneDigits(raw)
+  const parts = digits.match(/^7(\d{3})(\d{3})(\d{2})(\d{2})$/)
+  return parts ? `+7 ${parts.slice(1).join(' ')}` : raw
+}

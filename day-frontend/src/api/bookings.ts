@@ -206,11 +206,15 @@ export async function deleteFile(
 
 /** Files are guests' documents: the bucket is private, so they come through
  *  the API with the user's token, never by a bare link. */
-export async function downloadFile(bookingId: string, fileId: string, fileName: string): Promise<void> {
+export async function fileBlob(bookingId: string, fileId: string): Promise<Blob> {
   const res = await apiClient.get<Blob>(`/bookings/${bookingId}/files/${fileId}/download`, {
     responseType: 'blob',
   })
-  const url = URL.createObjectURL(res.data)
+  return res.data
+}
+
+export async function downloadFile(bookingId: string, fileId: string, fileName: string): Promise<void> {
+  const url = URL.createObjectURL(await fileBlob(bookingId, fileId))
   const link = document.createElement('a')
   link.href = url
   link.download = fileName

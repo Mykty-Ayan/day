@@ -147,8 +147,9 @@ test.describe('Booking Today View - E2E', () => {
     await page.goto('/bookings/today')
     await page.waitForLoadState('networkidle')
 
-    // The button acts at once (there is no confirmation dialog)
+    // A guest let in cannot be undone: the button asks first
     await page.getByRole('button', { name: 'Check In' }).click()
+    await page.getByRole('dialog').getByRole('button', { name: 'Check In' }).click()
 
     await expect.poll(() => bookingStatus(request, booking.id)).toBe('checked_in')
     // A checked-in guest moves from the check-ins column to the in-house one
@@ -327,8 +328,9 @@ test.describe('Booking Today View - E2E', () => {
     await page.goto('/bookings/today')
     await page.waitForLoadState('networkidle')
 
-    // The button acts at once (there is no confirmation dialog)
+    // A guest let out cannot be undone: the button asks first
     await page.getByRole('button', { name: 'Check Out' }).click()
+    await page.getByRole('dialog').getByRole('button', { name: 'Check Out' }).click()
 
     await expect.poll(() => bookingStatus(request, booking.id)).toBe('checked_out')
     // A guest who has left stays in the check-outs column: the flat still needs a cleaning

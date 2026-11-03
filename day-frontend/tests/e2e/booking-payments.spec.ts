@@ -106,7 +106,7 @@ test.describe('Booking Payments - E2E', () => {
   ) {
     await page.goto(`/bookings/${bookingId}`)
     await page.waitForLoadState('networkidle')
-    await page.getByRole('tab', { name: tab }).click()
+    await expect(page.getByRole('heading', { name: tab }).first()).toBeVisible()
   }
 
   test.afterEach(async ({ request }) => {
@@ -124,25 +124,34 @@ test.describe('Booking Payments - E2E', () => {
     const prop = await setupActiveProperty(request)
     const booking = await createBookingViaApi(request, prop.id)
 
-    await openBookingTab(page, booking.id, /payment/i)
+    await page.goto(`/bookings/${booking.id}`)
     await page.getByRole('button', { name: /add payment/i }).click()
 
-    await page.getByLabel(/amount/i).fill('120')
+    const panel = page.getByRole('dialog')
+    await panel.getByLabel('Amount').fill('120')
+    await panel.getByRole('radio', { name: 'Card' }).click()
+    await panel.getByRole('button', { name: /^Add 120/ }).click()
 
-    // The method is a custom select: open the list and pick an option
-    await page.getByRole('combobox').click()
-    await page.getByRole('option', { name: 'Card' }).click()
+    await expect.poll(() => paymentsOf(request, booking.id)).toEqual(['payment:card:120:'])
+    await expect(page.getByText(/no payments yet/i)).toBeHidden()
+  })
 
-    await page.getByLabel(/note/i).fill('First payment')
+  test('the refund offered for an overpayment opens with the sum in place', async ({ page, request }) => {
+    const prop = await setupActiveProperty(request)
+    const booking = await createBookingViaApi(request, prop.id)
+    await addPaymentViaApi(request, booking.id, {
+      amount: Number(booking.total_price) + 500,
+      type: 'payment',
+      method: 'cash',
+    })
+
+    await page.goto(`/bookings/${booking.id}`)
+    await page.getByRole('button', { name: /^Refund 500/ }).click()
+    await expect(page.getByLabel('Amount')).toHaveValue('500')
     await page.getByRole('button', { name: 'Save' }).click()
 
-    // The payment is a row of its own: the amount is read inside it, not anywhere on the page
-    const row = page.getByRole('row', { name: /First payment/ })
-    await expect(row).toContainText(/120\.00/)
-    await expect(row).toContainText('Card')
-    await expect(page.getByText(/no payments yet/i)).toBeHidden()
-
-    await expect.poll(() => paymentsOf(request, booking.id)).toEqual(['payment:card:120:First payment'])
+    await expect(page.getByRole('button', { name: /^Refund 500/ })).toBeHidden()
+    await expect(page.getByText('Overpaid', { exact: true })).toBeHidden()
   })
 
   test('add refund', async ({ page, request }) => {
@@ -158,8 +167,8 @@ test.describe('Booking Payments - E2E', () => {
     await page.getByRole('button', { name: 'Save' }).click()
 
     // A refund is a row of its own with a minus sign, next to the payment it takes back from
-    await expect(page.getByRole('row', { name: /Early departure/ })).toContainText(/-\D*50\.00/)
-    await expect(page.getByRole('row', { name: /Prepayment/ })).toContainText(/200\.00/)
+    await expect(page.getByRole('row', { name: /Early departure/ })).toContainText(/-\D*50\b/)
+    await expect(page.getByRole('row', { name: /Prepayment/ })).toContainText(/\b200\b/)
 
     await expect.poll(() => paymentsOf(request, booking.id)).toEqual([
       'payment:cash:200:Prepayment',
@@ -176,9 +185,7 @@ test.describe('Booking Payments - E2E', () => {
     await page.getByLabel(/amount/i).fill('75')
     await page.locator('main').getByRole('button', { name: 'Create', exact: true }).click()
 
-    // The deposit is a row of its own: the amount and the status are read inside it
-    const row = page.getByRole('row', { name: /75\.00/ })
-    await expect(row.getByText('Pending', { exact: true })).toBeVisible()
+    await expect(page.locator('#deposits').getByText('Pending', { exact: true })).toBeVisible()
 
     await expect.poll(() => depositsOf(request, booking.id)).toEqual(['pending:75:'])
   })
@@ -190,10 +197,11 @@ test.describe('Booking Payments - E2E', () => {
 
     await openBookingTab(page, booking.id, /deposit/i)
     await page.getByRole('button', { name: 'Mark as Paid' }).click()
+    await page.getByRole('dialog').getByRole('button', { name: 'Mark as Paid' }).click()
 
     await expect.poll(() => depositsOf(request, booking.id)).toEqual(['paid:100:'])
-    // The row shows the new status and no longer offers to pay
-    await expect(page.getByRole('row', { name: /100\.00/ }).getByText('Paid', { exact: true })).toBeVisible()
+    // The block shows the new status and no longer offers to pay
+    await expect(page.locator('#deposits').getByText('Paid', { exact: true })).toBeVisible()
     await expect(page.getByRole('button', { name: 'Mark as Paid' })).toBeHidden()
   })
 
@@ -218,16 +226,29 @@ test.describe('Booking Payments - E2E', () => {
     await openBookingTab(page, booking.id, /deposit/i)
     await page.getByRole('button', { name: 'Hold', exact: true }).click()
 
-    // The booking has a "Confirm" button of its own: press the one inside the hold form
     const reason = page.getByLabel('Reason')
     await reason.fill('Damaged towels')
-    await reason.locator('..').getByRole('button', { name: 'Confirm' }).click()
+    await page.getByRole('button', { name: /^Hold 100/ }).click()
 
     await expect.poll(() => depositsOf(request, booking.id)).toEqual(['held:100:Damaged towels'])
-    // The row shows the new status and the reason, and the form is gone
-    const row = page.getByRole('row', { name: /100\.00/ })
-    await expect(row.getByText('Held', { exact: true })).toBeVisible()
-    await expect(row).toContainText('Damaged towels')
+    // The block shows the new status and the reason, and the form is gone
+    const block = page.locator('#deposits')
+    await expect(block.getByText('Held', { exact: true })).toBeVisible()
+    await expect(block).toContainText('Damaged towels')
     await expect(reason).toBeHidden()
+  })
+
+  test('shows an overpayment as an overpayment', async ({ page, request }) => {
+    const prop = await setupActiveProperty(request)
+    const booking = await createBookingViaApi(request, prop.id)
+    await addPaymentViaApi(request, booking.id, {
+      amount: Number(booking.total_price) + 500,
+      type: 'payment',
+      method: 'cash',
+    })
+
+    await page.goto(`/bookings/${booking.id}`)
+    await expect(page.getByText('Overpaid', { exact: true }).first()).toBeVisible()
+    await expect(page.getByText(/paid more than the total/)).toBeVisible()
   })
 })

@@ -533,6 +533,8 @@ class BookingDetailResponse(BaseModel):
     comments: list[BookingCommentResponse]
     contract: None = None  # BookingContractResponse placeholder
     audit_logs: list[BookingAuditLogResponse]
+    guest_stays: int = 0
+    people: dict[uuid.UUID, str] = {}
 
 
 class PropertyBlockCreate(BaseModel):
