@@ -154,6 +154,37 @@ test.describe('Booking Payments - E2E', () => {
     await expect(page.getByText('Overpaid', { exact: true })).toBeHidden()
   })
 
+  test('a second refund cannot start while the first is on its way', async ({ page, request }) => {
+    const prop = await setupActiveProperty(request)
+    const booking = await createBookingViaApi(request, prop.id)
+    await addPaymentViaApi(request, booking.id, { amount: Number(booking.total_price) + 500, type: 'payment', method: 'cash' })
+
+    await page.goto(`/bookings/${booking.id}`)
+    await page.getByRole('button', { name: /^Refund 500/ }).click()
+    let release = () => {}
+    await page.route('**/payments', async (route) => {
+      if (route.request().method() !== 'POST') return route.continue()
+      await new Promise<void>((resolve) => (release = resolve))
+      await route.continue()
+    })
+    await page.getByRole('button', { name: 'Save' }).click()
+    await expect(page.getByRole('button', { name: /^Refund 500/ })).toBeDisabled()
+    release()
+
+    await expect.poll(() => paymentsOf(request, booking.id)).toHaveLength(2)
+  })
+
+  test('a payment can be added with nothing owed', async ({ page, request }) => {
+    const prop = await setupActiveProperty(request)
+    const booking = await createBookingViaApi(request, prop.id)
+    await addPaymentViaApi(request, booking.id, { amount: Number(booking.total_price), type: 'payment', method: 'cash' })
+
+    await page.goto(`/bookings/${booking.id}`)
+    await expect(page.getByText('Paid', { exact: true }).first()).toBeVisible()
+    await page.getByRole('button', { name: /add payment/i }).click()
+    await expect(page.getByRole('dialog').getByLabel('Amount')).toBeVisible()
+  })
+
   test('add refund', async ({ page, request }) => {
     const prop = await setupActiveProperty(request)
     const booking = await createBookingViaApi(request, prop.id)

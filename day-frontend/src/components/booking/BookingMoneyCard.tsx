@@ -3,7 +3,7 @@ import { CircleCheck, Plus, ShieldCheck, Undo2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { useCurrency } from '../../hooks/useCurrency'
 import type { bookingMoney } from '../../lib/booking-money'
-import { formatMoney } from '../../pages/miniapp/format'
+import { formatMoneyExact as formatMoney } from '../../pages/miniapp/format'
 import type { Booking, BookingDeposit } from '../../types/booking'
 import Button from '../ui/Button'
 import BookingPriceLines from './BookingPriceLines'
@@ -16,12 +16,14 @@ export default function BookingMoneyCard({
   deposits,
   depositLabel,
   onRefund,
+  refunding,
 }: {
   booking: Booking
   money: ReturnType<typeof bookingMoney>
   deposits: BookingDeposit[]
   depositLabel: (deposit: BookingDeposit) => string
   onRefund: () => void
+  refunding: boolean
 }) {
   const { t, i18n } = useTranslation()
   const { symbol } = useCurrency()
@@ -65,18 +67,21 @@ export default function BookingMoneyCard({
       {booking.status !== 'cancelled' && <BookingPriceLines booking={booking} />}
 
       {money.toReturn > 0 && (
-        <Button className="mt-4 w-full" onClick={onRefund}>
+        <Button className="mt-4 w-full" onClick={onRefund} disabled={refunding}>
           <Undo2 className="h-4 w-4" aria-hidden="true" />
           {t('bookings.card.refund', { amount: sum(money.toReturn) })}
         </Button>
       )}
 
-      {money.owes > 0 && (
-        <Button className="mt-4 w-full" onClick={() => setPaying(true)}>
-          <Plus className="h-4 w-4" aria-hidden="true" />
-          {t('bookings.payments.addPayment')}
-        </Button>
-      )}
+      {/* Always there: money may come after a cancellation or on top of the total. */}
+      <Button
+        variant={money.owes > 0 ? 'primary' : 'secondary'}
+        className="mt-4 w-full"
+        onClick={() => setPaying(true)}
+      >
+        <Plus className="h-4 w-4" aria-hidden="true" />
+        {t('bookings.payments.addPayment')}
+      </Button>
 
       <a
         href="#deposits"

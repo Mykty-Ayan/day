@@ -3,6 +3,7 @@
 
 import { expect, test } from '@playwright/test'
 import { bookingMoney, paymentSuggestions, priceLines } from '../../src/lib/booking-money'
+import { formatMoneyExact } from '../../src/pages/miniapp/format'
 import type { BookingPayment, PriceCalculation } from '../../src/types/booking'
 
 const paid = (amount: number, fields: Partial<BookingPayment> = {}) =>
@@ -56,4 +57,10 @@ test('a season cheaper than the base stays as a negative line', () => {
 
 test('prices changed since the booking: the breakdown explains nothing', () => {
   expect(priceLines(reckoning({ total: 120 }), 100)).toBeNull()
+})
+
+test('the booking screen keeps kopecks: a confirmation names the sum sent', () => {
+  expect(formatMoneyExact(99.5, 'en')).toBe('99.5')
+  expect(formatMoneyExact(0.49, 'en')).toBe('0.49')
+  expect(formatMoneyExact(20000, 'en')).toBe('20,000')
 })

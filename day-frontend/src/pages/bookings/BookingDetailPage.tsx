@@ -9,6 +9,7 @@ import {
   Loader2,
 } from 'lucide-react'
 import { useNavigate, useParams } from '@tanstack/react-router'
+import { useIsMutating } from '@tanstack/react-query'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import Spinner from '../../components/ui/Spinner'
 import { useMediaQuery } from '../../hooks/useMediaQuery'
@@ -47,16 +48,24 @@ import { parseApiDateTime } from '../../utils/date-time'
 import { dateLocale } from '../../lib/date-locale'
 import { intlLocale } from '../miniapp/format'
 
+/** One booking's screen per booking: going to another one, or back, starts it
+ *  afresh, so a dialog or an upload begun on one never acts on the next. */
 export default function BookingDetailPage() {
-  const { t } = useTranslation()
   const { bookingId } = useParams({ strict: false }) as { bookingId: string }
+  return <BookingScreen key={bookingId} bookingId={bookingId} />
+}
+
+function BookingScreen({ bookingId }: { bookingId: string }) {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const { data: detail, isLoading } = useBooking(bookingId)
   const { symbol } = useCurrency()
   // A table from 1024px wide, cards on a phone: a wide table would scroll sideways.
   const compact = useMediaQuery('(max-width: 1023px)')
-  // Each press opens the refund form anew, with the sum the guest is owed.
+  // Each press opens the refund form anew, with the sum the guest is owed; not while a
+  // payment is on its way: the new form would forget it and take it again.
   const [refund, setRefund] = useState({ amount: 0, round: 0 })
+  const refunding = useIsMutating({ mutationKey: ['add-payment', bookingId] })
 
   const from = useMemo(() => {
     if (typeof window === 'undefined') return ''
@@ -129,6 +138,7 @@ export default function BookingDetailPage() {
                   `${formatMoneyChip(deposit.amount)} ${symbol} · ${t(depositStatusKeys[deposit.status])}`
                 }
                 onRefund={startRefund}
+                refunding={refunding > 0}
               />
             </div>
             <div className="flex min-w-0 flex-col gap-5 lg:col-start-1 lg:row-span-2 lg:row-start-1">

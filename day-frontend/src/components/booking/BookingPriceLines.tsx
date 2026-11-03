@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { useCalculatePrice } from '../../hooks/useBookings'
 import { useCurrency } from '../../hooks/useCurrency'
 import { priceLines, type PriceLine } from '../../lib/booking-money'
-import { formatMoney } from '../../pages/miniapp/format'
+import { formatMoneyExact as formatMoney } from '../../pages/miniapp/format'
 import type { Booking, PriceCalculation } from '../../types/booking'
 
 const LABELS: Record<PriceLine['kind'], string> = {

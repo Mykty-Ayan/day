@@ -194,6 +194,7 @@ export function useBookingPayments(bookingId: string) {
 export function useAddPayment(bookingId: string) {
   const qc = useQueryClient()
   return useMutation({
+    mutationKey: ['add-payment', bookingId],
     mutationFn: ({ idempotencyKey, ...data }: PaymentInput & { idempotencyKey?: string }) =>
       addPayment(bookingId, data, idempotencyKey),
     onSuccess: () => {

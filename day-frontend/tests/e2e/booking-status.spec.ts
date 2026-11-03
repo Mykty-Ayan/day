@@ -159,6 +159,35 @@ test.describe('Booking Status Transitions - E2E', () => {
     expect(after.booking.status).toBe('checked_in')
   })
 
+  test('a question asked on one booking does not act on the one gone back to', async ({ page, request }) => {
+    const prop = await setupActiveProperty(request)
+    const first = await createBookingViaApi(request, prop.id)
+    const other = await setupActiveProperty(request)
+    const second = await createBookingViaApi(request, other.id)
+
+    const nameOf = async (id: string) => (await (await request.get(`${API_BASE}/bookings/${id}`)).json()).booking.guest_name as string
+    const [firstName, secondName] = [await nameOf(first.id), await nameOf(second.id)]
+
+    await page.goto(`/bookings/${first.id}`)
+    await page.getByRole('button', { name: /confirm/i }).first().waitFor()
+    // Inside the app, as the search does: the first booking stays in the cache
+    await page.evaluate((id) => {
+      history.pushState(null, '', `/bookings/${id}`)
+      dispatchEvent(new PopStateEvent('popstate'))
+    }, second.id)
+    await expect(page.getByRole('heading', { name: secondName })).toBeVisible()
+    await page.getByRole('button', { name: /confirm/i }).first().click()
+    await expect(page.getByRole('dialog')).toBeVisible()
+
+    await page.goBack()
+    await expect(page.getByRole('heading', { name: firstName })).toBeVisible()
+    await expect(page.getByRole('dialog')).toBeHidden()
+    for (const booking of [first, second]) {
+      const after = await (await request.get(`${API_BASE}/bookings/${booking.id}`)).json()
+      expect(after.booking.status).toBe('pending')
+    }
+  })
+
   test('a status step can be called off', async ({ page, request }) => {
     const prop = await setupActiveProperty(request)
     const booking = await createBookingViaApi(request, prop.id)
