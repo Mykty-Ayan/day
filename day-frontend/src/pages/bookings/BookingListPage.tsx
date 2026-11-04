@@ -1,76 +1,45 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { motion } from 'framer-motion'
-import { Plus, Search, ChevronLeft, ChevronRight, ArrowRight } from 'lucide-react'
+import { format, parseISO } from 'date-fns'
+import { ChevronLeft, ChevronRight, Search } from 'lucide-react'
 import { Link, useNavigate } from '@tanstack/react-router'
 import { useBookings } from '../../hooks/useBookings'
 import { useProperties } from '../../hooks/useProperties'
-import type { BookingStatus, BookingSource } from '../../types/booking'
-import type { ViewMode } from '../../types/view-mode'
-import { isViewMode } from '../../types/view-mode'
-import BookingStatusBadge from '../../components/booking/BookingStatusBadge'
 import { useCurrency } from '../../hooks/useCurrency'
+import type { Booking, BookingStatus, BookingSource } from '../../types/booking'
+import BookingStatusBadge from '../../components/booking/BookingStatusBadge'
 import Spinner from '../../components/ui/Spinner'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '../../components/ui/select'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select'
 import { ToggleGroup, ToggleGroupItem } from '../../components/ui/toggle-group'
+import { dateLocale } from '../../lib/date-locale'
+import { formatPhone } from '../../lib/phone'
+import { listOwes, stayLine } from '../../lib/booking-list'
+import { formatMoneyExact } from '../miniapp/format'
 
-const BOOKING_LIST_VIEW_MODE_STORAGE_KEY = 'day:bookings:list-view-mode'
+const SOURCES: BookingSource[] = ['direct', 'booking', 'airbnb', 'other', 'crm', 'offer', 'site']
+const FIELD = 'h-11 w-full rounded-xl border border-line bg-surface-card px-3 text-sm text-ink outline-none placeholder:text-ink-muted focus:border-accent'
+// Guest, flat, dates, status, money: one grid for the header and every row on a wide screen.
+const COLUMNS = 'lg:grid lg:grid-cols-[minmax(0,1.4fr)_minmax(0,0.8fr)_minmax(0,1.2fr)_9rem_8rem] lg:items-center lg:gap-4'
 
-function readInitialViewMode(): ViewMode {
-  if (typeof window === 'undefined') return 'table'
-
-  try {
-    const stored = window.localStorage.getItem(BOOKING_LIST_VIEW_MODE_STORAGE_KEY)
-    if (isViewMode(stored)) {
-      return stored
-    }
-  } catch {
-    // Ignore storage errors and fallback to viewport-aware default.
-  }
-
-  return window.matchMedia('(max-width: 1023px)').matches ? 'cards' : 'table'
-}
-
+/** All bookings: found by guest, flat, source and status. A table on a wide screen,
+ *  one card per booking on a phone; no switch between the two. */
 export default function BookingListPage() {
-  const { t, i18n } = useTranslation()
-  const navigate = useNavigate()
-  const { symbol } = useCurrency()
+  const { t } = useTranslation()
   const [search, setSearch] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<BookingStatus | 'all'>('all')
   const [sourceFilter, setSourceFilter] = useState<BookingSource | 'all'>('all')
   const [propertyFilter, setPropertyFilter] = useState('all')
   const [page, setPage] = useState(1)
-  const [viewMode, setViewMode] = useState<ViewMode>(() => readInitialViewMode())
 
   const STATUS_TABS: { value: BookingStatus | 'all'; label: string }[] = [
     { value: 'all', label: t('common.all') },
     { value: 'pending', label: t('common.pending') },
     { value: 'confirmed', label: t('common.confirmed') },
     { value: 'checked_in', label: t('common.checkedIn') },
+    { value: 'checked_out', label: t('common.checkedOut') },
     { value: 'completed', label: t('common.completed') },
     { value: 'cancelled', label: t('common.cancelled') },
-  ]
-
-  const SOURCE_OPTIONS: { value: BookingSource | 'all'; label: string }[] = [
-    { value: 'all', label: t('common.allSources') },
-    { value: 'direct', label: t('bookings.sources.direct') },
-    { value: 'booking', label: t('bookings.sources.booking') },
-    { value: 'airbnb', label: t('bookings.sources.airbnb') },
-    { value: 'other', label: t('bookings.sources.other') },
-    { value: 'crm', label: t('bookings.sources.crm') },
-    { value: 'offer', label: t('bookings.sources.offer') },
-    { value: 'site', label: t('bookings.sources.site') },
-  ]
-  const VIEW_OPTIONS: { value: ViewMode; label: string }[] = [
-    { value: 'cards', label: t('common.cards') },
-    { value: 'table', label: t('common.table') },
   ]
 
   const { data: propertiesData } = useProperties({ per_page: 100, status: 'active' })
@@ -85,7 +54,7 @@ export default function BookingListPage() {
     search: debouncedSearch || undefined,
   })
 
-  // Debounce the search input so the query fires ~300ms after typing stops.
+  // The query fires ~300ms after typing stops.
   useEffect(() => {
     const timeout = setTimeout(() => {
       setDebouncedSearch(search)
@@ -94,292 +63,201 @@ export default function BookingListPage() {
     return () => clearTimeout(timeout)
   }, [search])
 
-  useEffect(() => {
-    if (typeof window === 'undefined') return
-    try {
-      window.localStorage.setItem(BOOKING_LIST_VIEW_MODE_STORAGE_KEY, viewMode)
-    } catch {
-      // Ignore storage write errors.
-    }
-  }, [viewMode])
-
   return (
-    <div className="px-4 py-4 sm:px-6 sm:py-6 max-w-7xl mx-auto w-full">
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4 }}
-      >
-        {/* Header */}
-        <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <h1 className="text-xl font-bold text-gray-900">{t('bookings.title')}</h1>
-          <Link to="/bookings/new">
-            <motion.button
-              whileTap={{ scale: 0.97 }}
-              className="flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl bg-black px-6 py-2.5 font-semibold text-white shadow-lg transition-colors hover:bg-gray-800 sm:w-auto"
-            >
-              <Plus className="w-4 h-4" />
-              {t('bookings.newBooking')}
-            </motion.button>
+    <div className="mx-auto w-full max-w-7xl px-4 py-4 sm:px-6 sm:py-6">
+      {/* New bookings start from "Create" in the top bar, on every screen. */}
+      <h1 className="mb-5 text-xl font-bold text-ink">{t('bookings.title')}</h1>
+
+      {/* On a phone: search on its own line, the two filters side by side under it. */}
+      <div className="mb-4 grid grid-cols-2 gap-3 sm:flex">
+        <label className="relative col-span-2 sm:flex-1">
+          <span className="sr-only">{t('bookings.searchPlaceholder')}</span>
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-muted" aria-hidden="true" />
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder={t('bookings.searchPlaceholder')}
+            className={`${FIELD} pl-9`}
+          />
+        </label>
+        <Select value={propertyFilter} onValueChange={(value) => { setPropertyFilter(value); setPage(1) }}>
+          <SelectTrigger className="w-full sm:w-52">
+            <SelectValue placeholder={t('common.allProperties')} />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">{t('common.allProperties')}</SelectItem>
+            {properties.map((p) => (
+              <SelectItem key={p.id} value={p.id}>
+                {p.internal_name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select value={sourceFilter} onValueChange={(value) => { setSourceFilter(value as BookingSource | 'all'); setPage(1) }}>
+          <SelectTrigger className="w-full sm:w-44">
+            <SelectValue placeholder={t('common.allSources')} />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">{t('common.allSources')}</SelectItem>
+            {SOURCES.map((source) => (
+              <SelectItem key={source} value={source}>
+                {t(`bookings.sources.${source}`)}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* A phone scrolls the statuses sideways rather than wrapping them onto three lines. */}
+      <div className="-mx-4 mb-5 overflow-x-auto px-4 sm:mx-0 sm:px-0">
+        <ToggleGroup
+          type="single"
+          className="w-max max-w-none flex-nowrap"
+          value={statusFilter}
+          onValueChange={(value) => {
+            if (!value) return
+            setStatusFilter(value as BookingStatus | 'all')
+            setPage(1)
+          }}
+        >
+          {STATUS_TABS.map((tab) => (
+            <ToggleGroupItem key={tab.value} value={tab.value}>
+              {tab.label}
+            </ToggleGroupItem>
+          ))}
+        </ToggleGroup>
+      </div>
+
+      {isLoading ? (
+        <Spinner />
+      ) : isError ? (
+        <div className="flex flex-col items-center justify-center py-20 text-center">
+          <p className="mb-1 text-sm font-semibold text-ink">{t('common.errorTitle')}</p>
+          <p className="mb-4 text-sm text-ink-muted">{t('common.errorLoading')}</p>
+          <button
+            type="button"
+            onClick={() => refetch()}
+            className="min-h-[44px] rounded-xl border border-line bg-surface-card px-6 text-sm font-semibold text-ink hover:bg-surface-page"
+          >
+            {t('common.retry')}
+          </button>
+        </div>
+      ) : !data || data.items.length === 0 ? (
+        <div className="flex flex-col items-center justify-center gap-3 py-20">
+          <p className="text-sm text-ink-muted">{t('bookings.noBookings')}</p>
+          <Link to="/bookings/new" className="text-sm font-semibold text-accent-ink hover:underline">
+            {t('bookings.createFirst')}
           </Link>
         </div>
-
-        {/* Search and filters */}
-        <div className="flex flex-col gap-3 mb-6">
-          <div className="flex flex-col sm:flex-row gap-3">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-              <input
-                type="text"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder={t('bookings.searchPlaceholder')}
-                className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 pl-9 outline-none focus:ring-2 focus:ring-black/10 text-gray-800 text-sm"
-              />
+      ) : (
+        <>
+          <div className="overflow-hidden rounded-2xl border border-line bg-surface-card">
+            <div className={`hidden border-b border-line px-5 py-3 text-xs font-semibold text-ink-muted ${COLUMNS}`} aria-hidden="true">
+              <span>{t('bookings.guest')}</span>
+              <span>{t('bookings.property')}</span>
+              <span>{t('bookings.dates')}</span>
+              <span>{t('common.status')}</span>
+              <span className="text-right">{t('bookings.total')}</span>
             </div>
-            <Select
-              value={propertyFilter}
-              onValueChange={(value) => { setPropertyFilter(value); setPage(1) }}
-            >
-              <SelectTrigger className="w-full sm:w-56">
-                <SelectValue placeholder={t('common.allProperties')} />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">{t('common.allProperties')}</SelectItem>
-                {properties.map((p) => (
-                  <SelectItem key={p.id} value={p.id}>
-                    {p.internal_name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select
-              value={sourceFilter}
-              onValueChange={(value) => { setSourceFilter(value as BookingSource | 'all'); setPage(1) }}
-            >
-              <SelectTrigger className="w-full sm:w-44">
-                <SelectValue placeholder={t('common.allSources')} />
-              </SelectTrigger>
-              <SelectContent>
-                {SOURCE_OPTIONS.map((s) => (
-                  <SelectItem key={s.value} value={s.value}>
-                    {s.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <ul className="divide-y divide-line">
+              {data.items.map((booking) => (
+                <li key={booking.id}>
+                  <BookingRow booking={booking} />
+                </li>
+              ))}
+            </ul>
           </div>
-          <ToggleGroup
-            type="single"
-            value={statusFilter}
-            onValueChange={(value) => {
-              if (!value) return
-              setStatusFilter(value as BookingStatus | 'all')
-              setPage(1)
-            }}
-          >
-            {STATUS_TABS.map((tab) => (
-              <ToggleGroupItem key={tab.value} value={tab.value}>
-                {tab.label}
-              </ToggleGroupItem>
-            ))}
-          </ToggleGroup>
-          <ToggleGroup
-            type="single"
-            value={viewMode}
-            onValueChange={(value) => {
-              if (!value) return
-              setViewMode(value as ViewMode)
-            }}
-          >
-            {VIEW_OPTIONS.map((option) => (
-              <ToggleGroupItem key={option.value} value={option.value}>
-                {option.label}
-              </ToggleGroupItem>
-            ))}
-          </ToggleGroup>
-        </div>
 
-        {/* Content */}
-        {isLoading ? (
-          <Spinner />
-        ) : isError ? (
-          <div className="flex flex-col items-center justify-center py-20 text-center">
-            <p className="mb-1 text-sm font-semibold text-gray-900">{t('common.errorTitle')}</p>
-            <p className="mb-4 text-sm text-gray-500">{t('common.errorLoading')}</p>
-            <motion.button
-              whileTap={{ scale: 0.97 }}
-              onClick={() => refetch()}
-              className="flex min-h-[44px] items-center gap-2 rounded-xl border border-gray-200 bg-white px-6 py-2.5 font-semibold text-gray-700 shadow-sm transition-colors hover:bg-gray-50"
-            >
-              {t('common.retry')}
-            </motion.button>
-          </div>
-        ) : !data || data.items.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20">
-            <p className="text-sm text-gray-500 mb-4">{t('bookings.noBookings')}</p>
-            <Link to="/bookings/new">
-              <motion.button
-                whileTap={{ scale: 0.97 }}
-                className="flex items-center gap-2 bg-black text-white hover:bg-gray-800 rounded-xl px-6 py-2.5 font-semibold shadow-lg transition-colors"
+          {data.pages > 1 && (
+            <div className="mt-6 flex items-center justify-center gap-2">
+              <button
+                type="button"
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={page <= 1}
+                aria-label={t('common.previous')}
+                className="flex h-10 w-10 items-center justify-center rounded-lg border border-line text-ink hover:bg-surface-page disabled:opacity-30"
               >
-                <Plus className="w-4 h-4" />
-                {t('bookings.createFirst')}
-              </motion.button>
-            </Link>
-          </div>
-        ) : (
-          <>
-            {viewMode === 'cards' ? (
-              <div className="space-y-3">
-                {data.items.map((booking, i) => (
-                  <motion.button
-                    key={booking.id}
-                    initial={{ opacity: 0, y: 5 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.2, delay: i * 0.02 }}
-                    onClick={() => navigate({ to: '/bookings/$bookingId', params: { bookingId: booking.id } })}
-                    type="button"
-                    className="w-full rounded-xl border border-gray-200 bg-white p-4 text-left shadow-sm transition-colors hover:border-gray-300"
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2">
-                          <div
-                            className="h-2 w-2 shrink-0 rounded-full"
-                            style={{ backgroundColor: booking.gantt_color || '#3B82F6' }}
-                          />
-                          <p className="truncate text-sm font-semibold text-gray-900">
-                            {booking.property_internal_name || booking.property_name}
-                          </p>
-                        </div>
-                        <p className="mt-1 text-sm text-gray-700">{booking.guest_name}</p>
-                        <p className="mt-0.5 text-xs text-gray-500">{booking.guest_phone || t('common.noPhone')}</p>
-                      </div>
-                      <BookingStatusBadge status={booking.status} />
-                    </div>
-                    <div className="mt-3 grid grid-cols-1 gap-2 text-xs text-gray-600 sm:grid-cols-2">
-                      <span>
-                        {formatDate(booking.check_in, i18n.language)} <ArrowRight className="inline h-3 w-3 text-gray-400" /> {formatDate(booking.check_out, i18n.language)}
-                      </span>
-                      <span className="capitalize sm:text-right">{t('bookings.sources.' + booking.source)}</span>
-                      <span className="font-semibold text-gray-900 sm:col-span-2 sm:text-right">
-                        {symbol}{booking.total_price.toLocaleString()}
-                      </span>
-                    </div>
-                  </motion.button>
-                ))}
-              </div>
-            ) : (
-              <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
-                <div className="w-full overflow-x-auto">
-                  <table className="w-full min-w-[720px]">
-                    <thead>
-                      <tr className="border-b border-gray-100 bg-gray-50">
-                        <th className="text-left px-4 py-3 text-xs font-bold text-gray-400 uppercase tracking-wider">{t('bookings.property')}</th>
-                        <th className="text-left px-4 py-3 text-xs font-bold text-gray-400 uppercase tracking-wider">{t('bookings.guest')}</th>
-                        <th className="text-left px-4 py-3 text-xs font-bold text-gray-400 uppercase tracking-wider">{t('bookings.dates')}</th>
-                        <th className="text-left px-4 py-3 text-xs font-bold text-gray-400 uppercase tracking-wider">{t('common.status')}</th>
-                        <th className="text-left px-4 py-3 text-xs font-bold text-gray-400 uppercase tracking-wider">{t('bookings.source')}</th>
-                        <th className="text-right px-4 py-3 text-xs font-bold text-gray-400 uppercase tracking-wider">{t('bookings.total')}</th>
-                        <th className="w-10" />
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {data.items.map((booking, i) => (
-                        <motion.tr
-                          key={booking.id}
-                          initial={{ opacity: 0, y: 5 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ duration: 0.2, delay: i * 0.02 }}
-                          onClick={() => navigate({ to: '/bookings/$bookingId', params: { bookingId: booking.id } })}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter' || e.key === ' ') {
-                              e.preventDefault()
-                              navigate({ to: '/bookings/$bookingId', params: { bookingId: booking.id } })
-                            }
-                          }}
-                          tabIndex={0}
-                          role="button"
-                          aria-label={`${booking.property_internal_name || booking.property_name} — ${booking.guest_name}`}
-                          className="border-b border-gray-50 hover:bg-gray-50 cursor-pointer transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-black/20"
-                        >
-                          <td className="px-4 py-3">
-                            <div className="flex items-center gap-2">
-                              <div
-                                className="w-2 h-2 rounded-full shrink-0"
-                                style={{ backgroundColor: booking.gantt_color || '#3B82F6' }}
-                              />
-                              <span className="text-sm font-medium text-gray-900 truncate max-w-[160px]">
-                                {booking.property_internal_name || booking.property_name}
-                              </span>
-                            </div>
-                          </td>
-                          <td className="px-4 py-3">
-                            <div className="flex flex-col">
-                              <span className="text-sm text-gray-700">{booking.guest_name}</span>
-                              <span className="text-xs text-gray-400">{booking.guest_phone || t('common.noPhone')}</span>
-                            </div>
-                          </td>
-                          <td className="px-4 py-3">
-                            <span className="text-sm text-gray-600">
-                              {formatDate(booking.check_in, i18n.language)} <ArrowRight className="w-3 h-3 inline text-gray-400" /> {formatDate(booking.check_out, i18n.language)}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3">
-                            <BookingStatusBadge status={booking.status} />
-                          </td>
-                          <td className="px-4 py-3">
-                            <span className="text-xs text-gray-500 capitalize">{t('bookings.sources.' + booking.source)}</span>
-                          </td>
-                          <td className="px-4 py-3 text-right">
-                            <span className="text-sm font-semibold text-gray-900">
-                              {symbol}{booking.total_price.toLocaleString()}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3">
-                            <ChevronRight className="w-4 h-4 text-gray-300" />
-                          </td>
-                        </motion.tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
-
-            {/* Pagination */}
-            {data.pages > 1 && (
-              <div className="flex items-center justify-center gap-2 mt-8">
-                <motion.button
-                  whileTap={{ scale: 0.97 }}
-                  onClick={() => setPage((p) => Math.max(1, p - 1))}
-                  disabled={page <= 1}
-                  className="p-2 rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed"
-                >
-                  <ChevronLeft className="w-4 h-4" />
-                </motion.button>
-                <span className="text-xs font-bold text-gray-500 px-3">
-                  {t('common.page', { current: data.page, total: data.pages })}
-                </span>
-                <motion.button
-                  whileTap={{ scale: 0.97 }}
-                  onClick={() => setPage((p) => Math.min(data.pages, p + 1))}
-                  disabled={page >= data.pages}
-                  className="p-2 rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed"
-                >
-                  <ChevronRight className="w-4 h-4" />
-                </motion.button>
-              </div>
-            )}
-          </>
-        )}
-      </motion.div>
+                <ChevronLeft className="h-4 w-4" />
+              </button>
+              <span className="px-3 text-xs font-semibold text-ink-muted">
+                {t('common.page', { current: data.page, total: data.pages })}
+              </span>
+              <button
+                type="button"
+                onClick={() => setPage((p) => Math.min(data.pages, p + 1))}
+                disabled={page >= data.pages}
+                aria-label={t('common.next')}
+                className="flex h-10 w-10 items-center justify-center rounded-lg border border-line text-ink hover:bg-surface-page disabled:opacity-30"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </button>
+            </div>
+          )}
+        </>
+      )}
     </div>
   )
 }
 
-function formatDate(dateStr: string, locale: string): string {
-  const d = new Date(dateStr)
-  return d.toLocaleDateString(locale, { month: 'short', day: 'numeric' })
+function BookingRow({ booking }: { booking: Booking }) {
+  const { t, i18n } = useTranslation()
+  const navigate = useNavigate()
+  const { symbol } = useCurrency()
+  // "57 000 ₸", as on the booking's screen.
+  const money = (value: number) => `${formatMoneyExact(value, i18n.language)} ${symbol}`
+  const locale = dateLocale(i18n.language)
+  const en = i18n.language === 'en'
+  const stay = stayLine(booking, {
+    day: (iso) => format(parseISO(iso), 'd', { locale }),
+    dayMonth: (iso) => format(parseISO(iso), en ? 'MMM d' : 'd MMM', { locale }),
+    nights: (n) => t('bookings.nights', { count: n }),
+  })
+  const owes = listOwes(booking)
+  const total = Number(booking.total_price)
+  const paidUp = booking.status !== 'cancelled' && total > 0 && owes === 0
+  const flat = booking.property_internal_name || booking.property_name
+
+  return (
+    <button
+      type="button"
+      onClick={() => navigate({ to: '/bookings/$bookingId', params: { bookingId: booking.id } })}
+      className={`grid w-full grid-cols-[minmax(0,1fr)_auto] gap-x-3 gap-y-1 px-5 py-3.5 text-left transition-colors hover:bg-surface-page focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent ${COLUMNS}`}
+    >
+      <span className="min-w-0">
+        <span className="block truncate text-sm font-semibold text-ink">{booking.guest_name}</span>
+        <span className="block truncate text-xs text-ink-muted">
+          {booking.guest_phone ? formatPhone(booking.guest_phone) : t('common.noPhone')}
+        </span>
+      </span>
+      {/* On a phone the status sits by the name, the flat and dates under them. */}
+      <span className="justify-self-end lg:hidden">
+        <BookingStatusBadge status={booking.status} />
+      </span>
+      <span className="col-span-2 min-w-0 truncate text-sm text-ink lg:col-span-1">
+        {flat}
+        <span className="text-ink-muted lg:hidden"> · {stay.dates} · {stay.detail}</span>
+        <span className="block truncate text-xs text-ink-muted">{t(`bookings.sources.${booking.source}`)}</span>
+      </span>
+      <span className="hidden min-w-0 lg:block">
+        <span className="block text-sm text-ink">{stay.dates}</span>
+        <span className="block text-xs text-ink-muted">{stay.detail}</span>
+      </span>
+      <span className="hidden lg:block">
+        <BookingStatusBadge status={booking.status} />
+      </span>
+      <span className="col-span-2 flex items-baseline justify-between gap-3 lg:col-span-1 lg:block lg:text-right">
+        <span className={`block text-sm font-semibold tabular-nums ${booking.status === 'cancelled' ? 'text-ink-muted line-through' : 'text-ink'}`}>
+          {money(total)}
+        </span>
+        {owes > 0 ? (
+          <span className="block text-xs font-semibold tabular-nums text-danger">
+            {t('gantt.moneyOwes')} {money(owes)}
+          </span>
+        ) : paidUp ? (
+          <span className="block text-xs font-semibold text-success">{t('bookings.card.paid')}</span>
+        ) : null}
+      </span>
+    </button>
+  )
 }
