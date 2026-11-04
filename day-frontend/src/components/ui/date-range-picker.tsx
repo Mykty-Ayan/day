@@ -136,7 +136,9 @@ export default function DateRangePicker({
       >
         <Calendar
           mode="range"
-          classNames={{ selected: '' }}
+          // Ends styled by range_start / range_end, which need both ends: until the
+          // check-out is picked, the check-in shows as a plain picked day.
+          classNames={end ? { selected: '' } : undefined}
           selected={selected}
           defaultMonth={defaultMonth}
           onMonthChange={onMonthChange}
