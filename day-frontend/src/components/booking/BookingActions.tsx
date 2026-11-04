@@ -1,6 +1,5 @@
 import { useState } from 'react'
-import { useNavigate } from '@tanstack/react-router'
-import { Banknote, Check, LogIn, LogOut, MoreHorizontal, Pencil, Undo2, X, type LucideIcon } from 'lucide-react'
+import { Banknote, Check, LogIn, LogOut, MoreHorizontal, Undo2, X, type LucideIcon } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { useChangeBookingStatus, useDepositAction } from '../../hooks/useBookings'
 import { useCurrency } from '../../hooks/useCurrency'
@@ -40,7 +39,6 @@ export default function BookingActions({
 }) {
   const { t, i18n } = useTranslation()
   const { symbol } = useCurrency()
-  const navigate = useNavigate()
   const changeStatus = useChangeBookingStatus(booking.id)
   const { data: pricing } = usePropertyPricing(booking.property_id)
   const [menuOpen, setMenuOpen] = useState(false)
@@ -108,14 +106,6 @@ export default function BookingActions({
             </button>
           ))}
         <ExtendStayButton booking={booking} className={SECONDARY} />
-        <button
-          type="button"
-          onClick={() => navigate({ to: '/bookings/$bookingId/edit', params: { bookingId: booking.id } })}
-          className={SECONDARY}
-        >
-          <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
-          {t('common.edit')}
-        </button>
         {cancellable && (
           <Popover open={menuOpen} onOpenChange={setMenuOpen}>
             <PopoverTrigger aria-label={t('bookings.card.moreActions')} className={SECONDARY}>

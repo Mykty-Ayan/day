@@ -1,0 +1,101 @@
+/** The "Dates" block of a booking's edit panel: what it shows, and the patch it sends. */
+
+import type { Booking, BookingStatus, BookingUpdateInput, RentalMode } from '../types/booking'
+
+/** One block of a booking, edited on its own. */
+export type EditBlock = 'dates' | 'guests' | 'source' | 'notes'
+
+/** What may still change. A cancelled stay keeps only its notes; a finished one also
+ *  who brought the guest, since the agent's commission is paid on it afterwards. */
+export function editableBlocks(status: BookingStatus): EditBlock[] {
+  if (status === 'cancelled') return ['notes']
+  if (status === 'completed') return ['source', 'notes']
+  return ['dates', 'guests', 'source', 'notes']
+}
+
+export interface DatesForm {
+  rental_mode: RentalMode
+  /** Daily stays: yyyy-MM-dd and HH:mm for each end. */
+  check_in: string
+  check_out: string
+  in_time: string
+  out_time: string
+  /** Hourly stays: one day, two times. */
+  hourly_date: string
+  start_time: string
+  end_time: string
+}
+
+/** A field of the form and the i18n key of what is wrong with it. */
+export type DatesError = Partial<Record<'check_in' | 'check_out' | 'in_time' | 'out_time' | 'start_time' | 'end_time', string>>
+
+/** A daily stay's time as HH:MM. Not 00:00: the server reads a daily midnight as a bare
+ *  date and puts the flat's hours instead (apply_default_times). */
+export function isStayTime(value: string): boolean {
+  return /^([01]\d|2[0-3]):[0-5]\d$/.test(value) && value !== '00:00'
+}
+
+// The stored ISO string's own wall clock: the flat's time, as the screen shows it.
+const datePart = (value: string) => value.slice(0, 10)
+const timePart = (value: string) => value.slice(11, 16)
+const hour = (value: number) => `${String(value).padStart(2, '0')}:00`
+
+/** The flat's hours, else the company's: a daily stay switched to from an hourly one starts with them. */
+export interface FlatHours {
+  check_in_hour?: number | null
+  check_out_hour?: number | null
+}
+
+/** The times a daily stay in this flat starts with. */
+export function flatHours(flat?: FlatHours): Pick<DatesForm, 'in_time' | 'out_time'> {
+  return { in_time: hour(flat?.check_in_hour ?? 14), out_time: hour(flat?.check_out_hour ?? 12) }
+}
+
+export function datesForm(booking: Booking, flat?: FlatHours): DatesForm {
+  const hourly = booking.rental_mode === 'hourly'
+  return {
+    rental_mode: booking.rental_mode,
+    check_in: datePart(booking.check_in),
+    check_out: datePart(booking.check_out),
+    in_time: hourly ? flatHours(flat).in_time : timePart(booking.check_in),
+    out_time: hourly ? flatHours(flat).out_time : timePart(booking.check_out),
+    hourly_date: hourly ? datePart(booking.check_in) : '',
+    start_time: hourly ? timePart(booking.check_in) : '',
+    end_time: hourly ? timePart(booking.check_out) : '',
+  }
+}
+
+/** The patch for the dates as the form has them; only what changed goes out.
+ *  A daily stay goes with its times: what the operator sees is what is saved. */
+export function datesPatch(booking: Booking, form: DatesForm): { patch: BookingUpdateInput } | { errors: DatesError } {
+  const errors: DatesError = {}
+  let checkIn: string
+  let checkOut: string
+  if (form.rental_mode === 'hourly') {
+    if (!form.hourly_date) errors.check_in = 'bookings.validation.dateRequired'
+    if (!form.start_time) errors.start_time = 'bookings.validation.startTimeRequired'
+    if (!form.end_time) errors.end_time = 'bookings.validation.endTimeRequired'
+    else if (form.start_time && form.start_time >= form.end_time) errors.end_time = 'bookings.validation.endTimeAfterStart'
+    checkIn = `${form.hourly_date}T${form.start_time}:00`
+    checkOut = `${form.hourly_date}T${form.end_time}:00`
+  } else {
+    if (!form.check_in) errors.check_in = 'bookings.validation.checkInRequired'
+    if (!form.check_out) errors.check_out = 'bookings.validation.checkOutRequired'
+    else if (form.check_in && form.check_out <= form.check_in) errors.check_out = 'bookings.validation.checkOutAfterCheckIn'
+    if (!isStayTime(form.in_time)) errors.in_time = 'bookings.validation.timeInvalid'
+    if (!isStayTime(form.out_time)) errors.out_time = 'bookings.validation.timeInvalid'
+    checkIn = `${form.check_in}T${form.in_time}:00`
+    checkOut = `${form.check_out}T${form.out_time}:00`
+  }
+  if (Object.keys(errors).length > 0) return { errors }
+
+  const patch: BookingUpdateInput = {}
+  const same = (saved: string, sent: string) => saved.slice(0, 16) === sent.slice(0, 16)
+  // Both ends and the mode go together: the server checks the new stay as a whole.
+  if (form.rental_mode !== booking.rental_mode || !same(booking.check_in, checkIn) || !same(booking.check_out, checkOut)) {
+    patch.check_in = checkIn
+    patch.check_out = checkOut
+    if (form.rental_mode !== booking.rental_mode) patch.rental_mode = form.rental_mode
+  }
+  return { patch }
+}

@@ -9,6 +9,8 @@ import type { BookingSource, BookingCreateInput, PriceCalculateInput, RentalMode
 import DateRangePicker from '../../components/ui/date-range-picker'
 import DatePicker from '../../components/ui/date-picker'
 import TimePicker from '../../components/ui/time-picker'
+import TimeChips, { CHECK_IN_TIMES, CHECK_OUT_TIMES } from '../../components/ui/time-chips'
+import { isStayTime } from '../../lib/booking-edit'
 import {
   Select,
   SelectContent,
@@ -34,6 +36,9 @@ interface FormData {
   property_id: string
   check_in: string
   check_out: string
+  /** Daily stays: HH:mm, '' for the flat's own hours. */
+  in_time: string
+  out_time: string
   rental_mode: RentalMode
   hourly_date: string
   start_time: string
@@ -44,7 +49,6 @@ interface FormData {
   source: BookingSource
   adults_count: number
   children_count: number
-  gantt_color: string
   notes: string
   /** '' when the guest came on their own. */
   agent_id: string
@@ -54,6 +58,8 @@ const initialForm: FormData = {
   property_id: '',
   check_in: '',
   check_out: '',
+  in_time: '',
+  out_time: '',
   rental_mode: 'daily',
   hourly_date: '',
   start_time: '',
@@ -64,7 +70,6 @@ const initialForm: FormData = {
   source: 'direct',
   adults_count: 1,
   children_count: 0,
-  gantt_color: '#3B82F6',
   notes: '',
   agent_id: '',
 }
@@ -148,16 +153,6 @@ export default function CreateBookingPage() {
     { value: 'other', label: t('bookings.sources.other') },
   ]
 
-  const GANTT_COLORS = [
-    { value: '#3B82F6', label: t('bookings.colors.blue') },
-    { value: '#10B981', label: t('bookings.colors.green') },
-    { value: '#F59E0B', label: t('bookings.colors.amber') },
-    { value: '#EF4444', label: t('bookings.colors.red') },
-    { value: '#8B5CF6', label: t('bookings.colors.purple') },
-    { value: '#EC4899', label: t('bookings.colors.pink') },
-    { value: '#06B6D4', label: t('bookings.colors.cyan') },
-  ]
-
   const { data: propertiesData } = useAllProperties()
   const properties = useMemo(
     () => (propertiesData?.items ?? []).filter((property) => property.status === 'active' || property.status === 'paused'),
@@ -181,18 +176,26 @@ export default function CreateBookingPage() {
           : form.rental_mode
 
   const isHourly = rentalMode === 'hourly'
+  // A daily stay starts with the flat's hours, else 14:00 / 12:00, until the operator picks others.
+  const hourOf = (value: number) => `${String(value).padStart(2, '0')}:00`
+  const inTime = form.in_time || hourOf(selectedProperty?.check_in_hour ?? 14)
+  const outTime = form.out_time || hourOf(selectedProperty?.check_out_hour ?? 12)
   // For hourly the check-in/out are assembled from a single day + start/end time;
-  // for daily the DateRangePicker writes the date-only values directly.
+  // for daily from the picked dates and the times above.
   const effectiveCheckIn = isHourly
     ? form.hourly_date && form.start_time
       ? `${form.hourly_date}T${form.start_time}:00`
       : ''
     : form.check_in
+      ? `${form.check_in}T${inTime}:00`
+      : ''
   const effectiveCheckOut = isHourly
     ? form.hourly_date && form.end_time
       ? `${form.hourly_date}T${form.end_time}:00`
       : ''
     : form.check_out
+      ? `${form.check_out}T${outTime}:00`
+      : ''
 
   // The calendar's first month on screen: its booked nights are shown struck through.
   const [calendarMonth, setCalendarMonth] = useState(() => new Date())
@@ -271,6 +274,8 @@ export default function CreateBookingPage() {
       if (form.check_in && form.check_out && form.check_in >= form.check_out) {
         errs.check_out = t('bookings.validation.checkOutAfterCheckIn')
       }
+      if (!isStayTime(inTime)) errs.in_time = t('bookings.validation.timeInvalid')
+      if (!isStayTime(outTime)) errs.out_time = t('bookings.validation.timeInvalid')
     }
     if (!form.guest_name.trim()) errs.guest_name = t('bookings.validation.guestNameRequired')
     if (!form.guest_phone.trim()) errs.guest_phone = t('bookings.validation.guestPhoneRequired')
@@ -291,7 +296,6 @@ export default function CreateBookingPage() {
       source: form.source,
       adults_count: form.adults_count,
       children_count: form.children_count,
-      gantt_color: form.gantt_color,
       notes: form.notes || undefined,
       agent_id: form.agent_id || undefined,
     }
@@ -495,6 +499,34 @@ export default function CreateBookingPage() {
                     {errors.check_out && (
                       <p className="text-xs text-red-500 mt-1">{errors.check_out}</p>
                     )}
+                    <div className="mt-4 space-y-4">
+                      <div>
+                        <span id="create-in-time-label" className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">
+                          {t('bookings.checkInTime')}
+                        </span>
+                        <TimeChips
+                          id="create-in-time"
+                          labelledBy="create-in-time-label"
+                          options={CHECK_IN_TIMES}
+                          value={inTime}
+                          onChange={(value) => updateField('in_time', value)}
+                        />
+                        {errors.in_time && <p className="text-xs text-red-500 mt-1">{errors.in_time}</p>}
+                      </div>
+                      <div>
+                        <span id="create-out-time-label" className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">
+                          {t('bookings.checkOutTime')}
+                        </span>
+                        <TimeChips
+                          id="create-out-time"
+                          labelledBy="create-out-time-label"
+                          options={CHECK_OUT_TIMES}
+                          value={outTime}
+                          onChange={(value) => updateField('out_time', value)}
+                        />
+                        {errors.out_time && <p className="text-xs text-red-500 mt-1">{errors.out_time}</p>}
+                      </div>
+                    </div>
                   </>
                 )}
               </div>
@@ -703,39 +735,6 @@ export default function CreateBookingPage() {
                       step={1}
                     />
                   </div>
-                </div>
-              </div>
-
-              {/* Gantt Color */}
-              <div className="border-t border-gray-100 pt-5">
-                <span id="create-color-label" className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
-                  {t('bookings.calendarColor')}
-                </span>
-                <div className="flex gap-1" role="group" aria-labelledby="create-color-label">
-                  {GANTT_COLORS.map((c) => (
-                    <motion.button
-                      key={c.value}
-                      whileTap={{ scale: 0.9 }}
-                      type="button"
-                      onClick={() => updateField('gantt_color', c.value)}
-                      aria-label={c.label}
-                      aria-pressed={form.gantt_color === c.value}
-                      title={c.label}
-                      className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-full p-1 transition-transform"
-                    >
-                      <span
-                        className="relative block h-8 w-8 rounded-full"
-                        style={{ backgroundColor: c.value }}
-                      >
-                        {form.gantt_color === c.value && (
-                          <motion.div
-                            layoutId="color-ring"
-                            className="absolute inset-[-3px] rounded-full border-2 border-gray-900"
-                          />
-                        )}
-                      </span>
-                    </motion.button>
-                  ))}
                 </div>
               </div>
 

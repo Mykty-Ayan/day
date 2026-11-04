@@ -111,7 +111,8 @@
     "unknown": "Unknown",
     "errorTitle": "Something went wrong",
     "errorLoading": "We couldn't load this data. Please try again.",
-    "logout": "Log out"
+    "logout": "Log out",
+    "otherTime": "other"
   },
   "properties": {
     "title": "Properties",
@@ -395,7 +396,6 @@
   "bookings": {
     "title": "Bookings",
     "addBooking": "Create Booking",
-    "editBooking": "Edit Booking",
     "newBooking": "New Booking",
     "notFound": "Booking not found",
     "backToBookings": "Back to bookings",
@@ -423,7 +423,6 @@
     "guestNamePlaceholder": "Guest name",
     "phonePlaceholder": "Phone number",
     "totalPrice": "Total Price",
-    "calendarColor": "Calendar Color",
     "adults": "Adults",
     "children": "Children",
     "selectProperty": "Select property…",
@@ -472,7 +471,10 @@
       "linkFailed": "Could not copy the link",
       "cancelAsk": "Cancel this booking?",
       "cancelWarning": "The dates become free again. The guest’s money stays in payments: return it separately.",
-      "keepBooking": "Keep booking"
+      "keepBooking": "Keep booking",
+      "cancelled": "Booking cancelled",
+      "cancelledOwesNothing": "The guest owes nothing",
+      "cancelledPrice": "Booking price"
     },
     "tabs": {
       "overview": "Overview",
@@ -593,7 +595,8 @@
       "startTimeRequired": "Start time is required",
       "endTimeRequired": "End time is required",
       "endTimeAfterStart": "End time must be after start time",
-      "datesBlocked": "The flat is closed on these dates"
+      "datesBlocked": "The flat is closed on these dates",
+      "timeInvalid": "Time as HH:MM, other than 00:00"
     },
     "sources": {
       "direct": "Direct",
@@ -611,15 +614,6 @@
     "dateRange": "Dates",
     "selectDates": "Select dates",
     "bookedNightsFailed": "Could not load booked dates.",
-    "colors": {
-      "blue": "Blue",
-      "green": "Green",
-      "amber": "Amber",
-      "red": "Red",
-      "purple": "Purple",
-      "pink": "Pink",
-      "cyan": "Cyan"
-    },
     "rentalMode": {
       "label": "Rental mode",
       "daily": "Daily",
@@ -628,6 +622,8 @@
     "date": "Date",
     "startTime": "Start time",
     "endTime": "End time",
+    "checkInTime": "Check-in time",
+    "checkOutTime": "Check-out time",
     "selectTime": "Select time",
     "overbooking": {
       "short": "Overbooking",
@@ -648,7 +644,15 @@
       "reprice": "Reprice: {{now}}",
       "keep": "Keep {{was}}"
     },
-    "agent": "Brought by"
+    "agent": "Brought by",
+    "editBlock": {
+      "dates": "Dates",
+      "guests": "Guests",
+      "source": "Source and who brought",
+      "notes": "Notes"
+    },
+    "noNotes": "None",
+    "blocksTitle": "Booking"
   },
   "today": {
     "title": "Today",

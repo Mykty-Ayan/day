@@ -111,7 +111,8 @@
     "unknown": "Белгісіз",
     "errorTitle": "Деректерді жүктеу мүмкін болмады",
     "errorLoading": "Деректерді жүктеу мүмкін болмады. Қайтадан көріңіз.",
-    "logout": "Шығу"
+    "logout": "Шығу",
+    "otherTime": "басқа"
   },
   "properties": {
     "title": "Нысандар",
@@ -395,7 +396,6 @@
   "bookings": {
     "title": "Броньдар",
     "addBooking": "Бронь жасау",
-    "editBooking": "Бронды өзгерту",
     "newBooking": "Жаңа бронь",
     "notFound": "Бронь табылмады",
     "backToBookings": "Броньдарға оралу",
@@ -423,7 +423,6 @@
     "guestNamePlaceholder": "Қонақ аты",
     "phonePlaceholder": "Телефон нөмірі",
     "totalPrice": "Жалпы бағасы",
-    "calendarColor": "Күнтізбе түсі",
     "adults": "Ересектер",
     "children": "Балалар",
     "selectProperty": "Нысанды таңдаңыз…",
@@ -472,7 +471,10 @@
       "linkFailed": "Сілтемені көшіру мүмкін болмады",
       "cancelAsk": "Броньды тоқтату керек пе?",
       "cancelWarning": "Күндер қайта босайды. Қонақтың ақшасы төлемдерде қалады: оны бөлек қайтарыңыз.",
-      "keepBooking": "Броньды қалдыру"
+      "keepBooking": "Броньды қалдыру",
+      "cancelled": "Бронь болдырылмады",
+      "cancelledOwesNothing": "Қонақтың қарызы жоқ",
+      "cancelledPrice": "Бронь бағасы"
     },
     "tabs": {
       "overview": "Шолу",
@@ -593,7 +595,8 @@
       "startTimeRequired": "Басталу уақытын көрсетіңіз",
       "endTimeRequired": "Аяқталу уақытын көрсетіңіз",
       "endTimeAfterStart": "Аяқталу уақыты басталу уақытынан кейін болуы керек",
-      "datesBlocked": "Пәтер бұл күндерге жабық"
+      "datesBlocked": "Пәтер бұл күндерге жабық",
+      "timeInvalid": "Уақыт СС:ММ түрінде, 00:00-ден басқа"
     },
     "sources": {
       "direct": "Тікелей",
@@ -611,15 +614,6 @@
     "dateRange": "Күндер",
     "selectDates": "Күндерді таңдаңыз",
     "bookedNightsFailed": "Бос емес күндерді жүктеу мүмкін болмады.",
-    "colors": {
-      "blue": "Көк",
-      "green": "Жасыл",
-      "amber": "Сарғыш",
-      "red": "Қызыл",
-      "purple": "Күлгін",
-      "pink": "Қызғылт",
-      "cyan": "Көгілдір"
-    },
     "rentalMode": {
       "label": "Жалдау режимі",
       "daily": "Тәулікпен",
@@ -628,6 +622,8 @@
     "date": "Күні",
     "startTime": "Басталу уақыты",
     "endTime": "Аяқталу уақыты",
+    "checkInTime": "Кіру уақыты",
+    "checkOutTime": "Шығу уақыты",
     "selectTime": "Уақытты таңдаңыз",
     "overbooking": {
       "short": "Қос бронь",
@@ -648,7 +644,15 @@
       "reprice": "Қайта есептеу: {{now}}",
       "keep": "{{was}} қалдыру"
     },
-    "agent": "Кім әкелді"
+    "agent": "Кім әкелді",
+    "editBlock": {
+      "dates": "Күндер",
+      "guests": "Қонақтар",
+      "source": "Көзі және кім әкелді",
+      "notes": "Жазбалар"
+    },
+    "noNotes": "Жоқ",
+    "blocksTitle": "Бронь"
   },
   "today": {
     "title": "Бүгін",

@@ -15,6 +15,7 @@ import { formatMoneyExact } from '../../pages/miniapp/format'
 import type { Booking, GanttBlock } from '../../types/booking'
 import type { PricingConfig } from '../../types/property'
 import BookingActions from '../booking/BookingActions'
+import BookingBlocks from '../booking/BookingBlocks'
 import BookingStatusBadge from '../booking/BookingStatusBadge'
 import TakePaymentPanel from '../booking/TakePaymentPanel'
 import Button from '../ui/Button'
@@ -823,14 +824,11 @@ export function BookingPanel({
 }
 
 function BookingPanelBody({ bookingId, fallback }: { bookingId: string; fallback: Booking }) {
-  const { t, i18n } = useTranslation()
+  const { t } = useTranslation()
   const money = useMoney()
   const { data: detail } = useBooking(bookingId)
   const [paying, setPaying] = useState(false)
   const booking = detail?.booking ?? fallback
-  const locale = dateLocale(i18n.language)
-  const hourly = booking.rental_mode === 'hourly'
-  const when = (value: string) => format(new Date(value), i18n.language === 'en' ? 'EEEEEE, MMMM d, HH:mm' : 'EEEEEE, d MMMM, HH:mm', { locale })
   const sums = detail ? bookingMoney(booking.status, Number(booking.total_price), detail.payments) : null
 
   return (
@@ -841,21 +839,9 @@ function BookingPanelBody({ bookingId, fallback }: { bookingId: string; fallback
         <span aria-hidden="true">·</span>
         <span>{t(`bookings.sources.${booking.source}`)}</span>
       </div>
-      <div className="grid grid-cols-2 gap-3 rounded-xl bg-surface-page px-4 py-3 text-sm">
-        <div>
-          <p className="text-xs text-ink-muted">{t('properties.checkIn')}</p>
-          <p className="font-semibold text-ink">{when(booking.check_in)}</p>
-        </div>
-        <div>
-          <p className="text-xs text-ink-muted">{t('properties.checkOut')}</p>
-          <p className="font-semibold text-ink">{when(booking.check_out)}</p>
-        </div>
-        <p className="col-span-2 text-xs text-ink-muted">
-          {hourly
-            ? t('bookings.hours', { count: Math.ceil((new Date(booking.check_out).getTime() - new Date(booking.check_in).getTime()) / 3_600_000) })
-            : t('bookings.nights', { count: nightsBetween(booking.check_in.slice(0, 10), addDays(booking.check_out.slice(0, 10), -1)).length })}
-        </p>
-      </div>
+      {/* Changed only once the full booking is in: the grid's copy lacks the price Day worked out,
+          and without it more guests would reprice the stay with no question. */}
+      <BookingBlocks booking={booking} editable={detail !== undefined} />
       {sums && (
         <div className="grid grid-cols-3 gap-2 text-center">
           <div className="rounded-xl border border-line px-2 py-2">

@@ -38,8 +38,10 @@ export default function BookingDeposits({ booking, deposits }: { booking: Bookin
   const [amount, setAmount] = useState('')
   const [creating, setCreating] = useState(false)
   const usual = booking.rental_mode === 'hourly' ? pricing?.hourly_deposit : pricing?.default_deposit
-  // As in the Mini App: a new deposit once the last one is back with the guest.
-  const canCreate = deposits.every((deposit) => deposit.status === 'returned')
+  // As in the Mini App: a new deposit once the last one is back with the guest;
+  // none for a stay that is off or over.
+  const closed = booking.status === 'cancelled' || booking.status === 'completed'
+  const canCreate = !closed && deposits.every((deposit) => deposit.status === 'returned')
 
   function open() {
     setAmount(usual ? String(usual) : '')
@@ -56,6 +58,9 @@ export default function BookingDeposits({ booking, deposits }: { booking: Bookin
       },
     )
   }
+
+  // A stay that is off, with no deposit taken, has nothing to show here.
+  if (booking.status === 'cancelled' && deposits.length === 0) return null
 
   return (
     <section id="deposits" className="scroll-mt-4 rounded-2xl border border-line bg-surface-card p-5">
