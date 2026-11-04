@@ -67,48 +67,54 @@ async function closedFlat(
   return data.internal_name
 }
 
-test('the chessboard starts no stay on a closed night and ends one at its morning', { tag: '@desktop' }, async ({ page, request }) => {
+test('the chessboard sends nights clear of a block to the form, and names the block for nights over it', { tag: '@desktop' }, async ({ page, request }) => {
   const day = (offset: number) => {
     const d = new Date()
     d.setDate(d.getDate() + offset)
     return d
   }
-  const name = await closedFlat(request, local(day(10)), local(day(12)), `Closed ${Date.now()}`)
+  const reason = `Closed ${Date.now()}`
+  const name = await closedFlat(request, local(day(10)), local(day(12)), reason)
   const cell = (d: Date) => page.getByRole('button', { name: new RegExp(`^${name}, \\S+ ${d.getDate()} ${MONTHS[d.getMonth()]}$`) })
 
+  // Nights after the block: straight to the form, the guest leaving the morning after the last.
   await page.goto('/properties/gantt')
-  // A check-in after the block, then a click on a closed night: refused, the check-in stays.
   await cell(day(14)).click()
-  await cell(day(10)).click()
-  await expect(page.getByText('The flat is closed on this day')).toBeVisible()
   await cell(day(16)).click()
-  await page.waitForURL((url) => url.searchParams.get('check_in') === local(day(14)) && url.searchParams.get('check_out') === local(day(16)))
+  await page.waitForURL((url) => url.searchParams.get('check_in') === local(day(14)) && url.searchParams.get('check_out') === local(day(17)))
 
-  // A check-in before the block ends on the morning of its first night, never past it.
+  // Nights over the block: the panel says which are closed, and why; nothing is booked.
   await page.goto('/properties/gantt')
   await cell(day(8)).click()
   await cell(day(12)).click()
-  await expect(page.getByText('The flat is closed on this day')).toBeVisible()
-  await cell(day(10)).click()
+  const panel = page.getByRole('dialog', { name: 'New booking' })
+  await expect(panel).toContainText(reason)
+  await page.keyboard.press('Escape')
+
+  // Nights up to the block: the stay ends on the morning of its first closed night.
+  await cell(day(8)).click()
+  await cell(day(9)).click()
   await page.waitForURL((url) => url.searchParams.get('check_in') === local(day(8)) && url.searchParams.get('check_out') === local(day(10)))
 })
 
-test('an hourly flat keeps the free hours of a block\'s first and last days', { tag: '@desktop' }, async ({ page, request }) => {
-  // Closed from noon of the 10th to noon of the 12th: the 10th's morning and the
-  // 12th's afternoon are free by the hour; the 11th is closed around the clock.
+test('an hourly flat is booked by the hour on a block\'s last day, and the block opens its own panel', { tag: '@desktop' }, async ({ page, request }) => {
+  // Closed from the 10th to the 12th: the 12th is free by the hour.
   const day = (offset: number) => {
     const d = new Date()
     d.setDate(d.getDate() + offset)
     return d
   }
-  const name = await closedFlat(request, local(day(10)), local(day(12)), `Hourly ${Date.now()}`, { rental_mode: 'hourly' })
+  const reason = `Hourly ${Date.now()}`
+  const name = await closedFlat(request, local(day(10)), local(day(12)), reason, { rental_mode: 'hourly' })
   const cell = (d: Date) => page.getByRole('button', { name: new RegExp(`^${name}, \\S+ ${d.getDate()} ${MONTHS[d.getMonth()]}$`) })
 
   await page.goto('/properties/gantt')
-  await cell(day(11)).click()
-  await expect(page.getByText('The flat is closed on this day')).toBeVisible()
-  await cell(day(10)).click()
-  await page.waitForURL((url) => url.searchParams.get('check_in')?.startsWith(`${local(day(10))}T`) ?? false)
+  await page.getByRole('button', { name: `Closed: ${reason}` }).click()
+  await expect(page.getByRole('dialog', { name: 'Closed' })).toContainText(reason)
+  await page.keyboard.press('Escape')
+
+  await cell(day(12)).click()
+  await page.waitForURL((url) => url.searchParams.get('check_in')?.startsWith(`${local(day(12))}T`) ?? false)
 })
 
 test('a block that starts on the last day shown is drawn', { tag: '@desktop' }, async ({ page, request }) => {
@@ -118,7 +124,7 @@ test('a block that starts on the last day shown is drawn', { tag: '@desktop' }, 
   const reason = `Edge ${Date.now()}`
   await closedFlat(request, local(last), local(new Date(last.getFullYear(), last.getMonth(), last.getDate() + 2)), reason)
   await page.goto('/properties/gantt')
-  await expect(page.getByRole('img', { name: `Closed: ${reason}` })).toBeAttached()
+  await expect(page.getByRole('button', { name: `Closed: ${reason}` })).toBeAttached()
 })
 
 test('the flat page closes no further ahead than it lists', async ({ page, request }) => {

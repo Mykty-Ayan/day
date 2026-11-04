@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next'
 import type { BookingStatus } from '../../types/booking'
 import type { GanttRow } from './GanttChart'
 import { useCurrency } from '../../hooks/useCurrency'
+import { byCompanyOrder } from '../../lib/chessboard'
 
 interface Props {
   rows: GanttRow[]
@@ -76,7 +77,7 @@ export default function GanttAgendaView({ rows, rangeStart, rangeEnd }: Props) {
   )
 
   const sortedRows = useMemo(
-    () => [...rows].sort((a, b) => a.property.internal_name.localeCompare(b.property.internal_name)),
+    () => byCompanyOrder(rows),
     [rows],
   )
 

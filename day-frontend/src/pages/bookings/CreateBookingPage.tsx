@@ -300,7 +300,12 @@ export default function CreateBookingPage() {
   function send(payload: BookingCreateInput) {
     createBooking.mutate(payload, {
       onSuccess: (booking) => {
-        navigate({ to: '/bookings/$bookingId', params: { bookingId: booking.id } })
+        // Made from the chessboard, the booking's "Back" leads there again.
+        navigate({
+          to: '/bookings/$bookingId',
+          params: { bookingId: booking.id },
+          search: (prefill.from === 'gantt' ? { from: 'gantt' } : {}) as Record<string, string>,
+        })
       },
       onError: (err) => {
         const broken = stayRuleBreaches(err)

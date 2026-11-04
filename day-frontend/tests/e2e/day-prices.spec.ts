@@ -1,7 +1,8 @@
 /**
- * A price for chosen nights, set on the chessboard as on Airbnb's calendar: switch
- * to prices, pick the first and the last night, give them a price. "Back to usual
- * price" brings the flat's price back.
+ * A price for chosen nights, set on the chessboard as on Airbnb's calendar: take the
+ * Price tool, pick the first and the last night, give them a price and confirm it.
+ * "Back to usual price" brings the flat's price back. After a change the tool goes
+ * back to Booking.
  */
 
 import { test, expect } from '../fixtures/e2e-auth'
@@ -33,15 +34,18 @@ test('nights priced on the chessboard show their price, and a reset brings the u
     })).json()) as { date: string; price: number }[]
 
   await page.goto('/properties/gantt')
-  await page.getByRole('radio', { name: 'Prices' }).click()
+  await page.getByRole('radio', { name: 'Price' }).click()
   await cell(day(10)).click()
   await cell(day(11)).click()
   const dialog = page.getByRole('dialog', { name: 'Price per night' })
-  await expect(dialog).toContainText('nights: 2')
-  await dialog.getByLabel('Price per night').fill('25000')
+  await expect(dialog).toContainText('2 nights')
+  await dialog.getByLabel('New nightly price').fill('25000')
   const saved = page.waitForResponse((r) => r.request().method() === 'PUT' && r.url().endsWith(`/properties/${id}/day-prices`))
-  await dialog.getByRole('button', { name: 'Save' }).click()
+  await dialog.getByRole('button', { name: 'Set price' }).click()
+  // A price is money: it is set on a yes.
+  await page.getByRole('button', { name: 'Set price' }).last().click()
   expect((await saved).status()).toBe(200)
+  await expect(dialog).toHaveCount(0)
 
   await expect(cell(day(10))).toContainText('25k')
   await expect(cell(day(11))).toContainText('25k')
@@ -52,10 +56,12 @@ test('nights priced on the chessboard show their price, and a reset brings the u
   ])
 
   // One night: the same cell twice. Its usual price comes back; the other night keeps its own.
+  await page.getByRole('radio', { name: 'Price' }).click()
   await cell(day(11)).click()
   await cell(day(11)).click()
-  await expect(dialog).toContainText('nights: 1')
+  await expect(dialog).toContainText('1 night')
   await dialog.getByRole('button', { name: 'Back to usual price' }).click()
+  await page.getByRole('button', { name: 'Back to usual price' }).last().click()
   await expect(cell(day(11))).toContainText('10k')
   await expect(cell(day(10))).toContainText('25k')
   expect(await priced()).toEqual([{ date: local(day(10)), price: 25000 }])
@@ -81,22 +87,24 @@ test('a price is read as written, a booked night can be picked, and the booking 
   await expect(page.getByText('10,000').last()).toBeVisible()
 
   await page.getByRole('link', { name: 'Gantt Chart' }).click()
-  await page.getByRole('radio', { name: 'Prices' }).click()
+  await page.getByRole('radio', { name: 'Price' }).click()
   // A booked night is picked, not opened: the booking bar lets the click through.
   await cell(day(9)).click()
   await cell(day(11)).click()
   const dialog = page.getByRole('dialog', { name: 'Price per night' })
-  await expect(dialog).toContainText('nights: 3')
-  await dialog.getByRole('button', { name: 'Cancel' }).click()
+  await expect(dialog).toContainText('3 nights')
+  await page.keyboard.press('Escape')
+  await expect(dialog).toHaveCount(0)
 
   await cell(day(20)).click()
   await cell(day(20)).click()
   // "25,000" is not 25: a comma with three digits after it is no decimal point.
-  await dialog.getByLabel('Price per night').fill('25,000')
-  await expect(dialog.getByRole('button', { name: 'Save' })).toBeDisabled()
+  await dialog.getByLabel('New nightly price').fill('25,000')
+  await expect(dialog.getByRole('button', { name: 'Set price' })).toBeDisabled()
   await expect(dialog).toContainText('Enter the price in digits')
-  await dialog.getByLabel('Price per night').fill('25 000')
-  await dialog.getByRole('button', { name: 'Save' }).click()
+  await dialog.getByLabel('New nightly price').fill('25 000')
+  await dialog.getByRole('button', { name: 'Set price' }).click()
+  await page.getByRole('button', { name: 'Set price' }).last().click()
   await expect(dialog).toHaveCount(0)
 
   // Back in the booking form: the new price, not the one it had kept.

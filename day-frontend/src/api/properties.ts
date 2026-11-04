@@ -337,6 +337,11 @@ export async function listDayPrices(propertyId: string, dateFrom: string, dateTo
   return res.data
 }
 
+/** The flats in their order on the chessboard; an empty list puts them back by name. */
+export async function orderProperties(propertyIds: string[]): Promise<void> {
+  await apiClient.put('/properties/order', { property_ids: propertyIds })
+}
+
 export async function setDayPrices(propertyId: string, body: DayPriceRange & { price: number }): Promise<void> {
   await apiClient.put(`/properties/${propertyId}/day-prices`, body)
 }

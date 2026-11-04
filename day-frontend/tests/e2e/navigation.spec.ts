@@ -83,7 +83,7 @@ test.describe('Navigation - E2E', () => {
     await page.getByRole('link', { name: 'Gantt Chart' }).click()
 
     await expect(page).toHaveURL(/\/properties\/gantt$/)
-    await expect(page.getByRole('heading', { name: 'Gantt Chart' })).toBeVisible()
+    await expect(page.getByRole('group', { name: 'Tools' })).toBeVisible()
   })
 
   test('a section with several pages shows them as tabs', async ({ page }) => {
@@ -136,7 +136,7 @@ test.describe('Navigation - E2E', () => {
     await page.goto('/properties/gantt')
     await page.waitForLoadState('networkidle')
 
-    await expect(page.getByRole('heading', { name: 'Gantt Chart' })).toBeVisible()
+    await expect(page.getByRole('group', { name: 'Tools' })).toBeVisible()
     await expect(page.locator('body')).not.toContainText('Not Found')
   })
 
