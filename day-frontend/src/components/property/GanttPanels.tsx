@@ -7,7 +7,7 @@ import { format, parseISO } from 'date-fns'
 import { clearDayPrices, createBlock, deleteBlock, setDayPrices } from '../../api/properties'
 import { useBooking } from '../../hooks/useBookings'
 import { useCurrency } from '../../hooks/useCurrency'
-import { useWeekendDays } from '../../hooks/useSettings'
+import { useWeekendDays, useWeekendSettings } from '../../hooks/useSettings'
 import { bookingMoney } from '../../lib/booking-money'
 import { mainStep } from '../../lib/booking-steps'
 import { addDays, barDays, busyOn, clock, freeWindows, hoursOn, nightlyRate, nightRuns, nightsBetween } from '../../lib/chessboard'
@@ -208,14 +208,15 @@ function SetPrice({
   // The weekend nights' extra, on top of the price: one step instead of two passes by weekday.
   const [markupText, setMarkupText] = useState('')
   const [days, setDays] = useState<number[]>([...WEEK])
-  // The company's weekend: the quick sets and the markup follow it.
-  const weekend = useWeekendDays()
+  // The company's weekend: the quick sets and the markup follow it, and wait for it:
+  // a markup written by a guessed weekend would stay on the wrong nights.
+  const { days: weekend, known: weekendKnown } = useWeekendSettings()
   const DAY_SETS = { all: WEEK, work: WEEK.filter((day) => !weekend.includes(day)), weekend: WEEK.filter((day) => weekend.includes(day)) }
   const [asking, setAsking] = useState<'set' | 'reset' | null>(null)
   const [busy, setBusy] = useState(false)
   const [failed, setFailed] = useState<string[]>([])
   const price = readPrice(text)
-  const markup = markupText.trim() === '' ? 0 : readPrice(markupText)
+  const markup = markupText.trim() === '' || !weekendKnown ? 0 : readPrice(markupText)
   const all = nightsBetween(selection.first, selection.last)
   // The weekdays the picked nights hold; only those can be chosen.
   const present = WEEK.filter((day) => all.some((night) => weekday(night) === day))
@@ -283,7 +284,7 @@ function SetPrice({
             <fieldset className="flex flex-col gap-2">
               <legend className="mb-2 text-xs font-semibold text-ink">{t('gantt.daysLabel')}</legend>
               <div className="flex flex-wrap gap-1.5">
-                {(['all', 'work', 'weekend'] as const).map((set) => (
+                {(weekendKnown ? (['all', 'work', 'weekend'] as const) : (['all'] as const)).map((set) => (
                   <button
                     key={set}
                     type="button"
@@ -340,7 +341,7 @@ function SetPrice({
             {text !== '' && price === null && <p id="night-price-error" className="text-xs text-danger">{t('gantt.priceInvalid')}</p>}
           </div>
 
-          {weekendPicked.length > 0 && weekendPicked.length < nights.length && (
+          {weekendKnown && weekendPicked.length > 0 && weekendPicked.length < nights.length && (
             <div className="flex flex-col gap-2">
               <label htmlFor="weekend-markup" className="text-xs font-semibold text-ink">{t('gantt.markup')}</label>
               <div className="relative">

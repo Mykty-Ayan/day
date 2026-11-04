@@ -18,7 +18,7 @@
     "tariff_3h": "3小时",
     "tariff_6h": "6小时",
     "tariff_night": "过夜",
-    "tariffWeekend": "周五至周六 {{price}}",
+    "tariffWeekend": "{{days}} {{price}}",
     "lateRule": "{{late}} 之后仅提供过夜，{{morning}} 前退房",
     "deposit": "押金 {{price}}，退房后退还",
     "nightDeposit": "按晚入住押金 {{price}}，退房后退还",

@@ -36,6 +36,8 @@ export interface PublicStay {
     /** Out after late_from only the night is sold, out by night_to. */
     late_from?: string | null
     night_to?: string | null
+    /** The nights the weekend prices are for, Monday 0 (Friday 4, Saturday 5, Sunday 6). */
+    weekend_nights?: number[]
     deposit: number | null
     hour_deposit: number | null
   }

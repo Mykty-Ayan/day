@@ -51,6 +51,8 @@ class PublicStay:
     # The ways the flat is let and priced: by the night, by the hour.
     by_night: bool = False
     by_hour: bool = False
+    # The company's weekend nights (Monday 0): the weekend prices are for them.
+    weekend_nights: tuple[int, ...] = DEFAULT_WEEKEND_NIGHTS
 
 
 class GetPublicStayService:
@@ -92,24 +94,25 @@ class GetPublicStayService:
             and prop.rental_mode != RentalMode.DAILY
             and (pricing.hourly_price > 0 or has_tariffs(pricing))
         )
+        company = await self._settings.get_by_company(prop.company_id) if self._settings else None
+        weekend = company.weekend_nights if company else DEFAULT_WEEKEND_NIGHTS
         return PublicStay(
             property=prop,
             photos=[p.url for p in photos],
             amenities=await self._amenities.get_property_amenities(prop.id),
             pricing=pricing,
-            nights=await self._nights(prop, pricing, date_from, date_to) if by_night else [],
+            nights=await self._nights(prop, pricing, date_from, date_to, weekend) if by_night else [],
             by_night=by_night,
             by_hour=by_hour,
+            weekend_nights=weekend,
         )
 
     async def _nights(
-        self, prop: Property, pricing: PricingConfig, date_from: date, date_to: date
+        self, prop: Property, pricing: PricingConfig, date_from: date, date_to: date, weekend: tuple[int, ...]
     ) -> list[PublicNight]:
         count = (date_to - date_from).days
         seasonals = await self._seasonal.list_by_pricing_config(pricing.id)
         calendar = {p.date: p.price for p in await self._day_prices.list_for_property(prop.id, date_from, date_to)}
-        company = await self._settings.get_by_company(prop.company_id) if self._settings else None
-        weekend = company.weekend_nights if company else DEFAULT_WEEKEND_NIGHTS
         rates: list[NightRate] = nightly_rates(pricing, seasonals, calendar, date_from, count, weekend)
         taken = await taken_nights(self._bookings, prop, date_from, date_to)
         return [PublicNight(rate.date, rate.price, rate.date not in taken) for rate in rates]
