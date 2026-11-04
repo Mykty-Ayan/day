@@ -5,7 +5,7 @@
  */
 
 import { expect, test } from '@playwright/test'
-import { datesForm, datesPatch, editableBlocks, flatHours, endAfterStart, hourlyLengths, hourlyStay, isStayTime, lengthEnd } from '../../src/lib/booking-edit'
+import { datesForm, datesPatch, editableBlocks, flatHours, hourlyLengths, hourlyStay, isStayTime, lengthEnd, settleEnd } from '../../src/lib/booking-edit'
 import type { Booking } from '../../src/types/booking'
 
 const daily = {
@@ -129,10 +129,21 @@ test('a night with its day cleared is refused, not broken', () => {
 })
 
 test('a picked length moves the end with a whole new start; a typed end stays', () => {
-  const three = { by: 'length' as const, length: { kind: 'hours' as const, hours: 3 } }
+  const lengths = hourlyLengths({ price_3h: 8000, price_6h: 12000, price_night: 15000, night_to: '12:00:00' })
   // 09:00 till 12:00 typed by hand, then the start moves: the end stays 12:00.
-  expect(endAfterStart({ by: 'time' }, '10:00', '12:00')).toBe('12:00')
+  expect(settleEnd({ by: 'time' }, lengths, '10:00', '12:00').end).toBe('12:00')
   // 15:00 + 3 h, the start typed as 1630: no move while it is "16", then 19:30.
-  expect(endAfterStart(three, '16', '18:00')).toBe('18:00')
-  expect(endAfterStart(three, '16:30', '18:00')).toBe('19:30')
+  expect(settleEnd({ by: 'length', key: '3h' }, lengths, '16', '18:00').end).toBe('18:00')
+  expect(settleEnd({ by: 'length', key: '3h' }, lengths, '16:30', '18:00').end).toBe('19:30')
+})
+
+test('the night follows the hour of the flat picked; a length it does not sell becomes a typed end', () => {
+  const flatB = hourlyLengths({ price_3h: 0, price_6h: 0, price_night: 15000, night_to: '10:00:00' })
+  expect(settleEnd({ by: 'length', key: 'night' }, flatB, '22:00', '12:00')).toEqual({ by: { by: 'length', key: 'night' }, end: '10:00' })
+  expect(settleEnd({ by: 'length', key: '3h' }, flatB, '15:00', '18:00')).toEqual({ by: { by: 'time' }, end: '18:00' })
+})
+
+test('an hourly stay longer than a day keeps its end on a move', () => {
+  const long = { check_in: '2026-11-14T22:00:00', check_out: '2026-11-16T12:00:00', rental_mode: 'hourly', property_id: 'a' } as Booking
+  expect(datesPatch(long, { ...datesForm(long), property_id: 'b' })).toEqual({ patch: { property_id: 'b' } })
 })

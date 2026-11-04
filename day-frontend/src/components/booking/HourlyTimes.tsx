@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { endAfterStart, hourlyLengths, lengthEnd, type HourlyEnd, type HourlyLength } from '../../lib/booking-edit'
+import { hourlyLengths, lengthEnd, lengthKey, settleEnd, type HourlyEnd, type HourlyLength } from '../../lib/booking-edit'
 import type { PricingConfig } from '../../types/property'
 import TimeChips from '../ui/time-chips'
 
@@ -36,11 +36,26 @@ export default function HourlyTimes({
   // a length's end is still typed, and a length stays picked while the start is typed.
   const [by, setBy] = useState<HourlyEnd | null>(() => {
     const length = lengths.find((l) => start && lengthEnd(start, l) === end)
-    return length ? { by: 'length', length } : end ? { by: 'time' } : null
+    return length ? { by: 'length', key: lengthKey(length) } : end ? { by: 'time' } : null
   })
-  const pickedKey = by?.by === 'length' ? label(by.length) : null
+  const pickedKey = by?.by === 'length' ? by.key : null
   const custom = by?.by === 'time'
   const [other, setOther] = useState(custom ? end : '')
+  const lengthsKey = lengths.map((l) => `${lengthKey(l)}${l.kind === 'night' ? l.until : ''}`).join()
+
+  // Another flat (its tariffs, its night hour): the picked length is worked out again,
+  // or becomes the end it had, shown in "till ...".
+  useEffect(() => {
+    if (!by) return
+    const next = settleEnd(by, lengths, start, end)
+    if (next.by.by !== by.by) {
+      setBy(next.by)
+      setOther(next.end)
+    }
+    if (next.end !== end) onChange({ start, end: next.end })
+    // Only when the lengths on offer change; start and end changes are handled where they happen.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lengthsKey])
 
   return (
     <>
@@ -54,7 +69,7 @@ export default function HourlyTimes({
           allowMidnight
           onChange={(value) => {
             // The length stays as it was picked: the end moves with the start.
-            onChange({ start: value, end: by ? endAfterStart(by, value, end) : end })
+            onChange({ start: value, end: by ? settleEnd(by, lengths, value, end).end : end })
           }}
         />
         {errors.start && <p className={ERROR}>{errors.start}</p>}
@@ -64,7 +79,7 @@ export default function HourlyTimes({
         <div id={`${idPrefix}-length`} role="group" aria-labelledby={`${idPrefix}-length-label`} className="flex flex-wrap gap-1.5">
           {lengths.map((length) => {
             const until = start ? lengthEnd(start, length) : ''
-            const on = pickedKey === label(length)
+            const on = pickedKey === lengthKey(length)
             return (
               <button
                 key={label(length)}
@@ -73,7 +88,7 @@ export default function HourlyTimes({
                 disabled={!start}
                 onClick={() => {
                   setOther('')
-                  setBy({ by: 'length', length })
+                  setBy({ by: 'length', key: lengthKey(length) })
                   onChange({ start, end: until })
                 }}
                 className={`flex h-9 items-center gap-1 rounded-lg px-2.5 text-sm font-semibold transition-colors disabled:opacity-40 ${

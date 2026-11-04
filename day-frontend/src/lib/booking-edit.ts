@@ -95,13 +95,22 @@ export function hourlyLengths(pricing?: { price_3h: number; price_6h: number; pr
   return lengths
 }
 
-/** What sets an hourly stay's end: a length (its index among those offered) or a time typed in. */
-export type HourlyEnd = { by: 'length'; length: HourlyLength } | { by: 'time' }
+/** A length by kind, not by its end: the night ends at the hour of the flat now picked. */
+export function lengthKey(length: HourlyLength): string {
+  return length.kind === 'night' ? 'night' : `${length.hours}h`
+}
 
-/** The end after a new start: a picked length moves with it, once the start is a whole
- *  time (typing 1630 passes through 16 and 163); a typed end stays as typed. */
-export function endAfterStart(by: HourlyEnd, start: string, end: string): string {
-  return by.by === 'length' && TIME_RE.test(start) ? lengthEnd(start, by.length) : end
+/** What sets an hourly stay's end: a length (by kind) or a time typed in. */
+export type HourlyEnd = { by: 'length'; key: string } | { by: 'time' }
+
+/** The end for the start and the lengths on offer now. A picked length follows a whole
+ *  start (typing 1630 passes through 16) and the flat's own hours; one the flat does not
+ *  sell any more turns into the end it had, shown as typed. A typed end stays. */
+export function settleEnd(by: HourlyEnd, lengths: HourlyLength[], start: string, end: string): { by: HourlyEnd; end: string } {
+  if (by.by === 'time') return { by, end }
+  const length = lengths.find((l) => lengthKey(l) === by.key)
+  if (!length) return { by: { by: 'time' }, end }
+  return { by, end: TIME_RE.test(start) ? lengthEnd(start, length) : end }
 }
 
 /** Where a length starting at `start` ends, as HH:MM. */
@@ -124,7 +133,16 @@ export function datesPatch(booking: Booking, form: DatesForm): { patch: BookingU
     else if (form.start_time === form.end_time) errors.end_time = 'bookings.validation.endTimeAfterStart'
     // Only a whole form gets its dates: an empty day has no next day.
     if (Object.keys(errors).length > 0) return { errors }
-    ;({ checkIn, checkOut } = hourlyStay(form.hourly_date, form.start_time, form.end_time))
+    const untouched =
+      booking.rental_mode === 'hourly' &&
+      form.hourly_date === datePart(booking.check_in) &&
+      form.start_time === timePart(booking.check_in) &&
+      form.end_time === timePart(booking.check_out)
+    // Untouched, the stay goes back as saved: one longer than a day (from the CRM) has
+    // its end on a later day than the form can say, and must not lose a day on a move.
+    ;({ checkIn, checkOut } = untouched
+      ? { checkIn: booking.check_in, checkOut: booking.check_out }
+      : hourlyStay(form.hourly_date, form.start_time, form.end_time))
   } else {
     if (!form.check_in) errors.check_in = 'bookings.validation.checkInRequired'
     if (!form.check_out) errors.check_out = 'bookings.validation.checkOutRequired'
