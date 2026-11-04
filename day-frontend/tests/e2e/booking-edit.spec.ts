@@ -164,6 +164,27 @@ test.describe('Booking Edit - E2E', () => {
     await expect(page.getByText(note)).toBeVisible()
   })
 
+  test('the Dates panel moves the stay to another flat, a taken one is marked', async ({ page, request }) => {
+    const from = await setupActiveProperty(request)
+    const free = await setupActiveProperty(request)
+    const taken = await setupActiveProperty(request)
+    const booking = await createBookingViaApi(request, from.id, { check_in: futureDate(50), check_out: futureDate(52) })
+    await createBookingViaApi(request, taken.id, { check_in: futureDate(51), check_out: futureDate(53) })
+
+    const panel = await openBlock(page, booking.id, 'Dates')
+    await panel.locator('#edit-flat').click()
+    // A hint, not a lock: a guest moved mid-stay may need a flat that frees up today.
+    await expect(page.getByRole('option', { name: new RegExp(`^${taken.internal_name} · taken`) })).toBeVisible()
+    await page.getByRole('option', { name: free.internal_name, exact: true }).click()
+    await panel.getByRole('button', { name: /save/i }).click()
+    await expect(panel).toBeHidden({ timeout: 10000 })
+
+    const detail = await (await request.get(`${API_BASE}/bookings/${booking.id}`)).json()
+    expect(detail.booking.property_id).toBe(free.id)
+    // Another flat alone keeps the agreed price, as a move on the chessboard does.
+    expect(Number(detail.booking.total_price)).toBe(Number(booking.total_price))
+  })
+
   test('a cancelled booking says so and keeps only its notes open', async ({ page, request }) => {
     const prop = await setupActiveProperty(request)
     const booking = await createBookingViaApi(request, prop.id)

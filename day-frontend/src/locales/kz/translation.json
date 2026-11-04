@@ -652,7 +652,9 @@
       "notes": "Жазбалар"
     },
     "noNotes": "Жоқ",
-    "blocksTitle": "Бронь"
+    "blocksTitle": "Бронь",
+    "flat": "Пәтер",
+    "flatBusy": "бос емес"
   },
   "today": {
     "title": "Бүгін",

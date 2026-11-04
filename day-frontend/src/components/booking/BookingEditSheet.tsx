@@ -1,9 +1,11 @@
 import { useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { calculatePrice } from '../../api/bookings'
+import { getAvailability } from '../../api/miniapp'
 import { useBookedNights, useUpdateBooking } from '../../hooks/useBookings'
 import { useCurrency } from '../../hooks/useCurrency'
-import { useProperty } from '../../hooks/useProperties'
+import { useAllProperties, useProperty } from '../../hooks/useProperties'
 import { nightsWindow, switchRentalMode, wouldReprice } from '../../lib/booking-dates'
 import { datesForm, datesPatch, flatHours, type DatesError, type DatesForm, type EditBlock } from '../../lib/booking-edit'
 import {
@@ -20,6 +22,7 @@ import DateRangePicker from '../ui/date-range-picker'
 import NumberInput from '../ui/number-input'
 import { Sheet } from '../ui/sheet'
 import TimePicker from '../ui/time-picker'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select'
 import TimeChips, { CHECK_IN_TIMES, CHECK_OUT_TIMES } from '../ui/time-chips'
 import { showToast } from '../ui/Toast'
 import { ToggleGroup, ToggleGroupItem } from '../ui/toggle-group'
@@ -96,7 +99,7 @@ function BlockForm({ booking, block, onDone }: { booking: Booking; block: EditBl
       setQuoting(true)
       try {
         const quote = await calculatePrice({
-          property_id: booking.property_id,
+          property_id: next.property_id ?? booking.property_id,
           check_in: next.check_in ?? booking.check_in,
           check_out: next.check_out ?? booking.check_out,
           adults_count: next.adults_count ?? booking.adults_count,
@@ -194,8 +197,28 @@ function DatesFields({
   // Other stays of the flat, struck through in the calendar; this booking's own nights stay open.
   const [month, setMonth] = useState(() => new Date(booking.check_in.slice(0, 10)))
   const nights = nightsWindow(month, form.check_in && !form.check_out ? form.check_in : null)
-  const booked = useBookedNights(booking.property_id, nights.from, nights.to, booking.id, booking.source)
+  // The nights taken in the flat the stay is going to, picked below.
+  const booked = useBookedNights(form.property_id, nights.from, nights.to, booking.id, booking.source)
   const hourly = form.rental_mode === 'hourly'
+  const { data: allFlats } = useAllProperties()
+  const flatName = (f: { name: string; internal_name: string }) => f.internal_name || f.name
+  // By name, numbers as numbers: Кв. 12, Кв. 15, Кв. 28. The list API carries no company order.
+  const flats = (allFlats?.items ?? [])
+    .filter((f) => f.id === booking.property_id || (f.status === 'active' && (f.rental_mode === 'both' || f.rental_mode === form.rental_mode)))
+    .sort((a, b) => flatName(a).localeCompare(flatName(b), undefined, { numeric: true }))
+  // The stay as the form has it now: which other flats are free for it.
+  const stayFrom = hourly ? (form.hourly_date && form.start_time ? `${form.hourly_date}T${form.start_time}:00` : '') : form.check_in ? `${form.check_in}T${form.in_time}:00` : ''
+  const stayTo = hourly ? (form.hourly_date && form.end_time ? `${form.hourly_date}T${form.end_time}:00` : '') : form.check_out ? `${form.check_out}T${form.out_time}:00` : ''
+  const { data: free } = useQuery({
+    // Under 'bookings': every booking change invalidates it, so a flat freed by a move shows free.
+    queryKey: ['bookings', 'move-free', stayFrom, stayTo, form.rental_mode, booking.adults_count],
+    queryFn: () =>
+      getAvailability(stayFrom, stayTo, { adults: booking.adults_count, rentalMode: form.rental_mode, withRuleBreaches: true }),
+    enabled: stayFrom !== '' && stayTo !== '' && stayFrom < stayTo,
+  })
+  // A hint, not a lock: availability checks the whole stay, while a guest moved mid-stay
+  // needs the flat only from today. The server decides on save.
+  const busy = (id: string) => id !== booking.property_id && free !== undefined && !free.items.some((item) => item.property_id === id)
 
   const result = datesPatch(booking, form)
   const errors: DatesError = showErrors && 'errors' in result ? result.errors : {}
@@ -210,6 +233,22 @@ function DatesFields({
 
   return (
     <>
+      <div>
+        <span id="edit-flat-label" className={LABEL}>{t('bookings.flat')}</span>
+        <Select value={form.property_id} onValueChange={(value) => set({ ...form, property_id: value })}>
+          <SelectTrigger id="edit-flat" aria-labelledby="edit-flat-label">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {flats.map((f) => (
+              <SelectItem key={f.id} value={f.id}>
+                {flatName(f)}
+                {busy(f.id) ? ` · ${t('bookings.flatBusy')}` : ''}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
       {flat?.rental_mode === 'both' && (
         <div>
           <span id="edit-mode-label" className={LABEL}>{t('bookings.rentalMode.label')}</span>
