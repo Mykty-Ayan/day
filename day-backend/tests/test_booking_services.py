@@ -1615,6 +1615,22 @@ class TestUpdateBookingToAnotherFlat:
             )
 
     @pytest.mark.asyncio
+    async def test_a_past_stay_is_not_moved_over_a_past_stay_of_the_new_flat(self):
+        # As /move refuses it (test_move_onto_a_past_completed_stay_raises).
+        booking_repo, _, _, svc, booking, _, prop_b = await self._setup()
+        await booking_repo.create(
+            _make_booking(
+                prop_b.id,
+                check_in=booking.check_in.date(),
+                check_out=booking.check_out.date(),
+                status=BookingStatus.COMPLETED,
+            )
+        )
+
+        with pytest.raises(BookingOverlapError):
+            await svc.execute(UpdateBookingInput(booking_id=booking.id, company_id=COMPANY_ID, property_id=prop_b.id))
+
+    @pytest.mark.asyncio
     async def test_the_new_flats_own_cleaning_is_not_taken_for_this_stay(self):
         # B's cleaning for its own guest leaving on the day this stay used to end
         # must not move to this stay's new end.

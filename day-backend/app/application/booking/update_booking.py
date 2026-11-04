@@ -198,9 +198,9 @@ class UpdateBookingService:
             if target is None:
                 settled = (saved_in, saved_out)
             else:
-                # The nights already lived were in the other flat: only they are let off.
-                # Past days added by a new check-in are checked here in full.
-                settled = (saved_in, min(saved_out, now)) if saved_in < now else None
+                # A guest moved mid-stay lived the past nights in the other flat: only they
+                # are let off, as with /move. A stay over, or not begun, is checked in full.
+                settled = (saved_in, now) if saved_in < now < saved_out else None
             overlapping = await overlapping_stays(
                 self._booking_repo,
                 booking.property_id,
