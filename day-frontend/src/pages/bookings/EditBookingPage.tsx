@@ -3,7 +3,7 @@ import { format, isValid, parseISO } from 'date-fns'
 import { useTranslation } from 'react-i18next'
 import { motion } from 'framer-motion'
 import { ArrowLeft, Check, Loader2 } from 'lucide-react'
-import { useNavigate, useParams } from '@tanstack/react-router'
+import { useCanGoBack, useNavigate, useParams, useRouter } from '@tanstack/react-router'
 import { useBookedNights, useBooking, useUpdateBooking } from '../../hooks/useBookings'
 import { useProperty } from '../../hooks/useProperties'
 import type { BookingDetail, BookingSource, BookingUpdateInput, RentalMode } from '../../types/booking'
@@ -95,6 +95,8 @@ export default function EditBookingPage() {
 function EditBookingForm({ detail, bookingId }: { detail: BookingDetail; bookingId: string }) {
   const { t } = useTranslation()
   const navigate = useNavigate()
+  const router = useRouter()
+  const canGoBack = useCanGoBack()
   const updateBooking = useUpdateBooking(bookingId)
   const { data: property } = useProperty(detail.booking.property_id)
   const [form, setForm] = useState<FormData>(() => detailToForm(detail))
@@ -204,11 +206,18 @@ function EditBookingForm({ detail, bookingId }: { detail: BookingDetail; booking
     }
   }
 
+  // Back where the form was opened from: the chessboard's panel or the booking's
+  // screen. A form opened by its link alone goes to the booking.
+  function leave() {
+    if (canGoBack) router.history.back()
+    else navigate({ to: '/bookings/$bookingId', params: { bookingId } })
+  }
+
   function send(payload: BookingUpdateInput) {
     updateBooking.mutate(payload, {
       onSuccess: () => {
         showToast('success', t('bookings.bookingUpdated'))
-        navigate({ to: '/bookings/$bookingId', params: { bookingId } })
+        leave()
       },
       onError: (err) => {
         const broken = stayRuleBreaches(err)
@@ -266,7 +275,7 @@ function EditBookingForm({ detail, bookingId }: { detail: BookingDetail; booking
         <div className="flex items-center gap-3 mb-6">
           <motion.button
             whileTap={{ scale: 0.97 }}
-            onClick={() => navigate({ to: '/bookings/$bookingId', params: { bookingId } })}
+            onClick={leave}
             className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg border border-gray-200 text-gray-700 transition-colors hover:bg-gray-50"
           >
             <ArrowLeft className="w-4 h-4" />
