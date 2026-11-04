@@ -85,4 +85,22 @@ test.describe('Company weekend - E2E', () => {
 
     await expect.poll(async () => (await (await request.get(`${API_BASE}/settings`)).json()).weekend_nights).toEqual([5, 6])
   })
+
+  test('the days cannot be ticked before the company\'s own are read', async ({ page, request }) => {
+    await request.patch(`${API_BASE}/settings`, { data: { weekend_nights: [5, 6] } })
+    let release: () => void = () => {}
+    const held = new Promise<void>((resolve) => { release = resolve })
+    await page.route('**/api/v1/settings', async (route) => {
+      if (route.request().method() === 'GET') await held
+      await route.continue()
+    })
+    await page.goto('/settings')
+    const card = page.getByRole('group', { name: 'Weekend' })
+    await expect(card.getByRole('checkbox', { name: 'Sat' })).toBeDisabled()
+    release()
+    // Read: the company's own Saturday and Sunday, now open to change.
+    await expect(card.getByRole('checkbox', { name: 'Sun' })).toBeChecked()
+    await expect(card.getByRole('checkbox', { name: 'Fri' })).not.toBeChecked()
+    await expect(card.getByRole('checkbox', { name: 'Sat' })).toBeEnabled()
+  })
 })

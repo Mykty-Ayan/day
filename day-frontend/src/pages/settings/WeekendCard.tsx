@@ -3,7 +3,7 @@ import { CalendarDays } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import Button from '../../components/ui/Button'
 import { showToast } from '../../components/ui/Toast'
-import { useSettings, useUpdateSettings } from '../../hooks/useSettings'
+import { useUpdateSettings, useWeekendSettings } from '../../hooks/useSettings'
 
 // The nights the owner may call the weekend, as the server numbers them (Monday 0),
 // with the Date.getDay() of their short names.
@@ -17,10 +17,13 @@ const NIGHTS = [
  *  and the chessboard greys them. Friday and Saturday until the owner picks others. */
 export default function WeekendCard() {
   const { t } = useTranslation()
-  const { data: settings } = useSettings()
+  const { days, known } = useWeekendSettings()
   const update = useUpdateSettings()
   const [picked, setPicked] = useState<number[] | null>(null)
-  const shown = picked ?? settings?.weekend_nights ?? [4, 5]
+  // Locked until the company's own nights are read: a tick on a guessed Friday and
+  // Saturday would save them over the real ones and reprice the whole company.
+  const saved = NIGHTS.filter(({ day }) => days.includes(day)).map(({ server }) => server)
+  const shown = picked ?? saved
 
   async function save(event: React.FormEvent) {
     event.preventDefault()
@@ -54,6 +57,7 @@ export default function WeekendCard() {
             >
               <input
                 type="checkbox"
+                disabled={!known}
                 checked={on}
                 onChange={() => setPicked(on ? shown.filter((n) => n !== server) : [...shown, server])}
                 className="h-4 w-4 accent-[var(--color-accent)]"
@@ -63,7 +67,7 @@ export default function WeekendCard() {
           )
         })}
       </div>
-      <Button type="submit" disabled={update.isPending || picked === null}>
+      <Button type="submit" disabled={!known || update.isPending || picked === null}>
         {t('settings.weekend.save')}
       </Button>
     </form>
