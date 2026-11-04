@@ -29,9 +29,5 @@ class OrderPropertiesService:
             raise ValueError("a flat is listed twice")
         if not set(property_ids) <= {flat.id for flat in flats}:
             raise LookupError("a flat is not the company's")
-        place = {flat_id: index for index, flat_id in enumerate(property_ids)}
-        for flat in flats:
-            position = place.get(flat.id)
-            if flat.position != position:
-                flat.position = position
-                await self._property_repo.update(flat)
+        places = {flat_id: index for index, flat_id in enumerate(property_ids)}
+        await self._property_repo.set_positions(company_id, places)

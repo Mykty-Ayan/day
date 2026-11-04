@@ -59,6 +59,11 @@ class PropertyRepository(abc.ABC):
     @abc.abstractmethod
     async def update(self, prop: Property) -> Property: ...
 
+    async def set_positions(self, company_id: uuid.UUID, positions: dict[uuid.UUID, int]) -> None:
+        """The company's flats in order at once: the listed ones at their places, every
+        other one without a place. Only the positions are written, never a card."""
+        raise NotImplementedError
+
     @abc.abstractmethod
     async def exists_internal_name(
         self, company_id: uuid.UUID, internal_name: str, *, exclude_id: uuid.UUID | None = None

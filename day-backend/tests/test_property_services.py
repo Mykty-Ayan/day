@@ -100,6 +100,11 @@ class FakePropertyRepository(PropertyRepository):
         self._properties[prop.id] = prop
         return prop
 
+    async def set_positions(self, company_id: uuid.UUID, positions: dict[uuid.UUID, int]) -> None:
+        for prop in self._properties.values():
+            if prop.company_id == company_id:
+                prop.position = positions.get(prop.id)
+
     async def exists_internal_name(
         self, company_id: uuid.UUID, internal_name: str, *, exclude_id: uuid.UUID | None = None
     ) -> bool:

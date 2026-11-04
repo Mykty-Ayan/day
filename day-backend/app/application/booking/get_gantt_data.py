@@ -163,6 +163,9 @@ class GetGanttDataService:
                 )
             )
 
+        # The company's order, the flats it did not place after, by name: the Mini App
+        # lists them as they come.
+        result.sort(key=lambda flat: (flat.position is None, flat.position or 0, flat.internal_name))
         return GanttData(properties=result)
 
 
