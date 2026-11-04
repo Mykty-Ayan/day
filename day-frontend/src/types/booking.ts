@@ -161,6 +161,8 @@ export interface GanttPropertySummary {
   type: string
   status: 'new' | 'active' | 'paused' | 'archived'
   rental_mode?: RentalMode
+  /** Its row as the company ordered the flats; null: by its name. */
+  position?: number | null
 }
 
 export interface GanttData {

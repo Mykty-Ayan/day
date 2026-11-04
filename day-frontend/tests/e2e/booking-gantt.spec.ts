@@ -59,18 +59,20 @@ test.describe('Booking Gantt Chart - E2E', () => {
     await expect(bar(page, guest)).toBeVisible()
   })
 
-  test('the bar has the colour of the booking', { tag: '@desktop' }, async ({ page, request }) => {
+  test('the bar is coloured by where the stay is, not by a colour picked for it', { tag: '@desktop' }, async ({ page, request }) => {
     const flat = await activeFlat(request)
     const { guest } = await book(request, flat.id, {
-      check_in: inDays(0),
-      check_out: inDays(1),
+      check_in: inDays(1),
+      check_out: inDays(2),
       guest_name: 'Gantt Colour Guest',
       gantt_color: '#EF4444',
     })
 
     await page.goto('/properties/gantt')
 
-    await expect(bar(page, guest)).toHaveCSS('background-color', 'rgb(239, 68, 68)')
+    // A booking still to confirm: dashed, as the legend shows it.
+    await expect(bar(page, guest)).toHaveClass(/border-dashed/)
+    await expect(bar(page, guest)).not.toHaveCSS('background-color', 'rgb(239, 68, 68)')
   })
 
   test('hover on a bar shows the guest in a tooltip', { tag: '@desktop' }, async ({ page, request }) => {
@@ -91,14 +93,18 @@ test.describe('Booking Gantt Chart - E2E', () => {
     await expect(tooltip).toBeVisible()
   })
 
-  test('click on a bar opens the booking', { tag: '@desktop' }, async ({ page, request }) => {
+  test('click on a bar opens the booking in a panel, and from it the full booking', { tag: '@desktop' }, async ({ page, request }) => {
     const flat = await activeFlat(request)
     const { id, guest } = await book(request, flat.id, { check_in: inDays(0), check_out: inDays(1) })
 
     await page.goto('/properties/gantt')
     await bar(page, guest).click()
 
-    await expect(page).toHaveURL(new RegExp(`/bookings/${id}`))
+    const panel = page.getByRole('dialog', { name: guest })
+    await expect(panel).toBeVisible()
+    await expect(page).toHaveURL(/\/properties\/gantt/)
+    await panel.getByRole('link', { name: 'Open full booking' }).click()
+    await expect(page).toHaveURL(new RegExp(`/bookings/${id}\\?from=gantt`))
   })
 
   test('drag a bar onto another flat moves the booking', { tag: '@desktop' }, async ({ page, request }) => {
@@ -114,7 +120,7 @@ test.describe('Booking Gantt Chart - E2E', () => {
       .toBe(target.id)
   })
 
-  test('two clicks on empty cells start a booking for that range', { tag: '@desktop' }, async ({ page, request }) => {
+  test('two clicks on free nights start a booking for those nights', { tag: '@desktop' }, async ({ page, request }) => {
     const flat = await activeFlat(request)
     const now = new Date()
     // Next month: always ahead, and always on the screen after the arrow
@@ -126,7 +132,8 @@ test.describe('Booking Gantt Chart - E2E', () => {
       })
 
     await page.goto('/properties/gantt')
-    await page.locator('button:has(svg.lucide-chevron-right)').first().click()
+    await page.getByRole('button', { name: 'Next month' }).click()
+    // The first night, then the last: the guest leaves the morning after it.
     await cell(from).click()
     await cell(to).click()
 
@@ -134,7 +141,8 @@ test.describe('Booking Gantt Chart - E2E', () => {
     const url = new URL(page.url())
     expect(url.searchParams.get('property_id')).toBe(flat.id)
     expect(url.searchParams.get('check_in')).toBe(local(from))
-    expect(url.searchParams.get('check_out')).toBe(local(to))
+    expect(url.searchParams.get('check_out')).toBe(local(new Date(to.getFullYear(), to.getMonth(), to.getDate() + 1)))
+    expect(url.searchParams.get('from')).toBe('gantt')
   })
 
   test('month navigation shows the bookings of that month', { tag: '@desktop' }, async ({ page, request }) => {

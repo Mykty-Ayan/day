@@ -1,10 +1,14 @@
 /**
- * The agenda: the view a phone opens instead of the chessboard. A flat lists its
- * bookings, a booking opens its card, and a stay starts from the flat's button.
+ * The agenda: the list a narrow screen offers beside the chessboard (a wide one
+ * always shows the chessboard). A flat lists its bookings, a booking opens its card,
+ * and a stay starts from the flat's button.
  */
 
 import { test, expect } from '../fixtures/e2e-auth'
 import { createTestBooking, createTestProperty, futureDate, API_BASE } from '../fixtures/test-data'
+
+// The list is chosen on a narrow screen: a phone's width on every project.
+test.use({ viewport: { width: 390, height: 844 } })
 
 test('a flat lists its bookings, and a booking opens its card', async ({ page, request }) => {
   const flat = await (await request.post(`${API_BASE}/properties`, { data: createTestProperty() })).json()
@@ -17,7 +21,7 @@ test('a flat lists its bookings, and a booking opens its card', async ({ page, r
   expect(created.ok(), await created.text()).toBeTruthy()
 
   await page.goto('/properties/gantt')
-  await page.getByRole('radio', { name: 'Agenda' }).click()
+  await page.getByRole('radio', { name: 'List' }).click()
   await expect(page.getByRole('link', { name: 'Create Booking' })).toBeVisible()
 
   await page.getByRole('button', { name: /Agenda Guest/ }).click()

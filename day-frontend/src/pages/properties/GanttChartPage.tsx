@@ -1,92 +1,78 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { motion } from 'framer-motion'
-import { ChevronLeft, ChevronRight, CalendarRange } from 'lucide-react'
+import { Banknote, ChevronLeft, ChevronRight, Clock, Moon, MousePointer2, Wrench } from 'lucide-react'
 import { useQueries } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 import { useGanttData } from '../../hooks/useBookings'
+import { useMediaQuery } from '../../hooks/useMediaQuery'
 import { getPricing } from '../../api/properties'
 import GanttChart from '../../components/property/GanttChart'
-import type { GanttRow } from '../../components/property/GanttChart'
+import type { ChessSelection, ChessTool, GanttRow } from '../../components/property/GanttChart'
+import { BlockPanel, BookingPanel, HourlyDayPanel, SelectionPanel } from '../../components/property/GanttPanels'
+import { addDays, busyOn } from '../../lib/chessboard'
+import type { Booking, GanttBlock } from '../../types/booking'
 import type { PricingConfig } from '../../types/property'
 import Spinner from '../../components/ui/Spinner'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '../../components/ui/select'
 import { ToggleGroup, ToggleGroupItem } from '../../components/ui/toggle-group'
 import GanttAgendaView from '../../components/property/GanttAgendaView'
-import DayPriceDialog, { type DayPriceSelection } from '../../components/property/DayPriceDialog'
-import { showToast } from '../../components/ui/Toast'
 
-// Month keys match gantt.months translation keys (0-11)
-
-type RowsPerPage = '10' | '25' | '50' | 'all'
-type GanttViewMode = 'agenda' | 'gantt'
-
-interface PendingSelection {
-  propertyId: string
-  checkIn: string
-}
-
-const GANTT_VIEW_MODE_STORAGE_KEY = 'day:gantt:view-mode'
+const TOOLS: Array<{ value: ChessTool; icon: typeof Wrench; labelKey: string }> = [
+  { value: 'booking', icon: MousePointer2, labelKey: 'gantt.toolBooking' },
+  { value: 'price', icon: Banknote, labelKey: 'gantt.toolPrice' },
+  { value: 'close', icon: Wrench, labelKey: 'gantt.toolClose' },
+]
 
 function toDateStr(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
-function parseDateOnly(dateStr: string): Date {
-  const [y, m, d] = dateStr.split('-').map(Number)
-  return new Date(y, (m || 1) - 1, d || 1)
-}
-
-function addDays(dateStr: string, days: number): string {
-  const date = parseDateOnly(dateStr)
-  date.setDate(date.getDate() + days)
-  return toDateStr(date)
-}
-
-function readInitialViewMode(): GanttViewMode {
-  if (typeof window === 'undefined') return 'gantt'
-
+// The month the operator was on: a booking or a flat opened from here comes back to it.
+const MONTH_KEY = 'day:gantt:month'
+function readMonth(): { year: number; month: number } {
+  const now = new Date()
   try {
-    const stored = window.localStorage.getItem(GANTT_VIEW_MODE_STORAGE_KEY)
-    if (stored === 'agenda' || stored === 'gantt') {
-      return stored
-    }
+    const [year, month] = (sessionStorage.getItem(MONTH_KEY) ?? '').split('-').map(Number)
+    if (year > 2000 && month >= 0 && month < 12) return { year, month }
   } catch {
-    // Ignore read errors and fallback to responsive default.
+    // No storage in a private window: start from today.
   }
-
-  return window.matchMedia('(max-width: 1023px)').matches ? 'agenda' : 'gantt'
+  return { year: now.getFullYear(), month: now.getMonth() }
 }
+// A narrow screen shows the grid or the list, as chosen last time.
+const VIEW_KEY = 'day:gantt:view-mode'
+type View = 'gantt' | 'agenda'
+function readView(): View {
+  try {
+    return localStorage.getItem(VIEW_KEY) === 'agenda' ? 'agenda' : 'gantt'
+  } catch {
+    return 'gantt'
+  }
+}
+
+// Matches the backend DEFAULT_CHECK_IN_HOUR (14:00) used to seed hourly bookings.
+const HOURLY_START = '14:00'
+
+const NAV = 'inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-line text-ink transition-colors hover:bg-surface-card'
 
 export default function GanttChartPage() {
   const { t } = useTranslation()
   const navigate = useNavigate()
-  const [year, setYear] = useState(() => new Date().getFullYear())
-  const [month, setMonth] = useState(() => new Date().getMonth())
+  const [year, setYear] = useState(() => readMonth().year)
+  const [month, setMonth] = useState(() => readMonth().month)
   const [todayScrollNonce, setTodayScrollNonce] = useState(0)
-  const [rowsPerPage, setRowsPerPage] = useState<RowsPerPage>('25')
-  const [page, setPage] = useState(1)
-  const [viewMode, setViewMode] = useState<GanttViewMode>(() => readInitialViewMode())
-  // Keeps the first click state for the 2-step check-in/check-out flow.
-  const [pendingSelection, setPendingSelection] = useState<PendingSelection | null>(null)
-  // What a click on a day does: start a stay, or pick nights to price (as on Airbnb's calendar).
-  const [cellMode, setCellMode] = useState<'bookings' | 'prices'>('bookings')
-  const [priceSelection, setPriceSelection] = useState<DayPriceSelection | null>(null)
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return
-    try {
-      window.localStorage.setItem(GANTT_VIEW_MODE_STORAGE_KEY, viewMode)
-    } catch {
-      // Ignore storage write errors.
-    }
-  }, [viewMode])
+  // A wide screen always has the grid; a narrow one picks the grid or the list.
+  const wide = useMediaQuery('(min-width: 1024px)')
+  const [narrowView, setNarrowView] = useState<View>(readView)
+  const view: View = wide ? 'gantt' : narrowView
+  const [moveRequest, setMoveRequest] = useState<Booking | null>(null)
+  const [tool, setTool] = useState<ChessTool>('booking')
+  const [selection, setSelection] = useState<ChessSelection | null>(null)
+  const [openBooking, setOpenBooking] = useState<Booking | null>(null)
+  const [openBlock, setOpenBlock] = useState<{ block: GanttBlock; row: GanttRow } | null>(null)
+  const [openDay, setOpenDay] = useState<{ row: GanttRow; day: string } | null>(null)
+  // The day a booking was opened from, to step back to it.
+  const [dayBehind, setDayBehind] = useState<{ row: GanttRow; day: string } | null>(null)
 
   const rangeStartDate = useMemo(() => new Date(year, month - 1, 1), [year, month])
   const rangeEndDate = useMemo(() => new Date(year, month + 2, 0), [year, month])
@@ -107,36 +93,20 @@ export default function GanttChartPage() {
 
   const rows: GanttRow[] = useMemo(() => {
     if (!ganttData) return []
-    return ganttData.properties.map((p) => ({
-      property: p,
-      bookings: p.bookings,
-      blocks: p.blocks ?? [],
-      dayPrices: p.day_prices ?? [],
-    }))
+    return ganttData.properties
+      .map((p) => ({
+        property: p,
+        bookings: p.bookings,
+        blocks: p.blocks ?? [],
+        dayPrices: p.day_prices ?? [],
+      }))
+      .sort((a, b) => a.property.internal_name.localeCompare(b.property.internal_name))
   }, [ganttData])
 
-  const sortedRows = useMemo(
-    () => [...rows].sort((a, b) => a.property.internal_name.localeCompare(b.property.internal_name)),
-    [rows],
-  )
-
-  const pageSize = rowsPerPage === 'all' ? sortedRows.length || 1 : Number(rowsPerPage)
-  const totalPages = rowsPerPage === 'all' ? 1 : Math.max(1, Math.ceil(sortedRows.length / pageSize))
-  const currentPage = rowsPerPage === 'all' ? 1 : Math.min(page, totalPages)
-
-  const visibleRows = useMemo(() => {
-    if (rowsPerPage === 'all') return sortedRows
-    const start = (currentPage - 1) * pageSize
-    return sortedRows.slice(start, start + pageSize)
-  }, [currentPage, pageSize, rowsPerPage, sortedRows])
-
-  const visiblePropertyIds = useMemo(
-    () => visibleRows.map((row) => row.property.id),
-    [visibleRows],
-  )
+  const propertyIds = useMemo(() => rows.map((row) => row.property.id), [rows])
   const pricingQueries = useQueries({
-    queries: viewMode === 'gantt'
-      ? visiblePropertyIds.map((propertyId) => ({
+    queries: view === 'gantt'
+      ? propertyIds.map((propertyId) => ({
           queryKey: ['pricing', propertyId],
           queryFn: () => getPricing(propertyId),
           staleTime: 60_000,
@@ -145,297 +115,217 @@ export default function GanttChartPage() {
   })
 
   const pricingByProperty = useMemo(() => {
-    return visiblePropertyIds.reduce<Record<string, PricingConfig | null | undefined>>(
-      (acc, propertyId, index) => {
-        acc[propertyId] = pricingQueries[index]?.data
-        return acc
-      },
-      {},
-    )
-  }, [pricingQueries, visiblePropertyIds])
+    return propertyIds.reduce<Record<string, PricingConfig | null | undefined>>((acc, propertyId, index) => {
+      acc[propertyId] = pricingQueries[index]?.data
+      return acc
+    }, {})
+  }, [pricingQueries, propertyIds])
 
-  const rangeStart = sortedRows.length === 0
-    ? 0
-    : rowsPerPage === 'all'
-      ? 1
-      : (currentPage - 1) * pageSize + 1
-  const rangeEnd = rowsPerPage === 'all'
-    ? sortedRows.length
-    : Math.min(currentPage * pageSize, sortedRows.length)
-
-  function handleCellClick(propertyId: string, date: string) {
-    if (cellMode === 'prices') {
-      pickPricedNight(propertyId, date)
-      return
-    }
-    // First click selects check-in, second valid click on the same row selects check-out.
-    if (!pendingSelection || pendingSelection.propertyId !== propertyId) {
-      setPendingSelection({ propertyId, checkIn: date })
-      return
-    }
-
-    if (date === pendingSelection.checkIn) {
-      setPendingSelection(null)
-      navigate({
-        to: '/bookings/new',
-        search: {
-          property_id: propertyId,
-          check_in: date,
-          check_out: addDays(date, 1),
-          from: 'gantt',
-        } as Record<string, string>,
-      })
-      return
-    }
-
-    if (date < pendingSelection.checkIn) {
-      setPendingSelection({ propertyId, checkIn: date })
-      return
-    }
-
-    const checkIn = pendingSelection.checkIn
-    setPendingSelection(null)
-    navigate({
-      to: '/bookings/new',
-      search: {
-        property_id: propertyId,
-        check_in: checkIn,
-        check_out: date,
-        from: 'gantt',
-      } as Record<string, string>,
-    })
-  }
-
-  // The first click picks a night, the second one in the same row the other end:
-  // the nights between them, both included, get a price.
-  function pickPricedNight(propertyId: string, date: string) {
-    const row = rows.find((candidate) => candidate.property.id === propertyId)
-    if (row?.property.rental_mode === 'hourly') {
-      showToast('error', t('gantt.priceHourly'))
-      return
-    }
-    if (!pendingSelection || pendingSelection.propertyId !== propertyId) {
-      setPendingSelection({ propertyId, checkIn: date })
-      return
-    }
-    const [first, last] = [pendingSelection.checkIn, date].sort()
-    setPendingSelection(null)
-    setPriceSelection({
-      propertyId,
-      flatName: row?.property.internal_name ?? '',
-      startDate: first,
-      endDate: addDays(last, 1),
-      price: row?.dayPrices?.find((night) => night.date === first)?.price ?? null,
-    })
-  }
-
-  function prevMonth() {
-    setPendingSelection(null)
-    if (month === 0) {
-      setMonth(11)
-      setYear((y) => y - 1)
-    } else {
-      setMonth((m) => m - 1)
+  function showMonth(date: Date) {
+    setYear(date.getFullYear())
+    setMonth(date.getMonth())
+    try {
+      sessionStorage.setItem(MONTH_KEY, `${date.getFullYear()}-${date.getMonth()}`)
+    } catch {
+      // Not remembered: the chessboard opens on today next time.
     }
   }
 
-  function nextMonth() {
-    setPendingSelection(null)
-    if (month === 11) {
-      setMonth(0)
-      setYear((y) => y + 1)
-    } else {
-      setMonth((m) => m + 1)
-    }
+  function shiftMonth(by: number) {
+    showMonth(new Date(year, month + by, 1))
   }
 
   function goToday() {
-    setPendingSelection(null)
-    const now = new Date()
-    setYear(now.getFullYear())
-    setMonth(now.getMonth())
+    showMonth(new Date())
     setTodayScrollNonce((n) => n + 1)
   }
 
+  // A booking with nothing to choose goes straight to the form: free nights of a flat
+  // sold by the night, or a day of one sold by the hour. Otherwise the panel asks.
+  function select(picked: ChessSelection) {
+    const row = rows.find((candidate) => candidate.property.id === picked.propertyIds[0])
+    if (tool === 'booking' && row && row.property.status !== 'paused') {
+      const busy = busyOn(row, picked.first, picked.last)
+      const free = busy.bookings.length === 0 && busy.blocks.length === 0
+      const mode = row.property.rental_mode ?? 'daily'
+      const search = { property_id: row.property.id, from: 'gantt' }
+      if (mode === 'hourly') {
+        navigate({ to: '/bookings/new', search: { ...search, check_in: `${picked.first}T${HOURLY_START}` } as Record<string, string> })
+        return
+      }
+      if (mode === 'daily' && free) {
+        navigate({ to: '/bookings/new', search: { ...search, check_in: picked.first, check_out: addDays(picked.last, 1) } as Record<string, string> })
+        return
+      }
+    }
+    setSelection(picked)
+  }
+
+  const legend = (
+    <>
+      <li className="flex items-center gap-1.5"><span className="h-3 w-5 rounded bg-success" />{t('gantt.tone.inHouse')}</li>
+      <li className="flex items-center gap-1.5"><span className="h-3 w-5 rounded bg-accent" />{t('gantt.tone.confirmed')}</li>
+      <li className="flex items-center gap-1.5"><span className="h-3 w-5 rounded border border-dashed border-accent bg-accent-soft" />{t('gantt.tone.pending')}</li>
+      <li className="flex items-center gap-1.5"><span className="h-3 w-5 rounded bg-warning-soft ring-1 ring-inset ring-warning/50" />{t('gantt.tone.late')}</li>
+      <li className="flex items-center gap-1.5"><span className="h-3 w-5 rounded bg-line" />{t('gantt.tone.done')}</li>
+      <li className="flex items-center gap-1.5"><span className="flex h-4 w-4 items-center justify-center rounded-full bg-danger text-[9px] font-bold text-white">₸</span>{t('gantt.legendDebt')}</li>
+      <li className="flex items-center gap-1.5"><span className="flex h-4 w-4 items-center justify-center rounded-full bg-warning-soft text-[9px] font-bold text-warning">₸</span>{t('gantt.legendDebtLater')}</li>
+      <li className="flex items-center gap-1.5"><Clock className="h-3.5 w-3.5" aria-hidden="true" />{t('properties.form.rentalModeHourly')}</li>
+      <li className="flex items-center gap-1.5"><Moon className="h-3.5 w-3.5" aria-hidden="true" />{t('properties.form.rentalModeDaily')}</li>
+      <li className="flex items-center gap-1.5"><span className="h-3 w-5 rounded" style={{ background: 'repeating-linear-gradient(45deg, #e2e2e8 0 4px, #f2f3f7 4px 8px)' }} />{t('gantt.closed')}</li>
+      <li className="flex items-center gap-1.5"><span className="font-semibold text-violet-700">₸27k</span>{t('gantt.legendOwn')}</li>
+    </>
+  )
+
+  // The three months on the grid, as the axis shows them.
+  const period = `${t(`gantt.monthsShort.${rangeStartDate.getMonth()}`)} ${rangeStartDate.getFullYear() !== rangeEndDate.getFullYear() ? rangeStartDate.getFullYear() : ''} – ${t(`gantt.monthsShort.${rangeEndDate.getMonth()}`)} ${rangeEndDate.getFullYear()}`.replace(/\s+/g, ' ')
+
   return (
     <div className="max-w-full px-4 py-4 sm:px-6 sm:py-6">
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4 }}
-      >
-        {/* Header */}
-        <div className="mb-6 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex items-center gap-3">
-            <CalendarRange className="h-5 w-5 text-gray-900" />
-            <h1 className="text-xl font-bold text-gray-900">{t('gantt.title')}</h1>
-          </div>
-
-          {/* Month navigation */}
-          <div className="flex flex-wrap items-center gap-2">
-            <motion.button
-              whileTap={{ scale: 0.97 }}
-              onClick={goToday}
-              className="inline-flex min-h-[44px] items-center justify-center rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-xs font-bold text-gray-700 transition-colors hover:bg-gray-100"
-            >
+      <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
+        <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          {/* A phone's top bar already names the screen. */}
+          <h1 className="hidden text-xl font-bold text-ink sm:block">{t('gantt.title')}</h1>
+          <div className="flex items-center gap-2">
+            <button type="button" onClick={goToday} className="inline-flex h-10 items-center rounded-lg border border-line px-3 text-xs font-bold text-ink transition-colors hover:bg-surface-card">
               {t('gantt.today')}
-            </motion.button>
-            <motion.button
-              whileTap={{ scale: 0.97 }}
-              onClick={prevMonth}
-              className="inline-flex h-11 w-11 items-center justify-center rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-50"
-            >
+            </button>
+            <button type="button" aria-label={t('gantt.prevMonth')} onClick={() => shiftMonth(-1)} className={NAV}>
               <ChevronLeft className="h-4 w-4" />
-            </motion.button>
-            <span className="min-w-[140px] text-center text-sm font-bold text-gray-900">
-              {t(`gantt.months.${month}`)} {year}
-            </span>
-            <motion.button
-              whileTap={{ scale: 0.97 }}
-              onClick={nextMonth}
-              className="inline-flex h-11 w-11 items-center justify-center rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-50"
-            >
+            </button>
+            <span className="min-w-0 flex-1 text-center text-sm font-bold text-ink sm:flex-none sm:min-w-[150px]">{period}</span>
+            <button type="button" aria-label={t('gantt.nextMonth')} onClick={() => shiftMonth(1)} className={NAV}>
               <ChevronRight className="h-4 w-4" />
-            </motion.button>
+            </button>
           </div>
         </div>
 
-        <div className="mb-4 flex flex-col gap-3">
-          <div className="w-full sm:w-auto">
+        {!wide && (
+          <ToggleGroup
+            type="single"
+            value={narrowView}
+            aria-label={t('gantt.view')}
+            className="mb-3"
+            onValueChange={(value) => {
+              if (!value) return
+              setNarrowView(value as View)
+              try {
+                localStorage.setItem(VIEW_KEY, value)
+              } catch {
+                // Not remembered: the grid next time.
+              }
+            }}
+          >
+            <ToggleGroupItem value="gantt">{t('gantt.viewGrid')}</ToggleGroupItem>
+            <ToggleGroupItem value="agenda">{t('gantt.viewList')}</ToggleGroupItem>
+          </ToggleGroup>
+        )}
+
+        {view === 'gantt' && (
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
             <ToggleGroup
               type="single"
-              value={viewMode}
+              value={tool}
+              aria-label={t('gantt.tools')}
               onValueChange={(value) => {
-                if (!value) return
-                setPendingSelection(null)
-                setViewMode(value as GanttViewMode)
+                if (value) setTool(value as ChessTool)
               }}
             >
-              <ToggleGroupItem value="agenda">{t('gantt.agenda')}</ToggleGroupItem>
-              <ToggleGroupItem value="gantt">{t('gantt.title')}</ToggleGroupItem>
+              {TOOLS.map(({ value, icon: Icon, labelKey }) => (
+                <ToggleGroupItem key={value} value={value}>
+                  <Icon className="mr-1.5 h-4 w-4" aria-hidden="true" />
+                  {t(labelKey)}
+                </ToggleGroupItem>
+              ))}
             </ToggleGroup>
+            {/* What the marks mean: in a line on a wide screen, behind a button on a narrow one */}
+            <ul className="hidden flex-wrap items-center gap-x-4 gap-y-1 text-xs text-ink-muted lg:flex" aria-label={t('gantt.legend')}>
+              {legend}
+            </ul>
+            <details className="text-xs text-ink-muted lg:hidden">
+              <summary className="cursor-pointer select-none rounded-lg px-2 py-1.5 font-semibold text-ink hover:bg-surface-card">{t('gantt.legend')}</summary>
+              <ul className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1.5" aria-label={t('gantt.legend')}>
+                {legend}
+              </ul>
+            </details>
           </div>
-          {viewMode === 'gantt' && (
-            <div className="flex flex-wrap items-center gap-3">
-              <ToggleGroup
-                type="single"
-                value={cellMode}
-                onValueChange={(value) => {
-                  if (!value) return
-                  setPendingSelection(null)
-                  setCellMode(value as 'bookings' | 'prices')
-                }}
-              >
-                <ToggleGroupItem value="bookings">{t('gantt.modeBookings')}</ToggleGroupItem>
-                <ToggleGroupItem value="prices">{t('gantt.modePrices')}</ToggleGroupItem>
-              </ToggleGroup>
-              {cellMode === 'prices' && <p className="text-xs text-gray-500">{t('gantt.pricePick')}</p>}
-            </div>
-          )}
-
-          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-            <p className="text-xs font-semibold text-gray-500">
-              {t('common.showing', { start: rangeStart, end: rangeEnd, total: sortedRows.length })}
-            </p>
-            <div className="flex flex-wrap items-center gap-2">
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-semibold text-gray-500">{t('common.rows')}</span>
-                <Select
-                  value={rowsPerPage}
-                  onValueChange={(value) => {
-                    setPendingSelection(null)
-                    setRowsPerPage(value as RowsPerPage)
-                    setPage(1)
-                  }}
-                >
-                  <SelectTrigger className="h-9 w-24">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="10">10</SelectItem>
-                    <SelectItem value="25">25</SelectItem>
-                    <SelectItem value="50">50</SelectItem>
-                    <SelectItem value="all">{t('common.all')}</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {rowsPerPage !== 'all' && totalPages > 1 && (
-                <div className="flex items-center gap-2">
-                  <motion.button
-                    whileTap={{ scale: 0.97 }}
-                    onClick={() => {
-                      setPendingSelection(null)
-                      setPage(Math.max(1, currentPage - 1))
-                    }}
-                    disabled={currentPage <= 1}
-                    className="inline-flex h-11 w-11 items-center justify-center rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-30"
-                  >
-                    <ChevronLeft className="h-4 w-4" />
-                  </motion.button>
-                  <span className="px-2 text-xs font-bold text-gray-500">
-                    {t('common.page', { current: currentPage, total: totalPages })}
-                  </span>
-                  <motion.button
-                    whileTap={{ scale: 0.97 }}
-                    onClick={() => {
-                      setPendingSelection(null)
-                      setPage(Math.min(totalPages, currentPage + 1))
-                    }}
-                    disabled={currentPage >= totalPages}
-                    className="inline-flex h-11 w-11 items-center justify-center rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-30"
-                  >
-                    <ChevronRight className="h-4 w-4" />
-                  </motion.button>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
+        )}
 
         {isLoading ? (
           <Spinner />
         ) : isError ? (
-          <div className="flex flex-col items-center justify-center gap-3 rounded-xl border border-red-100 bg-red-50/50 py-10">
-            <p className="text-sm font-semibold text-red-700">{t('gantt.failedLoad')}</p>
-            {error instanceof Error && (
-              <p className="max-w-xl px-4 text-center text-xs text-red-500">{error.message}</p>
-            )}
-            <motion.button
-              whileTap={{ scale: 0.97 }}
-              onClick={() => {
-                void refetch()
-              }}
+          <div className="flex flex-col items-center justify-center gap-3 rounded-xl border border-danger-soft bg-danger-soft/50 py-10">
+            <p className="text-sm font-semibold text-danger">{t('gantt.failedLoad')}</p>
+            {error instanceof Error && <p className="max-w-xl px-4 text-center text-xs text-danger">{error.message}</p>}
+            <button
+              type="button"
+              onClick={() => void refetch()}
               disabled={isFetching}
-              className="rounded-xl border border-gray-200 bg-white px-4 py-2 text-xs font-bold text-gray-700 transition-colors hover:bg-gray-50 disabled:opacity-60"
+              className="rounded-xl border border-line bg-surface-card px-4 py-2 text-xs font-bold text-ink transition-colors hover:bg-surface-page disabled:opacity-60"
             >
               {t('common.retry')}
-            </motion.button>
+            </button>
           </div>
-        ) : viewMode === 'agenda' ? (
-          <GanttAgendaView rows={visibleRows} rangeStart={startDate} rangeEnd={endDate} />
+        ) : view === 'agenda' ? (
+          <GanttAgendaView rows={rows} rangeStart={startDate} rangeEnd={endDate} />
         ) : (
           <GanttChart
-            mode={viewMode}
-            rows={visibleRows}
+            rows={rows}
             year={year}
             month={month}
             rangeStart={startDate}
             rangeEnd={endDate}
             todayScrollNonce={todayScrollNonce}
             pricingByProperty={pricingByProperty}
-            onCellClick={handleCellClick}
-            pendingSelection={pendingSelection}
-            priceMode={cellMode === 'prices'}
+            tool={tool}
+            selected={selection}
+            onSelect={select}
+            onBookingOpen={setOpenBooking}
+            onBlockOpen={(block, row) => setOpenBlock({ block, row })}
+            onHourlyDayOpen={(row, day) => setOpenDay({ row, day })}
+            moveRequest={moveRequest}
+            onMoveClose={() => setMoveRequest(null)}
           />
         )}
-        {priceSelection && (
-          <DayPriceDialog
-            key={`${priceSelection.propertyId}:${priceSelection.startDate}:${priceSelection.endDate}`}
-            selection={priceSelection}
-            onClose={() => setPriceSelection(null)}
-          />
-        )}
+        <SelectionPanel
+          tool={tool}
+          selection={selection}
+          rows={rows}
+          pricingByProperty={pricingByProperty}
+          onClose={() => setSelection(null)}
+          onDone={() => {
+            setSelection(null)
+            setTool('booking')
+          }}
+        />
+        <BookingPanel
+          booking={openBooking}
+          onClose={() => {
+            setOpenBooking(null)
+            setDayBehind(null)
+          }}
+          onMove={setMoveRequest}
+          onBack={
+            dayBehind
+              ? () => {
+                  // The day as it is now: a payment or a move may have changed it.
+                  const row = rows.find((candidate) => candidate.property.id === dayBehind.row.property.id) ?? dayBehind.row
+                  setOpenBooking(null)
+                  setDayBehind(null)
+                  setOpenDay({ row, day: dayBehind.day })
+                }
+              : undefined
+          }
+        />
+        <HourlyDayPanel
+          open={openDay}
+          onClose={() => setOpenDay(null)}
+          onBookingOpen={(booking) => {
+            setDayBehind(openDay)
+            setOpenBooking(booking)
+          }}
+        />
+        <BlockPanel block={openBlock?.block ?? null} row={openBlock?.row ?? null} onClose={() => setOpenBlock(null)} />
       </motion.div>
     </div>
   )
