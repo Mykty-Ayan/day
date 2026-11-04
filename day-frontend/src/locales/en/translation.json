@@ -595,7 +595,8 @@
       "startTimeRequired": "Start time is required",
       "endTimeRequired": "End time is required",
       "endTimeAfterStart": "End time must be after start time",
-      "datesBlocked": "The flat is closed on these dates"
+      "datesBlocked": "The flat is closed on these dates",
+      "timeInvalid": "Time as HH:MM, other than 00:00"
     },
     "sources": {
       "direct": "Direct",

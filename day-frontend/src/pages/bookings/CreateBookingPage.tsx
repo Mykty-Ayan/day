@@ -10,6 +10,7 @@ import DateRangePicker from '../../components/ui/date-range-picker'
 import DatePicker from '../../components/ui/date-picker'
 import TimePicker from '../../components/ui/time-picker'
 import TimeChips, { CHECK_IN_TIMES, CHECK_OUT_TIMES } from '../../components/ui/time-chips'
+import { isStayTime } from '../../lib/booking-edit'
 import {
   Select,
   SelectContent,
@@ -273,6 +274,8 @@ export default function CreateBookingPage() {
       if (form.check_in && form.check_out && form.check_in >= form.check_out) {
         errs.check_out = t('bookings.validation.checkOutAfterCheckIn')
       }
+      if (!isStayTime(inTime)) errs.in_time = t('bookings.validation.timeInvalid')
+      if (!isStayTime(outTime)) errs.out_time = t('bookings.validation.timeInvalid')
     }
     if (!form.guest_name.trim()) errs.guest_name = t('bookings.validation.guestNameRequired')
     if (!form.guest_phone.trim()) errs.guest_phone = t('bookings.validation.guestPhoneRequired')
@@ -508,6 +511,7 @@ export default function CreateBookingPage() {
                           value={inTime}
                           onChange={(value) => updateField('in_time', value)}
                         />
+                        {errors.in_time && <p className="text-xs text-red-500 mt-1">{errors.in_time}</p>}
                       </div>
                       <div>
                         <span id="create-out-time-label" className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">
@@ -520,6 +524,7 @@ export default function CreateBookingPage() {
                           value={outTime}
                           onChange={(value) => updateField('out_time', value)}
                         />
+                        {errors.out_time && <p className="text-xs text-red-500 mt-1">{errors.out_time}</p>}
                       </div>
                     </div>
                   </>

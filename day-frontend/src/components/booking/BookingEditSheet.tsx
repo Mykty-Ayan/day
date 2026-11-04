@@ -50,8 +50,8 @@ export default function BookingEditSheet({
   const { t } = useTranslation()
   return (
     <Sheet open={block !== null} onClose={onClose} title={block ? t(TITLES[block]) : ''} onBack={onBack}>
-      {/* Keyed: each opening starts from the booking as it is now. */}
-      {block && <BlockForm key={`${block}-${booking.updated_at}`} booking={booking} block={block} onDone={onBack ?? onClose} />}
+      {/* Keyed by booking and block, not by its last change: a refetch while typing keeps the text. */}
+      {block && <BlockForm key={`${block}-${booking.id}`} booking={booking} block={block} onDone={onBack ?? onClose} />}
     </Sheet>
   )
 }
@@ -285,6 +285,7 @@ function DatesFields({
               value={form.in_time}
               onChange={(value) => set({ ...form, in_time: value })}
             />
+            {error('in_time')}
           </div>
           <div>
             <span id="edit-out-time-label" className={LABEL}>{t('bookings.checkOutTime')}</span>
@@ -295,6 +296,7 @@ function DatesFields({
               value={form.out_time}
               onChange={(value) => set({ ...form, out_time: value })}
             />
+            {error('out_time')}
           </div>
         </>
       )}

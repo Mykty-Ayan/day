@@ -27,7 +27,13 @@ export interface DatesForm {
 }
 
 /** A field of the form and the i18n key of what is wrong with it. */
-export type DatesError = Partial<Record<'check_in' | 'check_out' | 'start_time' | 'end_time', string>>
+export type DatesError = Partial<Record<'check_in' | 'check_out' | 'in_time' | 'out_time' | 'start_time' | 'end_time', string>>
+
+/** A daily stay's time as HH:MM. Not 00:00: the server reads a daily midnight as a bare
+ *  date and puts the flat's hours instead (apply_default_times). */
+export function isStayTime(value: string): boolean {
+  return /^([01]\d|2[0-3]):[0-5]\d$/.test(value) && value !== '00:00'
+}
 
 // The stored ISO string's own wall clock: the flat's time, as the screen shows it.
 const datePart = (value: string) => value.slice(0, 10)
@@ -76,8 +82,8 @@ export function datesPatch(booking: Booking, form: DatesForm): { patch: BookingU
     if (!form.check_in) errors.check_in = 'bookings.validation.checkInRequired'
     if (!form.check_out) errors.check_out = 'bookings.validation.checkOutRequired'
     else if (form.check_in && form.check_out <= form.check_in) errors.check_out = 'bookings.validation.checkOutAfterCheckIn'
-    if (!form.in_time) errors.check_in ??= 'bookings.validation.checkInRequired'
-    if (!form.out_time) errors.check_out ??= 'bookings.validation.checkOutRequired'
+    if (!isStayTime(form.in_time)) errors.in_time = 'bookings.validation.timeInvalid'
+    if (!isStayTime(form.out_time)) errors.out_time = 'bookings.validation.timeInvalid'
     checkIn = `${form.check_in}T${form.in_time}:00`
     checkOut = `${form.check_out}T${form.out_time}:00`
   }

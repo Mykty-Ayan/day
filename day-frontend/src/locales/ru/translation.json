@@ -609,7 +609,8 @@
       "startTimeRequired": "Укажите время начала",
       "endTimeRequired": "Укажите время окончания",
       "endTimeAfterStart": "Время окончания должно быть позже начала",
-      "datesBlocked": "Квартира закрыта на эти даты"
+      "datesBlocked": "Квартира закрыта на эти даты",
+      "timeInvalid": "Время в виде ЧЧ:ММ, кроме 00:00"
     },
     "sources": {
       "direct": "Напрямую",
