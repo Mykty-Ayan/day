@@ -87,15 +87,18 @@ export default function BookingMoneyCard({
         </Button>
       )}
 
-      {/* Always there: money may come after a cancellation or on top of the total. */}
-      <Button
-        variant={money.owes > 0 ? 'primary' : 'secondary'}
-        className="mt-4 w-full"
-        onClick={() => setPaying(true)}
-      >
-        <Plus className="h-4 w-4" aria-hidden="true" />
-        {t('bookings.payments.addPayment')}
-      </Button>
+      {/* Money on top of the total may still come; on a cancelled stay none is taken
+          (the owner's call, 4 Nov), only what came in is given back. */}
+      {!cancelled && (
+        <Button
+          variant={money.owes > 0 ? 'primary' : 'secondary'}
+          className="mt-4 w-full"
+          onClick={() => setPaying(true)}
+        >
+          <Plus className="h-4 w-4" aria-hidden="true" />
+          {t('bookings.payments.addPayment')}
+        </Button>
+      )}
 
       {!(cancelled && !deposit) && (
         <a

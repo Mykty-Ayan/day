@@ -4,13 +4,13 @@ import { motion } from 'framer-motion'
 import { ArrowLeft, Check, Loader2, Calculator, User, Phone, Mail } from 'lucide-react'
 import { useNavigate } from '@tanstack/react-router'
 import { useBookedNights, useCreateBooking, useCalculatePrice, useGuests } from '../../hooks/useBookings'
-import { useAllProperties } from '../../hooks/useProperties'
+import { useAllProperties, usePropertyPricing } from '../../hooks/useProperties'
 import type { BookingSource, BookingCreateInput, PriceCalculateInput, RentalMode } from '../../types/booking'
 import DateRangePicker from '../../components/ui/date-range-picker'
 import DatePicker from '../../components/ui/date-picker'
-import TimePicker from '../../components/ui/time-picker'
 import TimeChips, { CHECK_IN_TIMES, CHECK_OUT_TIMES } from '../../components/ui/time-chips'
-import { isStayTime } from '../../lib/booking-edit'
+import { hourlyStay, isStayTime } from '../../lib/booking-edit'
+import HourlyTimes from '../../components/booking/HourlyTimes'
 import {
   Select,
   SelectContent,
@@ -176,23 +176,23 @@ export default function CreateBookingPage() {
           : form.rental_mode
 
   const isHourly = rentalMode === 'hourly'
+  // The flat's tariffs: the lengths offered for an hourly stay.
+  const { data: pricing } = usePropertyPricing(form.property_id)
   // A daily stay starts with the flat's hours, else 14:00 / 12:00, until the operator picks others.
   const hourOf = (value: number) => `${String(value).padStart(2, '0')}:00`
   const inTime = form.in_time || hourOf(selectedProperty?.check_in_hour ?? 14)
   const outTime = form.out_time || hourOf(selectedProperty?.check_out_hour ?? 12)
   // For hourly the check-in/out are assembled from a single day + start/end time;
   // for daily from the picked dates and the times above.
+  // An hourly end at or before the start is the next day (a night, hours past midnight).
+  const hours = form.hourly_date && form.start_time && form.end_time ? hourlyStay(form.hourly_date, form.start_time, form.end_time) : null
   const effectiveCheckIn = isHourly
-    ? form.hourly_date && form.start_time
-      ? `${form.hourly_date}T${form.start_time}:00`
-      : ''
+    ? (hours?.checkIn ?? '')
     : form.check_in
       ? `${form.check_in}T${inTime}:00`
       : ''
   const effectiveCheckOut = isHourly
-    ? form.hourly_date && form.end_time
-      ? `${form.hourly_date}T${form.end_time}:00`
-      : ''
+    ? (hours?.checkOut ?? '')
     : form.check_out
       ? `${form.check_out}T${outTime}:00`
       : ''
@@ -265,7 +265,7 @@ export default function CreateBookingPage() {
       if (!form.hourly_date) errs.check_in = t('bookings.validation.dateRequired')
       if (!form.start_time) errs.start_time = t('bookings.validation.startTimeRequired')
       if (!form.end_time) errs.end_time = t('bookings.validation.endTimeRequired')
-      if (form.start_time && form.end_time && form.start_time >= form.end_time) {
+      if (form.start_time && form.end_time && form.start_time === form.end_time) {
         errs.end_time = t('bookings.validation.endTimeAfterStart')
       }
     } else {
@@ -438,38 +438,17 @@ export default function CreateBookingPage() {
                         <p className="text-xs text-red-500 mt-1">{errors.check_in}</p>
                       )}
                     </div>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label htmlFor="create-start-time" className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">
-                          {t('bookings.startTime')}
-                        </label>
-                        <TimePicker
-                          id="create-start-time"
-                          value={form.start_time}
-                          onChange={(value) => updateField('start_time', value)}
-                          placeholder={t('bookings.selectTime')}
-                          className={errors.start_time ? 'border-red-300' : ''}
-                        />
-                        {errors.start_time && (
-                          <p className="text-xs text-red-500 mt-1">{errors.start_time}</p>
-                        )}
-                      </div>
-                      <div>
-                        <label htmlFor="create-end-time" className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">
-                          {t('bookings.endTime')}
-                        </label>
-                        <TimePicker
-                          id="create-end-time"
-                          value={form.end_time}
-                          onChange={(value) => updateField('end_time', value)}
-                          placeholder={t('bookings.selectTime')}
-                          className={errors.end_time ? 'border-red-300' : ''}
-                        />
-                        {errors.end_time && (
-                          <p className="text-xs text-red-500 mt-1">{errors.end_time}</p>
-                        )}
-                      </div>
-                    </div>
+                    <HourlyTimes
+                      idPrefix="create-hours"
+                      start={form.start_time}
+                      end={form.end_time}
+                      pricing={pricing}
+                      onChange={({ start, end }) => {
+                        updateField('start_time', start)
+                        updateField('end_time', end)
+                      }}
+                      errors={{ start: errors.start_time, end: errors.end_time }}
+                    />
                   </div>
                 ) : (
                   <>

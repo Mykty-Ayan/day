@@ -15,7 +15,8 @@ test.describe('Booking Edit - E2E', () => {
   async function openBlock(page: import('@playwright/test').Page, bookingId: string, block: string) {
     await page.goto(`/bookings/${bookingId}`)
     await page.waitForLoadState('networkidle')
-    await page.getByRole('button', { name: new RegExp(`^${block}`) }).click()
+    // The dates are changed from the stay at the top, the rest from the "Booking" card.
+    await page.getByRole('button', { name: block === 'Dates' ? /Edit: Dates/ : new RegExp(`^${block}`) }).click()
     const panel = page.getByRole('dialog', { name: block })
     await expect(panel).toBeVisible()
     return panel
@@ -42,7 +43,7 @@ test.describe('Booking Edit - E2E', () => {
   async function createBookingViaApi(
     request: import('@playwright/test').APIRequestContext,
     propId: string,
-    overrides: Partial<Omit<import('../fixtures/test-data').TestBookingInput, 'property_id'>> = {},
+    overrides: Partial<Omit<import('../fixtures/test-data').TestBookingInput, 'property_id'>> & { rental_mode?: 'daily' | 'hourly' } = {},
   ) {
     const data = createTestBooking(propId, overrides)
     const res = await request.post(`${API_BASE}/bookings`, { data })
@@ -68,7 +69,7 @@ test.describe('Booking Edit - E2E', () => {
 
     await page.goto(`/bookings/${booking.id}/edit`)
     await expect(page).toHaveURL(new RegExp(`/bookings/${booking.id}$`))
-    await expect(page.getByRole('button', { name: /^Dates/ })).toBeVisible()
+    await expect(page.getByRole('button', { name: /Edit: Dates/ })).toBeVisible()
   })
 
   test('a block opens with the booking as it is', async ({ page, request }) => {
@@ -185,6 +186,35 @@ test.describe('Booking Edit - E2E', () => {
     expect(Number(detail.booking.total_price)).toBe(Number(booking.total_price))
   })
 
+  test('an hourly stay is a start and a length; the night ends the next day', async ({ page, request }) => {
+    const data = createTestProperty()
+    const prop = await (await request.post(`${API_BASE}/properties`, { data: { ...data, rental_mode: 'both' } })).json()
+    propertyIdsToCleanup.push(prop.id)
+    await request.post(`${API_BASE}/properties/${prop.id}/status`, { data: { status: 'active' } })
+    await request.put(`${API_BASE}/properties/${prop.id}/pricing`, {
+      data: { ...createTestPricing(), hourly_price: 3000, price_3h: 8000, price_6h: 12000, price_night: 15000, night_to: '12:00:00' },
+    })
+    const booking = await createBookingViaApi(request, prop.id, {
+      check_in: `${futureDate(60)}T15:00:00`,
+      check_out: `${futureDate(60)}T18:00:00`,
+      rental_mode: 'hourly',
+    })
+
+    const panel = await openBlock(page, booking.id, 'Dates')
+    // Opened as it is: three hours from 15:00.
+    await expect(panel.locator('#edit-hours-length').getByRole('button', { name: /^3 h/ })).toHaveAttribute('aria-pressed', 'true')
+    await panel.locator('#edit-hours-start').getByRole('button', { name: '22:00', exact: true }).click()
+    await panel.locator('#edit-hours-length').getByRole('button', { name: /^Night/ }).click()
+    await panel.getByRole('button', { name: /save/i }).click()
+    // Other hours change the price Day worked out: keep the agreed one.
+    await panel.getByRole('button', { name: /^Keep/ }).click()
+    await expect(panel).toBeHidden({ timeout: 10000 })
+
+    const detail = await (await request.get(`${API_BASE}/bookings/${booking.id}`)).json()
+    expect(detail.booking.check_in.slice(0, 16)).toBe(`${futureDate(60)}T22:00`)
+    expect(detail.booking.check_out.slice(0, 16)).toBe(`${futureDate(61)}T12:00`)
+  })
+
   test('a cancelled booking says so and keeps only its notes open', async ({ page, request }) => {
     const prop = await setupActiveProperty(request)
     const booking = await createBookingViaApi(request, prop.id)
@@ -195,7 +225,9 @@ test.describe('Booking Edit - E2E', () => {
     await expect(page.getByText('Booking cancelled')).toBeVisible()
     await expect(page.getByText('Paid', { exact: true })).toHaveCount(0)
     await expect(page.getByRole('button', { name: /Create deposit/i })).toHaveCount(0)
-    await expect(page.getByRole('button', { name: /^Dates/ })).toHaveCount(0)
+    await expect(page.getByRole('button', { name: /Edit: Dates/ })).toHaveCount(0)
+    // Nothing is taken on a cancelled stay; what came in is only given back.
+    await expect(page.getByRole('button', { name: /^add payment$/i })).toHaveCount(0)
     await expect(page.getByRole('button', { name: /^Notes/ })).toBeVisible()
   })
 })

@@ -654,7 +654,12 @@
     "noNotes": "Жоқ",
     "blocksTitle": "Бронь",
     "flat": "Пәтер",
-    "flatBusy": "бос емес"
+    "flatBusy": "бос емес",
+    "lengthLabel": "Қанша",
+    "lengthHours": "{{n}} сағ",
+    "lengthNight": "Түн",
+    "until": "{{time}} дейін",
+    "untilOther": "… дейін"
   },
   "today": {
     "title": "Бүгін",

@@ -157,7 +157,7 @@ function BookingScreen({ bookingId }: { bookingId: string }) {
             <aside className="flex flex-col gap-5 lg:col-start-2 lg:row-start-2">
               <section className="rounded-2xl border border-line bg-surface-card p-5">
                 <h2 className="mb-1 text-sm font-bold text-ink">{t('bookings.blocksTitle')}</h2>
-                <BookingBlocks booking={booking} />
+                <BookingBlocks booking={booking} hide={['dates']} />
               </section>
               <BookingGuestCard booking={booking} guest={guest} stays={detail.guest_stays} />
               <BookingTimeline

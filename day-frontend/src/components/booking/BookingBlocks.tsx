@@ -9,7 +9,16 @@ import type { Booking } from '../../types/booking'
 import BookingEditSheet from './BookingEditSheet'
 
 /** The booking's blocks, each changed where it is shown: a press opens that block's panel. */
-export default function BookingBlocks({ booking, editable = true }: { booking: Booking; editable?: boolean }) {
+export default function BookingBlocks({
+  booking,
+  editable = true,
+  hide = [],
+}: {
+  booking: Booking
+  editable?: boolean
+  /** Blocks shown and changed elsewhere on the screen (the booking screen's dates). */
+  hide?: EditBlock[]
+}) {
   const { t, i18n } = useTranslation()
   const { data: agents = [] } = useAgents()
   const [editing, setEditing] = useState<EditBlock | null>(null)
@@ -62,7 +71,7 @@ export default function BookingBlocks({ booking, editable = true }: { booking: B
   return (
     <>
       <div className="flex flex-col divide-y divide-line">
-        {rows.map((row) => {
+        {rows.filter((row) => !hide.includes(row.block)).map((row) => {
           const open = editable && openBlocks.includes(row.block)
           const body = (
             <>

@@ -672,7 +672,12 @@
     "noNotes": "Нет",
     "blocksTitle": "Бронь",
     "flat": "Квартира",
-    "flatBusy": "занята"
+    "flatBusy": "занята",
+    "lengthLabel": "Сколько",
+    "lengthHours": "{{n}} ч",
+    "lengthNight": "Ночь",
+    "until": "до {{time}}",
+    "untilOther": "до …"
   },
   "today": {
     "title": "Сегодня",

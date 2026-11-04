@@ -654,7 +654,12 @@
     "noNotes": "None",
     "blocksTitle": "Booking",
     "flat": "Flat",
-    "flatBusy": "taken"
+    "flatBusy": "taken",
+    "lengthLabel": "How long",
+    "lengthHours": "{{n}} h",
+    "lengthNight": "Night",
+    "until": "till {{time}}",
+    "untilOther": "till …"
   },
   "today": {
     "title": "Today",
