@@ -253,3 +253,21 @@ test("flats go in the company's order, the rest after them by name", () => {
   const rows = [row('Кв. 12', null), row('Студия 7', 0), row('Кв. 15', 1), row('Кв. 10', null)]
   expect(byCompanyOrder(rows).map((r) => r.property.internal_name)).toEqual(['Студия 7', 'Кв. 15', 'Кв. 10', 'Кв. 12'])
 })
+
+test("a flat's own hours decide its busy nights", () => {
+  // In at 16:00, out at 15:00: the guest leaving on the 8th at 15:00 leaves the night of the 8th free.
+  const row = {
+    property: { check_in_hour: 16, check_out_hour: 15 },
+    bookings: [{ status: 'confirmed', check_in: '2026-11-06T16:00:00', check_out: '2026-11-08T15:00:00' }],
+  }
+  expect(busyOn(row, '2026-11-08', '2026-11-08').bookings).toHaveLength(0)
+  expect(busyOn(row, '2026-11-07', '2026-11-07').bookings).toHaveLength(1)
+})
+
+test('free hours follow a closed time as it was made, not a fixed noon', () => {
+  const closed = [{ start_date: '2026-11-05', end_date: '2026-11-06', starts_at: '2026-11-05T10:00:00', ends_at: '2026-11-06T10:00:00' }]
+  expect(freeWindows([hour('a', '12:00', '23:00')].map((h) => ({ ...h, check_in: h.check_in.replace('11-03', '11-06'), check_out: h.check_out.replace('11-03', '11-06') })), '2026-11-06', undefined, closed)).toEqual([
+    { from: '10:00', to: '12:00', hours: 2 },
+    { from: '23:00', to: '24:00', hours: 1 },
+  ])
+})

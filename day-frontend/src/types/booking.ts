@@ -163,6 +163,9 @@ export interface GanttPropertySummary {
   rental_mode?: RentalMode
   /** Its row as the company ordered the flats; null: by its name. */
   position?: number | null
+  /** Its own check-in and check-out hours, or the defaults. */
+  check_in_hour?: number
+  check_out_hour?: number
 }
 
 export interface GanttData {
@@ -177,6 +180,9 @@ export interface GanttBlock {
   reason: string | null
   /** A platform's booking over a Day booking: the same night sold twice. */
   clash?: boolean
+  /** The exact span, from the check-out hour of its first day to that of its last. */
+  starts_at?: string | null
+  ends_at?: string | null
 }
 
 /** A night priced on the calendar, replacing the flat's usual price. */

@@ -56,14 +56,15 @@ function ExtendForm({ booking, onDone }: { booking: Booking; onDone: () => void 
     })
 
   const quote = useQuery({
-    queryKey: ['extend-quote', booking.id, checkOut],
+    // The flat too: a booking moved to another one is priced by its tariffs.
+    queryKey: ['extend-quote', booking.id, booking.property_id, checkOut],
     enabled: checkOut !== null,
     // The old sums stay on screen while the new ones load: the lines must not jump.
     placeholderData: keepPreviousData,
     queryFn: () => priceUntil(checkOut!),
   })
   const current = useQuery({
-    queryKey: ['extend-quote', booking.id, booking.check_out],
+    queryKey: ['extend-quote', booking.id, booking.property_id, booking.check_out],
     enabled: handPriced,
     queryFn: () => priceUntil(booking.check_out),
   })

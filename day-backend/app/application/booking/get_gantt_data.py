@@ -6,6 +6,7 @@ from dataclasses import dataclass, field
 from datetime import date, datetime
 from decimal import Decimal
 
+from app.config import settings
 from app.domain.booking.repositories import BookingRepository, GuestRepository
 from app.domain.booking.value_objects import BookingStatus
 from app.domain.property.repositories import DayPriceRepository, PropertyRepository
@@ -39,6 +40,9 @@ class GanttBlock:
     reason: str | None
     # A platform's booking over a Day booking of another source: a double sale.
     clash: bool = False
+    # The span as the block was made: from the check-out hour of its first day.
+    starts_at: datetime | None = None
+    ends_at: datetime | None = None
 
 
 @dataclass
@@ -61,6 +65,9 @@ class GanttProperty:
     rental_mode: str = "daily"
     day_prices: list[GanttDayPrice] = field(default_factory=list)
     position: int | None = None
+    # The flat's own hours, or the defaults: a night runs from one to the other.
+    check_in_hour: int = 14
+    check_out_hour: int = 12
 
 
 @dataclass
@@ -154,12 +161,17 @@ class GetGanttDataService:
                     status=prop.status.value,
                     bookings=gantt_bookings,
                     blocks=[
-                        GanttBlock(block.id, block.start_date, block.end_date, block.reason, _clash(block, bookings))
+                        GanttBlock(
+                            block.id, block.start_date, block.end_date, block.reason, _clash(block, bookings),
+                            block.starts_at, block.ends_at,
+                        )
                         for block in closed[prop.id]
                     ],
                     rental_mode=prop.rental_mode.value,
                     day_prices=priced[prop.id],
                     position=prop.position,
+                    check_in_hour=_or(prop.check_in_hour, settings.DEFAULT_CHECK_IN_HOUR),
+                    check_out_hour=_or(prop.check_out_hour, settings.DEFAULT_CHECK_OUT_HOUR),
                 )
             )
 
@@ -167,6 +179,10 @@ class GetGanttDataService:
         # lists them as they come.
         result.sort(key=lambda flat: (flat.position is None, flat.position or 0, flat.internal_name))
         return GanttData(properties=result)
+
+
+def _or(hour: int | None, default: int) -> int:
+    return default if hour is None else hour
 
 
 def _clash(block, bookings) -> bool:

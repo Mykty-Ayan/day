@@ -1448,13 +1448,16 @@ def _build_gantt_response(result, paid: dict[uuid.UUID, Decimal] | None = None) 
                 ],
                 blocks=[
                     GanttBlockResponse(
-                        id=b.id, start_date=b.start_date, end_date=b.end_date, reason=b.reason, clash=b.clash
+                        id=b.id, start_date=b.start_date, end_date=b.end_date, reason=b.reason, clash=b.clash,
+                        starts_at=b.starts_at, ends_at=b.ends_at,
                     )
                     for b in p.blocks
                 ],
                 rental_mode=p.rental_mode,
                 day_prices=[GanttDayPriceResponse(date=d.date, price=float(d.price)) for d in p.day_prices],
                 position=p.position,
+                check_in_hour=p.check_in_hour,
+                check_out_hour=p.check_out_hour,
             )
             for p in result.properties
         ]

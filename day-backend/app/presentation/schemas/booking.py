@@ -461,6 +461,9 @@ class GanttBlockResponse(BaseModel):
     reason: str | None = None
     # A platform's booking over a Day booking: the same night sold twice.
     clash: bool = False
+    # The exact span, from the check-out hour of its first day to that of its last.
+    starts_at: datetime | None = None
+    ends_at: datetime | None = None
 
 
 class GanttDayPriceResponse(BaseModel):
@@ -482,6 +485,9 @@ class GanttPropertyResponse(BaseModel):
     day_prices: list[GanttDayPriceResponse] = []
     # The flat's row as the company ordered them; None: by its name.
     position: int | None = None
+    # Its own check-in and check-out hours, or the defaults: busy nights go by them.
+    check_in_hour: int = 14
+    check_out_hour: int = 12
 
 
 class GanttDataResponse(BaseModel):

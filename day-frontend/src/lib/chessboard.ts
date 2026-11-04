@@ -113,23 +113,25 @@ export function nightsBetween(first: string, last: string): string[] {
 }
 
 /** A flat's stays and closed nights that take any of the picked nights, first to last.
- *  A stay counts by its hours against the nights' own, from 14:00 of the first to
- *  12:00 after the last (the server's defaults): hours in the morning before the first
- *  night leave it free. The server checks the flat's own hours. A cancelled or
- *  completed stay holds no night, as the server counts it. */
+ *  A stay counts by its hours against the nights' own, from the flat's check-in hour
+ *  of the first to its check-out hour after the last (14:00 and 12:00 by default):
+ *  hours in the morning before the first night leave it free. A cancelled or completed
+ *  stay holds no night, as the server counts it. */
 export function busyOn<B extends { status: string; check_in: string; check_out: string }, C extends { start_date: string; end_date: string }>(
-  row: { bookings: B[]; blocks?: C[] },
+  row: { bookings: B[]; blocks?: C[]; property?: { check_in_hour?: number; check_out_hour?: number } },
   first: string,
   last: string,
 ): { bookings: B[]; blocks: C[] } {
   const after = addDays(last, 1)
-  // A bare date is the server's default hour: in at 14:00, out at 12:00.
+  const clock = (hour: number) => `${String(hour).padStart(2, '0')}:00:00`
+  const [inAt, outAt] = [clock(row.property?.check_in_hour ?? 14), clock(row.property?.check_out_hour ?? 12)]
+  // A bare date is at the flat's hours.
   const at = (value: string, hour: string) => (value.length > 10 ? value.slice(0, 19) : `${value}T${hour}`)
-  const [from, to] = [`${first}T14:00:00`, `${after}T12:00:00`]
+  const [from, to] = [`${first}T${inAt}`, `${after}T${outAt}`]
   return {
     bookings: row.bookings.filter((booking) => {
       if (booking.status === 'cancelled' || booking.status === 'completed') return false
-      return at(booking.check_in, '14:00:00') < to && from < at(booking.check_out, '12:00:00')
+      return at(booking.check_in, inAt) < to && from < at(booking.check_out, outAt)
     }),
     blocks: (row.blocks ?? []).filter((block) => block.start_date < after && first < block.end_date),
   }
@@ -163,13 +165,16 @@ export function freeWindows(
   stays: (Pick<Stay, 'check_in' | 'check_out'> & { status: string })[],
   day: string,
   now?: string,
-  closed: { start_date: string; end_date: string }[] = [],
+  closed: { start_date: string; end_date: string; starts_at?: string | null; ends_at?: string | null }[] = [],
 ): { from: string; to: string; hours: number }[] {
   const held = [
     ...stays.filter((stay) => stay.status !== 'cancelled' && stay.status !== 'completed'),
-    // A closed time runs from the check-out hour of its first day to that of its last,
-    // as the server counts it (blocks.py): the morning before it stays free.
-    ...closed.map((block) => ({ check_in: `${block.start_date}T${CLOSED_FROM}`, check_out: `${block.end_date}T${CLOSED_FROM}` })),
+    // A closed time runs as it was made (blocks.py): from the check-out hour of its
+    // first day to that of its last; an old one without its bounds, from noon.
+    ...closed.map((block) => ({
+      check_in: block.starts_at ?? `${block.start_date}T${CLOSED_FROM}`,
+      check_out: block.ends_at ?? `${block.end_date}T${CLOSED_FROM}`,
+    })),
   ]
     .map((stay) => ({ from: minuteOn(stay.check_in, day), to: minuteOn(stay.check_out, day) }))
     .filter((part) => part.to > part.from)

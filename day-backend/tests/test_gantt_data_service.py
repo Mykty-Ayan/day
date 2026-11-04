@@ -237,3 +237,33 @@ async def test_gantt_lists_flats_in_the_companys_order_then_by_name():
     )
 
     assert [p.internal_name for p in result.properties] == ["Студия 7", "Кв. 15", "Кв. 10", "Кв. 12"]
+
+
+@pytest.mark.asyncio
+async def test_gantt_gives_each_flat_its_hours_and_each_block_its_bounds():
+    # The chessboard counts busy nights and free hours by them, not by 14:00/12:00.
+    from datetime import datetime
+
+    from app.config import settings
+    from app.domain.booking.entities import PropertyBlock
+
+    company_id = uuid.uuid4()
+    own = Property(company_id=company_id, name="Own", internal_name="own", status=PropertyStatus.ACTIVE,
+                   check_in_hour=16, check_out_hour=None)
+    block = PropertyBlock(
+        company_id=company_id, property_id=own.id, start_date=date(2026, 11, 5), end_date=date(2026, 11, 6),
+        starts_at=datetime(2026, 11, 5, 10), ends_at=datetime(2026, 11, 6, 10),
+    )
+    property_repo, booking_repo = AsyncMock(), AsyncMock()
+    property_repo.list_by_company.return_value = [own]
+    booking_repo.list_by_property_date_range.return_value = []
+    booking_repo.list_company_blocks.return_value = [block]
+    day_prices = AsyncMock()
+    day_prices.list_for_company.return_value = []
+
+    (flat,) = (await GetGanttDataService(property_repo, booking_repo, AsyncMock(), day_prices).execute(
+        company_id, date(2026, 11, 1), date(2026, 12, 1)
+    )).properties
+
+    assert (flat.check_in_hour, flat.check_out_hour) == (16, settings.DEFAULT_CHECK_OUT_HOUR)
+    assert (flat.blocks[0].starts_at, flat.blocks[0].ends_at) == (datetime(2026, 11, 5, 10), datetime(2026, 11, 6, 10))

@@ -3,13 +3,13 @@ import { motion, Reorder } from 'framer-motion'
 import { Link } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 import { ArrowUpDown, ChevronDown, ChevronUp, Clock, GripVertical, LogIn, LogOut, Moon, Users } from 'lucide-react'
-import type { Booking, BookingStatus, GanttBlock, GanttDayPrice, GanttPropertySummary } from '../../types/booking'
+import type { Booking, BookingDetail, BookingStatus, GanttBlock, GanttDayPrice, GanttPropertySummary } from '../../types/booking'
 import type { PricingConfig } from '../../types/property'
 import { showToast } from '../ui/Toast'
 import { moveBooking } from '../../api/bookings'
 import { orderProperties } from '../../api/properties'
 import { stayRuleBreaches, stayRuleText, type StayRuleBreach } from '../../lib/booking-errors'
-import { addDays, barDays, byCompanyOrder, barSpan, barTone, dayNumber, dayOf, hoursOn, nightlyRate, nightsBetween, owes, rowLayout, toReturn, WEEKEND_NIGHTS, type BarTone } from '../../lib/chessboard'
+import { addDays, barDays, busyOn, byCompanyOrder, barSpan, barTone, dayNumber, dayOf, hoursOn, nightlyRate, nightsBetween, owes, rowLayout, toReturn, WEEKEND_NIGHTS, type BarTone } from '../../lib/chessboard'
 import { formatMoney } from '../../pages/miniapp/format'
 import ConfirmDialog from '../ui/ConfirmDialog'
 import { Sheet } from '../ui/sheet'
@@ -299,7 +299,8 @@ export default function GanttChart({
     return new Map(days.map((day) => {
       const key = toDateStr(day)
       const free = sellable.filter((row) =>
-        !isBookedOnDate(row.bookings.filter((booking) => !FREES_NIGHTS_STATUSES.includes(booking.status)), key)
+        // By the stays' hours against the flat's own: morning hours leave the night free.
+        busyOn(row, key, key).bookings.length === 0
         && !closedByRow.get(row.property.id)?.has(key),
       ).length
       return [key, free]
@@ -523,7 +524,12 @@ export default function GanttChart({
   // it; the operator then confirms and the same move goes again with override_rules.
   const runMove = useCallback(async (bookingId: string, targetPropertyId: string, overrideRules = false) => {
     try {
-      await moveBooking(bookingId, { target_property_id: targetPropertyId, override_rules: overrideRules || undefined })
+      const moved = await moveBooking(bookingId, { target_property_id: targetPropertyId, override_rules: overrideRules || undefined })
+      // The booking's details at once with the new flat, before any refetch: a panel
+      // opened right away must not extend by the old flat's tariff.
+      queryClient.setQueryData<BookingDetail>(['booking', bookingId], (old) =>
+        old ? { ...old, booking: { ...old.booking, property_id: moved.property_id } } : old,
+      )
       queryClient.invalidateQueries({ queryKey: ['gantt-data'] })
       queryClient.invalidateQueries({ queryKey: ['bookings'] })
       // The booking's panel reads its flat: an extension is then priced by the new one.
