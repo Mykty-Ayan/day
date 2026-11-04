@@ -118,24 +118,25 @@ export default function DateRangePicker({
           type="button"
           disabled={disabled}
           className={cn(
-            'flex h-11 w-full items-center justify-between rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700 shadow-sm',
-            'focus:outline-none focus:ring-2 focus:ring-black/10 disabled:cursor-not-allowed disabled:opacity-50',
-            !startDate && !endDate && 'text-gray-400',
-            error && 'border-red-300',
+            'flex h-11 w-full items-center justify-between rounded-xl border border-line bg-surface-card px-3 py-2 text-sm text-ink',
+            'focus:border-accent focus:outline-none disabled:cursor-not-allowed disabled:opacity-50',
+            !startDate && !endDate && 'text-ink-muted',
+            error && 'border-danger',
             className,
           )}
         >
           <span className="truncate">{label}</span>
-          <CalendarIcon className="h-4 w-4 text-gray-400" />
+          <CalendarIcon className="h-4 w-4 text-ink-muted" />
         </button>
       </PopoverTrigger>
       <PopoverContent
-        className="z-popover w-auto max-w-[calc(100vw-1rem)] overflow-x-hidden rounded-2xl border border-gray-200 bg-white p-2 shadow-2xl"
+        className="z-popover w-auto max-w-[calc(100vw-1rem)] overflow-x-hidden rounded-2xl border border-line bg-surface-card p-2 shadow-xl"
         align="start"
         sideOffset={8}
       >
         <Calendar
           mode="range"
+          classNames={{ selected: '' }}
           selected={selected}
           defaultMonth={defaultMonth}
           onMonthChange={onMonthChange}

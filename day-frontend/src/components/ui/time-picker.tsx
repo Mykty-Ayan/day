@@ -82,14 +82,14 @@ export default function TimePicker({
           type="button"
           disabled={disabled}
           className={cn(
-            'flex h-11 w-full items-center justify-between rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700 shadow-sm',
-            'focus:outline-none focus:ring-2 focus:ring-black/10 disabled:cursor-not-allowed disabled:opacity-50',
-            !value && 'text-gray-400',
+            'flex h-11 w-full items-center justify-between rounded-xl border border-line bg-surface-card px-3 py-2 text-sm text-ink',
+            'focus:border-accent focus:outline-none disabled:cursor-not-allowed disabled:opacity-50',
+            !value && 'text-ink-muted',
             className,
           )}
         >
           <span>{displayValue}</span>
-          <Clock className="h-4 w-4 text-gray-400" />
+          <Clock className="h-4 w-4 text-ink-muted" />
         </button>
       </PopoverTrigger>
       <PopoverContent className="w-56 p-2" align="start" onOpenAutoFocus={scrollToActive}>
@@ -109,11 +109,11 @@ export default function TimePicker({
           }}
           placeholder={t('common.timeInputHint')}
           aria-label={t('common.time')}
-          className="mb-1 h-11 w-full rounded-lg border border-gray-200 bg-gray-50 px-2.5 text-sm text-gray-800 outline-none focus:ring-2 focus:ring-black/10"
+          className="mb-1 h-11 w-full rounded-lg border border-line bg-surface-page px-2.5 text-sm text-ink outline-none focus:border-accent"
         />
         <div className="max-h-56 overflow-y-auto space-y-1 p-1">
           {options.length === 0 && (
-            <p className="px-2.5 py-3 text-sm text-gray-400">{t('common.noResults')}</p>
+            <p className="px-2.5 py-3 text-sm text-ink-muted">{t('common.noResults')}</p>
           )}
           {options.map((time) => {
             const isSelected = time === value
@@ -126,8 +126,8 @@ export default function TimePicker({
                 className={cn(
                   'flex min-h-[44px] w-full items-center rounded-lg px-2.5 py-2.5 text-sm font-medium transition-colors',
                   isSelected
-                    ? 'bg-black text-white'
-                    : 'text-gray-700 hover:bg-gray-100',
+                    ? 'bg-accent text-white'
+                    : 'text-ink hover:bg-surface-page',
                 )}
               >
                 <span>{time}</span>

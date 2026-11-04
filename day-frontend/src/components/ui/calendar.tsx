@@ -27,35 +27,34 @@ function Calendar({
       showOutsideDays={showOutsideDays}
       className={cn('p-2', className)}
       classNames={{
-        months: 'flex flex-col gap-4 sm:flex-row',
-        month: 'space-y-4',
-        month_caption: 'relative flex h-11 items-center justify-center px-11',
-        caption_label: 'text-base font-semibold tracking-tight text-gray-900',
-        // Above the month caption, which is positioned too and would take the arrows' clicks.
-        nav: 'absolute inset-x-0 top-0 z-10 flex h-11 items-center justify-between px-0.5',
+        // Relative: the arrows sit in the caption's row, not at the popover's corners.
+        months: 'relative flex flex-col gap-4 sm:flex-row',
+        month: 'space-y-2',
+        month_caption: 'flex h-10 items-center justify-center',
+        caption_label: 'text-sm font-bold capitalize text-ink',
+        // Above the month caption, which would take the arrows' clicks.
+        nav: 'absolute inset-x-0 top-0 z-10 flex h-10 items-center justify-between',
         button_previous:
-          'h-11 w-11 rounded-xl border border-gray-200 bg-white text-gray-600 transition-colors hover:bg-gray-50 disabled:opacity-50',
+          'flex h-10 w-10 items-center justify-center rounded-lg text-ink-muted transition-colors hover:bg-surface-page hover:text-ink disabled:opacity-40',
         button_next:
-          'h-11 w-11 rounded-xl border border-gray-200 bg-white text-gray-600 transition-colors hover:bg-gray-50 disabled:opacity-50',
+          'flex h-10 w-10 items-center justify-center rounded-lg text-ink-muted transition-colors hover:bg-surface-page hover:text-ink disabled:opacity-40',
         month_grid: 'w-full border-collapse',
-        weekdays: 'grid grid-cols-7 gap-1',
-        weekday: 'h-8 text-center text-xs font-semibold uppercase tracking-wide text-gray-400',
+        weekdays: 'grid grid-cols-7',
+        weekday: 'h-8 text-center text-[11px] font-semibold uppercase text-ink-muted',
         weeks: 'space-y-1',
-        week: 'grid grid-cols-7 gap-1',
+        // No gap: a picked range reads as one band.
+        week: 'grid grid-cols-7',
         day: 'p-0 text-center text-sm',
         day_button:
-          'h-11 w-11 rounded-xl font-medium text-gray-700 transition-colors hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/15 sm:h-10 sm:w-10',
-        selected:
-          'bg-black text-white hover:bg-black [&>button]:bg-black [&>button]:text-white [&>button]:shadow-sm [&>button]:hover:bg-black',
-        today:
-          'bg-gray-100 text-gray-900 font-semibold [&>button]:bg-gray-100 [&>button]:text-gray-900 [&>button]:font-semibold',
-        outside: 'text-gray-400 opacity-70 [&>button]:text-gray-400 [&>button]:opacity-70',
-        range_start:
-          'bg-black text-white [&>button]:bg-black [&>button]:text-white [&>button]:hover:bg-black',
-        range_end:
-          'bg-black text-white [&>button]:bg-black [&>button]:text-white [&>button]:hover:bg-black',
-        range_middle: 'bg-gray-100 text-gray-900 [&>button]:bg-gray-100 [&>button]:text-gray-900',
-        disabled: 'text-gray-300 opacity-50',
+          'flex h-11 w-full min-w-10 items-center justify-center rounded-lg font-medium text-ink transition-colors hover:bg-surface-page focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent sm:h-10',
+        today: '[&>button]:font-bold [&>button]:text-accent-ink',
+        // A single day. A range picker turns it off and styles its ends and middle instead.
+        selected: '[&>button]:bg-accent [&>button]:text-white [&>button]:hover:bg-accent-hover',
+        range_start: '[&>button]:bg-accent [&>button]:text-white [&>button]:hover:bg-accent-hover',
+        range_end: '[&>button]:bg-accent [&>button]:text-white [&>button]:hover:bg-accent-hover',
+        range_middle: 'bg-accent-soft [&>button]:rounded-none [&>button]:text-accent-ink [&>button]:hover:bg-transparent',
+        outside: '[&>button]:text-ink-muted/50',
+        disabled: '[&>button]:cursor-not-allowed [&>button]:text-ink-muted/40 [&>button]:hover:bg-transparent',
         hidden: 'invisible',
         ...classNames,
       }}
