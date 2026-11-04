@@ -449,6 +449,8 @@ class GanttBookingResponse(BaseModel):
     adults_count: int
     children_count: int
     total_price: float
+    # Payments less refunds: with total_price, the chessboard marks who still owes.
+    paid_amount: float = 0
     overbooking: bool = False
 
 
