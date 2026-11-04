@@ -260,4 +260,5 @@ async def test_the_feed_counts_nights_by_the_flats_own_hours(monkeypatch):
     own = await _get(monkeypatch, calendar_token(PROPERTY_ID), hours=(16, 10), rows=midday)
 
     assert "DTSTART;VALUE=DATE:20261104" in default.text
-    assert "DTSTART;VALUE=DATE:20261105" in own.text and "20261104" not in own.text
+    # No night of the 4th: a date line, not the feed's own DTSTAMP, which is today's.
+    assert "DTSTART;VALUE=DATE:20261105" in own.text and ";VALUE=DATE:20261104" not in own.text
