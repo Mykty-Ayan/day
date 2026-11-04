@@ -480,6 +480,8 @@ class GanttPropertyResponse(BaseModel):
     rental_mode: RentalMode = RentalMode.DAILY
     # Nights priced on the calendar, replacing the flat's usual price.
     day_prices: list[GanttDayPriceResponse] = []
+    # The flat's row as the company ordered them; None: by its name.
+    position: int | None = None
 
 
 class GanttDataResponse(BaseModel):

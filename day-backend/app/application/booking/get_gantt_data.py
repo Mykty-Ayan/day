@@ -60,6 +60,7 @@ class GanttProperty:
     blocks: list[GanttBlock] = field(default_factory=list)
     rental_mode: str = "daily"
     day_prices: list[GanttDayPrice] = field(default_factory=list)
+    position: int | None = None
 
 
 @dataclass
@@ -158,9 +159,13 @@ class GetGanttDataService:
                     ],
                     rental_mode=prop.rental_mode.value,
                     day_prices=priced[prop.id],
+                    position=prop.position,
                 )
             )
 
+        # The company's order, the flats it did not place after, by name: the Mini App
+        # lists them as they come.
+        result.sort(key=lambda flat: (flat.position is None, flat.position or 0, flat.internal_name))
         return GanttData(properties=result)
 
 

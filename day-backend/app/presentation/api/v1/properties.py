@@ -26,6 +26,7 @@ from app.application.property.manage_pricing import (
     ManagePricingService,
     PricingConfigInput,
 )
+from app.application.property.order_properties import OrderPropertiesService
 from app.application.property.update_property import (
     UpdatePropertyInput,
     UpdatePropertyService,
@@ -82,6 +83,7 @@ from app.presentation.schemas.property import (
     PropertyFactCreate,
     PropertyFactResponse,
     PropertyListResponse,
+    PropertyOrder,
     PropertyPhotoResponse,
     PropertyReadinessItem,
     PropertyReadinessResponse,
@@ -336,6 +338,27 @@ _READINESS_FIELDS = {
     "pricing": lambda p, x: x["pricing"],
     "facts": lambda p, x: x["facts"],
 }
+
+
+@router.put(
+    "/order",
+    status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[Depends(require(Permission.PROPERTIES_WRITE))],
+)
+async def order_properties(
+    body: PropertyOrder,
+    session: AsyncSession = Depends(get_session),
+    company_id: uuid.UUID = Depends(get_company_id),
+):
+    """The company's flats in the order the chessboard shows them; empty: by name."""
+    try:
+        await OrderPropertiesService(SqlPropertyRepository(session)).execute(company_id, body.property_ids)
+    except LookupError:
+        raise HTTPException(status_code=404, detail="Property not found")
+    except ValueError as error:
+        raise HTTPException(status_code=422, detail=str(error))
+    await session.commit()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.get(

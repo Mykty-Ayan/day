@@ -212,3 +212,28 @@ async def test_the_chessboard_knows_an_hourly_flat():
         company_id, date(2026, 2, 1), date(2026, 2, 28)
     )
     assert _build_gantt_response(result).properties[0].rental_mode == RentalMode.HOURLY
+
+
+@pytest.mark.asyncio
+async def test_gantt_lists_flats_in_the_companys_order_then_by_name():
+    # The Mini App shows the flats as the answer lists them.
+    company_id = uuid.uuid4()
+
+    def flat(name: str, position: int | None) -> Property:
+        return Property(
+            company_id=company_id, name=name, internal_name=name, status=PropertyStatus.ACTIVE, position=position
+        )
+
+    flats = [flat("Кв. 12", None), flat("Студия 7", 0), flat("Кв. 15", 1), flat("Кв. 10", None)]
+    property_repo, booking_repo = AsyncMock(), AsyncMock()
+    property_repo.list_by_company.return_value = flats
+    booking_repo.list_by_property_date_range.return_value = []
+    booking_repo.list_company_blocks.return_value = []
+    day_prices = AsyncMock()
+    day_prices.list_for_company.return_value = []
+
+    result = await GetGanttDataService(property_repo, booking_repo, AsyncMock(), day_prices).execute(
+        company_id, date(2026, 11, 1), date(2026, 12, 1)
+    )
+
+    assert [p.internal_name for p in result.properties] == ["Студия 7", "Кв. 15", "Кв. 10", "Кв. 12"]

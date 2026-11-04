@@ -33,6 +33,7 @@ class PropertyModel(Base):
     type: Mapped[str] = mapped_column(String(50))
     status: Mapped[str] = mapped_column(String(50), default="new")
     rental_mode: Mapped[str] = mapped_column(String(20), default="daily")
+    position: Mapped[int | None] = mapped_column(Integer, nullable=True)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     source_url: Mapped[str | None] = mapped_column(String(1024), nullable=True)
 
