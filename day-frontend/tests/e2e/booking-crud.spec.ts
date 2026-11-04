@@ -86,6 +86,9 @@ test.describe('Booking CRUD - E2E', () => {
 
     await page.locator('input[type="tel"]').first().fill(guestPhone)
     await page.getByPlaceholder(guestNamePlaceholder).first().fill(guestName)
+    // The guest said they arrive at 17:00; the flat's 14:00 was picked to start with.
+    await expect(page.locator('#create-in-time').getByRole('button', { name: '14:00', exact: true })).toHaveAttribute('aria-pressed', 'true')
+    await page.locator('#create-in-time').getByRole('button', { name: '17:00', exact: true }).click()
 
     // Submit
     await page.getByRole('button', { name: addBookingButtonName }).click()
@@ -105,6 +108,7 @@ test.describe('Booking CRUD - E2E', () => {
       for (const b of body.items) {
         bookingIdsToCleanup.push(b.id)
       }
+      expect(body.items[0].check_in.slice(11, 16)).toBe('17:00')
     }
   })
 
@@ -208,15 +212,15 @@ test.describe('Booking CRUD - E2E', () => {
     await page.goto(`/bookings/${booking.id}`)
     await page.waitForLoadState('networkidle')
 
-    await page.getByRole('button', { name: 'Edit', exact: true }).click()
-    await expect(page).toHaveURL(new RegExp(`/bookings/${booking.id}/edit$`))
+    await page.getByRole('button', { name: /^Guests/ }).click()
+    const panel = page.getByRole('dialog', { name: 'Guests' })
 
-    await page.locator('input[type="number"]').first().fill('5')
+    await panel.locator('input[type="number"]').first().fill('5')
 
-    await page.getByRole('button', { name: /save/i }).click()
+    await panel.getByRole('button', { name: /save/i }).click()
     // More guests change the price Day worked out: the form asks first.
-    await page.getByRole('button', { name: /^Reprice/ }).click()
-    await expect(page).toHaveURL(new RegExp(`/bookings/${booking.id}$`), { timeout: 10000 })
+    await panel.getByRole('button', { name: /^Reprice/ }).click()
+    await expect(panel).toBeHidden({ timeout: 10000 })
 
     const detailRes = await request.get(`${API_BASE}/bookings/${booking.id}`)
     expect(detailRes.ok()).toBeTruthy()

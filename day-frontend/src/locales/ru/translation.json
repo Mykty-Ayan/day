@@ -111,7 +111,8 @@
     "unknown": "Неизвестно",
     "errorTitle": "Не удалось загрузить данные",
     "errorLoading": "Не удалось загрузить данные. Попробуйте ещё раз.",
-    "logout": "Выйти"
+    "logout": "Выйти",
+    "otherTime": "другое"
   },
   "properties": {
     "title": "Объекты",
@@ -401,7 +402,6 @@
   "bookings": {
     "title": "Брони",
     "addBooking": "Создать бронь",
-    "editBooking": "Изменить бронь",
     "newBooking": "Новая бронь",
     "notFound": "Бронь не найдена",
     "backToBookings": "Назад к броням",
@@ -429,7 +429,6 @@
     "guestNamePlaceholder": "Имя гостя",
     "phonePlaceholder": "Номер телефона",
     "totalPrice": "Общая стоимость",
-    "calendarColor": "Цвет в календаре",
     "adults": "Взрослые",
     "children": "Дети",
     "selectProperty": "Выберите объект…",
@@ -480,7 +479,10 @@
       "linkFailed": "Не получилось скопировать ссылку",
       "cancelAsk": "Отменить бронь?",
       "cancelWarning": "Даты снова станут свободными. Деньги гостя останутся в оплатах: верните их отдельно.",
-      "keepBooking": "Оставить бронь"
+      "keepBooking": "Оставить бронь",
+      "cancelled": "Бронь отменена",
+      "cancelledOwesNothing": "Гость ничего не должен",
+      "cancelledPrice": "Цена брони"
     },
     "tabs": {
       "overview": "Обзор",
@@ -629,15 +631,6 @@
     "dateRange": "Даты",
     "selectDates": "Выберите даты",
     "bookedNightsFailed": "Не удалось загрузить занятые даты.",
-    "colors": {
-      "blue": "Синий",
-      "green": "Зелёный",
-      "amber": "Янтарный",
-      "red": "Красный",
-      "purple": "Фиолетовый",
-      "pink": "Розовый",
-      "cyan": "Голубой"
-    },
     "rentalMode": {
       "label": "Режим аренды",
       "daily": "Посуточно",
@@ -646,6 +639,8 @@
     "date": "Дата",
     "startTime": "Время начала",
     "endTime": "Время окончания",
+    "checkInTime": "Время заезда",
+    "checkOutTime": "Время выезда",
     "selectTime": "Выберите время",
     "overbooking": {
       "short": "Двойная бронь",
@@ -666,7 +661,15 @@
       "reprice": "Пересчитать: {{now}}",
       "keep": "Оставить {{was}}"
     },
-    "agent": "Кто привёл"
+    "agent": "Кто привёл",
+    "editBlock": {
+      "dates": "Даты",
+      "guests": "Гости",
+      "source": "Источник и кто привёл",
+      "notes": "Заметки"
+    },
+    "noNotes": "Нет",
+    "blocksTitle": "Бронь"
   },
   "today": {
     "title": "Сегодня",

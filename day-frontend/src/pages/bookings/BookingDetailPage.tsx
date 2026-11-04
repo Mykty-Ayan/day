@@ -30,6 +30,7 @@ import type {
   PaymentType,
 } from '../../types/booking'
 import BookingDeposits from '../../components/booking/BookingDeposits'
+import BookingBlocks from '../../components/booking/BookingBlocks'
 import BookingFiles from '../../components/booking/BookingFiles'
 import BookingGuestCard from '../../components/booking/BookingGuestCard'
 import BookingMoneyCard from '../../components/booking/BookingMoneyCard'
@@ -154,6 +155,10 @@ function BookingScreen({ bookingId }: { bookingId: string }) {
               <BookingFiles bookingId={bookingId} files={detail.files} />
             </div>
             <aside className="flex flex-col gap-5 lg:col-start-2 lg:row-start-2">
+              <section className="rounded-2xl border border-line bg-surface-card p-5">
+                <h2 className="mb-1 text-sm font-bold text-ink">{t('bookings.blocksTitle')}</h2>
+                <BookingBlocks booking={booking} />
+              </section>
               <BookingGuestCard booking={booking} guest={guest} stays={detail.guest_stays} />
               <BookingTimeline
                 bookingId={bookingId}

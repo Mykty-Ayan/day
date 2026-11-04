@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { CircleCheck, Plus, ShieldCheck, Undo2 } from 'lucide-react'
+import { CircleCheck, CircleX, Plus, ShieldCheck, Undo2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { useCurrency } from '../../hooks/useCurrency'
 import type { bookingMoney } from '../../lib/booking-money'
@@ -31,6 +31,7 @@ export default function BookingMoneyCard({
   const sum = (value: number) => `${formatMoney(value, i18n.language)} ${symbol}`
   const share = money.total > 0 ? Math.min(1, Math.max(0, money.paid / money.total)) : 0
   const deposit = deposits[0]
+  const cancelled = booking.status === 'cancelled'
 
   return (
     <section className="rounded-2xl border border-line bg-surface-card p-5">
@@ -42,6 +43,15 @@ export default function BookingMoneyCard({
             tone="text-warning"
           />
           {booking.status !== 'cancelled' && <p className="mt-1 text-xs text-ink-muted">{t('bookings.card.overpaidHint')}</p>}
+        </>
+      ) : cancelled ? (
+        // Not "paid": nothing came in and nothing is owed because the stay is off.
+        <>
+          <p className="flex items-center gap-2 text-2xl font-bold text-ink-muted">
+            <CircleX className="h-6 w-6" aria-hidden="true" />
+            {t('bookings.card.cancelled')}
+          </p>
+          <p className="mt-1 text-xs text-ink-muted">{t('bookings.card.cancelledOwesNothing')}</p>
         </>
       ) : money.owes > 0 ? (
         <Headline label={t('today.toPay')} value={sum(money.owes)} tone="text-danger" />
@@ -59,7 +69,11 @@ export default function BookingMoneyCard({
       )}
 
       <dl className="mt-4 flex flex-col gap-2 text-sm">
-        <Line label={t('today.newTotal')} value={sum(money.total)} />
+        {cancelled ? (
+          <Line label={t('bookings.card.cancelledPrice')} value={sum(Number(booking.total_price))} struck />
+        ) : (
+          <Line label={t('today.newTotal')} value={sum(money.total)} />
+        )}
         <Line label={t('today.alreadyPaid')} value={sum(money.paid)} />
         {(booking.orders_due ?? 0) > 0 && <Line label={t('bookings.card.minibar')} value={sum(booking.orders_due ?? 0)} />}
       </dl>
@@ -83,16 +97,18 @@ export default function BookingMoneyCard({
         {t('bookings.payments.addPayment')}
       </Button>
 
-      <a
-        href="#deposits"
-        className="mt-4 flex items-center gap-2 border-t border-line pt-4 text-sm transition-colors hover:text-accent-ink"
-      >
-        <ShieldCheck className="h-4 w-4 shrink-0 text-ink-muted" aria-hidden="true" />
-        <span className="text-ink-muted">{t('bookings.card.deposit')}</span>
-        <span className="ml-auto min-w-0 truncate font-semibold text-ink">
-          {deposit ? depositLabel(deposit) : t('bookings.card.noDeposit')}
-        </span>
-      </a>
+      {!(cancelled && !deposit) && (
+        <a
+          href="#deposits"
+          className="mt-4 flex items-center gap-2 border-t border-line pt-4 text-sm transition-colors hover:text-accent-ink"
+        >
+          <ShieldCheck className="h-4 w-4 shrink-0 text-ink-muted" aria-hidden="true" />
+          <span className="text-ink-muted">{t('bookings.card.deposit')}</span>
+          <span className="ml-auto min-w-0 truncate font-semibold text-ink">
+            {deposit ? depositLabel(deposit) : t('bookings.card.noDeposit')}
+          </span>
+        </a>
+      )}
 
       <TakePaymentPanel
         booking={booking}
@@ -114,11 +130,11 @@ function Headline({ label, value, tone }: { label: string; value: string; tone: 
   )
 }
 
-function Line({ label, value }: { label: string; value: string }) {
+function Line({ label, value, struck = false }: { label: string; value: string; struck?: boolean }) {
   return (
     <div className="flex justify-between gap-3">
       <dt className="text-ink-muted">{label}</dt>
-      <dd className="font-semibold tabular-nums text-ink">{value}</dd>
+      <dd className={`font-semibold tabular-nums ${struck ? 'text-ink-muted line-through' : 'text-ink'}`}>{value}</dd>
     </div>
   )
 }
