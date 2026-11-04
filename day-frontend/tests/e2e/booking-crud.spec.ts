@@ -172,6 +172,26 @@ test.describe('Booking CRUD - E2E', () => {
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
   })
 
+  test('a payment taken from the list\'s booking shows on the list at once', async ({ page, request }) => {
+    const prop = await setupActiveProperty(request)
+    const booking = await createBookingViaApi(request, prop.id)
+
+    await page.goto('/bookings')
+    await page.waitForLoadState('networkidle')
+    await page.getByPlaceholder(/search by guest name|search/i).fill(booking.guest_name)
+    const row = page.getByRole('button', { name: new RegExp(booking.guest_name) })
+    await expect(row.getByText(/^Owed /)).toBeVisible({ timeout: 5000 })
+
+    await row.click()
+    await page.getByRole('button', { name: /^add payment$/i }).first().click()
+    await page.getByRole('dialog').getByRole('button', { name: /^Add / }).click()
+    await expect(page.getByRole('dialog')).toBeHidden({ timeout: 10000 })
+    // Back in the app, not a reload: the list must not show the debt it had before.
+    await page.goBack()
+    await page.getByPlaceholder(/search by guest name|search/i).fill(booking.guest_name)
+    await expect(row.getByText('Paid', { exact: true })).toBeVisible({ timeout: 5000 })
+  })
+
   test('date range picker shows one month on mobile viewport', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 })
     await page.goto('/bookings/new')

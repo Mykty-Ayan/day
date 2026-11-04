@@ -205,8 +205,9 @@ export function useAddPayment(bookingId: string) {
         qc.invalidateQueries({ queryKey: [BOOKING_KEY, bookingId] }),
       ]),
     // After a failure too: the answer may be lost with the money recorded. The
-    // chessboard shows what is paid and owed on its bars.
+    // chessboard shows what is paid and owed on its bars, the booking list on its lines.
     onSettled: () => {
+      qc.invalidateQueries({ queryKey: [BOOKINGS_KEY] })
       qc.invalidateQueries({ queryKey: [TODAY_KEY] })
       qc.invalidateQueries({ queryKey: [GANTT_KEY] })
     },
@@ -219,6 +220,7 @@ export function useConfirmPayment(bookingId: string) {
   return useMutation({
     mutationFn: (paymentId: string) => confirmPayment(bookingId, paymentId),
     onSuccess: () => {
+      qc.invalidateQueries({ queryKey: [BOOKINGS_KEY] })
       qc.invalidateQueries({ queryKey: [PAYMENTS_KEY, bookingId] })
       qc.invalidateQueries({ queryKey: [BOOKING_KEY, bookingId] })
       qc.invalidateQueries({ queryKey: [TODAY_KEY] })

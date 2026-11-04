@@ -234,9 +234,12 @@ function BookingRow({ booking }: { booking: Booking }) {
       <span className="justify-self-end lg:hidden">
         <BookingStatusBadge status={booking.status} />
       </span>
-      <span className="col-span-2 min-w-0 truncate text-sm text-ink lg:col-span-1">
-        {flat}
-        <span className="text-ink-muted lg:hidden"> · {stay.dates} · {stay.detail}</span>
+      <span className="col-span-2 min-w-0 text-sm text-ink lg:col-span-1">
+        <span className="block truncate">{flat}</span>
+        {/* On a phone the dates get their own line: a long flat name must not hide them. */}
+        <span className="block text-ink lg:hidden">
+          {stay.dates} <span className="text-ink-muted">· {stay.detail}</span>
+        </span>
         <span className="block truncate text-xs text-ink-muted">{t(`bookings.sources.${booking.source}`)}</span>
       </span>
       <span className="hidden min-w-0 lg:block">

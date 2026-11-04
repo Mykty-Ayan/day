@@ -33,6 +33,13 @@ test('an hourly stay shows its day and hours', () => {
   })
 })
 
+test('an hourly stay past midnight names both days', () => {
+  expect(stayLine({ check_in: '2026-11-14T15:00:00', check_out: '2026-11-15T18:00:00', rental_mode: 'hourly' }, fmt)).toEqual({
+    dates: '14 → 15 11',
+    detail: '15:00–18:00',
+  })
+})
+
 test('the debt is what is left of the price; a cancelled stay owes nothing', () => {
   expect(listOwes({ status: 'confirmed', total_price: 75000, paid_amount: 1000 })).toBe(74000)
   expect(listOwes({ status: 'confirmed', total_price: 75000, paid_amount: 80000 })).toBe(0)

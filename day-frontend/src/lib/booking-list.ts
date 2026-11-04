@@ -12,10 +12,14 @@ export function stayLine(
 ): { dates: string; detail: string } {
   const from = booking.check_in.slice(0, 10)
   const to = booking.check_out.slice(0, 10)
-  if (booking.rental_mode === 'hourly') {
-    return { dates: dayMonth(booking.check_in), detail: `${booking.check_in.slice(11, 16)}–${booking.check_out.slice(11, 16)}` }
-  }
   const sameMonth = from.slice(0, 7) === to.slice(0, 7)
+  if (booking.rental_mode === 'hourly') {
+    const hours = `${booking.check_in.slice(11, 16)}–${booking.check_out.slice(11, 16)}`
+    // Past midnight the stay ends on another day: both days are named, or 15:00–18:00
+    // would read the same for three hours and for twenty-seven.
+    if (from === to) return { dates: dayMonth(booking.check_in), detail: hours }
+    return { dates: `${sameMonth ? day(booking.check_in) : dayMonth(booking.check_in)} → ${dayMonth(booking.check_out)}`, detail: hours }
+  }
   const count = Math.round((Date.parse(to) - Date.parse(from)) / DAY_MS)
   return {
     dates: `${sameMonth ? day(booking.check_in) : dayMonth(booking.check_in)} → ${dayMonth(booking.check_out)}`,
