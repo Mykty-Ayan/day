@@ -5,7 +5,7 @@ import { useBookedNights, useUpdateBooking } from '../../hooks/useBookings'
 import { useCurrency } from '../../hooks/useCurrency'
 import { useProperty } from '../../hooks/useProperties'
 import { nightsWindow, switchRentalMode, wouldReprice } from '../../lib/booking-dates'
-import { datesForm, datesPatch, type DatesError, type DatesForm, type EditBlock } from '../../lib/booking-edit'
+import { datesForm, datesPatch, flatHours, type DatesError, type DatesForm, type EditBlock } from '../../lib/booking-edit'
 import {
   currentBreaches,
   getBookingApiErrorMessage,
@@ -217,7 +217,12 @@ function DatesFields({
             aria-labelledby="edit-mode-label"
             type="single"
             value={form.rental_mode}
-            onValueChange={(value) => value && set(switchRentalMode(form, value as RentalMode))}
+            onValueChange={(value) => {
+              if (!value) return
+              const next = switchRentalMode(form, value as RentalMode)
+              // From hours to nights: the flat's hours, read now that the flat is loaded.
+              set(value === 'daily' && booking.rental_mode === 'hourly' ? { ...next, ...flatHours(flat) } : next)
+            }}
           >
             <ToggleGroupItem value="daily">{t('bookings.rentalMode.daily')}</ToggleGroupItem>
             <ToggleGroupItem value="hourly">{t('bookings.rentalMode.hourly')}</ToggleGroupItem>

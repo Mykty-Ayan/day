@@ -1,9 +1,17 @@
 /** The "Dates" block of a booking's edit panel: what it shows, and the patch it sends. */
 
-import type { Booking, BookingUpdateInput, RentalMode } from '../types/booking'
+import type { Booking, BookingStatus, BookingUpdateInput, RentalMode } from '../types/booking'
 
 /** One block of a booking, edited on its own. */
 export type EditBlock = 'dates' | 'guests' | 'source' | 'notes'
+
+/** What may still change. A cancelled stay keeps only its notes; a finished one also
+ *  who brought the guest, since the agent's commission is paid on it afterwards. */
+export function editableBlocks(status: BookingStatus): EditBlock[] {
+  if (status === 'cancelled') return ['notes']
+  if (status === 'completed') return ['source', 'notes']
+  return ['dates', 'guests', 'source', 'notes']
+}
 
 export interface DatesForm {
   rental_mode: RentalMode
@@ -32,14 +40,19 @@ export interface FlatHours {
   check_out_hour?: number | null
 }
 
+/** The times a daily stay in this flat starts with. */
+export function flatHours(flat?: FlatHours): Pick<DatesForm, 'in_time' | 'out_time'> {
+  return { in_time: hour(flat?.check_in_hour ?? 14), out_time: hour(flat?.check_out_hour ?? 12) }
+}
+
 export function datesForm(booking: Booking, flat?: FlatHours): DatesForm {
   const hourly = booking.rental_mode === 'hourly'
   return {
     rental_mode: booking.rental_mode,
     check_in: datePart(booking.check_in),
     check_out: datePart(booking.check_out),
-    in_time: hourly ? hour(flat?.check_in_hour ?? 14) : timePart(booking.check_in),
-    out_time: hourly ? hour(flat?.check_out_hour ?? 12) : timePart(booking.check_out),
+    in_time: hourly ? flatHours(flat).in_time : timePart(booking.check_in),
+    out_time: hourly ? flatHours(flat).out_time : timePart(booking.check_out),
     hourly_date: hourly ? datePart(booking.check_in) : '',
     start_time: hourly ? timePart(booking.check_in) : '',
     end_time: hourly ? timePart(booking.check_out) : '',

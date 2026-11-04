@@ -839,7 +839,9 @@ function BookingPanelBody({ bookingId, fallback }: { bookingId: string; fallback
         <span aria-hidden="true">·</span>
         <span>{t(`bookings.sources.${booking.source}`)}</span>
       </div>
-      <BookingBlocks booking={booking} />
+      {/* Changed only once the full booking is in: the grid's copy lacks the price Day worked out,
+          and without it more guests would reprice the stay with no question. */}
+      <BookingBlocks booking={booking} editable={detail !== undefined} />
       {sums && (
         <div className="grid grid-cols-3 gap-2 text-center">
           <div className="rounded-xl border border-line px-2 py-2">

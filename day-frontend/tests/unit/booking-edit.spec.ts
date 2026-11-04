@@ -5,7 +5,7 @@
  */
 
 import { expect, test } from '@playwright/test'
-import { datesForm, datesPatch } from '../../src/lib/booking-edit'
+import { datesForm, datesPatch, editableBlocks, flatHours } from '../../src/lib/booking-edit'
 import type { Booking } from '../../src/types/booking'
 
 const daily = {
@@ -59,4 +59,15 @@ test('an hourly stay switched to daily starts with the flat hours', () => {
 test('hourly hours must end after they start', () => {
   const form = { ...datesForm(hourly), end_time: '09:00' }
   expect(datesPatch(hourly, form)).toEqual({ errors: { end_time: 'bookings.validation.endTimeAfterStart' } })
+})
+
+test('a finished stay keeps who brought the guest open: the commission follows it', () => {
+  expect(editableBlocks('completed')).toEqual(['source', 'notes'])
+  expect(editableBlocks('cancelled')).toEqual(['notes'])
+  expect(editableBlocks('confirmed')).toEqual(['dates', 'guests', 'source', 'notes'])
+})
+
+test('the flat hours are read when known, else 14:00 and 12:00', () => {
+  expect(flatHours({ check_in_hour: 15, check_out_hour: 11 })).toEqual({ in_time: '15:00', out_time: '11:00' })
+  expect(flatHours(undefined)).toEqual({ in_time: '14:00', out_time: '12:00' })
 })

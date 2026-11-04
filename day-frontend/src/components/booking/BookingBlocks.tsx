@@ -3,18 +3,17 @@ import { differenceInCalendarDays, format } from 'date-fns'
 import { Pencil } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { useAgents } from '../../hooks/useAgents'
-import type { EditBlock } from '../../lib/booking-edit'
+import { editableBlocks, type EditBlock } from '../../lib/booking-edit'
 import { dateLocale } from '../../lib/date-locale'
 import type { Booking } from '../../types/booking'
 import BookingEditSheet from './BookingEditSheet'
 
-/** The booking's blocks, each changed where it is shown: a press opens that block's panel.
- *  A cancelled or finished stay keeps only its notes open to change. */
-export default function BookingBlocks({ booking }: { booking: Booking }) {
+/** The booking's blocks, each changed where it is shown: a press opens that block's panel. */
+export default function BookingBlocks({ booking, editable = true }: { booking: Booking; editable?: boolean }) {
   const { t, i18n } = useTranslation()
   const { data: agents = [] } = useAgents()
   const [editing, setEditing] = useState<EditBlock | null>(null)
-  const closed = booking.status === 'cancelled' || booking.status === 'completed'
+  const openBlocks = editableBlocks(booking.status)
   const locale = dateLocale(i18n.language)
   const day = (value: string) => format(new Date(value), i18n.language === 'en' ? 'MMM d' : 'd MMM', { locale })
   const time = (value: string) => value.slice(11, 16)
@@ -63,7 +62,7 @@ export default function BookingBlocks({ booking }: { booking: Booking }) {
     <>
       <div className="flex flex-col divide-y divide-line">
         {rows.map((row) => {
-          const open = !closed || row.block === 'notes'
+          const open = editable && openBlocks.includes(row.block)
           const body = (
             <>
               <div className="min-w-0 flex-1">
