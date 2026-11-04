@@ -19,12 +19,15 @@ export default function TimeChips({
   onChange,
   options,
   labelledBy,
+  allowMidnight = false,
 }: {
   id: string
   value: string
   onChange: (value: string) => void
   options: string[]
   labelledBy: string
+  /** An hourly time: midnight is a real time there, not "no time". */
+  allowMidnight?: boolean
 }) {
   const { t } = useTranslation()
   const custom = value !== '' && !options.includes(value)
@@ -63,7 +66,7 @@ export default function TimeChips({
         className={`h-9 w-[5.5rem] rounded-lg border px-2 text-sm tabular-nums outline-none placeholder:text-ink-muted focus:border-accent ${
           !custom
             ? 'border-line bg-surface-card text-ink'
-            : isStayTime(value)
+            : isStayTime(value) || (allowMidnight && value === '00:00')
               ? 'border-accent bg-accent-soft font-semibold text-accent-ink'
               : 'border-danger bg-danger-soft text-danger'
         }`}

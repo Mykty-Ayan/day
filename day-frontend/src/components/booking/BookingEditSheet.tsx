@@ -5,9 +5,9 @@ import { calculatePrice } from '../../api/bookings'
 import { getAvailability } from '../../api/miniapp'
 import { useBookedNights, useUpdateBooking } from '../../hooks/useBookings'
 import { useCurrency } from '../../hooks/useCurrency'
-import { useAllProperties, useProperty } from '../../hooks/useProperties'
+import { useAllProperties, useProperty, usePropertyPricing } from '../../hooks/useProperties'
 import { nightsWindow, switchRentalMode, wouldReprice } from '../../lib/booking-dates'
-import { datesForm, datesPatch, flatHours, type DatesError, type DatesForm, type EditBlock } from '../../lib/booking-edit'
+import { datesForm, datesPatch, flatHours, hourlyStay, type DatesError, type DatesForm, type EditBlock } from '../../lib/booking-edit'
 import {
   currentBreaches,
   getBookingApiErrorMessage,
@@ -21,11 +21,11 @@ import DatePicker from '../ui/date-picker'
 import DateRangePicker from '../ui/date-range-picker'
 import NumberInput from '../ui/number-input'
 import { Sheet } from '../ui/sheet'
-import TimePicker from '../ui/time-picker'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select'
 import TimeChips, { CHECK_IN_TIMES, CHECK_OUT_TIMES } from '../ui/time-chips'
 import { showToast } from '../ui/Toast'
 import { ToggleGroup, ToggleGroupItem } from '../ui/toggle-group'
+import HourlyTimes from './HourlyTimes'
 import StayRulesAlert from './StayRulesAlert'
 
 const TITLES: Record<EditBlock, string> = {
@@ -207,8 +207,11 @@ function DatesFields({
     .filter((f) => f.id === booking.property_id || (f.status === 'active' && (f.rental_mode === 'both' || f.rental_mode === form.rental_mode)))
     .sort((a, b) => flatName(a).localeCompare(flatName(b), undefined, { numeric: true }))
   // The stay as the form has it now: which other flats are free for it.
-  const stayFrom = hourly ? (form.hourly_date && form.start_time ? `${form.hourly_date}T${form.start_time}:00` : '') : form.check_in ? `${form.check_in}T${form.in_time}:00` : ''
-  const stayTo = hourly ? (form.hourly_date && form.end_time ? `${form.hourly_date}T${form.end_time}:00` : '') : form.check_out ? `${form.check_out}T${form.out_time}:00` : ''
+  const hours = hourly && form.hourly_date && form.start_time && form.end_time ? hourlyStay(form.hourly_date, form.start_time, form.end_time) : null
+  const stayFrom = hourly ? (hours?.checkIn ?? '') : form.check_in ? `${form.check_in}T${form.in_time}:00` : ''
+  const stayTo = hourly ? (hours?.checkOut ?? '') : form.check_out ? `${form.check_out}T${form.out_time}:00` : ''
+  // The tariffs of the flat the stay is going to: they are the lengths offered.
+  const { data: targetPricing } = usePropertyPricing(form.property_id)
   const { data: free } = useQuery({
     // Under 'bookings': every booking change invalidates it, so a flat freed by a move shows free.
     queryKey: ['bookings', 'move-free', stayFrom, stayTo, form.rental_mode, booking.adults_count],
@@ -280,18 +283,17 @@ function DatesFields({
             />
             {error('check_in')}
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label htmlFor="edit-start-time" className={LABEL}>{t('bookings.startTime')}</label>
-              <TimePicker id="edit-start-time" value={form.start_time} onChange={(value) => set({ ...form, start_time: value })} />
-              {error('start_time')}
-            </div>
-            <div>
-              <label htmlFor="edit-end-time" className={LABEL}>{t('bookings.endTime')}</label>
-              <TimePicker id="edit-end-time" value={form.end_time} onChange={(value) => set({ ...form, end_time: value })} />
-              {error('end_time')}
-            </div>
-          </div>
+          <HourlyTimes
+            idPrefix="edit-hours"
+            start={form.start_time}
+            end={form.end_time}
+            pricing={targetPricing}
+            onChange={({ start, end }) => set({ ...form, start_time: start, end_time: end })}
+            errors={{
+              start: errors.start_time && t(errors.start_time),
+              end: errors.end_time && t(errors.end_time),
+            }}
+          />
         </>
       ) : (
         <>

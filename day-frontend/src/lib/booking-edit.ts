@@ -68,6 +68,58 @@ export function datesForm(booking: Booking, flat?: FlatHours): DatesForm {
   }
 }
 
+const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/
+
+function nextDay(day: string): string {
+  const next = new Date(`${day}T12:00:00Z`)
+  next.setUTCDate(next.getUTCDate() + 1)
+  return next.toISOString().slice(0, 10)
+}
+
+/** An hourly stay from its day and two times. An end at or before the start is the next
+ *  day: a night (22:00 to 12:00) or hours past midnight need no second date. */
+export function hourlyStay(day: string, start: string, end: string): { checkIn: string; checkOut: string } {
+  return { checkIn: `${day}T${start}:00`, checkOut: `${end <= start ? nextDay(day) : day}T${end}:00` }
+}
+
+/** One way to end an hourly stay: a tariff's hours, or the night until the flat's hour. */
+export type HourlyLength = { kind: 'hours'; hours: number } | { kind: 'night'; until: string }
+
+/** The lengths offered: the flat's tariffs that are on (3 h, 6 h, the night); all three
+ *  while its prices are not known. */
+export function hourlyLengths(pricing?: { price_3h: number; price_6h: number; price_night: number; night_to: string }): HourlyLength[] {
+  const lengths: HourlyLength[] = []
+  if (!pricing || pricing.price_3h > 0) lengths.push({ kind: 'hours', hours: 3 })
+  if (!pricing || pricing.price_6h > 0) lengths.push({ kind: 'hours', hours: 6 })
+  if (!pricing || pricing.price_night > 0) lengths.push({ kind: 'night', until: (pricing?.night_to ?? '12:00').slice(0, 5) })
+  return lengths
+}
+
+/** A length by kind, not by its end: the night ends at the hour of the flat now picked. */
+export function lengthKey(length: HourlyLength): string {
+  return length.kind === 'night' ? 'night' : `${length.hours}h`
+}
+
+/** What sets an hourly stay's end: a length (by kind) or a time typed in. */
+export type HourlyEnd = { by: 'length'; key: string } | { by: 'time' }
+
+/** The end for the start and the lengths on offer now. A picked length follows a whole
+ *  start (typing 1630 passes through 16) and the flat's own hours; one the flat does not
+ *  sell any more turns into the end it had, shown as typed. A typed end stays. */
+export function settleEnd(by: HourlyEnd, lengths: HourlyLength[], start: string, end: string): { by: HourlyEnd; end: string } {
+  if (by.by === 'time') return { by, end }
+  const length = lengths.find((l) => lengthKey(l) === by.key)
+  if (!length) return { by: { by: 'time' }, end }
+  return { by, end: TIME_RE.test(start) ? lengthEnd(start, length) : end }
+}
+
+/** Where a length starting at `start` ends, as HH:MM. */
+export function lengthEnd(start: string, length: HourlyLength): string {
+  if (length.kind === 'night') return length.until
+  const [h, m] = start.split(':').map(Number)
+  return `${String((h + length.hours) % 24).padStart(2, '0')}:${String(m).padStart(2, '0')}`
+}
+
 /** The patch for the dates as the form has them; only what changed goes out.
  *  A daily stay goes with its times: what the operator sees is what is saved. */
 export function datesPatch(booking: Booking, form: DatesForm): { patch: BookingUpdateInput } | { errors: DatesError } {
@@ -76,11 +128,21 @@ export function datesPatch(booking: Booking, form: DatesForm): { patch: BookingU
   let checkOut: string
   if (form.rental_mode === 'hourly') {
     if (!form.hourly_date) errors.check_in = 'bookings.validation.dateRequired'
-    if (!form.start_time) errors.start_time = 'bookings.validation.startTimeRequired'
-    if (!form.end_time) errors.end_time = 'bookings.validation.endTimeRequired'
-    else if (form.start_time && form.start_time >= form.end_time) errors.end_time = 'bookings.validation.endTimeAfterStart'
-    checkIn = `${form.hourly_date}T${form.start_time}:00`
-    checkOut = `${form.hourly_date}T${form.end_time}:00`
+    if (!TIME_RE.test(form.start_time)) errors.start_time = 'bookings.validation.startTimeRequired'
+    if (!TIME_RE.test(form.end_time)) errors.end_time = 'bookings.validation.endTimeRequired'
+    else if (form.start_time === form.end_time) errors.end_time = 'bookings.validation.endTimeAfterStart'
+    // Only a whole form gets its dates: an empty day has no next day.
+    if (Object.keys(errors).length > 0) return { errors }
+    const untouched =
+      booking.rental_mode === 'hourly' &&
+      form.hourly_date === datePart(booking.check_in) &&
+      form.start_time === timePart(booking.check_in) &&
+      form.end_time === timePart(booking.check_out)
+    // Untouched, the stay goes back as saved: one longer than a day (from the CRM) has
+    // its end on a later day than the form can say, and must not lose a day on a move.
+    ;({ checkIn, checkOut } = untouched
+      ? { checkIn: booking.check_in, checkOut: booking.check_out }
+      : hourlyStay(form.hourly_date, form.start_time, form.end_time))
   } else {
     if (!form.check_in) errors.check_in = 'bookings.validation.checkInRequired'
     if (!form.check_out) errors.check_out = 'bookings.validation.checkOutRequired'

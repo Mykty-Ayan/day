@@ -1,12 +1,14 @@
 import { useState } from 'react'
 import { differenceInCalendarDays, format } from 'date-fns'
-import { Users } from 'lucide-react'
+import { Pencil, Users } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { useProperty } from '../../hooks/useProperties'
+import { editableBlocks } from '../../lib/booking-edit'
 import { dateLocale } from '../../lib/date-locale'
 import type { bookingMoney } from '../../lib/booking-money'
 import type { Booking, BookingDeposit } from '../../types/booking'
 import BookingActions from './BookingActions'
+import BookingEditSheet from './BookingEditSheet'
 import BookingStatusBadge from './BookingStatusBadge'
 
 /** The stay at a glance: the flat, the way from arrival to departure, what to do next. */
@@ -20,6 +22,7 @@ export default function StayCard({
   deposits: BookingDeposit[]
 }) {
   const { t } = useTranslation()
+  const [editingDates, setEditingDates] = useState(false)
   const { data: property } = useProperty(booking.property_id)
   const photos = property?.photos ?? []
   const cover = photos.find((photo) => photo.is_cover) ?? photos[0]
@@ -54,14 +57,28 @@ export default function StayCard({
             {t('bookings.overbooking.detail')}
           </p>
         )}
-        <StayRoute booking={booking} />
+        {/* The dates are changed where they are shown: the "Booking" card leaves them out here. */}
+        {editableBlocks(booking.status).includes('dates') ? (
+          <button
+            type="button"
+            onClick={() => setEditingDates(true)}
+            // A short name: the dates inside read "Check-in", which the check-in step also is.
+            aria-label={`${t('common.edit')}: ${t('bookings.editBlock.dates')}`}
+            className="group -mx-3 block w-[calc(100%+1.5rem)] rounded-xl px-3 text-left transition-colors hover:bg-surface-page"
+          >
+            <StayRoute booking={booking} editable />
+          </button>
+        ) : (
+          <StayRoute booking={booking} />
+        )}
+        <BookingEditSheet booking={booking} block={editingDates ? 'dates' : null} onClose={() => setEditingDates(false)} />
         <BookingActions booking={booking} money={money} deposits={deposits} />
       </div>
     </section>
   )
 }
 
-function StayRoute({ booking }: { booking: Booking }) {
+function StayRoute({ booking, editable = false }: { booking: Booking; editable?: boolean }) {
   const { t, i18n } = useTranslation()
   const [now] = useState(() => Date.now())
   const from = new Date(booking.check_in)
@@ -99,7 +116,10 @@ function StayRoute({ booking }: { booking: Booking }) {
     <div className="my-5 flex items-center gap-3 sm:gap-5">
       {boundary(from, t('properties.checkIn'), false)}
       <div className="min-w-0 flex-1">
-        <p className="mb-1.5 text-center text-xs font-bold text-ink">{length}</p>
+        <p className="mb-1.5 flex items-center justify-center gap-1.5 text-xs font-bold text-ink">
+          {length}
+          {editable && <Pencil className="h-3 w-3 text-ink-muted transition-colors group-hover:text-accent-ink" aria-hidden="true" />}
+        </p>
         {staying ? (
           <div className="h-1.5 overflow-hidden rounded-full bg-accent-soft">
             <div className="h-full rounded-full bg-accent" style={{ width: `${progress * 100}%` }} />
