@@ -670,7 +670,9 @@
       "notes": "Заметки"
     },
     "noNotes": "Нет",
-    "blocksTitle": "Бронь"
+    "blocksTitle": "Бронь",
+    "flat": "Квартира",
+    "flatBusy": "занята"
   },
   "today": {
     "title": "Сегодня",

@@ -1,4 +1,4 @@
-/** The "Dates" block of a booking's edit panel: what it shows, and the patch it sends. */
+/** The "Dates" block of a booking's edit panel (flat, dates, times): what it shows, and the patch it sends. */
 
 import type { Booking, BookingStatus, BookingUpdateInput, RentalMode } from '../types/booking'
 
@@ -14,6 +14,8 @@ export function editableBlocks(status: BookingStatus): EditBlock[] {
 }
 
 export interface DatesForm {
+  /** The flat: another one moves the stay there, together with any new dates. */
+  property_id: string
   rental_mode: RentalMode
   /** Daily stays: yyyy-MM-dd and HH:mm for each end. */
   check_in: string
@@ -54,6 +56,7 @@ export function flatHours(flat?: FlatHours): Pick<DatesForm, 'in_time' | 'out_ti
 export function datesForm(booking: Booking, flat?: FlatHours): DatesForm {
   const hourly = booking.rental_mode === 'hourly'
   return {
+    property_id: booking.property_id,
     rental_mode: booking.rental_mode,
     check_in: datePart(booking.check_in),
     check_out: datePart(booking.check_out),
@@ -97,5 +100,6 @@ export function datesPatch(booking: Booking, form: DatesForm): { patch: BookingU
     patch.check_out = checkOut
     if (form.rental_mode !== booking.rental_mode) patch.rental_mode = form.rental_mode
   }
+  if (form.property_id !== booking.property_id) patch.property_id = form.property_id
   return { patch }
 }

@@ -230,6 +230,8 @@ export interface BookingCreateInput {
 }
 
 export interface BookingUpdateInput {
+  /** Another flat: the stay moves there in the same save as any new dates. */
+  property_id?: string
   check_in?: string
   check_out?: string
   rental_mode?: RentalMode

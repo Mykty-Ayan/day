@@ -652,7 +652,9 @@
       "notes": "Notes"
     },
     "noNotes": "None",
-    "blocksTitle": "Booking"
+    "blocksTitle": "Booking",
+    "flat": "Flat",
+    "flatBusy": "taken"
   },
   "today": {
     "title": "Today",

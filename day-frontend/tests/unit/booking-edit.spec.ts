@@ -72,6 +72,20 @@ test('the flat hours are read when known, else 14:00 and 12:00', () => {
   expect(flatHours(undefined)).toEqual({ in_time: '14:00', out_time: '12:00' })
 })
 
+test('another flat goes out alone when the dates stay', () => {
+  const booking = { ...daily, property_id: 'flat-a' } as Booking
+  const form = { ...datesForm(booking), property_id: 'flat-b' }
+  expect(datesPatch(booking, form)).toEqual({ patch: { property_id: 'flat-b' } })
+})
+
+test('another flat and new dates go out in one patch', () => {
+  const booking = { ...daily, property_id: 'flat-a' } as Booking
+  const form = { ...datesForm(booking), property_id: 'flat-b', check_out: '2026-11-20' }
+  expect(datesPatch(booking, form)).toEqual({
+    patch: { check_in: '2026-11-16T14:00:00', check_out: '2026-11-20T12:00:00', property_id: 'flat-b' },
+  })
+})
+
 test('a wrong typed time is refused, not replaced by the one picked before', () => {
   // Typed 1630, then 0000: the form must not quietly save 16:30.
   expect(datesPatch(daily, { ...datesForm(daily), in_time: '00:00' })).toEqual({

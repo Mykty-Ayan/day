@@ -103,6 +103,8 @@ class BookingCreate(BaseModel):
 
 class BookingUpdate(BaseModel):
     agent_id: uuid.UUID | None = None
+    # Another flat of the company, saved together with any new dates.
+    property_id: uuid.UUID | None = None
     check_in: datetime | None = None
     check_out: datetime | None = None
     rental_mode: RentalMode | None = None

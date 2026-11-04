@@ -32,7 +32,8 @@ export default function BookingBlocks({ booking, editable = true }: { booking: B
       value: hourly
         ? `${day(booking.check_in)} · ${length}`
         : `${day(booking.check_in)} → ${day(booking.check_out)} · ${length}`,
-      detail: `${time(booking.check_in)} → ${time(booking.check_out)}`,
+      // The flat goes with the dates: one panel changes both.
+      detail: `${booking.property_internal_name || booking.property_name} · ${time(booking.check_in)} → ${time(booking.check_out)}`,
     },
     {
       block: 'guests',
