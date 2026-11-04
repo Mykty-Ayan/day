@@ -1,7 +1,8 @@
 import uuid
 from datetime import datetime, time
 
-from sqlalchemy import Boolean, CheckConstraint, Integer, String, Time, UniqueConstraint
+from sqlalchemy import Boolean, CheckConstraint, Integer, SmallInteger, String, Time, UniqueConstraint
+from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.infrastructure.database import Base
@@ -21,6 +22,10 @@ class CompanySettingsModel(Base):
     minibar_on_booking: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
     minibar_opens: Mapped[time | None] = mapped_column(Time, nullable=True)
     minibar_closes: Mapped[time | None] = mapped_column(Time, nullable=True)
+    # Weekend nights, Monday 0: Friday and Saturday unless the company picks others.
+    weekend_nights: Mapped[list[int]] = mapped_column(
+        ARRAY(SmallInteger), default=lambda: [4, 5], server_default="{4,5}", nullable=False
+    )
     created_at: Mapped[datetime] = mapped_column(default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(default=datetime.utcnow, onupdate=datetime.utcnow)
 

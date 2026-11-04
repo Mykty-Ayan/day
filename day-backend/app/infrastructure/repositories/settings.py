@@ -25,6 +25,7 @@ def _model_to_settings(m: CompanySettingsModel) -> CompanySettings:
         minibar_on_booking=m.minibar_on_booking,
         minibar_opens=m.minibar_opens,
         minibar_closes=m.minibar_closes,
+        weekend_nights=tuple(m.weekend_nights),
         created_at=m.created_at,
         updated_at=m.updated_at,
     )
@@ -52,6 +53,7 @@ class SqlCompanySettingsRepository(CompanySettingsRepository):
             minibar_on_booking=settings.minibar_on_booking,
             minibar_opens=settings.minibar_opens,
             minibar_closes=settings.minibar_closes,
+            weekend_nights=list(settings.weekend_nights),
         )
         self._session.add(model)
         await self._session.flush()
@@ -72,6 +74,7 @@ class SqlCompanySettingsRepository(CompanySettingsRepository):
                 minibar_on_booking=settings.minibar_on_booking,
                 minibar_opens=settings.minibar_opens,
                 minibar_closes=settings.minibar_closes,
+                weekend_nights=list(settings.weekend_nights),
                 updated_at=datetime.utcnow(),
             )
         )

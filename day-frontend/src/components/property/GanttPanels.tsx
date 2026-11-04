@@ -7,9 +7,10 @@ import { format, parseISO } from 'date-fns'
 import { clearDayPrices, createBlock, deleteBlock, setDayPrices } from '../../api/properties'
 import { useBooking } from '../../hooks/useBookings'
 import { useCurrency } from '../../hooks/useCurrency'
+import { useWeekendDays } from '../../hooks/useSettings'
 import { bookingMoney } from '../../lib/booking-money'
 import { mainStep } from '../../lib/booking-steps'
-import { addDays, barDays, busyOn, clock, freeWindows, hoursOn, nightlyRate, nightRuns, nightsBetween, WEEKEND_NIGHTS } from '../../lib/chessboard'
+import { addDays, barDays, busyOn, clock, freeWindows, hoursOn, nightlyRate, nightRuns, nightsBetween } from '../../lib/chessboard'
 import { dateLocale } from '../../lib/date-locale'
 import { formatMoneyExact } from '../../pages/miniapp/format'
 import type { Booking, GanttBlock } from '../../types/booking'
@@ -122,7 +123,8 @@ function NewBooking({ row, selection, pricing }: { row: GanttRow; selection: Che
   const nights = nightsBetween(selection.first, selection.last)
   const busy = busyOn(row, selection.first, selection.last)
   const priced = new Map((row.dayPrices ?? []).map((night) => [night.date, night.price]))
-  const rates = nights.map((night) => nightlyRate(pricing, night, priced.get(night)))
+  const weekend = useWeekendDays()
+  const rates = nights.map((night) => nightlyRate(pricing, night, priced.get(night), weekend))
   const sum = rates.every((rate) => rate !== null) ? rates.reduce<number>((a, b) => a + (b ?? 0), 0) : null
   const daily = mode !== 'hourly'
   const hourly = mode !== 'daily'
@@ -186,7 +188,6 @@ function readPrice(text: string): number | null {
 
 // Monday first, as a week is read here; the numbers are Date.getDay().
 const WEEK = [1, 2, 3, 4, 5, 6, 0]
-const DAY_SETS = { all: WEEK, work: WEEK.filter((day) => !WEEKEND_NIGHTS.includes(day)), weekend: WEEKEND_NIGHTS }
 const weekday = (night: string) => parseISO(night).getDay()
 
 function SetPrice({
@@ -207,6 +208,9 @@ function SetPrice({
   // The weekend nights' extra, on top of the price: one step instead of two passes by weekday.
   const [markupText, setMarkupText] = useState('')
   const [days, setDays] = useState<number[]>([...WEEK])
+  // The company's weekend: the quick sets and the markup follow it.
+  const weekend = useWeekendDays()
+  const DAY_SETS = { all: WEEK, work: WEEK.filter((day) => !weekend.includes(day)), weekend: WEEK.filter((day) => weekend.includes(day)) }
   const [asking, setAsking] = useState<'set' | 'reset' | null>(null)
   const [busy, setBusy] = useState(false)
   const [failed, setFailed] = useState<string[]>([])
@@ -219,7 +223,7 @@ function SetPrice({
   // A night's price is for stays by the night: an hourly flat sells by its tariffs.
   const priceable = rows.filter((row) => row.property.rental_mode !== 'hourly')
   const hourly = rows.filter((row) => row.property.rental_mode === 'hourly')
-  const weekendPicked = nights.filter((night) => WEEKEND_NIGHTS.includes(weekday(night)))
+  const weekendPicked = nights.filter((night) => weekend.includes(weekday(night)))
   // The weekend price in whole tiyn (10000.10 + 1000.20 is 11000.30, not
   // 11000.300000000001), and checked before any write: a refused weekend price
   // after the weekdays' were saved would leave the nights half priced.
@@ -234,7 +238,7 @@ function SetPrice({
           { price: weekendPrice, runs: nightRuns(weekendPicked) },
         ]
       : [{ price, runs: nightRuns(nights) }]
-  const weekendNames = WEEKEND_NIGHTS.map((day) => t(`gantt.weekdays.${day}`)).join(', ')
+  const weekendNames = WEEK.filter((day) => weekend.includes(day)).map((day) => t(`gantt.weekdays.${day}`)).join(', ')
   const what = `${t('gantt.nightCount', { count: nights.length })}, ${priceable.map((row) => row.property.internal_name).join(', ')}`
   const sameSet = (set: readonly number[]) => present.every((day) => set.includes(day) === days.includes(day))
 
@@ -305,7 +309,7 @@ function SetPrice({
                       aria-pressed={on && there}
                       onClick={() => setDays(on ? days.filter((other) => other !== day) : [...days, day])}
                       className={`min-h-[40px] rounded-lg text-xs font-bold transition-colors disabled:opacity-30 ${
-                        on && there ? 'bg-accent text-white' : `border border-line text-ink hover:bg-surface-page ${WEEKEND_NIGHTS.includes(day) ? 'bg-surface-page' : ''}`
+                        on && there ? 'bg-accent text-white' : `border border-line text-ink hover:bg-surface-page ${weekend.includes(day) ? 'bg-surface-page' : ''}`
                       }`}
                     >
                       {t(`gantt.weekdays.${day}`)}
@@ -366,7 +370,7 @@ function SetPrice({
             {priceable.map((row) => {
               const pricing = pricingByProperty[row.property.id]
               const priced = new Map((row.dayPrices ?? []).map((night) => [night.date, night.price]))
-              const now = nights.map((night) => nightlyRate(pricing, night, priced.get(night))).filter((rate): rate is number => rate !== null)
+              const now = nights.map((night) => nightlyRate(pricing, night, priced.get(night), weekend)).filter((rate): rate is number => rate !== null)
               const low = Math.min(...now)
               const high = Math.max(...now)
               return (

@@ -60,6 +60,8 @@ def build_assistant_tools(
         SqlSeasonalPriceRepository(session),
         SqlDiscountRuleRepository(session),
         SqlDayPriceRepository(session),
+        SqlPropertyRepository(session),
+        SqlCompanySettingsRepository(session),
     )
 
     company_settings = SqlCompanySettingsRepository(session)

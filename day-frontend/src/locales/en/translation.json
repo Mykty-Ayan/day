@@ -1150,6 +1150,12 @@
       "hoursInvalid": "Give both times, and make them differ",
       "save": "Save",
       "failed": "Could not save"
+    },
+    "weekend": {
+      "title": "Weekend",
+      "description": "Nights with the weekend markup and the weekend tariff prices. The chessboard greys them.",
+      "save": "Save weekend",
+      "failed": "Could not save the weekend"
     }
   },
   "team": {

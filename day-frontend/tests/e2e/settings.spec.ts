@@ -68,3 +68,21 @@ test('the owner sets how guests pay for the minibar and its hours', async ({ pag
   })
   expect(reset.ok()).toBeTruthy()
 })
+
+test.describe('Company weekend - E2E', () => {
+  // The e2e company is shared: the weekend goes back to Friday and Saturday after.
+  test.afterEach(async ({ request }) => {
+    await request.patch(`${API_BASE}/settings`, { data: { weekend_nights: [4, 5] } })
+  })
+
+  test('the owner moves the weekend to Saturday and Sunday', async ({ page, request }) => {
+    await page.goto('/settings')
+    const card = page.getByRole('group', { name: 'Weekend' })
+    await expect(card.getByRole('checkbox', { name: 'Fri' })).toBeChecked()
+    await card.getByRole('checkbox', { name: 'Fri' }).uncheck()
+    await card.getByRole('checkbox', { name: 'Sun' }).check()
+    await page.getByRole('button', { name: 'Save weekend' }).click()
+
+    await expect.poll(async () => (await (await request.get(`${API_BASE}/settings`)).json()).weekend_nights).toEqual([5, 6])
+  })
+})

@@ -26,6 +26,8 @@ from app.domain.property.repositories import (
     SeasonalPriceRepository,
 )
 from app.domain.property.value_objects import FactAudience, PropertyStatus
+from app.domain.settings.entities import DEFAULT_WEEKEND_NIGHTS
+from app.domain.settings.repositories import CompanySettingsRepository
 
 # A cancelled booking and one that left early (completed) hold no night, as a new
 # booking finds them.
@@ -61,6 +63,7 @@ class GetPublicStayService:
         seasonal_repo: SeasonalPriceRepository,
         day_price_repo: DayPriceRepository,
         booking_repo: BookingRepository,
+        settings_repo: CompanySettingsRepository | None = None,
     ) -> None:
         self._properties = property_repo
         self._photos = photo_repo
@@ -69,6 +72,8 @@ class GetPublicStayService:
         self._seasonal = seasonal_repo
         self._day_prices = day_price_repo
         self._bookings = booking_repo
+        # The company's weekend nights for the prices shown; without it, Friday and Saturday.
+        self._settings = settings_repo
 
     async def execute(self, code: str, date_from: date, date_to: date) -> PublicStay:
         """The flat behind the code, with its nights in [date_from, date_to)."""
@@ -103,7 +108,9 @@ class GetPublicStayService:
         count = (date_to - date_from).days
         seasonals = await self._seasonal.list_by_pricing_config(pricing.id)
         calendar = {p.date: p.price for p in await self._day_prices.list_for_property(prop.id, date_from, date_to)}
-        rates: list[NightRate] = nightly_rates(pricing, seasonals, calendar, date_from, count)
+        company = await self._settings.get_by_company(prop.company_id) if self._settings else None
+        weekend = company.weekend_nights if company else DEFAULT_WEEKEND_NIGHTS
+        rates: list[NightRate] = nightly_rates(pricing, seasonals, calendar, date_from, count, weekend)
         taken = await taken_nights(self._bookings, prop, date_from, date_to)
         return [PublicNight(rate.date, rate.price, rate.date not in taken) for rate in rates]
 

@@ -1,7 +1,7 @@
 /** The chessboard's lanes and night prices. */
 
 import { expect, test } from '@playwright/test'
-import { assignLanes, barDays, barSpan, barTone, dayNumber, freeWindows, busyOn, byCompanyOrder, hoursOn, nightlyRate, nightRuns, nightsBetween, owes, rowLayout, toReturn } from '../../src/lib/chessboard'
+import { assignLanes, barDays, barSpan, barTone, dayNumber, freeWindows, busyOn, byCompanyOrder, hoursOn, nightlyRate, nightRuns, nightsBetween, owes, rowLayout, toReturn, weekendDays } from '../../src/lib/chessboard'
 import type { PricingConfig } from '../../src/types/property'
 
 const stay = (id: string, check_in: string, check_out: string, rental_mode = 'daily') => ({ id, check_in, check_out, rental_mode })
@@ -80,6 +80,14 @@ test('a night costs the base price, Friday and Saturday with the markup', () => 
   expect(nightlyRate(pricing, '2026-11-06')).toBe(24000) // Friday
   expect(nightlyRate(pricing, '2026-11-07')).toBe(24000) // Saturday
   expect(nightlyRate(pricing, '2026-11-08')).toBe(21000) // Sunday
+})
+
+test('a company weekend of Saturday and Sunday moves the markup', () => {
+  const weekend = weekendDays([5, 6]) // the server's Monday 0
+  expect(weekend).toEqual([6, 0])
+  expect(nightlyRate(pricing, '2026-11-06', undefined, weekend)).toBe(21000) // Friday
+  expect(nightlyRate(pricing, '2026-11-08', undefined, weekend)).toBe(24000) // Sunday
+  expect(weekendDays(undefined)).toEqual([5, 6])
 })
 
 test('a season replaces the base price, and a calendar price replaces both', () => {

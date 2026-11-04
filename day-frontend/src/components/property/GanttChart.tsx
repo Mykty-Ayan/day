@@ -2,6 +2,7 @@ import { Fragment, useMemo, useRef, useState, useCallback, useEffect } from 'rea
 import { motion, Reorder } from 'framer-motion'
 import { Link } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
+import { useWeekendDays } from '../../hooks/useSettings'
 import { ArrowUpDown, ChevronDown, ChevronUp, Clock, GripVertical, LogIn, LogOut, Moon, Users } from 'lucide-react'
 import type { Booking, BookingDetail, BookingStatus, GanttBlock, GanttDayPrice, GanttPropertySummary } from '../../types/booking'
 import type { PricingConfig } from '../../types/property'
@@ -9,7 +10,7 @@ import { showToast } from '../ui/Toast'
 import { moveBooking } from '../../api/bookings'
 import { orderProperties } from '../../api/properties'
 import { stayRuleBreaches, stayRuleText, type StayRuleBreach } from '../../lib/booking-errors'
-import { addDays, barDays, busyOn, byCompanyOrder, barSpan, barTone, dayNumber, dayOf, hoursOn, nightlyRate, nightsBetween, owes, rowLayout, toReturn, WEEKEND_NIGHTS, type BarTone } from '../../lib/chessboard'
+import { addDays, barDays, busyOn, byCompanyOrder, barSpan, barTone, dayNumber, dayOf, hoursOn, nightlyRate, nightsBetween, owes, rowLayout, toReturn, type BarTone } from '../../lib/chessboard'
 import { formatMoney } from '../../pages/miniapp/format'
 import ConfirmDialog from '../ui/ConfirmDialog'
 import { Sheet } from '../ui/sheet'
@@ -213,6 +214,8 @@ export default function GanttChart({
   onMoveClose,
 }: Props) {
   const { t, i18n } = useTranslation()
+  // The company's weekend nights: grey columns and the markup in the night prices.
+  const weekend = useWeekendDays()
   const queryClient = useQueryClient()
   const { symbol: currencySymbol } = useCurrency()
   const isCoarsePointer = useMediaQuery('(hover: none), (pointer: coarse)')
@@ -868,7 +871,7 @@ export default function GanttChart({
             <div className="flex border-b border-line" style={{ height: ROW_H }}>
               {days.map((day) => {
                 const dayKey = toDateStr(day)
-                const isWeekend = WEEKEND_NIGHTS.includes(day.getDay())
+                const isWeekend = weekend.includes(day.getDay())
                 const isToday = dayKey === todayStr
                 const isMonthStart = day.getDate() === 1
                 return (
@@ -941,7 +944,7 @@ export default function GanttChart({
                 {/* Day cells */}
                 {days.map((day) => {
                   const dayKey = toDateStr(day)
-                  const isWeekend = WEEKEND_NIGHTS.includes(day.getDay())
+                  const isWeekend = weekend.includes(day.getDay())
                   const isToday = dayKey === todayStr
                   const isMonthStart = day.getDate() === 1
                   const isMarked = rowMarked && marked !== null && marked.first <= dayKey && dayKey <= marked.last
@@ -950,7 +953,7 @@ export default function GanttChart({
                   const custom = priced.get(dayKey)
                   const rate = hasBooking || closed || row.property.rental_mode === 'hourly'
                     ? null
-                    : nightlyRate(pricingByProperty?.[row.property.id], dayKey, custom)
+                    : nightlyRate(pricingByProperty?.[row.property.id], dayKey, custom, weekend)
                   const cell = { row: rowIndex, day: dayKey }
                   // A booking is not made on a paused flat; its prices and nights can still change.
                   const refused = isPaused && tool === 'booking'

@@ -105,6 +105,7 @@ async def public_stay(
         SqlSeasonalPriceRepository(session),
         SqlDayPriceRepository(session),
         SqlBookingRepository(session),
+        SqlCompanySettingsRepository(session),
     )
     try:
         stay = await service.execute(code, start, end)
@@ -142,6 +143,8 @@ def _holds(session: AsyncSession) -> GuestHoldService:
         SqlSeasonalPriceRepository(session),
         SqlDiscountRuleRepository(session),
         SqlDayPriceRepository(session),
+        SqlPropertyRepository(session),
+        SqlCompanySettingsRepository(session),
     )
     audit, settings_repo = SqlBookingAuditLogRepository(session), SqlCompanySettingsRepository(session)
     return GuestHoldService(

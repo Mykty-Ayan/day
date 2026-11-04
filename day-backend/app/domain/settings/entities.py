@@ -10,6 +10,10 @@ from app.domain.settings.value_objects import Currency, Language
 DEFAULT_TIME_ZONE = "Asia/Almaty"
 
 
+# The nights (Monday 0) the weekend markup and weekend tariffs fall on: Friday and Saturday.
+DEFAULT_WEEKEND_NIGHTS: tuple[int, ...] = (4, 5)
+
+
 @dataclass
 class CompanySettings:
     id: uuid.UUID = field(default_factory=uuid.uuid4)
@@ -30,6 +34,9 @@ class CompanySettings:
     # clock. Closing before opening runs past midnight (10:00–02:00).
     minibar_opens: time | None = None
     minibar_closes: time | None = None
+    # Nights the company counts as the weekend, Monday 0; the owner picks among
+    # Friday, Saturday and Sunday. Empty: no weekend prices at all.
+    weekend_nights: tuple[int, ...] = DEFAULT_WEEKEND_NIGHTS
     created_at: datetime | None = None
     updated_at: datetime | None = None
 
