@@ -95,6 +95,15 @@ export function hourlyLengths(pricing?: { price_3h: number; price_6h: number; pr
   return lengths
 }
 
+/** What sets an hourly stay's end: a length (its index among those offered) or a time typed in. */
+export type HourlyEnd = { by: 'length'; length: HourlyLength } | { by: 'time' }
+
+/** The end after a new start: a picked length moves with it, once the start is a whole
+ *  time (typing 1630 passes through 16 and 163); a typed end stays as typed. */
+export function endAfterStart(by: HourlyEnd, start: string, end: string): string {
+  return by.by === 'length' && TIME_RE.test(start) ? lengthEnd(start, by.length) : end
+}
+
 /** Where a length starting at `start` ends, as HH:MM. */
 export function lengthEnd(start: string, length: HourlyLength): string {
   if (length.kind === 'night') return length.until
@@ -113,6 +122,8 @@ export function datesPatch(booking: Booking, form: DatesForm): { patch: BookingU
     if (!TIME_RE.test(form.start_time)) errors.start_time = 'bookings.validation.startTimeRequired'
     if (!TIME_RE.test(form.end_time)) errors.end_time = 'bookings.validation.endTimeRequired'
     else if (form.start_time === form.end_time) errors.end_time = 'bookings.validation.endTimeAfterStart'
+    // Only a whole form gets its dates: an empty day has no next day.
+    if (Object.keys(errors).length > 0) return { errors }
     ;({ checkIn, checkOut } = hourlyStay(form.hourly_date, form.start_time, form.end_time))
   } else {
     if (!form.check_in) errors.check_in = 'bookings.validation.checkInRequired'

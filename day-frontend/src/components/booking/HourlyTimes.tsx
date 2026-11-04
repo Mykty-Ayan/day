@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { hourlyLengths, lengthEnd, type HourlyLength } from '../../lib/booking-edit'
+import { endAfterStart, hourlyLengths, lengthEnd, type HourlyEnd, type HourlyLength } from '../../lib/booking-edit'
 import type { PricingConfig } from '../../types/property'
 import TimeChips from '../ui/time-chips'
 
@@ -32,8 +32,14 @@ export default function HourlyTimes({
   const lengths = hourlyLengths(pricing ?? undefined)
   const label = (length: HourlyLength) =>
     length.kind === 'night' ? t('bookings.lengthNight') : t('bookings.lengthHours', { n: length.hours })
-  const picked = lengths.find((length) => start && lengthEnd(start, length) === end)
-  const custom = end !== '' && !picked
+  // What sets the end, kept apart from the end itself: a typed end that happens to equal
+  // a length's end is still typed, and a length stays picked while the start is typed.
+  const [by, setBy] = useState<HourlyEnd | null>(() => {
+    const length = lengths.find((l) => start && lengthEnd(start, l) === end)
+    return length ? { by: 'length', length } : end ? { by: 'time' } : null
+  })
+  const pickedKey = by?.by === 'length' ? label(by.length) : null
+  const custom = by?.by === 'time'
   const [other, setOther] = useState(custom ? end : '')
 
   return (
@@ -48,7 +54,7 @@ export default function HourlyTimes({
           allowMidnight
           onChange={(value) => {
             // The length stays as it was picked: the end moves with the start.
-            onChange({ start: value, end: picked && TIME.test(value) ? lengthEnd(value, picked) : end })
+            onChange({ start: value, end: by ? endAfterStart(by, value, end) : end })
           }}
         />
         {errors.start && <p className={ERROR}>{errors.start}</p>}
@@ -58,7 +64,7 @@ export default function HourlyTimes({
         <div id={`${idPrefix}-length`} role="group" aria-labelledby={`${idPrefix}-length-label`} className="flex flex-wrap gap-1.5">
           {lengths.map((length) => {
             const until = start ? lengthEnd(start, length) : ''
-            const on = picked === length
+            const on = pickedKey === label(length)
             return (
               <button
                 key={label(length)}
@@ -67,6 +73,7 @@ export default function HourlyTimes({
                 disabled={!start}
                 onClick={() => {
                   setOther('')
+                  setBy({ by: 'length', length })
                   onChange({ start, end: until })
                 }}
                 className={`flex h-9 items-center gap-1 rounded-lg px-2.5 text-sm font-semibold transition-colors disabled:opacity-40 ${
@@ -87,6 +94,7 @@ export default function HourlyTimes({
             onChange={(e) => {
               const typed = e.target.value.replace(/^(\d{2})(\d{2})$/, '$1:$2')
               setOther(typed)
+              setBy({ by: 'time' })
               onChange({ start, end: typed })
             }}
             className={`h-9 w-[6.5rem] rounded-lg border px-2 text-sm tabular-nums outline-none placeholder:text-ink-muted focus:border-accent ${

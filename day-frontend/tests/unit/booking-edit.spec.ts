@@ -5,7 +5,7 @@
  */
 
 import { expect, test } from '@playwright/test'
-import { datesForm, datesPatch, editableBlocks, flatHours, hourlyLengths, hourlyStay, isStayTime, lengthEnd } from '../../src/lib/booking-edit'
+import { datesForm, datesPatch, editableBlocks, flatHours, endAfterStart, hourlyLengths, hourlyStay, isStayTime, lengthEnd } from '../../src/lib/booking-edit'
 import type { Booking } from '../../src/types/booking'
 
 const daily = {
@@ -119,4 +119,20 @@ test('the lengths offered follow the flat tariffs that are on', () => {
 test('an hourly stay saved across midnight keeps its next-day end', () => {
   const night = { check_in: '2026-11-14T22:00:00', check_out: '2026-11-15T12:00:00', rental_mode: 'hourly' } as Booking
   expect(datesPatch(night, datesForm(night))).toEqual({ patch: {} })
+})
+
+test('a night with its day cleared is refused, not broken', () => {
+  const night = { check_in: '2026-11-14T22:00:00', check_out: '2026-11-15T12:00:00', rental_mode: 'hourly' } as Booking
+  expect(datesPatch(night, { ...datesForm(night), hourly_date: '' })).toEqual({
+    errors: { check_in: 'bookings.validation.dateRequired' },
+  })
+})
+
+test('a picked length moves the end with a whole new start; a typed end stays', () => {
+  const three = { by: 'length' as const, length: { kind: 'hours' as const, hours: 3 } }
+  // 09:00 till 12:00 typed by hand, then the start moves: the end stays 12:00.
+  expect(endAfterStart({ by: 'time' }, '10:00', '12:00')).toBe('12:00')
+  // 15:00 + 3 h, the start typed as 1630: no move while it is "16", then 19:30.
+  expect(endAfterStart(three, '16', '18:00')).toBe('18:00')
+  expect(endAfterStart(three, '16:30', '18:00')).toBe('19:30')
 })
