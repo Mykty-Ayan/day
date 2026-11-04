@@ -113,18 +113,23 @@ export function nightsBetween(first: string, last: string): string[] {
 }
 
 /** A flat's stays and closed nights that take any of the picked nights, first to last.
- *  A cancelled or completed stay holds no night, as the server counts it. */
+ *  A stay counts by its hours against the nights' own, from 14:00 of the first to
+ *  12:00 after the last (the server's defaults): hours in the morning before the first
+ *  night leave it free. The server checks the flat's own hours. A cancelled or
+ *  completed stay holds no night, as the server counts it. */
 export function busyOn<B extends { status: string; check_in: string; check_out: string }, C extends { start_date: string; end_date: string }>(
   row: { bookings: B[]; blocks?: C[] },
   first: string,
   last: string,
 ): { bookings: B[]; blocks: C[] } {
   const after = addDays(last, 1)
+  // A bare date is the server's default hour: in at 14:00, out at 12:00.
+  const at = (value: string, hour: string) => (value.length > 10 ? value.slice(0, 19) : `${value}T${hour}`)
+  const [from, to] = [`${first}T14:00:00`, `${after}T12:00:00`]
   return {
     bookings: row.bookings.filter((booking) => {
       if (booking.status === 'cancelled' || booking.status === 'completed') return false
-      const { start, end } = barDays(booking.check_in, booking.check_out)
-      return start < after && first < end
+      return at(booking.check_in, '14:00:00') < to && from < at(booking.check_out, '12:00:00')
     }),
     blocks: (row.blocks ?? []).filter((block) => block.start_date < after && first < block.end_date),
   }
@@ -149,15 +154,23 @@ export function hoursOn<S extends Stay & { status: string }>(stays: S[], day: st
     .sort((a, b) => a.from - b.from)
 }
 
+// The server's default check-out hour, where a closed time starts and ends.
+const CLOSED_FROM = '12:00:00'
+
 /** The hours of a day no stay holds, an hour or longer, "14:00"–"16:00": where one more
  *  stay by the hour fits. Today's start from the next whole hour. */
 export function freeWindows(
-  stays: (Stay & { status: string })[],
+  stays: (Pick<Stay, 'check_in' | 'check_out'> & { status: string })[],
   day: string,
   now?: string,
+  closed: { start_date: string; end_date: string }[] = [],
 ): { from: string; to: string; hours: number }[] {
-  const held = stays
-    .filter((stay) => stay.status !== 'cancelled' && stay.status !== 'completed')
+  const held = [
+    ...stays.filter((stay) => stay.status !== 'cancelled' && stay.status !== 'completed'),
+    // A closed time runs from the check-out hour of its first day to that of its last,
+    // as the server counts it (blocks.py): the morning before it stays free.
+    ...closed.map((block) => ({ check_in: `${block.start_date}T${CLOSED_FROM}`, check_out: `${block.end_date}T${CLOSED_FROM}` })),
+  ]
     .map((stay) => ({ from: minuteOn(stay.check_in, day), to: minuteOn(stay.check_out, day) }))
     .filter((part) => part.to > part.from)
     .sort((a, b) => a.from - b.from)
@@ -229,4 +242,10 @@ export function rowLayout(stays: (Stay & { status: string })[]): {
   }
   const clocks = new Set(all.filter((day) => clocked.has(day)).map((day) => clocked.get(day) as string))
   return { ...lanes, days, inside, clocks }
+}
+
+/** Flats in the company's order; those it did not place after, by name. */
+export function byCompanyOrder<R extends { property: { internal_name: string; position?: number | null } }>(rows: R[]): R[] {
+  const place = (row: R) => row.property.position ?? Number.MAX_SAFE_INTEGER
+  return [...rows].sort((a, b) => place(a) - place(b) || a.property.internal_name.localeCompare(b.property.internal_name))
 }

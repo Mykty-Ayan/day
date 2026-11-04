@@ -9,7 +9,7 @@ import { showToast } from '../ui/Toast'
 import { moveBooking } from '../../api/bookings'
 import { orderProperties } from '../../api/properties'
 import { stayRuleBreaches, stayRuleText, type StayRuleBreach } from '../../lib/booking-errors'
-import { barDays, barSpan, barTone, dayNumber, dayOf, hoursOn, nightlyRate, nightsBetween, owes, rowLayout, toReturn, WEEKEND_NIGHTS, type BarTone } from '../../lib/chessboard'
+import { addDays, barDays, byCompanyOrder, barSpan, barTone, dayNumber, dayOf, hoursOn, nightlyRate, nightsBetween, owes, rowLayout, toReturn, WEEKEND_NIGHTS, type BarTone } from '../../lib/chessboard'
 import { formatMoney } from '../../pages/miniapp/format'
 import ConfirmDialog from '../ui/ConfirmDialog'
 import { Sheet } from '../ui/sheet'
@@ -251,10 +251,8 @@ export default function GanttChart({
   // A flat being moved must be named in full: the handles take a phone's narrow column.
   const nameW = ordering !== null && isMobile ? 184 : baseNameW
   const sortedRows = useMemo(() => {
-    const byName = [...rows].sort((a, b) => a.property.internal_name.localeCompare(b.property.internal_name))
-    if (ordering) return ordering.map((id) => byName.find((row) => row.property.id === id)).filter((row): row is GanttRow => row !== undefined)
-    const placed = (row: GanttRow) => row.property.position ?? Number.MAX_SAFE_INTEGER
-    return byName.sort((a, b) => placed(a) - placed(b))
+    if (ordering) return ordering.map((id) => rows.find((row) => row.property.id === id)).filter((row): row is GanttRow => row !== undefined)
+    return byCompanyOrder(rows)
   }, [rows, ordering])
 
   function moveRow(id: string, by: -1 | 1) {
@@ -528,6 +526,9 @@ export default function GanttChart({
       await moveBooking(bookingId, { target_property_id: targetPropertyId, override_rules: overrideRules || undefined })
       queryClient.invalidateQueries({ queryKey: ['gantt-data'] })
       queryClient.invalidateQueries({ queryKey: ['bookings'] })
+      // The booking's panel reads its flat: an extension is then priced by the new one.
+      queryClient.invalidateQueries({ queryKey: ['booking', bookingId] })
+      queryClient.invalidateQueries({ queryKey: ['extend-quote', bookingId] })
       showToast('success', t('gantt.bookingMoved'))
     } catch (error) {
       const breaches = stayRuleBreaches(error)
@@ -1070,7 +1071,8 @@ export default function GanttChart({
 
                 {/* A day by the hour: one strip, the day's 24 hours with the stays on it */}
                 {(lanes?.days ?? []).map((day) => {
-                  const pos = getSpanPosition(day, day)
+                  // A day's cell, [day, day + 1): on the first day shown an empty span is dropped.
+                  const pos = getSpanPosition(day, addDays(day, 1))
                   if (!pos) return null
                   const parts = hoursOn(row.bookings, day)
                   const owing = parts.filter((part) => owes(part.stay) > 0)

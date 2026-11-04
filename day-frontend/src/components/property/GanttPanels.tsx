@@ -11,7 +11,7 @@ import { bookingMoney } from '../../lib/booking-money'
 import { mainStep } from '../../lib/booking-steps'
 import { addDays, barDays, busyOn, clock, freeWindows, hoursOn, nightlyRate, nightRuns, nightsBetween, WEEKEND_NIGHTS } from '../../lib/chessboard'
 import { dateLocale } from '../../lib/date-locale'
-import { formatMoney } from '../../pages/miniapp/format'
+import { formatMoneyExact } from '../../pages/miniapp/format'
 import type { Booking, GanttBlock } from '../../types/booking'
 import type { PricingConfig } from '../../types/property'
 import BookingActions from '../booking/BookingActions'
@@ -47,7 +47,8 @@ function useDates() {
 function useMoney() {
   const { i18n } = useTranslation()
   const { symbol } = useCurrency()
-  return (value: number) => `${formatMoney(value, i18n.language)} ${symbol}`
+  // Exact: a price with tiyn is confirmed as it will be saved.
+  return (value: number) => `${formatMoneyExact(value, i18n.language)} ${symbol}`
 }
 
 /** One write per flat: each goes on its own, and the panel says which did not. */
@@ -218,13 +219,18 @@ function SetPrice({
   const priceable = rows.filter((row) => row.property.rental_mode !== 'hourly')
   const hourly = rows.filter((row) => row.property.rental_mode === 'hourly')
   const weekendPicked = nights.filter((night) => WEEKEND_NIGHTS.includes(weekday(night)))
+  // The weekend price in whole tiyn (10000.10 + 1000.20 is 11000.30, not
+  // 11000.300000000001), and checked before any write: a refused weekend price
+  // after the weekdays' were saved would leave the nights half priced.
+  const weekendPrice = price !== null && markup !== null ? Math.round((price + markup) * 100) / 100 : null
+  const tooHigh = weekendPrice !== null && weekendPrice > MAX_PRICE
   // The nights by the price they get: the weekend ones may get more.
-  const writes = price === null || markup === null
+  const writes = price === null || markup === null || weekendPrice === null || tooHigh
     ? []
     : markup > 0
       ? [
           { price, runs: nightRuns(nights.filter((night) => !weekendPicked.includes(night))) },
-          { price: price + markup, runs: nightRuns(weekendPicked) },
+          { price: weekendPrice, runs: nightRuns(weekendPicked) },
         ]
       : [{ price, runs: nightRuns(nights) }]
   const weekendNames = WEEKEND_NIGHTS.map((day) => t(`gantt.weekdays.${day}`)).join(', ')
@@ -264,7 +270,7 @@ function SetPrice({
           className="flex flex-col gap-4"
           onSubmit={(event) => {
             event.preventDefault()
-            if (price !== null && markup !== null && nights.length > 0) setAsking('set')
+            if (writes.length > 0 && nights.length > 0) setAsking('set')
           }}
         >
           {/* Which nights of the range: all, the weekdays, or Friday and Saturday */}
@@ -346,7 +352,7 @@ function SetPrice({
                 />
                 <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm text-ink-muted">₸</span>
               </div>
-              {markup === null ? (
+              {markup === null || tooHigh ? (
                 <p id="weekend-markup-error" className="text-xs text-danger">{t('gantt.priceInvalid')}</p>
               ) : (
                 <p id="weekend-markup-hint" className="text-xs text-ink-muted">{t('gantt.markupHint', { days: weekendNames })}</p>
@@ -376,7 +382,7 @@ function SetPrice({
                         <ArrowRight className="h-3 w-3 text-ink-muted" aria-hidden="true" />
                         {money(price)}
                         {markup !== null && markup > 0 && weekendPicked.length > 0 && (
-                          <span>· {t('gantt.weekendPrice', { price: money(price + markup) })}</span>
+                          <span>· {t('gantt.weekendPrice', { price: money(weekendPrice ?? price) })}</span>
                         )}
                       </span>
                     )}
@@ -392,7 +398,7 @@ function SetPrice({
           </div>
 
           <p className="text-xs text-ink-muted">{t('gantt.priceHint')}</p>
-          <Button type="submit" disabled={price === null || nights.length === 0 || busy}>{t('gantt.priceSet')}</Button>
+          <Button type="submit" disabled={writes.length === 0 || nights.length === 0 || busy}>{t('gantt.priceSet')}</Button>
           <button
             type="button"
             disabled={busy || nights.length === 0}
@@ -413,7 +419,7 @@ function SetPrice({
       <ConfirmDialog
         open={asking !== null}
         title={asking === 'set' && price !== null ? t('gantt.priceAsk', { price: money(price) }) : t('gantt.priceResetAsk')}
-        message={`${what}${asking === 'set' && price !== null && markup ? `; ${t('gantt.weekendPrice', { price: money(price + markup) })}` : ''}. ${t('gantt.priceHint')}`}
+        message={`${what}${asking === 'set' && weekendPrice !== null && markup ? `; ${t('gantt.weekendPrice', { price: money(weekendPrice) })}` : ''}. ${t('gantt.priceHint')}`}
         confirmLabel={asking === 'set' ? t('gantt.priceSet') : t('gantt.priceReset')}
         loading={busy}
         onCancel={() => setAsking(null)}
@@ -642,7 +648,7 @@ export function HourlyDayPanel({
   const row = open?.row
   const day = open?.day ?? ''
   const stays = row ? hoursOn(row.bookings, day) : []
-  const windows = row ? freeWindows(row.bookings, day, nowKey) : []
+  const windows = row ? freeWindows(row.bookings, day, nowKey, row.blocks ?? []) : []
   // Stays by the night that arrive or leave this day, at their hour.
   const nights = (row?.bookings ?? [])
     .filter((booking) => booking.rental_mode !== 'hourly' && booking.status !== 'cancelled')
@@ -748,8 +754,8 @@ export function HourlyDayPanel({
                     <p className="text-sm font-semibold text-success tabular-nums">{item.window.from}–{item.window.to}</p>
                     <p className="text-xs text-ink-muted">{t('gantt.freeHours', { count: item.window.hours })}</p>
                   </div>
-                  {/* The shortest stay by the hour is three hours. */}
-                  {item.window.hours >= 3 && <button
+                  {/* Any free hour can be sold: a short stay is priced by the tariffs' rounding up. */}
+                  <button
                     type="button"
                     disabled={paused}
                     className="shrink-0 rounded-lg bg-accent px-3 py-1.5 text-xs font-bold text-white transition-colors hover:bg-accent/90 disabled:opacity-50"
@@ -761,7 +767,7 @@ export function HourlyDayPanel({
                     }
                   >
                     {t('gantt.book')}
-                  </button>}
+                  </button>
                 </li>
               ) : null,
             )}

@@ -1,7 +1,7 @@
 /** The chessboard's lanes and night prices. */
 
 import { expect, test } from '@playwright/test'
-import { assignLanes, barDays, barSpan, barTone, dayNumber, freeWindows, hoursOn, nightlyRate, nightRuns, nightsBetween, owes, rowLayout, toReturn } from '../../src/lib/chessboard'
+import { assignLanes, barDays, barSpan, barTone, dayNumber, freeWindows, busyOn, byCompanyOrder, hoursOn, nightlyRate, nightRuns, nightsBetween, owes, rowLayout, toReturn } from '../../src/lib/chessboard'
 import type { PricingConfig } from '../../src/types/property'
 
 const stay = (id: string, check_in: string, check_out: string, rental_mode = 'daily') => ({ id, check_in, check_out, rental_mode })
@@ -218,4 +218,38 @@ test('a cancelled stay takes no hours inside it and carries no clock', () => {
   ])
   expect(row.clocks.size).toBe(0)
   expect(row.days).toEqual(['2026-11-04'])
+})
+
+test('hours in the morning do not take the night that starts at 14:00, hours on the way out do', () => {
+  const row = {
+    bookings: [
+      { status: 'confirmed', check_in: '2026-11-06T10:00:00', check_out: '2026-11-06T13:00:00' },
+      { status: 'confirmed', check_in: '2026-11-08T10:00:00', check_out: '2026-11-08T11:00:00' },
+    ],
+  }
+  // The night of the 6th, out on the 7th: the 6th's morning hours are over by then.
+  expect(busyOn(row, '2026-11-06', '2026-11-06').bookings).toHaveLength(0)
+  // Out on the 8th at noon: the 8th's 10–11 is still the guest's.
+  expect(busyOn(row, '2026-11-07', '2026-11-07').bookings).toHaveLength(1)
+  // A stay by bare dates is in at 14:00 and out at 12:00: the night before it is free.
+  const dates = { bookings: [{ status: 'confirmed', check_in: '2026-11-10', check_out: '2026-11-12' }] }
+  expect(busyOn(dates, '2026-11-09', '2026-11-09').bookings).toHaveLength(0)
+  expect(busyOn(dates, '2026-11-11', '2026-11-11').bookings).toHaveLength(1)
+  expect(busyOn(dates, '2026-11-12', '2026-11-12').bookings).toHaveLength(0)
+})
+
+test('free hours leave out a closed time, from the check-out hour of its first day', () => {
+  const closed = [{ start_date: '2026-11-03', end_date: '2026-11-05' }]
+  expect(freeWindows([hour('a', '09:00', '11:00')], '2026-11-03', undefined, closed)).toEqual([
+    { from: '00:00', to: '09:00', hours: 9 },
+    { from: '11:00', to: '12:00', hours: 1 },
+  ])
+  expect(freeWindows([], '2026-11-04', undefined, closed)).toEqual([])
+  expect(freeWindows([], '2026-11-05', undefined, closed)).toEqual([{ from: '12:00', to: '24:00', hours: 12 }])
+})
+
+test("flats go in the company's order, the rest after them by name", () => {
+  const row = (internal_name: string, position: number | null) => ({ property: { internal_name, position } })
+  const rows = [row('Кв. 12', null), row('Студия 7', 0), row('Кв. 15', 1), row('Кв. 10', null)]
+  expect(byCompanyOrder(rows).map((r) => r.property.internal_name)).toEqual(['Студия 7', 'Кв. 15', 'Кв. 10', 'Кв. 12'])
 })

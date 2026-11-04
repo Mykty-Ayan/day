@@ -100,7 +100,6 @@ export default function GanttChartPage() {
         blocks: p.blocks ?? [],
         dayPrices: p.day_prices ?? [],
       }))
-      .sort((a, b) => a.property.internal_name.localeCompare(b.property.internal_name))
   }, [ganttData])
 
   const propertyIds = useMemo(() => rows.map((row) => row.property.id), [rows])
