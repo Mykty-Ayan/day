@@ -1418,7 +1418,7 @@ async def get_audit_log(
 # ---------- Gantt ----------
 
 
-def _build_gantt_response(result) -> GanttDataResponse:
+def _build_gantt_response(result, paid: dict[uuid.UUID, Decimal] | None = None) -> GanttDataResponse:
     return GanttDataResponse(
         properties=[
             GanttPropertyResponse(
@@ -1441,6 +1441,7 @@ def _build_gantt_response(result) -> GanttDataResponse:
                         adults_count=b.adults_count,
                         children_count=b.children_count,
                         total_price=b.total_price,
+                        paid_amount=float((paid or {}).get(b.id, 0)),
                         overbooking=b.overbooking,
                     )
                     for b in p.bookings
@@ -1474,7 +1475,9 @@ async def get_gantt_data(
     repos = _repos(session)
     svc = GetGanttDataService(repos["property"], repos["booking"], repos["guest"], repos["day_price"])
     result = await svc.execute(company_id, start_date, end_date)
-    return _build_gantt_response(result)
+    # One aggregate query for every bar, as the booking list does.
+    paid = await repos["payment"].sum_paid_by_bookings([b.id for p in result.properties for b in p.bookings])
+    return _build_gantt_response(result, paid)
 
 
 # ---------- Guests ----------
