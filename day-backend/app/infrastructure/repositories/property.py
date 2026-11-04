@@ -5,7 +5,7 @@ from collections.abc import Sequence
 from datetime import date, datetime
 from decimal import Decimal
 
-from sqlalchemy import delete, func, select, update
+from sqlalchemy import case, delete, func, select, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -125,7 +125,6 @@ def _property_to_dict(p: Property) -> dict:
         "type": p.type.value,
         "status": p.status.value,
         "rental_mode": p.rental_mode.value,
-        "position": p.position,
         "description": p.description,
         "source_url": p.source_url,
         "latitude": p.latitude,
@@ -325,6 +324,15 @@ class SqlPropertyRepository(PropertyRepository):
         await self._session.flush()
         result = await self._session.get(PropertyModel, prop.id)
         return _model_to_property(result)  # type: ignore[arg-type]
+
+    async def set_positions(self, company_id: uuid.UUID, positions: dict[uuid.UUID, int]) -> None:
+        # One statement over all the company's flats: two orders saved at once leave
+        # one of them whole, never a mix, and no card is written back.
+        place = case(positions, value=PropertyModel.id, else_=None) if positions else None
+        await self._session.execute(
+            update(PropertyModel).where(PropertyModel.company_id == company_id).values(position=place)
+        )
+        await self._session.flush()
 
     async def exists_internal_name(
         self,
