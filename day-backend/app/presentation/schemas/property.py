@@ -308,6 +308,12 @@ class PricingConfigCreate(BaseModel):
         return self
 
 
+class PropertyOrder(BaseModel):
+    """The flats in their order on the chessboard; empty: back to the order by name."""
+
+    property_ids: list[uuid.UUID] = Field(default_factory=list, max_length=500)
+
+
 class PropertyCostsInput(BaseModel):
     """What the flat costs its subletter.
 

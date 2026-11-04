@@ -1454,6 +1454,7 @@ def _build_gantt_response(result, paid: dict[uuid.UUID, Decimal] | None = None) 
                 ],
                 rental_mode=p.rental_mode,
                 day_prices=[GanttDayPriceResponse(date=d.date, price=float(d.price)) for d in p.day_prices],
+                position=p.position,
             )
             for p in result.properties
         ]

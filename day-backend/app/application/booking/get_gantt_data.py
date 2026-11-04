@@ -60,6 +60,7 @@ class GanttProperty:
     blocks: list[GanttBlock] = field(default_factory=list)
     rental_mode: str = "daily"
     day_prices: list[GanttDayPrice] = field(default_factory=list)
+    position: int | None = None
 
 
 @dataclass
@@ -158,6 +159,7 @@ class GetGanttDataService:
                     ],
                     rental_mode=prop.rental_mode.value,
                     day_prices=priced[prop.id],
+                    position=prop.position,
                 )
             )
 

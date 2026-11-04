@@ -50,6 +50,8 @@ class Property:
     type: PropertyType = PropertyType.APARTMENT
     status: PropertyStatus = PropertyStatus.NEW
     rental_mode: RentalMode = RentalMode.DAILY
+    # Its row on the chessboard, as the company put the flats in order; None: by its name.
+    position: int | None = None
     description: str | None = None
     source_url: str | None = None
 
