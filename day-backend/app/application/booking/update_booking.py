@@ -198,8 +198,9 @@ class UpdateBookingService:
             if target is None:
                 settled = (saved_in, saved_out)
             else:
-                # A guest moved mid-stay spent the past nights in the other flat.
-                settled = (booking.check_in, now) if booking.check_in < now < booking.check_out else None
+                # The nights already lived were in the other flat: only they are let off.
+                # Past days added by a new check-in are checked here in full.
+                settled = (saved_in, min(saved_out, now)) if saved_in < now else None
             overlapping = await overlapping_stays(
                 self._booking_repo,
                 booking.property_id,
@@ -264,7 +265,10 @@ class UpdateBookingService:
 
         updated = await self._booking_repo.update(booking)
 
-        if self._task_repo is not None and updated.check_out != saved_out:
+        # On another flat the cleanings are not followed: follow_stay looks in the new flat
+        # and would take its own guest's cleaning for this one's. They stay where they were,
+        # as with a move on the chessboard.
+        if self._task_repo is not None and updated.check_out != saved_out and target is None:
             for task in await follow_stay(self._task_repo, updated, saved_out):
                 changes.append(("cleaning_moved", str(task.id), str(task.scheduled_date)))
                 if self._tell_cleaner is not None:

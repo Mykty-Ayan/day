@@ -1588,6 +1588,61 @@ class TestUpdateBookingToAnotherFlat:
             await svc.execute(UpdateBookingInput(booking_id=booking.id, company_id=COMPANY_ID, property_id=hourly.id))
 
     @pytest.mark.asyncio
+    async def test_past_days_added_with_a_new_flat_are_checked_in_full(self):
+        # A stay not begun yet, moved to B with a check-in in the past, over a stay B
+        # already had: only nights the guest lived are let off, and this one lived none.
+        booking_repo, _, _, svc, booking, _, prop_b = await self._setup()
+        today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+        booking.check_in, booking.check_out = today + timedelta(days=5, hours=14), today + timedelta(days=7, hours=12)
+        await booking_repo.update(booking)
+        await booking_repo.create(
+            _make_booking(
+                prop_b.id,
+                check_in=(today - timedelta(days=5)).date(),
+                check_out=(today - timedelta(days=3)).date(),
+                status=BookingStatus.COMPLETED,
+            )
+        )
+
+        with pytest.raises(BookingOverlapError):
+            await svc.execute(
+                UpdateBookingInput(
+                    booking_id=booking.id,
+                    company_id=COMPANY_ID,
+                    property_id=prop_b.id,
+                    check_in=today - timedelta(days=5) + timedelta(hours=14),
+                )
+            )
+
+    @pytest.mark.asyncio
+    async def test_the_new_flats_own_cleaning_is_not_taken_for_this_stay(self):
+        # B's cleaning for its own guest leaving on the day this stay used to end
+        # must not move to this stay's new end.
+        from app.domain.cleaning.value_objects import CleaningType
+        from tests.test_cleaning_services import FakeCleaningTaskRepository, _make_task
+
+        booking_repo, prop_repo, audit_repo, _, booking, _, prop_b = await self._setup()
+        tasks = FakeCleaningTaskRepository()
+        theirs = await tasks.create(
+            _make_task(property_id=prop_b.id, type=CleaningType.POST_CHECKOUT, scheduled_date=booking.check_out.date())
+        )
+        svc = UpdateBookingService(
+            booking_repo, prop_repo, audit_repo, _build_price_calculator(), None, tasks
+        )
+        their_day = theirs.scheduled_date
+
+        await svc.execute(
+            UpdateBookingInput(
+                booking_id=booking.id,
+                company_id=COMPANY_ID,
+                property_id=prop_b.id,
+                check_out=booking.check_out + timedelta(days=2),
+            )
+        )
+
+        assert (await tasks.get_by_id(theirs.id)).scheduled_date == their_day
+
+    @pytest.mark.asyncio
     async def test_a_paused_flat_is_refused(self):
         _, prop_repo, _, svc, booking, _, _ = await self._setup()
         paused = _make_property(name="P", internal_name="p", status=PropertyStatus.PAUSED)

@@ -164,7 +164,7 @@ test.describe('Booking Edit - E2E', () => {
     await expect(page.getByText(note)).toBeVisible()
   })
 
-  test('the Dates panel moves the stay to another flat, a taken one cannot be picked', async ({ page, request }) => {
+  test('the Dates panel moves the stay to another flat, a taken one is marked', async ({ page, request }) => {
     const from = await setupActiveProperty(request)
     const free = await setupActiveProperty(request)
     const taken = await setupActiveProperty(request)
@@ -173,7 +173,8 @@ test.describe('Booking Edit - E2E', () => {
 
     const panel = await openBlock(page, booking.id, 'Dates')
     await panel.locator('#edit-flat').click()
-    await expect(page.getByRole('option', { name: new RegExp(`^${taken.internal_name} · taken`) })).toHaveAttribute('aria-disabled', 'true')
+    // A hint, not a lock: a guest moved mid-stay may need a flat that frees up today.
+    await expect(page.getByRole('option', { name: new RegExp(`^${taken.internal_name} · taken`) })).toBeVisible()
     await page.getByRole('option', { name: free.internal_name, exact: true }).click()
     await panel.getByRole('button', { name: /save/i }).click()
     await expect(panel).toBeHidden({ timeout: 10000 })

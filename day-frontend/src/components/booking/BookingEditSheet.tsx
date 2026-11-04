@@ -210,12 +210,14 @@ function DatesFields({
   const stayFrom = hourly ? (form.hourly_date && form.start_time ? `${form.hourly_date}T${form.start_time}:00` : '') : form.check_in ? `${form.check_in}T${form.in_time}:00` : ''
   const stayTo = hourly ? (form.hourly_date && form.end_time ? `${form.hourly_date}T${form.end_time}:00` : '') : form.check_out ? `${form.check_out}T${form.out_time}:00` : ''
   const { data: free } = useQuery({
-    queryKey: ['booking-move-free', stayFrom, stayTo, form.rental_mode, booking.adults_count],
+    // Under 'bookings': every booking change invalidates it, so a flat freed by a move shows free.
+    queryKey: ['bookings', 'move-free', stayFrom, stayTo, form.rental_mode, booking.adults_count],
     queryFn: () =>
       getAvailability(stayFrom, stayTo, { adults: booking.adults_count, rentalMode: form.rental_mode, withRuleBreaches: true }),
     enabled: stayFrom !== '' && stayTo !== '' && stayFrom < stayTo,
   })
-  // Unknown until the answer comes: then every flat may be picked and the server decides.
+  // A hint, not a lock: availability checks the whole stay, while a guest moved mid-stay
+  // needs the flat only from today. The server decides on save.
   const busy = (id: string) => id !== booking.property_id && free !== undefined && !free.items.some((item) => item.property_id === id)
 
   const result = datesPatch(booking, form)
@@ -239,7 +241,7 @@ function DatesFields({
           </SelectTrigger>
           <SelectContent>
             {flats.map((f) => (
-              <SelectItem key={f.id} value={f.id} disabled={busy(f.id)}>
+              <SelectItem key={f.id} value={f.id}>
                 {flatName(f)}
                 {busy(f.id) ? ` · ${t('bookings.flatBusy')}` : ''}
               </SelectItem>
