@@ -35,23 +35,23 @@ export default function ConfirmDialog({
     <DialogPrimitive.Root open={open} onOpenChange={(next) => !next && !loading && onCancel()}>
       <DialogPrimitive.Portal>
         <DialogPrimitive.Overlay className="dialog-fade fixed inset-0 z-overlay bg-black/40" />
-        <DialogPrimitive.Content className="dialog-pop fixed left-1/2 top-1/2 z-overlay w-[calc(100%-2rem)] max-w-sm rounded-2xl bg-white p-6 shadow-xl outline-none">
+        <DialogPrimitive.Content className="dialog-pop fixed left-1/2 top-1/2 z-overlay w-[calc(100%-2rem)] max-w-sm rounded-2xl bg-surface-card p-6 text-ink shadow-xl outline-none">
           <DialogPrimitive.Close
             aria-label={t('common.close')}
-            className="absolute right-3 top-3 flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg text-gray-400 transition-colors hover:bg-gray-50 hover:text-gray-600"
+            className="absolute right-3 top-3 flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg text-ink-muted transition-colors hover:bg-surface-page hover:text-ink"
           >
             <X className="h-4 w-4" />
           </DialogPrimitive.Close>
 
           <div className="mb-4 flex items-start gap-3 pr-8">
             {variant === 'danger' && (
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-red-100">
-                <AlertTriangle className="h-5 w-5 text-red-600" />
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-danger-soft">
+                <AlertTriangle className="h-5 w-5 text-danger" />
               </div>
             )}
             <div>
-              <DialogPrimitive.Title className="text-sm font-bold text-gray-900">{title}</DialogPrimitive.Title>
-              <DialogPrimitive.Description className="mt-1 text-sm text-gray-500">{message}</DialogPrimitive.Description>
+              <DialogPrimitive.Title className="text-sm font-bold text-ink">{title}</DialogPrimitive.Title>
+              <DialogPrimitive.Description className="mt-1 text-sm text-ink-muted">{message}</DialogPrimitive.Description>
             </div>
           </div>
 
@@ -60,7 +60,7 @@ export default function ConfirmDialog({
               type="button"
               onClick={onCancel}
               disabled={loading}
-              className="min-h-[44px] w-full rounded-xl border border-gray-200 px-4 py-2 text-xs font-bold text-gray-700 transition-colors hover:bg-gray-50 disabled:opacity-50 sm:w-auto"
+              className="min-h-[44px] w-full rounded-xl border border-line px-4 py-2 text-xs font-bold text-ink transition-colors hover:bg-surface-page disabled:opacity-50 sm:w-auto"
             >
               {resolvedCancelLabel}
             </button>
@@ -69,7 +69,7 @@ export default function ConfirmDialog({
               onClick={onConfirm}
               disabled={loading}
               className={`min-h-[44px] w-full rounded-xl px-4 py-2 text-xs font-bold text-white transition-colors disabled:opacity-50 sm:w-auto ${
-                variant === 'danger' ? 'bg-red-600 hover:bg-red-700' : 'bg-black hover:bg-gray-800'
+                variant === 'danger' ? 'bg-danger hover:opacity-90' : 'bg-accent hover:bg-accent-hover'
               }`}
             >
               {loading ? t('common.processing') : resolvedConfirmLabel}

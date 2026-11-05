@@ -1,22 +1,18 @@
 import { useMemo, useState } from 'react'
 import { format, isValid, parseISO } from 'date-fns'
-import { motion } from 'framer-motion'
 import { useTranslation } from 'react-i18next'
-import { Plus, X, Loader2 } from 'lucide-react'
+import { Loader2, Pencil, Plus, Trash2 } from 'lucide-react'
 import type { PricingConfig, SeasonalPrice, DiscountRule, TariffInput } from '../../types/property'
 import type { RentalMode } from '../../types/booking'
+import { useCurrency } from '../../hooks/useCurrency'
+import { formatMoneyExact } from '../../pages/miniapp/format'
+import Button from '../ui/Button'
+import ConfirmDialog from '../ui/ConfirmDialog'
 import DatePicker from '../ui/date-picker'
 import NumberInput from '../ui/number-input'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select'
 import HourlyTariffs, { type TariffDraft } from './HourlyTariffs'
-import { ToggleGroup, ToggleGroupItem } from '../ui/toggle-group'
-import { useCurrency } from '../../hooks/useCurrency'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '../ui/select'
+import { modeChangeKey, weekendMarkup } from '../../lib/property-pricing'
 
 export interface SeasonalSuggestion {
   key: string
@@ -42,51 +38,57 @@ interface Props {
     extra_child_price: number
     base_guests: number
   }) => void
-  onAddSeasonal: (data: { name: string; start_date: string; end_date: string; price: number }) => void
-  onDeleteSeasonal: (id: string) => void
+  /** The way the flat is let, saved at once after the owner agrees to what it changes. */
+  onChangeMode: (mode: RentalMode) => void
+  modeSaving?: boolean
+  onAddSeasonal: (data: { name: string; start_date: string; end_date: string; price: number }) => Promise<unknown> | void
+  onDeleteSeasonal: (id: string) => Promise<unknown> | void
   onAddDiscount: (data: { min_nights: number; type: 'percent' | 'fixed'; value: number }) => void
   onDeleteDiscount: (id: string) => void
   isSaving: boolean
 }
 
-function formatSeasonalDate(value: string): string {
-  const parsed = parseISO(value)
-  if (!isValid(parsed)) return value
-  return format(parsed, 'dd.MM.yyyy')
-}
-
-function formatMoney(value: number): string {
-  if (!Number.isFinite(value)) return '0'
-  return value.toLocaleString(undefined, { maximumFractionDigits: 2 })
-}
-
+const CARD = 'rounded-2xl border border-line bg-surface-card p-5'
+const LABEL = 'mb-1.5 block text-xs font-semibold text-ink-muted'
+const TEXT_FIELD = 'h-11 w-full rounded-xl border border-line bg-surface-card px-3 text-sm text-ink outline-none placeholder:text-ink-muted focus:border-accent'
+const MODES: RentalMode[] = ['daily', 'hourly', 'both']
 const seasonalPercentQuickSet = [5, 10, 20, 30]
-const seasonalFixedQuickSet = [2000, 5000, 10000]
 
-const primaryActionButtonClass =
-  'flex items-center justify-center gap-2 rounded-xl bg-black text-white hover:bg-gray-800 px-6 py-2.5 font-semibold shadow-lg transition-colors disabled:cursor-not-allowed disabled:opacity-50'
-const fixedActionButtonClass =
-  `${primaryActionButtonClass} h-11 w-full sm:w-60`
-const compactActionButtonClass =
-  `${primaryActionButtonClass} h-11 w-full sm:w-auto sm:px-5`
+function seasonDate(value: string): string {
+  const parsed = parseISO(value)
+  return isValid(parsed) ? format(parsed, 'dd.MM.yyyy') : value
+}
+
+function parseNumber(value: string, fallback = 0) {
+  const parsed = Number.parseFloat(value.replace(/\s+/g, '').replace(',', '.'))
+  return Number.isFinite(parsed) ? parsed : fallback
+}
 
 function PricingFormInner({
   pricing,
-  rentalMode: initialRentalMode,
+  rentalMode,
   seasonalSuggestions = [],
   onSaveBase,
+  onChangeMode,
+  modeSaving = false,
   onAddSeasonal,
   onDeleteSeasonal,
   onAddDiscount,
   onDeleteDiscount,
   isSaving,
 }: Props) {
-  const { t } = useTranslation()
-  const { symbol: currencySymbol } = useCurrency()
-  const [rentalMode, setRentalMode] = useState<RentalMode>(initialRentalMode)
+  const { t, i18n } = useTranslation()
+  const { symbol } = useCurrency()
+  const money = (value: number) => `${formatMoneyExact(value, i18n.language)} ${symbol}`
+  const [askedMode, setAskedMode] = useState<RentalMode | null>(null)
+
+  // The weekend night is shown as a price, as the owner thinks of it; the server keeps
+  // the markup over the base, worked out on save.
   const [basePrice, setBasePrice] = useState(String(pricing?.base_price ?? ''))
+  const [weekendPrice, setWeekendPrice] = useState(
+    pricing && Number(pricing.weekend_markup) > 0 ? String(Number(pricing.base_price) + Number(pricing.weekend_markup)) : '',
+  )
   const [hourlyPrice, setHourlyPrice] = useState(String(pricing?.hourly_price ?? ''))
-  const [weekendMarkup, setWeekendMarkup] = useState(String(pricing?.weekend_markup ?? ''))
   const [deposit, setDeposit] = useState(String(pricing?.default_deposit ?? ''))
   const [hourlyDeposit, setHourlyDeposit] = useState(String(pricing?.hourly_deposit ?? ''))
   const [extraAdult, setExtraAdult] = useState(String(pricing?.extra_adult_price ?? ''))
@@ -103,71 +105,25 @@ function PricingFormInner({
     night_to: (pricing?.night_to ?? '10:00').slice(0, 5),
     night_max_hours: String(pricing?.night_max_hours ?? 12),
   }))
-  const seasonalPrices = pricing?.seasonal_prices ?? []
-  const discountRules = pricing?.discount_rules ?? []
+  const [dirty, setDirty] = useState(false)
+  const edit = <T,>(setter: (value: T) => void) => (value: T) => {
+    setter(value)
+    setDirty(true)
+  }
 
-  const [seasonalName, setSeasonalName] = useState('')
-  const [seasonalStart, setSeasonalStart] = useState('')
-  const [seasonalEnd, setSeasonalEnd] = useState('')
-  const [seasonalPrice, setSeasonalPrice] = useState('')
-
-  const [discountNights, setDiscountNights] = useState('')
-  const [discountType, setDiscountType] = useState<'percent' | 'fixed'>('percent')
-  const [discountValue, setDiscountValue] = useState('')
-  const discountStep = discountType === 'percent' ? 1 : 1000
-
-  // An hourly booking is priced by the hour alone: the server ignores the nightly
-  // price, the weekend markup, the extra guests, seasons and discounts. The hidden
-  // values stay as they were and are saved back unchanged.
   const nightly = rentalMode !== 'hourly'
+  const hourly = rentalMode !== 'daily'
+  const base = parseNumber(basePrice, 0)
+  const weekend = weekendPrice.trim() === '' ? base : parseNumber(weekendPrice, base)
+  const weekendBelow = nightly && weekendPrice.trim() !== '' && weekend < base
 
-  function parseNumber(value: string, fallback = 0) {
-    const normalized = value.replace(/\s+/g, '').replace(',', '.')
-    const parsed = Number.parseFloat(normalized)
-    return Number.isFinite(parsed) ? parsed : fallback
-  }
-
-  const seasonalReady =
-    seasonalName.trim().length > 0 &&
-    seasonalStart.length > 0 &&
-    seasonalEnd.length > 0 &&
-    seasonalEnd >= seasonalStart &&
-    parseNumber(seasonalPrice, -1) >= 0
-
-  const discountReady =
-    Number.parseInt(discountNights, 10) > 0 &&
-    discountValue.trim().length > 0 &&
-    parseNumber(discountValue, -1) >= 0
-
-  const baseForQuickSet = useMemo(() => {
-    const parsed = parseNumber(basePrice, Number.NaN)
-    if (!Number.isFinite(parsed) || parsed < 0) return 0
-    return parsed
-  }, [basePrice])
-
-  function applyPercentQuickSet(percent: number) {
-    if (baseForQuickSet <= 0) return
-    const computed = baseForQuickSet * (1 + percent / 100)
-    setSeasonalPrice(String(Number(computed.toFixed(2))))
-  }
-
-  function applyFixedQuickSet(extra: number) {
-    const computed = baseForQuickSet + extra
-    setSeasonalPrice(String(Number(computed.toFixed(2))))
-  }
-
-  function applySeasonalSuggestion(suggestion: SeasonalSuggestion) {
-    setSeasonalName(suggestion.name)
-    setSeasonalStart(suggestion.start_date)
-    setSeasonalEnd(suggestion.end_date)
-  }
-
-  function handleSaveBase() {
+  function save() {
+    if (weekendBelow) return
     onSaveBase({
-      base_price: parseNumber(basePrice, 0),
+      base_price: base,
       hourly_price: parseNumber(hourlyPrice, 0),
       rental_mode: rentalMode,
-      weekend_markup: parseNumber(weekendMarkup, 0),
+      weekend_markup: weekendMarkup(base, weekendPrice),
       default_deposit: parseNumber(deposit, 0),
       hourly_deposit: parseNumber(hourlyDeposit, 0),
       extra_adult_price: parseNumber(extraAdult, 0),
@@ -183,395 +139,392 @@ function PricingFormInner({
       night_to: tariffs.night_to,
       night_max_hours: Math.min(24, Math.max(1, parseInt(tariffs.night_max_hours) || 12)),
     })
+    setDirty(false)
   }
 
-  function handleAddSeasonal() {
-    if (!seasonalReady) return
-    const nextPrice = parseNumber(seasonalPrice, -1)
-    if (nextPrice < 0) return
-    onAddSeasonal({
-      name: seasonalName.trim(),
-      start_date: seasonalStart,
-      end_date: seasonalEnd,
-      price: nextPrice,
-    })
-    setSeasonalName('')
-    setSeasonalStart('')
-    setSeasonalEnd('')
-    setSeasonalPrice('')
-  }
-
-  function handleAddDiscount() {
-    if (!discountReady) return
-    onAddDiscount({
-      min_nights: parseInt(discountNights),
-      type: discountType,
-      value: parseNumber(discountValue, 0),
-    })
-    setDiscountNights('')
-    setDiscountValue('')
-  }
+  const field = (label: string, value: string, onChange: (v: string) => void, step = 1000, min = 0) => (
+    <div>
+      <span className={LABEL}>{label}</span>
+      <NumberInput value={value} ariaLabel={label} onChange={edit(onChange)} min={min} step={step} />
+    </div>
+  )
 
   return (
-    <div className="space-y-6">
-      {/* Base pricing */}
-      <div>
-        <h3 className="text-sm font-bold text-gray-900 mb-3">{t('properties.pricing.basePricing')}</h3>
-        <div className="mb-3">
-          <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">
-            {t('properties.pricing.rentalMode')}
-          </label>
-          <ToggleGroup
-            type="single"
-            value={rentalMode}
-            onValueChange={(value) => {
-              if (!value) return
-              setRentalMode(value as RentalMode)
-            }}
-          >
-            <ToggleGroupItem value="daily">{t('properties.pricing.daily')}</ToggleGroupItem>
-            <ToggleGroupItem value="hourly">{t('properties.pricing.hourly')}</ToggleGroupItem>
-            <ToggleGroupItem value="both">{t('properties.pricing.both')}</ToggleGroupItem>
-          </ToggleGroup>
+    <div className="flex flex-col gap-5">
+      {/* How the flat is let: saved at once, after saying what it changes. */}
+      <section className={CARD} aria-labelledby="pricing-mode">
+        <h3 id="pricing-mode" className="text-sm font-bold text-ink">{t('properties.pricing.rentalMode')}</h3>
+        <p className="mt-1 text-xs text-ink-muted">{t('properties.pricing.modeHint')}</p>
+        <div role="radiogroup" aria-labelledby="pricing-mode" className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
+          {MODES.map((mode) => {
+            const on = mode === rentalMode
+            return (
+              <button
+                key={mode}
+                type="button"
+                role="radio"
+                aria-checked={on}
+                disabled={modeSaving}
+                onClick={() => !on && setAskedMode(mode)}
+                className={`rounded-xl border px-4 py-3 text-left transition-colors disabled:opacity-60 ${
+                  on ? 'border-accent bg-accent-soft' : 'border-line hover:bg-surface-page'
+                }`}
+              >
+                <span className={`block text-sm font-semibold ${on ? 'text-accent-ink' : 'text-ink'}`}>
+                  {t(`properties.pricing.${mode}`)}
+                </span>
+                <span className="mt-0.5 block text-xs text-ink-muted">{t(`properties.pricing.modeWhat.${mode}`)}</span>
+              </button>
+            )
+          })}
         </div>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          {nightly && (
+      </section>
+
+      {nightly && (
+        <section className={CARD} aria-labelledby="pricing-nightly">
+          <h3 id="pricing-nightly" className="text-sm font-bold text-ink">{t('properties.pricing.nightly')}</h3>
+          <div className="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-2">
+            {field(t('properties.pricing.basePrice'), basePrice, (next) => {
+              // The weekend moves with the weekdays: the markup stays what it was.
+              const markup = weekendMarkup(base, weekendPrice)
+              setBasePrice(next)
+              if (markup > 0) setWeekendPrice(String(parseNumber(next, 0) + markup))
+            })}
             <div>
-              <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">
-                {t('properties.pricing.basePrice')}
-              </label>
-              <NumberInput
-                value={basePrice}
-                ariaLabel={t('properties.pricing.basePrice')}
-                onChange={setBasePrice}
-                min={0}
-                step={1000}
-              />
+              {field(t('properties.pricing.weekendPrice'), weekendPrice, setWeekendPrice)}
+              <p className={`mt-1 text-xs ${weekendBelow ? 'text-danger' : 'text-ink-muted'}`}>
+                {weekendBelow
+                  ? t('properties.pricing.weekendBelow')
+                  : weekend > base
+                    ? t('properties.pricing.weekendPlus', { amount: money(weekend - base) })
+                    : t('properties.pricing.weekendSame')}
+              </p>
             </div>
-          )}
-          {rentalMode !== 'daily' && (
-            <div>
-              <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">
-                {t('properties.pricing.hourlyPrice')}
-              </label>
-              <NumberInput
-                value={hourlyPrice}
-                ariaLabel={t('properties.pricing.hourlyPrice')}
-                onChange={setHourlyPrice}
-                min={0}
-                step={500}
-              />
-            </div>
-          )}
-          {nightly && (
-            <div>
-              <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">
-                {t('properties.pricing.weekendMarkup')}
-              </label>
-              <NumberInput
-                value={weekendMarkup}
-                ariaLabel={t('properties.pricing.weekendMarkup')}
-                onChange={setWeekendMarkup}
-                min={0}
-                step={1}
-              />
-            </div>
-          )}
-          {/* Each kind of stay has its own deposit: hours never take the nightly one. */}
-          {nightly && (
-            <div>
-              <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">
-                {t('properties.pricing.defaultDeposit')}
-              </label>
-              <NumberInput
-                value={deposit}
-                ariaLabel={t('properties.pricing.defaultDeposit')}
-                onChange={setDeposit}
-                min={0}
-                step={1000}
-              />
-            </div>
-          )}
-          {rentalMode !== 'daily' && (
-            <div>
-              <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">
-                {t('properties.pricing.hourlyDeposit')}
-              </label>
-              <NumberInput
-                value={hourlyDeposit}
-                ariaLabel={t('properties.pricing.hourlyDeposit')}
-                onChange={setHourlyDeposit}
-                min={0}
-                step={1000}
-              />
-            </div>
-          )}
-          {nightly && (
-            <>
-              <div>
-                <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">
-                  {t('properties.pricing.baseGuests')}
-                </label>
-                <NumberInput
-                  value={baseGuests}
-                  ariaLabel={t('properties.pricing.baseGuests')}
-                  onChange={setBaseGuests}
-                  min={1}
-                  step={1}
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">
-                  {t('properties.pricing.extraAdultPrice')}
-                </label>
-                <NumberInput
-                  value={extraAdult}
-                  ariaLabel={t('properties.pricing.extraAdultPrice')}
-                  onChange={setExtraAdult}
-                  min={0}
-                  step={1000}
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">
-                  {t('properties.pricing.extraChildPrice')}
-                </label>
-                <NumberInput
-                  value={extraChild}
-                  ariaLabel={t('properties.pricing.extraChildPrice')}
-                  onChange={setExtraChild}
-                  min={0}
-                  step={1000}
-                />
-              </div>
-            </>
-          )}
-        </div>
-        {rentalMode !== 'daily' && (
-          <HourlyTariffs draft={tariffs} onChange={setTariffs} propertyId={pricing?.property_id} />
-        )}
-        <motion.button
-          type="button"
-          whileTap={{ scale: 0.97 }}
-          onClick={handleSaveBase}
-          disabled={isSaving}
-          className={`mt-3 ${fixedActionButtonClass}`}
-        >
-          {isSaving && <Loader2 className="w-4 h-4 animate-spin" />}
+            {field(t('properties.pricing.defaultDeposit'), deposit, setDeposit)}
+            {field(t('properties.pricing.baseGuests'), baseGuests, setBaseGuests, 1, 1)}
+            {field(t('properties.pricing.extraAdultPrice'), extraAdult, setExtraAdult)}
+            {field(t('properties.pricing.extraChildPrice'), extraChild, setExtraChild)}
+          </div>
+        </section>
+      )}
+
+      {hourly && (
+        <section className={CARD} aria-labelledby="pricing-hourly">
+          <h3 id="pricing-hourly" className="text-sm font-bold text-ink">{t('tariffs.title')}</h3>
+          <HourlyTariffs draft={tariffs} onChange={edit(setTariffs)} propertyId={pricing?.property_id} />
+          <div className="mt-4 grid grid-cols-1 gap-4 border-t border-line pt-4 sm:grid-cols-2">
+            {field(t('properties.pricing.hourlyPrice'), hourlyPrice, setHourlyPrice, 500)}
+            {field(t('properties.pricing.hourlyDeposit'), hourlyDeposit, setHourlyDeposit)}
+          </div>
+        </section>
+      )}
+
+      {/* One save for both cards, at hand while anything is unsaved. */}
+      <div className="sticky bottom-3 z-10 flex flex-wrap items-center gap-3 rounded-2xl border border-line bg-surface-card p-3 shadow-sm">
+        <Button onClick={save} disabled={isSaving || weekendBelow || !dirty}>
+          {isSaving && <Loader2 className="h-4 w-4 animate-spin" />}
           {t('properties.pricing.savePricing')}
-        </motion.button>
+        </Button>
+        <span className="text-xs text-ink-muted">
+          {dirty ? t('properties.pricing.unsaved') : t('properties.pricing.allSaved')}
+        </span>
       </div>
 
       {nightly && (
-        <>
-          {/* Seasonal prices */}
-          <div>
-            <h3 className="text-sm font-bold text-gray-900 mb-3">{t('properties.pricing.seasonalPrices')}</h3>
-
-            {seasonalSuggestions.length > 0 && (
-              <div className="mb-3 rounded-xl border border-gray-200 bg-gray-50 p-3">
-                <p className="text-xs font-bold uppercase tracking-wider text-gray-500">
-                  {t('properties.pricing.suggestedSeasons')}
-                </p>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {seasonalSuggestions.slice(0, 8).map((suggestion) => (
-                    <button
-                      key={suggestion.key}
-                      type="button"
-                      onClick={() => applySeasonalSuggestion(suggestion)}
-                      className="rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-100 transition-colors"
-                      title={suggestion.source_properties.join(', ')}
-                    >
-                      {t('properties.pricing.addSuggestion', {
-                        name: suggestion.name,
-                        start: formatSeasonalDate(suggestion.start_date),
-                        end: formatSeasonalDate(suggestion.end_date),
-                      })}
-                    </button>
-                  ))}
-                </div>
-                {seasonalSuggestions.length > 8 && (
-                  <p className="mt-2 text-xs text-gray-500">
-                    {t('properties.pricing.moreSuggestions', { count: seasonalSuggestions.length - 8 })}
-                  </p>
-                )}
-              </div>
-            )}
-
-            {seasonalPrices.map((sp: SeasonalPrice) => (
-              <div
-                key={sp.id}
-                className="mb-2 flex flex-col gap-2 rounded-xl border border-gray-200 bg-gray-50 p-3 sm:flex-row sm:items-center sm:justify-between"
-              >
-                <div>
-                  <span className="text-sm font-semibold text-gray-900">{sp.name.trim()}</span>
-                  <span className="ml-2 text-xs text-gray-500">
-                    {formatSeasonalDate(sp.start_date)} - {formatSeasonalDate(sp.end_date)}
-                  </span>
-                </div>
-                <div className="flex items-center gap-2 self-start sm:self-auto">
-                  <span className="text-sm font-bold text-gray-900">{currencySymbol}{sp.price}</span>
-                  <button
-                    onClick={() => onDeleteSeasonal(sp.id)}
-                    className="inline-flex h-11 w-11 items-center justify-center rounded-lg text-gray-400 transition-colors hover:bg-red-50 hover:text-red-600 sm:h-8 sm:w-8"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-            ))}
-
-            <div className="mt-2 grid grid-cols-1 items-start gap-2 sm:grid-cols-2 xl:grid-cols-6">
-              <input
-                type="text"
-                value={seasonalName}
-                onChange={(e) => setSeasonalName(e.target.value)}
-                placeholder={t('properties.pricing.namePlaceholder')}
-                className="w-full rounded-xl border border-gray-200 bg-gray-50 p-2.5 text-sm text-gray-800 outline-none focus:ring-2 focus:ring-black/10 xl:col-span-2"
-              />
-              <DatePicker
-                value={seasonalStart}
-                onChange={setSeasonalStart}
-                placeholder={t('properties.pricing.startDatePlaceholder')}
-                className="xl:col-span-1"
-              />
-              <DatePicker
-                value={seasonalEnd}
-                onChange={setSeasonalEnd}
-                placeholder={t('properties.pricing.endDatePlaceholder')}
-                minDate={seasonalStart || undefined}
-                className="xl:col-span-1"
-              />
-              <div className="min-w-0 xl:col-span-1">
-                <NumberInput
-                  value={seasonalPrice}
-                  onChange={setSeasonalPrice}
-                  min={0}
-                  step={1000}
-                  placeholder={t('properties.pricing.pricePlaceholder')}
-                  inputClassName="p-2.5 text-sm"
-                  className="min-w-0"
-                />
-              </div>
-              <motion.button
-                type="button"
-                whileTap={{ scale: 0.97 }}
-                onClick={handleAddSeasonal}
-                className="flex h-11 w-full items-center justify-center rounded-xl bg-black text-white hover:bg-gray-800 shadow-lg transition-colors disabled:cursor-not-allowed disabled:opacity-50 xl:col-span-1"
-                aria-label={t('properties.pricing.addSeasonalAria')}
-              >
-                <Plus className="h-5 w-5" />
-                {/* A full-width icon-only button reads as ambiguous; keep the word. */}
-                <span className="ml-2 text-sm font-semibold">{t('common.add')}</span>
-              </motion.button>
-            </div>
-            <div className="mt-1 space-y-1.5">
-              <div className="flex flex-wrap gap-1.5">
-                {seasonalPercentQuickSet.map((percent) => {
-                  const finalPrice = baseForQuickSet * (1 + percent / 100)
-                  return (
-                    <button
-                      key={`pct-${percent}`}
-                      type="button"
-                      onClick={() => applyPercentQuickSet(percent)}
-                      disabled={baseForQuickSet <= 0}
-                      className="whitespace-nowrap rounded-md border border-gray-200 bg-white px-2 py-0.5 text-[11px] font-semibold leading-4 text-gray-600 transition-colors hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      +{percent}% ({formatMoney(finalPrice)})
-                    </button>
-                  )
-                })}
-              </div>
-              <div className="flex flex-wrap gap-1.5">
-                {seasonalFixedQuickSet.map((fixed) => {
-                  const finalPrice = baseForQuickSet + fixed
-                  return (
-                    <button
-                      key={`fix-${fixed}`}
-                      type="button"
-                      onClick={() => applyFixedQuickSet(fixed)}
-                      className="whitespace-nowrap rounded-md border border-gray-200 bg-white px-2 py-0.5 text-[11px] font-semibold leading-4 text-gray-600 transition-colors hover:bg-gray-100"
-                    >
-                      +{formatMoney(fixed)} ({formatMoney(finalPrice)})
-                    </button>
-                  )
-                })}
-              </div>
-            </div>
-          </div>
-
-          {/* Discount rules */}
-          <div>
-            <h3 className="text-sm font-bold text-gray-900 mb-3">{t('properties.pricing.discountRules')}</h3>
-            {discountRules.map((dr: DiscountRule) => (
-              <div
-                key={dr.id}
-                className="mb-2 flex flex-col gap-2 rounded-xl border border-gray-200 bg-gray-50 p-3 sm:flex-row sm:items-center sm:justify-between"
-              >
-                <span className="text-sm text-gray-700">
-                  {t('properties.pricing.discountLabel', {
-                    count: dr.min_nights,
-                    amount: dr.type === 'percent' ? `${dr.value}%` : `${currencySymbol}${dr.value}`,
-                  })}
-                </span>
-                <button
-                  onClick={() => onDeleteDiscount(dr.id)}
-                  className="inline-flex h-11 w-11 items-center justify-center self-start rounded-lg text-gray-400 transition-colors hover:bg-red-50 hover:text-red-600 sm:h-8 sm:w-8 sm:self-auto"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-            ))}
-            <div className="flex flex-col sm:flex-row gap-2 mt-2">
-              <NumberInput
-                value={discountNights}
-                onChange={setDiscountNights}
-                min={1}
-                step={1}
-                placeholder={t('properties.pricing.minNightsPlaceholder')}
-                inputClassName="p-2.5 text-sm"
-                className="w-full sm:flex-1 min-w-0"
-              />
-              <Select value={discountType} onValueChange={(v) => setDiscountType(v as 'percent' | 'fixed')}>
-                <SelectTrigger className="w-full sm:w-28 shrink-0">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="percent">{t('properties.pricing.percent')}</SelectItem>
-                  <SelectItem value="fixed">{t('properties.pricing.fixed')}</SelectItem>
-                </SelectContent>
-              </Select>
-              <NumberInput
-                value={discountValue}
-                onChange={setDiscountValue}
-                min={0}
-                step={discountStep}
-                placeholder={t('properties.pricing.valuePlaceholder')}
-                inputClassName="p-2.5 text-sm"
-                className="w-full sm:flex-1 min-w-0"
-              />
-              <motion.button
-                type="button"
-                whileTap={{ scale: 0.97 }}
-                onClick={handleAddDiscount}
-                className={compactActionButtonClass}
-                aria-label={t('properties.pricing.addDiscountAria')}
-              >
-                <Plus className="h-5 w-5" />
-                {/* A full-width icon-only button reads as ambiguous; keep the word. */}
-                <span className="ml-2 text-sm font-semibold">{t('common.add')}</span>
-              </motion.button>
-            </div>
-          </div>
-        </>
+        <Seasons
+          seasons={pricing?.seasonal_prices ?? []}
+          base={base}
+          suggestions={seasonalSuggestions}
+          money={money}
+          onAdd={onAddSeasonal}
+          onDelete={onDeleteSeasonal}
+        />
       )}
+      {nightly && (
+        <Discounts rules={pricing?.discount_rules ?? []} money={money} onAdd={onAddDiscount} onDelete={onDeleteDiscount} />
+      )}
+
+      <ConfirmDialog
+        open={askedMode !== null}
+        title={t('properties.pricing.modeAsk', { mode: askedMode ? t(`properties.pricing.${askedMode}`) : '' })}
+        message={askedMode ? t(modeChangeKey(rentalMode, askedMode) ?? '') : ''}
+        confirmLabel={t('properties.pricing.modeConfirm')}
+        loading={modeSaving}
+        onCancel={() => setAskedMode(null)}
+        onConfirm={() => {
+          if (askedMode) onChangeMode(askedMode)
+          setAskedMode(null)
+        }}
+      />
     </div>
   )
 }
 
+/** Seasons: a price for nights between two dates. Changed by replacing: the new one is
+ *  added first, so a failure keeps the old. */
+function Seasons({
+  seasons,
+  base,
+  suggestions,
+  money,
+  onAdd,
+  onDelete,
+}: {
+  seasons: SeasonalPrice[]
+  base: number
+  suggestions: SeasonalSuggestion[]
+  money: (value: number) => string
+  onAdd: Props['onAddSeasonal']
+  onDelete: Props['onDeleteSeasonal']
+}) {
+  const { t } = useTranslation()
+  const empty = { id: null as string | null, name: '', start: '', end: '', price: '' }
+  const [draft, setDraft] = useState(empty)
+  const [open, setOpen] = useState(false)
+  const ready =
+    draft.name.trim() !== '' && draft.start !== '' && draft.end !== '' && draft.end >= draft.start && parseNumber(draft.price, -1) >= 0
+  const sorted = useMemo(() => [...seasons].sort((a, b) => a.start_date.localeCompare(b.start_date)), [seasons])
+
+  async function submit() {
+    if (!ready) return
+    await onAdd({ name: draft.name.trim(), start_date: draft.start, end_date: draft.end, price: parseNumber(draft.price) })
+    if (draft.id) await onDelete(draft.id)
+    setDraft(empty)
+    setOpen(false)
+  }
+
+  return (
+    <section className={CARD} aria-labelledby="pricing-seasons">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h3 id="pricing-seasons" className="text-sm font-bold text-ink">{t('properties.pricing.seasonalPrices')}</h3>
+          <p className="mt-1 text-xs text-ink-muted">{t('properties.pricing.seasonsHint')}</p>
+        </div>
+        {!open && (
+          <Button variant="secondary" onClick={() => setOpen(true)}>
+            <Plus className="h-4 w-4" aria-hidden="true" />
+            {t('properties.pricing.addSeason')}
+          </Button>
+        )}
+      </div>
+
+      {sorted.length > 0 && (
+        <ul className="mt-3 divide-y divide-line">
+          {sorted.map((season) => (
+            <li key={season.id} className="flex items-center gap-3 py-2.5">
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-semibold text-ink">{season.name.trim()}</p>
+                <p className="text-xs text-ink-muted">
+                  {seasonDate(season.start_date)} – {seasonDate(season.end_date)}
+                </p>
+              </div>
+              <span className="text-sm font-semibold tabular-nums text-ink">{money(Number(season.price))}</span>
+              <button
+                type="button"
+                aria-label={`${t('common.edit')}: ${season.name}`}
+                onClick={() => {
+                  setDraft({ id: season.id, name: season.name, start: season.start_date, end: season.end_date, price: String(season.price) })
+                  setOpen(true)
+                }}
+                className="flex h-9 w-9 items-center justify-center rounded-lg text-ink-muted transition-colors hover:bg-surface-page hover:text-ink"
+              >
+                <Pencil className="h-4 w-4" />
+              </button>
+              <button
+                type="button"
+                aria-label={`${t('common.delete')}: ${season.name}`}
+                onClick={() => onDelete(season.id)}
+                className="flex h-9 w-9 items-center justify-center rounded-lg text-ink-muted transition-colors hover:bg-danger-soft hover:text-danger"
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {open && (
+        <div className="mt-3 flex flex-col gap-3 rounded-xl bg-surface-page p-4">
+          {!draft.id && suggestions.length > 0 && (
+            <div>
+              <p className={LABEL}>{t('properties.pricing.suggestedSeasons')}</p>
+              <div className="flex flex-wrap gap-1.5">
+                {suggestions.slice(0, 8).map((suggestion) => (
+                  <button
+                    key={suggestion.key}
+                    type="button"
+                    title={suggestion.source_properties.join(', ')}
+                    onClick={() => setDraft((d) => ({ ...d, name: suggestion.name, start: suggestion.start_date, end: suggestion.end_date }))}
+                    className="rounded-lg border border-line bg-surface-card px-2.5 py-1.5 text-xs font-semibold text-ink hover:bg-accent-soft"
+                  >
+                    {suggestion.name} · {seasonDate(suggestion.start_date)} – {seasonDate(suggestion.end_date)}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <label className="sm:col-span-2">
+              <span className={LABEL}>{t('properties.pricing.namePlaceholder')}</span>
+              <input
+                value={draft.name}
+                onChange={(e) => setDraft((d) => ({ ...d, name: e.target.value }))}
+                placeholder={t('properties.pricing.seasonNameExample')}
+                className={TEXT_FIELD}
+              />
+            </label>
+            <div>
+              <span className={LABEL}>{t('properties.pricing.startDatePlaceholder')}</span>
+              <DatePicker
+                value={draft.start}
+                placeholder={t('properties.pricing.startDatePlaceholder')}
+                onChange={(v) => setDraft((d) => ({ ...d, start: v }))}
+              />
+            </div>
+            <div>
+              <span className={LABEL}>{t('properties.pricing.endDatePlaceholder')}</span>
+              <DatePicker
+                value={draft.end}
+                placeholder={t('properties.pricing.endDatePlaceholder')}
+                minDate={draft.start || undefined}
+                onChange={(v) => setDraft((d) => ({ ...d, end: v }))}
+              />
+            </div>
+            <div className="sm:col-span-2">
+              <span className={LABEL}>{t('properties.pricing.seasonPrice')}</span>
+              <NumberInput
+                value={draft.price}
+                ariaLabel={t('properties.pricing.seasonPrice')}
+                onChange={(v) => setDraft((d) => ({ ...d, price: v }))}
+                min={0}
+                step={1000}
+              />
+              {base > 0 && (
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {seasonalPercentQuickSet.map((percent) => (
+                    <button
+                      key={percent}
+                      type="button"
+                      onClick={() => setDraft((d) => ({ ...d, price: String(Math.round(base * (1 + percent / 100))) }))}
+                      className="rounded-lg border border-line bg-surface-card px-2 py-1 text-xs font-semibold text-ink hover:bg-accent-soft"
+                    >
+                      +{percent}% · {money(Math.round(base * (1 + percent / 100)))}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <Button onClick={submit} disabled={!ready}>
+              {draft.id ? t('common.save') : t('properties.pricing.addSeason')}
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setDraft(empty)
+                setOpen(false)
+              }}
+            >
+              {t('common.cancel')}
+            </Button>
+          </div>
+        </div>
+      )}
+    </section>
+  )
+}
+
+/** A discount for a stay of at least so many nights. */
+function Discounts({
+  rules,
+  money,
+  onAdd,
+  onDelete,
+}: {
+  rules: DiscountRule[]
+  money: (value: number) => string
+  onAdd: Props['onAddDiscount']
+  onDelete: Props['onDeleteDiscount']
+}) {
+  const { t } = useTranslation()
+  const [nights, setNights] = useState('')
+  const [type, setType] = useState<'percent' | 'fixed'>('percent')
+  const [value, setValue] = useState('')
+  const ready = Number.parseInt(nights, 10) > 0 && value.trim() !== '' && parseNumber(value, -1) >= 0
+
+  return (
+    <section className={CARD} aria-labelledby="pricing-discounts">
+      <h3 id="pricing-discounts" className="text-sm font-bold text-ink">{t('properties.pricing.discountRules')}</h3>
+      <p className="mt-1 text-xs text-ink-muted">{t('properties.pricing.discountsHint')}</p>
+      {rules.length > 0 && (
+        <ul className="mt-3 divide-y divide-line">
+          {rules.map((rule) => (
+            <li key={rule.id} className="flex items-center gap-3 py-2.5">
+              <span className="flex-1 text-sm text-ink">
+                {t('properties.pricing.discountLabel', {
+                  count: rule.min_nights,
+                  amount: rule.type === 'percent' ? `${rule.value}%` : money(Number(rule.value)),
+                })}
+              </span>
+              <button
+                type="button"
+                aria-label={t('common.delete')}
+                onClick={() => onDelete(rule.id)}
+                className="flex h-9 w-9 items-center justify-center rounded-lg text-ink-muted transition-colors hover:bg-danger-soft hover:text-danger"
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+      <div className="mt-3 grid grid-cols-1 items-end gap-3 sm:grid-cols-[1fr_9rem_1fr_auto]">
+        <div>
+          <span className={LABEL}>{t('properties.pricing.minNightsPlaceholder')}</span>
+          <NumberInput value={nights} ariaLabel={t('properties.pricing.minNightsPlaceholder')} onChange={setNights} min={1} step={1} />
+        </div>
+        <div>
+          <span className={LABEL}>{t('properties.pricing.discountType')}</span>
+          <Select value={type} onValueChange={(v) => setType(v as 'percent' | 'fixed')}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="percent">{t('properties.pricing.percent')}</SelectItem>
+              <SelectItem value="fixed">{t('properties.pricing.fixed')}</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <span className={LABEL}>{t('properties.pricing.valuePlaceholder')}</span>
+          <NumberInput
+            value={value}
+            ariaLabel={t('properties.pricing.valuePlaceholder')}
+            onChange={setValue}
+            min={0}
+            step={type === 'percent' ? 1 : 1000}
+          />
+        </div>
+        <Button
+          variant="secondary"
+          disabled={!ready}
+          aria-label={t('properties.pricing.addDiscountAria')}
+          onClick={() => {
+            onAdd({ min_nights: parseInt(nights), type, value: parseNumber(value) })
+            setNights('')
+            setValue('')
+          }}
+        >
+          <Plus className="h-4 w-4" aria-hidden="true" />
+          {t('common.add')}
+        </Button>
+      </div>
+    </section>
+  )
+}
+
 export default function PricingForm(props: Props) {
-  const pricingKey = props.pricing
-    ? `${props.pricing.id}:${props.pricing.updated_at ?? '0'}:${props.rentalMode}`
-    : `new:${props.rentalMode}`
-  return <PricingFormInner key={pricingKey} {...props} />
+  const key = props.pricing ? `${props.pricing.id}:${props.pricing.updated_at ?? '0'}:${props.rentalMode}` : `new:${props.rentalMode}`
+  return <PricingFormInner key={key} {...props} />
 }

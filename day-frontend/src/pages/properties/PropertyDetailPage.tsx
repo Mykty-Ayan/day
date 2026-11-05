@@ -189,12 +189,9 @@ export default function PropertyDetailPage() {
   }, [otherPricingQueries, otherProperties, pricing?.seasonal_prices])
 
   const handleSavePricing = (data: PricingInput & { rental_mode: RentalMode }) => {
-    const { rental_mode, ...pricingInput } = data
-    // rental_mode lives on the property, not the pricing config — persist it
-    // separately when the operator changed it.
-    if (property && rental_mode !== property.rental_mode) {
-      updatePropertyMut.mutate({ rental_mode })
-    }
+    // The way of letting is saved on its own, when it is switched.
+    const { rental_mode: _mode, ...pricingInput } = data
+    void _mode
     savePricing.mutate(pricingInput, {
       onSuccess: () => showToast('success', t('properties.pricingSaved')),
       onError: (err: Error) => showToast('error', err.message || t('properties.failedSavePricing')),
@@ -393,24 +390,37 @@ export default function PropertyDetailPage() {
       {/* Every panel stays mounted, the others hidden: a price typed and not saved survives a look at another tab. */}
       <div className="flex flex-col gap-5">
         <TabPanel name="prices" current={tab}>
-          <section className={CARD} aria-labelledby="property-pricing">
-            <h2 id="property-pricing" className="mb-4 text-sm font-bold text-ink">{t('properties.pricing.title')}</h2>
+          <div role="region" aria-labelledby="property-pricing">
+            <h2 id="property-pricing" className="sr-only">{t('properties.pricing.title')}</h2>
             <PricingForm
               pricing={pricing ?? null}
               rentalMode={property.rental_mode}
               seasonalSuggestions={seasonalSuggestions}
               onSaveBase={handleSavePricing}
+              onChangeMode={(mode) =>
+                updatePropertyMut.mutate(
+                  { rental_mode: mode },
+                  {
+                    onSuccess: () => showToast('success', t('properties.pricing.modeSaved')),
+                    onError: (err: Error) => showToast('error', err.message || t('properties.failedSavePricing')),
+                  },
+                )
+              }
+              modeSaving={updatePropertyMut.isPending}
               onAddSeasonal={(data) =>
-                addSeasonal.mutate(data, {
-                  onSuccess: () => showToast('success', t('properties.seasonalPriceAdded')),
-                  onError: (err: Error) => showToast('error', err.message || t('properties.failedAddSeasonal')),
-                })
+                addSeasonal.mutateAsync(data).then(
+                  () => showToast('success', t('properties.seasonalPriceAdded')),
+                  (err: Error) => {
+                    showToast('error', err.message || t('properties.failedAddSeasonal'))
+                    throw err
+                  },
+                )
               }
               onDeleteSeasonal={(id) =>
-                deleteSeasonal.mutate(id, {
-                  onSuccess: () => showToast('success', t('properties.seasonalPriceRemoved')),
-                  onError: (err: Error) => showToast('error', err.message || t('properties.failedRemoveSeasonal')),
-                })
+                deleteSeasonal.mutateAsync(id).then(
+                  () => showToast('success', t('properties.seasonalPriceRemoved')),
+                  (err: Error) => showToast('error', err.message || t('properties.failedRemoveSeasonal')),
+                )
               }
               onAddDiscount={(data) =>
                 addDiscount.mutate(data, {
@@ -426,7 +436,7 @@ export default function PropertyDetailPage() {
               }
               isSaving={savePricing.isPending}
             />
-          </section>
+          </div>
         </TabPanel>
 
         <TabPanel name="blocks" current={tab}>{staff && <BlocksCard propertyId={propertyId} />}</TabPanel>

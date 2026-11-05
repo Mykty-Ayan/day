@@ -26,5 +26,5 @@ export function pricingCard(page: Page): Locator {
 
 /** An input of the Pricing card: the one in the block after its label. */
 export function priceField(card: Locator, label: string): Locator {
-  return card.getByText(label, { exact: true }).locator('xpath=following-sibling::div[1]//input')
+  return card.getByRole('spinbutton', { name: label, exact: true })
 }

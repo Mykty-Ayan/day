@@ -9,9 +9,9 @@ import {
 } from '../fixtures/test-data'
 import { pricingCard, priceField } from '../fixtures/property-ui'
 
-/** The row of a seasonal price or a discount rule: the nearest rounded box around its text. */
+/** The row of a seasonal price or a discount rule: the list item with its text. */
 function pricingRow(card: Locator, text: string | RegExp): Locator {
-  return card.getByText(text).locator('xpath=ancestor::div[contains(@class, "rounded-xl")][1]')
+  return card.getByRole('listitem').filter({ hasText: text })
 }
 
 /** A day of the current month as the API writes it, and as the date picker shows it. */
@@ -62,7 +62,8 @@ test.describe('Property Pricing - E2E', () => {
 
     // Fill pricing fields
     await priceField(card, 'Base Price').fill(String(pricing.base_price))
-    await priceField(card, 'Weekend Markup (₸)').fill(String(pricing.weekend_markup))
+    // The weekend night is typed as a price; the server keeps the markup over the base.
+    await priceField(card, 'Weekend night price').fill(String(pricing.base_price + pricing.weekend_markup))
     await priceField(card, 'Deposit for nightly stays').fill(String(pricing.default_deposit))
     await priceField(card, 'Base Guests').fill(String(pricing.base_guests))
     await priceField(card, 'Extra Adult Price').fill(String(pricing.extra_adult_price))
@@ -107,17 +108,18 @@ test.describe('Property Pricing - E2E', () => {
     await expect(priceField(card, 'Base Price')).toHaveValue(String(pricing.base_price))
 
     // Fill the seasonal price form: name, a date range from the pickers, price
-    await card.getByPlaceholder('Name', { exact: true }).fill(seasonal.name)
+    await card.getByRole('button', { name: 'Add season' }).click()
+    await card.getByPlaceholder('E.g. New Year').fill(seasonal.name)
     await pickDay(page, card.getByRole('button', { name: 'Start date' }), 10)
     await pickDay(page, card.getByRole('button', { name: 'End date' }), 20)
-    await card.getByPlaceholder('Price', { exact: true }).fill(String(seasonal.price))
-    await card.getByRole('button', { name: 'Add seasonal price' }).click()
+    await priceField(card, 'Night price in season').fill(String(seasonal.price))
+    await card.getByRole('button', { name: 'Add season' }).click()
 
     // The seasonal price appears with its dates and price
     await expect(page.getByText('Seasonal price added')).toBeVisible()
     const row = pricingRow(card, seasonal.name)
-    await expect(row).toContainText(`${day(10).shown} - ${day(20).shown}`)
-    await expect(row).toHaveText(new RegExp(`${seasonal.price}$`))
+    await expect(row).toContainText(`${day(10).shown} – ${day(20).shown}`)
+    await expect(row).toContainText(String(seasonal.price))
 
     const saved = await (await request.get(`${API_BASE}/properties/${prop.id}/pricing/seasonal`)).json()
     expect(saved).toHaveLength(1)
@@ -141,17 +143,15 @@ test.describe('Property Pricing - E2E', () => {
     await expect(priceField(card, 'Base Price')).toHaveValue(String(pricing.base_price))
 
     // Fill the discount form: min nights, type from the select, value
-    await card.getByPlaceholder('Min nights').fill(String(discount.min_nights))
+    await priceField(card, 'Min nights').fill(String(discount.min_nights))
     await card.getByRole('combobox').click()
     await page.getByRole('option', { name: 'Fixed' }).click()
-    await card.getByPlaceholder('Value').fill(String(discount.value))
+    await priceField(card, 'Value').fill(String(discount.value))
     await card.getByRole('button', { name: 'Add discount rule' }).click()
 
     // The rule appears
     await expect(page.getByText('Discount rule added')).toBeVisible()
-    await expect(pricingRow(card, `${discount.min_nights}+ nights`)).toHaveText(
-      new RegExp(`^${discount.min_nights}\\+ nights: .*${discount.value} off$`),
-    )
+    await expect(pricingRow(card, `${discount.min_nights}+ nights`)).toContainText(`${discount.value}`)
 
     const saved = await (await request.get(`${API_BASE}/properties/${prop.id}/pricing/discounts`)).json()
     expect(saved).toHaveLength(1)
@@ -177,8 +177,8 @@ test.describe('Property Pricing - E2E', () => {
 
     await expect(card.getByText('Delete-Me-Season')).toBeVisible()
 
-    // The row has one button, the cross. There is no confirmation: it deletes at once
-    await pricingRow(card, 'Delete-Me-Season').getByRole('button').click()
+    // The row's bin deletes it at once
+    await pricingRow(card, 'Delete-Me-Season').getByRole('button', { name: /^Delete/ }).click()
 
     // Verify seasonal price is removed
     await expect(page.getByText('Seasonal price removed')).toBeVisible()
@@ -200,9 +200,9 @@ test.describe('Property Pricing - E2E', () => {
     await page.goto(`/properties/${prop.id}`)
     const card = pricingCard(page)
 
-    // Find the discount row. Its one button, the cross, deletes it at once
+    // Find the discount row. Its bin deletes it at once
     await expect(card.getByText('14+ nights')).toBeVisible()
-    await pricingRow(card, '14+ nights').getByRole('button').click()
+    await pricingRow(card, '14+ nights').getByRole('button', { name: /^Delete/ }).click()
 
     // Verify discount is removed
     await expect(page.getByText('Discount rule removed')).toBeVisible()
@@ -233,13 +233,13 @@ test.describe('Property Pricing - E2E', () => {
 
     // Verify base pricing values are displayed (they are the values of the inputs)
     await expect(priceField(card, 'Base Price')).toHaveValue('120')
-    await expect(priceField(card, 'Weekend Markup (₸)')).toHaveValue('25')
+    await expect(priceField(card, 'Weekend night price')).toHaveValue('145')
     await expect(priceField(card, 'Deposit for nightly stays')).toHaveValue('50')
 
     // Verify seasonal price
-    await expect(pricingRow(card, 'Winter Prices')).toHaveText(/80$/)
+    await expect(pricingRow(card, 'Winter Prices')).toContainText('80')
 
     // Verify discount
-    await expect(pricingRow(card, '7+ nights')).toHaveText('7+ nights: 10% off')
+    await expect(pricingRow(card, '7+ nights')).toContainText('7+ nights: 10% off')
   })
 })
