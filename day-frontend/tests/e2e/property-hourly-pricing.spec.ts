@@ -10,10 +10,13 @@ import { test, expect } from '../fixtures/e2e-auth'
 import { nextStep, priceField, wizardField } from '../fixtures/property-ui'
 import { createTestProperty, API_BASE } from '../fixtures/test-data'
 
-const NIGHTLY = ['Weekend Markup (₸)', 'Base Guests', 'Extra Adult Price', 'Extra Child Price']
+const NIGHTLY = ['Weekend night price', 'Base Guests', 'Extra Adult Price', 'Extra Child Price']
 
-async function expectNightly(scope: Locator, basePrice: string, shown: boolean) {
-  for (const label of [basePrice, ...NIGHTLY]) {
+// The create wizard still asks for the markup; the flat's page for the weekend price.
+const WIZARD_NIGHTLY = ['Weekend Markup (₸)', 'Base Guests', 'Extra Adult Price', 'Extra Child Price']
+
+async function expectNightly(scope: Locator, basePrice: string, shown: boolean, labels = NIGHTLY) {
+  for (const label of [basePrice, ...labels]) {
     await expect(scope.getByText(label, { exact: true }), label).toHaveCount(shown ? 1 : 0)
   }
 }
@@ -46,7 +49,11 @@ test.describe('Hourly pricing', () => {
     await expect(card.getByText('Seasonal Prices', { exact: true })).toHaveCount(0)
     await expect(card.getByText('Discount Rules', { exact: true })).toHaveCount(0)
 
-    await card.getByRole('radio', { name: 'Daily', exact: true }).click()
+    // Switching the way of letting says what it changes and saves at once.
+    await card.getByRole('radio', { name: /^By the night\b/ }).first().click()
+    await expect(page.getByText(/Hourly tariffs stop selling/)).toBeVisible()
+    await page.getByRole('button', { name: 'Yes, change' }).click()
+    await expect(page.getByText('Way of letting saved')).toBeVisible()
     await expectNightly(card, 'Base Price', true)
     await expect(card.getByText('Hourly Price', { exact: true })).toHaveCount(0)
     await expect(card.getByText('Deposit for nightly stays', { exact: true })).toBeVisible()
@@ -86,13 +93,13 @@ test.describe('Hourly pricing', () => {
     await expect(page.getByText('Hourly Price', { exact: true })).toBeVisible()
     await expect(page.getByText('Deposit for hourly stays', { exact: true })).toBeVisible()
     await expect(page.getByText('Deposit for nightly stays', { exact: true })).toHaveCount(0)
-    await expectNightly(page.locator('body'), 'Base Price (per night)', false)
+    await expectNightly(page.locator('body'), 'Base Price (per night)', false, WIZARD_NIGHTLY)
 
     await page.getByRole('radio', { name: 'Both', exact: true }).click()
     await expect(page.getByText('Hourly Price', { exact: true })).toBeVisible()
     await expect(page.getByText('Deposit for nightly stays', { exact: true })).toBeVisible()
     await expect(page.getByText('Deposit for hourly stays', { exact: true })).toBeVisible()
-    await expectNightly(page.locator('body'), 'Base Price (per night)', true)
+    await expectNightly(page.locator('body'), 'Base Price (per night)', true, WIZARD_NIGHTLY)
   })
 
   test('the wizard saves the deposit of each kind of stay', async ({ page, request }) => {

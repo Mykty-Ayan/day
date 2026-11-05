@@ -199,6 +199,16 @@ export async function addSeasonalPrice(
   return res.data
 }
 
+/** A season changed in place, in one write. */
+export async function updateSeasonalPrice(
+  propertyId: string,
+  seasonId: string,
+  data: SeasonalPriceInput,
+): Promise<SeasonalPrice> {
+  const res = await apiClient.patch(`/properties/${propertyId}/pricing/seasonal/${seasonId}`, data)
+  return res.data
+}
+
 export async function listSeasonalPrices(propertyId: string): Promise<SeasonalPrice[]> {
   const res = await apiClient.get(`/properties/${propertyId}/pricing/seasonal`)
   return res.data

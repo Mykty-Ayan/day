@@ -226,6 +226,9 @@ class FakeSeasonalPriceRepository(SeasonalPriceRepository):
         self._prices[price.id] = price
         return price
 
+    async def update(self, price: SeasonalPrice) -> SeasonalPrice:
+        return await self.save(price)
+
     async def delete(self, price_id: uuid.UUID) -> None:
         self._prices.pop(price_id, None)
 
@@ -1221,6 +1224,41 @@ class TestManagePricingService:
         pricing = await svc.get_pricing(prop.id, COMPANY_ID)
         remaining = await seasonal_repo.list_by_pricing_config(pricing.id)
         assert len(remaining) == 0
+
+    @pytest.mark.asyncio
+    async def test_a_season_is_changed_in_place(self):
+        # One write: no second season on the same dates if anything fails midway.
+        _, _, seasonal_repo, _, svc, prop = await self._setup()
+        await svc.upsert_pricing(prop.id, COMPANY_ID, PricingConfigInput(base_price=Decimal("100")))
+        season = await svc.add_seasonal_price(
+            prop.id, COMPANY_ID, SeasonalPrice(name="Summer", price_per_night=Decimal("150"))
+        )
+
+        await svc.update_seasonal_price(
+            prop.id, COMPANY_ID, season.id, SeasonalPrice(name="High summer", price_per_night=Decimal("180"))
+        )
+
+        pricing = await svc.get_pricing(prop.id, COMPANY_ID)
+        seasons = await seasonal_repo.list_by_pricing_config(pricing.id)
+        assert [(s.id, s.name, s.price_per_night) for s in seasons] == [(season.id, "High summer", Decimal("180"))]
+
+    @pytest.mark.asyncio
+    async def test_another_companys_season_cannot_be_changed(self):
+        prop_repo, _, seasonal_repo, _, svc, theirs = await self._setup()
+        await svc.upsert_pricing(theirs.id, COMPANY_ID, PricingConfigInput(base_price=Decimal("100")))
+        season = await svc.add_seasonal_price(
+            theirs.id, COMPANY_ID, SeasonalPrice(name="Summer", price_per_night=Decimal("150"))
+        )
+        other = uuid.uuid4()
+        ours = _make_property(company_id=other, internal_name="ours")
+        await prop_repo.save(ours)
+        await svc.upsert_pricing(ours.id, other, PricingConfigInput(base_price=Decimal("90")))
+
+        with pytest.raises(ValueError, match="Seasonal price not found"):
+            await svc.update_seasonal_price(
+                ours.id, other, season.id, SeasonalPrice(name="X", price_per_night=Decimal("1"))
+            )
+        assert season.price_per_night == Decimal("150")
 
     @pytest.mark.asyncio
     async def test_another_companys_season_and_discount_cannot_be_deleted(self):

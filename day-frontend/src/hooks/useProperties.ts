@@ -22,6 +22,7 @@ import {
   reorderPhotos,
   linkAmenities,
   addSeasonalPrice,
+  updateSeasonalPrice,
   deleteSeasonalPrice,
   addDiscountRule,
   deleteDiscountRule,
@@ -139,6 +140,16 @@ export function useAddSeasonalPrice(propertyId: string) {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (data: SeasonalPriceInput) => addSeasonalPrice(propertyId, data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: [PRICING_KEY, propertyId] })
+    },
+  })
+}
+
+export function useUpdateSeasonalPrice(propertyId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, ...data }: SeasonalPriceInput & { id: string }) => updateSeasonalPrice(propertyId, id, data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: [PRICING_KEY, propertyId] })
     },

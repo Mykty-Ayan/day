@@ -20,9 +20,9 @@ const variantClasses: Record<ButtonVariant, string> = {
   primary:
     'bg-accent text-white hover:bg-accent-hover',
   secondary:
-    'bg-gray-50 hover:bg-gray-100 border border-gray-200 text-gray-700 hover:text-black',
+    'border border-line bg-surface-card text-ink hover:bg-surface-page',
   disabled:
-    'bg-gray-200 text-gray-400 cursor-not-allowed',
+    'bg-surface-page text-ink-muted/70 cursor-not-allowed',
 }
 
 const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button(

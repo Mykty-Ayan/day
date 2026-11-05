@@ -145,6 +145,9 @@ class SeasonalPriceRepository(abc.ABC):
     async def save(self, price: SeasonalPrice) -> SeasonalPrice: ...
 
     @abc.abstractmethod
+    async def update(self, price: SeasonalPrice) -> SeasonalPrice: ...
+
+    @abc.abstractmethod
     async def delete(self, price_id: uuid.UUID) -> None: ...
 
 
