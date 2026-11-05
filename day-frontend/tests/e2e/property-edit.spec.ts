@@ -80,7 +80,8 @@ test.describe('Property Edit - E2E', () => {
 
     // The save sends the user back to the property page, which shows the new name
     await expect(page).toHaveURL(new RegExp(`/properties/${prop.id}$`))
-    await expect(page.getByRole('heading', { level: 1, name: 'Renamed Property E2E' })).toBeVisible()
+    // The heading is the flat's own name ("Kv. 28"); the guests' name is the line under it.
+    await expect(page.getByText('Renamed Property E2E', { exact: true }).first()).toBeVisible()
 
     const saved = await (await request.get(`${API_BASE}/properties/${prop.id}`)).json()
     expect(saved.name).toBe('Renamed Property E2E')
@@ -122,7 +123,8 @@ test.describe('Property Edit - E2E', () => {
 
     // Back on the property page with the original name
     await expect(page).toHaveURL(new RegExp(`/properties/${prop.id}$`))
-    await expect(page.getByRole('heading', { level: 1, name: originalName })).toBeVisible()
+    // The heading is the flat's own name ("Kv. 28"); the guests' name is the line under it.
+    await expect(page.getByText(originalName, { exact: true }).first()).toBeVisible()
 
     const saved = await (await request.get(`${API_BASE}/properties/${prop.id}`)).json()
     expect(saved.name).toBe(originalName)

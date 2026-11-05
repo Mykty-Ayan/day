@@ -29,7 +29,7 @@ export default function CheckInPhotosCard({ propertyId, photos }: { propertyId: 
   }
 
   return (
-    <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm space-y-3">
+    <div className="space-y-3 rounded-2xl border border-line bg-surface-card p-5">
       <div className="flex items-start gap-2">
         <KeyRound className="w-4 h-4 mt-0.5 shrink-0 text-gray-500" />
         <div>

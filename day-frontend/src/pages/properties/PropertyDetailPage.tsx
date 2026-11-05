@@ -1,6 +1,5 @@
 import { useMemo, useState } from 'react'
 import { useQueries, useQuery } from '@tanstack/react-query'
-import { motion } from 'framer-motion'
 import {
   ArrowLeft,
   Building2,
@@ -18,6 +17,7 @@ import {
   Bath,
   ImagePlus,
   ExternalLink,
+  MoreHorizontal,
 } from 'lucide-react'
 import { useParams, Link, useNavigate } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
@@ -50,6 +50,8 @@ import CalendarFeedsCard from '../../components/property/CalendarFeedsCard'
 import AuditTrail from '../../components/ui/AuditTrail'
 import Spinner from '../../components/ui/Spinner'
 import Button from '../../components/ui/Button'
+import { Badge } from '../../components/ui/badge'
+import { Popover, PopoverContent, PopoverTrigger } from '../../components/ui/popover'
 
 function getStatusActions(status: PropertyStatus): { labelKey: string; target: PropertyStatus; icon: typeof Play }[] {
   switch (status) {
@@ -106,6 +108,7 @@ export default function PropertyDetailPage() {
   const { data: auditLog = [] } = usePropertyAuditLog(propertyId)
   const clonePropertyMut = useCloneProperty()
   const [showCloneConfirm, setShowCloneConfirm] = useState(false)
+  const [menuOpen, setMenuOpen] = useState(false)
 
   const otherProperties = useMemo(
     () => (allProperties?.items ?? []).filter((p) => p.id !== propertyId),
@@ -199,211 +202,283 @@ export default function PropertyDetailPage() {
   }
 
   const statusActions = getStatusActions(property.status)
-  const actionButtonClass =
-    'inline-flex min-h-[44px] min-w-[44px] items-center justify-center gap-2 rounded-xl border border-gray-200 bg-gray-50 px-4 py-2 text-xs font-bold text-gray-700 transition-colors hover:bg-gray-100'
+  const staff = Boolean(currentUser) && currentUser?.role !== 'cleaner'
+  const listingPhotos = property.photos.filter((photo) => photo.audience !== 'guest')
+  const cover = listingPhotos.find((photo) => photo.is_cover) ?? listingPhotos[0]
+  const facts = [
+    { icon: Building2, label: t('common.type'), value: t(`common.${property.type}`) },
+    { icon: DoorOpen, label: t('properties.rooms'), value: property.rooms },
+    { icon: Bed, label: t('properties.beds'), value: property.beds },
+    { icon: Users, label: t('properties.form.maxGuests'), value: property.max_guests },
+    { icon: Bath, label: t('properties.form.bathrooms'), value: property.bathrooms },
+    { icon: Ruler, label: t('properties.area'), value: property.area_total != null ? `${property.area_total} m²` : null },
+  ].filter((fact) => fact.value != null && fact.value !== '')
+  const links = (
+    [
+      [property.map_url, 'mapUrl'],
+      [property.whatsapp_product_url, 'whatsappProductUrl'],
+      [property.video_url, 'videoUrl'],
+    ] as const
+  ).filter(([url]) => Boolean(url))
 
   return (
-    <div className="px-4 py-4 sm:px-6 sm:py-6 max-w-5xl mx-auto w-full">
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4 }}
+    <div className="mx-auto w-full max-w-6xl px-4 py-4 sm:px-6 sm:py-6">
+      <Link
+        to="/properties"
+        className="mb-4 inline-flex items-center gap-1 text-xs font-bold text-ink-muted transition-colors hover:text-ink"
       >
-        {/* Back link */}
-        <Link
-          to="/properties"
-          className="inline-flex items-center gap-1 text-xs font-bold text-gray-500 hover:text-gray-900 mb-4 transition-colors"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          {t('properties.backToProperties')}
-        </Link>
+        <ArrowLeft className="h-4 w-4" />
+        {t('properties.backToProperties')}
+      </Link>
 
-        {/* Header */}
-        <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-          <div className="min-w-0">
-            <div className="flex items-center gap-3 mb-1">
-              <h1 className="text-xl font-bold text-gray-900">{property.name}</h1>
-              <StatusBadge status={property.status} />
+      {/* The flat at a glance: its cover, what it is, how it is let, and what to do with it. */}
+      <section className="mb-5 overflow-hidden rounded-2xl border border-line bg-surface-card md:flex">
+        {cover && (
+          <div className="h-40 shrink-0 bg-surface-page md:h-auto md:w-56">
+            <img src={cover.thumbnail_url || cover.url} alt="" className="h-full w-full object-cover" />
+          </div>
+        )}
+        <div className="min-w-0 flex-1 p-5 sm:p-6">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                <h1 className="truncate text-xl font-bold text-ink">{property.internal_name || property.name}</h1>
+                <StatusBadge status={property.status} />
+              </div>
+              {property.internal_name && property.name !== property.internal_name && (
+                <p className="mt-0.5 text-sm text-ink-muted">{property.name}</p>
+              )}
             </div>
-            <p className="text-sm text-gray-500">{property.internal_name}</p>
-          </div>
-          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap">
-            <Link
-              to="/properties/$propertyId/edit"
-              params={{ propertyId }}
-              className={`${actionButtonClass} w-full sm:w-auto`}
-            >
-              <Pencil className="w-3.5 h-3.5" />
-              {t('common.edit')}
-            </Link>
-            <motion.button
-              type="button"
-              whileTap={{ scale: 0.97 }}
-              onClick={() => setShowCloneConfirm(true)}
-              className={`${actionButtonClass} w-full sm:w-auto`}
-            >
-              <Copy className="w-3.5 h-3.5" />
-              {t('common.clone')}
-            </motion.button>
-            {statusActions.map((action) => (
-              <motion.button
-                key={action.target}
-                type="button"
-                whileTap={{ scale: 0.97 }}
-                onClick={() => changeStatus.mutate(action.target)}
-                className={`${actionButtonClass} w-full sm:w-auto`}
+            <div className="flex items-center gap-2">
+              <Link
+                to="/properties/$propertyId/edit"
+                params={{ propertyId }}
+                className={SECONDARY}
               >
-                <action.icon className="w-3.5 h-3.5" />
-                {t(action.labelKey)}
-              </motion.button>
-            ))}
-          </div>
-        </div>
-
-        {/* Photo gallery */}
-        <div className="mb-6">
-          <div className="flex gap-2 overflow-x-auto pb-2">
-            <label className="shrink-0 w-48 h-32 rounded-xl border border-dashed border-gray-300 flex flex-col items-center justify-center gap-1 text-xs font-semibold text-gray-600 cursor-pointer hover:bg-gray-50">
-              <ImagePlus className="w-5 h-5" />
-              {uploadPhotos.isPending ? t('properties.photosUploading') : t('properties.addPhotos')}
-              <input
-                id="add-photos"
-                type="file"
-                accept="image/jpeg,image/png,image/webp"
-                multiple
-                className="hidden"
-                disabled={uploadPhotos.isPending}
-                onChange={addPhotos}
-              />
-            </label>
-              {property.photos.filter((photo) => photo.audience !== 'guest').map((photo) => (
-                <div
-                  key={photo.id}
-                  className={`shrink-0 w-48 h-32 rounded-xl overflow-hidden ${
-                    photo.is_cover ? 'ring-2 ring-black' : ''
-                  }`}
-                >
-                  <img
-                    src={photo.url}
-                    alt=""
-                    className="w-full h-full object-cover"
+                <Pencil className="h-3.5 w-3.5" />
+                {t('common.edit')}
+              </Link>
+              <Popover open={menuOpen} onOpenChange={setMenuOpen}>
+                <PopoverTrigger aria-label={t('bookings.card.moreActions')} className={SECONDARY}>
+                  <MoreHorizontal className="h-4 w-4" aria-hidden="true" />
+                </PopoverTrigger>
+                <PopoverContent align="end" className="w-auto min-w-44 p-1">
+                  <MenuItem
+                    icon={Copy}
+                    label={t('common.clone')}
+                    onClick={() => {
+                      setMenuOpen(false)
+                      setShowCloneConfirm(true)
+                    }}
                   />
+                  {statusActions.map((action) => (
+                    <MenuItem
+                      key={action.target}
+                      icon={action.icon}
+                      label={t(action.labelKey)}
+                      onClick={() => {
+                        setMenuOpen(false)
+                        changeStatus.mutate(action.target)
+                      }}
+                    />
+                  ))}
+                </PopoverContent>
+              </Popover>
+            </div>
+          </div>
+
+          {/* How the flat is let, in plain sight: switching it hides or shows prices on the chessboard. */}
+          <p className="mt-3 flex flex-wrap items-center gap-2 text-sm">
+            <span className="text-ink-muted">{t('properties.letAs')}</span>
+            <Badge tone="accent">{t(`properties.rentalModeShort.${property.rental_mode}`)}</Badge>
+          </p>
+
+          {facts.length > 0 && (
+            <dl className="mt-4 grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-3 lg:grid-cols-6">
+              {facts.map((fact) => (
+                <div key={fact.label} className="flex items-center gap-2">
+                  <fact.icon className="h-4 w-4 shrink-0 text-ink-muted" aria-hidden="true" />
+                  <div className="min-w-0">
+                    <dt className="text-xs text-ink-muted">{fact.label}</dt>
+                    <dd className="text-sm font-semibold text-ink">{fact.value}</dd>
+                  </div>
                 </div>
               ))}
-          </div>
+            </dl>
+          )}
+
+          {(property.address_full || property.complex_name) && (
+            <p className="mt-4 flex items-start gap-2 text-sm text-ink">
+              <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-ink-muted" aria-hidden="true" />
+              <span>
+                {[property.complex_name, property.address_full].filter(Boolean).join(', ')}
+                {(property.apartment_number || property.floor != null) && (
+                  <span className="text-ink-muted">
+                    {' · '}
+                    {property.apartment_number && t('properties.apt', { number: property.apartment_number })}
+                    {property.apartment_number && property.floor != null && ', '}
+                    {property.floor != null &&
+                      (property.floors_total
+                        ? t('properties.floorOf', { number: property.floor, total: property.floors_total })
+                        : t('properties.floor', { number: property.floor }))}
+                  </span>
+                )}
+              </span>
+            </p>
+          )}
+
+          {(links.length > 0 || property.public_code) && (
+            <p className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-sm">
+              {property.public_code && (
+                <a href={`/s/${property.public_code}`} target="_blank" rel="noreferrer" className="font-semibold text-accent-ink hover:underline">
+                  {t('properties.guestPage')}
+                </a>
+              )}
+              {links.map(([url, label]) => (
+                <a key={label} href={url ?? ''} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-accent-ink hover:underline">
+                  <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
+                  {t(`properties.form.${label}`)}
+                </a>
+              ))}
+            </p>
+          )}
+        </div>
+      </section>
+
+      <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-[minmax(0,1fr)_340px]">
+        <div className="flex min-w-0 flex-col gap-5">
+          {/* Prices first: they are what changes most. */}
+          <section className={CARD} aria-labelledby="property-pricing">
+            <h2 id="property-pricing" className="mb-4 text-sm font-bold text-ink">{t('properties.pricing.title')}</h2>
+            <PricingForm
+              pricing={pricing ?? null}
+              rentalMode={property.rental_mode}
+              seasonalSuggestions={seasonalSuggestions}
+              onSaveBase={handleSavePricing}
+              onAddSeasonal={(data) =>
+                addSeasonal.mutate(data, {
+                  onSuccess: () => showToast('success', t('properties.seasonalPriceAdded')),
+                  onError: (err: Error) => showToast('error', err.message || t('properties.failedAddSeasonal')),
+                })
+              }
+              onDeleteSeasonal={(id) =>
+                deleteSeasonal.mutate(id, {
+                  onSuccess: () => showToast('success', t('properties.seasonalPriceRemoved')),
+                  onError: (err: Error) => showToast('error', err.message || t('properties.failedRemoveSeasonal')),
+                })
+              }
+              onAddDiscount={(data) =>
+                addDiscount.mutate(data, {
+                  onSuccess: () => showToast('success', t('properties.discountRuleAdded')),
+                  onError: (err: Error) => showToast('error', err.message || t('properties.failedAddDiscount')),
+                })
+              }
+              onDeleteDiscount={(id) =>
+                deleteDiscount.mutate(id, {
+                  onSuccess: () => showToast('success', t('properties.discountRuleRemoved')),
+                  onError: (err: Error) => showToast('error', err.message || t('properties.failedRemoveDiscount')),
+                })
+              }
+              isSaving={savePricing.isPending}
+            />
+          </section>
+
+          {staff && <BlocksCard propertyId={propertyId} />}
+
+          {/* Photos: the listing's, then the ones only a guest with a booking sees. */}
+          <section className={CARD}>
+            <h2 className="mb-3 text-sm font-bold text-ink">{t('properties.photos')}</h2>
+            <div className="flex gap-2 overflow-x-auto pb-1">
+              <label className="flex h-28 w-40 shrink-0 cursor-pointer flex-col items-center justify-center gap-1 rounded-xl border border-dashed border-line text-xs font-semibold text-ink-muted transition-colors hover:bg-surface-page">
+                <ImagePlus className="h-5 w-5" />
+                {uploadPhotos.isPending ? t('properties.photosUploading') : t('properties.addPhotos')}
+                <input
+                  id="add-photos"
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  multiple
+                  className="hidden"
+                  disabled={uploadPhotos.isPending}
+                  onChange={addPhotos}
+                />
+              </label>
+              {listingPhotos.map((photo) => (
+                <div
+                  key={photo.id}
+                  className={`h-28 w-40 shrink-0 overflow-hidden rounded-xl ${photo.is_cover ? 'ring-2 ring-accent' : ''}`}
+                >
+                  <img src={photo.thumbnail_url || photo.url} alt="" className="h-full w-full object-cover" />
+                </div>
+              ))}
+            </div>
+          </section>
+          {staff && <CheckInPhotosCard propertyId={propertyId} photos={property.photos} />}
+
+          {(property.description ||
+            property.check_in_instructions ||
+            property.check_out_instructions ||
+            property.house_rules ||
+            property.check_in_hour != null ||
+            property.check_out_hour != null ||
+            property.check_in_method) && (
+            <section className={`${CARD} space-y-4`} aria-labelledby="property-rules">
+              <h2 id="property-rules" className="text-sm font-bold text-ink">{t('properties.aboutAndRules')}</h2>
+              {property.description && <p className="whitespace-pre-line text-sm text-ink">{property.description}</p>}
+              {(property.check_in_hour != null || property.check_out_hour != null || property.check_in_method) && (
+                <p className="text-sm text-ink">
+                  {[
+                    property.check_in_hour != null &&
+                      `${t('properties.form.checkInFrom')} ${String(property.check_in_hour).padStart(2, '0')}:00`,
+                    property.check_out_hour != null &&
+                      `${t('properties.form.checkOutUntil')} ${String(property.check_out_hour).padStart(2, '0')}:00`,
+                    property.check_in_method && t(`properties.checkInMethod.${property.check_in_method}`),
+                  ]
+                    .filter(Boolean)
+                    .join(' · ')}
+                </p>
+              )}
+              {(
+                [
+                  [property.check_in_instructions, 'properties.checkIn'],
+                  [property.check_out_instructions, 'properties.checkOut'],
+                  [property.house_rules, 'properties.houseRules'],
+                ] as const
+              ).map(([text, label]) =>
+                text ? (
+                  <div key={label}>
+                    <p className="mb-1 text-xs font-semibold text-ink-muted">{t(label)}</p>
+                    <p className="whitespace-pre-line text-sm text-ink">{text}</p>
+                  </div>
+                ) : null,
+              )}
+            </section>
+          )}
+
+          {property.amenities.length > 0 && (
+            <section className={CARD}>
+              <h2 className="mb-3 text-sm font-bold text-ink">{t('properties.amenities')}</h2>
+              <ul className="flex flex-wrap gap-2">
+                {property.amenities.map((amenity) => (
+                  <li key={amenity.id} className="rounded-lg bg-surface-page px-3 py-1.5 text-xs font-semibold text-ink">
+                    {amenity.name}
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
         </div>
 
-        <CalendarLinkCard propertyId={propertyId} />
-        {currentUser && currentUser.role !== 'cleaner' && <CalendarFeedsCard propertyId={propertyId} />}
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Left column - Details */}
-          <div className="lg:col-span-2 space-y-6">
-            {/* Property details grid */}
-            <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
-              <h2 className="text-sm font-bold text-gray-900 mb-4">{t('properties.details')}</h2>
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-                <div className="flex items-center gap-2">
-                  <Building2 className="w-4 h-4 text-gray-400" />
-                  <div>
-                    <p className="text-xs text-gray-500">{t('common.type')}</p>
-                    <p className="text-sm font-semibold text-gray-900">
-                      {t(`common.${property.type}`)}
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <DoorOpen className="w-4 h-4 text-gray-400" />
-                  <div>
-                    <p className="text-xs text-gray-500">{t('properties.rooms')}</p>
-                    <p className="text-sm font-semibold text-gray-900">
-                      {property.rooms ?? '-'}
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Bed className="w-4 h-4 text-gray-400" />
-                  <div>
-                    <p className="text-xs text-gray-500">{t('properties.beds')}</p>
-                    <p className="text-sm font-semibold text-gray-900">
-                      {property.beds ?? '-'}
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Users className="w-4 h-4 text-gray-400" />
-                  <div>
-                    <p className="text-xs text-gray-500">{t('properties.form.maxGuests')}</p>
-                    <p className="text-sm font-semibold text-gray-900">{property.max_guests ?? '-'}</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Bath className="w-4 h-4 text-gray-400" />
-                  <div>
-                    <p className="text-xs text-gray-500">{t('properties.form.bathrooms')}</p>
-                    <p className="text-sm font-semibold text-gray-900">{property.bathrooms ?? '-'}</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Ruler className="w-4 h-4 text-gray-400" />
-                  <div>
-                    <p className="text-xs text-gray-500">{t('properties.area')}</p>
-                    <p className="text-sm font-semibold text-gray-900">
-                      {property.area_total != null ? `${property.area_total} m²` : '-'}
-                    </p>
-                  </div>
-                </div>
-              </div>
-              {(property.address_full || property.complex_name) && (
-                <div className="flex items-start gap-2 mt-4 pt-4 border-t border-gray-100">
-                  <MapPin className="w-4 h-4 text-gray-400 mt-0.5" />
-                  <div>
-                    <p className="text-xs text-gray-500">{t('properties.address')}</p>
-                    <p className="text-sm text-gray-900">
-                      {[property.complex_name, property.address_full].filter(Boolean).join(', ')}
-                    </p>
-                    {(property.apartment_number || property.floor != null) && (
-                      <p className="text-xs text-gray-500 mt-0.5">
-                        {property.apartment_number && t('properties.apt', { number: property.apartment_number })}
-                        {property.apartment_number && property.floor != null && ', '}
-                        {property.floor != null &&
-                          (property.floors_total
-                            ? t('properties.floorOf', { number: property.floor, total: property.floors_total })
-                            : t('properties.floor', { number: property.floor }))}
-                      </p>
-                    )}
-                  </div>
-                </div>
-              )}
-              {(property.map_url || property.whatsapp_product_url || property.video_url) && (
-                <div className="flex items-start gap-2 mt-4 pt-4 border-t border-gray-100">
-                  <ExternalLink className="w-4 h-4 text-gray-400 mt-0.5" />
-                  <div>
-                    <p className="text-xs text-gray-500">{t('properties.links')}</p>
-                    <div className="flex flex-wrap gap-x-4 gap-y-1">
-                      {(
-                        [
-                          [property.map_url, 'mapUrl'],
-                          [property.whatsapp_product_url, 'whatsappProductUrl'],
-                          [property.video_url, 'videoUrl'],
-                        ] as const
-                      ).map(([url, label]) =>
-                        url ? (
-                          <a
-                            key={label}
-                            href={url}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="text-sm text-blue-600 hover:underline"
-                          >
-                            {t(`properties.form.${label}`)}
-                          </a>
-                        ) : null,
-                      )}
-                    </div>
-                  </div>
-                </div>
-              )}
+        {/* The flat's ties to the world: the calendars it shares, the listings, its history. */}
+        <aside className="flex min-w-0 flex-col gap-5">
+          <CalendarLinkCard propertyId={propertyId} />
+          {staff && <CalendarFeedsCard propertyId={propertyId} />}
+          {(
+            [
+              ['listings', property.listing_urls],
+              ['hourlyListings', property.hourly_listing_urls],
+            ] as const
+          ).some(([, urls]) => urls?.length > 0) && (
+            <section className={CARD}>
               {(
                 [
                   ['listings', property.listing_urls],
@@ -411,167 +486,25 @@ export default function PropertyDetailPage() {
                 ] as const
               ).map(([label, urls]) =>
                 urls?.length > 0 ? (
-                  <div key={label} className="flex items-start gap-2 mt-4 pt-4 border-t border-gray-100">
-                    <ExternalLink className="w-4 h-4 text-gray-400 mt-0.5" />
-                    <div className="min-w-0">
-                      <p className="text-xs text-gray-500">{t(`properties.${label}`)}</p>
-                      <div className="flex flex-col gap-y-1">
-                        {urls.map((url) => (
-                          <a
-                            key={url}
-                            href={url}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="truncate text-sm text-blue-600 hover:underline"
-                          >
+                  <div key={label} className="mb-3 last:mb-0">
+                    <h2 className="mb-1 text-sm font-bold text-ink">{t(`properties.${label}`)}</h2>
+                    <ul className="flex flex-col gap-1">
+                      {urls.map((url) => (
+                        <li key={url} className="min-w-0">
+                          <a href={url} target="_blank" rel="noreferrer" className="block truncate text-sm text-accent-ink hover:underline">
                             {url.replace(/^https?:\/\/(www\.)?/, '')}
                           </a>
-                        ))}
-                      </div>
-                    </div>
+                        </li>
+                      ))}
+                    </ul>
                   </div>
                 ) : null,
               )}
-            </div>
-
-            {/* Description */}
-            {property.description && (
-              <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
-                <h2 className="text-sm font-bold text-gray-900 mb-2">
-                  {t('properties.description')}
-                </h2>
-                <p className="text-sm text-gray-700 whitespace-pre-line">
-                  {property.description}
-                </p>
-              </div>
-            )}
-
-            {currentUser && currentUser.role !== 'cleaner' && (
-              <>
-                <CheckInPhotosCard propertyId={propertyId} photos={property.photos} />
-                <BlocksCard propertyId={propertyId} />
-              </>
-            )}
-
-            {/* Rules */}
-            {(property.check_in_instructions ||
-              property.check_out_instructions ||
-              property.house_rules ||
-              property.check_in_hour != null ||
-              property.check_out_hour != null ||
-              property.check_in_method) && (
-              <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm space-y-4">
-                <h2 className="text-sm font-bold text-gray-900">{t('properties.rules')}</h2>
-                {(property.check_in_hour != null || property.check_out_hour != null || property.check_in_method) && (
-                  <p className="text-sm text-gray-700">
-                    {[
-                      property.check_in_hour != null &&
-                        `${t('properties.form.checkInFrom')} ${String(property.check_in_hour).padStart(2, '0')}:00`,
-                      property.check_out_hour != null &&
-                        `${t('properties.form.checkOutUntil')} ${String(property.check_out_hour).padStart(2, '0')}:00`,
-                      property.check_in_method && t(`properties.checkInMethod.${property.check_in_method}`),
-                    ]
-                      .filter(Boolean)
-                      .join(' · ')}
-                  </p>
-                )}
-                {property.check_in_instructions && (
-                  <div>
-                    <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">
-                      {t('properties.checkIn')}
-                    </p>
-                    <p className="text-sm text-gray-700 whitespace-pre-line">
-                      {property.check_in_instructions}
-                    </p>
-                  </div>
-                )}
-                {property.check_out_instructions && (
-                  <div>
-                    <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">
-                      {t('properties.checkOut')}
-                    </p>
-                    <p className="text-sm text-gray-700 whitespace-pre-line">
-                      {property.check_out_instructions}
-                    </p>
-                  </div>
-                )}
-                {property.house_rules && (
-                  <div>
-                    <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">
-                      {t('properties.houseRules')}
-                    </p>
-                    <p className="text-sm text-gray-700 whitespace-pre-line">
-                      {property.house_rules}
-                    </p>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Amenities */}
-            {property.amenities.length > 0 && (
-              <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
-                <h2 className="text-sm font-bold text-gray-900 mb-3">{t('properties.amenities')}</h2>
-                <div className="flex flex-wrap gap-2">
-                  {property.amenities.map((amenity) => (
-                    <span
-                      key={amenity.id}
-                      className="bg-gray-50 border border-gray-200 rounded-lg px-3 py-1.5 text-xs font-semibold text-gray-700"
-                    >
-                      {amenity.name}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Pricing */}
-            <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
-              <h2 className="text-sm font-bold text-gray-900 mb-4">{t('properties.pricing.title')}</h2>
-              <PricingForm
-                pricing={pricing ?? null}
-                rentalMode={property.rental_mode}
-                seasonalSuggestions={seasonalSuggestions}
-                onSaveBase={handleSavePricing}
-                onAddSeasonal={(data) =>
-                  addSeasonal.mutate(data, {
-                    onSuccess: () => showToast('success', t('properties.seasonalPriceAdded')),
-                    onError: (err: Error) =>
-                      showToast('error', err.message || t('properties.failedAddSeasonal')),
-                  })
-                }
-                onDeleteSeasonal={(id) =>
-                  deleteSeasonal.mutate(id, {
-                    onSuccess: () => showToast('success', t('properties.seasonalPriceRemoved')),
-                    onError: (err: Error) =>
-                      showToast('error', err.message || t('properties.failedRemoveSeasonal')),
-                  })
-                }
-                onAddDiscount={(data) =>
-                  addDiscount.mutate(data, {
-                    onSuccess: () => showToast('success', t('properties.discountRuleAdded')),
-                    onError: (err: Error) =>
-                      showToast('error', err.message || t('properties.failedAddDiscount')),
-                  })
-                }
-                onDeleteDiscount={(id) =>
-                  deleteDiscount.mutate(id, {
-                    onSuccess: () => showToast('success', t('properties.discountRuleRemoved')),
-                    onError: (err: Error) =>
-                      showToast('error', err.message || t('properties.failedRemoveDiscount')),
-                  })
-                }
-                isSaving={savePricing.isPending}
-              />
-            </div>
-          </div>
-
-          {/* Right column - Audit log */}
-          <div>
-            <AuditTrail entries={auditLog} />
-          </div>
-        </div>
-      </motion.div>
+            </section>
+          )}
+          <AuditTrail entries={auditLog} />
+        </aside>
+      </div>
 
       <ConfirmDialog
         open={showCloneConfirm}
@@ -594,6 +527,23 @@ export default function PropertyDetailPage() {
         loading={clonePropertyMut.isPending}
       />
     </div>
+  )
+}
+
+const CARD = 'rounded-2xl border border-line bg-surface-card p-5'
+const SECONDARY =
+  'inline-flex min-h-[40px] items-center justify-center gap-1.5 rounded-lg border border-line px-3 text-xs font-bold text-ink transition-colors hover:bg-surface-page'
+
+function MenuItem({ icon: Icon, label, onClick }: { icon: typeof Play; label: string; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex min-h-[40px] w-full items-center gap-2 rounded-lg px-3 text-left text-sm font-semibold text-ink transition-colors hover:bg-surface-page"
+    >
+      <Icon className="h-3.5 w-3.5" aria-hidden="true" />
+      {label}
+    </button>
   )
 }
 
@@ -622,31 +572,31 @@ function CalendarLinkCard({ propertyId }: { propertyId: string }) {
   }
 
   return (
-    <div className="mb-6 bg-white border border-gray-200 rounded-xl p-5 shadow-sm flex flex-col gap-3">
+    <section className="flex flex-col gap-3 rounded-2xl border border-line bg-surface-card p-5">
       <div className="flex items-start gap-2 min-w-0">
-        <CalendarSync className="w-4 h-4 mt-0.5 shrink-0 text-gray-500" />
+        <CalendarSync className="mt-0.5 h-4 w-4 shrink-0 text-ink-muted" />
         <div className="min-w-0">
-          <h2 className="text-sm font-bold text-gray-900">{t('properties.calendar.title')}</h2>
-          <p className="text-xs text-gray-500">{t('properties.calendar.hint')}</p>
+          <h2 className="text-sm font-bold text-ink">{t('properties.calendar.title')}</h2>
+          <p className="text-xs text-ink-muted">{t('properties.calendar.hint')}</p>
         </div>
       </div>
       {link.isError ? (
-        <p className="text-xs text-red-600">{t('properties.calendar.failed')}</p>
+        <p className="text-xs text-danger">{t('properties.calendar.failed')}</p>
       ) : (
-        <div className="flex flex-col gap-2 sm:flex-row">
+        <div className="flex flex-col gap-2">
           <input
             type="text"
             readOnly
             value={link.data ?? ''}
             onFocus={(e) => e.currentTarget.select()}
             aria-label={t('properties.calendar.title')}
-            className="min-w-0 flex-1 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 font-mono text-xs text-gray-700"
+            className="min-w-0 flex-1 rounded-lg border border-line bg-surface-page px-3 py-2 font-mono text-xs text-ink"
           />
           <Button type="button" onClick={copyLink} disabled={!link.data}>
             {t('properties.calendar.copy')}
           </Button>
         </div>
       )}
-    </div>
+    </section>
   )
 }

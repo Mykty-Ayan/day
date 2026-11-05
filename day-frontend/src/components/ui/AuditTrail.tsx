@@ -40,7 +40,7 @@ export default function AuditTrail({ entries, title }: Props) {
   const displayTitle = title ?? t('audit.activity')
 
   return (
-    <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
+    <div className="rounded-2xl border border-line bg-surface-card p-5">
       <h2 className="text-sm font-bold text-gray-900 mb-4">{displayTitle}</h2>
       {entries.length === 0 ? (
         <p className="text-xs text-gray-500">{t('audit.noActivity')}</p>

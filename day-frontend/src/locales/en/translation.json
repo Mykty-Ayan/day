@@ -391,6 +391,21 @@
       "fromCalendar": "From calendar: {{name}}",
       "addedUnread": "Calendar added, not read yet: {{error}}",
       "loadFailed": "Could not load the calendars"
+    },
+    "photos": "Photos",
+    "letAs": "Let",
+    "guestPage": "Guest page",
+    "aboutAndRules": "About and rules",
+    "rentalModeShort": {
+      "daily": "by the night",
+      "hourly": "by the hour",
+      "both": "by the night and by the hour"
+    },
+    "statusOne": {
+      "active": "Active",
+      "paused": "Paused",
+      "archived": "Archived",
+      "new": "New"
     }
   },
   "bookings": {

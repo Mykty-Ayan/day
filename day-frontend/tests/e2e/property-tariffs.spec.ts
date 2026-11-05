@@ -9,7 +9,7 @@ import { test, expect } from '../fixtures/e2e-auth'
 import { createTestProperty, API_BASE } from '../fixtures/test-data'
 
 function pricingCard(page: Page): Locator {
-  return page.locator('div.rounded-xl', { has: page.getByRole('heading', { name: 'Pricing', exact: true }) }).last()
+  return page.getByRole('region', { name: 'Pricing', exact: true })
 }
 
 test.describe('Hourly tariffs', () => {

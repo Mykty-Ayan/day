@@ -19,7 +19,7 @@ async function expectNightly(scope: Locator, basePrice: string, shown: boolean) 
 }
 
 function pricingCard(page: Page): Locator {
-  return page.locator('div.rounded-xl', { has: page.getByRole('heading', { name: 'Pricing', exact: true }) }).last()
+  return page.getByRole('region', { name: 'Pricing', exact: true })
 }
 
 test.describe('Hourly pricing', () => {

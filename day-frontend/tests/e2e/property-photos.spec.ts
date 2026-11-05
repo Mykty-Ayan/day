@@ -27,7 +27,8 @@ async function photosOf(request: APIRequestContext, propertyId: string): Promise
  * A check-in photo's URL is signed anew on every request, so only the part before `?` is compared.
  */
 function photoImage(page: Page, photo: Photo): Locator {
-  return page.locator(`img[src^="${photo.url.split('?')[0]}"]`)
+  // The cover shows twice, at the top and among the photos: the strip's is the last.
+  return page.locator(`img[src^="${photo.url.split('?')[0]}"]`).last()
 }
 
 test.describe('Property Photos - E2E', () => {

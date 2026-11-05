@@ -397,6 +397,21 @@
       "fromCalendar": "Из календаря: {{name}}",
       "addedUnread": "Календарь добавлен, но пока не прочитан: {{error}}",
       "loadFailed": "Не удалось загрузить календари"
+    },
+    "photos": "Фото",
+    "letAs": "Сдаётся",
+    "guestPage": "Страница для гостя",
+    "aboutAndRules": "Описание и правила",
+    "rentalModeShort": {
+      "daily": "посуточно",
+      "hourly": "по часам",
+      "both": "посуточно и по часам"
+    },
+    "statusOne": {
+      "active": "Активна",
+      "paused": "На паузе",
+      "archived": "В архиве",
+      "new": "Новая"
     }
   },
   "bookings": {
