@@ -96,18 +96,25 @@ export function useBookedNights(
   })
 }
 
-/** Every stay of a flat that ends on `from` (YYYY-MM-DD) or later, all pages: the list
+/** Every stay of a flat that ends on `from` (YYYY-MM-DD) or later, and whoever is checked in, all pages: the list
  *  comes newest first, cancelled ones included, so one page can miss the stay of today. */
 export function useFlatStaysFrom(propertyId: string, from: string) {
   return useQuery({
     queryKey: [BOOKINGS_KEY, 'flat-stays', propertyId, from],
     queryFn: async () => {
-      const filters = { property_id: propertyId, date_from: from, per_page: 100 }
-      const first = await listBookings(filters)
-      const rest = await Promise.all(
-        Array.from({ length: Math.max(0, first.pages - 1) }, (_, i) => listBookings({ ...filters, page: i + 2 })),
-      )
-      return [first, ...rest].flatMap((page) => page.items)
+      const allPages = async (filters: BookingFilters) => {
+        const first = await listBookings(filters)
+        const rest = await Promise.all(
+          Array.from({ length: Math.max(0, first.pages - 1) }, (_, i) => listBookings({ ...filters, page: i + 2 })),
+        )
+        return [first, ...rest].flatMap((page) => page.items)
+      }
+      const [stays, living] = await Promise.all([
+        allPages({ property_id: propertyId, date_from: from, per_page: 100 }),
+        // A guest kept past the checkout ends before `from` and is still in the flat.
+        allPages({ property_id: propertyId, status: 'checked_in', per_page: 100 }),
+      ])
+      return [...stays, ...living.filter((stay) => !stays.some((s) => s.id === stay.id))]
     },
     enabled: !!propertyId,
   })
