@@ -195,6 +195,18 @@ export function formToUpdate(form: PropertyEditForm, opened: PropertyEditForm): 
   return body
 }
 
+/** Only the fields changed since the panel opened: a panel of one block must not
+ *  send back the other blocks, or it would undo what was saved there meanwhile
+ *  (another panel, the CRM). A cleared field goes out as null. */
+export function changedFields(form: PropertyEditForm, opened: PropertyEditForm): PropertyUpdateInput {
+  const before = formToUpdate(opened, opened) as Record<string, unknown>
+  return Object.fromEntries(
+    Object.entries(formToUpdate(form, opened)).filter(
+      ([key, value]) => key === 'wifi_password' || JSON.stringify(value) !== JSON.stringify(before[key]),
+    ),
+  )
+}
+
 /** The wizard's create payload as an update of the flat it already created:
  *  a field left empty goes out as null, so a field cleared between attempts clears. */
 export function wizardToUpdate(payload: PropertyCreateInput): PropertyUpdateInput {

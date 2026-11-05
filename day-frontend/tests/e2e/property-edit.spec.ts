@@ -4,7 +4,7 @@ import {
   createTestPricing,
   API_BASE,
 } from '../fixtures/test-data'
-import { openBlock, pricingCard, priceField } from '../fixtures/property-ui'
+import { openBlock, pricingCard, priceField, wizardField as field } from '../fixtures/property-ui'
 
 // The labels of the flat's forms are not tied to their inputs, so its fields are found by placeholder.
 const NAME_PLACEHOLDER = 'Cozy Downtown Studio'
@@ -81,18 +81,52 @@ test.describe('Property Edit - E2E', () => {
     expect(saved.name).toBe('Renamed Property E2E')
   })
 
-  test('amenities are changed after the flat is made', async ({ page, request }) => {
+  test('amenities are changed after the flat is made: added to the set, and taken off', async ({ page, request }) => {
     const prop = await createPropertyViaApi(request)
+    const amenityIds = async () =>
+      ((await (await request.get(`${API_BASE}/properties/${prop.id}`)).json()).amenities as { id: string }[])
+        .map((a) => a.id)
+        .sort()
 
     await page.goto(`/properties/${prop.id}?tab=amenities`)
-    const panel = await openBlock(page, 'Amenities')
-    const first = panel.getByRole('checkbox').first()
-    await first.check()
+    let panel = await openBlock(page, 'Amenities')
+    await panel.getByRole('checkbox').nth(0).check()
+    await panel.getByRole('checkbox').nth(1).check()
     await panel.getByRole('button', { name: 'Save', exact: true }).click()
+    await expect(panel).toBeHidden()
+    const two = await amenityIds()
+    expect(two).toHaveLength(2)
+
+    // A third one joins the two, it does not replace them.
+    panel = await openBlock(page, 'Amenities')
+    await panel.getByRole('checkbox').nth(2).check()
+    await panel.getByRole('button', { name: 'Save', exact: true }).click()
+    await expect(panel).toBeHidden()
+    await expect.poll(amenityIds).toHaveLength(3)
+
+    // Taken off, it is gone; the others stay.
+    panel = await openBlock(page, 'Amenities')
+    await panel.getByRole('checkbox').nth(2).uncheck()
+    await panel.getByRole('button', { name: 'Save', exact: true }).click()
+    await expect(panel).toBeHidden()
+    await expect.poll(amenityIds).toEqual(two)
+  })
+
+  test('a block saves only its own fields, so it does not undo another change', async ({ page, request }) => {
+    const prop = await createPropertyViaApi(request)
+
+    await page.goto(`/properties/${prop.id}`)
+    const panel = await openBlock(page, 'Address')
+    // Meanwhile the name changes elsewhere (the CRM, another tab).
+    await request.patch(`${API_BASE}/properties/${prop.id}`, { data: { name: 'Changed Elsewhere' } })
+    const sent = page.waitForRequest((r) => r.method() === 'PATCH' && r.url().endsWith(`/properties/${prop.id}`))
+    await field(page, 'Full Address').fill('1 New Street')
+    await panel.getByRole('button', { name: 'Save', exact: true }).click()
+    expect(Object.keys((await sent).postDataJSON())).toEqual(['address_full'])
     await expect(panel).toBeHidden()
 
     const saved = await (await request.get(`${API_BASE}/properties/${prop.id}`)).json()
-    expect(saved.amenities).toHaveLength(1)
+    expect(saved).toMatchObject({ name: 'Changed Elsewhere', address_full: '1 New Street' })
   })
 
   test('change pricing - save - verify', async ({ page, request }) => {

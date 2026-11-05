@@ -5,7 +5,7 @@ import { useSetAmenities, useUpdateProperty } from '../../hooks/useProperties'
 import { isWebLink } from '../../lib/utils'
 import {
   bufferMinutesValid,
-  formToUpdate,
+  changedFields,
   listingInBoth,
   listingLinksValid,
   propertyToForm,
@@ -86,8 +86,11 @@ function BlockForm({ property, block, onDone }: { property: Property; block: Pro
   async function save() {
     if (!validate()) return
     try {
-      if (block === 'amenities') await setAmenities.mutateAsync({ from: savedAmenities, to: amenities })
-      else await update.mutateAsync(formToUpdate(form, opened))
+      if (block === 'amenities') await setAmenities.mutateAsync(amenities)
+      else {
+        const changed = changedFields(form, opened)
+        if (Object.keys(changed).length > 0) await update.mutateAsync(changed)
+      }
       showToast('success', t('properties.propertyUpdated'))
       onDone()
     } catch {
