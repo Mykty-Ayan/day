@@ -493,6 +493,22 @@
       "deleteCoverMessage": "Guests will no longer see this photo. The next one becomes the cover.",
       "deleteFailed": "Could not delete the photo",
       "failed": "Could not save the order of the photos"
+    },
+    "log": {
+      "title": "History",
+      "hint": "What was changed in the flat, and by whom. Prices, photos and amenities are not shown here yet.",
+      "today": "Today",
+      "yesterday": "Yesterday",
+      "empty": "Nothing has been changed yet.",
+      "empty_value": "empty",
+      "created": "The flat was created",
+      "cloned": "The flat was copied",
+      "clonedFrom": "from another flat",
+      "changed": "changed",
+      "show": "Show",
+      "was": "Was",
+      "now": "Now",
+      "asCompany": "as the company has it"
     }
   },
   "bookings": {
@@ -1206,14 +1222,6 @@
     "urlPlaceholder": "https://booking.com/hotel/…",
     "instructionsPlaceholder": "e.g. Focus on extracting amenities and house rules…",
     "sourceKrisha": "Krisha.kz"
-  },
-  "audit": {
-    "activity": "Activity",
-    "noActivity": "No activity yet",
-    "record": "record",
-    "created": "created",
-    "null": "null",
-    "by": "by {{name}}"
   },
   "settings": {
     "title": "Settings",

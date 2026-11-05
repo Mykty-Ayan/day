@@ -169,6 +169,23 @@ test.describe('Property Edit - E2E', () => {
     expect(saved).toMatchObject({ name: 'Changed Elsewhere', address_full: '1 New Street' })
   })
 
+  test('the history says what changed in words, and who changed it', async ({ page, request }) => {
+    const prop = await createPropertyViaApi(request, { name: 'Before Name' })
+    await request.patch(`${API_BASE}/properties/${prop.id}`, {
+      data: { name: 'After Name', check_in_hour: 15, wifi_password: 'secret-1' },
+    })
+
+    await page.goto(`/properties/${prop.id}?tab=history`)
+    const history = page.getByRole('region', { name: 'History', exact: true })
+    await expect(history.getByText('Today', { exact: true })).toBeVisible()
+    await expect(history.getByText('The flat was created')).toBeVisible()
+    await expect(history.getByRole('listitem').filter({ hasText: 'Public Name:' })).toContainText('Before Name → After Name')
+    await expect(history.getByRole('listitem').filter({ hasText: 'Check-in from:' })).toContainText('as the company has it → 15:00')
+    // A password is said to have changed, never shown.
+    await expect(history.getByRole('listitem').filter({ hasText: 'Wi-Fi password:' })).toContainText('changed')
+    await expect(history.getByText('secret-1')).toHaveCount(0)
+  })
+
   test('change pricing - save - verify', async ({ page, request }) => {
     // Pricing is edited in the Pricing card of the property page
     const prop = await createPropertyViaApi(request)

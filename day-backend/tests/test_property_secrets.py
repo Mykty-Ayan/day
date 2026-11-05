@@ -162,3 +162,40 @@ async def test_the_history_hides_the_way_in_from_those_who_cannot_see_it(flat): 
     assert told((await client.get(f"{path}/audit-log")).json()) == [(None, "Код 4471")]
     use(Permission.PROPERTIES_READ)
     assert told((await client.get(f"{path}/audit-log")).json()) == [(None, "***")]
+
+
+@pytest.mark.integration
+async def test_the_history_names_who_changed_the_flat_only_within_the_company(flat):  # noqa: F811  (the imported fixture)
+    from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+    from sqlalchemy.pool import NullPool
+
+    from app.config import settings
+    from app.infrastructure.models.auth import CompanyModel, UserModel
+    from app.infrastructure.models.property import PropertyAuditLogModel, PropertyModel
+
+    client, prop, use = flat
+    engine = create_async_engine(settings.DATABASE_URL, poolclass=NullPool)
+    async with async_sessionmaker(engine)() as session:
+        company_id = (await session.get(PropertyModel, prop)).company_id
+        other_company = uuid.uuid4()
+        session.add(CompanyModel(id=other_company, name=f"Other {other_company.hex[:6]}"))
+        await session.flush()
+        ours, theirs = uuid.uuid4(), uuid.uuid4()
+        session.add_all([
+            UserModel(id=ours, email=f"{ours.hex}@t.local", hashed_password="x", company_id=company_id,
+                      full_name="Айгуль"),
+            UserModel(id=theirs, email=f"{theirs.hex}@t.local", hashed_password="x", company_id=other_company,
+                      full_name="Чужой"),
+        ])
+        await session.flush()
+        for who, name in ((ours, "Т14"), (theirs, "Т15"), (None, "Т16")):
+            session.add(PropertyAuditLogModel(property_id=prop, changed_by=who, field_name="name",
+                                              old_value="Т13", new_value=name, action="update"))
+        await session.commit()
+    await engine.dispose()
+
+    use(Permission.PROPERTIES_READ)
+    log = (await client.get(f"/api/v1/properties/{prop}/audit-log")).json()
+    assert sorted((e["new_value"], e["changed_by_name"]) for e in log) == [
+        ("Т14", "Айгуль"), ("Т15", None), ("Т16", None)
+    ]

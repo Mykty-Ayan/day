@@ -236,6 +236,8 @@ export interface PropertyAuditLog {
   id: string
   property_id: string
   changed_by: string | null
+  /** The person's name; none for a change by an API key or the system. */
+  changed_by_name?: string | null
   action: string
   field_name: string | null
   old_value: string | null
