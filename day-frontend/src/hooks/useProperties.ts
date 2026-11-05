@@ -20,6 +20,7 @@ import {
   setPhotoCaption,
   deletePhoto,
   reorderPhotos,
+  setPhotoCover,
   linkAmenities,
   addSeasonalPrice,
   updateSeasonalPrice,
@@ -239,6 +240,25 @@ export function useReorderPhotos(propertyId: string) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: [PROPERTY_KEY, propertyId] })
     },
+  })
+}
+
+/** The listing photos in this order; the first one becomes the cover. */
+export function useArrangePhotos(propertyId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ ids, cover }: { ids: string[]; cover: string | undefined }) => {
+      await reorderPhotos(propertyId, ids)
+      if (ids[0] && ids[0] !== cover) await setPhotoCover(propertyId, ids[0])
+    },
+    // After a failure too: the order may have been saved without the cover.
+    // Awaited: the arrows stay off until the new order is shown, so the next
+    // move starts from it.
+    onSettled: () =>
+      Promise.all([
+        qc.invalidateQueries({ queryKey: [PROPERTY_KEY, propertyId] }),
+        qc.invalidateQueries({ queryKey: [AUDIT_LOG_KEY, propertyId] }),
+      ]),
   })
 }
 

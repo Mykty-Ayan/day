@@ -478,6 +478,21 @@
       "address": "Address",
       "details": "Details",
       "rules": "Check-in and rules"
+    },
+    "photoTools": {
+      "hint": "The first photo is the cover: the flat's page opens with it. Guests see the photos in this order.",
+      "photo": "Photo {{n}}",
+      "cover": "Cover",
+      "makeCover": "Make cover",
+      "makeCoverOf": "Make photo {{n}} the cover",
+      "earlier": "Move photo {{n}} earlier",
+      "later": "Move photo {{n}} later",
+      "delete": "Delete photo {{n}}",
+      "deleteTitle": "Delete the photo?",
+      "deleteMessage": "Guests will no longer see this photo.",
+      "deleteCoverMessage": "Guests will no longer see this photo. The next one becomes the cover.",
+      "deleteFailed": "Could not delete the photo",
+      "failed": "Could not save the order of the photos"
     }
   },
   "bookings": {

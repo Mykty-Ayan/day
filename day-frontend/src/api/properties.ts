@@ -118,6 +118,11 @@ export async function deletePhoto(
   await apiClient.delete(`/properties/${propertyId}/photos/${photoId}`)
 }
 
+/** This listing photo opens the flat; the others stop being the cover. */
+export async function setPhotoCover(propertyId: string, photoId: string): Promise<void> {
+  await apiClient.put(`/properties/${propertyId}/photos/${photoId}/cover`)
+}
+
 export async function reorderPhotos(
   propertyId: string,
   photoIds: string[],
