@@ -82,6 +82,12 @@ function StayView({ stay, locale, today }: { stay: PublicStay; locale: string; t
   const dayLabel = useMemo(() => new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'long' }), [locale])
   const shortDay = useMemo(() => new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'short' }), [locale])
   const monthName = useMemo(() => new Intl.DateTimeFormat(locale, { month: 'long' }), [locale])
+  // The company's weekend nights by name in the guest's language ("Sat, Sun"): the weekend
+  // tariff prices are for them. 2 Nov 2026 is a Monday, the server's 0.
+  const weekendLabel = useMemo(() => {
+    const name = new Intl.DateTimeFormat(locale, { weekday: 'short' })
+    return (stay.prices.weekend_nights ?? [4, 5]).map((night) => name.format(new Date(2026, 10, 2 + night))).join(', ')
+  }, [locale, stay.prices.weekend_nights])
   const short = !quote || stay.min_nights == null || quote.count >= stay.min_nights ? null : stay.min_nights
 
   // From the state as it is now, not as this render saw it: two quick taps both
@@ -200,7 +206,7 @@ function StayView({ stay, locale, today }: { stay: PublicStay; locale: string; t
                 <span key={tariff.name} className="text-base">
                   {t(`guest.tariff_${tariff.name}`)} — {money(tariff.price, locale)}
                   {tariff.weekend != null && (
-                    <span className="text-gray-600">{` · ${t('guest.tariffWeekend', { price: money(tariff.weekend, locale) })}`}</span>
+                    <span className="text-gray-600">{` · ${t('guest.tariffWeekend', { days: weekendLabel, price: money(tariff.weekend, locale) })}`}</span>
                   )}
                 </span>
               ))}

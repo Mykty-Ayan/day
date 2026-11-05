@@ -21,7 +21,7 @@
     "tariff_3h": "3 Stunden",
     "tariff_6h": "6 Stunden",
     "tariff_night": "Nacht",
-    "tariffWeekend": "Fr–Sa {{price}}",
+    "tariffWeekend": "{{days}} {{price}}",
     "lateRule": "Nach {{late}} nur die Nacht, Check-out bis {{morning}}",
     "deposit": "Kaution {{price}}, Rückzahlung nach dem Check-out",
     "nightDeposit": "Kaution für Übernachtungen {{price}}, Rückzahlung nach dem Check-out",

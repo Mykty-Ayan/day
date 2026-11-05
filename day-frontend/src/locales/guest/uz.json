@@ -18,7 +18,7 @@
     "tariff_3h": "3 soat",
     "tariff_6h": "6 soat",
     "tariff_night": "Tun",
-    "tariffWeekend": "Ju–Sh {{price}}",
+    "tariffWeekend": "{{days}} {{price}}",
     "lateRule": "{{late}} dan keyin faqat tun, chiqish {{morning}} gacha",
     "deposit": "Garov {{price}}, chiqib ketgandan keyin qaytariladi",
     "nightDeposit": "Sutkalik turish uchun garov {{price}}, chiqib ketgandan keyin qaytariladi",

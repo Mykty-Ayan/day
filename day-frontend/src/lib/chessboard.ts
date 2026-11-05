@@ -82,9 +82,13 @@ export function owes(stay: { status: string; total_price: number; paid_amount?: 
 }
 
 /** The nights the weekend markup goes on, by Date.getDay(): Friday's and Saturday's,
- *  as the server counts them (price_calculator). One place, so a company's own choice
- *  of weekend can replace it. */
+ *  until the company's own choice is known (settings.weekend_nights). */
 export const WEEKEND_NIGHTS: readonly number[] = [5, 6]
+
+/** The company's weekend nights, from the server's Monday-0 numbers to Date.getDay(). */
+export function weekendDays(serverNights?: readonly number[] | null): number[] {
+  return serverNights ? serverNights.map((night) => (night + 1) % 7) : [...WEEKEND_NIGHTS]
+}
 
 /** What came in over the price, to give back; on a cancelled stay all that came in,
  *  as bookingMoney counts it. */
@@ -95,14 +99,19 @@ export function toReturn(stay: { status: string; total_price: number; paid_amoun
 
 /** A night's usual price, as the server counts it: the season's or the base one, and the
  *  weekend markup on Friday and Saturday nights. A price set on the calendar comes first. */
-export function nightlyRate(pricing: PricingConfig | null | undefined, day: string, custom?: number): number | null {
+export function nightlyRate(
+  pricing: PricingConfig | null | undefined,
+  day: string,
+  custom?: number,
+  weekend: readonly number[] = WEEKEND_NIGHTS,
+): number | null {
   if (custom !== undefined) return custom
   if (!pricing) return null
   const season = pricing.seasonal_prices.find((s) => s.start_date <= day && day <= s.end_date)
   const [y, m, d] = day.split('-').map(Number)
   const weekday = new Date(y, m - 1, d).getDay()
-  const weekend = WEEKEND_NIGHTS.includes(weekday) && pricing.weekend_markup > 0 ? pricing.weekend_markup : 0
-  return (season ? season.price : pricing.base_price) + weekend
+  const markup = weekend.includes(weekday) && pricing.weekend_markup > 0 ? pricing.weekend_markup : 0
+  return (season ? season.price : pricing.base_price) + markup
 }
 
 /** The nights from first to last, both included. */

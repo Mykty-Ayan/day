@@ -30,7 +30,7 @@ def _set(amount) -> float | None:
 class PublicTariff(BaseModel):
     name: str  # "3h", "6h" or "night"
     price: float
-    # Friday and Saturday, when it differs from the price.
+    # On the company's weekend (PublicPrices.weekend_nights), when it differs from the price.
     weekend: float | None = None
 
 
@@ -45,6 +45,8 @@ class PublicPrices(BaseModel):
     # The deposit of a stay by the night and by the hour, each only where the flat takes it.
     deposit: float | None = None
     hour_deposit: float | None = None
+    # The nights the weekend prices are for, Monday 0 (Friday 4, Saturday 5, Sunday 6).
+    weekend_nights: list[int] = [4, 5]
 
 
 class PublicNightResponse(BaseModel):
@@ -96,7 +98,12 @@ class PublicStayResponse(BaseModel):
         p, pricing = stay.property, stay.pricing
         tariffs = (
             [
-                PublicTariff(name=name, price=float(price), weekend=float(weekend) if 0 < weekend != price else None)
+                PublicTariff(
+                    name=name,
+                    price=float(price),
+                    # No weekend at all: no weekend price to promise.
+                    weekend=float(weekend) if stay.weekend_nights and 0 < weekend != price else None,
+                )
                 for name, price, weekend in (
                     ("3h", pricing.price_3h, pricing.price_3h_weekend),
                     ("6h", pricing.price_6h, pricing.price_6h_weekend),
@@ -141,6 +148,7 @@ class PublicStayResponse(BaseModel):
                 # calendar alone still takes the nightly deposit when booked by a link.
                 deposit=_set(pricing.default_deposit) if pricing and p.rental_mode != RentalMode.HOURLY else None,
                 hour_deposit=_set(pricing.hourly_deposit) if pricing and p.rental_mode != RentalMode.DAILY else None,
+                weekend_nights=list(stay.weekend_nights),
             ),
             nights=[PublicNightResponse(date=n.date, price=float(n.price), free=n.free) for n in stay.nights],
         )

@@ -14,6 +14,8 @@ export interface UserSettings {
   /** "HH:MM:SS", local; both null: round the clock. */
   minibar_opens: string | null
   minibar_closes: string | null
+  /** The weekend nights as the server counts them, Monday 0: Friday 4, Saturday 5, Sunday 6. */
+  weekend_nights?: number[]
 }
 
 export async function getUserSettings(): Promise<UserSettings> {

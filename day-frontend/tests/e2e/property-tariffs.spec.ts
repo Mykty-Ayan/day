@@ -28,9 +28,9 @@ test.describe('Hourly tariffs', () => {
     await page.goto(`/properties/${id}`)
     const card = pricingCard(page)
     await expect(card.getByRole('heading', { name: 'Hourly tariffs' })).toBeVisible()
-    await card.getByRole('spinbutton', { name: '3 hours, Sun–Thu' }).fill('8000')
-    await card.getByRole('spinbutton', { name: '3 hours, Fri–Sat' }).fill('10000')
-    await card.getByRole('spinbutton', { name: 'Night, Sun–Thu' }).fill('15000')
+    await card.getByRole('spinbutton', { name: '3 hours, Weekdays' }).fill('8000')
+    await card.getByRole('spinbutton', { name: '3 hours, Weekend' }).fill('10000')
+    await card.getByRole('spinbutton', { name: 'Night, Weekdays' }).fill('15000')
     await card.getByRole('button', { name: 'Save Pricing' }).click()
     await expect(page.getByText('Pricing saved')).toBeVisible()
 

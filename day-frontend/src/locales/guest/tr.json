@@ -18,7 +18,7 @@
     "tariff_3h": "3 saat",
     "tariff_6h": "6 saat",
     "tariff_night": "Gece",
-    "tariffWeekend": "Cum–Cmt {{price}}",
+    "tariffWeekend": "{{days}} {{price}}",
     "lateRule": "{{late}} sonrası yalnızca gece, çıkış {{morning}} saatine kadar",
     "deposit": "Depozito {{price}}, çıkıştan sonra iade edilir",
     "nightDeposit": "Gecelik konaklama depozitosu {{price}}, çıkıştan sonra iade edilir",

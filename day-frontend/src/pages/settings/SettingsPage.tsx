@@ -11,6 +11,7 @@ import { sessionGeneration, storeSession } from '../../api/client'
 import Button from '../../components/ui/Button'
 import { useSettings, useUpdateSettings } from '../../hooks/useSettings'
 import MinibarCard from './MinibarCard'
+import WeekendCard from './WeekendCard'
 
 const LANGUAGES = [
   { code: 'ru', label: 'Русский', flag: 'RU' },
@@ -79,6 +80,7 @@ export default function SettingsPage() {
         <PasswordCard />
         <TwoFactorCard />
         {currentUser?.role === 'owner' && <GuestPageCard />}
+        {currentUser?.role === 'owner' && <WeekendCard />}
         {currentUser?.role === 'owner' && <MinibarCard />}
 
         {/* Team and service keys live behind their own page — owner only. */}

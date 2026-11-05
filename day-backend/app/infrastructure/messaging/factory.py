@@ -64,6 +64,8 @@ def build_price_calculator(session: AsyncSession) -> PriceCalculatorService:
         SqlSeasonalPriceRepository(session),
         SqlDiscountRuleRepository(session),
         SqlDayPriceRepository(session),
+        SqlPropertyRepository(session),
+        SqlCompanySettingsRepository(session),
     )
 
 

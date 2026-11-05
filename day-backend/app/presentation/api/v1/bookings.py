@@ -183,7 +183,9 @@ def _request_hash(body) -> str:
 
 
 def _price_calculator(repos):
-    return PriceCalculatorService(repos["pricing"], repos["seasonal"], repos["discount"], repos["day_price"])
+    return PriceCalculatorService(
+        repos["pricing"], repos["seasonal"], repos["discount"], repos["day_price"], repos["property"], repos["settings"]
+    )
 
 
 def _to_booking_response(
