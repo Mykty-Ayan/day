@@ -271,30 +271,21 @@ test.describe('Property Pricing - E2E', () => {
     await expect(priceField(card, 'Base Price')).toHaveValue('250')
   })
 
-  test('a season replaced while removing the old one fails is fixed by one retry, no duplicate', async ({ page, request }) => {
+  test('a season is changed in place: one season, the new price', async ({ page, request }) => {
     const prop = await createPropertyViaApi(request)
     await request.put(`${API_BASE}/properties/${prop.id}/pricing`, { data: createTestPricing() })
     await request.post(`${API_BASE}/properties/${prop.id}/pricing/seasonal`, {
       data: createTestSeasonalPrice({ name: 'Old-Season', price: 80 }),
     })
-    let failDelete = true
-    await page.route(`**/api/v1/properties/${prop.id}/pricing/seasonal/*`, (route) =>
-      route.request().method() === 'DELETE' && failDelete ? route.fulfill({ status: 500, json: { detail: 'down' } }) : route.continue(),
-    )
     await page.goto(`/properties/${prop.id}`)
     const card = pricingCard(page)
     await pricingRow(card, 'Old-Season').getByRole('button', { name: /^Edit/ }).click()
     await priceField(card, 'Night price in season').fill('95')
     await card.getByRole('button', { name: 'Save', exact: true }).click()
-    // The old one stayed: the editor stays open to retry.
-    await expect(page.getByText('Seasonal price added')).toBeVisible()
-    await expect(priceField(card, 'Night price in season')).toBeVisible()
-    failDelete = false
-    await card.getByRole('button', { name: 'Save', exact: true }).click()
-    await expect(page.getByText('Seasonal price removed')).toBeVisible()
+    await expect(page.getByText('Season updated')).toBeVisible()
 
     const saved = await (await request.get(`${API_BASE}/properties/${prop.id}/pricing/seasonal`)).json()
     expect(saved).toHaveLength(1)
-    expect(Number(saved[0].price)).toBe(95)
+    expect([saved[0].name, Number(saved[0].price)]).toEqual(['Old-Season', 95])
   })
 })

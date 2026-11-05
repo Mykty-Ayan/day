@@ -477,6 +477,9 @@ class FakeSeasonalPriceRepository(SeasonalPriceRepository):
         self._prices[price.id] = price
         return price
 
+    async def update(self, price: SeasonalPrice) -> SeasonalPrice:
+        return await self.save(price)
+
     async def delete(self, price_id: uuid.UUID) -> None:
         self._prices.pop(price_id, None)
 

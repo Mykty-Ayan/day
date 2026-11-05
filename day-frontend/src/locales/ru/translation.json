@@ -445,7 +445,9 @@
     "weekendNight": "выходные {{price}}",
     "perHourPrice": "{{price}} за час",
     "depositLine": "Залог {{price}}",
-    "nightPrice": "за ночь"
+    "nightPrice": "за ночь",
+    "seasonalPriceUpdated": "Сезон изменён",
+    "failedUpdateSeasonal": "Не удалось изменить сезон"
   },
   "bookings": {
     "title": "Брони",

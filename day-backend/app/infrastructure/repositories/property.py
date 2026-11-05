@@ -667,6 +667,18 @@ class SqlSeasonalPriceRepository(SeasonalPriceRepository):
         await self._session.refresh(model)
         return _model_to_seasonal(model)
 
+    async def update(self, price: SeasonalPrice) -> SeasonalPrice:
+        model = await self._session.get(SeasonalPriceModel, price.id)
+        if model is None:
+            raise ValueError("Seasonal price not found")
+        model.name = price.name
+        model.start_date = price.start_date
+        model.end_date = price.end_date
+        model.price_per_night = float(price.price_per_night)
+        await self._session.flush()
+        await self._session.refresh(model)
+        return _model_to_seasonal(model)
+
     async def delete(self, price_id: uuid.UUID) -> None:
         stmt = delete(SeasonalPriceModel).where(SeasonalPriceModel.id == price_id)
         await self._session.execute(stmt)

@@ -32,6 +32,7 @@ import {
   useCreateOrUpdatePricing,
   useAddSeasonalPrice,
   useDeleteSeasonalPrice,
+  useUpdateSeasonalPrice,
   useAddDiscountRule,
   useDeleteDiscountRule,
   usePropertyAuditLog,
@@ -107,6 +108,7 @@ export default function PropertyDetailPage() {
   const savePricing = useCreateOrUpdatePricing(propertyId)
   const addSeasonal = useAddSeasonalPrice(propertyId)
   const deleteSeasonal = useDeleteSeasonalPrice(propertyId)
+  const updateSeasonal = useUpdateSeasonalPrice(propertyId)
   const addDiscount = useAddDiscountRule(propertyId)
   const deleteDiscount = useDeleteDiscountRule(propertyId)
   const { data: auditLog = [] } = usePropertyAuditLog(propertyId)
@@ -415,6 +417,15 @@ export default function PropertyDetailPage() {
                   () => showToast('success', t('properties.seasonalPriceAdded')),
                   (err: Error) => {
                     showToast('error', err.message || t('properties.failedAddSeasonal'))
+                    throw err
+                  },
+                )
+              }
+              onUpdateSeasonal={(id, data) =>
+                updateSeasonal.mutateAsync({ id, ...data }).then(
+                  () => showToast('success', t('properties.seasonalPriceUpdated')),
+                  (err: Error) => {
+                    showToast('error', err.message || t('properties.failedUpdateSeasonal'))
                     throw err
                   },
                 )

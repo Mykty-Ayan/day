@@ -439,7 +439,9 @@
     "weekendNight": "weekend {{price}}",
     "perHourPrice": "{{price}} an hour",
     "depositLine": "Deposit {{price}}",
-    "nightPrice": "a night"
+    "nightPrice": "a night",
+    "seasonalPriceUpdated": "Season updated",
+    "failedUpdateSeasonal": "Could not update the season"
   },
   "bookings": {
     "title": "Bookings",

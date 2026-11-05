@@ -439,7 +439,9 @@
     "weekendNight": "демалыс {{price}}",
     "perHourPrice": "сағатына {{price}}",
     "depositLine": "Кепілақы {{price}}",
-    "nightPrice": "бір түн"
+    "nightPrice": "бір түн",
+    "seasonalPriceUpdated": "Маусым өзгертілді",
+    "failedUpdateSeasonal": "Маусымды өзгерту мүмкін болмады"
   },
   "bookings": {
     "title": "Броньдар",

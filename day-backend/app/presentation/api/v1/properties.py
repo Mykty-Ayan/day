@@ -1028,6 +1028,39 @@ async def add_seasonal_price(
         raise HTTPException(status_code=400, detail=str(e))
 
 
+@router.patch(
+    "/{property_id}/pricing/seasonal/{season_id}",
+    response_model=SeasonalPriceResponse,
+    dependencies=[Depends(require(Permission.PROPERTIES_WRITE))],
+)
+async def update_seasonal_price(
+    property_id: uuid.UUID,
+    season_id: uuid.UUID,
+    body: SeasonalPriceCreate,
+    session: AsyncSession = Depends(get_session),
+    company_id: uuid.UUID = Depends(get_company_id),
+):
+    repos = _repos(session)
+    svc = ManagePricingService(repos["property"], repos["pricing"], repos["seasonal"], repos["discount"])
+    try:
+        result = await svc.update_seasonal_price(
+            property_id,
+            company_id,
+            season_id,
+            SeasonalPrice(
+                name=body.name,
+                start_date=body.start_date,
+                end_date=body.end_date,
+                price_per_night=body.price_per_night,
+            ),
+        )
+        await session.commit()
+        return SeasonalPriceResponse.model_validate(result, from_attributes=True)
+    except ValueError as e:
+        await session.rollback()
+        raise HTTPException(status_code=400, detail=str(e))
+
+
 @router.delete(
     "/{property_id}/pricing/seasonal/{season_id}",
     status_code=204,

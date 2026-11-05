@@ -42,6 +42,7 @@ interface Props {
   onChangeMode: (mode: RentalMode) => void
   modeSaving?: boolean
   onAddSeasonal: (data: { name: string; start_date: string; end_date: string; price: number }) => Promise<unknown> | void
+  onUpdateSeasonal: (id: string, data: { name: string; start_date: string; end_date: string; price: number }) => Promise<unknown>
   onDeleteSeasonal: (id: string) => Promise<unknown> | void
   onAddDiscount: (data: { min_nights: number; type: 'percent' | 'fixed'; value: number }) => void
   onDeleteDiscount: (id: string) => void
@@ -72,6 +73,7 @@ function PricingFormInner({
   onChangeMode,
   modeSaving = false,
   onAddSeasonal,
+  onUpdateSeasonal,
   onDeleteSeasonal,
   onAddDiscount,
   onDeleteDiscount,
@@ -240,6 +242,7 @@ function PricingFormInner({
           suggestions={seasonalSuggestions}
           money={money}
           onAdd={onAddSeasonal}
+          onUpdate={onUpdateSeasonal}
           onDelete={onDeleteSeasonal}
         />
       )}
@@ -263,14 +266,14 @@ function PricingFormInner({
   )
 }
 
-/** Seasons: a price for nights between two dates. Changed by replacing: the new one is
- *  added first, so a failure keeps the old. */
+/** Seasons: a price for nights between two dates, added, changed in place, removed. */
 function Seasons({
   seasons,
   base,
   suggestions,
   money,
   onAdd,
+  onUpdate,
   onDelete,
 }: {
   seasons: SeasonalPrice[]
@@ -278,16 +281,15 @@ function Seasons({
   suggestions: SeasonalSuggestion[]
   money: (value: number) => string
   onAdd: Props['onAddSeasonal']
+  onUpdate: Props['onUpdateSeasonal']
   onDelete: Props['onDeleteSeasonal']
 }) {
   const { t } = useTranslation()
   const empty = { id: null as string | null, name: '', start: '', end: '', price: '' }
   const [draft, setDraft] = useState(empty)
   const [open, setOpen] = useState(false)
-  // The whole replace (add the new, remove the old) is one step: no second press meanwhile.
+  // No second press while a save is on its way.
   const [busy, setBusy] = useState(false)
-  // A replacement already added whose old season was not removed: a retry only removes.
-  const [added, setAdded] = useState<string | null>(null)
   const ready =
     draft.name.trim() !== '' && draft.start !== '' && draft.end !== '' && draft.end >= draft.start && parseNumber(draft.price, -1) >= 0
   const sorted = useMemo(() => [...seasons].sort((a, b) => a.start_date.localeCompare(b.start_date)), [seasons])
@@ -296,13 +298,10 @@ function Seasons({
     if (!ready || busy) return
     setBusy(true)
     try {
-      // A new season is always added; a replacement only if not added on an earlier try.
-      if (!draft.id || added !== draft.id) {
-        await onAdd({ name: draft.name.trim(), start_date: draft.start, end_date: draft.end, price: parseNumber(draft.price) })
-        if (draft.id) setAdded(draft.id)
-      }
-      if (draft.id) await onDelete(draft.id)
-      setAdded(null)
+      const data = { name: draft.name.trim(), start_date: draft.start, end_date: draft.end, price: parseNumber(draft.price) }
+      // A season is changed in place, in one write: no second season on the same dates.
+      if (draft.id) await onUpdate(draft.id, data)
+      else await onAdd(data)
       setDraft(empty)
       setOpen(false)
     } catch {
