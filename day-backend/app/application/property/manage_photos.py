@@ -57,6 +57,21 @@ class ManagePhotosService:
         photo.caption = caption
         return photo
 
+    async def set_cover(
+        self, photo_id: uuid.UUID, property_id: uuid.UUID, company_id: uuid.UUID
+    ) -> list[PropertyPhoto]:
+        """The photo that opens the listing; the others stop being the cover."""
+        prop = await self._property_repo.get_by_id(property_id)
+        if prop is None or prop.company_id != company_id:
+            raise ValueError("Property not found")
+        photo = next((p for p in await self._photo_repo.list_by_property(property_id) if p.id == photo_id), None)
+        if photo is None:
+            raise ValueError("Photo not found")
+        if photo.audience == FactAudience.GUEST:
+            raise ValueError("A check-in photo cannot be the cover")
+        await self._photo_repo.set_cover(property_id, photo_id)
+        return await self._photo_repo.list_by_property(property_id)
+
     async def delete_photo(
         self,
         photo_id: uuid.UUID,

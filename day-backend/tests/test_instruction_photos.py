@@ -203,3 +203,22 @@ async def test_a_check_in_photo_is_never_linked_by_url(stored, url):  # noqa: F8
     )
     assert status == 400
     assert photos.saved == []
+
+
+@pytest.mark.integration
+async def test_one_listing_photo_is_the_cover(flat):  # noqa: F811  (the imported fixture)
+    client, prop, use = flat
+    path = f"/api/v1/properties/{prop}/photos"
+    use(Permission.PROPERTIES_READ, Permission.PROPERTIES_WRITE)
+    first = (await client.post(path, json={"url": "https://cdn.example.com/a.jpg", "is_cover": True})).json()
+    second = (await client.post(path, json={"url": "https://cdn.example.com/b.jpg"})).json()
+
+    moved = await client.put(f"{path}/{second['id']}/cover")
+    assert moved.status_code == 200, moved.text
+    assert [p["id"] for p in moved.json() if p["is_cover"]] == [second["id"]]
+    shown = (await client.get(f"/api/v1/properties/{prop}")).json()["photos"]
+    assert {p["id"]: p["is_cover"] for p in shown} == {first["id"]: False, second["id"]: True}
+
+    assert (await client.put(f"{path}/{uuid.uuid4()}/cover")).status_code == 404
+    use(Permission.PROPERTIES_READ)
+    assert (await client.put(f"{path}/{first['id']}/cover")).status_code == 403

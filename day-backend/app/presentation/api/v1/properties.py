@@ -771,6 +771,30 @@ async def set_photo_caption(
     return _photo_response(result)
 
 
+@router.put(
+    "/{property_id}/photos/{photo_id}/cover",
+    response_model=list[PropertyPhotoResponse],
+    dependencies=[Depends(require(Permission.PROPERTIES_WRITE))],
+)
+async def set_photo_cover(
+    property_id: uuid.UUID,
+    photo_id: uuid.UUID,
+    session: AsyncSession = Depends(get_session),
+    company_id: uuid.UUID = Depends(get_company_id),
+    principal: Principal = Depends(get_principal),
+):
+    """This listing photo opens the flat on its pages; the others stop being the cover."""
+    repos = _repos(session)
+    svc = ManagePhotosService(repos["property"], repos["photo"])
+    try:
+        result = await svc.set_cover(photo_id, property_id, company_id)
+    except ValueError as e:
+        await session.rollback()
+        raise HTTPException(status_code=404 if "not found" in str(e) else 400, detail=str(e))
+    await session.commit()
+    return [_photo_response(p) for p in _visible_photos(result, sees_secrets=_sees_secrets(principal))]
+
+
 @router.delete(
     "/{property_id}/photos/{photo_id}",
     status_code=204,

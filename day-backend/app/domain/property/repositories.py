@@ -89,6 +89,10 @@ class PropertyPhotoRepository(abc.ABC):
     @abc.abstractmethod
     async def set_caption(self, photo_id: uuid.UUID, caption: str | None) -> None: ...
 
+    @abc.abstractmethod
+    async def set_cover(self, property_id: uuid.UUID, photo_id: uuid.UUID) -> None:
+        """This listing photo becomes the flat's only cover."""
+
 
 class AmenityRepository(abc.ABC):
     @abc.abstractmethod

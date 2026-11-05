@@ -420,6 +420,15 @@ class SqlPropertyPhotoRepository(PropertyPhotoRepository):
         )
         await self._session.flush()
 
+    async def set_cover(self, property_id: uuid.UUID, photo_id: uuid.UUID) -> None:
+        # One UPDATE: the flat never has two covers, nor none, between two writes.
+        await self._session.execute(
+            update(PropertyPhotoModel)
+            .where(PropertyPhotoModel.property_id == property_id)
+            .values(is_cover=PropertyPhotoModel.id == photo_id)
+        )
+        await self._session.flush()
+
     async def reorder(self, property_id: uuid.UUID, photo_ids: list[uuid.UUID]) -> None:
         for idx, pid in enumerate(photo_ids):
             stmt = (

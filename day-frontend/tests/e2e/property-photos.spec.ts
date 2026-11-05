@@ -145,10 +145,50 @@ test.describe('Property Photos - E2E', () => {
     const [first, second] = (await photosOf(request, id)).sort((a, b) => a.sort_order - b.sort_order)
     expect([first.is_cover, second.is_cover]).toEqual([false, true])
 
-    // The gallery, on the Photos tab, rings the cover
+    // On the Photos tab the cover is the first photo
     await page.getByRole('tab', { name: 'Photos' }).click()
-    await expect(photoImage(page, second).locator('xpath=..')).toHaveClass(/ring-2/)
-    await expect(photoImage(page, first).locator('xpath=..')).not.toHaveClass(/ring-2/)
+    const tile = page.getByRole('listitem', { name: 'Photo 1', exact: true })
+    await expect(tile.getByText('Cover', { exact: true })).toBeVisible()
+    await expect(tile.locator(`img[src^="${second.url}"]`)).toBeVisible()
+  })
+
+  test('the photos are arranged on the flat page: the first one is the cover', async ({ page, request }) => {
+    const prop = await createPropertyViaApi(request)
+    const add = async (name: string, isCover = false) =>
+      (await (await request.post(`${API_BASE}/properties/${prop.id}/photos`, {
+        data: { url: `https://cdn.example.com/${name}.jpg`, is_cover: isCover },
+      })).json()).id as string
+    const a = await add('a', true)
+    const b = await add('b')
+    const c = await add('c')
+    // As guests see them: the cover first, then by order.
+    const shown = async () =>
+      (await photosOf(request, prop.id))
+        .sort((x, y) => Number(y.is_cover) - Number(x.is_cover) || x.sort_order - y.sort_order)
+        .map((photo) => photo.id)
+    const click = async (name: string) => {
+      await page.getByRole('button', { name, exact: true }).click()
+      await expect(page.getByRole('button', { name, exact: true })).toBeEnabled()
+    }
+
+    await page.goto(`/properties/${prop.id}?tab=photos`)
+    await expect(page.getByRole('listitem', { name: 'Photo 1', exact: true }).getByText('Cover')).toBeVisible()
+
+    await click('Make photo 3 the cover')
+    await expect.poll(shown).toEqual([c, a, b])
+    await click('Move photo 2 later')
+    await expect.poll(shown).toEqual([c, b, a])
+    // Moved to the front, a photo becomes the cover.
+    await click('Move photo 2 earlier')
+    await expect.poll(shown).toEqual([b, c, a])
+    const covers = (await photosOf(request, prop.id)).filter((photo) => photo.is_cover)
+    expect(covers.map((photo) => photo.id)).toEqual([b])
+
+    // Deleting the cover asks first and says the next one takes its place.
+    await page.getByRole('button', { name: 'Delete photo 1', exact: true }).click()
+    await expect(page.getByText('The next one becomes the cover.')).toBeVisible()
+    await page.getByRole('button', { name: 'Delete', exact: true }).click()
+    await expect.poll(shown).toEqual([c, a])
   })
 
   test('delete check-in photo', async ({ page, request }) => {

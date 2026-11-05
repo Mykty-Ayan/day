@@ -32,7 +32,7 @@ from app.domain.property.repositories import (
     PropertyRepository,
     SeasonalPriceRepository,
 )
-from app.domain.property.value_objects import AmenityCategory, AuditAction, PropertyStatus, PropertyType
+from app.domain.property.value_objects import AmenityCategory, AuditAction, FactAudience, PropertyStatus, PropertyType
 
 # ---------- Constants ----------
 
@@ -171,6 +171,11 @@ class FakePropertyPhotoRepository(PropertyPhotoRepository):
 
     async def set_caption(self, photo_id: uuid.UUID, caption: str | None) -> None:
         self._photos[photo_id].caption = caption
+
+    async def set_cover(self, property_id: uuid.UUID, photo_id: uuid.UUID) -> None:
+        for photo in self._photos.values():
+            if photo.property_id == property_id:
+                photo.is_cover = photo.id == photo_id
 
 
 class FakeAmenityRepository(AmenityRepository):
@@ -1100,6 +1105,35 @@ class TestManagePhotosService:
         assert reordered[0].id == p3.id
         assert reordered[1].id == p1.id
         assert reordered[2].id == p2.id
+
+    @pytest.mark.asyncio
+    async def test_set_cover_leaves_one_cover(self):
+        _, _, svc, prop = await self._setup()
+        old = await svc.add_photo(prop.id, COMPANY_ID, "https://img.com/1.jpg", is_cover=True)
+        new = await svc.add_photo(prop.id, COMPANY_ID, "https://img.com/2.jpg", sort_order=1)
+
+        photos = await svc.set_cover(new.id, prop.id, COMPANY_ID)
+
+        assert [p.id for p in photos if p.is_cover] == [new.id]
+        assert old.is_cover is False
+
+    @pytest.mark.asyncio
+    async def test_set_cover_refuses_a_check_in_photo(self):
+        _, _, svc, prop = await self._setup()
+        lock = await svc.add_photo(prop.id, COMPANY_ID, "https://img.com/lock.jpg", audience=FactAudience.GUEST)
+
+        with pytest.raises(ValueError, match="check-in photo"):
+            await svc.set_cover(lock.id, prop.id, COMPANY_ID)
+
+    @pytest.mark.asyncio
+    async def test_set_cover_of_another_flat_or_company(self):
+        _, _, svc, prop = await self._setup()
+        photo = await svc.add_photo(prop.id, COMPANY_ID, "https://img.com/1.jpg")
+
+        with pytest.raises(ValueError, match="Property not found"):
+            await svc.set_cover(photo.id, prop.id, OTHER_COMPANY_ID)
+        with pytest.raises(ValueError, match="Photo not found"):
+            await svc.set_cover(uuid.uuid4(), prop.id, COMPANY_ID)
 
     @pytest.mark.asyncio
     async def test_list_photos(self):

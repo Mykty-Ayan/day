@@ -39,7 +39,6 @@ import {
   useDeleteDiscountRule,
   usePropertyAuditLog,
   useCloneProperty,
-  useUploadPhotos,
   useBlocks,
   useCalendarFeeds,
 } from '../../hooks/useProperties'
@@ -59,6 +58,8 @@ import StatusBadge from '../../components/property/StatusBadge'
 import { showToast } from '../../components/ui/Toast'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import CheckInPhotosCard from '../../components/property/CheckInPhotosCard'
+import ListingPhotosCard from '../../components/property/ListingPhotosCard'
+import { listingOrder } from '../../lib/property-photos'
 import PropertyEditSheet, { type PropertyBlock } from '../../components/property/PropertyEditSheet'
 import BlocksCard from '../../components/property/BlocksCard'
 import CalendarFeedsCard from '../../components/property/CalendarFeedsCard'
@@ -96,21 +97,8 @@ export default function PropertyDetailPage() {
   const { propertyId } = useParams({ strict: false }) as { propertyId: string }
   const navigate = useNavigate()
   const { data: property, isLoading } = useProperty(propertyId)
-  const uploadPhotos = useUploadPhotos(propertyId)
   const { data: currentUser } = useCurrentUser()
 
-  function addPhotos(event: React.ChangeEvent<HTMLInputElement>) {
-    const files = Array.from(event.target.files ?? [])
-    event.target.value = ''
-    if (files.length === 0) return
-    const startAt = Math.max(-1, ...(property?.photos ?? []).map((photo) => photo.sort_order)) + 1
-    uploadPhotos.mutate({ files, startAt }, {
-      onSuccess: (failed) =>
-        failed > 0
-          ? showToast('error', t('properties.photosNotAdded', { count: failed }))
-          : showToast('success', t('properties.photosAdded', { count: files.length })),
-    })
-  }
   const { data: allProperties } = useAllProperties()
   const changeStatus = useChangePropertyStatus(propertyId)
   const updatePropertyMut = useUpdateProperty(propertyId)
@@ -487,29 +475,7 @@ export default function PropertyDetailPage() {
 
         <TabPanel name="photos" current={tab}>
           <>
-            <section className={CARD} aria-labelledby="property-photos">
-              <h2 id="property-photos" className="mb-3 text-sm font-bold text-ink">{t('properties.photos')}</h2>
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
-                <label className="flex aspect-[4/3] cursor-pointer flex-col items-center justify-center gap-1 rounded-xl border border-dashed border-line text-xs font-semibold text-ink-muted transition-colors hover:bg-surface-page">
-                  <ImagePlus className="h-5 w-5" />
-                  {uploadPhotos.isPending ? t('properties.photosUploading') : t('properties.addPhotos')}
-                  <input
-                    id="add-photos"
-                    type="file"
-                    accept="image/jpeg,image/png,image/webp"
-                    multiple
-                    className="hidden"
-                    disabled={uploadPhotos.isPending}
-                    onChange={addPhotos}
-                  />
-                </label>
-                {listingPhotos.map((photo) => (
-                  <div key={photo.id} className={`aspect-[4/3] overflow-hidden rounded-xl ${photo.is_cover ? 'ring-2 ring-accent' : ''}`}>
-                    <img src={photo.thumbnail_url || photo.url} alt="" className="h-full w-full object-cover" />
-                  </div>
-                ))}
-              </div>
-            </section>
+            <ListingPhotosCard propertyId={propertyId} photos={property.photos} />
             {staff && <CheckInPhotosCard propertyId={propertyId} photos={property.photos} />}
           </>
         </TabPanel>
@@ -658,7 +624,7 @@ const SECONDARY =
 /** The flat's photos one at a time, cover first, with a count and arrows. */
 function PhotoCarousel({ photos, onAdd }: { photos: PropertyPhoto[]; onAdd: () => void }) {
   const { t } = useTranslation()
-  const ordered = [...photos].sort((a, b) => Number(b.is_cover) - Number(a.is_cover) || a.sort_order - b.sort_order)
+  const ordered = listingOrder(photos)
   const [index, setIndex] = useState(0)
   const shown = ordered[Math.min(index, ordered.length - 1)]
   if (!shown) {
