@@ -45,8 +45,9 @@ export default function PropertyEditSheet({
   const { t } = useTranslation()
   return (
     <Sheet open={block !== null} onClose={onClose} title={block ? t(TITLES[block]) : ''} wide>
-      {/* Keyed: each opening starts from the flat as it is now. */}
-      {block && <BlockForm key={block} property={property} block={block} onDone={onClose} />}
+      {/* Keyed by the flat too: each opening starts from that flat as it is now,
+          and a form never outlives a move to another flat (Back after a copy). */}
+      {block && <BlockForm key={`${property.id}:${block}`} property={property} block={block} onDone={onClose} />}
     </Sheet>
   )
 }

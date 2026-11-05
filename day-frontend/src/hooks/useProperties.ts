@@ -257,10 +257,13 @@ export function useSetAmenities(propertyId: string) {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (ids: string[]) => linkAmenities(propertyId, ids),
-    onSettled: () => {
-      qc.invalidateQueries({ queryKey: [PROPERTY_KEY, propertyId] })
-      qc.invalidateQueries({ queryKey: [AUDIT_LOG_KEY, propertyId] })
-    },
+    // Awaited: the panel closes on the fresh flat, so opening it again starts
+    // from the saved set, not the one before (and the next save would drop it).
+    onSettled: () =>
+      Promise.all([
+        qc.invalidateQueries({ queryKey: [PROPERTY_KEY, propertyId] }),
+        qc.invalidateQueries({ queryKey: [AUDIT_LOG_KEY, propertyId] }),
+      ]),
   })
 }
 

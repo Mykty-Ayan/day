@@ -112,6 +112,46 @@ test.describe('Property Edit - E2E', () => {
     await expect.poll(amenityIds).toEqual(two)
   })
 
+  test('amenities opened again right after a save start from the saved set', async ({ page, request }) => {
+    const prop = await createPropertyViaApi(request)
+    await page.goto(`/properties/${prop.id}?tab=amenities`)
+    // The flat comes back slowly after the save.
+    await page.route(`**/api/v1/properties/${prop.id}`, async (route) => {
+      if (route.request().method() === 'GET') await new Promise((done) => setTimeout(done, 1500))
+      await route.continue()
+    })
+
+    let panel = await openBlock(page, 'Amenities')
+    await panel.getByRole('checkbox').nth(0).check()
+    await panel.getByRole('button', { name: 'Save', exact: true }).click()
+    await expect(panel).toBeHidden()
+    panel = await openBlock(page, 'Amenities')
+    await panel.getByRole('checkbox').nth(1).check()
+    await panel.getByRole('button', { name: 'Save', exact: true }).click()
+    await expect(panel).toBeHidden()
+
+    const saved = await (await request.get(`${API_BASE}/properties/${prop.id}`)).json()
+    expect(saved.amenities).toHaveLength(2)
+  })
+
+  test('Back to another flat closes the panel of this one', async ({
+    page,
+    request,
+  }) => {
+    const first = await createPropertyViaApi(request, { name: 'First Flat E2E' })
+    const second = await createPropertyViaApi(request, { name: 'Second Flat E2E' })
+    await page.goto(`/properties/${first.id}`)
+    await expect(page.getByText('First Flat E2E', { exact: true }).first()).toBeVisible()
+    await page.goto(`/properties/${second.id}`)
+    const panel = await openBlock(page, 'Basics')
+    await expect(panel.getByPlaceholder(NAME_PLACEHOLDER)).toHaveValue('Second Flat E2E')
+
+    await page.goBack()
+    await expect(page).toHaveURL(new RegExp(`/properties/${first.id}$`))
+    // The second flat's form does not stay open over the first flat.
+    await expect(panel).toBeHidden()
+  })
+
   test('a block saves only its own fields, so it does not undo another change', async ({ page, request }) => {
     const prop = await createPropertyViaApi(request)
 
