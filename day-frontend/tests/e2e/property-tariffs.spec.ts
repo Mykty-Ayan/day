@@ -9,7 +9,7 @@ import { test, expect } from '../fixtures/e2e-auth'
 import { createTestProperty, API_BASE } from '../fixtures/test-data'
 
 function pricingCard(page: Page): Locator {
-  return page.locator('div.rounded-xl', { has: page.getByRole('heading', { name: 'Pricing', exact: true }) }).last()
+  return page.getByRole('region', { name: 'Pricing', exact: true })
 }
 
 test.describe('Hourly tariffs', () => {
@@ -63,4 +63,20 @@ test.describe('Hourly tariffs', () => {
     const other = (await (await request.get(`${API_BASE}/properties/${ids[1]}`)).json()).pricing
     expect([other.base_price, other.price_6h]).toEqual([23000, 10000])
   })
+})
+
+test('a price typed and not saved survives a look at another tab', async ({ page, request }) => {
+  const created = await request.post(`${API_BASE}/properties`, { data: createTestProperty() })
+  const { id } = await created.json()
+  try {
+    await page.goto(`/properties/${id}?tab=prices`)
+    // A flat let by the night: its base price is the field at hand.
+    const field = pricingCard(page).getByText('Base Price', { exact: true }).locator('xpath=following-sibling::div[1]//input')
+    await field.fill('8500')
+    await page.getByRole('tab', { name: 'Closed dates' }).click()
+    await page.getByRole('tab', { name: 'Pricing' }).click()
+    await expect(field).toHaveValue('8500')
+  } finally {
+    await request.delete(`${API_BASE}/properties/${id}`)
+  }
 })

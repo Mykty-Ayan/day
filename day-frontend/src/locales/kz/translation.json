@@ -391,7 +391,30 @@
       "fromCalendar": "Күнтізбеден: {{name}}",
       "addedUnread": "Күнтізбе қосылды, бірақ әлі оқылмады: {{error}}",
       "loadFailed": "Күнтізбелерді жүктеу мүмкін болмады"
-    }
+    },
+    "photos": "Фото",
+    "letAs": "Жалға беріледі",
+    "guestPage": "Қонаққа арналған бет",
+    "aboutAndRules": "Сипаттама және ережелер",
+    "rentalModeShort": {
+      "daily": "тәулікпен",
+      "hourly": "сағатпен",
+      "both": "тәулікпен және сағатпен"
+    },
+    "statusOne": {
+      "active": "Белсенді",
+      "paused": "Үзілісте",
+      "archived": "Мұрағатта",
+      "new": "Жаңа"
+    },
+    "sections": "Пәтер бөлімдері",
+    "calendars": "Күнтізбелер",
+    "history": "Тарих",
+    "nothingYet": "Әлі толтырылмаған — қосу үшін «Өзгерту».",
+    "weekendNight": "демалыс {{price}}",
+    "perHourPrice": "сағатына {{price}}",
+    "depositLine": "Кепілақы {{price}}",
+    "nightPrice": "бір түн"
   },
   "bookings": {
     "title": "Броньдар",

@@ -27,7 +27,8 @@ async function photosOf(request: APIRequestContext, propertyId: string): Promise
  * A check-in photo's URL is signed anew on every request, so only the part before `?` is compared.
  */
 function photoImage(page: Page, photo: Photo): Locator {
-  return page.locator(`img[src^="${photo.url.split('?')[0]}"]`)
+  // The cover shows twice, at the top and among the photos: the strip's is the last.
+  return page.locator(`img[src^="${photo.url.split('?')[0]}"]`).last()
 }
 
 test.describe('Property Photos - E2E', () => {
@@ -84,7 +85,7 @@ test.describe('Property Photos - E2E', () => {
   test('upload photos to property', async ({ page, request }) => {
     const prop = await createPropertyViaApi(request)
 
-    await page.goto(`/properties/${prop.id}`)
+    await page.goto(`/properties/${prop.id}?tab=photos`)
 
     // The "Add photos" tile of the gallery holds a hidden file input
     await page.locator('#add-photos').setInputFiles(TEST_IMAGE_PATH)
@@ -99,7 +100,7 @@ test.describe('Property Photos - E2E', () => {
   test('upload multiple photos', async ({ page, request }) => {
     const prop = await createPropertyViaApi(request)
 
-    await page.goto(`/properties/${prop.id}`)
+    await page.goto(`/properties/${prop.id}?tab=photos`)
 
     await page.locator('#add-photos').setInputFiles([TEST_IMAGE_PATH, TEST_IMAGE_2_PATH])
     await expect(page.getByText('Photos added: 2')).toBeVisible()
@@ -144,7 +145,8 @@ test.describe('Property Photos - E2E', () => {
     const [first, second] = (await photosOf(request, id)).sort((a, b) => a.sort_order - b.sort_order)
     expect([first.is_cover, second.is_cover]).toEqual([false, true])
 
-    // The gallery rings the cover
+    // The gallery, on the Photos tab, rings the cover
+    await page.getByRole('tab', { name: 'Photos' }).click()
     await expect(photoImage(page, second).locator('xpath=..')).toHaveClass(/ring-2/)
     await expect(photoImage(page, first).locator('xpath=..')).not.toHaveClass(/ring-2/)
   })
@@ -152,7 +154,7 @@ test.describe('Property Photos - E2E', () => {
   test('delete check-in photo', async ({ page, request }) => {
     const prop = await createPropertyViaApi(request)
 
-    await page.goto(`/properties/${prop.id}`)
+    await page.goto(`/properties/${prop.id}?tab=photos`)
 
     // Only a check-in photo can be deleted on this page: the gallery has no delete button
     await page
@@ -198,7 +200,7 @@ test.describe('Property Photos - E2E', () => {
     }
     const [photo] = await photosOf(request, prop.id)
 
-    await page.goto(`/properties/${prop.id}`)
+    await page.goto(`/properties/${prop.id}?tab=photos`)
 
     // The gallery shows the photo, after the "Add photos" tile
     await expect(photoImage(page, photo)).toBeVisible()

@@ -21,7 +21,7 @@ export async function nextStep(page: Page, step: string) {
 
 /** The Pricing card of the property page. */
 export function pricingCard(page: Page): Locator {
-  return page.locator('div.rounded-xl', { has: page.getByRole('heading', { name: 'Pricing', exact: true }) }).last()
+  return page.getByRole('region', { name: 'Pricing', exact: true })
 }
 
 /** An input of the Pricing card: the one in the block after its label. */

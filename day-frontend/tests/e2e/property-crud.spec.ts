@@ -54,7 +54,8 @@ test.describe('Property CRUD - E2E', () => {
 
     // Redirects to the page of the new property
     await expect(page).toHaveURL(/\/properties\/[0-9a-f-]{36}$/)
-    await expect(page.getByRole('heading', { level: 1, name: data.name })).toBeVisible()
+    // The heading is the flat's own name ("Kv. 28"); the guests' name is the line under it.
+    await expect(page.getByText(data.name, { exact: true }).first()).toBeVisible()
     const id = page.url().split('/').pop() as string
     propertyIdsToCleanup.push(id)
 
@@ -120,9 +121,11 @@ test.describe('Property CRUD - E2E', () => {
 
     // Back on the property page with the new values
     await expect(page).toHaveURL(new RegExp(`/properties/${created.id}$`))
-    await expect(page.getByRole('heading', { level: 1, name: 'Updated Test Property' })).toBeVisible()
+    // The heading is the flat's own name ("Kv. 28"); the guests' name is the line under it.
+    await expect(page.getByText('Updated Test Property', { exact: true }).first()).toBeVisible()
     await expect(page.getByText('Floor 7')).toBeVisible()
-    const rulesCard = page.locator('div.rounded-xl', { has: page.getByRole('heading', { name: 'Rules', exact: true }) }).last()
+    await page.getByRole('tab', { name: 'About and rules' }).click()
+    const rulesCard = page.getByRole('region', { name: 'About and rules', exact: true })
     await expect(rulesCard.getByText('Quiet after 22:00')).toBeVisible()
 
     const saved = await (await request.get(`${API_BASE}/properties/${created.id}`)).json()

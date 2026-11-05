@@ -28,7 +28,7 @@ async function activeFlat(request: import('@playwright/test').APIRequestContext)
 
 test('a platform calendar is added, shows how it was read and its own Day link, and goes', async ({ page, request }) => {
   const flat = await activeFlat(request)
-  await page.goto(`/properties/${flat.id}`)
+  await page.goto(`/properties/${flat.id}?tab=calendars`)
   const card = page.getByRole('region', { name: 'Platform calendars' })
   await card.getByLabel('Platform').fill('Airbnb')
   // An address that resolves nowhere: the calendar is kept, with why it was not read.
@@ -56,7 +56,7 @@ test('a calendar\'s nights are not reopened by hand', async ({ page, request }) 
       ],
     })
   })
-  await page.goto(`/properties/${flat.id}`)
+  await page.goto(`/properties/${flat.id}?tab=blocks`)
   const blocks = page.getByRole('region', { name: 'Closed dates' })
   await expect(blocks).toContainText('From calendar: Airbnb')
   await expect(blocks.getByRole('button', { name: 'Reopen dates' })).toHaveCount(0)

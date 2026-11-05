@@ -54,7 +54,7 @@ export default function CalendarFeedsCard({ propertyId }: { propertyId: string }
   return (
     <section
       aria-label={t('properties.feeds.title')}
-      className="mb-6 flex flex-col gap-3 rounded-xl border border-gray-200 bg-white p-5 shadow-sm"
+      className="flex flex-col gap-3 rounded-2xl border border-line bg-surface-card p-5"
     >
       <div className="flex min-w-0 items-start gap-2">
         <CalendarSync className="mt-0.5 h-4 w-4 shrink-0 text-gray-500" />
@@ -102,7 +102,7 @@ export default function CalendarFeedsCard({ propertyId }: { propertyId: string }
             {feed.export_url && (
               <div className="space-y-1">
                 <p className="text-xs text-gray-500">{t('properties.feeds.exportHint', { name: feed.name })}</p>
-                <div className="flex flex-col gap-2 sm:flex-row">
+                <div className="flex flex-col gap-2">
                   <input
                     type="text"
                     readOnly
@@ -126,7 +126,7 @@ export default function CalendarFeedsCard({ propertyId }: { propertyId: string }
       </ul>
 
       <form
-        className="flex flex-col gap-2 sm:flex-row"
+        className="flex flex-col gap-2"
         onSubmit={(event) => {
           event.preventDefault()
           addFeed()
@@ -140,7 +140,7 @@ export default function CalendarFeedsCard({ propertyId }: { propertyId: string }
           onChange={(event) => setName(event.target.value)}
           placeholder="Airbnb"
           aria-label={t('properties.feeds.name')}
-          className="h-11 rounded-xl border border-gray-200 bg-gray-50 px-3 text-sm outline-none focus:ring-2 focus:ring-black/10 sm:w-40"
+          className="h-11 w-full rounded-xl border border-line bg-surface-card px-3 text-sm text-ink outline-none focus:border-accent"
         />
         <datalist id="calendar-platforms">
           <option value="Airbnb" />
@@ -155,7 +155,7 @@ export default function CalendarFeedsCard({ propertyId }: { propertyId: string }
           onChange={(event) => setUrl(event.target.value)}
           placeholder="https://www.airbnb.com/calendar/ical/….ics"
           aria-label={t('properties.feeds.url')}
-          className="h-11 min-w-0 flex-1 rounded-xl border border-gray-200 bg-gray-50 px-3 text-sm outline-none focus:ring-2 focus:ring-black/10"
+          className="h-11 w-full min-w-0 rounded-xl border border-line bg-surface-card px-3 text-sm text-ink outline-none focus:border-accent"
         />
         <button
           type="submit"

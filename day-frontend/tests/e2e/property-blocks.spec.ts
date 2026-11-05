@@ -15,7 +15,7 @@ test('closed nights are set on the flat page and kept off by the booking calenda
   })
   const [first, out] = [futureDate(3), futureDate(5)]
 
-  await page.goto(`/properties/${id}`)
+  await page.goto(`/properties/${id}?tab=blocks`)
   await page.locator('#block-range').click()
   await (await calendarDay(page, first)).click()
   await (await calendarDay(page, out)).click()
@@ -35,7 +35,7 @@ test('closed nights are set on the flat page and kept off by the booking calenda
   await page.keyboard.press('Escape')
 
   // Reopen from the flat page.
-  await page.goto(`/properties/${id}`)
+  await page.goto(`/properties/${id}?tab=blocks`)
   await page.getByRole('button', { name: 'Reopen dates' }).first().click()
   const removed = page.waitForResponse((r) => r.request().method() === 'DELETE' && r.url().includes(`/properties/${id}/blocks/`))
   await page.getByRole('button', { name: 'Reopen dates' }).last().click()
@@ -136,7 +136,7 @@ test('the flat page closes no further ahead than it lists', async ({ page, reque
   const past = new Date(horizon)
   past.setDate(past.getDate() + 1)
 
-  await page.goto(`/properties/${id}`)
+  await page.goto(`/properties/${id}?tab=blocks`)
   await page.locator('#block-range').click()
   await expect(await calendarDay(page, local(horizon))).toBeEnabled()
   await expect(await calendarDay(page, local(past))).toBeDisabled()

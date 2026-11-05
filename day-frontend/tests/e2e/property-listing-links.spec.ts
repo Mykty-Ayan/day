@@ -20,6 +20,8 @@ test('listing links typed in the form are saved and shown on the flat page', asy
     for (let step = 0; step < 3; step++) await page.getByRole('button', { name: 'Next', exact: true }).click()
     await page.getByRole('button', { name: /save/i }).click()
     await page.waitForURL(new RegExp(`/properties/${id}$`))
+    // The listings are on the Calendars tab, with the platforms' calendars.
+    await page.getByRole('tab', { name: 'Calendars' }).click()
 
     await expect(page.getByRole('link', { name: 'krisha.kz/a/show/1016268703' })).toBeVisible()
     await expect(page.getByRole('link', { name: 'booking.com/hotel/kz/studio.html' })).toBeVisible()
@@ -49,6 +51,8 @@ test('the nightly and the hourly Krisha listings are saved apart, and one link i
     for (let step = 0; step < 3; step++) await page.getByRole('button', { name: 'Next', exact: true }).click()
     await page.getByRole('button', { name: /save/i }).click()
     await page.waitForURL(new RegExp(`/properties/${id}$`))
+    // The listings are on the Calendars tab, with the platforms' calendars.
+    await page.getByRole('tab', { name: 'Calendars' }).click()
 
     await expect(page.getByText('Hourly listings', { exact: true })).toBeVisible()
     await expect(page.getByRole('link', { name: 'krisha.kz/a/show/1016268799' })).toBeVisible()

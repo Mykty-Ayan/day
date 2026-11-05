@@ -31,6 +31,8 @@ test.describe('Property Status Transitions - E2E', () => {
 
     await page.goto(`/properties/${prop.id}`)
     await page.waitForLoadState('networkidle')
+    // The status steps live in the "More actions" menu.
+    await page.getByRole('button', { name: 'More actions' }).click()
 
     // Verify current status shows "new"
     await expect(page.getByText(/new/i).first()).toBeVisible()
@@ -58,6 +60,8 @@ test.describe('Property Status Transitions - E2E', () => {
 
     await page.goto(`/properties/${prop.id}`)
     await page.waitForLoadState('networkidle')
+    // The status steps live in the "More actions" menu.
+    await page.getByRole('button', { name: 'More actions' }).click()
 
     await page.getByRole('button', { name: /pause/i }).click()
 
@@ -82,6 +86,8 @@ test.describe('Property Status Transitions - E2E', () => {
 
     await page.goto(`/properties/${prop.id}`)
     await page.waitForLoadState('networkidle')
+    // The status steps live in the "More actions" menu.
+    await page.getByRole('button', { name: 'More actions' }).click()
 
     await page.getByRole('button', { name: /resume|activate/i }).click()
 
@@ -102,6 +108,8 @@ test.describe('Property Status Transitions - E2E', () => {
 
     await page.goto(`/properties/${prop.id}`)
     await page.waitForLoadState('networkidle')
+    // The status steps live in the "More actions" menu.
+    await page.getByRole('button', { name: 'More actions' }).click()
 
     await page.getByRole('button', { name: /archive/i }).click()
 
@@ -131,6 +139,8 @@ test.describe('Property Status Transitions - E2E', () => {
 
     await page.goto(`/properties/${prop.id}`)
     await page.waitForLoadState('networkidle')
+    // The status steps live in the "More actions" menu.
+    await page.getByRole('button', { name: 'More actions' }).click()
 
     // Archived can be restored, but cannot be paused/archived again directly
     await expect(
@@ -154,6 +164,8 @@ test.describe('Property Status Transitions - E2E', () => {
 
     await page.goto(`/properties/${prop.id}`)
     await page.waitForLoadState('networkidle')
+    // The status steps live in the "More actions" menu.
+    await page.getByRole('button', { name: 'More actions' }).click()
 
     // Should show activate
     await expect(
@@ -174,6 +186,8 @@ test.describe('Property Status Transitions - E2E', () => {
 
     await page.goto(`/properties/${prop.id}`)
     await page.waitForLoadState('networkidle')
+    // The status steps live in the "More actions" menu.
+    await page.getByRole('button', { name: 'More actions' }).click()
 
     // Check that a status badge element exists
     const badge = page.locator('[data-testid="status-badge"], .status-badge').first()
