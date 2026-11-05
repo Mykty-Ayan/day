@@ -406,7 +406,15 @@
       "paused": "Paused",
       "archived": "Archived",
       "new": "New"
-    }
+    },
+    "sections": "Parts of the flat",
+    "calendars": "Calendars",
+    "history": "History",
+    "nothingYet": "Not filled in yet — \"Edit\" to add it.",
+    "weekendNight": "weekend {{price}}",
+    "perHourPrice": "{{price}} an hour",
+    "depositLine": "Deposit {{price}}",
+    "nightPrice": "a night"
   },
   "bookings": {
     "title": "Bookings",

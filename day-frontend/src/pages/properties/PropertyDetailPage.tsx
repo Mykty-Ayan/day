@@ -18,6 +18,8 @@ import {
   ImagePlus,
   ExternalLink,
   MoreHorizontal,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react'
 import { useParams, Link, useNavigate } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
@@ -38,7 +40,9 @@ import {
 } from '../../hooks/useProperties'
 import { getCalendarLink, getPricing } from '../../api/properties'
 import { useCurrentUser } from '../../hooks/useAuth'
-import type { PropertyStatus, PricingInput, SeasonalPrice } from '../../types/property'
+import { useCurrency } from '../../hooks/useCurrency'
+import { formatMoneyExact } from '../miniapp/format'
+import type { PricingConfig, PricingInput, PropertyPhoto, PropertyStatus, SeasonalPrice } from '../../types/property'
 import type { RentalMode } from '../../types/booking'
 import PricingForm, { type SeasonalSuggestion } from '../../components/property/PricingForm'
 import StatusBadge from '../../components/property/StatusBadge'
@@ -109,6 +113,17 @@ export default function PropertyDetailPage() {
   const clonePropertyMut = useCloneProperty()
   const [showCloneConfirm, setShowCloneConfirm] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
+  // The tab lives in the address (?tab=photos): back to the page opens it again.
+  const [tab, setTabState] = useState<PropertyTab>(() => {
+    const asked = new URLSearchParams(window.location.search).get('tab')
+    return (PROPERTY_TABS as readonly string[]).includes(asked ?? '') ? (asked as PropertyTab) : 'prices'
+  })
+  const setTab = (next: PropertyTab) => {
+    setTabState(next)
+    const url = new URL(window.location.href)
+    url.searchParams.set('tab', next)
+    window.history.replaceState(window.history.state, '', url)
+  }
 
   const otherProperties = useMemo(
     () => (allProperties?.items ?? []).filter((p) => p.id !== propertyId),
@@ -204,7 +219,6 @@ export default function PropertyDetailPage() {
   const statusActions = getStatusActions(property.status)
   const staff = Boolean(currentUser) && currentUser?.role !== 'cleaner'
   const listingPhotos = property.photos.filter((photo) => photo.audience !== 'guest')
-  const cover = listingPhotos.find((photo) => photo.is_cover) ?? listingPhotos[0]
   const facts = [
     { icon: Building2, label: t('common.type'), value: t(`common.${property.type}`) },
     { icon: DoorOpen, label: t('properties.rooms'), value: property.rooms },
@@ -220,6 +234,24 @@ export default function PropertyDetailPage() {
       [property.video_url, 'videoUrl'],
     ] as const
   ).filter(([url]) => Boolean(url))
+  const hasAbout = Boolean(
+    property.description ||
+      property.check_in_instructions ||
+      property.check_out_instructions ||
+      property.house_rules ||
+      property.check_in_hour != null ||
+      property.check_out_hour != null ||
+      property.check_in_method,
+  )
+  const tabs: { key: PropertyTab; label: string }[] = [
+    { key: 'prices', label: t('properties.pricing.title') },
+    ...(staff ? [{ key: 'blocks' as const, label: t('properties.blocks.title') }] : []),
+    { key: 'photos', label: t('properties.photos') },
+    { key: 'about', label: t('properties.aboutAndRules') },
+    { key: 'amenities', label: t('properties.amenities') },
+    { key: 'calendars', label: t('properties.calendars') },
+    { key: 'history', label: t('properties.history') },
+  ]
 
   return (
     <div className="mx-auto w-full max-w-6xl px-4 py-4 sm:px-6 sm:py-6">
@@ -231,30 +263,22 @@ export default function PropertyDetailPage() {
         {t('properties.backToProperties')}
       </Link>
 
-      {/* The flat at a glance: its cover, what it is, how it is let, and what to do with it. */}
-      <section className="mb-5 overflow-hidden rounded-2xl border border-line bg-surface-card md:flex">
-        {cover && (
-          <div className="h-40 shrink-0 bg-surface-page md:h-auto md:w-56">
-            <img src={cover.thumbnail_url || cover.url} alt="" className="h-full w-full object-cover" />
-          </div>
-        )}
-        <div className="min-w-0 flex-1 p-5 sm:p-6">
-          <div className="flex flex-wrap items-start justify-between gap-3">
+      {/* The flat at a glance: its photos, what it is, how it is let and what it costs. */}
+      <section className="mb-5 overflow-hidden rounded-2xl border border-line bg-surface-card lg:grid lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)]">
+        <PhotoCarousel photos={listingPhotos} onAdd={() => setTab('photos')} />
+        <div className="min-w-0 p-5 sm:p-6">
+          <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                <h1 className="truncate text-xl font-bold text-ink">{property.internal_name || property.name}</h1>
+                <h1 className="truncate text-2xl font-bold text-ink">{property.internal_name || property.name}</h1>
                 <StatusBadge status={property.status} />
               </div>
               {property.internal_name && property.name !== property.internal_name && (
                 <p className="mt-0.5 text-sm text-ink-muted">{property.name}</p>
               )}
             </div>
-            <div className="flex items-center gap-2">
-              <Link
-                to="/properties/$propertyId/edit"
-                params={{ propertyId }}
-                className={SECONDARY}
-              >
+            <div className="flex shrink-0 items-center gap-2">
+              <Link to="/properties/$propertyId/edit" params={{ propertyId }} className={SECONDARY}>
                 <Pencil className="h-3.5 w-3.5" />
                 {t('common.edit')}
               </Link>
@@ -293,18 +317,19 @@ export default function PropertyDetailPage() {
             <Badge tone="accent">{t(`properties.rentalModeShort.${property.rental_mode}`)}</Badge>
           </p>
 
+          {/* What a stay costs, read at a glance; changed on the Prices tab. */}
+          {pricing && <PriceSummary pricing={pricing} mode={property.rental_mode} onEdit={() => setTab('prices')} />}
+
           {facts.length > 0 && (
-            <dl className="mt-4 grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-3 lg:grid-cols-6">
+            <ul className="mt-4 flex flex-wrap gap-2">
               {facts.map((fact) => (
-                <div key={fact.label} className="flex items-center gap-2">
-                  <fact.icon className="h-4 w-4 shrink-0 text-ink-muted" aria-hidden="true" />
-                  <div className="min-w-0">
-                    <dt className="text-xs text-ink-muted">{fact.label}</dt>
-                    <dd className="text-sm font-semibold text-ink">{fact.value}</dd>
-                  </div>
-                </div>
+                <li key={fact.label} className="inline-flex items-center gap-1.5 rounded-lg bg-surface-page px-2.5 py-1.5 text-xs text-ink">
+                  <fact.icon className="h-3.5 w-3.5 text-ink-muted" aria-hidden="true" />
+                  <span className="text-ink-muted">{fact.label}</span>
+                  <span className="font-semibold">{fact.value}</span>
+                </li>
               ))}
-            </dl>
+            </ul>
           )}
 
           {(property.address_full || property.complex_name) && (
@@ -345,9 +370,28 @@ export default function PropertyDetailPage() {
         </div>
       </section>
 
-      <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-[minmax(0,1fr)_340px]">
-        <div className="flex min-w-0 flex-col gap-5">
-          {/* Prices first: they are what changes most. */}
+      {/* One part of the flat at a time, as a host's listing is kept on Airbnb. */}
+      <div role="tablist" aria-label={t('properties.sections')} className="-mx-4 mb-5 flex gap-1 overflow-x-auto border-b border-line px-4 sm:mx-0 sm:px-0">
+        {tabs.map((item) => (
+          <button
+            key={item.key}
+            type="button"
+            role="tab"
+            id={`tab-${item.key}`}
+            aria-selected={tab === item.key}
+            aria-controls={`panel-${item.key}`}
+            onClick={() => setTab(item.key)}
+            className={`-mb-px shrink-0 border-b-2 px-3 py-2.5 text-sm font-semibold transition-colors ${
+              tab === item.key ? 'border-accent text-accent-ink' : 'border-transparent text-ink-muted hover:text-ink'
+            }`}
+          >
+            {item.label}
+          </button>
+        ))}
+      </div>
+
+      <div role="tabpanel" id={`panel-${tab}`} aria-labelledby={`tab-${tab}`} className="flex flex-col gap-5">
+        {tab === 'prices' && (
           <section className={CARD} aria-labelledby="property-pricing">
             <h2 id="property-pricing" className="mb-4 text-sm font-bold text-ink">{t('properties.pricing.title')}</h2>
             <PricingForm
@@ -382,81 +426,78 @@ export default function PropertyDetailPage() {
               isSaving={savePricing.isPending}
             />
           </section>
+        )}
 
-          {staff && <BlocksCard propertyId={propertyId} />}
+        {tab === 'blocks' && staff && <BlocksCard propertyId={propertyId} />}
 
-          {/* Photos: the listing's, then the ones only a guest with a booking sees. */}
-          <section className={CARD}>
-            <h2 className="mb-3 text-sm font-bold text-ink">{t('properties.photos')}</h2>
-            <div className="flex gap-2 overflow-x-auto pb-1">
-              <label className="flex h-28 w-40 shrink-0 cursor-pointer flex-col items-center justify-center gap-1 rounded-xl border border-dashed border-line text-xs font-semibold text-ink-muted transition-colors hover:bg-surface-page">
-                <ImagePlus className="h-5 w-5" />
-                {uploadPhotos.isPending ? t('properties.photosUploading') : t('properties.addPhotos')}
-                <input
-                  id="add-photos"
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp"
-                  multiple
-                  className="hidden"
-                  disabled={uploadPhotos.isPending}
-                  onChange={addPhotos}
-                />
-              </label>
-              {listingPhotos.map((photo) => (
-                <div
-                  key={photo.id}
-                  className={`h-28 w-40 shrink-0 overflow-hidden rounded-xl ${photo.is_cover ? 'ring-2 ring-accent' : ''}`}
-                >
-                  <img src={photo.thumbnail_url || photo.url} alt="" className="h-full w-full object-cover" />
-                </div>
-              ))}
-            </div>
-          </section>
-          {staff && <CheckInPhotosCard propertyId={propertyId} photos={property.photos} />}
-
-          {(property.description ||
-            property.check_in_instructions ||
-            property.check_out_instructions ||
-            property.house_rules ||
-            property.check_in_hour != null ||
-            property.check_out_hour != null ||
-            property.check_in_method) && (
-            <section className={`${CARD} space-y-4`} aria-labelledby="property-rules">
-              <h2 id="property-rules" className="text-sm font-bold text-ink">{t('properties.aboutAndRules')}</h2>
-              {property.description && <p className="whitespace-pre-line text-sm text-ink">{property.description}</p>}
-              {(property.check_in_hour != null || property.check_out_hour != null || property.check_in_method) && (
-                <p className="text-sm text-ink">
-                  {[
-                    property.check_in_hour != null &&
-                      `${t('properties.form.checkInFrom')} ${String(property.check_in_hour).padStart(2, '0')}:00`,
-                    property.check_out_hour != null &&
-                      `${t('properties.form.checkOutUntil')} ${String(property.check_out_hour).padStart(2, '0')}:00`,
-                    property.check_in_method && t(`properties.checkInMethod.${property.check_in_method}`),
-                  ]
-                    .filter(Boolean)
-                    .join(' · ')}
-                </p>
-              )}
-              {(
-                [
-                  [property.check_in_instructions, 'properties.checkIn'],
-                  [property.check_out_instructions, 'properties.checkOut'],
-                  [property.house_rules, 'properties.houseRules'],
-                ] as const
-              ).map(([text, label]) =>
-                text ? (
-                  <div key={label}>
-                    <p className="mb-1 text-xs font-semibold text-ink-muted">{t(label)}</p>
-                    <p className="whitespace-pre-line text-sm text-ink">{text}</p>
+        {tab === 'photos' && (
+          <>
+            <section className={CARD} aria-labelledby="property-photos">
+              <h2 id="property-photos" className="mb-3 text-sm font-bold text-ink">{t('properties.photos')}</h2>
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
+                <label className="flex aspect-[4/3] cursor-pointer flex-col items-center justify-center gap-1 rounded-xl border border-dashed border-line text-xs font-semibold text-ink-muted transition-colors hover:bg-surface-page">
+                  <ImagePlus className="h-5 w-5" />
+                  {uploadPhotos.isPending ? t('properties.photosUploading') : t('properties.addPhotos')}
+                  <input
+                    id="add-photos"
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    multiple
+                    className="hidden"
+                    disabled={uploadPhotos.isPending}
+                    onChange={addPhotos}
+                  />
+                </label>
+                {listingPhotos.map((photo) => (
+                  <div key={photo.id} className={`aspect-[4/3] overflow-hidden rounded-xl ${photo.is_cover ? 'ring-2 ring-accent' : ''}`}>
+                    <img src={photo.thumbnail_url || photo.url} alt="" className="h-full w-full object-cover" />
                   </div>
-                ) : null,
-              )}
+                ))}
+              </div>
             </section>
-          )}
+            {staff && <CheckInPhotosCard propertyId={propertyId} photos={property.photos} />}
+          </>
+        )}
 
-          {property.amenities.length > 0 && (
-            <section className={CARD}>
-              <h2 className="mb-3 text-sm font-bold text-ink">{t('properties.amenities')}</h2>
+        {tab === 'about' && (
+          <section className={`${CARD} space-y-4`} aria-labelledby="property-rules">
+            <h2 id="property-rules" className="text-sm font-bold text-ink">{t('properties.aboutAndRules')}</h2>
+            {property.description && <p className="whitespace-pre-line text-sm text-ink">{property.description}</p>}
+            {(property.check_in_hour != null || property.check_out_hour != null || property.check_in_method) && (
+              <p className="text-sm text-ink">
+                {[
+                  property.check_in_hour != null &&
+                    `${t('properties.form.checkInFrom')} ${String(property.check_in_hour).padStart(2, '0')}:00`,
+                  property.check_out_hour != null &&
+                    `${t('properties.form.checkOutUntil')} ${String(property.check_out_hour).padStart(2, '0')}:00`,
+                  property.check_in_method && t(`properties.checkInMethod.${property.check_in_method}`),
+                ]
+                  .filter(Boolean)
+                  .join(' · ')}
+              </p>
+            )}
+            {(
+              [
+                [property.check_in_instructions, 'properties.checkIn'],
+                [property.check_out_instructions, 'properties.checkOut'],
+                [property.house_rules, 'properties.houseRules'],
+              ] as const
+            ).map(([text, label]) =>
+              text ? (
+                <div key={label}>
+                  <p className="mb-1 text-xs font-semibold text-ink-muted">{t(label)}</p>
+                  <p className="whitespace-pre-line text-sm text-ink">{text}</p>
+                </div>
+              ) : null,
+            )}
+            {!hasAbout && <p className="text-sm text-ink-muted">{t('properties.nothingYet')}</p>}
+          </section>
+        )}
+
+        {tab === 'amenities' && (
+          <section className={CARD} aria-labelledby="property-amenities">
+            <h2 id="property-amenities" className="mb-3 text-sm font-bold text-ink">{t('properties.amenities')}</h2>
+            {property.amenities.length > 0 ? (
               <ul className="flex flex-wrap gap-2">
                 {property.amenities.map((amenity) => (
                   <li key={amenity.id} className="rounded-lg bg-surface-page px-3 py-1.5 text-xs font-semibold text-ink">
@@ -464,46 +505,50 @@ export default function PropertyDetailPage() {
                   </li>
                 ))}
               </ul>
-            </section>
-          )}
-        </div>
+            ) : (
+              <p className="text-sm text-ink-muted">{t('properties.nothingYet')}</p>
+            )}
+          </section>
+        )}
 
-        {/* The flat's ties to the world: the calendars it shares, the listings, its history. */}
-        <aside className="flex min-w-0 flex-col gap-5">
-          <CalendarLinkCard propertyId={propertyId} />
-          {staff && <CalendarFeedsCard propertyId={propertyId} />}
-          {(
-            [
-              ['listings', property.listing_urls],
-              ['hourlyListings', property.hourly_listing_urls],
-            ] as const
-          ).some(([, urls]) => urls?.length > 0) && (
-            <section className={CARD}>
-              {(
-                [
-                  ['listings', property.listing_urls],
-                  ['hourlyListings', property.hourly_listing_urls],
-                ] as const
-              ).map(([label, urls]) =>
-                urls?.length > 0 ? (
-                  <div key={label} className="mb-3 last:mb-0">
-                    <h2 className="mb-1 text-sm font-bold text-ink">{t(`properties.${label}`)}</h2>
-                    <ul className="flex flex-col gap-1">
-                      {urls.map((url) => (
-                        <li key={url} className="min-w-0">
-                          <a href={url} target="_blank" rel="noreferrer" className="block truncate text-sm text-accent-ink hover:underline">
-                            {url.replace(/^https?:\/\/(www\.)?/, '')}
-                          </a>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                ) : null,
-              )}
-            </section>
-          )}
-          <AuditTrail entries={auditLog} />
-        </aside>
+        {tab === 'calendars' && (
+          <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-2">
+            <CalendarLinkCard propertyId={propertyId} />
+            {staff && <CalendarFeedsCard propertyId={propertyId} />}
+            {(
+              [
+                ['listings', property.listing_urls],
+                ['hourlyListings', property.hourly_listing_urls],
+              ] as const
+            ).some(([, urls]) => urls?.length > 0) && (
+              <section className={CARD}>
+                {(
+                  [
+                    ['listings', property.listing_urls],
+                    ['hourlyListings', property.hourly_listing_urls],
+                  ] as const
+                ).map(([label, urls]) =>
+                  urls?.length > 0 ? (
+                    <div key={label} className="mb-3 last:mb-0">
+                      <h2 className="mb-1 text-sm font-bold text-ink">{t(`properties.${label}`)}</h2>
+                      <ul className="flex flex-col gap-1">
+                        {urls.map((url) => (
+                          <li key={url} className="min-w-0">
+                            <a href={url} target="_blank" rel="noreferrer" className="block truncate text-sm text-accent-ink hover:underline">
+                              {url.replace(/^https?:\/\/(www\.)?/, '')}
+                            </a>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : null,
+                )}
+              </section>
+            )}
+          </div>
+        )}
+
+        {tab === 'history' && <AuditTrail entries={auditLog} />}
       </div>
 
       <ConfirmDialog
@@ -530,9 +575,107 @@ export default function PropertyDetailPage() {
   )
 }
 
+const PROPERTY_TABS = ['prices', 'blocks', 'photos', 'about', 'amenities', 'calendars', 'history'] as const
+type PropertyTab = (typeof PROPERTY_TABS)[number]
+
 const CARD = 'rounded-2xl border border-line bg-surface-card p-5'
 const SECONDARY =
   'inline-flex min-h-[40px] items-center justify-center gap-1.5 rounded-lg border border-line px-3 text-xs font-bold text-ink transition-colors hover:bg-surface-page'
+
+/** The flat's photos one at a time, cover first, with a count and arrows. */
+function PhotoCarousel({ photos, onAdd }: { photos: PropertyPhoto[]; onAdd: () => void }) {
+  const { t } = useTranslation()
+  const ordered = [...photos].sort((a, b) => Number(b.is_cover) - Number(a.is_cover) || a.sort_order - b.sort_order)
+  const [index, setIndex] = useState(0)
+  const shown = ordered[Math.min(index, ordered.length - 1)]
+  if (!shown) {
+    return (
+      <button
+        type="button"
+        onClick={onAdd}
+        className="flex aspect-[4/3] w-full flex-col items-center justify-center gap-2 bg-surface-page text-sm font-semibold text-ink-muted transition-colors hover:text-ink lg:aspect-auto lg:h-full"
+      >
+        <ImagePlus className="h-6 w-6" aria-hidden="true" />
+        {t('properties.addPhotos')}
+      </button>
+    )
+  }
+  const step = (by: number) => setIndex((i) => (i + by + ordered.length) % ordered.length)
+  const arrow =
+    'flex h-9 w-9 items-center justify-center rounded-full bg-white/90 text-ink shadow-sm transition-colors hover:bg-white'
+  return (
+    <div className="relative aspect-[4/3] bg-surface-page lg:aspect-auto lg:h-full lg:min-h-[320px]">
+      <img src={shown.url} alt="" className="absolute inset-0 h-full w-full object-cover" />
+      {ordered.length > 1 && (
+        <>
+          <span className="absolute right-3 top-3 rounded-full bg-black/55 px-2.5 py-1 text-xs font-semibold text-white tabular-nums">
+            {index + 1} / {ordered.length}
+          </span>
+          <div className="absolute bottom-3 right-3 flex gap-2">
+            <button type="button" onClick={() => step(-1)} aria-label={t('common.previous')} className={arrow}>
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+            <button type="button" onClick={() => step(1)} aria-label={t('common.next')} className={arrow}>
+              <ChevronRight className="h-4 w-4" />
+            </button>
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
+
+/** The flat's prices in one look: the night and the weekend night, the hourly tariffs, the deposit. */
+function PriceSummary({ pricing, mode, onEdit }: { pricing: PricingConfig; mode: RentalMode; onEdit: () => void }) {
+  const { t, i18n } = useTranslation()
+  const { symbol } = useCurrency()
+  const money = (value: number) => `${formatMoneyExact(Number(value), i18n.language)} ${symbol}`
+  const nightly = mode !== 'hourly' && Number(pricing.base_price) > 0
+  const tariffs = mode !== 'daily'
+    ? (
+        [
+          ['3h', pricing.price_3h],
+          ['6h', pricing.price_6h],
+          ['night', pricing.price_night],
+        ] as const
+      ).filter(([, price]) => Number(price) > 0)
+    : []
+  const hour = mode !== 'daily' && tariffs.length === 0 && Number(pricing.hourly_price) > 0
+  if (!nightly && tariffs.length === 0 && !hour) return null
+  return (
+    <button
+      type="button"
+      onClick={onEdit}
+      className="mt-4 block w-full rounded-xl bg-surface-page px-4 py-3 text-left transition-colors hover:bg-accent-soft"
+    >
+      {nightly && (
+        <p className="flex flex-wrap items-baseline gap-x-2">
+          <span className="text-2xl font-bold tabular-nums text-ink">{money(pricing.base_price)}</span>
+          <span className="text-sm text-ink-muted">{t('properties.nightPrice')}</span>
+          {Number(pricing.weekend_markup) > 0 && (
+            <span className="text-sm text-ink-muted">
+              · {t('properties.weekendNight', { price: money(Number(pricing.base_price) + Number(pricing.weekend_markup)) })}
+            </span>
+          )}
+        </p>
+      )}
+      {(tariffs.length > 0 || hour) && (
+        <p className="mt-1 text-sm text-ink">
+          {hour
+            ? t('properties.perHourPrice', { price: money(pricing.hourly_price) })
+            : tariffs.map(([name, price]) => `${t(`guest.tariff_${name}`)} ${money(price)}`).join(' · ')}
+        </p>
+      )}
+      {(Number(pricing.default_deposit) > 0 || Number(pricing.hourly_deposit) > 0) && (
+        <p className="mt-1 text-xs text-ink-muted">
+          {t('properties.depositLine', {
+            price: money(Number(mode === 'hourly' ? pricing.hourly_deposit : pricing.default_deposit)),
+          })}
+        </p>
+      )}
+    </button>
+  )
+}
 
 function MenuItem({ icon: Icon, label, onClick }: { icon: typeof Play; label: string; onClick: () => void }) {
   return (

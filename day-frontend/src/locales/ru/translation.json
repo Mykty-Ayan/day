@@ -412,7 +412,15 @@
       "paused": "На паузе",
       "archived": "В архиве",
       "new": "Новая"
-    }
+    },
+    "sections": "Разделы квартиры",
+    "calendars": "Календари",
+    "history": "История",
+    "nothingYet": "Пока не заполнено — «Изменить», чтобы добавить.",
+    "weekendNight": "выходные {{price}}",
+    "perHourPrice": "{{price}} за час",
+    "depositLine": "Залог {{price}}",
+    "nightPrice": "за ночь"
   },
   "bookings": {
     "title": "Брони",

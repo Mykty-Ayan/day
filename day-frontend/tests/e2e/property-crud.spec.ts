@@ -124,6 +124,7 @@ test.describe('Property CRUD - E2E', () => {
     // The heading is the flat's own name ("Kv. 28"); the guests' name is the line under it.
     await expect(page.getByText('Updated Test Property', { exact: true }).first()).toBeVisible()
     await expect(page.getByText('Floor 7')).toBeVisible()
+    await page.getByRole('tab', { name: 'About and rules' }).click()
     const rulesCard = page.getByRole('region', { name: 'About and rules', exact: true })
     await expect(rulesCard.getByText('Quiet after 22:00')).toBeVisible()
 
