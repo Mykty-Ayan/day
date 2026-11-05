@@ -8,6 +8,7 @@
 import { expect, test } from '@playwright/test'
 import {
   bufferMinutesValid,
+  changedFields,
   formToUpdate,
   listingInBoth,
   listingLines,
@@ -225,4 +226,13 @@ test('hourly listing links are a list of their own, and one link is not both kin
 test('the cleaning buffer is 15 to 1440 minutes in steps of 15, or empty', () => {
   expect(['', '15', '30', '1440'].map(bufferMinutesValid)).toEqual([true, true, true, true])
   expect(['20', '0', '1455', 'abc', '-15'].map(bufferMinutesValid)).toEqual([false, false, false, false, false])
+})
+
+test('a panel sends only what changed in it, a cleared field as null', () => {
+  const opened = propertyToForm(flat)
+  expect(changedFields(opened, opened)).toEqual({})
+  const form = propertyToForm(flat)
+  form.address.floor = '7'
+  form.basic.description = ''
+  expect(changedFields(form, opened)).toEqual({ floor: 7, description: null })
 })

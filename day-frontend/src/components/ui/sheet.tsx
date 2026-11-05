@@ -10,6 +10,7 @@ export function Sheet({
   onClose,
   title,
   onBack,
+  wide = false,
   children,
 }: {
   open: boolean
@@ -17,6 +18,8 @@ export function Sheet({
   title: string
   /** The panel this one was opened from: a step back to it, not out to the screen. */
   onBack?: () => void
+  /** A form with several columns of fields. */
+  wide?: boolean
   children: ReactNode
 }) {
   const { t } = useTranslation()
@@ -30,7 +33,7 @@ export function Sheet({
         <DialogPrimitive.Content
           ref={setPanel}
           aria-describedby={undefined}
-          className="fixed inset-y-0 right-0 z-overlay flex w-full max-w-sm flex-col gap-5 overflow-y-auto overscroll-contain border-l border-line bg-surface-card p-5 text-ink outline-none safe-area-bottom"
+          className={`fixed inset-y-0 right-0 z-overlay flex w-full ${wide ? 'max-w-xl' : 'max-w-sm'} flex-col gap-5 overflow-y-auto overscroll-contain border-l border-line bg-surface-card p-5 text-ink outline-none safe-area-bottom`}
         >
           <div className="flex items-center justify-between gap-3">
             {onBack && (

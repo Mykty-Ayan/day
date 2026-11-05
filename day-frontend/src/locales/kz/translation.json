@@ -435,7 +435,7 @@
     "sections": "Пәтер бөлімдері",
     "calendars": "Күнтізбелер",
     "history": "Тарих",
-    "nothingYet": "Әлі толтырылмаған — қосу үшін «Өзгерту».",
+    "nothingYet": "Әлі толтырылмаған — қосу үшін қаламды басыңыз.",
     "weekendNight": "демалыс {{price}}",
     "perHourPrice": "сағатына {{price}}",
     "depositLine": "Кепілақы {{price}}",
@@ -472,6 +472,12 @@
         "checkInPhotos": "Кіруге арналған фото",
         "amenities": "Ыңғайлылықтар"
       }
+    },
+    "edit": {
+      "basic": "Негізгі",
+      "address": "Мекенжай",
+      "details": "Сипаттамалары",
+      "rules": "Кіру және ережелер"
     }
   },
   "bookings": {

@@ -53,8 +53,8 @@ export function occupancy(stays: Stay[], from: string, days: number): number {
   return days > 0 ? taken.size / days : 0
 }
 
-/** Where a missing thing is filled in: a tab of the page, or the edit form. */
-export type ReadinessPlace = 'photos' | 'about' | 'amenities' | 'prices' | 'edit'
+/** Where a missing thing is filled in: a tab of the page, or the panel of one block. */
+export type ReadinessPlace = 'prices' | 'photos' | 'basic' | 'address' | 'details' | 'rules' | 'amenities'
 export interface ReadinessItem {
   key: string
   done: boolean
@@ -74,10 +74,10 @@ export function readiness(property: Property, pricing: PricingConfig | null | un
   return [
     { key: 'prices', done: priced, place: 'prices' },
     { key: 'photos', done: listing.length >= 3, place: 'photos' },
-    { key: 'description', done: Boolean(property.description?.trim()), place: 'about' },
-    { key: 'address', done: Boolean(property.address_full?.trim()), place: 'edit' },
-    { key: 'guests', done: property.max_guests != null && property.max_guests > 0, place: 'edit' },
-    { key: 'checkInInstructions', done: Boolean(property.check_in_instructions?.trim()), place: 'about' },
+    { key: 'description', done: Boolean(property.description?.trim()), place: 'basic' },
+    { key: 'address', done: Boolean(property.address_full?.trim()), place: 'address' },
+    { key: 'guests', done: property.max_guests != null && property.max_guests > 0, place: 'details' },
+    { key: 'checkInInstructions', done: Boolean(property.check_in_instructions?.trim()), place: 'rules' },
     { key: 'checkInPhotos', done: checkIn.length > 0, place: 'photos' },
     { key: 'amenities', done: property.amenities.length > 0, place: 'amenities' },
   ]

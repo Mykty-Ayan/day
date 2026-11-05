@@ -252,6 +252,21 @@ export function useLinkAmenities(propertyId: string) {
   })
 }
 
+/** The flat's amenities set to exactly these: the server replaces the whole set, an empty one too. */
+export function useSetAmenities(propertyId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (ids: string[]) => linkAmenities(propertyId, ids),
+    // Awaited: the panel closes on the fresh flat, so opening it again starts
+    // from the saved set, not the one before (and the next save would drop it).
+    onSettled: () =>
+      Promise.all([
+        qc.invalidateQueries({ queryKey: [PROPERTY_KEY, propertyId] }),
+        qc.invalidateQueries({ queryKey: [AUDIT_LOG_KEY, propertyId] }),
+      ]),
+  })
+}
+
 export function usePropertyAuditLog(propertyId: string) {
   return useQuery({
     queryKey: [AUDIT_LOG_KEY, propertyId],

@@ -1,6 +1,6 @@
 import { test, expect } from '../fixtures/e2e-auth'
 import { createTestProperty, createTestPricing, createTestBooking, futureDate, API_BASE } from '../fixtures/test-data'
-import { wizardField as field, nextStep as next } from '../fixtures/property-ui'
+import { wizardField as field, nextStep as next, openBlock } from '../fixtures/property-ui'
 
 test.describe('Property CRUD - E2E', () => {
   let propertyIdsToCleanup: string[] = []
@@ -103,29 +103,30 @@ test.describe('Property CRUD - E2E', () => {
     const created = await res.json()
     propertyIdsToCleanup.push(created.id)
 
-    // Navigate to property detail and open the edit wizard ("Edit" is a link)
+    // Each block opens by its pencil in a panel on the right; the page stays under it.
     await page.goto(`/properties/${created.id}`)
-    await page.getByRole('link', { name: 'Edit', exact: true }).click()
-
-    // Basic Info -> Address -> Details -> Rules: one field on each of four steps
-    await field(page, 'Public Name').fill('Updated Test Property')
-    await next(page, 'Address')
-    await field(page, 'Floor').fill('7')
-    await next(page, 'Details')
-    await field(page, 'Rooms').fill('4')
-    await next(page, 'Rules')
+    for (const [block, label, value] of [
+      ['Basics', 'Public Name', 'Updated Test Property'],
+      ['Address', 'Floor', '7'],
+      ['Details', 'Rooms', '4'],
+    ] as const) {
+      await openBlock(page, block)
+      await field(page, label).fill(value)
+      await page.getByRole('button', { name: 'Save', exact: true }).click()
+      await expect(page.getByRole('dialog')).toBeHidden()
+    }
+    await page.getByRole('tab', { name: 'About and rules' }).click()
+    await openBlock(page, 'Check-in and rules')
     await field(page, 'House Rules').fill('Quiet after 22:00')
+    await page.getByRole('button', { name: 'Save', exact: true }).click()
+    await expect(page.getByRole('dialog')).toBeHidden()
 
-    // Save
-    await page.getByRole('button', { name: 'Save Changes' }).click()
-
-    // Back on the property page with the new values
-    await expect(page).toHaveURL(new RegExp(`/properties/${created.id}$`))
+    // Still on the property page, now with the new values
+    await expect(page).toHaveURL(new RegExp(`/properties/${created.id}\\?tab=about$`))
     // The heading is the flat's own name ("Kv. 28"); the guests' name is the line under it.
     await expect(page.getByText('Updated Test Property', { exact: true }).first()).toBeVisible()
     await expect(page.getByText('Floor 7')).toBeVisible()
-    await page.getByRole('tab', { name: 'About and rules' }).click()
-    const rulesCard = page.getByRole('region', { name: 'About and rules', exact: true })
+    const rulesCard = page.getByRole('region', { name: 'Check-in and rules', exact: true })
     await expect(rulesCard.getByText('Quiet after 22:00')).toBeVisible()
 
     const saved = await (await request.get(`${API_BASE}/properties/${created.id}`)).json()
@@ -226,9 +227,9 @@ test.describe('Property CRUD - E2E', () => {
     await expect(page.getByText('Free', { exact: true })).toBeVisible()
     const ready = page.getByRole('region', { name: /^Flat readiness/ })
     await expect(ready).toBeVisible()
-    // A missing item is a step to where it is filled in.
+    // A missing item opens the panel where it is filled in.
     await ready.getByRole('button', { name: '+ Amenities' }).click()
-    await expect(page.getByRole('tab', { name: /^Amenities/ })).toHaveAttribute('aria-selected', 'true')
+    await expect(page.getByRole('dialog', { name: 'Amenities', exact: true })).toBeVisible()
   })
 
   test('a guest kept past yesterday\'s checkout still lives in the flat', async ({ page, request }) => {

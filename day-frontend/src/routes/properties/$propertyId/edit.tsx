@@ -1,6 +1,8 @@
-import { createFileRoute } from '@tanstack/react-router'
-import EditPropertyPage from '../../../pages/properties/EditPropertyPage'
+import { createFileRoute, redirect } from '@tanstack/react-router'
 
+// The flat is changed in place now, from its page; the old address leads there.
 export const Route = createFileRoute('/properties/$propertyId/edit')({
-  component: EditPropertyPage,
+  beforeLoad: ({ params }) => {
+    throw redirect({ to: '/properties/$propertyId', params, replace: true })
+  },
 })

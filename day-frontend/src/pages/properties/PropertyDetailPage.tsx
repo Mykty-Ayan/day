@@ -59,6 +59,7 @@ import StatusBadge from '../../components/property/StatusBadge'
 import { showToast } from '../../components/ui/Toast'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import CheckInPhotosCard from '../../components/property/CheckInPhotosCard'
+import PropertyEditSheet, { type PropertyBlock } from '../../components/property/PropertyEditSheet'
 import BlocksCard from '../../components/property/BlocksCard'
 import CalendarFeedsCard from '../../components/property/CalendarFeedsCard'
 import AuditTrail from '../../components/ui/AuditTrail'
@@ -128,6 +129,8 @@ export default function PropertyDetailPage() {
   const clonePropertyMut = useCloneProperty()
   const [showCloneConfirm, setShowCloneConfirm] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
+  // The block being changed in the panel from the right.
+  const [editing, setEditing] = useState<PropertyBlock | null>(null)
   // The tab lives in the address (?tab=photos): back to the page opens it again.
   const [tab, setTabState] = useState<PropertyTab>(() => {
     const asked = new URLSearchParams(window.location.search).get('tab')
@@ -249,9 +252,8 @@ export default function PropertyDetailPage() {
       [property.video_url, 'videoUrl'],
     ] as const
   ).filter(([url]) => Boolean(url))
-  const hasAbout = Boolean(
-    property.description ||
-      property.check_in_instructions ||
+  const hasRules = Boolean(
+    property.check_in_instructions ||
       property.check_out_instructions ||
       property.house_rules ||
       property.check_in_hour != null ||
@@ -288,6 +290,7 @@ export default function PropertyDetailPage() {
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
                 <h1 className="truncate text-2xl font-bold text-ink">{property.internal_name || property.name}</h1>
+                <EditPencil label={t('properties.edit.basic')} onClick={() => setEditing('basic')} />
                 <StatusMenu
                   status={property.status}
                   actions={statusActions}
@@ -300,10 +303,6 @@ export default function PropertyDetailPage() {
               )}
             </div>
             <div className="flex shrink-0 items-center gap-2">
-              <Link to="/properties/$propertyId/edit" params={{ propertyId }} className={SECONDARY}>
-                <Pencil className="h-3.5 w-3.5" />
-                {t('common.edit')}
-              </Link>
               <Popover open={menuOpen} onOpenChange={setMenuOpen}>
                 <PopoverTrigger aria-label={t('bookings.card.moreActions')} className={SECONDARY}>
                   <MoreHorizontal className="h-4 w-4" aria-hidden="true" />
@@ -343,6 +342,9 @@ export default function PropertyDetailPage() {
                   <span className="font-semibold">{fact.value}</span>
                 </li>
               ))}
+              <li>
+                <EditPencil label={t('properties.edit.details')} onClick={() => setEditing('details')} />
+              </li>
             </ul>
           )}
 
@@ -363,6 +365,7 @@ export default function PropertyDetailPage() {
                   </span>
                 )}
               </span>
+              <EditPencil label={t('properties.edit.address')} onClick={() => setEditing('address')} />
             </p>
           )}
 
@@ -387,7 +390,7 @@ export default function PropertyDetailPage() {
       {/* What the guest page and the CRM still lack, each a step to where it is filled in. */}
       <ReadinessCard
         items={readiness(property, pricing)}
-        onOpen={(place) => (place === 'edit' ? navigate({ to: '/properties/$propertyId/edit', params: { propertyId } }) : setTab(place))}
+        onOpen={(place) => (place === 'prices' || place === 'photos' ? setTab(place) : setEditing(place))}
       />
 
       {/* One part of the flat at a time, as a host's listing is kept on Airbnb. */}
@@ -512,9 +515,22 @@ export default function PropertyDetailPage() {
         </TabPanel>
 
         <TabPanel name="about" current={tab}>
+          <section className={`${CARD} space-y-3`} aria-labelledby="property-description">
+            <div className="flex items-center justify-between gap-2">
+              <h2 id="property-description" className="text-sm font-bold text-ink">{t('properties.description')}</h2>
+              <EditPencil label={t('properties.edit.basic')} onClick={() => setEditing('basic')} />
+            </div>
+            {property.description ? (
+              <p className="whitespace-pre-line text-sm text-ink">{property.description}</p>
+            ) : (
+              <p className="text-sm text-ink-muted">{t('properties.nothingYet')}</p>
+            )}
+          </section>
           <section className={`${CARD} space-y-4`} aria-labelledby="property-rules">
-            <h2 id="property-rules" className="text-sm font-bold text-ink">{t('properties.aboutAndRules')}</h2>
-            {property.description && <p className="whitespace-pre-line text-sm text-ink">{property.description}</p>}
+            <div className="flex items-center justify-between gap-2">
+              <h2 id="property-rules" className="text-sm font-bold text-ink">{t('properties.edit.rules')}</h2>
+              <EditPencil label={t('properties.edit.rules')} onClick={() => setEditing('rules')} />
+            </div>
             {(property.check_in_hour != null || property.check_out_hour != null || property.check_in_method) && (
               <p className="text-sm text-ink">
                 {[
@@ -542,13 +558,16 @@ export default function PropertyDetailPage() {
                 </div>
               ) : null,
             )}
-            {!hasAbout && <p className="text-sm text-ink-muted">{t('properties.nothingYet')}</p>}
+            {!hasRules && <p className="text-sm text-ink-muted">{t('properties.nothingYet')}</p>}
           </section>
         </TabPanel>
 
         <TabPanel name="amenities" current={tab}>
           <section className={CARD} aria-labelledby="property-amenities">
-            <h2 id="property-amenities" className="mb-3 text-sm font-bold text-ink">{t('properties.amenities')}</h2>
+            <div className="mb-3 flex items-center justify-between gap-2">
+              <h2 id="property-amenities" className="text-sm font-bold text-ink">{t('properties.amenities')}</h2>
+              <EditPencil label={t('properties.amenities')} onClick={() => setEditing('amenities')} />
+            </div>
             {property.amenities.length > 0 ? (
               <ul className="flex flex-wrap gap-2">
                 {property.amenities.map((amenity) => (
@@ -602,6 +621,8 @@ export default function PropertyDetailPage() {
 
         <TabPanel name="history" current={tab}><AuditTrail entries={auditLog} /></TabPanel>
       </div>
+
+      <PropertyEditSheet property={property} block={editing} onClose={() => setEditing(null)} />
 
       <ConfirmDialog
         open={showCloneConfirm}
@@ -871,6 +892,21 @@ function ReadinessCard({ items, onOpen }: { items: ReadinessItem[]; onOpen: (pla
         )}
       </ul>
     </section>
+  )
+}
+
+/** A pencil by a block: opens that block in the panel from the right. */
+function EditPencil({ label, onClick }: { label: string; onClick: () => void }) {
+  const { t } = useTranslation()
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={`${t('common.edit')}: ${label}`}
+      className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-ink-muted transition-colors hover:bg-surface-page hover:text-accent-ink"
+    >
+      <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
+    </button>
   )
 }
 

@@ -28,3 +28,11 @@ export function pricingCard(page: Page): Locator {
 export function priceField(card: Locator, label: string): Locator {
   return card.getByRole('spinbutton', { name: label, exact: true })
 }
+
+/** Opens one block of the flat by its pencil on the flat's page; returns the side panel. */
+export async function openBlock(page: Page, block: string): Promise<Locator> {
+  await page.getByRole('button', { name: `Edit: ${block}`, exact: true }).first().click()
+  const panel = page.getByRole('dialog', { name: block, exact: true })
+  await expect(panel).toBeVisible()
+  return panel
+}

@@ -44,7 +44,7 @@ export default function PropertyFormStepBasic({ data, onChange, errors }: Props)
   return (
     <div className="space-y-4">
       <div>
-        <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">
+        <label className="block text-xs font-semibold text-ink-muted mb-1.5">
           {t('properties.form.publicName')}
         </label>
         <input
@@ -52,17 +52,17 @@ export default function PropertyFormStepBasic({ data, onChange, errors }: Props)
           value={data.name}
           onChange={(e) => update('name', e.target.value)}
           placeholder={t('properties.form.publicNamePlaceholder')}
-          className={`w-full bg-gray-50 border rounded-xl p-3 outline-none focus:ring-2 focus:ring-black/10 text-gray-800 text-sm ${
-            errors.name ? 'border-red-300 bg-red-50' : 'border-gray-200'
+          className={`w-full bg-surface-card border rounded-xl p-3 outline-none focus:border-accent text-ink text-sm ${
+            errors.name ? 'border-danger bg-red-50' : 'border-line'
           }`}
         />
         {errors.name && (
-          <p className="text-red-600 text-xs mt-1">{errors.name}</p>
+          <p className="text-danger text-xs mt-1">{errors.name}</p>
         )}
       </div>
 
       <div>
-        <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">
+        <label className="block text-xs font-semibold text-ink-muted mb-1.5">
           {t('properties.form.internalName')}
         </label>
         <input
@@ -70,17 +70,17 @@ export default function PropertyFormStepBasic({ data, onChange, errors }: Props)
           value={data.internal_name}
           onChange={(e) => update('internal_name', e.target.value)}
           placeholder={t('properties.form.internalNamePlaceholder')}
-          className={`w-full bg-gray-50 border rounded-xl p-3 outline-none focus:ring-2 focus:ring-black/10 text-gray-800 text-sm ${
-            errors.internal_name ? 'border-red-300 bg-red-50' : 'border-gray-200'
+          className={`w-full bg-surface-card border rounded-xl p-3 outline-none focus:border-accent text-ink text-sm ${
+            errors.internal_name ? 'border-danger bg-red-50' : 'border-line'
           }`}
         />
         {errors.internal_name && (
-          <p className="text-red-600 text-xs mt-1">{errors.internal_name}</p>
+          <p className="text-danger text-xs mt-1">{errors.internal_name}</p>
         )}
       </div>
 
       <div>
-        <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">
+        <label className="block text-xs font-semibold text-ink-muted mb-1.5">
           {t('properties.form.type')}
         </label>
         <div className="flex flex-wrap gap-2">
@@ -91,8 +91,8 @@ export default function PropertyFormStepBasic({ data, onChange, errors }: Props)
               onClick={() => update('type', value)}
               className={`flex-1 min-w-[6rem] px-4 py-2.5 rounded-xl text-sm font-semibold border transition-all ${
                 data.type === value
-                  ? 'bg-black text-white border-black'
-                  : 'bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100'
+                  ? 'bg-accent text-white border-accent'
+                  : 'bg-surface-card text-ink border-line hover:bg-surface-page'
               }`}
             >
               {t(`common.${value}`)}
@@ -102,7 +102,7 @@ export default function PropertyFormStepBasic({ data, onChange, errors }: Props)
       </div>
 
       <div>
-        <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">
+        <label className="block text-xs font-semibold text-ink-muted mb-1.5">
           {t('properties.form.description')}
         </label>
         <textarea
@@ -110,12 +110,12 @@ export default function PropertyFormStepBasic({ data, onChange, errors }: Props)
           onChange={(e) => update('description', e.target.value)}
           placeholder={t('properties.form.descriptionPlaceholder')}
           rows={3}
-          className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 outline-none focus:ring-2 focus:ring-black/10 text-gray-800 text-sm resize-none"
+          className="w-full bg-surface-card border border-line rounded-xl p-3 outline-none focus:border-accent text-ink text-sm resize-none"
         />
       </div>
 
       <div>
-        <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">
+        <label className="block text-xs font-semibold text-ink-muted mb-1.5">
           {t('properties.form.sourceUrl')}
         </label>
         <input
@@ -123,13 +123,13 @@ export default function PropertyFormStepBasic({ data, onChange, errors }: Props)
           value={data.source_url}
           onChange={(e) => update('source_url', e.target.value)}
           placeholder={t('properties.form.sourceUrlPlaceholder')}
-          className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 outline-none focus:ring-2 focus:ring-black/10 text-gray-800 text-sm"
+          className="w-full bg-surface-card border border-line rounded-xl p-3 outline-none focus:border-accent text-ink text-sm"
         />
       </div>
 
       {linkFields.map(([key, label]) => (
         <div key={key}>
-          <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">
+          <label className="block text-xs font-semibold text-ink-muted mb-1.5">
             {t(`properties.form.${label}`)}
           </label>
           <input
@@ -137,11 +137,11 @@ export default function PropertyFormStepBasic({ data, onChange, errors }: Props)
             value={data[key]}
             onChange={(e) => update(key, e.target.value)}
             placeholder={t(`properties.form.${label}Placeholder`)}
-            className={`w-full bg-gray-50 border rounded-xl p-3 outline-none focus:ring-2 focus:ring-black/10 text-gray-800 text-sm ${
-              errors[key] ? 'border-red-300 bg-red-50' : 'border-gray-200'
+            className={`w-full bg-surface-card border rounded-xl p-3 outline-none focus:border-accent text-ink text-sm ${
+              errors[key] ? 'border-danger bg-red-50' : 'border-line'
             }`}
           />
-          {errors[key] && <p className="text-red-600 text-xs mt-1">{errors[key]}</p>}
+          {errors[key] && <p className="text-danger text-xs mt-1">{errors[key]}</p>}
         </div>
       ))}
 
@@ -149,7 +149,7 @@ export default function PropertyFormStepBasic({ data, onChange, errors }: Props)
           list the guest's link is in tells the CRM which stay they mean. */}
       {listingFields.map(([key, id, label]) => (
         <div key={key}>
-          <label htmlFor={id} className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">
+          <label htmlFor={id} className="block text-xs font-semibold text-ink-muted mb-1.5">
             {t(`properties.form.${label}`)}
           </label>
           <textarea
@@ -158,14 +158,14 @@ export default function PropertyFormStepBasic({ data, onChange, errors }: Props)
             value={data[key]}
             onChange={(e) => update(key, e.target.value)}
             placeholder={t(`properties.form.${label}Placeholder`)}
-            className={`w-full resize-none bg-gray-50 border rounded-xl p-3 outline-none focus:ring-2 focus:ring-black/10 text-gray-800 text-sm ${
-              errors[key] ? 'border-red-300 bg-red-50' : 'border-gray-200'
+            className={`w-full resize-none bg-surface-card border rounded-xl p-3 outline-none focus:border-accent text-ink text-sm ${
+              errors[key] ? 'border-danger bg-red-50' : 'border-line'
             }`}
           />
           {errors[key] ? (
-            <p className="text-red-600 text-xs mt-1">{errors[key]}</p>
+            <p className="text-danger text-xs mt-1">{errors[key]}</p>
           ) : (
-            <p className="text-gray-500 text-xs mt-1">{t(`properties.form.${label}Hint`)}</p>
+            <p className="text-ink-muted text-xs mt-1">{t(`properties.form.${label}Hint`)}</p>
           )}
         </div>
       ))}
