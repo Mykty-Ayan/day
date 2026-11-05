@@ -43,8 +43,9 @@ import {
   useBlocks,
   useCalendarFeeds,
 } from '../../hooks/useProperties'
-import { useBookings } from '../../hooks/useBookings'
-import { occupancy, readiness, stayNow, type ReadinessItem, type ReadinessPlace } from '../../lib/property-overview'
+import { useFlatStaysFrom } from '../../hooks/useBookings'
+import { useSettings } from '../../hooks/useSettings'
+import { occupancy, readiness, stayNow, wallClock, type ReadinessItem, type ReadinessPlace } from '../../lib/property-overview'
 import { addDays, format, parseISO } from 'date-fns'
 import { dateLocale } from '../../lib/date-locale'
 import { getCalendarLink, getPricing } from '../../api/properties'
@@ -795,12 +796,14 @@ function StatusMenu({
 /** Who is in the flat now, who comes next, how full the next 30 nights are. */
 function NowLine({ propertyId }: { propertyId: string }) {
   const { t, i18n } = useTranslation()
-  const now = new Date()
-  const today = format(now, 'yyyy-MM-dd')
-  const { data } = useBookings({ property_id: propertyId, per_page: 100, date_from: today, date_to: format(addDays(now, 30), 'yyyy-MM-dd') })
-  if (!data) return null
-  const stays = data.items
-  const { current, next } = stayNow(stays, format(now, "yyyy-MM-dd'T'HH:mm:ss"))
+  // Stays' times are the company's wall clock, not the browser's.
+  const { data: settings, isPending: settingsPending } = useSettings()
+  const now = wallClock(new Date(), settings?.time_zone ?? 'Asia/Almaty')
+  const today = now.slice(0, 10)
+  // No upper bound: the next arrival may be further than the 30 nights of the occupancy.
+  const { data: stays } = useFlatStaysFrom(propertyId, today)
+  if (!stays || settingsPending) return null
+  const { current, next } = stayNow(stays, now)
   const share = Math.round(occupancy(stays, today, 30) * 100)
   const day = (iso: string) => format(parseISO(iso), i18n.language === 'en' ? 'MMM d' : 'd MMM', { locale: dateLocale(i18n.language) })
   const guest = (stay: { id: string; guest_name: string }, text: string) => (

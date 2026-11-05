@@ -96,6 +96,23 @@ export function useBookedNights(
   })
 }
 
+/** Every stay of a flat that ends on `from` (YYYY-MM-DD) or later, all pages: the list
+ *  comes newest first, cancelled ones included, so one page can miss the stay of today. */
+export function useFlatStaysFrom(propertyId: string, from: string) {
+  return useQuery({
+    queryKey: [BOOKINGS_KEY, 'flat-stays', propertyId, from],
+    queryFn: async () => {
+      const filters = { property_id: propertyId, date_from: from, per_page: 100 }
+      const first = await listBookings(filters)
+      const rest = await Promise.all(
+        Array.from({ length: Math.max(0, first.pages - 1) }, (_, i) => listBookings({ ...filters, page: i + 2 })),
+      )
+      return [first, ...rest].flatMap((page) => page.items)
+    },
+    enabled: !!propertyId,
+  })
+}
+
 export function useBooking(id: string) {
   return useQuery({
     queryKey: [BOOKING_KEY, id],

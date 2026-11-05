@@ -4,7 +4,7 @@
  */
 
 import { expect, test } from '@playwright/test'
-import { occupancy, readiness, stayNow } from '../../src/lib/property-overview'
+import { occupancy, readiness, stayNow, wallClock } from '../../src/lib/property-overview'
 import type { Booking } from '../../src/types/booking'
 import type { PricingConfig, Property } from '../../src/types/property'
 
@@ -47,4 +47,12 @@ test('readiness lists what the flat lacks and where to fill it in', () => {
   const items = readiness(property, { base_price: 24000 } as PricingConfig)
   const missing = items.filter((i) => !i.done).map((i) => `${i.key}:${i.place}`)
   expect(missing).toEqual(['photos:photos', 'description:about', 'guests:edit', 'checkInPhotos:photos', 'amenities:amenities'])
+})
+
+test("the flat's clock is the company's time zone, not the browser's", () => {
+  const at = new Date('2026-11-05T09:00:00Z')
+  expect(wallClock(at, 'Asia/Almaty')).toBe('2026-11-05T14:00:00')
+  expect(wallClock(at, 'Europe/Moscow')).toBe('2026-11-05T12:00:00')
+  // Near midnight the day itself differs.
+  expect(wallClock(new Date('2026-11-05T20:30:00Z'), 'Asia/Almaty')).toBe('2026-11-06T01:30:00')
 })

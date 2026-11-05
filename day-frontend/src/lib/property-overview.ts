@@ -8,6 +8,25 @@ type Stay = Pick<Booking, 'id' | 'check_in' | 'check_out' | 'status' | 'rental_m
 const LIVE = new Set(['pending', 'confirmed', 'checked_in'])
 const DAY_MS = 86_400_000
 
+/** The wall clock in `timeZone` at `at`, "YYYY-MM-DDTHH:mm:ss": the way stays' times are written. */
+export function wallClock(at: Date, timeZone: string): string {
+  const parts = Object.fromEntries(
+    new Intl.DateTimeFormat('en-CA', {
+      timeZone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hourCycle: 'h23',
+    })
+      .formatToParts(at)
+      .map((part) => [part.type, part.value]),
+  )
+  return `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}:${parts.second}`
+}
+
 /** Who is in the flat now, and who comes next. `now` is the flat's wall clock, "YYYY-MM-DDTHH:mm:ss". */
 export function stayNow(stays: Stay[], now: string): { current: Stay | null; next: Stay | null } {
   const live = stays.filter((s) => LIVE.has(s.status))
