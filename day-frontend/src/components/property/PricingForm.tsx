@@ -12,7 +12,7 @@ import DatePicker from '../ui/date-picker'
 import NumberInput from '../ui/number-input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select'
 import HourlyTariffs, { type TariffDraft } from './HourlyTariffs'
-import { modeChangeKey, weekendMarkup } from '../../lib/property-pricing'
+import { modeChangeKey, shiftWeekend, weekendMarkup } from '../../lib/property-pricing'
 
 export interface SeasonalSuggestion {
   key: string
@@ -37,7 +37,7 @@ interface Props {
     extra_adult_price: number
     extra_child_price: number
     base_guests: number
-  }) => void
+  }) => Promise<unknown>
   /** The way the flat is let, saved at once after the owner agrees to what it changes. */
   onChangeMode: (mode: RentalMode) => void
   modeSaving?: boolean
@@ -117,9 +117,10 @@ function PricingFormInner({
   const weekend = weekendPrice.trim() === '' ? base : parseNumber(weekendPrice, base)
   const weekendBelow = nightly && weekendPrice.trim() !== '' && weekend < base
 
-  function save() {
+  async function save() {
     if (weekendBelow) return
-    onSaveBase({
+    // "All saved" only once the server has the prices: a failed save keeps the button.
+    await onSaveBase({
       base_price: base,
       hourly_price: parseNumber(hourlyPrice, 0),
       rental_mode: rentalMode,
@@ -138,8 +139,10 @@ function PricingFormInner({
       late_from: tariffs.late_from,
       night_to: tariffs.night_to,
       night_max_hours: Math.min(24, Math.max(1, parseInt(tariffs.night_max_hours) || 12)),
-    })
-    setDirty(false)
+    }).then(
+      () => setDirty(false),
+      () => undefined,
+    )
   }
 
   const field = (label: string, value: string, onChange: (v: string) => void, step = 1000, min = 0) => (
@@ -185,10 +188,10 @@ function PricingFormInner({
           <h3 id="pricing-nightly" className="text-sm font-bold text-ink">{t('properties.pricing.nightly')}</h3>
           <div className="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-2">
             {field(t('properties.pricing.basePrice'), basePrice, (next) => {
-              // The weekend moves with the weekdays: the markup stays what it was.
-              const markup = weekendMarkup(base, weekendPrice)
+              // A weekend price typed in moves with the weekdays, by the same amount, even
+              // when it equals them; an empty one stays "same as weekdays".
               setBasePrice(next)
-              if (markup > 0) setWeekendPrice(String(parseNumber(next, 0) + markup))
+              if (weekendPrice.trim() !== '') setWeekendPrice(String(shiftWeekend(base, parseNumber(next, 0), weekendPrice)))
             })}
             <div>
               {field(t('properties.pricing.weekendPrice'), weekendPrice, setWeekendPrice)}
@@ -281,16 +284,32 @@ function Seasons({
   const empty = { id: null as string | null, name: '', start: '', end: '', price: '' }
   const [draft, setDraft] = useState(empty)
   const [open, setOpen] = useState(false)
+  // The whole replace (add the new, remove the old) is one step: no second press meanwhile.
+  const [busy, setBusy] = useState(false)
+  // A replacement already added whose old season was not removed: a retry only removes.
+  const [added, setAdded] = useState<string | null>(null)
   const ready =
     draft.name.trim() !== '' && draft.start !== '' && draft.end !== '' && draft.end >= draft.start && parseNumber(draft.price, -1) >= 0
   const sorted = useMemo(() => [...seasons].sort((a, b) => a.start_date.localeCompare(b.start_date)), [seasons])
 
   async function submit() {
-    if (!ready) return
-    await onAdd({ name: draft.name.trim(), start_date: draft.start, end_date: draft.end, price: parseNumber(draft.price) })
-    if (draft.id) await onDelete(draft.id)
-    setDraft(empty)
-    setOpen(false)
+    if (!ready || busy) return
+    setBusy(true)
+    try {
+      // A new season is always added; a replacement only if not added on an earlier try.
+      if (!draft.id || added !== draft.id) {
+        await onAdd({ name: draft.name.trim(), start_date: draft.start, end_date: draft.end, price: parseNumber(draft.price) })
+        if (draft.id) setAdded(draft.id)
+      }
+      if (draft.id) await onDelete(draft.id)
+      setAdded(null)
+      setDraft(empty)
+      setOpen(false)
+    } catch {
+      // The editor stays open with what was typed; the toast said what failed.
+    } finally {
+      setBusy(false)
+    }
   }
 
   return (
@@ -333,7 +352,7 @@ function Seasons({
               <button
                 type="button"
                 aria-label={`${t('common.delete')}: ${season.name}`}
-                onClick={() => onDelete(season.id)}
+                onClick={() => Promise.resolve(onDelete(season.id)).catch(() => undefined)}
                 className="flex h-9 w-9 items-center justify-center rounded-lg text-ink-muted transition-colors hover:bg-danger-soft hover:text-danger"
               >
                 <Trash2 className="h-4 w-4" />
@@ -416,7 +435,7 @@ function Seasons({
             </div>
           </div>
           <div className="flex gap-2">
-            <Button onClick={submit} disabled={!ready}>
+            <Button onClick={submit} disabled={!ready || busy}>
               {draft.id ? t('common.save') : t('properties.pricing.addSeason')}
             </Button>
             <Button
@@ -525,6 +544,7 @@ function Discounts({
 }
 
 export default function PricingForm(props: Props) {
-  const key = props.pricing ? `${props.pricing.id}:${props.pricing.updated_at ?? '0'}:${props.rentalMode}` : `new:${props.rentalMode}`
+  // Not keyed by the way of letting: switching it keeps the prices typed and not saved.
+  const key = props.pricing ? `${props.pricing.id}:${props.pricing.updated_at ?? '0'}` : 'new'
   return <PricingFormInner key={key} {...props} />
 }

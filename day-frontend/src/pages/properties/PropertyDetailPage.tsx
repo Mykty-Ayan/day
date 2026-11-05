@@ -192,10 +192,13 @@ export default function PropertyDetailPage() {
     // The way of letting is saved on its own, when it is switched.
     const { rental_mode: _mode, ...pricingInput } = data
     void _mode
-    savePricing.mutate(pricingInput, {
-      onSuccess: () => showToast('success', t('properties.pricingSaved')),
-      onError: (err: Error) => showToast('error', err.message || t('properties.failedSavePricing')),
-    })
+    return savePricing.mutateAsync(pricingInput).then(
+      () => showToast('success', t('properties.pricingSaved')),
+      (err: Error) => {
+        showToast('error', err.message || t('properties.failedSavePricing'))
+        throw err
+      },
+    )
   }
 
   if (isLoading) {
@@ -419,7 +422,10 @@ export default function PropertyDetailPage() {
               onDeleteSeasonal={(id) =>
                 deleteSeasonal.mutateAsync(id).then(
                   () => showToast('success', t('properties.seasonalPriceRemoved')),
-                  (err: Error) => showToast('error', err.message || t('properties.failedRemoveSeasonal')),
+                  (err: Error) => {
+                    showToast('error', err.message || t('properties.failedRemoveSeasonal'))
+                    throw err
+                  },
                 )
               }
               onAddDiscount={(data) =>

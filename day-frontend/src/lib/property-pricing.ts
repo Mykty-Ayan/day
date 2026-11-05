@@ -17,3 +17,10 @@ export function weekendMarkup(base: number, weekendTyped: string): number {
   const weekend = Number.parseFloat(weekendTyped.replace(/\s+/g, '').replace(',', '.'))
   return Number.isFinite(weekend) && weekend > base ? weekend - base : 0
 }
+
+/** The weekend price after the weekday one moves from `from` to `to`: by the same
+ *  amount, so the markup stays, even when it is none. */
+export function shiftWeekend(from: number, to: number, weekendTyped: string): number {
+  const weekend = Number.parseFloat(weekendTyped.replace(/\s+/g, '').replace(',', '.'))
+  return (Number.isFinite(weekend) ? weekend : from) + (to - from)
+}
