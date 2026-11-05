@@ -232,6 +232,25 @@ test.describe('Property CRUD - E2E', () => {
     await expect(page.getByRole('dialog', { name: 'Amenities', exact: true })).toBeVisible()
   })
 
+  test('a guest kept past yesterday\'s checkout still lives in the flat', async ({ page, request }) => {
+    const prop = await (await request.post(`${API_BASE}/properties`, { data: createTestProperty() })).json()
+    propertyIdsToCleanup.push(prop.id)
+    await request.post(`${API_BASE}/properties/${prop.id}/status`, { data: { status: 'active' } })
+    await request.put(`${API_BASE}/properties/${prop.id}/pricing`, { data: createTestPricing() })
+    const booking = createTestBooking(prop.id, { check_in: futureDate(-3), check_out: futureDate(-1) })
+    const created = await request.post(`${API_BASE}/bookings`, { data: booking })
+    expect(created.ok(), `create: ${created.status()}`).toBeTruthy()
+    const { id } = await created.json()
+    for (const status of ['confirmed', 'checked_in']) {
+      const res = await request.post(`${API_BASE}/bookings/${id}/status`, { data: { status } })
+      expect(res.ok(), `status ${status}: ${res.status()}`).toBeTruthy()
+    }
+
+    await page.goto(`/properties/${prop.id}`)
+    await expect(page.getByRole('link', { name: new RegExp(booking.guest_name) })).toBeVisible()
+    await expect(page.getByText('Free', { exact: true })).toHaveCount(0)
+  })
+
   test('the next check-in is found past the month the occupancy counts', async ({ page, request }) => {
     const prop = await (await request.post(`${API_BASE}/properties`, { data: createTestProperty() })).json()
     propertyIdsToCleanup.push(prop.id)
