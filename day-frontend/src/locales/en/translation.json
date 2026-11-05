@@ -439,7 +439,38 @@
     "weekendNight": "weekend {{price}}",
     "perHourPrice": "{{price}} an hour",
     "depositLine": "Deposit {{price}}",
-    "nightPrice": "a night"
+    "nightPrice": "a night",
+    "statusLabel": "Status",
+    "needsAttention": "Needs a look",
+    "statusWhat": {
+      "new": "Not let yet, guests do not see it.",
+      "active": "Guests, the CRM and platforms see it.",
+      "paused": "Not offered to guests, bookings stay.",
+      "archived": "Hidden from lists, bookings stay."
+    },
+    "now": {
+      "label": "Now",
+      "living": "{{name}} stays till {{until}}",
+      "free": "Free",
+      "next": "Next check-in",
+      "none": "None",
+      "occupancy": "Occupancy, 30 days",
+      "onChessboard": "on the chessboard"
+    },
+    "ready": {
+      "title": "Flat readiness: {{done}} of {{total}}",
+      "why": "The guest and the CRM see this",
+      "items": {
+        "prices": "Prices",
+        "photos": "3+ photos",
+        "description": "Description",
+        "address": "Address",
+        "guests": "How many guests",
+        "checkInInstructions": "How to check in",
+        "checkInPhotos": "Check-in photos",
+        "amenities": "Amenities"
+      }
+    }
   },
   "bookings": {
     "title": "Bookings",

@@ -445,7 +445,38 @@
     "weekendNight": "выходные {{price}}",
     "perHourPrice": "{{price}} за час",
     "depositLine": "Залог {{price}}",
-    "nightPrice": "за ночь"
+    "nightPrice": "за ночь",
+    "statusLabel": "Статус",
+    "needsAttention": "Нужно посмотреть",
+    "statusWhat": {
+      "new": "Ещё не сдаётся, гости её не видят.",
+      "active": "Её видят гости, CRM и площадки.",
+      "paused": "Гостям не предлагается, брони остаются.",
+      "archived": "Скрыта из списков, брони остаются."
+    },
+    "now": {
+      "label": "Сейчас",
+      "living": "Живёт {{name}} до {{until}}",
+      "free": "Свободна",
+      "next": "Ближайший заезд",
+      "none": "Нет",
+      "occupancy": "Загрузка 30 дней",
+      "onChessboard": "на шахматке"
+    },
+    "ready": {
+      "title": "Готовность квартиры: {{done}} из {{total}}",
+      "why": "Это видят гость и CRM",
+      "items": {
+        "prices": "Цены",
+        "photos": "3+ фото",
+        "description": "Описание",
+        "address": "Адрес",
+        "guests": "Сколько гостей",
+        "checkInInstructions": "Как заселиться",
+        "checkInPhotos": "Фото для заселения",
+        "amenities": "Удобства"
+      }
+    }
   },
   "bookings": {
     "title": "Брони",

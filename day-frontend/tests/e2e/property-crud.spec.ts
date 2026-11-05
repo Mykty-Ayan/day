@@ -1,5 +1,5 @@
 import { test, expect } from '../fixtures/e2e-auth'
-import { createTestProperty, API_BASE } from '../fixtures/test-data'
+import { createTestProperty, createTestPricing, API_BASE } from '../fixtures/test-data'
 import { wizardField as field, nextStep as next } from '../fixtures/property-ui'
 
 test.describe('Property CRUD - E2E', () => {
@@ -214,5 +214,20 @@ test.describe('Property CRUD - E2E', () => {
     await expect(page.getByText('Name is required', { exact: true })).toBeVisible()
     await expect(page.getByText('Internal name is required', { exact: true })).toBeVisible()
     await expect(page.getByText('Step 1 of 7')).toBeVisible()
+  })
+
+  test('the flat page says who is in now and what the flat still lacks', async ({ page, request }) => {
+    const prop = await (await request.post(`${API_BASE}/properties`, { data: createTestProperty() })).json()
+    propertyIdsToCleanup.push(prop.id)
+    await request.post(`${API_BASE}/properties/${prop.id}/status`, { data: { status: 'active' } })
+    await request.put(`${API_BASE}/properties/${prop.id}/pricing`, { data: createTestPricing() })
+
+    await page.goto(`/properties/${prop.id}`)
+    await expect(page.getByText('Free', { exact: true })).toBeVisible()
+    const ready = page.getByRole('region', { name: /^Flat readiness/ })
+    await expect(ready).toBeVisible()
+    // A missing item is a step to where it is filled in.
+    await ready.getByRole('button', { name: '+ Amenities' }).click()
+    await expect(page.getByRole('tab', { name: /^Amenities/ })).toHaveAttribute('aria-selected', 'true')
   })
 })
