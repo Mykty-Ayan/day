@@ -63,7 +63,7 @@ import { listingOrder } from '../../lib/property-photos'
 import PropertyEditSheet, { type PropertyBlock } from '../../components/property/PropertyEditSheet'
 import BlocksCard from '../../components/property/BlocksCard'
 import CalendarFeedsCard from '../../components/property/CalendarFeedsCard'
-import AuditTrail from '../../components/ui/AuditTrail'
+import PropertyHistory from '../../components/property/PropertyHistory'
 import Spinner from '../../components/ui/Spinner'
 import Button from '../../components/ui/Button'
 import { Badge } from '../../components/ui/badge'
@@ -585,7 +585,7 @@ export default function PropertyDetailPage() {
           </div>
         </TabPanel>
 
-        <TabPanel name="history" current={tab}><AuditTrail entries={auditLog} /></TabPanel>
+        <TabPanel name="history" current={tab}><PropertyHistory entries={auditLog} /></TabPanel>
       </div>
 
       <PropertyEditSheet property={property} block={editing} onClose={() => setEditing(null)} />

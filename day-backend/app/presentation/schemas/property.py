@@ -461,6 +461,8 @@ class PropertyAuditLogResponse(BaseModel):
     id: uuid.UUID
     property_id: uuid.UUID
     changed_by: uuid.UUID | None = None
+    # The person's name for the history; none for a change by an API key or the system.
+    changed_by_name: str | None = None
     field_name: str
     old_value: str | None = None
     new_value: str | None = None

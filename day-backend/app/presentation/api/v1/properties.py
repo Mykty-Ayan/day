@@ -39,6 +39,7 @@ from app.domain.property.value_objects import FactAudience, FactSource, Property
 from app.infrastructure.calendar_feeds import build_calendar_feeds
 from app.infrastructure.calendar_fetch import fetch_calendar
 from app.infrastructure.database import get_session
+from app.infrastructure.repositories.auth import SqlUserRepository
 from app.infrastructure.repositories.booking import SqlBookingRepository
 from app.infrastructure.repositories.property import (
     SqlAmenityRepository,
@@ -1226,6 +1227,12 @@ async def get_audit_log(
         raise HTTPException(status_code=404, detail="Property not found")
     logs = await repos["audit"].list_by_property(property_id, offset=offset, limit=limit)
     entries = [PropertyAuditLogResponse.model_validate(entry, from_attributes=True) for entry in logs]
+    users = await SqlUserRepository(session).get_many(list({e.changed_by for e in entries if e.changed_by}))
+    for entry in entries:
+        user = users.get(entry.changed_by) if entry.changed_by else None
+        # Only a person of this company is named.
+        if user is not None and user.company_id == company_id:
+            entry.changed_by_name = user.full_name or user.email
     if not _sees_secrets(principal):
         # The history of how a guest gets in may hold a code, older rows included.
         for entry in entries:
