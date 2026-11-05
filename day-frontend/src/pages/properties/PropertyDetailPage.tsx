@@ -18,6 +18,8 @@ import {
   ImagePlus,
   ExternalLink,
   MoreHorizontal,
+  ChevronDown,
+  CircleCheck,
   ChevronLeft,
   ChevronRight,
 } from 'lucide-react'
@@ -38,7 +40,13 @@ import {
   usePropertyAuditLog,
   useCloneProperty,
   useUploadPhotos,
+  useBlocks,
+  useCalendarFeeds,
 } from '../../hooks/useProperties'
+import { useBookings } from '../../hooks/useBookings'
+import { occupancy, readiness, stayNow, type ReadinessItem, type ReadinessPlace } from '../../lib/property-overview'
+import { addDays, format, parseISO } from 'date-fns'
+import { dateLocale } from '../../lib/date-locale'
 import { getCalendarLink, getPricing } from '../../api/properties'
 import { useCurrentUser } from '../../hooks/useAuth'
 import { useCurrency } from '../../hooks/useCurrency'
@@ -112,6 +120,10 @@ export default function PropertyDetailPage() {
   const addDiscount = useAddDiscountRule(propertyId)
   const deleteDiscount = useDeleteDiscountRule(propertyId)
   const { data: auditLog = [] } = usePropertyAuditLog(propertyId)
+  // The same queries as the Closed dates and Calendars tabs: one fetch, shared.
+  const today = format(new Date(), 'yyyy-MM-dd')
+  const blocks = useBlocks(propertyId, today, format(addDays(new Date(), 366), 'yyyy-MM-dd'))
+  const feeds = useCalendarFeeds(propertyId, currentUser?.role !== 'cleaner')
   const clonePropertyMut = useCloneProperty()
   const [showCloneConfirm, setShowCloneConfirm] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
@@ -245,13 +257,15 @@ export default function PropertyDetailPage() {
       property.check_out_hour != null ||
       property.check_in_method,
   )
-  const tabs: { key: PropertyTab; label: string }[] = [
+  const feedsFailing = (feeds.data ?? []).some((feed) => Boolean(feed.last_error))
+  // A count where there is something to count; a red dot where something needs a look.
+  const tabs: { key: PropertyTab; label: string; count?: number; alert?: boolean }[] = [
     { key: 'prices', label: t('properties.pricing.title') },
-    ...(staff ? [{ key: 'blocks' as const, label: t('properties.blocks.title') }] : []),
-    { key: 'photos', label: t('properties.photos') },
+    ...(staff ? [{ key: 'blocks' as const, label: t('properties.blocks.title'), count: blocks.data?.length }] : []),
+    { key: 'photos', label: t('properties.photos'), count: listingPhotos.length },
     { key: 'about', label: t('properties.aboutAndRules') },
-    { key: 'amenities', label: t('properties.amenities') },
-    { key: 'calendars', label: t('properties.calendars') },
+    { key: 'amenities', label: t('properties.amenities'), count: property.amenities.length },
+    { key: 'calendars', label: t('properties.calendars'), count: feeds.data?.length, alert: feedsFailing },
     { key: 'history', label: t('properties.history') },
   ]
 
@@ -273,7 +287,12 @@ export default function PropertyDetailPage() {
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
                 <h1 className="truncate text-2xl font-bold text-ink">{property.internal_name || property.name}</h1>
-                <StatusBadge status={property.status} />
+                <StatusMenu
+                  status={property.status}
+                  actions={statusActions}
+                  busy={changeStatus.isPending}
+                  onChange={(target) => changeStatus.mutate(target)}
+                />
               </div>
               {property.internal_name && property.name !== property.internal_name && (
                 <p className="mt-0.5 text-sm text-ink-muted">{property.name}</p>
@@ -297,17 +316,6 @@ export default function PropertyDetailPage() {
                       setShowCloneConfirm(true)
                     }}
                   />
-                  {statusActions.map((action) => (
-                    <MenuItem
-                      key={action.target}
-                      icon={action.icon}
-                      label={t(action.labelKey)}
-                      onClick={() => {
-                        setMenuOpen(false)
-                        changeStatus.mutate(action.target)
-                      }}
-                    />
-                  ))}
                 </PopoverContent>
               </Popover>
             </div>
@@ -318,6 +326,9 @@ export default function PropertyDetailPage() {
             <span className="text-ink-muted">{t('properties.letAs')}</span>
             <Badge tone="accent">{t(`properties.rentalModeShort.${property.rental_mode}`)}</Badge>
           </p>
+
+          {/* What is happening in the flat now: the host's first question. */}
+          {staff && <NowLine propertyId={propertyId} />}
 
           {/* What a stay costs, read at a glance; changed on the Prices tab. */}
           {pricing && <PriceSummary pricing={pricing} mode={property.rental_mode} onEdit={() => setTab('prices')} />}
@@ -372,6 +383,12 @@ export default function PropertyDetailPage() {
         </div>
       </section>
 
+      {/* What the guest page and the CRM still lack, each a step to where it is filled in. */}
+      <ReadinessCard
+        items={readiness(property, pricing)}
+        onOpen={(place) => (place === 'edit' ? navigate({ to: '/properties/$propertyId/edit', params: { propertyId } }) : setTab(place))}
+      />
+
       {/* One part of the flat at a time, as a host's listing is kept on Airbnb. */}
       <div role="tablist" aria-label={t('properties.sections')} className="-mx-4 mb-5 flex gap-1 overflow-x-auto border-b border-line px-4 sm:mx-0 sm:px-0">
         {tabs.map((item) => (
@@ -387,7 +404,13 @@ export default function PropertyDetailPage() {
               tab === item.key ? 'border-accent text-accent-ink' : 'border-transparent text-ink-muted hover:text-ink'
             }`}
           >
-            {item.label}
+            <span className="inline-flex items-center gap-1.5">
+              {item.label}
+              {item.count != null && item.count > 0 && (
+                <span className="rounded-full bg-surface-page px-1.5 text-xs font-semibold tabular-nums text-ink-muted">{item.count}</span>
+              )}
+              {item.alert && <span className="h-2 w-2 rounded-full bg-danger" aria-label={t('properties.needsAttention')} />}
+            </span>
           </button>
         ))}
       </div>
@@ -716,6 +739,135 @@ function TabPanel({ name, current, children }: { name: PropertyTab; current: Pro
     <div role="tabpanel" id={`panel-${name}`} aria-labelledby={`tab-${name}`} hidden={name !== current} className="flex flex-col gap-5">
       {children}
     </div>
+  )
+}
+
+/** The flat's status as a button: what it means now, and the steps it can take, each said. */
+function StatusMenu({
+  status,
+  actions,
+  busy,
+  onChange,
+}: {
+  status: PropertyStatus
+  actions: { labelKey: string; target: PropertyStatus; icon: typeof Play }[]
+  busy: boolean
+  onChange: (target: PropertyStatus) => void
+}) {
+  const { t } = useTranslation()
+  const [open, setOpen] = useState(false)
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger
+        aria-label={`${t('properties.statusLabel')}: ${t(`properties.statusOne.${status}`)}`}
+        className="inline-flex items-center gap-1 rounded-full transition-opacity hover:opacity-80"
+      >
+        <StatusBadge status={status} />
+        <ChevronDown className="h-3.5 w-3.5 text-ink-muted" aria-hidden="true" />
+      </PopoverTrigger>
+      <PopoverContent align="start" className="w-72 p-2">
+        <p className="px-2 pb-2 text-xs text-ink-muted">
+          <span className="font-semibold text-ink">{t(`properties.statusOne.${status}`)}.</span> {t(`properties.statusWhat.${status}`)}
+        </p>
+        {actions.map((action) => (
+          <button
+            key={action.target}
+            type="button"
+            disabled={busy}
+            onClick={() => {
+              setOpen(false)
+              onChange(action.target)
+            }}
+            className="flex w-full items-start gap-2 rounded-lg px-2 py-2 text-left transition-colors hover:bg-surface-page disabled:opacity-50"
+          >
+            <action.icon className="mt-0.5 h-4 w-4 shrink-0 text-ink-muted" aria-hidden="true" />
+            <span>
+              <span className="block text-sm font-semibold text-ink">{t(action.labelKey)}</span>
+              <span className="block text-xs text-ink-muted">{t(`properties.statusWhat.${action.target}`)}</span>
+            </span>
+          </button>
+        ))}
+      </PopoverContent>
+    </Popover>
+  )
+}
+
+/** Who is in the flat now, who comes next, how full the next 30 nights are. */
+function NowLine({ propertyId }: { propertyId: string }) {
+  const { t, i18n } = useTranslation()
+  const now = new Date()
+  const today = format(now, 'yyyy-MM-dd')
+  const { data } = useBookings({ property_id: propertyId, per_page: 100, date_from: today, date_to: format(addDays(now, 30), 'yyyy-MM-dd') })
+  if (!data) return null
+  const stays = data.items
+  const { current, next } = stayNow(stays, format(now, "yyyy-MM-dd'T'HH:mm:ss"))
+  const share = Math.round(occupancy(stays, today, 30) * 100)
+  const day = (iso: string) => format(parseISO(iso), i18n.language === 'en' ? 'MMM d' : 'd MMM', { locale: dateLocale(i18n.language) })
+  const guest = (stay: { id: string; guest_name: string }, text: string) => (
+    <Link to="/bookings/$bookingId" params={{ bookingId: stay.id }} className="font-semibold text-accent-ink hover:underline">
+      {text}
+    </Link>
+  )
+  return (
+    <div className="mt-3 grid grid-cols-1 gap-2 rounded-xl border border-line px-4 py-3 text-sm sm:grid-cols-3">
+      <p>
+        <span className="block text-xs text-ink-muted">{t('properties.now.label')}</span>
+        {current ? guest(current, t('properties.now.living', { name: current.guest_name, until: day(current.check_out) })) : (
+          <span className="font-semibold text-success">{t('properties.now.free')}</span>
+        )}
+      </p>
+      <p>
+        <span className="block text-xs text-ink-muted">{t('properties.now.next')}</span>
+        {next ? guest(next, `${day(next.check_in)} · ${next.guest_name}`) : <span className="text-ink-muted">{t('properties.now.none')}</span>}
+      </p>
+      <p>
+        <span className="block text-xs text-ink-muted">{t('properties.now.occupancy')}</span>
+        <span className="font-semibold tabular-nums text-ink">{share}%</span>{' '}
+        <Link to="/properties/gantt" className="text-xs text-accent-ink hover:underline">
+          {t('properties.now.onChessboard')}
+        </Link>
+      </p>
+    </div>
+  )
+}
+
+/** What the flat still lacks, each item a step to where it is filled in; gone once all is done. */
+function ReadinessCard({ items, onOpen }: { items: ReadinessItem[]; onOpen: (place: ReadinessPlace) => void }) {
+  const { t } = useTranslation()
+  const done = items.filter((item) => item.done).length
+  if (done === items.length) return null
+  return (
+    <section className="mb-5 rounded-2xl border border-line bg-surface-card p-5" aria-labelledby="property-readiness">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h2 id="property-readiness" className="text-sm font-bold text-ink">
+          {t('properties.ready.title', { done, total: items.length })}
+        </h2>
+        <span className="text-xs text-ink-muted">{t('properties.ready.why')}</span>
+      </div>
+      <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-surface-page">
+        <div className="h-full rounded-full bg-accent" style={{ width: `${(done / items.length) * 100}%` }} />
+      </div>
+      <ul className="mt-3 flex flex-wrap gap-2">
+        {items.map((item) =>
+          item.done ? (
+            <li key={item.key} className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs text-ink-muted">
+              <CircleCheck className="h-3.5 w-3.5 text-success" aria-hidden="true" />
+              {t(`properties.ready.items.${item.key}`)}
+            </li>
+          ) : (
+            <li key={item.key}>
+              <button
+                type="button"
+                onClick={() => onOpen(item.place)}
+                className="inline-flex items-center gap-1 rounded-lg border border-line px-2.5 py-1 text-xs font-semibold text-ink transition-colors hover:border-accent hover:bg-accent-soft"
+              >
+                + {t(`properties.ready.items.${item.key}`)}
+              </button>
+            </li>
+          ),
+        )}
+      </ul>
+    </section>
   )
 }
 

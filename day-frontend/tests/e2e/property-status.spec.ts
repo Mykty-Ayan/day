@@ -31,14 +31,14 @@ test.describe('Property Status Transitions - E2E', () => {
 
     await page.goto(`/properties/${prop.id}`)
     await page.waitForLoadState('networkidle')
-    // The status steps live in the "More actions" menu.
-    await page.getByRole('button', { name: 'More actions' }).click()
+    // The status steps open from the status itself, each with what it means.
+    await page.getByRole('button', { name: /^Status:/ }).click()
 
     // Verify current status shows "new"
     await expect(page.getByText(/new/i).first()).toBeVisible()
 
     // Click activate button
-    await page.getByRole('button', { name: /activate/i }).click()
+    await page.getByRole('button', { name: /^activate/i }).click()
 
     // Confirm if dialog appears
     const confirmBtn = page.getByRole('button', { name: /confirm|yes/i })
@@ -60,10 +60,10 @@ test.describe('Property Status Transitions - E2E', () => {
 
     await page.goto(`/properties/${prop.id}`)
     await page.waitForLoadState('networkidle')
-    // The status steps live in the "More actions" menu.
-    await page.getByRole('button', { name: 'More actions' }).click()
+    // The status steps open from the status itself, each with what it means.
+    await page.getByRole('button', { name: /^Status:/ }).click()
 
-    await page.getByRole('button', { name: /pause/i }).click()
+    await page.getByRole('button', { name: /^pause/i }).click()
 
     const confirmBtn = page.getByRole('button', { name: /confirm|yes/i })
     if (await confirmBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
@@ -86,8 +86,8 @@ test.describe('Property Status Transitions - E2E', () => {
 
     await page.goto(`/properties/${prop.id}`)
     await page.waitForLoadState('networkidle')
-    // The status steps live in the "More actions" menu.
-    await page.getByRole('button', { name: 'More actions' }).click()
+    // The status steps open from the status itself, each with what it means.
+    await page.getByRole('button', { name: /^Status:/ }).click()
 
     await page.getByRole('button', { name: /resume|activate/i }).click()
 
@@ -108,10 +108,10 @@ test.describe('Property Status Transitions - E2E', () => {
 
     await page.goto(`/properties/${prop.id}`)
     await page.waitForLoadState('networkidle')
-    // The status steps live in the "More actions" menu.
-    await page.getByRole('button', { name: 'More actions' }).click()
+    // The status steps open from the status itself, each with what it means.
+    await page.getByRole('button', { name: /^Status:/ }).click()
 
-    await page.getByRole('button', { name: /archive/i }).click()
+    await page.getByRole('button', { name: /^archive/i }).click()
 
     const confirmBtn = page.getByRole('button', { name: /confirm|yes/i })
     if (await confirmBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
@@ -139,20 +139,20 @@ test.describe('Property Status Transitions - E2E', () => {
 
     await page.goto(`/properties/${prop.id}`)
     await page.waitForLoadState('networkidle')
-    // The status steps live in the "More actions" menu.
-    await page.getByRole('button', { name: 'More actions' }).click()
+    // The status steps open from the status itself, each with what it means.
+    await page.getByRole('button', { name: /^Status:/ }).click()
 
     // Archived can be restored, but cannot be paused/archived again directly
     await expect(
-      page.getByRole('button', { name: /activate/i }),
+      page.getByRole('button', { name: /^activate/i }),
     ).toBeVisible({ timeout: 5000 })
     await expect(
-      page.getByRole('button', { name: /pause/i }),
+      page.getByRole('button', { name: /^pause/i }),
     ).not.toBeVisible({
       timeout: 2000,
     })
     await expect(
-      page.getByRole('button', { name: /archive/i }),
+      page.getByRole('button', { name: /^archive/i }),
     ).not.toBeVisible({ timeout: 2000 })
   })
 
@@ -164,20 +164,20 @@ test.describe('Property Status Transitions - E2E', () => {
 
     await page.goto(`/properties/${prop.id}`)
     await page.waitForLoadState('networkidle')
-    // The status steps live in the "More actions" menu.
-    await page.getByRole('button', { name: 'More actions' }).click()
+    // The status steps open from the status itself, each with what it means.
+    await page.getByRole('button', { name: /^Status:/ }).click()
 
     // Should show activate
     await expect(
-      page.getByRole('button', { name: /activate/i }),
+      page.getByRole('button', { name: /^activate/i }),
     ).toBeVisible({ timeout: 5000 })
 
     // Should not show pause or archive
-    await expect(page.getByRole('button', { name: /pause/i })).not.toBeVisible({
+    await expect(page.getByRole('button', { name: /^pause/i })).not.toBeVisible({
       timeout: 2000,
     })
     await expect(
-      page.getByRole('button', { name: /archive/i }),
+      page.getByRole('button', { name: /^archive/i }),
     ).not.toBeVisible({ timeout: 2000 })
   })
 
@@ -186,8 +186,8 @@ test.describe('Property Status Transitions - E2E', () => {
 
     await page.goto(`/properties/${prop.id}`)
     await page.waitForLoadState('networkidle')
-    // The status steps live in the "More actions" menu.
-    await page.getByRole('button', { name: 'More actions' }).click()
+    // The status steps open from the status itself, each with what it means.
+    await page.getByRole('button', { name: /^Status:/ }).click()
 
     // Check that a status badge element exists
     const badge = page.locator('[data-testid="status-badge"], .status-badge').first()
