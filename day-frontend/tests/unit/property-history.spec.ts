@@ -1,7 +1,7 @@
 /** The flat's history in words: a field and its values read as the form calls them. */
 
 import { expect, test } from '@playwright/test'
-import { byDay, historyLine } from '../../src/lib/property-history'
+import { byDay, historyLine, localDay } from '../../src/lib/property-history'
 
 const row = (field_name: string, old_value: string | null, new_value: string | null, action = 'update') => ({
   action,
@@ -63,4 +63,9 @@ test('the entries go by day, newest first', () => {
     ['2026-11-03', ['c', 'b']],
     ['2026-11-01', ['a']],
   ])
+})
+
+test("a day's title is that very day in the viewer's clock, east of UTC+12 too", () => {
+  const date = localDay('2026-11-05')
+  expect([date.getFullYear(), date.getMonth(), date.getDate()]).toEqual([2026, 10, 5])
 })

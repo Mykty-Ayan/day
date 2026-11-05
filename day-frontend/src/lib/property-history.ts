@@ -104,6 +104,12 @@ export function historyLine(entry: Pick<PropertyAuditLog, 'action' | 'field_name
   return { kind: 'value', field, label, from: shown(field, entry.old_value), to: shown(field, entry.new_value) }
 }
 
+/** A day "YYYY-MM-DD" as the viewer's own midday: read as UTC it would slip a day east of UTC+12. */
+export function localDay(day: string): Date {
+  const [year, month, date] = day.split('-').map(Number)
+  return new Date(year, month - 1, date, 12)
+}
+
 /** The entries by day, newest first, each day "YYYY-MM-DD" in the viewer's clock. */
 export function byDay<T extends { created_at: string }>(entries: T[], dayOf: (at: string) => string): [string, T[]][] {
   const days = new Map<string, T[]>()

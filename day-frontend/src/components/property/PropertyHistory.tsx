@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { Link } from '@tanstack/react-router'
 import type { PropertyAuditLog } from '../../types/property'
 import { dateLocale } from '../../lib/date-locale'
-import { byDay, historyLine, type Shown } from '../../lib/property-history'
+import { byDay, historyLine, localDay, type Shown } from '../../lib/property-history'
 import { parseApiDateTime } from '../../utils/date-time'
 
 /** What happened to the flat, by day: one sentence a change, and who made it. */
@@ -13,7 +13,7 @@ export default function PropertyHistory({ entries }: { entries: PropertyAuditLog
   const days = byDay(entries, (at) => format(parseApiDateTime(at), 'yyyy-MM-dd'))
 
   function dayTitle(day: string) {
-    const date = parseApiDateTime(`${day}T12:00:00`)
+    const date = localDay(day)
     if (isToday(date)) return t('properties.log.today')
     if (isYesterday(date)) return t('properties.log.yesterday')
     const thisYear = date.getFullYear() === new Date().getFullYear()
