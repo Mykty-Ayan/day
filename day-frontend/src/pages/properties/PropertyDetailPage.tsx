@@ -390,8 +390,9 @@ export default function PropertyDetailPage() {
         ))}
       </div>
 
-      <div role="tabpanel" id={`panel-${tab}`} aria-labelledby={`tab-${tab}`} className="flex flex-col gap-5">
-        {tab === 'prices' && (
+      {/* Every panel stays mounted, the others hidden: a price typed and not saved survives a look at another tab. */}
+      <div className="flex flex-col gap-5">
+        <TabPanel name="prices" current={tab}>
           <section className={CARD} aria-labelledby="property-pricing">
             <h2 id="property-pricing" className="mb-4 text-sm font-bold text-ink">{t('properties.pricing.title')}</h2>
             <PricingForm
@@ -426,11 +427,11 @@ export default function PropertyDetailPage() {
               isSaving={savePricing.isPending}
             />
           </section>
-        )}
+        </TabPanel>
 
-        {tab === 'blocks' && staff && <BlocksCard propertyId={propertyId} />}
+        <TabPanel name="blocks" current={tab}>{staff && <BlocksCard propertyId={propertyId} />}</TabPanel>
 
-        {tab === 'photos' && (
+        <TabPanel name="photos" current={tab}>
           <>
             <section className={CARD} aria-labelledby="property-photos">
               <h2 id="property-photos" className="mb-3 text-sm font-bold text-ink">{t('properties.photos')}</h2>
@@ -457,9 +458,9 @@ export default function PropertyDetailPage() {
             </section>
             {staff && <CheckInPhotosCard propertyId={propertyId} photos={property.photos} />}
           </>
-        )}
+        </TabPanel>
 
-        {tab === 'about' && (
+        <TabPanel name="about" current={tab}>
           <section className={`${CARD} space-y-4`} aria-labelledby="property-rules">
             <h2 id="property-rules" className="text-sm font-bold text-ink">{t('properties.aboutAndRules')}</h2>
             {property.description && <p className="whitespace-pre-line text-sm text-ink">{property.description}</p>}
@@ -492,9 +493,9 @@ export default function PropertyDetailPage() {
             )}
             {!hasAbout && <p className="text-sm text-ink-muted">{t('properties.nothingYet')}</p>}
           </section>
-        )}
+        </TabPanel>
 
-        {tab === 'amenities' && (
+        <TabPanel name="amenities" current={tab}>
           <section className={CARD} aria-labelledby="property-amenities">
             <h2 id="property-amenities" className="mb-3 text-sm font-bold text-ink">{t('properties.amenities')}</h2>
             {property.amenities.length > 0 ? (
@@ -509,9 +510,9 @@ export default function PropertyDetailPage() {
               <p className="text-sm text-ink-muted">{t('properties.nothingYet')}</p>
             )}
           </section>
-        )}
+        </TabPanel>
 
-        {tab === 'calendars' && (
+        <TabPanel name="calendars" current={tab}>
           <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-2">
             <CalendarLinkCard propertyId={propertyId} />
             {staff && <CalendarFeedsCard propertyId={propertyId} />}
@@ -546,9 +547,9 @@ export default function PropertyDetailPage() {
               </section>
             )}
           </div>
-        )}
+        </TabPanel>
 
-        {tab === 'history' && <AuditTrail entries={auditLog} />}
+        <TabPanel name="history" current={tab}><AuditTrail entries={auditLog} /></TabPanel>
       </div>
 
       <ConfirmDialog
@@ -642,6 +643,12 @@ function PriceSummary({ pricing, mode, onEdit }: { pricing: PricingConfig; mode:
     : []
   const hour = mode !== 'daily' && tariffs.length === 0 && Number(pricing.hourly_price) > 0
   if (!nightly && tariffs.length === 0 && !hour) return null
+  const byNight = mode !== 'hourly' && Number(pricing.default_deposit) > 0 ? Number(pricing.default_deposit) : 0
+  const byHour = mode !== 'daily' && Number(pricing.hourly_deposit) > 0 ? Number(pricing.hourly_deposit) : 0
+  const deposits =
+    byNight && byHour
+      ? [`${t('properties.rentalModeShort.daily')} ${money(byNight)}`, `${t('properties.rentalModeShort.hourly')} ${money(byHour)}`]
+      : [byNight || byHour].filter(Boolean).map((sum) => money(sum))
   return (
     <button
       type="button"
@@ -666,14 +673,22 @@ function PriceSummary({ pricing, mode, onEdit }: { pricing: PricingConfig; mode:
             : tariffs.map(([name, price]) => `${t(`guest.tariff_${name}`)} ${money(price)}`).join(' · ')}
         </p>
       )}
-      {(Number(pricing.default_deposit) > 0 || Number(pricing.hourly_deposit) > 0) && (
+      {deposits.length > 0 && (
         <p className="mt-1 text-xs text-ink-muted">
-          {t('properties.depositLine', {
-            price: money(Number(mode === 'hourly' ? pricing.hourly_deposit : pricing.default_deposit)),
-          })}
+          {/* Each kind of stay its own deposit: "by the night 10 000 · by the hour 5 000". */}
+          {t('properties.depositLine', { price: deposits.join(' · ') })}
         </p>
       )}
     </button>
+  )
+}
+
+/** One tab's content; kept mounted when another tab is open, so nothing typed is lost. */
+function TabPanel({ name, current, children }: { name: PropertyTab; current: PropertyTab; children: React.ReactNode }) {
+  return (
+    <div role="tabpanel" id={`panel-${name}`} aria-labelledby={`tab-${name}`} hidden={name !== current} className="flex flex-col gap-5">
+      {children}
+    </div>
   )
 }
 
