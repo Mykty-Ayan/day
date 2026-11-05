@@ -46,7 +46,7 @@ test('readiness lists what the flat lacks and where to fill it in', () => {
   } as unknown as Property
   const items = readiness(property, { base_price: 24000 } as PricingConfig)
   const missing = items.filter((i) => !i.done).map((i) => `${i.key}:${i.place}`)
-  expect(missing).toEqual(['photos:photos', 'description:about', 'guests:edit', 'checkInPhotos:photos', 'amenities:amenities'])
+  expect(missing).toEqual(['photos:photos', 'description:basic', 'guests:details', 'checkInPhotos:photos', 'amenities:amenities'])
 })
 
 test("the flat's clock is the company's time zone, not the browser's", () => {

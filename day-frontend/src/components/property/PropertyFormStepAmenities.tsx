@@ -8,10 +8,12 @@ import { Checkbox } from '../ui/checkbox'
 
 interface Props {
   selectedIds: string[]
+  /** In a side panel the panel scrolls; in the wizard the list keeps its own box. */
+  inPanel?: boolean
   onChange: (ids: string[]) => void
 }
 
-export default function PropertyFormStepAmenities({ selectedIds, onChange }: Props) {
+export default function PropertyFormStepAmenities({ selectedIds, onChange, inPanel = false }: Props) {
   const { t } = useTranslation()
   const { data: amenities = [], isLoading, isError } = useAmenities()
   const [search, setSearch] = useState('')
@@ -46,7 +48,7 @@ export default function PropertyFormStepAmenities({ selectedIds, onChange }: Pro
 
   if (isError) {
     return (
-      <p className="text-sm text-red-600 text-center py-4">
+      <p className="text-sm text-danger text-center py-4">
         {t('properties.form.amenitiesError')}
       </p>
     )
@@ -55,26 +57,26 @@ export default function PropertyFormStepAmenities({ selectedIds, onChange }: Pro
   return (
     <div className="space-y-4">
       <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-muted" />
         <input
           type="text"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder={t('properties.form.searchAmenities')}
-          className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 pl-9 outline-none focus:ring-2 focus:ring-black/10 text-gray-800 text-sm"
+          className="w-full bg-surface-card border border-line rounded-xl p-3 pl-9 outline-none focus:border-accent text-ink text-sm"
         />
       </div>
 
       {amenities.length === 0 && !isLoading && (
-        <p className="text-sm text-gray-500 text-center py-4">
+        <p className="text-sm text-ink-muted text-center py-4">
           {t('properties.form.noAmenities')}
         </p>
       )}
 
-      <div className="space-y-5 max-h-80 overflow-y-auto">
+      <div className={inPanel ? 'space-y-5' : 'space-y-5 max-h-80 overflow-y-auto'}>
         {Array.from(grouped.entries()).map(([category, items]) => (
           <div key={category}>
-            <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">
+            <h3 className="text-xs font-semibold text-ink-muted mb-2">
               {t(`properties.amenityCategories.${category}`)}
             </h3>
             <div className="grid grid-cols-2 gap-2">
@@ -85,18 +87,14 @@ export default function PropertyFormStepAmenities({ selectedIds, onChange }: Pro
                     key={amenity.id}
                     className={`flex items-center gap-2 px-3 py-2 rounded-xl text-sm border transition-all text-left cursor-pointer min-w-0 ${
                       isSelected
-                        ? 'bg-black text-white border-black'
-                        : 'bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100'
+                        ? 'bg-accent-soft text-accent-ink border-accent font-semibold'
+                        : 'bg-surface-card text-ink border-line hover:bg-surface-page'
                     }`}
                   >
                     <Checkbox
                       checked={isSelected}
                       onCheckedChange={() => toggle(amenity.id)}
-                      className={
-                        isSelected
-                          ? 'shrink-0 border-white data-[state=checked]:bg-white data-[state=checked]:text-black'
-                          : 'shrink-0'
-                      }
+                      className="shrink-0"
                     />
                     <span className="truncate" title={amenity.name}>{amenity.name}</span>
                   </label>
@@ -108,7 +106,7 @@ export default function PropertyFormStepAmenities({ selectedIds, onChange }: Pro
       </div>
 
       {selectedIds.length > 0 && (
-        <p className="text-xs text-gray-500">
+        <p className="text-xs text-ink-muted">
           {t('properties.form.amenitiesSelected', { count: selectedIds.length })}
         </p>
       )}

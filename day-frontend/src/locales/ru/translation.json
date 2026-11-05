@@ -441,7 +441,7 @@
     "sections": "Разделы квартиры",
     "calendars": "Календари",
     "history": "История",
-    "nothingYet": "Пока не заполнено — «Изменить», чтобы добавить.",
+    "nothingYet": "Пока не заполнено — нажмите карандаш, чтобы добавить.",
     "weekendNight": "выходные {{price}}",
     "perHourPrice": "{{price}} за час",
     "depositLine": "Залог {{price}}",
@@ -478,6 +478,12 @@
         "checkInPhotos": "Фото для заселения",
         "amenities": "Удобства"
       }
+    },
+    "edit": {
+      "basic": "Основное",
+      "address": "Адрес",
+      "details": "Характеристики",
+      "rules": "Заселение и правила"
     }
   },
   "bookings": {

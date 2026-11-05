@@ -21,6 +21,7 @@ import {
   deletePhoto,
   reorderPhotos,
   linkAmenities,
+  unlinkAmenity,
   addSeasonalPrice,
   updateSeasonalPrice,
   deleteSeasonalPrice,
@@ -248,6 +249,24 @@ export function useLinkAmenities(propertyId: string) {
     mutationFn: (amenityIds: string[]) => linkAmenities(propertyId, amenityIds),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: [PROPERTY_KEY, propertyId] })
+    },
+  })
+}
+
+/** The flat's amenities set to exactly these: the new ones linked, the dropped ones unlinked. */
+export function useSetAmenities(propertyId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ from, to }: { from: string[]; to: string[] }) => {
+      const added = to.filter((id) => !from.includes(id))
+      const dropped = from.filter((id) => !to.includes(id))
+      if (added.length > 0) await linkAmenities(propertyId, added)
+      for (const id of dropped) await unlinkAmenity(propertyId, id)
+    },
+    // After a failure too: part of the change may have been saved.
+    onSettled: () => {
+      qc.invalidateQueries({ queryKey: [PROPERTY_KEY, propertyId] })
+      qc.invalidateQueries({ queryKey: [AUDIT_LOG_KEY, propertyId] })
     },
   })
 }

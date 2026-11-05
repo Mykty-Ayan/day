@@ -435,7 +435,7 @@
     "sections": "Parts of the flat",
     "calendars": "Calendars",
     "history": "History",
-    "nothingYet": "Not filled in yet — \"Edit\" to add it.",
+    "nothingYet": "Not filled in yet — tap the pencil to add it.",
     "weekendNight": "weekend {{price}}",
     "perHourPrice": "{{price}} an hour",
     "depositLine": "Deposit {{price}}",
@@ -472,6 +472,12 @@
         "checkInPhotos": "Check-in photos",
         "amenities": "Amenities"
       }
+    },
+    "edit": {
+      "basic": "Basics",
+      "address": "Address",
+      "details": "Details",
+      "rules": "Check-in and rules"
     }
   },
   "bookings": {

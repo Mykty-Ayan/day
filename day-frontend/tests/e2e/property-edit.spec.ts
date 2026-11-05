@@ -1,13 +1,12 @@
-import type { Page } from '@playwright/test'
 import { test, expect } from '../fixtures/e2e-auth'
 import {
   createTestProperty,
   createTestPricing,
   API_BASE,
 } from '../fixtures/test-data'
-import { pricingCard, priceField } from '../fixtures/property-ui'
+import { openBlock, pricingCard, priceField } from '../fixtures/property-ui'
 
-// The labels of the edit wizard are not tied to its inputs, so its fields are found by placeholder.
+// The labels of the flat's forms are not tied to their inputs, so its fields are found by placeholder.
 const NAME_PLACEHOLDER = 'Cozy Downtown Studio'
 const INTERNAL_NAME_PLACEHOLDER = 'APT-001-Downtown'
 const DESCRIPTION_PLACEHOLDER = 'A beautiful property in the heart of the city…'
@@ -26,14 +25,6 @@ test.describe('Property Edit - E2E', () => {
     return { ...prop, ...data }
   }
 
-  /** The edit wizard has four steps; "Save Changes" is on the last one. */
-  async function goToLastStep(page: Page) {
-    for (let step = 0; step < 3; step++) {
-      await page.getByRole('button', { name: 'Next', exact: true }).click()
-    }
-    await expect(page.getByText('Step 4 of 4')).toBeVisible()
-  }
-
   test.afterEach(async ({ request }) => {
     for (const id of propertyIdsToCleanup) {
       try { await request.delete(`${API_BASE}/properties/${id}`) } catch { /* cleanup */ }
@@ -41,45 +32,48 @@ test.describe('Property Edit - E2E', () => {
     propertyIdsToCleanup = []
   })
 
-  test('navigate to property and click Edit button', async ({ page, request }) => {
+  test('the pencil by the name opens the basics in a panel, the page stays', async ({ page, request }) => {
     const prop = await createPropertyViaApi(request)
 
     await page.goto(`/properties/${prop.id}`)
+    const panel = await openBlock(page, 'Basics')
 
-    // "Edit" is a link to the edit page
-    await page.getByRole('link', { name: 'Edit', exact: true }).click()
-
-    await expect(page).toHaveURL(new RegExp(`/properties/${prop.id}/edit$`))
-    await expect(page.getByRole('heading', { name: 'Edit Property' })).toBeVisible()
-    await expect(page.getByPlaceholder(NAME_PLACEHOLDER)).toBeVisible()
+    await expect(page).toHaveURL(new RegExp(`/properties/${prop.id}$`))
+    await expect(panel.getByPlaceholder(NAME_PLACEHOLDER)).toBeVisible()
   })
 
-  test('edit page loads with pre-filled data', async ({ page, request }) => {
+  test('the old edit address leads to the flat page', async ({ page, request }) => {
+    const prop = await createPropertyViaApi(request)
+
+    await page.goto(`/properties/${prop.id}/edit`)
+
+    await expect(page).toHaveURL(new RegExp(`/properties/${prop.id}$`))
+  })
+
+  test('the panel opens with the flat as it is', async ({ page, request }) => {
     const prop = await createPropertyViaApi(request, {
       name: 'Prefill Test Property',
       description: 'Prefill description text',
     })
 
     await page.goto(`/properties/${prop.id}`)
-    await page.getByRole('link', { name: 'Edit', exact: true }).click()
+    const panel = await openBlock(page, 'Basics')
 
-    await expect(page.getByPlaceholder(NAME_PLACEHOLDER)).toHaveValue('Prefill Test Property')
-    await expect(page.getByPlaceholder(INTERNAL_NAME_PLACEHOLDER)).toHaveValue(prop.internal_name)
-    await expect(page.getByPlaceholder(DESCRIPTION_PLACEHOLDER)).toHaveValue('Prefill description text')
+    await expect(panel.getByPlaceholder(NAME_PLACEHOLDER)).toHaveValue('Prefill Test Property')
+    await expect(panel.getByPlaceholder(INTERNAL_NAME_PLACEHOLDER)).toHaveValue(prop.internal_name)
+    await expect(panel.getByPlaceholder(DESCRIPTION_PLACEHOLDER)).toHaveValue('Prefill description text')
   })
 
   test('change property name - save - verify updated', async ({ page, request }) => {
     const prop = await createPropertyViaApi(request)
 
     await page.goto(`/properties/${prop.id}`)
-    await page.getByRole('link', { name: 'Edit', exact: true }).click()
+    const panel = await openBlock(page, 'Basics')
+    await panel.getByPlaceholder(NAME_PLACEHOLDER).fill('Renamed Property E2E')
+    await panel.getByRole('button', { name: 'Save', exact: true }).click()
 
-    await page.getByPlaceholder(NAME_PLACEHOLDER).fill('Renamed Property E2E')
-    await goToLastStep(page)
-    await page.getByRole('button', { name: 'Save Changes' }).click()
-
-    // The save sends the user back to the property page, which shows the new name
-    await expect(page).toHaveURL(new RegExp(`/properties/${prop.id}$`))
+    // The panel closes and the page under it shows the new name
+    await expect(panel).toBeHidden()
     // The heading is the flat's own name ("Kv. 28"); the guests' name is the line under it.
     await expect(page.getByText('Renamed Property E2E', { exact: true }).first()).toBeVisible()
 
@@ -87,8 +81,22 @@ test.describe('Property Edit - E2E', () => {
     expect(saved.name).toBe('Renamed Property E2E')
   })
 
+  test('amenities are changed after the flat is made', async ({ page, request }) => {
+    const prop = await createPropertyViaApi(request)
+
+    await page.goto(`/properties/${prop.id}?tab=amenities`)
+    const panel = await openBlock(page, 'Amenities')
+    const first = panel.getByRole('checkbox').first()
+    await first.check()
+    await panel.getByRole('button', { name: 'Save', exact: true }).click()
+    await expect(panel).toBeHidden()
+
+    const saved = await (await request.get(`${API_BASE}/properties/${prop.id}`)).json()
+    expect(saved.amenities).toHaveLength(1)
+  })
+
   test('change pricing - save - verify', async ({ page, request }) => {
-    // Pricing is not on the edit wizard: it is edited in the Pricing card of the property page
+    // Pricing is edited in the Pricing card of the property page
     const prop = await createPropertyViaApi(request)
     await request.put(`${API_BASE}/properties/${prop.id}/pricing`, {
       data: createTestPricing({ base_price: 100 }),
@@ -111,19 +119,16 @@ test.describe('Property Edit - E2E', () => {
     await expect(priceField(pricingCard(page), 'Base Price')).toHaveValue('250')
   })
 
-  test('cancel edit - returns to detail unchanged', async ({ page, request }) => {
+  test('cancel - the flat stays unchanged', async ({ page, request }) => {
     const originalName = `NoChange-${Date.now()}`
     const prop = await createPropertyViaApi(request, { name: originalName })
 
     await page.goto(`/properties/${prop.id}`)
-    await page.getByRole('link', { name: 'Edit', exact: true }).click()
+    const panel = await openBlock(page, 'Basics')
+    await panel.getByPlaceholder(NAME_PLACEHOLDER).fill('Should Not Save')
+    await panel.getByRole('button', { name: 'Cancel', exact: true }).click()
 
-    await page.getByPlaceholder(NAME_PLACEHOLDER).fill('Should Not Save')
-    await page.getByRole('button', { name: 'Cancel', exact: true }).click()
-
-    // Back on the property page with the original name
-    await expect(page).toHaveURL(new RegExp(`/properties/${prop.id}$`))
-    // The heading is the flat's own name ("Kv. 28"); the guests' name is the line under it.
+    await expect(panel).toBeHidden()
     await expect(page.getByText(originalName, { exact: true }).first()).toBeVisible()
 
     const saved = await (await request.get(`${API_BASE}/properties/${prop.id}`)).json()
