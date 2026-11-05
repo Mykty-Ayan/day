@@ -441,7 +441,38 @@
     "depositLine": "Кепілақы {{price}}",
     "nightPrice": "бір түн",
     "seasonalPriceUpdated": "Маусым өзгертілді",
-    "failedUpdateSeasonal": "Маусымды өзгерту мүмкін болмады"
+    "failedUpdateSeasonal": "Маусымды өзгерту мүмкін болмады",
+    "statusLabel": "Мәртебе",
+    "needsAttention": "Қарау керек",
+    "statusWhat": {
+      "new": "Әлі жалға берілмейді, қонақтар көрмейді.",
+      "active": "Оны қонақтар, CRM және алаңдар көреді.",
+      "paused": "Қонақтарға ұсынылмайды, брондар қалады.",
+      "archived": "Тізімдерден жасырылған, брондар қалады."
+    },
+    "now": {
+      "label": "Қазір",
+      "living": "{{name}} {{until}} дейін тұрады",
+      "free": "Бос",
+      "next": "Келесі кіру",
+      "none": "Жоқ",
+      "occupancy": "30 күндік толымдылық",
+      "onChessboard": "шахматкада"
+    },
+    "ready": {
+      "title": "Пәтердің дайындығы: {{total}} ішінен {{done}}",
+      "why": "Мұны қонақ пен CRM көреді",
+      "items": {
+        "prices": "Бағалар",
+        "photos": "3+ фото",
+        "description": "Сипаттама",
+        "address": "Мекенжай",
+        "guests": "Қанша қонақ",
+        "checkInInstructions": "Қалай кіру керек",
+        "checkInPhotos": "Кіруге арналған фото",
+        "amenities": "Ыңғайлылықтар"
+      }
+    }
   },
   "bookings": {
     "title": "Броньдар",

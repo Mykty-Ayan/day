@@ -1,5 +1,5 @@
 import { test, expect } from '../fixtures/e2e-auth'
-import { createTestProperty, API_BASE } from '../fixtures/test-data'
+import { createTestProperty, createTestPricing, createTestBooking, futureDate, API_BASE } from '../fixtures/test-data'
 import { wizardField as field, nextStep as next } from '../fixtures/property-ui'
 
 test.describe('Property CRUD - E2E', () => {
@@ -214,5 +214,52 @@ test.describe('Property CRUD - E2E', () => {
     await expect(page.getByText('Name is required', { exact: true })).toBeVisible()
     await expect(page.getByText('Internal name is required', { exact: true })).toBeVisible()
     await expect(page.getByText('Step 1 of 7')).toBeVisible()
+  })
+
+  test('the flat page says who is in now and what the flat still lacks', async ({ page, request }) => {
+    const prop = await (await request.post(`${API_BASE}/properties`, { data: createTestProperty() })).json()
+    propertyIdsToCleanup.push(prop.id)
+    await request.post(`${API_BASE}/properties/${prop.id}/status`, { data: { status: 'active' } })
+    await request.put(`${API_BASE}/properties/${prop.id}/pricing`, { data: createTestPricing() })
+
+    await page.goto(`/properties/${prop.id}`)
+    await expect(page.getByText('Free', { exact: true })).toBeVisible()
+    const ready = page.getByRole('region', { name: /^Flat readiness/ })
+    await expect(ready).toBeVisible()
+    // A missing item is a step to where it is filled in.
+    await ready.getByRole('button', { name: '+ Amenities' }).click()
+    await expect(page.getByRole('tab', { name: /^Amenities/ })).toHaveAttribute('aria-selected', 'true')
+  })
+
+  test('a guest kept past yesterday\'s checkout still lives in the flat', async ({ page, request }) => {
+    const prop = await (await request.post(`${API_BASE}/properties`, { data: createTestProperty() })).json()
+    propertyIdsToCleanup.push(prop.id)
+    await request.post(`${API_BASE}/properties/${prop.id}/status`, { data: { status: 'active' } })
+    await request.put(`${API_BASE}/properties/${prop.id}/pricing`, { data: createTestPricing() })
+    const booking = createTestBooking(prop.id, { check_in: futureDate(-3), check_out: futureDate(-1) })
+    const created = await request.post(`${API_BASE}/bookings`, { data: booking })
+    expect(created.ok(), `create: ${created.status()}`).toBeTruthy()
+    const { id } = await created.json()
+    for (const status of ['confirmed', 'checked_in']) {
+      const res = await request.post(`${API_BASE}/bookings/${id}/status`, { data: { status } })
+      expect(res.ok(), `status ${status}: ${res.status()}`).toBeTruthy()
+    }
+
+    await page.goto(`/properties/${prop.id}`)
+    await expect(page.getByRole('link', { name: new RegExp(booking.guest_name) })).toBeVisible()
+    await expect(page.getByText('Free', { exact: true })).toHaveCount(0)
+  })
+
+  test('the next check-in is found past the month the occupancy counts', async ({ page, request }) => {
+    const prop = await (await request.post(`${API_BASE}/properties`, { data: createTestProperty() })).json()
+    propertyIdsToCleanup.push(prop.id)
+    await request.post(`${API_BASE}/properties/${prop.id}/status`, { data: { status: 'active' } })
+    await request.put(`${API_BASE}/properties/${prop.id}/pricing`, { data: createTestPricing() })
+    const booking = createTestBooking(prop.id, { check_in: futureDate(40), check_out: futureDate(42) })
+    const created = await request.post(`${API_BASE}/bookings`, { data: booking })
+    expect(created.ok()).toBeTruthy()
+
+    await page.goto(`/properties/${prop.id}`)
+    await expect(page.getByRole('link', { name: new RegExp(booking.guest_name) })).toBeVisible()
   })
 })
