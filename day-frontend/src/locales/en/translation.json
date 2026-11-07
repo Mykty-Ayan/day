@@ -1472,7 +1472,7 @@
       "sendGuest": "To guest",
       "messageHead": "Hello, {{name}}! Welcome.",
       "block": "block {{value}}",
-      "flat": "property {{value}}",
+      "flat": "flat {{value}}",
       "floor": "floor {{value}}",
       "messageDates": "Check-in {{from}}, check-out {{to}}.",
       "confirm": "Confirm",

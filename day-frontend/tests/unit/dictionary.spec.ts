@@ -16,6 +16,7 @@ const KEEP = new Set([
   'common.apartment', // a kind of place: apartment, house, room
   'properties.form.apartmentNumber', // the number of the flat in the building's address
   'site.aboutPlaceholder', // the owner writes this text for guests
+  'miniapp.booking.flat', // the flat number in the address sent to a guest: «Абая 10, кв. 42»
 ])
 
 function strings(lang: string): [string, string][] {
@@ -58,4 +59,10 @@ test('no words the dictionary puts aside', () => {
   // уборщица, клинер → горничная, «за сутки» → за ночь, апартаменты → квартира.
   const aside = /депозит|клиент|хост|клининг|чек-?ин|чек-?аут|зачекин|уборщиц|клинер|за сутки|уважаем|апартамент/i
   expect(breaking('ru', aside, 'all')).toEqual([])
+})
+
+test('the flat number in the address sent to a guest stays a flat in every language', () => {
+  // «Абая 10, кв. 42» leaves for the guest's WhatsApp: 42 is the number of the flat in the building.
+  const flat = (lang: string) => Object.fromEntries(strings(lang))['miniapp.booking.flat']
+  expect([flat('ru'), flat('kz'), flat('en')]).toEqual(['кв. {{value}}', 'пәтер {{value}}', 'flat {{value}}'])
 })
