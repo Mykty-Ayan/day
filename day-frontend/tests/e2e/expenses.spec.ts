@@ -15,7 +15,7 @@ test('the owner records rent for a flat, sees the month total and voids a wrong 
   await page.locator('#expense-category').selectOption('rent')
   await page.locator('#expense-amount').fill('150 000')
   await page.getByRole('button', { name: 'Record' }).click()
-  await expect(page.getByRole('alert')).toHaveText('Rent is paid for a flat: choose it')
+  await expect(page.getByRole('alert')).toHaveText('Rent is paid for a property: choose it')
 
   await page.locator('#expense-flat').selectOption({ label: flat.internal_name })
   await page.getByRole('button', { name: 'Record' }).click()

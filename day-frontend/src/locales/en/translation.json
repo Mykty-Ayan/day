@@ -179,7 +179,7 @@
       "weekendBelow": "The weekend price cannot be below weekdays",
       "weekendPlus": "{{amount}} more than weekdays",
       "weekendSame": "Empty — same as weekdays",
-      "modeHint": "How the flat is let. Changes at once, after you confirm.",
+      "modeHint": "How the property is let. Changes at once, after you confirm.",
       "modeWhat": {
         "daily": "Nights only. Hourly tariffs are not sold",
         "hourly": "Hours only. The night price, seasons and discounts do not apply",
@@ -190,7 +190,7 @@
       "modeSaved": "Way of letting saved",
       "modeToDaily": "Hourly tariffs stop selling and leave the chessboard, the CRM and the guest page. Their prices are kept — you can switch back any time.",
       "modeToHourly": "Nights stop selling. The night price, seasons and discounts stop applying but are kept.",
-      "modeToBoth": "The flat sells both nights and hours. Check both kinds of prices.",
+      "modeToBoth": "The property sells both nights and hours. Check both kinds of prices.",
       "unsaved": "Unsaved changes",
       "allSaved": "All saved",
       "seasonsHint": "A night price of its own for dates: holidays, high season.",
@@ -432,7 +432,7 @@
       "archived": "Archived",
       "new": "New"
     },
-    "sections": "Parts of the flat",
+    "sections": "Parts of the property",
     "calendars": "Calendars",
     "history": "History",
     "nothingYet": "Not filled in yet — tap the pencil to add it.",
@@ -460,7 +460,7 @@
       "onChessboard": "on the chessboard"
     },
     "ready": {
-      "title": "Flat readiness: {{done}} of {{total}}",
+      "title": "Property readiness: {{done}} of {{total}}",
       "why": "The guest and the CRM see this",
       "items": {
         "prices": "Prices",
@@ -480,7 +480,7 @@
       "rules": "Check-in and rules"
     },
     "photoTools": {
-      "hint": "The first photo is the cover: the flat's page opens with it. Guests see the photos in this order.",
+      "hint": "The first photo is the cover: the property's page opens with it. Guests see the photos in this order.",
       "photo": "Photo {{n}}",
       "cover": "Cover",
       "makeCover": "Make cover",
@@ -496,14 +496,14 @@
     },
     "log": {
       "title": "History",
-      "hint": "What was changed in the flat, and by whom. Prices, photos and amenities are not shown here yet.",
+      "hint": "What was changed in the property, and by whom. Prices, photos and amenities are not shown here yet.",
       "today": "Today",
       "yesterday": "Yesterday",
       "empty": "Nothing has been changed yet.",
       "empty_value": "empty",
-      "created": "The flat was created",
-      "cloned": "The flat was copied",
-      "clonedFrom": "from another flat",
+      "created": "The property was created",
+      "cloned": "The property was copied",
+      "clonedFrom": "from another property",
       "changed": "changed",
       "show": "Show",
       "was": "Was",
@@ -575,7 +575,7 @@
       "refund": "Refund {{amount}}",
       "overpaidHint": "The guest paid more than the total.",
       "howPriced": "How the price adds up",
-      "priceChanged": "The flat's prices changed after booking, so there is no breakdown.",
+      "priceChanged": "The property's prices changed after booking, so there is no breakdown.",
       "priceManual": "Price changed by hand",
       "moreActions": "More actions",
       "copyValue": "Copy",
@@ -713,7 +713,7 @@
       "startTimeRequired": "Start time is required",
       "endTimeRequired": "End time is required",
       "endTimeAfterStart": "End time must be after start time",
-      "datesBlocked": "The flat is closed on these dates",
+      "datesBlocked": "The property is closed on these dates",
       "timeInvalid": "Time as HH:MM, other than 00:00"
     },
     "sources": {
@@ -748,7 +748,7 @@
       "detail": "Overbooking: this booking came from a platform for nights already taken. Move or cancel one of the two bookings."
     },
     "stayRules": {
-      "title": "The booking breaks the apartment rules",
+      "title": "The booking breaks the property rules",
       "min_nights": "Minimum nights: {{limit}}, this booking: {{actual}}",
       "max_nights": "Maximum nights: {{limit}}, this booking: {{actual}}",
       "buffer_minutes": "Cleaning minutes between hourly bookings: {{limit}}, here: {{actual}}",
@@ -771,7 +771,7 @@
     },
     "noNotes": "None",
     "blocksTitle": "Booking",
-    "flat": "Flat",
+    "flat": "Property",
     "flatBusy": "taken",
     "lengthLabel": "How long",
     "lengthHours": "{{n}} h",
@@ -1389,8 +1389,8 @@
       "more": "Show more",
       "window": "Upcoming covers the next {{days}} days. Search by name or phone for later ones.",
       "occupancy": "14 days",
-      "flat": "Flat",
-      "allFlats": "All flats"
+      "flat": "Property",
+      "allFlats": "All properties"
     },
     "tabs": {
       "today": "Today",
@@ -1407,7 +1407,7 @@
     "inHouse": "Staying now",
     "until": "until",
     "rowOrders": "minibar {{amount}} of it",
-    "freeProperties": "Free flats",
+    "freeProperties": "Free properties",
     "noPrice": "no price",
     "upcoming": "Next {{days}} days",
     "periods": {
@@ -1472,7 +1472,7 @@
       "sendGuest": "To guest",
       "messageHead": "Hello, {{name}}! Welcome.",
       "block": "block {{value}}",
-      "flat": "flat {{value}}",
+      "flat": "property {{value}}",
       "floor": "floor {{value}}",
       "messageDates": "Check-in {{from}}, check-out {{to}}.",
       "confirm": "Confirm",
@@ -1557,7 +1557,7 @@
       "invalid": "Some fields are not filled in correctly. Check them and try again.",
       "forbidden": "Your role can't do this.",
       "staleStatus": "The booking has changed. Close the card and open it again.",
-      "noPrice": "This flat has no prices. Set them on the web: Properties → Prices.",
+      "noPrice": "This property has no prices. Set them on the web: Properties → Prices.",
       "assistantOff": "The assistant isn't available right now. Try later or use the tabs."
     },
     "retry": "Try again",
@@ -1633,7 +1633,7 @@
       "edit": "Edit",
       "prices": "Prices",
       "blocks": "Closed",
-      "editTitle": "Edit flat",
+      "editTitle": "Edit property",
       "name": "Name",
       "maxGuests": "Max guests",
       "wifiName": "Wi-Fi network",
@@ -1646,8 +1646,8 @@
       "photosFailed_one": "{{count}} photo did not upload",
       "pause": "Take off sale",
       "activate": "Put on sale",
-      "pauseAsk": "Take the flat off sale? It will not be offered or booked until you put it back.",
-      "activateAsk": "Put the flat on sale?",
+      "pauseAsk": "Take the property off sale? It will not be offered or booked until you put it back.",
+      "activateAsk": "Put the property on sale?",
       "pricesTitle": "Prices",
       "basePrice": "Usual price per night, ₸",
       "saveBase": "Save usual price",
@@ -1668,7 +1668,7 @@
       "reopenAsk": "Open nights {{from}} – {{to}} for sale again?",
       "fromCalendar": "From the {{source}} calendar",
       "errors": {
-        "name": "The flat needs a name",
+        "name": "The property needs a name",
         "maxGuests": "Guests: a number from 1 to 50",
         "price": "The price is a whole number of tenge",
         "nights": "The last night cannot be before the first"
@@ -1898,9 +1898,9 @@
     "category": "Category",
     "amount": "Amount",
     "day": "Day",
-    "flat": "Flat",
+    "flat": "Property",
     "flatNone": "Whole company",
-    "flatChoose": "Choose the flat",
+    "flatChoose": "Choose the property",
     "payee": "Paid to",
     "note": "Note",
     "save": "Record",
@@ -1914,7 +1914,7 @@
     "failed": "Could not save",
     "ownerOnly": "Only the owner sees and records expenses.",
     "errors": {
-      "rentNeedsFlat": "Rent is paid for a flat: choose it",
+      "rentNeedsFlat": "Rent is paid for a property: choose it",
       "amount": "The amount must be above zero, with two decimals at most",
       "day": "Choose the day",
       "commissionNeedsAgent": "An agent's commission is paid to an agent — choose one"
@@ -1978,10 +1978,10 @@
     "stoppedName": "{{name}} (stopped)"
   },
   "readiness": {
-    "title": "Flats readiness",
-    "hint": "What is filled for answering guests: the company's rules and each flat's fields.",
-    "rules": "Rules for every flat",
-    "rulesHint": "Documents, early check-in and late check-out, pets, smoking, parties, quiet hours. The CRM's AI answers guests of any flat by them.",
+    "title": "Properties readiness",
+    "hint": "What is filled for answering guests: the company's rules and each property's fields.",
+    "rules": "Rules for every property",
+    "rulesHint": "Documents, early check-in and late check-out, pets, smoking, parties, quiet hours. The CRM's AI answers guests of any property by them.",
     "ruleText": "Rule",
     "rulePlaceholder": "E.g. check-in with an ID card",
     "audienceLabel": "Who sees it",
@@ -1993,8 +1993,8 @@
     "delete": "Delete",
     "deleteConfirm": "Delete the rule?",
     "failed": "Could not save",
-    "flats": "Flats",
-    "noFlats": "No flats",
+    "flats": "Properties",
+    "noFlats": "No properties",
     "allFilled": "All filled",
     "emptyCount_one": "{{count}} empty",
     "emptyCount_other": "{{count}} empty",
@@ -2025,7 +2025,7 @@
   },
   "site": {
     "title": "Company site",
-    "hint": "The company's page for guests: every flat, the rules and contacts. Changes show at once, no Day update needed.",
+    "hint": "The company's page for guests: every property, the rules and contacts. Changes show at once, no Day update needed.",
     "ownerOnly": "The owner sets up the company site.",
     "slug": "Address",
     "slugHint": "Latin letters, digits and hyphens, 3–40",
@@ -2045,9 +2045,9 @@
     "copy": "Copy",
     "copied": "Link copied",
     "open": "Open",
-    "flatLinks": "Flat links",
-    "flatLinksHint": "Each flat's lasting page — for the WhatsApp catalogue, Instagram and listings",
-    "noFlats": "No flats on sale"
+    "flatLinks": "Property links",
+    "flatLinksHint": "Each property's lasting page — for the WhatsApp catalogue, Instagram and listings",
+    "noFlats": "No properties on sale"
   },
   "guestStay": {
     "pickDates": "Pick dates",
@@ -2269,10 +2269,10 @@
     "nightTo": "Night — check-out by",
     "nightMaxHours": "Night — max, h",
     "rule": "Check-out after {{late}} sells only the night (out by {{morning}}, at most {{hours}} h), otherwise a day. Longer than a day sells several days.",
-    "copyAll": "Apply tariffs to all flats",
-    "copyConfirm": "This flat's saved tariffs and hours replace the tariffs of the other flats. Daily prices and deposits stay.",
+    "copyAll": "Apply tariffs to all properties",
+    "copyConfirm": "This property's saved tariffs and hours replace the tariffs of the other properties. Daily prices and deposits stay.",
     "copyYes": "Apply",
-    "copied": "Tariffs applied. Flats changed: {{n}}",
+    "copied": "Tariffs applied. Properties changed: {{n}}",
     "day": "Day",
     "reason": {
       "rounded_up": "only 3 h, 6 h, the night and a day are sold",
@@ -2280,6 +2280,6 @@
       "longer": "longer than a tariff — by the day"
     },
     "line": "{{name}} {{value}}",
-    "copyFailed": "Could not apply the tariffs. Save this flat's prices first."
+    "copyFailed": "Could not apply the tariffs. Save this property's prices first."
   }
 }

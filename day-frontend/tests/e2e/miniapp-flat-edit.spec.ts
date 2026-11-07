@@ -29,7 +29,7 @@ test('a flat is edited, priced, closed and taken off sale from the Mini App', as
 
     // Its words.
     await card.getByRole('button', { name: 'Edit', exact: true }).click()
-    const edit = page.getByRole('dialog', { name: 'Edit flat' })
+    const edit = page.getByRole('dialog', { name: 'Edit property' })
     await edit.getByLabel('Wi-Fi password').fill('kz-2026')
     await edit.getByLabel('How to check in').fill('Сейф у двери, код 4321')
     await edit.getByRole('button', { name: 'Save', exact: true }).click()

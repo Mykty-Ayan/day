@@ -178,7 +178,7 @@ test.describe('Property Edit - E2E', () => {
     await page.goto(`/properties/${prop.id}?tab=history`)
     const history = page.getByRole('region', { name: 'History', exact: true })
     await expect(history.getByText('Today', { exact: true })).toBeVisible()
-    await expect(history.getByText('The flat was created')).toBeVisible()
+    await expect(history.getByText('The property was created')).toBeVisible()
     await expect(history.getByRole('listitem').filter({ hasText: 'Public Name:' })).toContainText('Before Name → After Name')
     await expect(history.getByRole('listitem').filter({ hasText: 'Check-in from:' })).toContainText('as the company has it → 15:00')
     // A password is said to have changed, never shown.

@@ -56,9 +56,9 @@ test.describe('Hourly tariffs', () => {
     created.push(...ids)
 
     await page.goto(`/properties/${ids[0]}`)
-    await pricingCard(page).getByRole('button', { name: 'Apply tariffs to all flats' }).click()
+    await pricingCard(page).getByRole('button', { name: 'Apply tariffs to all properties' }).click()
     await page.getByRole('button', { name: 'Apply', exact: true }).click()
-    await expect(page.getByText('Tariffs applied. Flats changed: 1')).toBeVisible()
+    await expect(page.getByText('Tariffs applied. Properties changed: 1')).toBeVisible()
 
     const other = (await (await request.get(`${API_BASE}/properties/${ids[1]}`)).json()).pricing
     expect([other.base_price, other.price_6h]).toEqual([23000, 10000])

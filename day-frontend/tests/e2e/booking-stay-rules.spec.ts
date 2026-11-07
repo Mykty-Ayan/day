@@ -36,7 +36,7 @@ test.describe('Stay rules in the booking form', () => {
     await expect(page.locator('#create-property')).toContainText(internalName)
     await page.getByRole('button', { name: 'Create Booking' }).click()
 
-    const alert = page.getByRole('alert').filter({ hasText: 'The booking breaks the apartment rules' })
+    const alert = page.getByRole('alert').filter({ hasText: 'The booking breaks the property rules' })
     await expect(alert).toBeVisible()
     await expect(alert).toContainText('Minimum nights: 2, this booking: 1')
 

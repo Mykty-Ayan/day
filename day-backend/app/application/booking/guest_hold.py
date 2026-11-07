@@ -236,7 +236,7 @@ class GuestHoldService:
                 adults_count=guests,
                 source=BookingSource.SITE,
                 # The guest found by phone keeps its own name: who booked is told here.
-                notes=f"Гость забронировал на странице квартиры /s/{prop.public_code}. С формы: {name}, {phone}",
+                notes=f"Гость забронировал на странице объекта /s/{prop.public_code}. С формы: {name}, {phone}",
                 expires_at=self._now() + timedelta(minutes=HOLD_MINUTES),
             )
         )

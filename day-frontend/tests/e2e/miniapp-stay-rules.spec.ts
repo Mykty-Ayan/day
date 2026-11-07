@@ -46,7 +46,7 @@ test('a one-night booking of a two-night flat is refused in the Mini App, then b
     await page.getByLabel('Guest name').fill(`Mini App ${stamp}`)
     await page.getByRole('button', { name: 'Book', exact: true }).click()
 
-    const alert = page.getByRole('alert').filter({ hasText: 'The booking breaks the apartment rules' })
+    const alert = page.getByRole('alert').filter({ hasText: 'The booking breaks the property rules' })
     await expect(alert).toBeVisible()
     await expect(alert).toContainText('Minimum nights: 2, this booking: 1')
     await alert.getByRole('button', { name: 'Book anyway' }).click()
