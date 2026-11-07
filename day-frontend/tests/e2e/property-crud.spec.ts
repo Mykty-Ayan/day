@@ -225,7 +225,7 @@ test.describe('Property CRUD - E2E', () => {
 
     await page.goto(`/properties/${prop.id}`)
     await expect(page.getByText('Free', { exact: true })).toBeVisible()
-    const ready = page.getByRole('region', { name: /^Flat readiness/ })
+    const ready = page.getByRole('region', { name: /^Property readiness/ })
     await expect(ready).toBeVisible()
     // A missing item opens the panel where it is filled in.
     await ready.getByRole('button', { name: '+ Amenities' }).click()

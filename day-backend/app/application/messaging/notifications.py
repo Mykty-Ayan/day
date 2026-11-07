@@ -133,7 +133,7 @@ def render(event: NotificationEvent, payload: dict) -> str:
                 " иначе бронь снимется сама.",
             ]
         else:
-            lines += ["", f"Залог у квартиры не задан: подтвердите бронь в карточке до {until}, иначе она снимется."]
+            lines += ["", f"Залог у объекта не задан: подтвердите бронь в карточке до {until}, иначе она снимется."]
         return "\n".join(lines)
 
     if event == NotificationEvent.GUEST_CHECKED_OUT:
@@ -144,7 +144,7 @@ def render(event: NotificationEvent, payload: dict) -> str:
         ]
         if payload.get("cleaning_created"):
             lines.append("Создана задача уборки.")
-        lines.append("Проверьте квартиру и отметьте выезд в карточке брони.")
+        lines.append("Проверьте объект и отметьте выезд в карточке брони.")
         return "\n".join(lines)
     if event == NotificationEvent.GUEST_ORDER_CANCELLED:
         return "\n".join(
