@@ -7,11 +7,11 @@ import { format, parseISO } from 'date-fns'
 import { clearDayPrices, createBlock, deleteBlock, setDayPrices } from '../../api/properties'
 import { useBooking } from '../../hooks/useBookings'
 import { useCurrency } from '../../hooks/useCurrency'
+import { useDates } from '../../hooks/useDates'
 import { useWeekendDays, useWeekendSettings } from '../../hooks/useSettings'
 import { bookingMoney } from '../../lib/booking-money'
 import { mainStep } from '../../lib/booking-steps'
 import { addDays, barDays, busyOn, clock, freeWindows, hoursOn, nightlyRate, nightRuns, nightsBetween } from '../../lib/chessboard'
-import { dateLocale } from '../../lib/date-locale'
 import { formatMoneyExact } from '../../pages/miniapp/format'
 import type { Booking, GanttBlock } from '../../types/booking'
 import type { PricingConfig } from '../../types/property'
@@ -23,28 +23,11 @@ import Button from '../ui/Button'
 import ConfirmDialog from '../ui/ConfirmDialog'
 import { Sheet } from '../ui/sheet'
 import { showToast } from '../ui/Toast'
+import BlockReasonField from './BlockReasonField'
 import type { ChessSelection, ChessTool, GanttRow } from './GanttChart'
 
 // Matches the backend DEFAULT_CHECK_IN_HOUR (14:00) used to seed hourly bookings.
 const HOURLY_START = '14:00'
-
-function useDates() {
-  const { i18n } = useTranslation()
-  const locale = dateLocale(i18n.language)
-  const en = i18n.language === 'en'
-  const day = (value: string) => format(parseISO(value), en ? 'MMMM d' : 'd MMMM', { locale })
-  return {
-    day,
-    // "12–14 ноября", "29 ноября – 2 декабря": the nights picked, first and last.
-    range: (first: string, last: string) => {
-      if (first === last) return day(first)
-      if (first.slice(0, 7) !== last.slice(0, 7)) return `${day(first)} – ${day(last)}`
-      return en
-        ? `${day(first)}–${format(parseISO(last), 'd', { locale })}`
-        : `${format(parseISO(first), 'd', { locale })}–${day(last)}`
-    },
-  }
-}
 
 function useMoney() {
   const { i18n } = useTranslation()
@@ -435,8 +418,6 @@ function SetPrice({
   )
 }
 
-const REASONS = ['repair', 'own', 'platform'] as const
-
 function CloseNights({ rows, selection, onDone }: { rows: GanttRow[]; selection: ChessSelection; onDone: () => void }) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
@@ -521,33 +502,7 @@ function CloseNights({ rows, selection, onDone }: { rows: GanttRow[]; selection:
             void run()
           }}
         >
-          <label htmlFor="close-reason" className="text-xs font-semibold text-ink">{t('gantt.closeReason')}</label>
-          <div className="flex flex-wrap gap-2">
-            {REASONS.map((key) => {
-              const label = t(`gantt.reasons.${key}`)
-              return (
-                <button
-                  key={key}
-                  type="button"
-                  aria-pressed={reason === label}
-                  onClick={() => setReason(label)}
-                  className={`min-h-[36px] rounded-full border px-3 text-xs font-semibold transition-colors ${
-                    reason === label ? 'border-accent bg-accent-soft text-accent-ink' : 'border-line text-ink hover:bg-surface-page'
-                  }`}
-                >
-                  {label}
-                </button>
-              )
-            })}
-          </div>
-          <input
-            id="close-reason"
-            value={reason}
-            maxLength={255}
-            onChange={(event) => setReason(event.target.value)}
-            placeholder={t('properties.blocks.reason')}
-            className="min-h-[44px] rounded-xl border border-line bg-surface-card px-3 text-sm text-ink outline-none focus:border-accent"
-          />
+          <BlockReasonField id="close-reason" value={reason} onChange={setReason} />
           <Button type="submit" disabled={busy}>{t('gantt.closeRun', { count: closable.length })}</Button>
         </form>
       ) : (

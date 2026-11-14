@@ -393,7 +393,11 @@
       "removeTitle": "Reopen these dates for booking?",
       "removed": "Dates reopened",
       "hasBookings": "These dates already have bookings",
-      "failed": "Could not save"
+      "failed": "Could not save",
+      "nights": "Nights",
+      "open": "Reopen",
+      "openOnPlatform": "Reopen on the platform",
+      "loadFailed": "Could not load the closed dates. Reload the page"
     },
     "feeds": {
       "title": "Platform calendars",
