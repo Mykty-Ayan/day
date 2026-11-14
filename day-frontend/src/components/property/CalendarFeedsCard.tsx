@@ -2,169 +2,120 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { format, parseISO } from 'date-fns'
 import { isAxiosError } from 'axios'
-import { CalendarSync, RefreshCw, Trash2 } from 'lucide-react'
+import { Loader2, Plus, RefreshCw, Trash2 } from 'lucide-react'
 import type { CalendarFeed } from '../../types/property'
 import { useAddCalendarFeed, useCalendarFeeds, useRemoveCalendarFeed, useSyncCalendarFeed } from '../../hooks/useProperties'
-import { showToast } from '../ui/Toast'
+import { dateLocale } from '../../lib/date-locale'
+import { feedProblem } from '../../lib/feed-problems'
+import Button from '../ui/Button'
 import ConfirmDialog from '../ui/ConfirmDialog'
+import { Sheet } from '../ui/sheet'
+import { showToast } from '../ui/Toast'
+import CopyLink from './CopyLink'
 
-// The server keeps times as naive UTC.
-const readAt = (value: string) => format(parseISO(`${value}Z`), 'dd.MM HH:mm')
+const PLATFORMS = ['Airbnb', 'Booking.com', 'Krisha', 'OLX']
+const TOOL =
+  'flex h-11 w-11 items-center justify-center rounded-lg text-ink-muted transition-colors hover:bg-surface-page hover:text-ink disabled:opacity-50 sm:h-9 sm:w-9'
+const INPUT = 'min-h-[44px] w-full min-w-0 rounded-xl border border-line bg-surface-card px-3 text-sm text-ink outline-none focus:border-accent'
+
+/** Why a calendar was not read, in the owner's words rather than the server's. */
+function useProblem() {
+  const { t } = useTranslation()
+  return (error: string) => t('properties.feeds.error', { error: t(`properties.feeds.problems.${feedProblem(error)}`) })
+}
 
 /** Platforms' calendars of the flat (Airbnb, Booking.com, ...): Day reads them every
  *  half hour and closes the nights booked there. Each gets Day's link for that same
  *  platform, which leaves out what came from it. */
 export default function CalendarFeedsCard({ propertyId }: { propertyId: string }) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
+  const problem = useProblem()
   const feeds = useCalendarFeeds(propertyId)
-  const add = useAddCalendarFeed(propertyId)
   const sync = useSyncCalendarFeed(propertyId)
   const remove = useRemoveCalendarFeed(propertyId)
-  const [name, setName] = useState('')
-  const [url, setUrl] = useState('')
+  const [adding, setAdding] = useState(false)
   const [removing, setRemoving] = useState<CalendarFeed | null>(null)
+  // The server keeps times as naive UTC; shown in the viewer's clock.
+  const readAt = (value: string) =>
+    format(parseISO(`${value}Z`), i18n.language === 'en' ? 'MMM d, HH:mm' : 'd MMM, HH:mm', { locale: dateLocale(i18n.language) })
 
-  function addFeed() {
-    add.mutate(
-      { name: name.trim(), url: url.trim() },
-      {
-        onSuccess: (feed) => {
-          setName('')
-          setUrl('')
-          // Kept either way; a first read that failed says why on the card too.
-          if (feed.last_error) showToast('error', t('properties.feeds.addedUnread', { error: feed.last_error }))
-          else showToast('success', t('properties.feeds.added'))
-        },
-        onError: (error) =>
-          showToast(
-            'error',
-            isAxiosError(error) && error.response?.status === 409 ? t('properties.feeds.duplicate') : t('properties.feeds.addFailed'),
-          ),
-      },
-    )
-  }
-
-  function copy(link: string) {
-    navigator.clipboard.writeText(link).then(
-      () => showToast('success', t('properties.calendar.copied')),
-      () => showToast('error', t('properties.calendar.copyFailed')),
-    )
+  function read(feed: CalendarFeed) {
+    sync.mutate(feed.id, {
+      // A read that reached the platform but failed comes back with why.
+      onSuccess: (done) =>
+        done.last_error ? showToast('error', problem(done.last_error)) : showToast('success', t('properties.feeds.synced')),
+      onError: () => showToast('error', t('properties.feeds.syncFailed')),
+    })
   }
 
   return (
-    <section
-      aria-label={t('properties.feeds.title')}
-      className="flex flex-col gap-3 rounded-2xl border border-line bg-surface-card p-5"
-    >
-      <div className="flex min-w-0 items-start gap-2">
-        <CalendarSync className="mt-0.5 h-4 w-4 shrink-0 text-gray-500" />
-        <div className="min-w-0">
-          <h2 className="text-sm font-bold text-gray-900">{t('properties.feeds.title')}</h2>
-          <p className="text-xs text-gray-500">{t('properties.feeds.hint')}</p>
+    <section aria-label={t('properties.feeds.title')} className="rounded-2xl border border-line bg-surface-card p-5">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0 flex-1 basis-60">
+          <h2 className="text-sm font-bold text-ink">{t('properties.feeds.title')}</h2>
+          <p className="mt-1 text-xs text-ink-muted">{t('properties.feeds.hint')}</p>
         </div>
+        <Button onClick={() => setAdding(true)} nowrap className="px-4">
+          <Plus className="h-4 w-4" />
+          {t('properties.feeds.add')}
+        </Button>
       </div>
 
-      {feeds.isError && <p className="text-sm text-red-600">{t('properties.feeds.loadFailed')}</p>}
-      {feeds.data && feeds.data.length === 0 && <p className="text-sm text-gray-500">{t('properties.feeds.empty')}</p>}
-      <ul className="space-y-3">
-        {(feeds.data ?? []).map((feed) => (
-          <li key={feed.id} className="space-y-2 rounded-lg bg-gray-50 p-3 text-sm">
-            <div className="flex items-start justify-between gap-2">
-              <div className="min-w-0">
-                <p className="font-semibold text-gray-900">{feed.name}</p>
-                {feed.last_error ? (
-                  <p className="text-xs text-red-600">{t('properties.feeds.error', { error: feed.last_error })}</p>
-                ) : feed.last_synced_at ? (
-                  <p className="text-xs text-gray-500">{t('properties.feeds.read', { time: readAt(feed.last_synced_at) })}</p>
-                ) : null}
-              </div>
-              <div className="flex shrink-0 gap-1">
-                <button
-                  type="button"
-                  aria-label={`${t('properties.feeds.sync')}: ${feed.name}`}
-                  title={t('properties.feeds.sync')}
-                  disabled={sync.isPending}
-                  onClick={() => sync.mutate(feed.id, { onError: () => showToast('error', t('properties.feeds.addFailed')) })}
-                  className="inline-flex h-11 w-11 items-center justify-center rounded-lg text-gray-500 hover:bg-white disabled:opacity-50 sm:h-8 sm:w-8"
-                >
-                  <RefreshCw className="h-4 w-4" />
-                </button>
-                <button
-                  type="button"
-                  aria-label={`${t('properties.feeds.remove')}: ${feed.name}`}
-                  onClick={() => setRemoving(feed)}
-                  className="inline-flex h-11 w-11 items-center justify-center rounded-lg text-gray-400 hover:bg-red-50 hover:text-red-600 sm:h-8 sm:w-8"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </button>
-              </div>
-            </div>
-            {feed.export_url && (
-              <div className="space-y-1">
-                <p className="text-xs text-gray-500">{t('properties.feeds.exportHint', { name: feed.name })}</p>
-                <div className="flex flex-col gap-2">
-                  <input
-                    type="text"
-                    readOnly
-                    value={feed.export_url}
-                    onFocus={(event) => event.currentTarget.select()}
-                    aria-label={t('properties.feeds.exportFor', { name: feed.name })}
-                    className="min-w-0 flex-1 rounded-lg border border-gray-200 bg-white px-3 py-2 font-mono text-xs text-gray-700"
-                  />
+      {feeds.isError && <p className="mt-4 text-sm text-danger">{t('properties.feeds.loadFailed')}</p>}
+      {feeds.data && feeds.data.length === 0 && <p className="mt-4 text-sm text-ink-muted">{t('properties.feeds.empty')}</p>}
+      {feeds.data && feeds.data.length > 0 && (
+        <ul className="mt-2">
+          {feeds.data.map((feed) => (
+            <li key={feed.id} className="border-b border-line py-4 last:border-b-0 last:pb-0">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-ink">{feed.name}</p>
+                  {feed.last_error ? (
+                    <p className="text-xs text-danger">{problem(feed.last_error)}</p>
+                  ) : feed.last_synced_at ? (
+                    <p className="text-xs text-ink-muted">{t('properties.feeds.read', { time: readAt(feed.last_synced_at) })}</p>
+                  ) : null}
+                </div>
+                <div className="flex shrink-0 gap-0.5">
                   <button
                     type="button"
-                    onClick={() => copy(feed.export_url!)}
-                    className="min-h-[44px] rounded-xl border border-gray-200 bg-white px-4 text-xs font-bold text-gray-700 hover:bg-gray-50"
+                    aria-label={`${t('properties.feeds.sync')}: ${feed.name}`}
+                    title={t('properties.feeds.sync')}
+                    disabled={sync.isPending}
+                    onClick={() => read(feed)}
+                    className={TOOL}
                   >
-                    {t('properties.calendar.copy')}
+                    {sync.isPending && sync.variables === feed.id ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <RefreshCw className="h-4 w-4" />
+                    )}
+                  </button>
+                  <button
+                    type="button"
+                    aria-label={`${t('properties.feeds.remove')}: ${feed.name}`}
+                    title={t('properties.feeds.remove')}
+                    onClick={() => setRemoving(feed)}
+                    className={`${TOOL} hover:bg-danger/10 hover:text-danger`}
+                  >
+                    <Trash2 className="h-4 w-4" />
                   </button>
                 </div>
               </div>
-            )}
-          </li>
-        ))}
-      </ul>
+              {feed.export_url && (
+                <div className="mt-3 flex flex-col gap-1.5">
+                  <p className="text-xs text-ink-muted">{t('properties.feeds.exportHint', { name: feed.name })}</p>
+                  <CopyLink value={feed.export_url} label={t('properties.feeds.exportFor', { name: feed.name })} />
+                </div>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
 
-      <form
-        className="flex flex-col gap-2"
-        onSubmit={(event) => {
-          event.preventDefault()
-          addFeed()
-        }}
-      >
-        <input
-          type="text"
-          list="calendar-platforms"
-          value={name}
-          maxLength={100}
-          onChange={(event) => setName(event.target.value)}
-          placeholder="Airbnb"
-          aria-label={t('properties.feeds.name')}
-          className="h-11 w-full rounded-xl border border-line bg-surface-card px-3 text-sm text-ink outline-none focus:border-accent"
-        />
-        <datalist id="calendar-platforms">
-          <option value="Airbnb" />
-          <option value="Booking.com" />
-          <option value="Krisha" />
-          <option value="OLX" />
-        </datalist>
-        <input
-          type="url"
-          value={url}
-          maxLength={2000}
-          onChange={(event) => setUrl(event.target.value)}
-          placeholder="https://www.airbnb.com/calendar/ical/….ics"
-          aria-label={t('properties.feeds.url')}
-          className="h-11 w-full min-w-0 rounded-xl border border-line bg-surface-card px-3 text-sm text-ink outline-none focus:border-accent"
-        />
-        <button
-          type="submit"
-          disabled={!name.trim() || !/^https?:\/\/\S+$/.test(url.trim()) || add.isPending}
-          className="min-h-[44px] rounded-xl bg-black px-4 text-sm font-semibold text-white hover:bg-gray-800 disabled:opacity-50"
-        >
-          {t('properties.feeds.add')}
-        </button>
-      </form>
+      <Sheet open={adding} onClose={() => setAdding(false)} title={t('properties.feeds.add')}>
+        <AddCalendarForm propertyId={propertyId} onDone={() => setAdding(false)} />
+      </Sheet>
 
       <ConfirmDialog
         open={removing !== null}
@@ -177,11 +128,83 @@ export default function CalendarFeedsCard({ propertyId }: { propertyId: string }
           if (!removing) return
           remove.mutate(removing.id, {
             onSuccess: () => setRemoving(null),
-            onError: () => showToast('error', t('properties.feeds.addFailed')),
+            onError: () => showToast('error', t('properties.feeds.removeFailed')),
           })
         }}
         onCancel={() => setRemoving(null)}
       />
     </section>
+  )
+}
+
+/** The platform and its link; mounted with each opening of the panel, so it starts empty. */
+function AddCalendarForm({ propertyId, onDone }: { propertyId: string; onDone: () => void }) {
+  const { t } = useTranslation()
+  const add = useAddCalendarFeed(propertyId)
+  const [name, setName] = useState('')
+  const [url, setUrl] = useState('')
+  const ready = Boolean(name.trim()) && /^https?:\/\/\S+$/.test(url.trim())
+
+  return (
+    <form
+      className="flex flex-col gap-2"
+      onSubmit={(event) => {
+        event.preventDefault()
+        if (!ready) return
+        add.mutate(
+          { name: name.trim(), url: url.trim() },
+          {
+            onSuccess: (feed) => {
+              // Kept either way; a first read that failed says why on the card too.
+              if (feed.last_error) {
+                showToast('error', t('properties.feeds.addedUnread', { error: t(`properties.feeds.problems.${feedProblem(feed.last_error)}`) }))
+              } else {
+                showToast('success', t('properties.feeds.added'))
+              }
+              onDone()
+            },
+            onError: (error) =>
+              showToast(
+                'error',
+                isAxiosError(error) && error.response?.status === 409 ? t('properties.feeds.duplicate') : t('properties.feeds.addFailed'),
+              ),
+          },
+        )
+      }}
+    >
+      <label htmlFor="feed-name" className="text-xs font-semibold text-ink">{t('properties.feeds.name')}</label>
+      <div className="flex flex-wrap gap-2">
+        {PLATFORMS.map((platform) => (
+          <button
+            key={platform}
+            type="button"
+            aria-pressed={name === platform}
+            onClick={() => setName(platform)}
+            className={`min-h-[36px] rounded-full border px-3 text-xs font-semibold transition-colors ${
+              name === platform ? 'border-accent bg-accent-soft text-accent-ink' : 'border-line text-ink hover:bg-surface-page'
+            }`}
+          >
+            {platform}
+          </button>
+        ))}
+      </div>
+      <input id="feed-name" value={name} maxLength={100} onChange={(event) => setName(event.target.value)} className={INPUT} />
+
+      <label htmlFor="feed-url" className="mt-3 text-xs font-semibold text-ink">{t('properties.feeds.url')}</label>
+      <input
+        id="feed-url"
+        type="url"
+        value={url}
+        maxLength={2000}
+        onChange={(event) => setUrl(event.target.value)}
+        placeholder="https://…/calendar.ics"
+        className={INPUT}
+      />
+      <p className="text-xs text-ink-muted">{t('properties.feeds.urlHint')}</p>
+
+      <Button type="submit" disabled={!ready || add.isPending} className="mt-3">
+        {t('properties.feeds.add')}
+      </Button>
+    </form>
   )
 }

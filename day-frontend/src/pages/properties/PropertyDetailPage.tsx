@@ -12,7 +12,6 @@ import {
   Archive,
   Pencil,
   Copy,
-  CalendarSync,
   Users,
   Bath,
   ImagePlus,
@@ -63,6 +62,7 @@ import { listingOrder } from '../../lib/property-photos'
 import PropertyEditSheet, { type PropertyBlock } from '../../components/property/PropertyEditSheet'
 import BlocksCard from '../../components/property/BlocksCard'
 import CalendarFeedsCard from '../../components/property/CalendarFeedsCard'
+import CopyLink from '../../components/property/CopyLink'
 import PropertyHistory from '../../components/property/PropertyHistory'
 import Spinner from '../../components/ui/Spinner'
 import Button from '../../components/ui/Button'
@@ -248,6 +248,12 @@ export default function PropertyDetailPage() {
       property.check_out_hour != null ||
       property.check_in_method,
   )
+  const listingGroups = (
+    [
+      ['listings', property.listing_urls],
+      ['hourlyListings', property.hourly_listing_urls],
+    ] as const
+  ).filter(([, urls]) => urls?.length > 0)
   const feedsFailing = (feeds.data ?? []).some((feed) => Boolean(feed.last_error))
   // A count where there is something to count; a red dot where something needs a look.
   const tabs: { key: PropertyTab; label: string; count?: number; alert?: boolean }[] = [
@@ -549,40 +555,33 @@ export default function PropertyDetailPage() {
         </TabPanel>
 
         <TabPanel name="calendars" current={tab}>
-          <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-2">
-            <CalendarLinkCard propertyId={propertyId} />
-            {staff && <CalendarFeedsCard propertyId={propertyId} />}
-            {(
-              [
-                ['listings', property.listing_urls],
-                ['hourlyListings', property.hourly_listing_urls],
-              ] as const
-            ).some(([, urls]) => urls?.length > 0) && (
-              <section className={CARD}>
-                {(
-                  [
-                    ['listings', property.listing_urls],
-                    ['hourlyListings', property.hourly_listing_urls],
-                  ] as const
-                ).map(([label, urls]) =>
-                  urls?.length > 0 ? (
-                    <div key={label} className="mb-3 last:mb-0">
-                      <h2 className="mb-1 text-sm font-bold text-ink">{t(`properties.${label}`)}</h2>
-                      <ul className="flex flex-col gap-1">
-                        {urls.map((url) => (
-                          <li key={url} className="min-w-0">
-                            <a href={url} target="_blank" rel="noreferrer" className="block truncate text-sm text-accent-ink hover:underline">
-                              {url.replace(/^https?:\/\/(www\.)?/, '')}
-                            </a>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  ) : null,
-                )}
-              </section>
+          {/* Platforms' own calendars first: most flats sync both ways with each platform. */}
+          {staff && <CalendarFeedsCard propertyId={propertyId} />}
+          <CalendarLinkCard propertyId={propertyId} />
+          <section className={CARD} aria-labelledby="property-listings">
+            <div className="mb-3 flex items-center justify-between gap-2">
+              <h2 id="property-listings" className="text-sm font-bold text-ink">{t('properties.listingsTitle')}</h2>
+              <EditPencil label={t('properties.listingsTitle')} onClick={() => setEditing('basic')} />
+            </div>
+            {listingGroups.length > 0 ? (
+              listingGroups.map(([label, urls]) => (
+                <div key={label} className="mb-3 last:mb-0">
+                  <h3 className="mb-1 text-xs font-semibold text-ink-muted">{t(`properties.${label}`)}</h3>
+                  <ul className="flex flex-col gap-1">
+                    {urls.map((url) => (
+                      <li key={url} className="min-w-0">
+                        <a href={url} target="_blank" rel="noreferrer" className="block truncate text-sm text-accent-ink hover:underline">
+                          {url.replace(/^https?:\/\/(www\.)?/, '')}
+                        </a>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))
+            ) : (
+              <p className="text-sm text-ink-muted">{t('properties.nothingYet')}</p>
             )}
-          </div>
+          </section>
         </TabPanel>
 
         <TabPanel name="history" current={tab}><PropertyHistory entries={auditLog} /></TabPanel>
@@ -904,40 +903,16 @@ function CalendarLinkCard({ propertyId }: { propertyId: string }) {
   })
   if (!allowed) return null
 
-  function copyLink() {
-    if (!link.data) return
-    navigator.clipboard.writeText(link.data).then(
-      () => showToast('success', t('properties.calendar.copied')),
-      // The link stays on screen to copy by hand.
-      () => showToast('error', t('properties.calendar.copyFailed')),
-    )
-  }
-
   return (
     <section className="flex flex-col gap-3 rounded-2xl border border-line bg-surface-card p-5">
-      <div className="flex items-start gap-2 min-w-0">
-        <CalendarSync className="mt-0.5 h-4 w-4 shrink-0 text-ink-muted" />
-        <div className="min-w-0">
-          <h2 className="text-sm font-bold text-ink">{t('properties.calendar.title')}</h2>
-          <p className="text-xs text-ink-muted">{t('properties.calendar.hint')}</p>
-        </div>
+      <div className="min-w-0">
+        <h2 className="text-sm font-bold text-ink">{t('properties.calendar.title')}</h2>
+        <p className="mt-1 text-xs text-ink-muted">{t('properties.calendar.hint')}</p>
       </div>
       {link.isError ? (
         <p className="text-xs text-danger">{t('properties.calendar.failed')}</p>
       ) : (
-        <div className="flex flex-col gap-2">
-          <input
-            type="text"
-            readOnly
-            value={link.data ?? ''}
-            onFocus={(e) => e.currentTarget.select()}
-            aria-label={t('properties.calendar.title')}
-            className="min-w-0 flex-1 rounded-lg border border-line bg-surface-page px-3 py-2 font-mono text-xs text-ink"
-          />
-          <Button type="button" onClick={copyLink} disabled={!link.data}>
-            {t('properties.calendar.copy')}
-          </Button>
-        </div>
+        <CopyLink value={link.data} label={t('properties.calendar.title')} />
       )}
     </section>
   )
