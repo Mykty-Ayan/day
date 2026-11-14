@@ -387,8 +387,10 @@ export default function PropertyDetailPage() {
         onOpen={(place) => (place === 'prices' || place === 'photos' ? setTab(place) : setEditing(place))}
       />
 
-      {/* One part of the flat at a time, as a host's listing is kept on Airbnb. */}
-      <div role="tablist" aria-label={t('properties.sections')} className="-mx-4 mb-5 flex gap-1 overflow-x-auto border-b border-line px-4 sm:mx-0 sm:px-0">
+      {/* One part of the flat at a time, as a host's listing is kept on Airbnb. The grey line
+          is drawn inside the row, not a border the tabs reach over: a row that scrolls sideways
+          would scroll up and down by that reach too. */}
+      <div role="tablist" aria-label={t('properties.sections')} className="-mx-4 mb-5 flex gap-1 overflow-x-auto px-4 shadow-[inset_0_-1px_0_var(--color-line)] sm:mx-0 sm:px-0">
         {tabs.map((item) => (
           <button
             key={item.key}
@@ -398,7 +400,7 @@ export default function PropertyDetailPage() {
             aria-selected={tab === item.key}
             aria-controls={`panel-${item.key}`}
             onClick={() => setTab(item.key)}
-            className={`-mb-px shrink-0 border-b-2 px-3 py-2.5 text-sm font-semibold transition-colors ${
+            className={`shrink-0 border-b-2 px-3 py-2.5 text-sm font-semibold transition-colors ${
               tab === item.key ? 'border-accent text-accent-ink' : 'border-transparent text-ink-muted hover:text-ink'
             }`}
           >
