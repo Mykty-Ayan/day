@@ -64,6 +64,7 @@ test('a calendar\'s nights are not reopened by hand', async ({ page, request }) 
   await page.goto(`/properties/${flat.id}?tab=blocks`)
   const blocks = page.getByRole('region', { name: 'Closed dates' })
   await expect(blocks).toContainText('From calendar: Airbnb')
+  await expect(blocks).toContainText('Reopen on the platform')
   await expect(blocks.getByRole('button', { name: 'Reopen dates' })).toHaveCount(0)
 })
 

@@ -16,15 +16,24 @@ test('closed nights are set on the flat page and kept off by the booking calenda
   const [first, out] = [futureDate(3), futureDate(5)]
 
   await page.goto(`/properties/${id}?tab=blocks`)
+  await page.getByRole('button', { name: 'Close dates', exact: true }).click()
+  const panel = page.getByRole('dialog', { name: 'Close dates' })
   await page.locator('#block-range').click()
   await (await calendarDay(page, first)).click()
   await (await calendarDay(page, out)).click()
   await expect(page.locator('#block-range')).not.toContainText('First night')
-  await page.getByPlaceholder('Reason, e.g. "repairs"').fill('Plumber visit')
+  // The nights themselves, not the morning after the last one.
+  await expect(panel).toContainText('2 nights')
+  await panel.getByRole('button', { name: 'repairs', exact: true }).click()
+  await expect(panel.getByPlaceholder('Reason, e.g. "repairs"')).toHaveValue('repairs')
+  await panel.getByPlaceholder('Reason, e.g. "repairs"').fill('Plumber visit')
   const saved = page.waitForResponse((r) => r.request().method() === 'POST' && r.url().endsWith(`/properties/${id}/blocks`))
-  await page.getByRole('button', { name: 'Close dates', exact: true }).click()
+  await panel.getByRole('button', { name: 'Close dates', exact: true }).click()
   expect((await saved).status()).toBe(201)
-  await expect(page.getByText('Plumber visit', { exact: true })).toBeVisible()
+  await expect(panel).toBeHidden()
+  const blocks = page.getByRole('region', { name: 'Closed dates' })
+  await expect(blocks.getByText('Plumber visit', { exact: true })).toBeVisible()
+  await expect(blocks).toContainText('2 nights')
 
   // The booking calendar: the closed nights cannot start a stay.
   await page.goto(`/bookings/new?property_id=${id}`)
@@ -137,6 +146,7 @@ test('the flat page closes no further ahead than it lists', async ({ page, reque
   past.setDate(past.getDate() + 1)
 
   await page.goto(`/properties/${id}?tab=blocks`)
+  await page.getByRole('button', { name: 'Close dates', exact: true }).click()
   await page.locator('#block-range').click()
   await expect(await calendarDay(page, local(horizon))).toBeEnabled()
   await expect(await calendarDay(page, local(past))).toBeDisabled()
