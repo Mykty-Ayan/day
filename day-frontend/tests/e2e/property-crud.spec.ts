@@ -59,6 +59,8 @@ test.describe('Property CRUD - E2E', () => {
       status: 'new',
       address_full: data.address_full,
       floor: data.floor,
+      // The usual turnover between hourly stays, set as the old wizard did; the owner may clear it.
+      buffer_minutes: 30,
     })
   })
 

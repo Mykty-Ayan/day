@@ -123,6 +123,9 @@ export default function CreatePropertyPage() {
       floors_total: form.address.floors_total ? parseInt(form.address.floors_total) : undefined,
       latitude: form.address.latitude ? parseFloat(form.address.latitude) : undefined,
       longitude: form.address.longitude ? parseFloat(form.address.longitude) : undefined,
+      // Thirty minutes to clean between hourly stays is the usual turnover; the owner
+      // may change or clear it in the flat's rules. Without it two stays touch.
+      buffer_minutes: 30,
     }
     createProperty.mutate(payload, {
       onSuccess: (created) => {
