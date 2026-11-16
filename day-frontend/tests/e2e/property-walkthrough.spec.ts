@@ -13,17 +13,6 @@ import { calendarDay } from '../fixtures/test-data'
 import { englishWords, expectInSight, inRussian, ru } from '../fixtures/screen-checks'
 import { bareFlat, fullFlat, localDay } from '../fixtures/stand-ru'
 
-/**
- * Bugs these tests found that this change does not fix; its PR lists them. A test marked
- * with one passes while the bug is there and fails once it is fixed: then drop the mark.
- */
-const KNOWN = {
-  tabLeftInPlace:
-    'Known bug: the button opens its tab but leaves the page where it was, and what the button is for stays below the screen',
-  rulesUnderSave:
-    'Known bug: on a phone the check-in instructions open below the screen, under the panel\'s save bar',
-}
-
 const PHOTO = new URL('../fixtures/images/test-photo.png', import.meta.url).pathname
 const SAVE = ru('common.save')
 
@@ -108,7 +97,6 @@ test.describe('the pencils of the flat at the top of the page', () => {
   })
 
   test('the empty cover, «Добавить фото»: the tile of the Photos tab in sight', async ({ page, request }) => {
-    test.fail(true, KNOWN.tabLeftInPlace)
     const flat = await fullFlat(request)
     await page.goto(`/properties/${flat.id}`)
     await press(page.getByRole('button', { name: ru('properties.addPhotos'), exact: true }))
@@ -131,8 +119,7 @@ test.describe('the readiness card: each item leads to the field it lacks', () =>
     ['checkInInstructions', 'properties.edit.rules', 'properties.form.checkInInstructions', 'Код домофона 1234.'],
   ]
   for (const [key, title, label, value] of PANELS) {
-    test(`«${ru(`properties.ready.items.${key}`)}»: «${ru(title)}» with «${ru(label)}» in sight`, async ({ page, request, isMobile }) => {
-      test.fail(key === 'checkInInstructions' && isMobile, KNOWN.rulesUnderSave)
+    test(`«${ru(`properties.ready.items.${key}`)}»: «${ru(title)}» with «${ru(label)}» in sight`, async ({ page, request }) => {
       const flat = await bareFlat(request)
       await page.goto(`/properties/${flat.id}`)
       const panel = await opens(page, item(page, key), ru(title))
@@ -155,7 +142,6 @@ test.describe('the readiness card: each item leads to the field it lacks', () =>
   })
 
   test('«Цены»: the night price in sight', async ({ page, request }) => {
-    test.fail(true, KNOWN.tabLeftInPlace)
     const flat = await bareFlat(request)
     await page.goto(`/properties/${flat.id}`)
     await press(item(page, 'prices'))
@@ -171,7 +157,6 @@ test.describe('the readiness card: each item leads to the field it lacks', () =>
     ['checkInPhotos', 'properties.checkInPhotos.add'],
   ] as const) {
     test(`«${ru(`properties.ready.items.${key}`)}»: «${ru(tile)}» in sight`, async ({ page, request }) => {
-      test.fail(true, KNOWN.tabLeftInPlace)
       const flat = await bareFlat(request)
       await page.goto(`/properties/${flat.id}`)
       await press(item(page, key))

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Loader2 } from 'lucide-react'
 import { useSetAmenities, useUpdateProperty } from '../../hooks/useProperties'
@@ -37,10 +37,13 @@ const TITLES: Record<PropertyBlock, string> = {
 export default function PropertyEditSheet({
   property,
   block,
+  field,
   onClose,
 }: {
   property: Property
   block: PropertyBlock | null
+  /** The id of the field the panel is opened for: shown even when the block puts it below the screen. */
+  field?: string
   onClose: () => void
 }) {
   const { t } = useTranslation()
@@ -48,13 +51,27 @@ export default function PropertyEditSheet({
     <Sheet open={block !== null} onClose={onClose} title={block ? t(TITLES[block]) : ''} wide>
       {/* Keyed by the flat too: each opening starts from that flat as it is now,
           and a form never outlives a move to another flat (Back after a copy). */}
-      {block && <BlockForm key={`${property.id}:${block}`} property={property} block={block} onDone={onClose} />}
+      {block && <BlockForm key={`${property.id}:${block}`} property={property} block={block} field={field} onDone={onClose} />}
     </Sheet>
   )
 }
 
-function BlockForm({ property, block, onDone }: { property: Property; block: PropertyBlock; onDone: () => void }) {
+function BlockForm({
+  property,
+  block,
+  field,
+  onDone,
+}: {
+  property: Property
+  block: PropertyBlock
+  field?: string
+  onDone: () => void
+}) {
   const { t } = useTranslation()
+  // To the middle of the panel, clear of the save bar stuck to its bottom.
+  useEffect(() => {
+    if (field) document.getElementById(field)?.scrollIntoView({ block: 'center' })
+  }, [field])
   const update = useUpdateProperty(property.id)
   const setAmenities = useSetAmenities(property.id)
   const [opened] = useState<PropertyEditForm>(() => propertyToForm(property))
