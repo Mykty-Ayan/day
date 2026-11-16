@@ -30,13 +30,18 @@ test('a platform calendar is added, shows how it was read and its own Day link, 
   const flat = await activeFlat(request)
   await page.goto(`/properties/${flat.id}?tab=calendars`)
   const card = page.getByRole('region', { name: 'Platform calendars' })
-  await card.getByLabel('Platform').fill('Airbnb')
-  // An address that resolves nowhere: the calendar is kept, with why it was not read.
-  await card.getByLabel('Calendar link (.ics)').fill('https://calendar.invalid/listing.ics')
-  await card.getByRole('button', { name: 'Add' }).click()
+  await card.getByRole('button', { name: 'Add calendar' }).click()
+  const panel = page.getByRole('dialog', { name: 'Add calendar' })
+  await panel.getByRole('button', { name: 'Airbnb', exact: true }).click()
+  await expect(panel.getByLabel('Platform')).toHaveValue('Airbnb')
+  // An address that resolves nowhere: the calendar is kept, with why it was not read, in plain words.
+  await panel.getByLabel('Calendar link (.ics)').fill('https://calendar.invalid/listing.ics')
+  await panel.getByRole('button', { name: 'Add calendar' }).click()
+  await expect(panel).toBeHidden()
 
   const item = card.getByRole('listitem').filter({ hasText: 'Airbnb' })
-  await expect(item).toContainText('Not read:')
+  await expect(item).toContainText('Not read: the link does not open')
+  await expect(item).not.toContainText('resolve')
   await expect(item.getByLabel('Day link for Airbnb')).toHaveValue(/&exclude=[0-9a-f-]{36}$/)
 
   await item.getByRole('button', { name: 'Remove: Airbnb' }).click()

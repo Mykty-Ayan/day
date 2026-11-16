@@ -17,12 +17,12 @@ import { Sheet } from '../ui/sheet'
 import { showToast } from '../ui/Toast'
 import PropertyFormStepAddress from './PropertyFormStepAddress'
 import PropertyFormStepAmenities from './PropertyFormStepAmenities'
-import PropertyFormStepBasic from './PropertyFormStepBasic'
+import PropertyFormStepBasic, { ListingLinksFields } from './PropertyFormStepBasic'
 import PropertyFormStepDetails from './PropertyFormStepDetails'
 import PropertyFormStepRules from './PropertyFormStepRules'
 
 /** One block of the flat, changed where it is shown. */
-export type PropertyBlock = 'basic' | 'address' | 'details' | 'rules' | 'amenities'
+export type PropertyBlock = 'basic' | 'address' | 'details' | 'rules' | 'amenities' | 'listings'
 
 const TITLES: Record<PropertyBlock, string> = {
   basic: 'properties.edit.basic',
@@ -30,6 +30,7 @@ const TITLES: Record<PropertyBlock, string> = {
   details: 'properties.edit.details',
   rules: 'properties.edit.rules',
   amenities: 'properties.amenities',
+  listings: 'properties.listingsTitle',
 }
 
 /** A panel from the right with one block of the flat's fields; the page below stays. */
@@ -71,6 +72,8 @@ function BlockForm({ property, block, onDone }: { property: Property; block: Pro
       for (const key of ['map_url', 'whatsapp_product_url', 'video_url'] as const) {
         if (form.basic[key].trim() && !isWebLink(form.basic[key])) found[key] = t('properties.validation.webLink')
       }
+    }
+    if (block === 'listings') {
       if (!listingLinksValid(form.basic.listing_urls)) found.listing_urls = t('properties.validation.listingLinks')
       if (!listingLinksValid(form.basic.hourly_listing_urls)) found.hourly_listing_urls = t('properties.validation.listingLinks')
       else if (listingInBoth(form.basic.listing_urls, form.basic.hourly_listing_urls)) {
@@ -102,7 +105,15 @@ function BlockForm({ property, block, onDone }: { property: Property; block: Pro
   return (
     <div className="flex flex-col gap-5">
       {block === 'basic' && (
-        <PropertyFormStepBasic data={form.basic} onChange={(basic) => setForm((f) => ({ ...f, basic }))} errors={errors} />
+        <PropertyFormStepBasic
+          data={form.basic}
+          onChange={(basic) => setForm((f) => ({ ...f, basic }))}
+          errors={errors}
+          withListings={false}
+        />
+      )}
+      {block === 'listings' && (
+        <ListingLinksFields data={form.basic} onChange={(basic) => setForm((f) => ({ ...f, basic }))} errors={errors} />
       )}
       {block === 'address' && (
         <PropertyFormStepAddress data={form.address} onChange={(address) => setForm((f) => ({ ...f, address }))} />
