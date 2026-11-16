@@ -18,6 +18,8 @@ interface Props {
   data: BasicData
   onChange: (data: BasicData) => void
   errors: Partial<Record<keyof BasicData, string>>
+  /** The listing links too: the wizard asks them here, the flat's page in a panel of their own. */
+  withListings?: boolean
 }
 
 const propertyTypeValues: PropertyType[] = ['apartment', 'house', 'room']
@@ -35,7 +37,7 @@ const linkFields = [
   ['video_url', 'videoUrl'],
 ] as const
 
-export default function PropertyFormStepBasic({ data, onChange, errors }: Props) {
+export default function PropertyFormStepBasic({ data, onChange, errors, withListings = true }: Props) {
   const { t } = useTranslation()
   function update<K extends keyof BasicData>(key: K, value: BasicData[K]) {
     onChange({ ...data, [key]: value })
@@ -145,6 +147,16 @@ export default function PropertyFormStepBasic({ data, onChange, errors }: Props)
         </div>
       ))}
 
+      {withListings && <ListingLinksFields data={data} onChange={onChange} errors={errors} />}
+    </div>
+  )
+}
+
+/** The flat's listings, nightly and hourly, one link per line. */
+export function ListingLinksFields({ data, onChange, errors }: Omit<Props, 'withListings'>) {
+  const { t } = useTranslation()
+  return (
+    <div className="space-y-4">
       {/* Krisha lists a flat once to rent by the night and once by the hour: the
           list the guest's link is in tells the CRM which stay they mean. */}
       {listingFields.map(([key, id, label]) => (
@@ -156,7 +168,7 @@ export default function PropertyFormStepBasic({ data, onChange, errors }: Props)
             id={id}
             rows={3}
             value={data[key]}
-            onChange={(e) => update(key, e.target.value)}
+            onChange={(e) => onChange({ ...data, [key]: e.target.value })}
             placeholder={t(`properties.form.${label}Placeholder`)}
             className={`w-full resize-none bg-surface-card border rounded-xl p-3 outline-none focus:border-accent text-ink text-sm ${
               errors[key] ? 'border-danger bg-red-50' : 'border-line'

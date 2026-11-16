@@ -563,7 +563,7 @@ export default function PropertyDetailPage() {
           <section className={CARD} aria-labelledby="property-listings">
             <div className="mb-3 flex items-center justify-between gap-2">
               <h2 id="property-listings" className="text-sm font-bold text-ink">{t('properties.listingsTitle')}</h2>
-              <EditPencil label={t('properties.listingsTitle')} onClick={() => setEditing('basic')} />
+              <EditPencil label={t('properties.listingsTitle')} onClick={() => setEditing('listings')} />
             </div>
             {listingGroups.length > 0 ? (
               listingGroups.map(([label, urls]) => (
