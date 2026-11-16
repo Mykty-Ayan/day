@@ -47,9 +47,9 @@ test('nights priced on the chessboard show their price, and a reset brings the u
   expect((await saved).status()).toBe(200)
   await expect(dialog).toHaveCount(0)
 
-  await expect(cell(day(10))).toContainText('25k')
-  await expect(cell(day(11))).toContainText('25k')
-  await expect(cell(day(12))).toContainText('10k')
+  await expect(cell(day(10))).toContainText('25K')
+  await expect(cell(day(11))).toContainText('25K')
+  await expect(cell(day(12))).toContainText('10K')
   expect(await priced()).toEqual([
     { date: local(day(10)), price: 25000 },
     { date: local(day(11)), price: 25000 },
@@ -62,8 +62,8 @@ test('nights priced on the chessboard show their price, and a reset brings the u
   await expect(dialog).toContainText('1 night')
   await dialog.getByRole('button', { name: 'Back to usual price' }).click()
   await page.getByRole('button', { name: 'Back to usual price' }).last().click()
-  await expect(cell(day(11))).toContainText('10k')
-  await expect(cell(day(10))).toContainText('25k')
+  await expect(cell(day(11))).toContainText('10K')
+  await expect(cell(day(10))).toContainText('25K')
   expect(await priced()).toEqual([{ date: local(day(10)), price: 25000 }])
 })
 

@@ -962,6 +962,7 @@
     "flatsCount_other": "{{count}} объекта",
     "flat3h": "3 ч {{price}}",
     "legendOwn": "своя цена",
+    "thousands": "тыс.",
     "newTitle": "Новая бронь",
     "newSum": "По ценам на эти ночи: {{sum}}",
     "newSumHint": "Точную сумму с гостями и скидками посчитает форма.",

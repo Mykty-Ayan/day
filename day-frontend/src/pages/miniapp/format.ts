@@ -10,6 +10,16 @@ export function formatMoney(value: number, language: string): string {
   return new Intl.NumberFormat(intlLocale(language), { maximumFractionDigits: 0 }).format(value)
 }
 
+/** A price in a box too narrow for the whole of it: in thousands from a thousand up, «15»,
+ *  «1,5», and the caller adds the word for them («тыс.», «мың»). Not Intl's compact notation:
+ *  Chrome writes Kazakh thousands as a Latin «K». */
+export function formatMoneyShort(value: number, language: string): { amount: string; thousands: boolean } {
+  if (value < 1000) return { amount: formatMoney(value, language), thousands: false }
+  const short = value / 1000
+  const amount = new Intl.NumberFormat(intlLocale(language), { maximumFractionDigits: short < 10 ? 1 : 0 }).format(short)
+  return { amount, thousands: true }
+}
+
 /** Kopecks kept: what a confirmation names is what the operation sends. */
 export function formatMoneyExact(value: number, language: string): string {
   return new Intl.NumberFormat(intlLocale(language), { maximumFractionDigits: 2 }).format(value)
