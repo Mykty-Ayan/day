@@ -33,7 +33,6 @@ const INVARIANT = new Set([
   'properties.form.amenitiesSelected', // Выбрано удобств: 3
   'properties.roomsCount', // 3 комн.
   'properties.bedsCount', // 3 кров.
-  'properties.photosFailed', // …не загрузились: 3
   'properties.photosAdded', // Фото добавлены: 3
   'properties.photosNotAdded', // Не загрузились: 3
   'cleaner.activeCount', // В работе (3)

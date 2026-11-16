@@ -109,7 +109,6 @@ function BlockForm({ property, block, onDone }: { property: Property; block: Pro
           data={form.basic}
           onChange={(basic) => setForm((f) => ({ ...f, basic }))}
           errors={errors}
-          withListings={false}
         />
       )}
       {block === 'listings' && (
@@ -124,7 +123,7 @@ function BlockForm({ property, block, onDone }: { property: Property; block: Pro
       {block === 'rules' && (
         <PropertyFormStepRules data={form.rules} onChange={(rules) => setForm((f) => ({ ...f, rules }))} errors={errors} />
       )}
-      {block === 'amenities' && <PropertyFormStepAmenities selectedIds={amenities} onChange={setAmenityIds} inPanel />}
+      {block === 'amenities' && <PropertyFormStepAmenities selectedIds={amenities} onChange={setAmenityIds} />}
 
       {/* Stuck to the bottom of the panel: a long block keeps its save at hand. */}
       <div className="sticky bottom-0 -mx-5 -mb-5 flex gap-2 border-t border-line bg-surface-card px-5 py-3">

@@ -18,8 +18,8 @@ interface Props {
   data: BasicData
   onChange: (data: BasicData) => void
   errors: Partial<Record<keyof BasicData, string>>
-  /** The listing links too: the wizard asks them here, the flat's page in a panel of their own. */
-  withListings?: boolean
+  /** The wizard asks the names and the type alone; the rest is filled on the flat's page. */
+  namesOnly?: boolean
 }
 
 const propertyTypeValues: PropertyType[] = ['apartment', 'house', 'room']
@@ -37,7 +37,7 @@ const linkFields = [
   ['video_url', 'videoUrl'],
 ] as const
 
-export default function PropertyFormStepBasic({ data, onChange, errors, withListings = true }: Props) {
+export default function PropertyFormStepBasic({ data, onChange, errors, namesOnly = false }: Props) {
   const { t } = useTranslation()
   function update<K extends keyof BasicData>(key: K, value: BasicData[K]) {
     onChange({ ...data, [key]: value })
@@ -103,57 +103,59 @@ export default function PropertyFormStepBasic({ data, onChange, errors, withList
         </div>
       </div>
 
-      <div>
-        <label className="block text-xs font-semibold text-ink-muted mb-1.5">
-          {t('properties.form.description')}
-        </label>
-        <textarea
-          value={data.description}
-          onChange={(e) => update('description', e.target.value)}
-          placeholder={t('properties.form.descriptionPlaceholder')}
-          rows={3}
-          className="w-full bg-surface-card border border-line rounded-xl p-3 outline-none focus:border-accent text-ink text-sm resize-none"
-        />
-      </div>
+      {!namesOnly && (
+        <>
+          <div>
+            <label className="block text-xs font-semibold text-ink-muted mb-1.5">
+              {t('properties.form.description')}
+            </label>
+            <textarea
+              value={data.description}
+              onChange={(e) => update('description', e.target.value)}
+              placeholder={t('properties.form.descriptionPlaceholder')}
+              rows={3}
+              className="w-full bg-surface-card border border-line rounded-xl p-3 outline-none focus:border-accent text-ink text-sm resize-none"
+            />
+          </div>
 
-      <div>
-        <label className="block text-xs font-semibold text-ink-muted mb-1.5">
-          {t('properties.form.sourceUrl')}
-        </label>
-        <input
-          type="url"
-          value={data.source_url}
-          onChange={(e) => update('source_url', e.target.value)}
-          placeholder={t('properties.form.sourceUrlPlaceholder')}
-          className="w-full bg-surface-card border border-line rounded-xl p-3 outline-none focus:border-accent text-ink text-sm"
-        />
-      </div>
+          <div>
+            <label className="block text-xs font-semibold text-ink-muted mb-1.5">
+              {t('properties.form.sourceUrl')}
+            </label>
+            <input
+              type="url"
+              value={data.source_url}
+              onChange={(e) => update('source_url', e.target.value)}
+              placeholder={t('properties.form.sourceUrlPlaceholder')}
+              className="w-full bg-surface-card border border-line rounded-xl p-3 outline-none focus:border-accent text-ink text-sm"
+            />
+          </div>
 
-      {linkFields.map(([key, label]) => (
-        <div key={key}>
-          <label className="block text-xs font-semibold text-ink-muted mb-1.5">
-            {t(`properties.form.${label}`)}
-          </label>
-          <input
-            type="url"
-            value={data[key]}
-            onChange={(e) => update(key, e.target.value)}
-            placeholder={t(`properties.form.${label}Placeholder`)}
-            className={`w-full bg-surface-card border rounded-xl p-3 outline-none focus:border-accent text-ink text-sm ${
-              errors[key] ? 'border-danger bg-red-50' : 'border-line'
-            }`}
-          />
-          {errors[key] && <p className="text-danger text-xs mt-1">{errors[key]}</p>}
-        </div>
-      ))}
-
-      {withListings && <ListingLinksFields data={data} onChange={onChange} errors={errors} />}
+          {linkFields.map(([key, label]) => (
+            <div key={key}>
+              <label className="block text-xs font-semibold text-ink-muted mb-1.5">
+                {t(`properties.form.${label}`)}
+              </label>
+              <input
+                type="url"
+                value={data[key]}
+                onChange={(e) => update(key, e.target.value)}
+                placeholder={t(`properties.form.${label}Placeholder`)}
+                className={`w-full bg-surface-card border rounded-xl p-3 outline-none focus:border-accent text-ink text-sm ${
+                  errors[key] ? 'border-danger bg-red-50' : 'border-line'
+                }`}
+              />
+              {errors[key] && <p className="text-danger text-xs mt-1">{errors[key]}</p>}
+            </div>
+          ))}
+        </>
+      )}
     </div>
   )
 }
 
 /** The flat's listings, nightly and hourly, one link per line. */
-export function ListingLinksFields({ data, onChange, errors }: Omit<Props, 'withListings'>) {
+export function ListingLinksFields({ data, onChange, errors }: Omit<Props, 'namesOnly'>) {
   const { t } = useTranslation()
   return (
     <div className="space-y-4">

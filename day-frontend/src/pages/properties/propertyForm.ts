@@ -1,5 +1,5 @@
 import { isWebLink } from '../../lib/utils'
-import type { CheckInMethod, Property, PropertyCreateInput, PropertyType, PropertyUpdateInput } from '../../types/property'
+import type { CheckInMethod, Property, PropertyType, PropertyUpdateInput } from '../../types/property'
 
 /** The edit form keeps every field as typed text; the payload turns it back into values. */
 export interface PropertyEditForm {
@@ -205,24 +205,4 @@ export function changedFields(form: PropertyEditForm, opened: PropertyEditForm):
       ([key, value]) => key === 'wifi_password' || JSON.stringify(value) !== JSON.stringify(before[key]),
     ),
   )
-}
-
-/** The wizard's create payload as an update of the flat it already created:
- *  a field left empty goes out as null, so a field cleared between attempts clears. */
-export function wizardToUpdate(payload: PropertyCreateInput): PropertyUpdateInput {
-  return Object.fromEntries(Object.entries(payload).map(([key, value]) => [key, value ?? null]))
-}
-
-/** The wizard's save. The flat is created once: a retry after a failed price or
- *  amenity save first saves the form as it is now onto that flat, then finishes it. */
-export async function saveWizard(
-  created: { current: string | null },
-  create: () => Promise<string>,
-  update: (propertyId: string) => Promise<void>,
-  finish: (propertyId: string) => Promise<void>,
-): Promise<string> {
-  if (created.current === null) created.current = await create()
-  else await update(created.current)
-  await finish(created.current)
-  return created.current
 }

@@ -8,12 +8,10 @@ import { Checkbox } from '../ui/checkbox'
 
 interface Props {
   selectedIds: string[]
-  /** In a side panel the panel scrolls; in the wizard the list keeps its own box. */
-  inPanel?: boolean
   onChange: (ids: string[]) => void
 }
 
-export default function PropertyFormStepAmenities({ selectedIds, onChange, inPanel = false }: Props) {
+export default function PropertyFormStepAmenities({ selectedIds, onChange }: Props) {
   const { t } = useTranslation()
   const { data: amenities = [], isLoading, isError } = useAmenities()
   const [search, setSearch] = useState('')
@@ -73,7 +71,7 @@ export default function PropertyFormStepAmenities({ selectedIds, onChange, inPan
         </p>
       )}
 
-      <div className={inPanel ? 'space-y-5' : 'space-y-5 max-h-80 overflow-y-auto'}>
+      <div className="space-y-5">
         {Array.from(grouped.entries()).map(([category, items]) => (
           <div key={category}>
             <h3 className="text-xs font-semibold text-ink-muted mb-2">
