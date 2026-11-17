@@ -180,13 +180,16 @@ test.describe('Property Tags - E2E', () => {
     // so the tagged property is awaited first: a hidden one proves nothing until the
     // filtered list is on screen
     const filtered = page.waitForResponse((r) => r.url().includes('/properties?') && r.url().includes(`tag_id=${tag.id}`))
-    await page.getByRole('button', { name: tag.name, exact: true }).click()
+    const chip = page.getByRole('button', { name: tag.name, exact: true })
+    await chip.click()
     await filtered
+    await expect(chip).toHaveAttribute('aria-pressed', 'true')
     await expect(page.getByText(tagged.name)).toBeVisible()
     await expect(page.getByText(untagged.name)).toHaveCount(0)
 
-    // "All" shows both again
-    await page.getByRole('button', { name: 'All', exact: true }).click()
+    // A second tap on the chip shows both again
+    await chip.click()
+    await expect(chip).toHaveAttribute('aria-pressed', 'false')
     await expect(page.getByText(untagged.name)).toBeVisible()
     await expect(page.getByText(tagged.name)).toBeVisible()
   })

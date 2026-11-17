@@ -98,9 +98,6 @@
     "room": "Room",
     "noteOptional": "Note (optional)",
     "optionalNotes": "Optional notes…",
-    "large": "Large",
-    "medium": "Medium",
-    "list": "List",
     "cards": "Cards",
     "table": "Table",
     "cash": "Cash",
@@ -333,7 +330,6 @@
       "comfort": "Comfort",
       "outdoor": "Outdoor"
     },
-    "perNight": "/ night",
     "roomsCount": "{{count}} rooms",
     "bedsCount": "{{count}} beds",
     "tags": {
@@ -455,6 +451,38 @@
       "none": "None",
       "occupancy": "Occupancy, 30 days",
       "onChessboard": "on the chessboard"
+    },
+    "board": {
+      "object": "Property",
+      "next": "Next",
+      "living": "Guest in",
+      "cleaning": "Needs cleaning",
+      "closed": "Closed",
+      "notSold": "Not let yet",
+      "none": "No check-ins",
+      "failed": "Today's bookings and cleanings did not load. Check the connection and try again",
+      "checkOut": "Check-out {{when}}",
+      "checkIn": "Check-in {{when}}",
+      "then": "Then check-in {{when}}",
+      "when": {
+        "today": "today at {{time}}",
+        "tomorrow": "tomorrow at {{time}}",
+        "day": "{{day}} at {{time}}"
+      },
+      "counts": {
+        "arrivals": "Check-ins today",
+        "departures": "Check-outs today",
+        "living": "Staying now",
+        "cleaning": "Awaiting cleaning",
+        "free": "Free"
+      },
+      "problems": {
+        "noPrices": "No prices",
+        "noPhotos": "No photos",
+        "fewPhotos": "Few photos",
+        "noCheckIn": "No “How to check in”",
+        "calendar": "Calendar not read"
+      }
     },
     "ready": {
       "title": "Property readiness: {{done}} of {{total}}",

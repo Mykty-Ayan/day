@@ -40,6 +40,7 @@ import {
   clearDayPrices,
   type DayPriceRange,
   listCalendarFeeds,
+  getPropertySetup,
   addCalendarFeed,
   syncCalendarFeed,
   removeCalendarFeed,
@@ -107,6 +108,15 @@ export function useChangePropertyStatus(id: string) {
       qc.invalidateQueries({ queryKey: [AUDIT_LOG_KEY, id] })
       qc.invalidateQueries({ queryKey: ['gantt-data'] })
     },
+  })
+}
+
+export function usePropertySetup() {
+  return useQuery({
+    queryKey: [PROPERTIES_KEY, 'setup'],
+    queryFn: getPropertySetup,
+    // Prices and calendars change on the flat's page: read afresh each time the list opens.
+    staleTime: 0,
   })
 }
 

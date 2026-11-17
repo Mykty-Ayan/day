@@ -291,6 +291,17 @@ export interface PropertyBlock {
   source?: string | null
 }
 
+/** A flat's prices without seasons and discounts, as the server keeps them. */
+export type PricingBase = Omit<PricingConfig, 'seasonal_prices' | 'discount_rules'>
+
+/** What the flats list shows beyond a flat's own fields, for every flat in one call. */
+export interface PropertySetup {
+  property_id: string
+  pricing: PricingBase | null
+  /** A platform's calendar failed on its last read. */
+  calendar_error: boolean
+}
+
 /** A platform's iCal calendar of the flat, read by Day every half hour. */
 export interface CalendarFeed {
   id: string
