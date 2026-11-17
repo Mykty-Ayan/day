@@ -6,6 +6,7 @@
 import { readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { expect, test } from '@playwright/test'
+import { DAY_COUNTS, PROBLEMS } from '../../src/lib/object-day'
 
 const LANGUAGES = ['ru', 'kz', 'en']
 const AMENITY_CATEGORIES = [
@@ -48,5 +49,15 @@ for (const language of LANGUAGES) {
   test(`every amenity category has a name in ${language}`, () => {
     const known = localeKeys(language)
     expect(AMENITY_CATEGORIES.filter((category) => !known.has(`properties.amenityCategories.${category}`))).toEqual([])
+  })
+
+  // The objects list builds these keys from a name, so the search for t('…') above misses them.
+  test(`every day counter and problem of the objects list has words in ${language}`, () => {
+    const known = localeKeys(language)
+    const keys = [
+      ...DAY_COUNTS.map((count) => `properties.board.counts.${count}`),
+      ...PROBLEMS.map((problem) => `properties.board.problems.${problem}`),
+    ]
+    expect(keys.filter((key) => !known.has(key))).toEqual([])
   })
 }

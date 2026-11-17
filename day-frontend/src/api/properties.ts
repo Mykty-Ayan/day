@@ -1,6 +1,6 @@
 import apiClient from './client'
 import type { GanttDayPrice } from '../types/booking'
-import type { Property, PropertyCreateInput, PropertyUpdateInput, PropertyFilters, PaginatedResponse, PricingConfig, PricingInput, SeasonalPrice, SeasonalPriceInput, DiscountRule, DiscountRuleInput, Amenity, PropertyAuditLog, PropertyStatus, PhotoAudience, Tag, TagCreateInput, PropertyBlock, CalendarFeed } from '../types/property'
+import type { Property, PropertyCreateInput, PropertyUpdateInput, PropertyFilters, PaginatedResponse, PricingConfig, PricingInput, SeasonalPrice, SeasonalPriceInput, DiscountRule, DiscountRuleInput, Amenity, PropertyAuditLog, PropertyStatus, PhotoAudience, Tag, TagCreateInput, PropertyBlock, CalendarFeed, PricingBase, PropertySetup } from '../types/property'
 
 // --- Properties ---
 
@@ -178,7 +178,7 @@ export async function copyTariffsToAll(propertyId: string): Promise<number> {
 
 export async function getPricing(propertyId: string): Promise<PricingConfig | null> {
   const res = await apiClient.get(`/properties/${propertyId}/pricing`)
-  const base = res.data as Omit<PricingConfig, 'seasonal_prices' | 'discount_rules'> | null
+  const base = res.data as PricingBase | null
   if (!base) return null
 
   const [seasonal_prices, discount_rules] = await Promise.all([
@@ -320,6 +320,12 @@ export async function createBlock(
 
 export async function deleteBlock(propertyId: string, blockId: string): Promise<void> {
   await apiClient.delete(`/properties/${propertyId}/blocks/${blockId}`)
+}
+
+/** Every flat's prices and whether its calendars read, for the flats list. */
+export async function getPropertySetup(): Promise<PropertySetup[]> {
+  const res = await apiClient.get('/properties/setup')
+  return res.data
 }
 
 export async function listCalendarFeeds(propertyId: string): Promise<CalendarFeed[]> {

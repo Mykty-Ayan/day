@@ -1,7 +1,7 @@
 /** The flat's page at a glance: what is happening in it now, and what it still lacks. */
 
 import type { Booking } from '../types/booking'
-import type { PricingConfig, Property } from '../types/property'
+import type { PricingBase, PricingConfig, Property } from '../types/property'
 
 type Stay = Pick<Booking, 'id' | 'check_in' | 'check_out' | 'status' | 'rental_mode' | 'guest_name'>
 
@@ -61,18 +61,23 @@ export interface ReadinessItem {
   place: ReadinessPlace
 }
 
+/** Whether the flat has a price for each way it is rented: a night, and an hour or a tariff. */
+export function priced(property: Pick<Property, 'rental_mode'>, pricing: PricingBase | null | undefined): boolean {
+  const nightly = property.rental_mode !== 'hourly'
+  const hourly = property.rental_mode !== 'daily'
+  return (
+    !!pricing &&
+    (!nightly || Number(pricing.base_price) > 0) &&
+    (!hourly || Number(pricing.hourly_price) > 0 || [pricing.price_3h, pricing.price_6h, pricing.price_night].some((p) => Number(p) > 0))
+  )
+}
+
 /** What the guest page and the CRM need of a flat, each with where to fill it in. */
 export function readiness(property: Property, pricing: PricingConfig | null | undefined): ReadinessItem[] {
   const listing = property.photos.filter((p) => p.audience !== 'guest')
   const checkIn = property.photos.filter((p) => p.audience === 'guest')
-  const nightly = property.rental_mode !== 'hourly'
-  const hourly = property.rental_mode !== 'daily'
-  const priced =
-    !!pricing &&
-    (!nightly || Number(pricing.base_price) > 0) &&
-    (!hourly || Number(pricing.hourly_price) > 0 || [pricing.price_3h, pricing.price_6h, pricing.price_night].some((p) => Number(p) > 0))
   return [
-    { key: 'prices', done: priced, place: 'prices' },
+    { key: 'prices', done: priced(property, pricing), place: 'prices' },
     { key: 'photos', done: listing.length >= 3, place: 'photos' },
     { key: 'description', done: Boolean(property.description?.trim()), place: 'basic' },
     { key: 'address', done: Boolean(property.address_full?.trim()), place: 'address' },

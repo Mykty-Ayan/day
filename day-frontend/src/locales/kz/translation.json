@@ -98,9 +98,6 @@
     "room": "Бөлме",
     "noteOptional": "Жазба (міндетті емес)",
     "optionalNotes": "Қосымша жазбалар…",
-    "large": "Үлкен",
-    "medium": "Орта",
-    "list": "Тізім",
     "cards": "Карталар",
     "table": "Кесте",
     "cash": "Қолма-қол",
@@ -333,7 +330,6 @@
       "comfort": "Жайлылық",
       "outdoor": "Сыртта"
     },
-    "perNight": "/ түн",
     "roomsCount": "{{count}} бөлме",
     "bedsCount": "{{count}} төсек",
     "tags": {
@@ -455,6 +451,36 @@
       "none": "Жоқ",
       "occupancy": "30 күндік толымдылық",
       "onChessboard": "шахматкада"
+    },
+    "board": {
+      "object": "Нысан",
+      "next": "Келесі",
+      "living": "Қонақ тұрады",
+      "cleaning": "Тазалау керек",
+      "notSold": "Әлі жалға берілмейді",
+      "none": "Кіру жоқ",
+      "checkOut": "Шығу: {{when}}",
+      "checkIn": "Кіру: {{when}}",
+      "then": "Содан кейін кіру: {{when}}",
+      "when": {
+        "today": "бүгін {{time}}",
+        "tomorrow": "ертең {{time}}",
+        "day": "{{day}}, {{time}}"
+      },
+      "counts": {
+        "arrivals": "Бүгін кіру",
+        "departures": "Бүгін шығу",
+        "living": "Қазір тұрады",
+        "cleaning": "Тазалауды күтеді",
+        "free": "Бос"
+      },
+      "problems": {
+        "noPrices": "Баға жоқ",
+        "noPhotos": "Фото жоқ",
+        "fewPhotos": "Фото аз",
+        "noCheckIn": "«Қалай кіру керек» жоқ",
+        "calendar": "Күнтізбе оқылмады"
+      }
     },
     "ready": {
       "title": "Нысанның дайындығы: {{total}} ішінен {{done}}",
