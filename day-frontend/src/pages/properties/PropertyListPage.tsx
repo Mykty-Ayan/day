@@ -54,18 +54,21 @@ function useClock(timeZone: string) {
 }
 
 /** Today's stays, closed hours and cleanings of every object sold, read again every minute. Unknown
- *  until all three are read: a stay or a cleaning missing would show a busy object as free. */
+ *  until the company's time zone and all three are read: a stay or a cleaning missing, or a clock
+ *  hours off, would show a busy object as free. A refresh that fails keeps the day last read. */
 function useToday() {
-  const { data: settings } = useSettings()
-  const now = useClock(settings?.time_zone ?? 'Asia/Almaty')
+  const settings = useSettings()
+  const now = useClock(settings.data?.time_zone ?? 'Asia/Almaty')
   const today = now.slice(0, 10)
   // From yesterday: closed dates that end at today's check-out hour come only with it.
   const gantt = useGanttData(shift(today, -1), shift(today, AHEAD_DAYS), TODAY_REFRESH)
   const checkedIn = useCheckedIn(TODAY_REFRESH)
   const cleaning = useAllCleaningTasks({ due_by: today }, TODAY_REFRESH)
-  const ready = gantt.isSuccess && checkedIn.isSuccess && cleaning.isSuccess
-  const failed = gantt.isError || checkedIn.isError || cleaning.isError
-  const retry = () => [gantt, checkedIn, cleaning].forEach((query) => query.refetch())
+  const ready =
+    settings.data !== undefined && gantt.data !== undefined && checkedIn.data !== undefined && cleaning.data !== undefined
+  const queries = [settings, gantt, checkedIn, cleaning]
+  const failed = queries.some((query) => query.isError)
+  const retry = () => queries.forEach((query) => query.refetch())
 
   const days = new Map<string, ObjectDay>()
   const segments = new Map<string, Segment[]>()
@@ -326,9 +329,10 @@ export default function PropertyListPage() {
   })
   // "All" is every object at work: the archive has its own tab.
   const listed = (data?.items ?? []).filter((p) => statusFilter !== 'all' || p.status !== 'archived')
-  const items = count ? listed.filter((p) => sold(p) && days.has(p.id) && inCount(days.get(p.id)!, count)) : listed
+  // The day's filter waits for the day: without it every object would drop out of the list.
+  const items = count && ready ? listed.filter((p) => sold(p) && days.has(p.id) && inCount(days.get(p.id)!, count)) : listed
   const problems = useProblems(listed)
-  const filtered = statusFilter !== 'all' || !!debouncedSearch || !!tagFilter || !!count
+  const filtered = statusFilter !== 'all' || !!debouncedSearch || !!tagFilter || (!!count && ready)
 
   // The query fires ~300ms after typing stops.
   useEffect(() => {

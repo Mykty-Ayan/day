@@ -89,4 +89,53 @@ test.describe('Properties board - E2E', () => {
     await expect(arrivals).toHaveAttribute('aria-pressed', 'false')
     await expect(row(page, quiet.internal_name)).toBeVisible()
   })
+
+  const DID_NOT_LOAD = "Today's bookings and cleanings did not load"
+
+  test('without the company time zone the board says nothing of the day; a retry brings it', async ({ page, request }) => {
+    const quiet = await activeObject(request)
+    // Another zone would move every stay by hours: a busy object could read as free.
+    await page.route('**/api/v1/settings', (route) => route.fulfill({ status: 500, body: '{}' }))
+
+    await page.goto('/properties')
+    await expect(page.getByRole('alert').filter({ hasText: DID_NOT_LOAD })).toBeVisible()
+    await expect(row(page, quiet.internal_name)).toBeVisible()
+    await expect(row(page, quiet.internal_name).getByText('Free', { exact: true })).toHaveCount(0)
+    await expect(page.getByRole('button', { name: /Check-ins today/ })).toHaveCount(0)
+
+    await page.unroute('**/api/v1/settings')
+    await page.getByRole('button', { name: 'Retry' }).click()
+    await expect(page.getByRole('button', { name: /Check-ins today/ })).toBeVisible()
+    await expect(row(page, quiet.internal_name).getByText('Free', { exact: true })).toBeVisible()
+  })
+
+  test("a refresh that fails keeps the day read, and the counter's filter can be taken off", async ({ page, request }) => {
+    const arriving = await activeObject(request)
+    const quiet = await activeObject(request)
+    const booking = await request.post(`${API_BASE}/bookings`, {
+      data: createTestBooking(arriving.id, { check_in: await companyDay(request), check_out: await companyDay(request, 2) }),
+    })
+    expect(booking.ok(), `POST bookings: ${booking.status()}`).toBeTruthy()
+    bookingIds.push((await booking.json()).id)
+    // The board reads the day again every minute; the test moves the clock instead of waiting.
+    await page.clock.install()
+
+    await page.goto('/properties')
+    const arrivals = page.getByRole('button', { name: /Check-ins today/ })
+    await arrivals.click()
+    await expect(row(page, quiet.internal_name)).toHaveCount(0)
+
+    await page.route('**/api/v1/cleaning**', (route) => route.fulfill({ status: 500, body: '{}' }))
+    const banner = page.getByRole('alert').filter({ hasText: DID_NOT_LOAD })
+    await expect(async () => {
+      await page.clock.fastForward(30_000)
+      await expect(banner).toBeVisible({ timeout: 1000 })
+    }).toPass({ timeout: 20_000 })
+
+    // The day last read stays on screen, with its filter, which still comes off.
+    await expect(row(page, arriving.internal_name)).toContainText(/Check-in today at \d\d:\d\d/)
+    await expect(arrivals).toHaveAttribute('aria-pressed', 'true')
+    await arrivals.click()
+    await expect(row(page, quiet.internal_name)).toBeVisible()
+  })
 })
