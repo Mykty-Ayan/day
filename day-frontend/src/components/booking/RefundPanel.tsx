@@ -4,9 +4,10 @@ import { ArrowLeftRight, Banknote, CreditCard, Undo2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { useAddPayment } from '../../hooks/useBookings'
 import { useCurrency } from '../../hooks/useCurrency'
-import type { bookingMoney } from '../../lib/booking-money'
+import { usePaymentAttempt, type PaymentAttempt } from '../../hooks/usePaymentAttempt'
+import { halfOf, type bookingMoney } from '../../lib/booking-money'
 import { formatMoneyExact as formatMoney } from '../../pages/miniapp/format'
-import type { Booking, PaymentInput, PaymentMethod } from '../../types/booking'
+import type { Booking, PaymentMethod } from '../../types/booking'
 import Button from '../ui/Button'
 import NumberInput from '../ui/number-input'
 import { Sheet } from '../ui/sheet'
@@ -25,20 +26,17 @@ export default function RefundPanel({
   onClose: () => void
 }) {
   const { t } = useTranslation()
-  // One key for one refund: a retry after a lost answer records it once. The key and the
-  // request live here, not in the form: the form goes when the panel closes, and a refund
-  // saved after that must still leave a new key for the next one, or the next would be
-  // taken for a retry of it and never recorded. A reopened panel after a lost answer is a retry.
+  // The request and its key live here, not in the form: the form goes when the panel closes,
+  // and the answer may come after that.
   const addPayment = useAddPayment(booking.id)
-  const [idempotencyKey, setIdempotencyKey] = useState(() => crypto.randomUUID())
-  const newRefund = () => setIdempotencyKey(crypto.randomUUID())
+  const attempt = usePaymentAttempt()
 
-  function refund(input: Omit<PaymentInput, 'type'>) {
+  function refund(input: PaymentAttempt) {
     addPayment.mutate(
-      { ...input, type: 'refund', idempotencyKey },
+      { ...input, type: 'refund', idempotencyKey: attempt.keyFor(input) },
       {
         onSuccess: () => {
-          newRefund()
+          attempt.settled()
           onClose()
         },
       },
@@ -50,10 +48,10 @@ export default function RefundPanel({
       <RefundForm
         booking={booking}
         money={money}
+        last={attempt.last}
         refund={refund}
         pending={addPayment.isPending}
         failed={addPayment.isError}
-        newRefund={newRefund}
       />
     </Sheet>
   )
@@ -62,24 +60,25 @@ export default function RefundPanel({
 function RefundForm({
   booking,
   money,
+  last,
   refund,
   pending,
   failed,
-  newRefund,
 }: {
   booking: Booking
   money: ReturnType<typeof bookingMoney>
-  refund: (input: Omit<PaymentInput, 'type'>) => void
+  last: PaymentAttempt | null
+  refund: (input: PaymentAttempt) => void
   pending: boolean
   failed: boolean
-  newRefund: () => void
 }) {
   const { t, i18n } = useTranslation()
   const { symbol } = useCurrency()
-  // Opens with what is due back; with nothing due, the owner says how much.
-  const [amount, setAmount] = useState(money.toReturn > 0 ? String(money.toReturn) : '')
-  const [method, setMethod] = useState<PaymentMethod>('cash')
-  const [note, setNote] = useState('')
+  // Opens with a refund whose answer never came, as it was sent; else with what is due back;
+  // with nothing due, the owner says how much.
+  const [amount, setAmount] = useState(last ? String(last.amount) : money.toReturn > 0 ? String(money.toReturn) : '')
+  const [method, setMethod] = useState<PaymentMethod>(last?.method ?? 'cash')
+  const [note, setNote] = useState(last?.note ?? '')
   const value = Number(amount)
   const sum = (n: number) => `${formatMoney(n, i18n.language)} ${symbol}`
   // Any payment of this booking on its way, from this panel or another one on the screen.
@@ -89,14 +88,8 @@ function RefundForm({
   const quick = [
     ...(money.toReturn > 0 ? [{ label: t('bookings.payments.overpaid'), value: money.toReturn }] : []),
     { label: t('bookings.refund.all'), value: paid },
-    // To the tiyn, as money is kept: half of 101 is 50.5.
-    { label: '50%', value: Math.round(paid * 50) / 100 },
+    { label: '50%', value: halfOf(paid) },
   ].filter((option, i, all) => option.value > 0 && all.findIndex((o) => o.value === option.value) === i)
-
-  function pick(next: string) {
-    setAmount(next)
-    newRefund()
-  }
 
   return (
     <div className="flex flex-col gap-5">
@@ -109,14 +102,14 @@ function RefundForm({
         <label htmlFor="refund-amount" className="text-sm font-semibold text-ink">
           {t('common.amount')}
         </label>
-        <NumberInput id="refund-amount" value={amount} onChange={pick} min={0} step={1000} ariaLabel={t('common.amount')} />
+        <NumberInput id="refund-amount" value={amount} onChange={setAmount} min={0} step={1000} ariaLabel={t('common.amount')} />
         {quick.length > 0 && (
           <div className="mt-1 flex flex-wrap gap-2">
             {quick.map((option) => (
               <button
                 key={option.label}
                 type="button"
-                onClick={() => pick(String(option.value))}
+                onClick={() => setAmount(String(option.value))}
                 aria-pressed={value === option.value}
                 className="rounded-full border border-line px-3 py-1.5 text-xs font-semibold text-ink transition-colors hover:bg-surface-page aria-pressed:border-accent aria-pressed:bg-accent-soft aria-pressed:text-accent-ink"
               >
@@ -135,7 +128,6 @@ function RefundForm({
           onValueChange={(next) => {
             if (!next) return
             setMethod(next as PaymentMethod)
-            newRefund()
           }}
         >
           <ToggleGroupItem value="cash">
@@ -158,10 +150,7 @@ function RefundForm({
         <input
           type="text"
           value={note}
-          onChange={(e) => {
-            setNote(e.target.value)
-            newRefund()
-          }}
+          onChange={(e) => setNote(e.target.value)}
           className="h-11 rounded-xl border border-line bg-surface-card px-3 text-sm font-normal text-ink outline-none focus:border-accent"
         />
       </label>

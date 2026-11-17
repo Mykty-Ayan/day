@@ -291,6 +291,68 @@ test.describe('Booking Payments - E2E', () => {
     ])
   })
 
+  /** The first new payment or refund reaches the server and is recorded; its answer is lost. */
+  async function loseFirstAnswer(page: import('@playwright/test').Page) {
+    let lost = false
+    await page.route('**/payments', async (route) => {
+      if (route.request().method() !== 'POST' || lost) return route.continue()
+      lost = true
+      await route.fetch()
+      await route.abort('failed')
+    })
+  }
+
+  test('a payment whose answer was lost is offered again as it was, and sent again is recorded once', async ({ page, request }) => {
+    const prop = await setupActiveProperty(request)
+    const booking = await createBookingViaApi(request, prop.id)
+    const half = Number(booking.total_price) / 2
+    const add = new RegExp(`^Add ${half}\\b`)
+
+    await page.goto(`/bookings/${booking.id}`)
+    await loseFirstAnswer(page)
+    await page.getByRole('button', { name: /add payment/i }).click()
+    const panel = page.getByRole('dialog')
+    await panel.getByLabel('Amount').fill(String(half))
+    await panel.getByRole('radio', { name: 'Card' }).click()
+    await panel.getByRole('button', { name: add }).click()
+    await expect(panel.getByRole('alert')).toBeVisible()
+    await page.keyboard.press('Escape')
+
+    // Reopened, the panel offers the payment whose answer never came: the same is a retry
+    await page.getByRole('button', { name: /add payment/i }).click()
+    await expect(panel.getByLabel('Amount')).toHaveValue(String(half))
+    await expect(panel.getByRole('radio', { name: 'Card' })).toHaveAttribute('aria-checked', 'true')
+    await panel.getByRole('button', { name: add }).click()
+    await expect(panel).toBeHidden()
+    await expect.poll(() => paymentsOf(request, booking.id)).toEqual([`payment:card:${half}:`])
+  })
+
+  test('a refund whose answer was lost is offered again as it was, and sent again is recorded once', async ({ page, request }) => {
+    const prop = await setupActiveProperty(request)
+    const booking = await createBookingViaApi(request, prop.id)
+    const paid = Number(booking.total_price) + 1000
+    await addPaymentViaApi(request, booking.id, { amount: paid, type: 'payment', method: 'cash' })
+
+    await page.goto(`/bookings/${booking.id}`)
+    await loseFirstAnswer(page)
+    await page.getByRole('button', { name: /^Refund 1,000/ }).click()
+    const panel = page.getByRole('dialog')
+    await panel.getByLabel('Amount').fill('50')
+    await panel.getByRole('radio', { name: 'Card' }).click()
+    await panel.getByLabel(/note/i).fill('Lost answer')
+    await panel.getByRole('button', { name: /^Refund 50\b/ }).click()
+    await expect(panel.getByRole('alert')).toBeVisible()
+    await page.keyboard.press('Escape')
+
+    await page.getByRole('button', { name: /add refund/i }).click()
+    await expect(panel.getByLabel('Amount')).toHaveValue('50')
+    await expect(panel.getByRole('radio', { name: 'Card' })).toHaveAttribute('aria-checked', 'true')
+    await expect(panel.getByLabel(/note/i)).toHaveValue('Lost answer')
+    await panel.getByRole('button', { name: /^Refund 50\b/ }).click()
+    await expect(panel).toBeHidden()
+    await expect.poll(() => paymentsOf(request, booking.id)).toEqual([`payment:cash:${paid}:`, 'refund:card:50:Lost answer'])
+  })
+
   test('a payment can be added with nothing owed', async ({ page, request }) => {
     const prop = await setupActiveProperty(request)
     const booking = await createBookingViaApi(request, prop.id)

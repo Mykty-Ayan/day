@@ -5,6 +5,7 @@ import { ArrowLeftRight, Banknote, CreditCard, Plus } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { useAddPayment } from '../../hooks/useBookings'
 import { useCurrency } from '../../hooks/useCurrency'
+import { usePaymentAttempt, type PaymentAttempt } from '../../hooks/usePaymentAttempt'
 import { formatMoneyExact as formatMoney } from '../../pages/miniapp/format'
 import type { Booking, PaymentMethod } from '../../types/booking'
 import Button from '../ui/Button'
@@ -27,20 +28,17 @@ export default function TakePaymentPanel({
   onClose: () => void
 }) {
   const { t } = useTranslation()
-  // One key for one payment: a retry after a lost answer records it once. The key and the
-  // request live here, not in the form: the form goes when the panel closes, and a payment
-  // saved after that must still leave a new key for the next one, or the next would be
-  // taken for a retry of it and never recorded. A reopened panel after a lost answer is a retry.
+  // The request and its key live here, not in the form: the form goes when the panel closes,
+  // and the answer may come after that.
   const addPayment = useAddPayment(booking.id)
-  const [idempotencyKey, setIdempotencyKey] = useState(() => crypto.randomUUID())
-  const newPayment = () => setIdempotencyKey(crypto.randomUUID())
+  const attempt = usePaymentAttempt()
 
-  function pay(amount: number, method: PaymentMethod) {
+  function pay(input: PaymentAttempt) {
     addPayment.mutate(
-      { amount, type: 'payment', method, idempotencyKey },
+      { ...input, type: 'payment', idempotencyKey: attempt.keyFor(input) },
       {
         onSuccess: () => {
-          newPayment()
+          attempt.settled()
           onClose()
         },
       },
@@ -53,10 +51,10 @@ export default function TakePaymentPanel({
         booking={booking}
         stayDebt={stayDebt}
         ordersDue={ordersDue}
+        last={attempt.last}
         pay={pay}
         pending={addPayment.isPending}
         failed={addPayment.isError}
-        newPayment={newPayment}
       />
     </Sheet>
   )
@@ -66,22 +64,23 @@ function PaymentForm({
   booking,
   stayDebt,
   ordersDue,
+  last,
   pay,
   pending,
   failed,
-  newPayment,
 }: {
   booking: Booking
   stayDebt: number
   ordersDue: number
-  pay: (amount: number, method: PaymentMethod) => void
+  last: PaymentAttempt | null
+  pay: (input: PaymentAttempt) => void
   pending: boolean
   failed: boolean
-  newPayment: () => void
 }) {
   const { t, i18n } = useTranslation()
-  const [amount, setAmount] = useState(String(stayDebt))
-  const [method, setMethod] = useState<PaymentMethod>('cash')
+  // Opens with a payment whose answer never came, as it was sent; else with the debt.
+  const [amount, setAmount] = useState(String(last?.amount ?? stayDebt))
+  const [method, setMethod] = useState<PaymentMethod>(last?.method ?? 'cash')
   const value = Number(amount)
   const { symbol } = useCurrency()
   const money = (sum: number) => formatMoney(sum, i18n.language)
@@ -99,10 +98,7 @@ function PaymentForm({
         {t('common.amount')}
         <NumberInput
           value={amount}
-          onChange={(next) => {
-            setAmount(next)
-            newPayment()
-          }}
+          onChange={setAmount}
           min={0}
           step={1000}
           ariaLabel={t('common.amount')}
@@ -117,7 +113,6 @@ function PaymentForm({
           onValueChange={(next) => {
             if (!next) return
             setMethod(next as PaymentMethod)
-            newPayment()
           }}
         >
           <ToggleGroupItem value="cash">
@@ -149,7 +144,7 @@ function PaymentForm({
 
       <Button
         disabled={paying || !(value > 0)}
-        onClick={() => pay(value, method)}
+        onClick={() => pay({ amount: value, method })}
       >
         <Plus className="h-4 w-4" aria-hidden="true" />
         {pending
