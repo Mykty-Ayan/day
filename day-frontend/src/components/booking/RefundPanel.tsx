@@ -6,7 +6,7 @@ import { useAddPayment } from '../../hooks/useBookings'
 import { useCurrency } from '../../hooks/useCurrency'
 import type { bookingMoney } from '../../lib/booking-money'
 import { formatMoneyExact as formatMoney } from '../../pages/miniapp/format'
-import type { Booking, PaymentMethod } from '../../types/booking'
+import type { Booking, PaymentInput, PaymentMethod } from '../../types/booking'
 import Button from '../ui/Button'
 import NumberInput from '../ui/number-input'
 import { Sheet } from '../ui/sheet'
@@ -25,18 +25,35 @@ export default function RefundPanel({
   onClose: () => void
 }) {
   const { t } = useTranslation()
-  // One key for one refund: a retry after a lost answer records it once. It lives here
-  // because the form goes when the panel closes, and a reopened panel is a retry.
+  // One key for one refund: a retry after a lost answer records it once. The key and the
+  // request live here, not in the form: the form goes when the panel closes, and a refund
+  // saved after that must still leave a new key for the next one, or the next would be
+  // taken for a retry of it and never recorded. A reopened panel after a lost answer is a retry.
+  const addPayment = useAddPayment(booking.id)
   const [idempotencyKey, setIdempotencyKey] = useState(() => crypto.randomUUID())
+  const newRefund = () => setIdempotencyKey(crypto.randomUUID())
+
+  function refund(input: Omit<PaymentInput, 'type'>) {
+    addPayment.mutate(
+      { ...input, type: 'refund', idempotencyKey },
+      {
+        onSuccess: () => {
+          newRefund()
+          onClose()
+        },
+      },
+    )
+  }
 
   return (
     <Sheet open={open} onClose={onClose} title={t('bookings.refund.title')}>
       <RefundForm
         booking={booking}
         money={money}
-        idempotencyKey={idempotencyKey}
-        newRefund={() => setIdempotencyKey(crypto.randomUUID())}
-        onDone={onClose}
+        refund={refund}
+        pending={addPayment.isPending}
+        failed={addPayment.isError}
+        newRefund={newRefund}
       />
     </Sheet>
   )
@@ -45,19 +62,20 @@ export default function RefundPanel({
 function RefundForm({
   booking,
   money,
-  idempotencyKey,
+  refund,
+  pending,
+  failed,
   newRefund,
-  onDone,
 }: {
   booking: Booking
   money: ReturnType<typeof bookingMoney>
-  idempotencyKey: string
+  refund: (input: Omit<PaymentInput, 'type'>) => void
+  pending: boolean
+  failed: boolean
   newRefund: () => void
-  onDone: () => void
 }) {
   const { t, i18n } = useTranslation()
   const { symbol } = useCurrency()
-  const addPayment = useAddPayment(booking.id)
   // Opens with what is due back; with nothing due, the owner says how much.
   const [amount, setAmount] = useState(money.toReturn > 0 ? String(money.toReturn) : '')
   const [method, setMethod] = useState<PaymentMethod>('cash')
@@ -71,7 +89,8 @@ function RefundForm({
   const quick = [
     ...(money.toReturn > 0 ? [{ label: t('bookings.payments.overpaid'), value: money.toReturn }] : []),
     { label: t('bookings.refund.all'), value: paid },
-    { label: '50%', value: Math.round(paid / 2) },
+    // To the tiyn, as money is kept: half of 101 is 50.5.
+    { label: '50%', value: Math.round(paid * 50) / 100 },
   ].filter((option, i, all) => option.value > 0 && all.findIndex((o) => o.value === option.value) === i)
 
   function pick(next: string) {
@@ -147,7 +166,7 @@ function RefundForm({
         />
       </label>
 
-      {addPayment.isError && (
+      {failed && (
         <p role="alert" className="text-sm text-danger">
           {t('bookings.refund.failed')}
         </p>
@@ -155,20 +174,10 @@ function RefundForm({
 
       <Button
         disabled={paying || !(value > 0)}
-        onClick={() =>
-          addPayment.mutate(
-            { amount: value, type: 'refund', method, note: note.trim() || undefined, idempotencyKey },
-            {
-              onSuccess: () => {
-                newRefund()
-                onDone()
-              },
-            },
-          )
-        }
+        onClick={() => refund({ amount: value, method, note: note.trim() || undefined })}
       >
         <Undo2 className="h-4 w-4" aria-hidden="true" />
-        {addPayment.isPending ? '…' : t('bookings.card.refund', { amount: sum(value || 0) })}
+        {pending ? '…' : t('bookings.card.refund', { amount: sum(value || 0) })}
       </Button>
     </div>
   )

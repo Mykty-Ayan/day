@@ -27,9 +27,25 @@ export default function TakePaymentPanel({
   onClose: () => void
 }) {
   const { t } = useTranslation()
-  // One key for one payment: a retry after a lost answer records it once. It lives
-  // here because the form goes when the panel closes, and a reopened panel is a retry.
+  // One key for one payment: a retry after a lost answer records it once. The key and the
+  // request live here, not in the form: the form goes when the panel closes, and a payment
+  // saved after that must still leave a new key for the next one, or the next would be
+  // taken for a retry of it and never recorded. A reopened panel after a lost answer is a retry.
+  const addPayment = useAddPayment(booking.id)
   const [idempotencyKey, setIdempotencyKey] = useState(() => crypto.randomUUID())
+  const newPayment = () => setIdempotencyKey(crypto.randomUUID())
+
+  function pay(amount: number, method: PaymentMethod) {
+    addPayment.mutate(
+      { amount, type: 'payment', method, idempotencyKey },
+      {
+        onSuccess: () => {
+          newPayment()
+          onClose()
+        },
+      },
+    )
+  }
 
   return (
     <Sheet open={open} onClose={onClose} title={t('today.takePayment')}>
@@ -37,9 +53,10 @@ export default function TakePaymentPanel({
         booking={booking}
         stayDebt={stayDebt}
         ordersDue={ordersDue}
-        idempotencyKey={idempotencyKey}
-        newPayment={() => setIdempotencyKey(crypto.randomUUID())}
-        onDone={onClose}
+        pay={pay}
+        pending={addPayment.isPending}
+        failed={addPayment.isError}
+        newPayment={newPayment}
       />
     </Sheet>
   )
@@ -49,19 +66,20 @@ function PaymentForm({
   booking,
   stayDebt,
   ordersDue,
-  idempotencyKey,
+  pay,
+  pending,
+  failed,
   newPayment,
-  onDone,
 }: {
   booking: Booking
   stayDebt: number
   ordersDue: number
-  idempotencyKey: string
+  pay: (amount: number, method: PaymentMethod) => void
+  pending: boolean
+  failed: boolean
   newPayment: () => void
-  onDone: () => void
 }) {
   const { t, i18n } = useTranslation()
-  const addPayment = useAddPayment(booking.id)
   const [amount, setAmount] = useState(String(stayDebt))
   const [method, setMethod] = useState<PaymentMethod>('cash')
   const value = Number(amount)
@@ -125,26 +143,16 @@ function PaymentForm({
           {t('today.ordersApart', { amount: money(ordersDue), symbol })}
         </p>
       )}
-      {addPayment.isError && (
+      {failed && (
         <p role="alert" className="text-sm text-danger">{t('today.paymentFailed')}</p>
       )}
 
       <Button
         disabled={paying || !(value > 0)}
-        onClick={() =>
-          addPayment.mutate(
-            { amount: value, type: 'payment', method, idempotencyKey },
-            {
-              onSuccess: () => {
-                newPayment()
-                onDone()
-              },
-            },
-          )
-        }
+        onClick={() => pay(value, method)}
       >
         <Plus className="h-4 w-4" aria-hidden="true" />
-        {addPayment.isPending
+        {pending
           ? '…'
           : t('today.takeAmount', { amount: money(value || 0), symbol })}
       </Button>

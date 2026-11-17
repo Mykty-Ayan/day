@@ -231,6 +231,66 @@ test.describe('Booking Payments - E2E', () => {
     await expect.poll(() => paymentsOf(request, booking.id)).toHaveLength(1)
   })
 
+  /** Holds the first new payment or refund until `release`; the rest go through. */
+  async function holdFirstPayment(page: import('@playwright/test').Page) {
+    let release = () => {}
+    let held = false
+    await page.route('**/payments', async (route) => {
+      if (route.request().method() !== 'POST' || held) return route.continue()
+      held = true
+      await new Promise<void>((resolve) => (release = resolve))
+      await route.continue()
+    })
+    return () => release()
+  }
+
+  test('a payment saved after its panel closed still leaves a new key for the next one', async ({ page, request }) => {
+    const prop = await setupActiveProperty(request)
+    const booking = await createBookingViaApi(request, prop.id)
+    const half = Number(booking.total_price) / 2
+
+    await page.goto(`/bookings/${booking.id}`)
+    const release = await holdFirstPayment(page)
+    await page.getByRole('button', { name: /add payment/i }).click()
+    await page.getByRole('dialog').getByLabel('Amount').fill(String(half))
+    await page.getByRole('dialog').getByRole('button', { name: new RegExp(`^Add ${half}\\b`) }).click()
+    // Closed before the answer: the form is gone when the payment is saved
+    await page.keyboard.press('Escape')
+    release()
+    await expect(page.locator('#payments').getByRole('listitem')).toHaveCount(1)
+
+    // The rest is the same sum the same way, offered as it is: a new payment, not a retry of the first
+    await page.getByRole('button', { name: /add payment/i }).click()
+    await expect(page.getByRole('dialog').getByLabel('Amount')).toHaveValue(String(half))
+    await page.getByRole('dialog').getByRole('button', { name: new RegExp(`^Add ${half}\\b`) }).click()
+    await expect.poll(() => paymentsOf(request, booking.id)).toEqual([`payment:cash:${half}:`, `payment:cash:${half}:`])
+  })
+
+  test('a refund saved after its panel closed still leaves a new key for the next one', async ({ page, request }) => {
+    const prop = await setupActiveProperty(request)
+    const booking = await createBookingViaApi(request, prop.id)
+    await addPaymentViaApi(request, booking.id, { amount: Number(booking.total_price) + 1000, type: 'payment', method: 'cash' })
+
+    await page.goto(`/bookings/${booking.id}`)
+    const release = await holdFirstPayment(page)
+    await page.getByRole('button', { name: /^Refund 1,000/ }).click()
+    await page.getByRole('dialog').getByLabel('Amount').fill('500')
+    await page.getByRole('dialog').getByRole('button', { name: /^Refund 500/ }).click()
+    await page.keyboard.press('Escape')
+    release()
+    await expect(page.locator('#payments').getByRole('listitem')).toHaveCount(2)
+
+    // 500 is still due back: the panel offers it as it is, and it is a new refund
+    await page.getByRole('button', { name: /^Refund 500/ }).click()
+    await expect(page.getByRole('dialog').getByLabel('Amount')).toHaveValue('500')
+    await page.getByRole('dialog').getByRole('button', { name: /^Refund 500/ }).click()
+    await expect.poll(() => paymentsOf(request, booking.id)).toEqual([
+      `payment:cash:${Number(booking.total_price) + 1000}:`,
+      'refund:cash:500:',
+      'refund:cash:500:',
+    ])
+  })
+
   test('a payment can be added with nothing owed', async ({ page, request }) => {
     const prop = await setupActiveProperty(request)
     const booking = await createBookingViaApi(request, prop.id)
