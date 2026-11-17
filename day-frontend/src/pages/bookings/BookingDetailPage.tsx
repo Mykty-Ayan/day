@@ -3,47 +3,25 @@ import { useTranslation } from 'react-i18next'
 import i18next from 'i18next'
 import { format } from 'date-fns'
 import { motion } from 'framer-motion'
-import {
-  ArrowLeft,
-  Plus,
-  Loader2,
-} from 'lucide-react'
+import { ArrowLeft, ArrowLeftRight, Banknote, CreditCard, Undo2, type LucideIcon } from 'lucide-react'
 import { useNavigate, useParams } from '@tanstack/react-router'
 import { useIsMutating } from '@tanstack/react-query'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import Spinner from '../../components/ui/Spinner'
-import { useMediaQuery } from '../../hooks/useMediaQuery'
 import { bookingMoney } from '../../lib/booking-money'
 import { depositStatusKeys } from '../../lib/booking-status'
 import { Badge, type BadgeTone } from '../../components/ui/badge'
 import Button from '../../components/ui/Button'
-import {
-  useBooking,
-  useAddPayment,
-  useConfirmPayment,
-} from '../../hooks/useBookings'
-import type {
-  BookingPayment,
-  PaymentInput,
-  PaymentMethod,
-  PaymentStatus,
-  PaymentType,
-} from '../../types/booking'
+import { useBooking, useConfirmPayment } from '../../hooks/useBookings'
+import type { BookingPayment, PaymentMethod, PaymentStatus } from '../../types/booking'
 import BookingDeposits from '../../components/booking/BookingDeposits'
 import BookingBlocks from '../../components/booking/BookingBlocks'
 import BookingFiles from '../../components/booking/BookingFiles'
 import BookingGuestCard from '../../components/booking/BookingGuestCard'
 import BookingMoneyCard from '../../components/booking/BookingMoneyCard'
 import BookingTimeline from '../../components/booking/BookingTimeline'
+import RefundPanel from '../../components/booking/RefundPanel'
 import StayCard from '../../components/booking/StayCard'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '../../components/ui/select'
-import NumberInput from '../../components/ui/number-input'
 import { useCurrency } from '../../hooks/useCurrency'
 import { parseApiDateTime } from '../../utils/date-time'
 import { dateLocale } from '../../lib/date-locale'
@@ -61,11 +39,9 @@ function BookingScreen({ bookingId }: { bookingId: string }) {
   const navigate = useNavigate()
   const { data: detail, isLoading } = useBooking(bookingId)
   const { symbol } = useCurrency()
-  // A table from 1024px wide, cards on a phone: a wide table would scroll sideways.
-  const compact = useMediaQuery('(max-width: 1023px)')
-  // Each press opens the refund form anew, with the sum the guest is owed; not while a
-  // payment is on its way: the new form would forget it and take it again.
-  const [refund, setRefund] = useState({ amount: 0, round: 0 })
+  // The refund panel opens anew each time, with the sum due back; not while a payment
+  // is on its way: the new form would forget it and take it again.
+  const [refundOpen, setRefundOpen] = useState(false)
   const refunding = useIsMutating({ mutationKey: ['add-payment', bookingId] })
 
   const from = useMemo(() => {
@@ -90,7 +66,7 @@ function BookingScreen({ bookingId }: { bookingId: string }) {
   if (!detail) {
     return (
       <div className="flex flex-col items-center justify-center gap-4 py-20">
-        <p className="text-sm text-gray-500">{t('bookings.notFound')}</p>
+        <p className="text-sm text-ink-muted">{t('bookings.notFound')}</p>
         <Button variant="secondary" onClick={() => navigate({ to: '/bookings' })}>
           {t('bookings.backToBookings')}
         </Button>
@@ -103,11 +79,6 @@ function BookingScreen({ bookingId }: { bookingId: string }) {
   // The detail call brings no paid sum: the panels read it from here.
   const stay = { ...booking, paid_amount: money.paid }
 
-  function startRefund() {
-    setRefund({ amount: money.toReturn, round: refund.round + 1 })
-    document.getElementById('payments')?.scrollIntoView({ behavior: 'smooth' })
-  }
-
   return (
     <div className="px-4 py-4 sm:px-6 sm:py-6 max-w-6xl mx-auto w-full">
       <motion.div
@@ -119,9 +90,9 @@ function BookingScreen({ bookingId }: { bookingId: string }) {
         <button
           type="button"
           onClick={handleBack}
-          className="inline-flex items-center gap-1 text-xs font-bold text-gray-500 hover:text-gray-900 mb-4 transition-colors"
+          className="mb-4 inline-flex items-center gap-1 text-xs font-bold text-ink-muted transition-colors hover:text-ink"
         >
-          <ArrowLeft className="w-4 h-4" />
+          <ArrowLeft className="h-4 w-4" />
           {isFromGantt ? t('bookings.backToGantt') : t('bookings.backToBookings')}
         </button>
 
@@ -138,18 +109,17 @@ function BookingScreen({ bookingId }: { bookingId: string }) {
                 depositLabel={(deposit) =>
                   `${formatMoneyChip(deposit.amount)} ${symbol} · ${t(depositStatusKeys[deposit.status])}`
                 }
-                onRefund={startRefund}
+                onRefund={() => setRefundOpen(true)}
                 refunding={refunding > 0}
               />
             </div>
             <div className="flex min-w-0 flex-col gap-5 lg:col-start-1 lg:row-span-2 lg:row-start-1">
               <PaymentsTab
-                key={refund.round}
-                refundAmount={refund.amount}
                 bookingId={bookingId}
                 payments={detail.payments}
                 money={money}
-                compact={compact}
+                onRefund={() => setRefundOpen(true)}
+                refunding={refunding > 0}
               />
               <BookingDeposits booking={booking} deposits={detail.deposits} />
               <BookingFiles bookingId={bookingId} files={detail.files} />
@@ -170,6 +140,7 @@ function BookingScreen({ bookingId }: { bookingId: string }) {
             </aside>
           </div>
         </div>
+        <RefundPanel booking={stay} money={money} open={refundOpen} onClose={() => setRefundOpen(false)} />
       </motion.div>
     </div>
   )
@@ -205,252 +176,95 @@ function formatMoneyChip(value: number | string | null | undefined): string {
   return moneyFormat(0).format(normalizeNumber(value))
 }
 
-// --- Payments Tab ---
+// --- Payments ---
 const PAYMENT_TONES: Record<PaymentStatus, BadgeTone> = { pending: 'neutral', completed: 'success', failed: 'danger' }
+const METHOD_ICONS: Record<PaymentMethod, LucideIcon> = { cash: Banknote, card: CreditCard, transfer: ArrowLeftRight }
 
+/** Every payment and refund, newest first as the server sends them: one list on a phone and a desk. */
 function PaymentsTab({
   bookingId,
   payments,
   money,
-  compact,
-  refundAmount,
+  onRefund,
+  refunding,
 }: {
   bookingId: string
   payments: BookingPayment[]
   money: ReturnType<typeof bookingMoney>
-  compact: boolean
-  refundAmount: number
+  onRefund: () => void
+  refunding: boolean
 }) {
   const { t } = useTranslation()
   const { symbol } = useCurrency()
-  const addPayment = useAddPayment(bookingId)
-  const paying = useIsMutating({ mutationKey: ['add-payment', bookingId] }) > 0
   const confirmPayment = useConfirmPayment(bookingId)
-  const [showForm, setShowForm] = useState(refundAmount > 0)
   const [toConfirm, setToConfirm] = useState<BookingPayment | null>(null)
-  const [form, setForm] = useState({
-    amount: refundAmount > 0 ? String(refundAmount) : '',
-    method: 'cash' as PaymentMethod,
-    note: '',
-  })
-  const amountStep = 1000
-
-  const paymentTypeLabels: Record<PaymentType, string> = {
-    payment: t('bookings.payments.payment'),
-    refund: t('bookings.payments.refund'),
-  }
-  const paymentMethodLabels: Record<PaymentMethod, string> = {
+  const methods: Record<PaymentMethod, string> = {
     cash: t('common.cash'),
     card: t('common.card'),
     transfer: t('common.transfer'),
   }
-  const paymentStatusLabels: Record<PaymentStatus, string> = {
-    pending: t('bookings.payments.paymentStatus.pending'),
-    completed: t('bookings.payments.paymentStatus.completed'),
-    failed: t('bookings.payments.paymentStatus.failed'),
-  }
-
-  const refundableAmount = Math.max(0, money.paid)
-  const quickOptionsRaw = [
-    ...(money.toReturn > 0 ? [{ label: t('bookings.payments.overpaid'), value: money.toReturn }] : []),
-    { label: t('common.total'), value: refundableAmount },
-    { label: '50%', value: refundableAmount * 0.5 },
-  ]
-
-  const seenQuickValues = new Set<number>()
-  const quickOptions = quickOptionsRaw.filter(({ value }) => {
-    if (!Number.isFinite(value) || value <= 0) return false
-    if (seenQuickValues.has(value)) return false
-    seenQuickValues.add(value)
-    return true
-  })
-
-  function handleSubmit() {
-    const amount = normalizeNumber(form.amount)
-    if (!amount || amount <= 0) return
-    addPayment.mutate(
-      { amount, type: 'refund', method: form.method, note: form.note || undefined } as PaymentInput,
-      {
-        onSuccess: () => {
-          setForm({ amount: '', method: 'cash', note: '' })
-          setShowForm(false)
-        },
-      },
-    )
-  }
 
   return (
-    <section id="payments" className="space-y-3 rounded-2xl border border-line bg-surface-card p-5">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+    <section id="payments" className="rounded-2xl border border-line bg-surface-card p-5">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
         <h2 className="text-sm font-bold text-ink">{t('bookings.tabs.payments')}</h2>
         {money.paid > 0 && (
-          <motion.button
-            whileTap={{ scale: 0.97 }}
-            onClick={() => setShowForm(true)}
-            className="flex min-h-[40px] items-center justify-center gap-1 rounded-lg border border-line px-3 py-2 text-xs font-bold text-ink transition-colors hover:bg-surface-page"
+          <button
+            type="button"
+            onClick={onRefund}
+            disabled={refunding}
+            className="inline-flex min-h-[44px] items-center justify-center gap-1 rounded-lg border border-line px-3 py-2 text-xs font-bold text-ink transition-colors hover:bg-surface-page disabled:opacity-50"
           >
-            <Plus className="w-3 h-3" /> {t('bookings.payments.addRefund')}
-          </motion.button>
+            <Undo2 className="h-3 w-3" aria-hidden="true" /> {t('bookings.payments.addRefund')}
+          </button>
         )}
       </div>
 
-      {/* Refund form */}
-      {showForm && (
-        <motion.div
-          initial={{ opacity: 0, height: 0 }}
-          animate={{ opacity: 1, height: 'auto' }}
-          className="rounded-2xl border border-line bg-surface-card p-5"
-        >
-          <h3 className="text-sm font-bold text-gray-900 mb-3">{t('bookings.payments.addRefund')}</h3>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            <NumberInput
-              value={form.amount}
-              onChange={(value) => setForm((f) => ({ ...f, amount: value }))}
-              min={0}
-              step={amountStep}
-              placeholder={t('common.amount')}
-              ariaLabel={t('common.amount')}
-            />
-            <Select
-              value={form.method}
-              onValueChange={(value) => setForm((f) => ({ ...f, method: value as PaymentMethod }))}
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="cash">{t('common.cash')}</SelectItem>
-                <SelectItem value="card">{t('common.card')}</SelectItem>
-                <SelectItem value="transfer">{t('common.transfer')}</SelectItem>
-              </SelectContent>
-            </Select>
-            <input
-              type="text"
-              value={form.note}
-              onChange={(e) => setForm((f) => ({ ...f, note: e.target.value }))}
-              placeholder={t('common.noteOptional')}
-              aria-label={t('common.noteOptional')}
-              className="bg-gray-50 border border-gray-200 rounded-xl p-3 outline-none focus:ring-2 focus:ring-black/10 text-sm"
-            />
-          </div>
-          {quickOptions.length > 0 && (
-            <div className="flex flex-wrap gap-2 mt-3">
-              {quickOptions.map((option) => (
-                <button
-                  key={`${option.label}-${option.value}`}
-                  type="button"
-                  onClick={() => setForm((f) => ({ ...f, amount: String(option.value) }))}
-                  className="px-3 py-1.5 rounded-full border border-gray-200 bg-white hover:bg-gray-900 hover:text-white text-xs font-semibold text-gray-700 transition-all"
-                >
-                  {option.label} ({formatMoneyChip(option.value)} {symbol})
-                </button>
-              ))}
-            </div>
-          )}
-          <div className="mt-3 flex flex-col-reverse gap-2 sm:flex-row">
-            <motion.button
-              whileTap={{ scale: 0.97 }}
-              type="button"
-              onClick={handleSubmit}
-              disabled={paying}
-              aria-label="Save"
-              className="min-h-[44px] w-full rounded-xl bg-accent px-4 py-2 text-xs font-bold text-white transition-colors hover:bg-accent-hover disabled:opacity-50 sm:w-auto"
-            >
-              {addPayment.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : t('common.save')}
-            </motion.button>
-            <button
-              type="button"
-              onClick={() => setShowForm(false)}
-              className="min-h-[44px] w-full rounded-xl border border-gray-200 px-3 text-xs font-bold text-gray-500 transition-colors hover:bg-gray-50 hover:text-gray-700 sm:w-auto sm:border-0"
-            >
-              {t('common.cancel')}
-            </button>
-          </div>
-        </motion.div>
-      )}
-
-      {/* Payment list */}
       {payments.length === 0 ? (
         <p className="text-sm text-ink-muted">{t('bookings.payments.noPayments')}</p>
-      ) : compact ? (
-        <div className="space-y-3">
-          {payments.map((payment) => (
-            <div key={payment.id} className="rounded-xl border border-line p-4">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <p className="text-sm font-semibold text-gray-900">
-                    {payment.type === 'refund' ? '-' : ''}{formatMoney(Math.abs(normalizeNumber(payment.amount)))} {symbol}
-                  </p>
-                  <p className="mt-0.5 text-xs text-gray-500">
-                    {paymentTypeLabels[payment.type]} · {paymentMethodLabels[payment.method]}
-                  </p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Badge tone={PAYMENT_TONES[payment.status]}>{paymentStatusLabels[payment.status]}</Badge>
-                  {payment.status === 'pending' && (
-                    <button
-                      type="button"
-                      onClick={() => setToConfirm(payment)}
-                      disabled={confirmPayment.isPending}
-                      className="text-xs font-semibold text-blue-600 hover:text-blue-800 disabled:opacity-50"
-                    >
-                      {t('bookings.payments.confirm')}
-                    </button>
-                  )}
-                </div>
-              </div>
-              <div className="mt-3 grid grid-cols-1 gap-1 text-xs text-gray-600 sm:grid-cols-2">
-                <span>{paidAt(payment.paid_at || payment.created_at)}</span>
-                {payment.note && <span className="sm:text-right">{payment.note}</span>}
-              </div>
-            </div>
-          ))}
-        </div>
       ) : (
-        <div className="overflow-hidden">
-          <div className="w-full overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-gray-100 bg-gray-50">
-                  <th className="text-left px-4 py-3 text-xs font-bold text-gray-400 uppercase">{t('common.amount')}</th>
-                  <th className="text-left px-4 py-3 text-xs font-bold text-gray-400 uppercase">{t('common.type')}</th>
-                  <th className="text-left px-4 py-3 text-xs font-bold text-gray-400 uppercase">{t('common.method')}</th>
-                  <th className="text-left px-4 py-3 text-xs font-bold text-gray-400 uppercase">{t('common.status')}</th>
-                  <th className="text-left px-4 py-3 text-xs font-bold text-gray-400 uppercase">{t('common.date')}</th>
-                  <th className="text-left px-4 py-3 text-xs font-bold text-gray-400 uppercase">{t('common.note')}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {payments.map((p) => (
-                  <tr key={p.id} className="border-b border-gray-50">
-                    <td className="px-4 py-3 text-sm font-semibold text-gray-900">
-                      {p.type === 'refund' ? '-' : ''}{formatMoney(Math.abs(normalizeNumber(p.amount)))} {symbol}
-                    </td>
-                    <td className="px-4 py-3 text-xs text-gray-600">{paymentTypeLabels[p.type]}</td>
-                    <td className="px-4 py-3 text-xs text-gray-600">{paymentMethodLabels[p.method]}</td>
-                    <td className="px-4 py-3">
-                      <Badge tone={PAYMENT_TONES[p.status]}>{paymentStatusLabels[p.status]}</Badge>
-                      {p.status === 'pending' && (
-                        <button
-                          type="button"
-                          onClick={() => setToConfirm(p)}
-                          disabled={confirmPayment.isPending}
-                          className="ml-2 text-xs font-semibold text-blue-600 hover:text-blue-800 disabled:opacity-50"
-                        >
-                          {t('bookings.payments.confirm')}
-                        </button>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 text-xs text-gray-500">
-                      {paidAt(p.paid_at || p.created_at)}
-                    </td>
-                    <td className="px-4 py-3 text-xs text-gray-500">{p.note || '-'}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
+        <ul className="divide-y divide-line">
+          {payments.map((payment) => {
+            const refund = payment.type === 'refund'
+            const Icon = refund ? Undo2 : METHOD_ICONS[payment.method]
+            return (
+              <li key={payment.id} className="flex items-start gap-3 py-3 first:pt-0 last:pb-0">
+                <span
+                  className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${refund ? 'bg-warning-soft text-warning' : 'bg-surface-page text-ink-muted'}`}
+                >
+                  <Icon className="h-4 w-4" aria-hidden="true" />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-semibold tabular-nums text-ink">
+                    {refund ? '-' : ''}
+                    {formatMoney(Math.abs(normalizeNumber(payment.amount)))} {symbol}
+                  </p>
+                  <p className="text-xs text-ink-muted">
+                    {refund ? `${t('bookings.payments.refund')} · ` : ''}
+                    {methods[payment.method]} · {paidAt(payment.paid_at || payment.created_at)}
+                  </p>
+                  {payment.note && <p className="mt-0.5 text-xs text-ink">{payment.note}</p>}
+                </div>
+                {/* Only what still needs a look: a completed payment is the usual case. */}
+                {payment.status !== 'completed' && (
+                  <div className="flex shrink-0 flex-col items-end gap-1.5">
+                    <Badge tone={PAYMENT_TONES[payment.status]}>{t(`bookings.payments.paymentStatus.${payment.status}`)}</Badge>
+                    {payment.status === 'pending' && (
+                      <button
+                        type="button"
+                        onClick={() => setToConfirm(payment)}
+                        disabled={confirmPayment.isPending}
+                        className="text-xs font-semibold text-accent-ink hover:underline disabled:opacity-50"
+                      >
+                        {t('bookings.payments.confirm')}
+                      </button>
+                    )}
+                  </div>
+                )}
+              </li>
+            )
+          })}
+        </ul>
       )}
 
       <ConfirmDialog

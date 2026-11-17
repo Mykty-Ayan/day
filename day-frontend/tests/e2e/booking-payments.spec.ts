@@ -147,9 +147,11 @@ test.describe('Booking Payments - E2E', () => {
 
     await page.goto(`/bookings/${booking.id}`)
     await page.getByRole('button', { name: /^Refund 500/ }).click()
-    await expect(page.getByLabel('Amount')).toHaveValue('500')
-    await page.getByRole('button', { name: 'Save' }).click()
+    const panel = page.getByRole('dialog')
+    await expect(panel.getByLabel('Amount')).toHaveValue('500')
+    await panel.getByRole('button', { name: /^Refund 500/ }).click()
 
+    await expect(panel).toBeHidden()
     await expect(page.getByRole('button', { name: /^Refund 500/ })).toBeHidden()
     await expect(page.getByText('Overpaid', { exact: true })).toBeHidden()
   })
@@ -167,7 +169,9 @@ test.describe('Booking Payments - E2E', () => {
       await new Promise<void>((resolve) => (release = resolve))
       await route.continue()
     })
-    await page.getByRole('button', { name: 'Save' }).click()
+    await page.getByRole('dialog').getByRole('button', { name: /^Refund 500/ }).click()
+    // The panel closed, the refund still on its way: the card's refund waits for it
+    await page.keyboard.press('Escape')
     await expect(page.getByRole('button', { name: /^Refund 500/ })).toBeDisabled()
     release()
 
@@ -191,9 +195,10 @@ test.describe('Booking Payments - E2E', () => {
     page.on('response', (response) => {
       if (response.request().method() === 'POST' && response.url().endsWith('/payments')) saved = true
     })
-    await page.getByRole('button', { name: 'Save' }).click()
+    await page.getByRole('dialog').getByRole('button', { name: /^Refund 500/ }).click()
     await expect.poll(() => saved).toBe(true)
     // The refund is saved, the old balance is still on screen: no second refund
+    await page.keyboard.press('Escape')
     await expect(page.getByRole('button', { name: /^Refund 500/ })).toBeDisabled()
     release()
     await expect(page.getByRole('button', { name: /^Refund 500/ })).toBeHidden()
@@ -245,13 +250,21 @@ test.describe('Booking Payments - E2E', () => {
 
     await openBookingTab(page, booking.id, /payment/i)
     await page.getByRole('button', { name: /add refund/i }).click()
-    await page.getByLabel(/amount/i).fill('50')
-    await page.getByLabel(/note/i).fill('Early departure')
-    await page.getByRole('button', { name: 'Save' }).click()
+    const panel = page.getByRole('dialog')
+    // Nothing is due back: the owner says how much, or takes half of what came in
+    await expect(panel.getByLabel('Amount')).toHaveValue('')
+    await panel.getByRole('button', { name: /^50%/ }).click()
+    await expect(panel.getByLabel('Amount')).toHaveValue('100')
+    await panel.getByLabel('Amount').fill('50')
+    await panel.getByLabel(/note/i).fill('Early departure')
+    await panel.getByRole('button', { name: /^Refund 50\b/ }).click()
+    await expect(panel).toBeHidden()
 
-    // A refund is a row of its own with a minus sign, next to the payment it takes back from
-    await expect(page.getByRole('row', { name: /Early departure/ })).toContainText(/-\D*50\b/)
-    await expect(page.getByRole('row', { name: /Prepayment/ })).toContainText(/\b200\b/)
+    // A refund is a line of its own with a minus sign, next to the payment it takes back from
+    const payments = page.locator('#payments').getByRole('listitem')
+    await expect(payments.filter({ hasText: 'Early departure' })).toContainText(/-\D*50\b/)
+    await expect(payments.filter({ hasText: 'Early departure' })).toContainText('Refund')
+    await expect(payments.filter({ hasText: 'Prepayment' })).toContainText(/\b200\b/)
 
     await expect.poll(() => paymentsOf(request, booking.id)).toEqual([
       'payment:cash:200:Prepayment',

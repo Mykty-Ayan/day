@@ -30,9 +30,7 @@
   },
   "common": {
     "close": "Close",
-    "date": "Date",
     "method": "Method",
-    "note": "Note",
     "save": "Save",
     "cancel": "Cancel",
     "edit": "Edit",
@@ -634,7 +632,6 @@
       "complete": "Complete"
     },
     "payments": {
-      "payment": "Payment",
       "refund": "Refund",
       "addPayment": "Add Payment",
       "addRefund": "Add Refund",
@@ -653,6 +650,12 @@
         "failed": "Failed"
       },
       "confirm": "Confirm"
+    },
+    "refund": {
+      "title": "Give money back",
+      "paid": "paid {{amount}}",
+      "all": "All",
+      "failed": "The refund was not saved. Check your connection and press again."
     },
     "deposits": {
       "createDeposit": "Create Deposit",

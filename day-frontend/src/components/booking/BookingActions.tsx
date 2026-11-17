@@ -54,9 +54,12 @@ export default function BookingActions({
   const next = NEXT_STEP[booking.status]
   const cancellable = booking.status === 'pending' || booking.status === 'confirmed'
   const usualDeposit = (booking.rental_mode === 'hourly' ? pricing?.hourly_deposit : pricing?.default_deposit) ?? 0
-  const warnings = stepWarnings(booking.status, money.owes, deposits, usualDeposit).map((warning) =>
-    t(`bookings.steps.${warning}`, { amount: `${formatMoney(money.owes, i18n.language)} ${symbol}` }),
-  )
+  const kinds = stepWarnings(booking.status, money.owes, deposits, usualDeposit)
+  const say = (kind: (typeof kinds)[number]) =>
+    t(`bookings.steps.${kind}`, { amount: `${formatMoney(money.owes, i18n.language)} ${symbol}` })
+  // All of them in the question before the step; on the card, not the debt: its sum is in red by the money.
+  const warnings = kinds.map(say)
+  const badges = kinds.filter((kind) => kind !== 'debt').map(say)
   const main = mainStep(booking.status, money.owes, deposits)
   const paidDeposit = deposits.find((deposit) => deposit.status === 'paid')
 
@@ -68,10 +71,10 @@ export default function BookingActions({
 
   return (
     <div className="flex flex-col gap-3">
-      {warnings.length > 0 && (
+      {badges.length > 0 && (
         <div className="flex flex-wrap gap-2">
-          {warnings.map((warning) => (
-            <Badge key={warning} tone="warning">{warning}</Badge>
+          {badges.map((badge) => (
+            <Badge key={badge} tone="warning">{badge}</Badge>
           ))}
         </div>
       )}
