@@ -16,64 +16,51 @@ test.describe('Property CRUD - E2E', () => {
     propertyIdsToCleanup = []
   })
 
-  test('create property through multi-step form', async ({ page, request }) => {
+  test('a property is created in two steps, and its page opens on the prices', async ({ page, request }) => {
     const data = createTestProperty({ type: 'house' })
 
     // The wizard opens at /properties/new; /properties/create is read as a property id
     await page.goto('/properties/new')
 
-    // --- Basic Info ---
+    // --- Basics: the names and the type alone; the rest is on the property's page ---
+    await expect(page.getByText('Step 1 of 2')).toBeVisible()
     await field(page, 'Public Name').fill(data.name)
     await field(page, 'Internal Name').fill(data.internal_name)
     await page.getByRole('button', { name: 'House', exact: true }).click()
-    await field(page, 'Description').fill(data.description ?? '')
+    await expect(page.getByText('Description', { exact: true })).toHaveCount(0)
     await next(page, 'Address')
 
-    // --- Address ---
+    // --- Address, and what comes after it ---
     await field(page, 'Full Address').fill(data.address_full ?? '')
     await field(page, 'Floor').fill(String(data.floor))
-    await next(page, 'Details')
-
-    // --- Details ---
-    await field(page, 'Rooms').fill(String(data.rooms))
-    await field(page, 'Beds').fill(String(data.beds))
-    await next(page, 'Pricing')
-
-    // --- Pricing and Photos are optional ---
-    await next(page, 'Photos')
-    await next(page, 'Rules')
-
-    // --- Rules ---
-    await field(page, 'Check-in Instructions').fill(data.check_in_instructions ?? '')
-    await field(page, 'Check-out Instructions').fill(data.check_out_instructions ?? '')
-    await field(page, 'House Rules').fill(data.house_rules ?? '')
-    await next(page, 'Amenities')
-
-    // --- Last step: the button creates the property ---
+    await expect(page.getByText(/is not let until you press "Activate"/)).toBeVisible()
+    // A step passed opens again from its name, with what was typed.
+    await page.getByRole('button', { name: 'Basic Info' }).click()
+    await expect(field(page, 'Internal Name')).toHaveValue(data.internal_name)
+    await next(page, 'Address')
+    await expect(field(page, 'Full Address')).toHaveValue(data.address_full ?? '')
     await page.getByRole('button', { name: 'Create Property' }).click()
 
-    // Redirects to the page of the new property
+    // The page of the new property, on its prices, with what it still lacks
     await expect(page).toHaveURL(/\/properties\/[0-9a-f-]{36}$/)
-    // The heading is the flat's own name ("Kv. 28"); the guests' name is the line under it.
-    await expect(page.getByText(data.name, { exact: true }).first()).toBeVisible()
     const id = page.url().split('/').pop() as string
     propertyIdsToCleanup.push(id)
+    await expect(page.getByText(data.name, { exact: true }).first()).toBeVisible()
+    await expect(page.getByRole('tab', { name: 'Pricing' })).toHaveAttribute('aria-selected', 'true')
+    await expect(page.getByText(/^Property readiness: 1 of 8$/)).toBeVisible()
 
-    // Everything typed in the wizard reached the server
+    // What was typed reached the server; the property is new, not let yet
     const res = await request.get(`${API_BASE}/properties/${id}`)
     expect(res.ok()).toBeTruthy()
     expect(await res.json()).toMatchObject({
       name: data.name,
       internal_name: data.internal_name,
       type: 'house',
-      description: data.description,
+      status: 'new',
       address_full: data.address_full,
       floor: data.floor,
-      rooms: data.rooms,
-      beds: data.beds,
-      check_in_instructions: data.check_in_instructions,
-      check_out_instructions: data.check_out_instructions,
-      house_rules: data.house_rules,
+      // The usual turnover between hourly stays, set as the old wizard did; the owner may clear it.
+      buffer_minutes: 30,
     })
   })
 
@@ -214,7 +201,7 @@ test.describe('Property CRUD - E2E', () => {
     // Validation errors appear and the wizard stays on the first step
     await expect(page.getByText('Name is required', { exact: true })).toBeVisible()
     await expect(page.getByText('Internal name is required', { exact: true })).toBeVisible()
-    await expect(page.getByText('Step 1 of 7')).toBeVisible()
+    await expect(page.getByText('Step 1 of 2')).toBeVisible()
   })
 
   test('the flat page says who is in now and what the flat still lacks', async ({ page, request }) => {

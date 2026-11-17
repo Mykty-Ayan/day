@@ -1,8 +1,6 @@
 /**
  * The property forms. A cleared field used to go out as "missing", and the
  * server keeps a missing field as it was: the edit looked saved and was not.
- * A failed price save after the flat was created made the next click create
- * a second flat.
  */
 
 import { expect, test } from '@playwright/test'
@@ -14,10 +12,8 @@ import {
   listingLines,
   listingLinksValid,
   propertyToForm,
-  saveWizard,
-  wizardToUpdate,
 } from '../../src/pages/properties/propertyForm'
-import type { Property, PropertyCreateInput } from '../../src/types/property'
+import type { Property } from '../../src/types/property'
 
 const flat = {
   id: 'p1',
@@ -120,52 +116,6 @@ test('Wi-Fi name and password keep their spaces', () => {
   expect(formToUpdate(form, propertyToForm(spaced)).wifi_name).toBe('Guest WiFi ')
   form.rules.wifi_password = ' secret123 '
   expect(formToUpdate(form, propertyToForm(spaced)).wifi_password).toBe(' secret123 ')
-})
-
-test('a retry after a failed save finishes the flat already created', async () => {
-  const created = { current: null as string | null }
-  const calls: string[] = []
-  const create = async () => {
-    calls.push('create')
-    return 'p1'
-  }
-  const update = async (id: string) => {
-    calls.push(`update ${id}`)
-  }
-  let finishes = 0
-  const failOnce = async (id: string) => {
-    calls.push(`finish ${id}`)
-    finishes += 1
-    if (finishes === 1) throw new Error('prices failed')
-  }
-
-  await expect(saveWizard(created, create, update, failOnce)).rejects.toThrow('prices failed')
-  expect(await saveWizard(created, create, update, failOnce)).toBe('p1')
-  // The retry saves the form as it is now onto the same flat, then finishes it.
-  expect(calls).toEqual(['create', 'finish p1', 'update p1', 'finish p1'])
-})
-
-test('a retry saves the form changed between attempts', () => {
-  // First try: daily, with a description. The price save failed; the user went back,
-  // switched to hourly and cleared the description. The flat must follow the form.
-  const retry: PropertyCreateInput = {
-    name: 'Студия',
-    internal_name: '62auc',
-    type: 'apartment',
-    rental_mode: 'hourly',
-    description: undefined,
-    floor: 0,
-    wifi_name: 'Guest WiFi ',
-  }
-  expect(wizardToUpdate(retry)).toEqual({
-    name: 'Студия',
-    internal_name: '62auc',
-    type: 'apartment',
-    rental_mode: 'hourly',
-    description: null,
-    floor: 0,
-    wifi_name: 'Guest WiFi ',
-  })
 })
 
 test('stay rules go out as numbers, and a cleared one as null', () => {

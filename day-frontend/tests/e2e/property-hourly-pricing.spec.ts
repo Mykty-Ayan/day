@@ -7,16 +7,13 @@
 
 import type { Locator, Page } from '@playwright/test'
 import { test, expect } from '../fixtures/e2e-auth'
-import { nextStep, priceField, wizardField } from '../fixtures/property-ui'
+import { priceField } from '../fixtures/property-ui'
 import { createTestProperty, API_BASE } from '../fixtures/test-data'
 
 const NIGHTLY = ['Weekend night price', 'Base Guests', 'Extra Adult Price', 'Extra Child Price']
 
-// The create wizard still asks for the markup; the flat's page for the weekend price.
-const WIZARD_NIGHTLY = ['Weekend Markup (₸)', 'Base Guests', 'Extra Adult Price', 'Extra Child Price']
-
-async function expectNightly(scope: Locator, basePrice: string, shown: boolean, labels = NIGHTLY) {
-  for (const label of [basePrice, ...labels]) {
+async function expectNightly(scope: Locator, basePrice: string, shown: boolean) {
+  for (const label of [basePrice, ...NIGHTLY]) {
     await expect(scope.getByText(label, { exact: true }), label).toHaveCount(shown ? 1 : 0)
   }
 }
@@ -79,48 +76,5 @@ test.describe('Hourly pricing', () => {
 
     const pricing = (await (await request.get(`${API_BASE}/properties/${id}`)).json()).pricing
     expect([pricing.hourly_deposit, pricing.default_deposit]).toEqual([7000, 10000])
-  })
-
-  test('the wizard asks an hourly flat only for the hourly price', async ({ page }) => {
-    const data = createTestProperty()
-    await page.goto('/properties/new')
-    await page.getByPlaceholder('Cozy Downtown Studio').fill(data.name)
-    await page.getByPlaceholder('APT-001-Downtown').fill(data.internal_name)
-    for (let step = 0; step < 3; step++) await page.getByRole('button', { name: 'Next', exact: true }).click()
-    await expect(page.getByRole('heading', { name: 'Pricing', exact: true })).toBeVisible()
-
-    await page.getByRole('radio', { name: 'Hourly', exact: true }).click()
-    await expect(page.getByText('Hourly Price', { exact: true })).toBeVisible()
-    await expect(page.getByText('Deposit for hourly stays', { exact: true })).toBeVisible()
-    await expect(page.getByText('Deposit for nightly stays', { exact: true })).toHaveCount(0)
-    await expectNightly(page.locator('body'), 'Base Price (per night)', false, WIZARD_NIGHTLY)
-
-    await page.getByRole('radio', { name: 'Both', exact: true }).click()
-    await expect(page.getByText('Hourly Price', { exact: true })).toBeVisible()
-    await expect(page.getByText('Deposit for nightly stays', { exact: true })).toBeVisible()
-    await expect(page.getByText('Deposit for hourly stays', { exact: true })).toBeVisible()
-    await expectNightly(page.locator('body'), 'Base Price (per night)', true, WIZARD_NIGHTLY)
-  })
-
-  test('the wizard saves the deposit of each kind of stay', async ({ page, request }) => {
-    const data = createTestProperty()
-    await page.goto('/properties/new')
-    await wizardField(page, 'Public Name').fill(data.name)
-    await wizardField(page, 'Internal Name').fill(data.internal_name)
-    for (const step of ['Address', 'Details', 'Pricing']) await nextStep(page, step)
-
-    await page.getByRole('radio', { name: 'Both', exact: true }).click()
-    await wizardField(page, 'Base Price (per night)').fill('25000')
-    await wizardField(page, 'Hourly Price').fill('3000')
-    await wizardField(page, 'Deposit for nightly stays').fill('10000')
-    await wizardField(page, 'Deposit for hourly stays').fill('7000')
-    for (const step of ['Photos', 'Rules', 'Amenities']) await nextStep(page, step)
-    await page.getByRole('button', { name: 'Create Property' }).click()
-
-    await expect(page).toHaveURL(/\/properties\/[0-9a-f-]{36}$/)
-    const id = page.url().split('/').pop() as string
-    created.push(id)
-    const pricing = (await (await request.get(`${API_BASE}/properties/${id}`)).json()).pricing
-    expect([pricing.default_deposit, pricing.hourly_deposit]).toEqual([10000, 7000])
   })
 })

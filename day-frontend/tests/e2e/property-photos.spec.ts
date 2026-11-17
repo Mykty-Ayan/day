@@ -1,7 +1,6 @@
 import type { APIRequestContext, Locator, Page } from '@playwright/test'
 import { test, expect } from '../fixtures/e2e-auth'
 import { createTestProperty, API_BASE } from '../fixtures/test-data'
-import { wizardField, nextStep } from '../fixtures/property-ui'
 import path from 'path'
 import fs from 'fs'
 import { fileURLToPath } from 'url'
@@ -111,45 +110,6 @@ test.describe('Property Photos - E2E', () => {
     for (const photo of photos) {
       await expect(photoImage(page, photo)).toBeVisible()
     }
-  })
-
-  test('set cover photo', async ({ page, request }) => {
-    // The cover is chosen in the create wizard; the property page shows the gallery but has no cover button
-    const data = createTestProperty()
-    await page.goto('/properties/new')
-    await wizardField(page, 'Public Name').fill(data.name)
-    await wizardField(page, 'Internal Name').fill(data.internal_name)
-    await nextStep(page, 'Address')
-    await nextStep(page, 'Details')
-    await nextStep(page, 'Pricing')
-    await nextStep(page, 'Photos')
-
-    // The first photo added is the cover; make the second one the cover instead
-    await page.locator('input[type="file"]').setInputFiles([TEST_IMAGE_PATH, TEST_IMAGE_2_PATH])
-    const tiles = page.locator('div.relative.group')
-    await expect(tiles).toHaveCount(2)
-    await expect(tiles.nth(0).getByText('Cover', { exact: true })).toBeVisible()
-    await expect(tiles.nth(1).getByText('Cover', { exact: true })).toHaveCount(0)
-    await tiles.nth(1).getByRole('button', { name: 'Set as cover' }).click()
-    await expect(tiles.nth(1).getByText('Cover', { exact: true })).toBeVisible()
-    await expect(tiles.nth(0).getByText('Cover', { exact: true })).toHaveCount(0)
-
-    await nextStep(page, 'Rules')
-    await nextStep(page, 'Amenities')
-    await page.getByRole('button', { name: 'Create Property' }).click()
-
-    // The photos upload in the order of the tiles, so the second one is the cover on the server
-    await expect(page).toHaveURL(/\/properties\/[0-9a-f-]{36}$/)
-    const id = page.url().split('/').pop() as string
-    propertyIdsToCleanup.push(id)
-    const [first, second] = (await photosOf(request, id)).sort((a, b) => a.sort_order - b.sort_order)
-    expect([first.is_cover, second.is_cover]).toEqual([false, true])
-
-    // On the Photos tab the cover is the first photo
-    await page.getByRole('tab', { name: 'Photos' }).click()
-    const tile = page.getByRole('listitem', { name: 'Photo 1', exact: true })
-    await expect(tile.getByText('Cover', { exact: true })).toBeVisible()
-    await expect(tile.locator(`img[src^="${second.url}"]`)).toBeVisible()
   })
 
   test('the photos are arranged on the flat page: the first one is the cover', async ({ page, request }) => {
