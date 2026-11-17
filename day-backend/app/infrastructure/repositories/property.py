@@ -5,7 +5,7 @@ from collections.abc import Sequence
 from datetime import date, datetime
 from decimal import Decimal
 
-from sqlalchemy import case, delete, func, select, update
+from sqlalchemy import case, delete, func, or_, select, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -260,7 +260,9 @@ def _listed(stmt, company_id: uuid.UUID, *, status, search, tag_id):
     if status is not None:
         stmt = stmt.where(PropertyModel.status == status.value)
     if search:
-        stmt = stmt.where(PropertyModel.internal_name.ilike(f"%{search}%"))
+        # The owner knows a flat by either name: "Кв. 12" or the guests' "Студия у парка".
+        pattern = f"%{search}%"
+        stmt = stmt.where(or_(PropertyModel.internal_name.ilike(pattern), PropertyModel.name.ilike(pattern)))
     if tag_id is not None:
         stmt = stmt.where(PropertyModel.id.in_(_wearing_tag(company_id, tag_id)))
     return stmt
@@ -289,7 +291,11 @@ class SqlPropertyRepository(PropertyRepository):
         tag_id: uuid.UUID | None = None,
     ) -> list[Property]:
         stmt = _listed(select(PropertyModel), company_id, status=status, search=search, tag_id=tag_id)
-        stmt = stmt.order_by(PropertyModel.created_at.desc()).offset(offset).limit(limit)
+        # The chessboard's order (get_gantt_data): the placed flats by their place, then the rest by name.
+        stmt = stmt.order_by(
+            PropertyModel.position.is_(None), PropertyModel.position, PropertyModel.internal_name, PropertyModel.id
+        )
+        stmt = stmt.offset(offset).limit(limit)
         result = await self._session.scalars(stmt)
         return [_model_to_property(m) for m in result.all()]
 

@@ -40,7 +40,7 @@ from app.infrastructure.calendar_feeds import build_calendar_feeds
 from app.infrastructure.calendar_fetch import fetch_calendar
 from app.infrastructure.database import get_session
 from app.infrastructure.repositories.auth import SqlUserRepository
-from app.infrastructure.repositories.booking import SqlBookingRepository
+from app.infrastructure.repositories.booking import SqlBookingRepository, SqlCalendarFeedRepository
 from app.infrastructure.repositories.property import (
     SqlAmenityRepository,
     SqlCompanyFactRepository,
@@ -89,6 +89,7 @@ from app.presentation.schemas.property import (
     PropertyReadinessItem,
     PropertyReadinessResponse,
     PropertyResponse,
+    PropertySetupItem,
     PropertyStatusChange,
     PropertyUpdate,
     SeasonalPriceCreate,
@@ -398,6 +399,36 @@ async def property_readiness(
     return PropertyReadinessResponse(
         company_facts=bool(await repos["company_fact"].list_by_company(company_id)), items=items
     )
+
+
+@router.get(
+    "/setup",
+    response_model=list[PropertySetupItem],
+    dependencies=[Depends(require(Permission.PROPERTIES_READ))],
+)
+async def property_setup(
+    session: AsyncSession = Depends(get_session),
+    company_id: uuid.UUID = Depends(get_company_id),
+):
+    """Each flat's prices and whether its calendars read, for the flats list in one call, not two per flat."""
+    repos = _repos(session)
+    feeds = SqlCalendarFeedRepository(session)
+    items = []
+    # Every flat, however many: a page would cut flats off behind archived ones that sort first.
+    every = await repos["property"].count_by_company(company_id)
+    # One query per flat and kind, as in the readiness report: a company has a handful of flats.
+    for prop in await repos["property"].list_by_company(company_id, limit=every):
+        if prop.status == PropertyStatus.ARCHIVED:
+            continue
+        pricing = await repos["pricing"].get_by_property(prop.id)
+        items.append(
+            PropertySetupItem(
+                property_id=prop.id,
+                pricing=PricingConfigResponse.model_validate(pricing) if pricing else None,
+                calendar_error=any(feed.last_error for feed in await feeds.list_for_property(prop.id)),
+            )
+        )
+    return items
 
 
 @router.get(

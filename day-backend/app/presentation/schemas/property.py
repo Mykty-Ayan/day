@@ -489,6 +489,15 @@ class PropertyReadinessResponse(BaseModel):
     items: list[PropertyReadinessItem]
 
 
+class PropertySetupItem(BaseModel):
+    """What the flats list shows beyond a flat's own fields: its prices and whether its calendars read."""
+
+    property_id: uuid.UUID
+    pricing: PricingConfigResponse | None
+    # A calendar from a site failed on its last read, so its nights may be sold twice.
+    calendar_error: bool
+
+
 class CompanyFactCreate(BaseModel):
     text: str = Field(..., min_length=1, max_length=1000)
     # public: anyone may hear it; guest: only a guest with a confirmed stay.
