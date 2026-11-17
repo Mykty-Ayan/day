@@ -45,6 +45,20 @@ const TONE: Record<string, SegmentTone> = {
   completed: 'gone',
 }
 
+/** When closed dates start and end: their hours when given (the check-out hour of the first and the
+ *  last day), else whole days, the end date being the day out. */
+function blockSpan(block: GanttBlock): [string, string] {
+  return [block.starts_at ?? `${block.start_date}T00:00:00`, block.ends_at ?? `${block.end_date}T00:00:00`]
+}
+
+/** Until when a stay holds the object. A guest marked out is drawn up to now at most; one still
+ *  marked in after the check-out is in until marked out, so up to now at least. */
+function heldUntil(stay: Stay, now: string): string {
+  if (TONE[stay.status] === 'gone') return stay.check_out > now ? now : stay.check_out
+  if (stay.status === 'checked_in' && stay.check_out < now) return now
+  return stay.check_out
+}
+
 /** Today's stays and closed hours, in order. `now` is the company's wall clock, "YYYY-MM-DDTHH:mm:ss". */
 export function daySegments(stays: Stay[], blocks: GanttBlock[], now: string): Segment[] {
   const day = now.slice(0, 10)
@@ -52,18 +66,17 @@ export function daySegments(stays: Stay[], blocks: GanttBlock[], now: string): S
   const end = `${nextDay(day)}T00:00:00`
   const out: Segment[] = []
   for (const stay of stays) {
-    if (!DRAWN.has(stay.status) || stay.check_in >= end || stay.check_out <= start) continue
-    const gone = TONE[stay.status] === 'gone'
-    // A guest who left before a later day was due is long gone; one due today is drawn up to now at most.
-    if (gone && stay.check_out >= end) continue
-    const until = gone && stay.check_out > now ? now : stay.check_out
+    if (!DRAWN.has(stay.status)) continue
+    // A guest who left before a later day was due is long gone: when is not known.
+    if (TONE[stay.status] === 'gone' && stay.check_out >= end) continue
+    const until = heldUntil(stay, now)
+    if (stay.check_in >= end || until <= start) continue
     out.push({ id: stay.id, from: clip(stay.check_in, start, end), to: clip(until, start, end), tone: TONE[stay.status], stay })
   }
   for (const block of blocks) {
-    if (block.start_date > day || block.end_date <= day) continue
-    const from = block.starts_at ? clip(block.starts_at, start, end) : 0
-    const to = block.ends_at ? clip(block.ends_at, start, end) : DAY_MIN
-    if (to > from) out.push({ id: block.id, from, to, tone: 'closed', stay: null })
+    const [from, to] = blockSpan(block)
+    if (from >= end || to <= start) continue
+    out.push({ id: block.id, from: clip(from, start, end), to: clip(to, start, end), tone: 'closed', stay: null })
   }
   return out.sort((a, b) => a.from - b.from)
 }
@@ -76,10 +89,12 @@ export interface ObjectDay {
   departures: Stay[]
   /** A cleaning due today or before that nobody has finished. */
   cleaning: boolean
+  /** Closed dates hold the object now: repairs, the owner's own guests, a stay sold on another site. */
+  closed: boolean
 }
 
 /** What happens in one object today. `now` is the company's wall clock, "YYYY-MM-DDTHH:mm:ss". */
-export function objectDay(stays: Stay[], tasks: CleaningTask[], now: string): ObjectDay {
+export function objectDay(stays: Stay[], blocks: GanttBlock[], tasks: CleaningTask[], now: string): ObjectDay {
   const today = now.slice(0, 10)
   const { current, next } = stayNow(stays, now)
   return {
@@ -88,6 +103,10 @@ export function objectDay(stays: Stay[], tasks: CleaningTask[], now: string): Ob
     arrivals: stays.filter((s) => LIVE.has(s.status) && s.check_in.slice(0, 10) === today),
     departures: stays.filter((s) => DRAWN.has(s.status) && s.check_out.slice(0, 10) === today),
     cleaning: tasks.some((task) => OPEN_CLEANING.has(task.status) && (task.scheduled_date ?? today) <= today),
+    closed: blocks.some((block) => {
+      const [from, to] = blockSpan(block)
+      return from <= now && now < to
+    }),
   }
 }
 
@@ -106,7 +125,7 @@ export function inCount(day: ObjectDay, count: DayCount): boolean {
     case 'cleaning':
       return day.cleaning
     case 'free':
-      return day.current === null && !day.cleaning
+      return day.current === null && !day.cleaning && !day.closed
   }
 }
 

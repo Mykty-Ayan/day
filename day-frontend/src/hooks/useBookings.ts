@@ -330,11 +330,28 @@ export function useDeleteBookingFile(bookingId: string) {
 
 // --- Gantt ---
 
-export function useGanttData(startDate: string, endDate: string) {
+export function useGanttData(startDate: string, endDate: string, refetchInterval?: number) {
   return useQuery({
     queryKey: [GANTT_KEY, startDate, endDate],
     queryFn: () => getGanttData(startDate, endDate),
     enabled: !!startDate && !!endDate,
+    ...(refetchInterval ? { refetchInterval, staleTime: refetchInterval } : {}),
+  })
+}
+
+/** Every guest checked in, all pages: one kept past the checkout is still in, whatever the dates say. */
+export function useCheckedIn(refetchInterval?: number) {
+  return useQuery({
+    queryKey: [BOOKINGS_KEY, 'checked-in'],
+    queryFn: async () => {
+      const filters: BookingFilters = { status: 'checked_in', per_page: 100 }
+      const first = await listBookings(filters)
+      const rest = await Promise.all(
+        Array.from({ length: Math.max(0, first.pages - 1) }, (_, i) => listBookings({ ...filters, page: i + 2 })),
+      )
+      return [first, ...rest].flatMap((page) => page.items)
+    },
+    ...(refetchInterval ? { refetchInterval, staleTime: refetchInterval } : {}),
   })
 }
 

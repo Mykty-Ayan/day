@@ -9,8 +9,8 @@ import { Badge } from '../../components/ui/badge'
 import StatusBadge from '../../components/property/StatusBadge'
 import { ToggleGroup, ToggleGroupItem } from '../../components/ui/toggle-group'
 import { useAllProperties, usePropertySetup, useTags } from '../../hooks/useProperties'
-import { useGanttData } from '../../hooks/useBookings'
-import { useCleaningTasks } from '../../hooks/useCleaning'
+import { TODAY_REFRESH, useCheckedIn, useGanttData } from '../../hooks/useBookings'
+import { useAllCleaningTasks } from '../../hooks/useCleaning'
 import { useSettings } from '../../hooks/useSettings'
 import { dateLocale } from '../../lib/date-locale'
 import { wallClock } from '../../lib/property-overview'
@@ -27,7 +27,7 @@ import {
   type Segment,
   type SegmentTone,
 } from '../../lib/object-day'
-import type { Booking, GanttPropertyRow } from '../../types/booking'
+import type { Booking } from '../../types/booking'
 import type { CleaningTask } from '../../types/cleaning'
 import type { Property, PropertyStatus } from '../../types/property'
 
@@ -41,21 +41,46 @@ const COLUMNS = 'lg:grid lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1.5fr)_minmax(0,
 // The next arrival is looked for this far ahead; one further off reads as none yet.
 const AHEAD_DAYS = 60
 
-/** Today's stays, closed hours and cleanings of every object sold, from one chessboard read. */
+const shift = (day: string, days: number) => format(addDays(parseISO(day), days), 'yyyy-MM-dd')
+
+/** The company's wall clock, not the browser's, moved on every minute: the board stays open on a desk. */
+function useClock(timeZone: string) {
+  const [at, setAt] = useState(() => new Date())
+  useEffect(() => {
+    const timer = setInterval(() => setAt(new Date()), 60_000)
+    return () => clearInterval(timer)
+  }, [])
+  return wallClock(at, timeZone)
+}
+
+/** Today's stays, closed hours and cleanings of every object sold, read again every minute. Unknown
+ *  until all three are read: a stay or a cleaning missing would show a busy object as free. */
 function useToday() {
   const { data: settings } = useSettings()
-  // Stays' times are the company's wall clock, not the browser's.
-  const now = wallClock(new Date(), settings?.time_zone ?? 'Asia/Almaty')
+  const now = useClock(settings?.time_zone ?? 'Asia/Almaty')
   const today = now.slice(0, 10)
-  const gantt = useGanttData(today, format(addDays(parseISO(today), AHEAD_DAYS), 'yyyy-MM-dd'))
-  const cleaning = useCleaningTasks({ due_by: today, per_page: 100 })
-  const tasks = new Map<string, CleaningTask[]>()
-  for (const task of cleaning.data?.items ?? []) tasks.set(task.property_id, [...(tasks.get(task.property_id) ?? []), task])
-  const rows = new Map<string, GanttPropertyRow>((gantt.data?.properties ?? []).map((row) => [row.id, row]))
-  const days = new Map<string, ObjectDay>(
-    [...rows.values()].map((row) => [row.id, objectDay(row.bookings, tasks.get(row.id) ?? [], now)]),
-  )
-  return { now, today, rows, days }
+  // From yesterday: closed dates that end at today's check-out hour come only with it.
+  const gantt = useGanttData(shift(today, -1), shift(today, AHEAD_DAYS), TODAY_REFRESH)
+  const checkedIn = useCheckedIn(TODAY_REFRESH)
+  const cleaning = useAllCleaningTasks({ due_by: today }, TODAY_REFRESH)
+  const ready = gantt.isSuccess && checkedIn.isSuccess && cleaning.isSuccess
+  const failed = gantt.isError || checkedIn.isError || cleaning.isError
+  const retry = () => [gantt, checkedIn, cleaning].forEach((query) => query.refetch())
+
+  const days = new Map<string, ObjectDay>()
+  const segments = new Map<string, Segment[]>()
+  if (ready) {
+    const tasks = new Map<string, CleaningTask[]>()
+    for (const task of cleaning.data) tasks.set(task.property_id, [...(tasks.get(task.property_id) ?? []), task])
+    for (const row of gantt.data.properties) {
+      // A guest kept past the check-out ends before the chessboard's dates and is still in.
+      const kept = checkedIn.data.filter((s) => s.property_id === row.id && !row.bookings.some((b) => b.id === s.id))
+      const stays = [...row.bookings, ...kept]
+      days.set(row.id, objectDay(stays, row.blocks ?? [], tasks.get(row.id) ?? [], now))
+      segments.set(row.id, daySegments(stays, row.blocks ?? [], now))
+    }
+  }
+  return { now, today, days, segments, ready, failed, retry }
 }
 
 /** What each object lacks: its own fields, then its prices and calendars, read for all objects at once. */
@@ -146,16 +171,20 @@ function useWhen(today: string) {
 }
 
 /** What comes next: the guest's departure while one is in, else the next arrival. One line on a phone. */
-function Next({ day, today }: { day: ObjectDay | undefined; today: string }) {
+function Next({ day, now, today }: { day: ObjectDay | undefined; now: string; today: string }) {
   const { t } = useTranslation()
   const { when, length } = useWhen(today)
+  if (!day) return null
   const none = t('properties.board.none')
-  const [main, sub] = day?.current
-    ? [
-        t('properties.board.checkOut', { when: when(day.current.check_out) }),
-        day.next ? t('properties.board.then', { when: when(day.next.check_in) }) : none,
-      ]
-    : day?.next
+  const [main, sub] = day.current
+    ? day.current.check_out < now
+      ? // Still marked in after the check-out: someone has to mark the guest out, or ask.
+        [t('today.notCheckedOut'), when(day.current.check_out)]
+      : [
+          t('properties.board.checkOut', { when: when(day.current.check_out) }),
+          day.next ? t('properties.board.then', { when: when(day.next.check_in) }) : none,
+        ]
+    : day.next
       ? [
           t('properties.board.checkIn', { when: when(day.next.check_in) }),
           `${day.next.guest_name} · ${length(day.next)}`,
@@ -201,10 +230,13 @@ function Row({
             <span className="truncate text-sm font-semibold text-ink">{property.internal_name || property.name}</span>
             {property.status !== 'active' && <StatusBadge status={property.status} />}
             {isSold &&
-              (day?.current ? (
+              day &&
+              (day.current ? (
                 <Badge tone="success">{t('properties.board.living')}</Badge>
+              ) : day.closed ? (
+                <Badge>{t('properties.board.closed')}</Badge>
               ) : (
-                !day?.cleaning && <Badge>{t('properties.now.free')}</Badge>
+                !day.cleaning && <Badge>{t('properties.now.free')}</Badge>
               ))}
             {isSold && day?.cleaning && <Badge tone="warning">{t('properties.board.cleaning')}</Badge>}
           </span>
@@ -223,7 +255,7 @@ function Row({
       {isSold ? (
         <>
           <DayBar segments={segments} now={now} />
-          <Next day={day} today={today} />
+          <Next day={day} now={now} today={today} />
         </>
       ) : (
         <span className="hidden text-sm text-ink-muted lg:col-span-2 lg:block">
@@ -285,7 +317,7 @@ export default function PropertyListPage() {
   const [tagFilter, setTagFilter] = useState('')
   const [count, setCount] = useState<DayCount | null>(null)
   const { data: tags } = useTags()
-  const { now, today, rows, days } = useToday()
+  const { now, today, days, segments, ready, failed, retry } = useToday()
 
   const { data, isLoading, isError, refetch } = useAllProperties({
     status: statusFilter === 'all' ? undefined : statusFilter,
@@ -317,7 +349,15 @@ export default function PropertyListPage() {
         </Link>
       </div>
 
-      {rows.size > 0 && <Counters counts={dayCounts([...days.values()])} active={count} onPick={setCount} />}
+      {failed && (
+        <div role="alert" className="mb-5 flex items-center justify-between gap-3 rounded-xl border border-danger/30 bg-danger-soft px-4 py-3">
+          <p className="text-sm text-ink">{t('properties.board.failed')}</p>
+          <Button variant="secondary" onClick={retry}>
+            {t('common.retry')}
+          </Button>
+        </div>
+      )}
+      {ready && days.size > 0 && <Counters counts={dayCounts([...days.values()])} active={count} onPick={setCount} />}
 
       <div className="mb-5 flex flex-col gap-3 lg:flex-row lg:items-center">
         <label className="relative lg:flex-1">
@@ -402,21 +442,18 @@ export default function PropertyListPage() {
             <span>{t('properties.board.next')}</span>
           </div>
           <ul className="divide-y divide-line">
-            {items.map((property) => {
-              const row = rows.get(property.id)
-              return (
-                <li key={property.id}>
-                  <Row
-                    property={property}
-                    day={days.get(property.id)}
-                    segments={row ? daySegments(row.bookings, row.blocks ?? [], now) : []}
-                    problems={problems.get(property.id) ?? []}
-                    now={now}
-                    today={today}
-                  />
-                </li>
-              )
-            })}
+            {items.map((property) => (
+              <li key={property.id}>
+                <Row
+                  property={property}
+                  day={days.get(property.id)}
+                  segments={segments.get(property.id) ?? []}
+                  problems={problems.get(property.id) ?? []}
+                  now={now}
+                  today={today}
+                />
+              </li>
+            ))}
           </ul>
         </div>
       )}

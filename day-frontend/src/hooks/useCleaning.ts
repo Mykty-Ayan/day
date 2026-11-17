@@ -52,6 +52,23 @@ export function useCleaningTasks(filters: CleaningTaskFilters = {}, refetchInter
   })
 }
 
+/** Every task matching, all pages: a long list of open cleanings must not drop the oldest ones. */
+export function useAllCleaningTasks(filters: Omit<CleaningTaskFilters, 'page' | 'per_page'>, refetchInterval?: number) {
+  return useQuery({
+    queryKey: [CLEANING_KEY, 'all', filters],
+    queryFn: async () => {
+      const first = await listCleaningTasks({ ...filters, per_page: 100 })
+      const rest = await Promise.all(
+        Array.from({ length: Math.max(0, first.pages - 1) }, (_, i) =>
+          listCleaningTasks({ ...filters, per_page: 100, page: i + 2 }),
+        ),
+      )
+      return [first, ...rest].flatMap((page) => page.items)
+    },
+    ...(refetchInterval ? { refetchInterval, staleTime: refetchInterval } : {}),
+  })
+}
+
 export function useCleaningTask(id: string) {
   return useQuery({
     queryKey: [CLEANING_TASK_KEY, id],

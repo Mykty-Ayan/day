@@ -27,7 +27,8 @@ test("a night's stay is drawn from midnight to its check-out, the next from its 
     stay('leaving', '2026-11-15T14:00:00', '2026-11-18T12:00:00', 'checked_in'),
     stay('coming', '2026-11-18T14:00:00', '2026-11-20T12:00:00'),
   ]
-  expect(spans(stays)).toEqual([
+  // In the morning, before the check-out.
+  expect(spans(stays, [], '2026-11-18T10:00:00')).toEqual([
     ['leaving', 0, 720, 'in'],
     ['coming', 840, 1440, 'booked'],
   ])
@@ -67,13 +68,34 @@ test('a guest who has left is drawn only up to now, and one who left on an earli
 test('closed dates are drawn for the whole day, or by their hours on their first and last day', () => {
   const blocks = [
     block('all-day', '2026-11-17', '2026-11-20'),
-    block('till-noon', '2026-11-16', '2026-11-19', '2026-11-16T12:00:00', '2026-11-18T12:00:00'),
+    // Ends today at the check-out hour: its end date is today, and it still held the morning.
+    block('till-noon', '2026-11-16', '2026-11-18', '2026-11-16T12:00:00', '2026-11-18T12:00:00'),
+    block('from-noon', '2026-11-18', '2026-11-20', '2026-11-18T12:00:00', '2026-11-20T12:00:00'),
     block('later', '2026-11-19', '2026-11-21'),
+    block('before', '2026-11-15', '2026-11-18'),
   ]
   expect(spans([], blocks)).toEqual([
     ['all-day', 0, 1440, 'closed'],
     ['till-noon', 0, 720, 'closed'],
+    ['from-noon', 720, 1440, 'closed'],
   ])
+})
+
+test('a guest still marked in after the check-out is in: drawn up to now, and the object is not free', () => {
+  const kept = stay('kept', '2026-11-14T14:00:00', '2026-11-17T12:00:00', 'checked_in')
+  expect(spans([kept])).toEqual([['kept', 0, 800, 'in']])
+  const day = objectDay([kept], [], [], NOW)
+  expect(day.current?.id).toBe('kept')
+  expect(inCount(day, 'free')).toBe(false)
+})
+
+test('an object held by closed dates now is not free; one closed until this morning is', () => {
+  const repairs = objectDay([], [block('repairs', '2026-11-17', '2026-11-20')], [], NOW)
+  expect(repairs.closed).toBe(true)
+  expect(inCount(repairs, 'free')).toBe(false)
+  const reopened = objectDay([], [block('done', '2026-11-16', '2026-11-18', '2026-11-16T12:00:00', '2026-11-18T12:00:00')], [], NOW)
+  expect(reopened.closed).toBe(false)
+  expect(inCount(reopened, 'free')).toBe(true)
 })
 
 test("an object's day: who is in, who is next, today's arrivals and departures, a cleaning due", () => {
@@ -83,7 +105,7 @@ test("an object's day: who is in, who is next, today's arrivals and departures, 
     stay('evening', '2026-11-18T17:00:00', '2026-11-18T20:00:00', 'confirmed', 'hourly'),
     stay('off', '2026-11-18T21:00:00', '2026-11-18T23:00:00', 'cancelled', 'hourly'),
   ]
-  const day = objectDay(stays, [task('done', '2026-11-18'), task('assigned', '2026-11-02')], NOW)
+  const day = objectDay(stays, [], [task('done', '2026-11-18'), task('assigned', '2026-11-02')], NOW)
   expect(day.current?.id).toBe('noon')
   expect(day.next?.id).toBe('evening')
   expect(day.arrivals.map((s) => s.id)).toEqual(['noon', 'evening'])
@@ -93,7 +115,7 @@ test("an object's day: who is in, who is next, today's arrivals and departures, 
 })
 
 test('a cleaning done, or planned for a later day, is not due today; one with no day is', () => {
-  const due = (tasks: CleaningTask[]) => objectDay([], tasks, NOW).cleaning
+  const due = (tasks: CleaningTask[]) => objectDay([], [], tasks, NOW).cleaning
   expect(due([task('done', '2026-11-18'), task('verified', '2026-11-17')])).toBe(false)
   expect(due([task('pending', '2026-11-19')])).toBe(false)
   expect(due([task('pending', null)])).toBe(true)
@@ -106,10 +128,11 @@ test('the counters: arrivals and departures count stays, the rest count objects'
       stay('evening', '2026-11-18T17:00:00', '2026-11-18T20:00:00', 'confirmed', 'hourly'),
     ],
     [],
+    [],
     NOW,
   )
-  const dirty = objectDay([stay('out', '2026-11-16T14:00:00', '2026-11-18T12:00:00', 'checked_out')], [task('pending', null)], NOW)
-  const empty = objectDay([], [], NOW)
+  const dirty = objectDay([stay('out', '2026-11-16T14:00:00', '2026-11-18T12:00:00', 'checked_out')], [], [task('pending', null)], NOW)
+  const empty = objectDay([], [], [], NOW)
 
   expect(dayCounts([busy, dirty, empty])).toEqual({ arrivals: 2, departures: 3, living: 1, cleaning: 1, free: 1 })
   // An object waiting for a cleaning is not free yet.
