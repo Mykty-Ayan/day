@@ -414,8 +414,10 @@ async def property_setup(
     repos = _repos(session)
     feeds = SqlCalendarFeedRepository(session)
     items = []
+    # Every flat, however many: a page would cut flats off behind archived ones that sort first.
+    every = await repos["property"].count_by_company(company_id)
     # One query per flat and kind, as in the readiness report: a company has a handful of flats.
-    for prop in await repos["property"].list_by_company(company_id, limit=500):
+    for prop in await repos["property"].list_by_company(company_id, limit=every):
         if prop.status == PropertyStatus.ARCHIVED:
             continue
         pricing = await repos["pricing"].get_by_property(prop.id)

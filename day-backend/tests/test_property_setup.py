@@ -44,3 +44,19 @@ async def test_each_flat_comes_with_its_prices_and_a_failing_calendar(flat):  # 
     assert float(setup[str(priced)]["pricing"]["base_price"]) == 20000
     assert setup[str(priced)]["calendar_error"] is False
     assert setup[str(bare.id)] == {"property_id": str(bare.id), "pricing": None, "calendar_error": True}
+
+
+@pytest.mark.integration
+async def test_a_flat_behind_many_archived_ones_is_not_cut_off(flat):  # noqa: F811  (the imported fixture)
+    client, working, use = flat
+    company_id = await _company_of(working)
+    # Placed on the chessboard, the archived flats sort before the working one, which has no place.
+    archived = [_flat(company_id, f"old-{i}") for i in range(501)]
+    for place, old in enumerate(archived):
+        old.status, old.position = "archived", place
+    await _seed(*archived)
+    use(Permission.PROPERTIES_READ)
+
+    setup = (await client.get("/api/v1/properties/setup")).json()
+
+    assert [item["property_id"] for item in setup] == [str(working)]
