@@ -2058,7 +2058,8 @@
     "addedOn": "Added {{date}}",
     "noReason": "No reason given",
     "fromGroup": "From a colleagues' group",
-    "reasonHint": "Say briefly what happened. The guest never sees this entry."
+    "reasonHint": "Say briefly what happened. The guest never sees this entry.",
+    "newestOnly": "Showing the {{count}} newest numbers. Find an older one by searching."
   },
   "agents": {
     "title": "Agents",

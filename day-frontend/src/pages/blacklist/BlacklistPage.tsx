@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { isAxiosError } from 'axios'
 import { useTranslation } from 'react-i18next'
 import { format } from 'date-fns'
@@ -11,7 +11,7 @@ import { showToast } from '../../components/ui/Toast'
 import type { BlacklistEntry } from '../../api/blacklist'
 import { useAddToBlacklist, useBlacklist, useRemoveFromBlacklist } from '../../hooks/useBlacklist'
 import { dateLocale } from '../../lib/date-locale'
-import { formatPhone, phoneDigits } from '../../lib/phone'
+import { formatPhone } from '../../lib/phone'
 import { serverMoment } from '../../lib/bookings-dashboard'
 
 const ADD =
@@ -20,24 +20,25 @@ const INPUT = 'min-h-[44px] w-full min-w-0 rounded-xl border border-line bg-surf
 const TOOL =
   'flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-ink-muted transition-colors hover:bg-danger/10 hover:text-danger sm:h-9 sm:w-9'
 
-/** Whether an entry answers a search: by the digits of its number, or by words of its reason. */
-function matches(entry: BlacklistEntry, query: string): boolean {
-  const words = query.trim().toLowerCase()
-  if (!words) return true
-  const digits = phoneDigits(words)
-  return (digits.length >= 3 && phoneDigits(entry.phone).includes(digits)) || entry.reason.toLowerCase().includes(words)
-}
+// The server answers with at most this many, the newest first; an older one is found by searching.
+const SHOWN = 200
 
 /** The numbers the company was warned about: found by number or reason, added in a panel. */
 export default function BlacklistPage() {
   const { t, i18n } = useTranslation()
   const locale = dateLocale(i18n.language)
-  const { data: entries = [], isLoading, isError } = useBlacklist()
+  const [query, setQuery] = useState('')
+  const [asked, setAsked] = useState('')
+  // The server searches every entry, not only the ones shown: asked ~300ms after typing stops.
+  useEffect(() => {
+    const timeout = setTimeout(() => setAsked(query), 300)
+    return () => clearTimeout(timeout)
+  }, [query])
+  const { data: found = [], isLoading, isError } = useBlacklist(asked)
   const remove = useRemoveFromBlacklist()
   const [adding, setAdding] = useState(false)
-  const [query, setQuery] = useState('')
   const [removing, setRemoving] = useState<BlacklistEntry | null>(null)
-  const found = entries.filter((entry) => matches(entry, query))
+  const searching = asked.trim() !== ''
   const thisYear = new Date().getFullYear()
   // The server keeps UTC without a zone: the day is this device's. The year only when it is not this one.
   const day = (iso: string) => {
@@ -61,7 +62,9 @@ export default function BlacklistPage() {
       <div className="mb-2 flex items-center justify-between gap-3">
         <h1 className="text-xl font-bold text-ink">
           {t('blacklist.title')}
-          {entries.length > 0 && <span className="ml-2 font-semibold tabular-nums text-ink-muted">{entries.length}</span>}
+          {!searching && found.length > 0 && found.length < SHOWN && (
+            <span className="ml-2 font-semibold tabular-nums text-ink-muted">{found.length}</span>
+          )}
         </h1>
         <button type="button" onClick={() => setAdding(true)} className={ADD}>
           <Plus className="h-4 w-4" aria-hidden="true" />
@@ -70,7 +73,7 @@ export default function BlacklistPage() {
       </div>
       <p className="mb-5 max-w-2xl text-sm text-ink-muted">{t('blacklist.hint')}</p>
 
-      {entries.length > 0 && (
+      {(found.length > 0 || searching || query) && (
         <label className="relative mb-4 block">
           <span className="sr-only">{t('blacklist.search')}</span>
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-muted" aria-hidden="true" />
@@ -90,13 +93,15 @@ export default function BlacklistPage() {
         <p role="alert" className="rounded-xl border border-danger/30 bg-danger-soft px-4 py-3 text-sm text-ink">
           {t('blacklist.loadFailed')}
         </p>
-      ) : entries.length === 0 ? (
+      ) : !searching && found.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-line px-5 py-10 text-center">
           <p className="text-sm text-ink-muted">{t('blacklist.empty')}</p>
         </div>
       ) : found.length === 0 ? (
         <p className="py-10 text-center text-sm text-ink-muted">{t('blacklist.noMatch')}</p>
       ) : (
+        <>
+        {!searching && found.length >= SHOWN && <p className="mb-3 text-xs text-ink-muted">{t('blacklist.newestOnly', { count: SHOWN })}</p>}
         <ul className="divide-y divide-line overflow-hidden rounded-2xl border border-line bg-surface-card">
           {found.map((entry) => (
             <li key={entry.id} className="flex items-start gap-3 px-5 py-3.5">
@@ -126,6 +131,7 @@ export default function BlacklistPage() {
             </li>
           ))}
         </ul>
+        </>
       )}
 
       <Sheet open={adding} onClose={() => setAdding(false)} title={t('blacklist.add')}>
@@ -152,14 +158,23 @@ function AddNumberForm({ onDone }: { onDone: () => void }) {
   const [phone, setPhone] = useState('')
   const [reason, setReason] = useState('')
   const [error, setError] = useState<string | null>(null)
+  // A save answered after the panel was closed must not close the next one opened meanwhile.
+  const open = useRef(true)
+  useEffect(() => {
+    open.current = true
+    return () => {
+      open.current = false
+    }
+  }, [])
 
   async function submit() {
     if (!phone.trim()) return setError(t('blacklist.phoneRequired'))
     try {
       await add.mutateAsync({ phone: phone.trim(), reason: reason.trim() })
       showToast('success', t('blacklist.saved'))
-      onDone()
+      if (open.current) onDone()
     } catch (failure) {
+      if (!open.current) return
       if (isAxiosError(failure) && failure.response?.status === 422) setError(t('blacklist.badPhone'))
       else showToast('error', t('blacklist.failed'))
     }

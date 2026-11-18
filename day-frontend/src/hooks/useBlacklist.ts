@@ -3,8 +3,13 @@ import { addToBlacklist, listBlacklist, removeFromBlacklist } from '../api/black
 
 const BLACKLIST_KEY = 'blacklist'
 
-export function useBlacklist() {
-  return useQuery({ queryKey: [BLACKLIST_KEY], queryFn: listBlacklist })
+export function useBlacklist(search = '') {
+  return useQuery({
+    queryKey: [BLACKLIST_KEY, search.trim()],
+    queryFn: () => listBlacklist(search),
+    // The list stays while the next search is asked.
+    placeholderData: (previous) => previous,
+  })
 }
 
 export function useAddToBlacklist() {

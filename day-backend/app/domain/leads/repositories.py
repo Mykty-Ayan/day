@@ -48,7 +48,11 @@ class BlacklistRepository(abc.ABC):
     async def find(self, company_id: uuid.UUID, phone: str) -> BlacklistedGuest | None: ...
 
     @abc.abstractmethod
-    async def list_all(self, company_id: uuid.UUID, limit: int = 200) -> Sequence[BlacklistedGuest]: ...
+    async def list_all(
+        self, company_id: uuid.UUID, limit: int = 200, search: str | None = None
+    ) -> Sequence[BlacklistedGuest]:
+        """The newest first. `search` finds by the number's digits (three or more) or by the reason's words,
+        before the limit: an old entry is found however many came after it."""
 
     @abc.abstractmethod
     async def remove(self, company_id: uuid.UUID, entry_id: uuid.UUID) -> bool:
