@@ -2051,7 +2051,15 @@
     "empty": "No numbers in the blacklist yet",
     "remove": "Remove",
     "removeTitle": "Remove from the blacklist?",
-    "removeMessage": "The number {{phone}} will no longer be flagged on bookings."
+    "removeMessage": "The number {{phone}} will no longer be flagged on bookings.",
+    "addButton": "Add number",
+    "search": "Search by number or reason",
+    "noMatch": "Nothing found.",
+    "addedOn": "Added {{date}}",
+    "noReason": "No reason given",
+    "fromGroup": "From a colleagues' group",
+    "reasonHint": "Say briefly what happened. The guest never sees this entry.",
+    "newestOnly": "Showing the {{limit}} newest numbers. Find an older one by searching."
   },
   "agents": {
     "title": "Agents",
