@@ -3,7 +3,7 @@ import { useIsMutating } from '@tanstack/react-query'
 import { ArrowLeftRight, Banknote, CreditCard, Undo2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { useCurrency } from '../../hooks/useCurrency'
-import { useSendPayment, type AttemptOutcome, type PaymentAttempt } from '../../hooks/usePaymentAttempt'
+import { useSendPayment, type PaymentAttempt, type SendOutcome } from '../../hooks/usePaymentAttempt'
 import { halfOf, type bookingMoney } from '../../lib/booking-money'
 import { formatMoneyExact as formatMoney } from '../../pages/miniapp/format'
 import type { Booking, PaymentMethod } from '../../types/booking'
@@ -59,7 +59,7 @@ function RefundForm({
   booking: Booking
   money: ReturnType<typeof bookingMoney>
   unsure: PaymentAttempt | null
-  outcome: { result: AttemptOutcome; attempt: PaymentAttempt } | null
+  outcome: SendOutcome | null
   checking: boolean
   pending: boolean
   send: (input: PaymentAttempt) => void
@@ -84,7 +84,7 @@ function RefundForm({
   ].filter((option, i, all) => option.value > 0 && all.findIndex((o) => o.value === option.value) === i)
 
   if (unsure && !paying) {
-    return <UnsureAttempt attempt={unsure} sum={sum} busy={checking} onRetry={() => send(unsure)} onCheck={check} />
+    return <UnsureAttempt attempt={unsure} sum={sum} busy={checking} onCheck={check} />
   }
 
   return (
@@ -153,7 +153,9 @@ function RefundForm({
 
       {outcome?.result === 'refused' && (
         <p role="alert" className="text-sm text-danger">
-          {t('bookings.refund.failed')}
+          {outcome.reason
+            ? t('bookings.attempt.refusedBecause', { reason: outcome.reason })
+            : t('bookings.attempt.refused')}
         </p>
       )}
       {outcome?.result === 'notRecorded' && (

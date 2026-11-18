@@ -347,7 +347,7 @@ test.describe('Booking Payments - E2E', () => {
     await expect.poll(() => paymentsOf(request, booking.id)).toEqual([`payment:cash:${half}:`])
   })
 
-  test('when the server cannot be asked either, only the same payment or a check is offered, wherever opened', async ({ page, request }) => {
+  test('when the server cannot be asked either, only a check is offered, wherever and whenever opened', async ({ page, request }) => {
     const prop = await setupActiveProperty(request)
     const booking = await createBookingViaApi(request, prop.id)
     const half = Number(booking.total_price) / 2
@@ -360,19 +360,46 @@ test.describe('Booking Payments - E2E', () => {
     await panel.getByLabel('Amount').fill(String(half))
     await panel.getByRole('button', { name: new RegExp(`^Add ${half}\\b`) }).click()
 
-    const retry = panel.getByRole('button', { name: new RegExp(`^Retry the payment of ${half}\\b`) })
-    await expect(retry).toBeVisible()
+    // Nothing can be sent for the booking until the server says what became of it
+    const check = panel.getByRole('button', { name: 'Check on the server' })
+    await expect(check).toBeVisible()
     await expect(panel.getByLabel('Amount')).toHaveCount(0)
-    // Closed and opened again, even after a reload, the panel still offers only that
+    await expect(panel.getByRole('button', { name: /^(Add|Retry)/ })).toHaveCount(0)
+    // Closed and opened again, even after a reload, the panel still offers only the check
     await page.keyboard.press('Escape')
     await page.reload()
     await page.getByRole('button', { name: /add payment/i }).click()
-    await expect(retry).toBeVisible()
+    await expect(check).toBeVisible()
 
     await page.unroute('**/idempotency-key/void')
-    await retry.click()
+    await check.click()
+    // The server says it was recorded: the panel closes, one payment
     await expect(panel).toBeHidden()
     await expect.poll(() => paymentsOf(request, booking.id)).toEqual([`payment:cash:${half}:`])
+  })
+
+  test('a payment saved after its screen was left settles anyway: the next one is a new payment', async ({ page, request }) => {
+    const prop = await setupActiveProperty(request)
+    const booking = await createBookingViaApi(request, prop.id)
+    const half = Number(booking.total_price) / 2
+
+    await page.goto(`/bookings/${booking.id}`)
+    const release = await holdFirstPayment(page)
+    await page.getByRole('button', { name: /add payment/i }).click()
+    await page.getByRole('dialog').getByLabel('Amount').fill(String(half))
+    await page.getByRole('dialog').getByRole('button', { name: new RegExp(`^Add ${half}\\b`) }).click()
+    // The operator leaves the booking before the answer: the panel and its screen are gone
+    await page.keyboard.press('Escape')
+    await page.getByRole('link', { name: 'Bookings', exact: true }).first().click()
+    await expect(page).toHaveURL(/\/bookings$/)
+    release()
+    await expect.poll(() => paymentsOf(request, booking.id)).toEqual([`payment:cash:${half}:`])
+
+    // Back on the booking, the panel takes a new payment: nothing is left waiting for a check
+    await page.goto(`/bookings/${booking.id}`)
+    await page.getByRole('button', { name: /add payment/i }).click()
+    await expect(page.getByRole('dialog').getByLabel('Amount')).toBeVisible()
+    await expect(page.getByRole('dialog').getByRole('button', { name: 'Check on the server' })).toHaveCount(0)
   })
 
   test('a refund whose answer was lost is asked of the server and found recorded, once', async ({ page, request }) => {

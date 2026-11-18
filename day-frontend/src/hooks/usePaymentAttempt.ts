@@ -1,89 +1,53 @@
 import { useState, useSyncExternalStore } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { voidPaymentKey } from '../api/bookings'
-import { useAddPayment } from './useBookings'
+import {
+  readAttempt,
+  readAttemptRaw,
+  subscribeAttempts,
+  writeAttempt,
+  type PaymentAttempt,
+  type StoredAttempt,
+} from '../lib/payment-attempt'
 import { paymentMaybeRecorded } from '../pages/miniapp/booking-card'
-import type { PaymentMethod } from '../types/booking'
+import { useAddPayment } from './useBookings'
 
-export interface PaymentAttempt {
-  type: 'payment' | 'refund'
-  amount: number
-  method: PaymentMethod
-  note?: string
-}
-
-interface Unsure {
-  key: string
-  attempt: PaymentAttempt
-  /** An earlier send got no clear answer: the money may be recorded already. */
-  uncertain?: boolean
-}
+export type { PaymentAttempt } from '../lib/payment-attempt'
 
 /** What a failed send leaves: refused (nothing recorded), recorded after all, never recorded
  *  (its key is closed), or unknown (the server could not be asked either). */
 export type AttemptOutcome = 'refused' | 'recorded' | 'notRecorded' | 'unknown'
 
-// One attempt per booking, for every panel of it on the page and after a reload: two panels
-// of one booking, or a panel closed and opened again, must never send one payment under two keys.
-const listeners = new Set<() => void>()
-const storageKey = (bookingId: string) => `day.payment-attempt.${bookingId}`
-
-function readRaw(bookingId: string): string | null {
-  try {
-    return sessionStorage.getItem(storageKey(bookingId))
-  } catch {
-    return null
-  }
+export interface SendOutcome {
+  result: AttemptOutcome
+  attempt: PaymentAttempt
+  /** The server's own words for a refusal, when it gave them. */
+  reason?: string
 }
 
-function read(bookingId: string): Unsure | null {
-  const raw = readRaw(bookingId)
-  try {
-    return raw ? (JSON.parse(raw) as Unsure) : null
-  } catch {
-    return null
-  }
+function refusalReason(error: unknown): string | undefined {
+  const detail = (error as { response?: { data?: { detail?: unknown } } } | null)?.response?.data?.detail
+  return typeof detail === 'string' ? detail : undefined
 }
 
-function write(bookingId: string, value: Unsure | null) {
-  try {
-    if (value) sessionStorage.setItem(storageKey(bookingId), JSON.stringify(value))
-    else sessionStorage.removeItem(storageKey(bookingId))
-  } catch {
-    // Without storage the attempt lives no longer than the page; the server still settles it.
-  }
-  listeners.forEach((listener) => listener())
-}
-
-function subscribe(listener: () => void) {
-  listeners.add(listener)
-  return () => listeners.delete(listener)
-}
-
-const same = (a: PaymentAttempt, b: PaymentAttempt) =>
-  a.type === b.type && a.amount === b.amount && a.method === b.method && (a.note ?? '') === (b.note ?? '')
-
-/** Money sent once, whatever happens to the answer. Each payment goes with a key, kept by the
- *  booking until an answer comes. When the answer is lost the server is asked: it closes the key
- *  under its lock, so the payment is either recorded or never will be. If even that cannot be
- *  asked, the attempt stays, and the panel offers only to send it again as it was (the same key,
- *  recorded once) or to ask again. */
+/** Money sent once, whatever happens to the answer. Each payment goes with a new key, kept by
+ *  the booking until its answer comes (`useAddPayment` settles it, even with the panel gone).
+ *  When the answer is lost the server is asked: it closes the key under its lock, so the payment
+ *  is either recorded or never will be. Until then nothing more is sent for the booking: a resent
+ *  key would be read as that payment, and a new payment of the same sum would be swallowed. */
 export function usePaymentAttempt(bookingId: string) {
   const qc = useQueryClient()
-  const raw = useSyncExternalStore(subscribe, () => readRaw(bookingId))
-  const unsure = raw ? read(bookingId) : null
+  const raw = useSyncExternalStore(subscribeAttempts, () => readAttemptRaw(bookingId))
+  const unsure = raw ? readAttempt(bookingId) : null
 
-  async function ask(current: Unsure): Promise<AttemptOutcome> {
-    // Unsure from now on: a reload while the server is asked must not take it for a fresh send.
-    write(bookingId, { ...current, uncertain: true })
+  async function ask(current: StoredAttempt): Promise<AttemptOutcome> {
     try {
       const outcome = await voidPaymentKey(bookingId, current.key)
-      write(bookingId, null)
+      if (readAttempt(bookingId)?.key === current.key) writeAttempt(bookingId, null)
       qc.invalidateQueries({ queryKey: ['booking', bookingId] })
       qc.invalidateQueries({ queryKey: ['booking-payments', bookingId] })
       return outcome.voided ? 'notRecorded' : 'recorded'
     } catch {
-      write(bookingId, { ...current, uncertain: true })
       return 'unknown'
     }
   }
@@ -91,33 +55,27 @@ export function usePaymentAttempt(bookingId: string) {
   return {
     /** A payment of this booking sent with no answer seen yet. */
     unsure,
-    /** The key to send `attempt` with: the unsure one's own key when it goes again as it was. */
+    /** A new key for a new payment, kept until its answer comes. */
     begin(attempt: PaymentAttempt): string {
-      const current = read(bookingId)
-      const kept = current && same(current.attempt, attempt) ? current : null
-      const key = kept?.key ?? crypto.randomUUID()
-      write(bookingId, { key, attempt, uncertain: kept?.uncertain })
+      const key = crypto.randomUUID()
+      writeAttempt(bookingId, { key, attempt })
       return key
     },
-    /** The answer came: recorded, and the next payment is a new one. */
-    settled(key: string) {
-      if (read(bookingId)?.key === key) write(bookingId, null)
-    },
-    /** After a failed send of `key`. A refusal of a first send proves nothing was recorded;
-     *  anything else, or a refused retry of a send whose answer was lost, is asked of the server. */
+    /** After a failed send of `key`. A refusal proves nothing was recorded; anything else is asked
+     *  of the server. */
     async failed(error: unknown, key: string): Promise<AttemptOutcome> {
-      const current = read(bookingId)
+      const current = readAttempt(bookingId)
       if (!current || current.key !== key) return 'refused'
-      if (!paymentMaybeRecorded(error) && !current.uncertain) {
-        write(bookingId, null)
+      if (!paymentMaybeRecorded(error)) {
+        writeAttempt(bookingId, null)
         return 'refused'
       }
-      return ask({ ...current, uncertain: true })
+      return ask(current)
     },
     /** Ask the server about the unsure payment now. */
     check(): Promise<AttemptOutcome> {
-      const current = read(bookingId)
-      return current ? ask(current) : Promise.resolve('refused')
+      const current = readAttempt(bookingId)
+      return current ? ask(current) : Promise.resolve('recorded')
     },
   }
 }
@@ -127,14 +85,14 @@ export function usePaymentAttempt(bookingId: string) {
 export function useSendPayment(bookingId: string, onDone: () => void) {
   const addPayment = useAddPayment(bookingId)
   const attempt = usePaymentAttempt(bookingId)
-  const [outcome, setOutcome] = useState<{ result: AttemptOutcome; attempt: PaymentAttempt } | null>(null)
+  const [outcome, setOutcome] = useState<SendOutcome | null>(null)
   const [checking, setChecking] = useState(false)
 
-  function after(result: AttemptOutcome, sent: PaymentAttempt) {
+  function after(result: AttemptOutcome, sent: PaymentAttempt, reason?: string) {
     if (result === 'recorded') {
       setOutcome(null)
       onDone()
-    } else setOutcome({ result, attempt: sent })
+    } else setOutcome({ result, attempt: sent, reason })
   }
 
   function send(input: PaymentAttempt) {
@@ -143,15 +101,12 @@ export function useSendPayment(bookingId: string, onDone: () => void) {
     addPayment.mutate(
       { amount: input.amount, type: input.type, method: input.method, note: input.note, idempotencyKey: key },
       {
-        onSuccess: () => {
-          attempt.settled(key)
-          onDone()
-        },
+        onSuccess: onDone,
         onError: async (error) => {
           setChecking(true)
           const result = await attempt.failed(error, key)
           setChecking(false)
-          after(result, input)
+          after(result, input, refusalReason(error))
         },
       },
     )

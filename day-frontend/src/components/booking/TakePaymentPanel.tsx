@@ -4,7 +4,7 @@ import { Link } from '@tanstack/react-router'
 import { ArrowLeftRight, Banknote, CreditCard, Plus } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { useCurrency } from '../../hooks/useCurrency'
-import { useSendPayment, type AttemptOutcome, type PaymentAttempt } from '../../hooks/usePaymentAttempt'
+import { useSendPayment, type PaymentAttempt, type SendOutcome } from '../../hooks/usePaymentAttempt'
 import { formatMoneyExact as formatMoney } from '../../pages/miniapp/format'
 import type { Booking, PaymentMethod } from '../../types/booking'
 import Button from '../ui/Button'
@@ -64,7 +64,7 @@ function PaymentForm({
   stayDebt: number
   ordersDue: number
   unsure: PaymentAttempt | null
-  outcome: { result: AttemptOutcome; attempt: PaymentAttempt } | null
+  outcome: SendOutcome | null
   checking: boolean
   pending: boolean
   send: (input: PaymentAttempt) => void
@@ -82,7 +82,7 @@ function PaymentForm({
   const sum = (value: number) => `${money(value)} ${symbol}`
 
   if (unsure && !paying) {
-    return <UnsureAttempt attempt={unsure} sum={sum} busy={checking} onRetry={() => send(unsure)} onCheck={check} />
+    return <UnsureAttempt attempt={unsure} sum={sum} busy={checking} onCheck={check} />
   }
 
   return (
@@ -136,7 +136,11 @@ function PaymentForm({
         </p>
       )}
       {outcome?.result === 'refused' && (
-        <p role="alert" className="text-sm text-danger">{t('today.paymentFailed')}</p>
+        <p role="alert" className="text-sm text-danger">
+          {outcome.reason
+            ? t('bookings.attempt.refusedBecause', { reason: outcome.reason })
+            : t('bookings.attempt.refused')}
+        </p>
       )}
       {outcome?.result === 'notRecorded' && (
         <p role="alert" className="text-sm text-danger">
