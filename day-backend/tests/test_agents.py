@@ -133,3 +133,26 @@ async def test_the_bookings_an_agent_brought_are_listed_by_the_agent(flat):  # n
 
     assert [b["id"] for b in listed["items"]] == [brought["id"]]
     assert listed["total"] == 1
+
+
+@pytest.mark.integration
+async def test_what_each_agent_brought_is_counted_in_one_read(flat):  # noqa: F811  (the imported fixture)
+    client, prop, use = flat
+    use(Permission.BOOKINGS_READ, Permission.BOOKINGS_WRITE, Permission.PROPERTIES_READ)
+    agent = (await client.post("/api/v1/agents", json={"name": "Ермек"})).json()
+    idle = (await client.post("/api/v1/agents", json={"name": "Айдана"})).json()
+    kept = (await client.post("/api/v1/bookings", json={**_STAY, "property_id": str(prop),
+                                                        "agent_id": agent["id"]})).json()
+    dropped = (await client.post("/api/v1/bookings", json={**_STAY, "property_id": str(prop), "agent_id": agent["id"],
+                                                           "guest_phone": "+77079011164",
+                                                           "check_in": "2030-11-08T14:00:00",
+                                                           "check_out": "2030-11-09T12:00:00"})).json()
+    await client.post(f"/api/v1/bookings/{dropped['id']}/status", json={"target_status": "cancelled"})
+    await client.post("/api/v1/bookings", json={**_STAY, "property_id": str(prop), "guest_phone": "+77079011165",
+                                               "check_in": "2030-11-12T14:00:00", "check_out": "2030-11-13T12:00:00"})
+
+    totals = (await client.get("/api/v1/agents/totals")).json()
+
+    # A cancelled booking and a booking with no agent count for nobody; an agent with none is not listed.
+    assert totals == [{"agent_id": agent["id"], "bookings": 1, "total": kept["total_price"]}]
+    assert idle["id"] not in {t["agent_id"] for t in totals}
