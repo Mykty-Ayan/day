@@ -101,7 +101,7 @@ export default function BlacklistPage() {
         <p className="py-10 text-center text-sm text-ink-muted">{t('blacklist.noMatch')}</p>
       ) : (
         <>
-        {!searching && found.length >= SHOWN && <p className="mb-3 text-xs text-ink-muted">{t('blacklist.newestOnly', { count: SHOWN })}</p>}
+        {!searching && found.length >= SHOWN && <p className="mb-3 text-xs text-ink-muted">{t('blacklist.newestOnly', { limit: SHOWN })}</p>}
         <ul className="divide-y divide-line overflow-hidden rounded-2xl border border-line bg-surface-card">
           {found.map((entry) => (
             <li key={entry.id} className="flex items-start gap-3 px-5 py-3.5">
