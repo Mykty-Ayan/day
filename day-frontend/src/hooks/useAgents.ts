@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { createAgent, listAgents, updateAgent, type AgentInput } from '../api/agents'
+import { createAgent, listAgentTotals, listAgents, updateAgent, type AgentInput } from '../api/agents'
 
 const AGENTS_KEY = 'agents'
 
@@ -22,4 +22,11 @@ export function useUpdateAgent() {
     mutationFn: ({ id, data }: { id: string; data: AgentInput }) => updateAgent(id, data),
     onSuccess: () => qc.invalidateQueries({ queryKey: [AGENTS_KEY] }),
   })
+}
+
+/** What every agent brought, read at once by the server. Under the bookings' key, so a booking changed
+ *  anywhere marks it stale; and read again on every visit, as a booking changed elsewhere (the CRM, the
+ *  Mini App) tells this tab nothing. */
+export function useAgentTotals() {
+  return useQuery({ queryKey: ['bookings', 'agent-totals'], queryFn: listAgentTotals, staleTime: 0 })
 }

@@ -9,8 +9,9 @@ export interface BlacklistEntry {
   created_at: string | null
 }
 
-export async function listBlacklist(): Promise<BlacklistEntry[]> {
-  return (await apiClient.get<BlacklistEntry[]>('/blacklist')).data
+/** The newest 200, or the ones a search finds by the number's digits or the reason's words. */
+export async function listBlacklist(search = ''): Promise<BlacklistEntry[]> {
+  return (await apiClient.get<BlacklistEntry[]>('/blacklist', { params: search.trim() ? { q: search.trim() } : {} })).data
 }
 
 export async function addToBlacklist(data: { phone: string; reason: string }): Promise<BlacklistEntry> {

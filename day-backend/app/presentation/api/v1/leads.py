@@ -65,16 +65,22 @@ async def set_lead_status(
     return LeadResponse.model_validate(updated, from_attributes=True)
 
 
+# The newest this many; an older entry is found by the search, which looks before the limit.
+BLACKLIST_SHOWN = 200
+
+
 @blacklist_router.get(
     "",
     response_model=list[BlacklistEntryResponse],
     dependencies=[Depends(require(Permission.BOOKINGS_READ))],
 )
 async def list_blacklist(
+    # By the number's digits or the reason's words; the newest 200 that match.
+    q: str | None = Query(default=None, max_length=100),
     session: AsyncSession = Depends(get_session),
     company_id: uuid.UUID = Depends(get_company_id),
 ):
-    rows = await SqlBlacklistRepository(session).list_all(company_id)
+    rows = await SqlBlacklistRepository(session).list_all(company_id, limit=BLACKLIST_SHOWN, search=q)
     return [BlacklistEntryResponse.model_validate(x, from_attributes=True) for x in rows]
 
 

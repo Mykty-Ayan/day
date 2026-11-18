@@ -12,7 +12,7 @@ from collections.abc import Sequence
 from datetime import date, datetime
 from decimal import Decimal
 
-from sqlalchemy import delete, select, update
+from sqlalchemy import delete, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.domain.leads.entities import BlacklistedGuest, Lead, LeadStatus
@@ -178,13 +178,19 @@ class SqlBlacklistRepository(BlacklistRepository):
         return _to_entry(model) if model else None
 
     async def list_all(
-        self, company_id: uuid.UUID, limit: int = 200
+        self, company_id: uuid.UUID, limit: int = 200, search: str | None = None
     ) -> Sequence[BlacklistedGuest]:
+        stmt = select(BlacklistedGuestModel).where(BlacklistedGuestModel.company_id == company_id)
+        words = (search or "").strip()
+        if words:
+            escaped = words.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+            found = BlacklistedGuestModel.reason.ilike(f"%{escaped}%", escape="\\")
+            digits = "".join(ch for ch in words if ch.isdigit())
+            if len(digits) >= 3:
+                found = or_(found, BlacklistedGuestModel.phone.contains(digits))
+            stmt = stmt.where(found)
         rows = await self._session.scalars(
-            select(BlacklistedGuestModel)
-            .where(BlacklistedGuestModel.company_id == company_id)
-            .order_by(BlacklistedGuestModel.created_at.desc())
-            .limit(limit)
+            stmt.order_by(BlacklistedGuestModel.created_at.desc()).limit(limit)
         )
         return [_to_entry(m) for m in rows.all()]
 

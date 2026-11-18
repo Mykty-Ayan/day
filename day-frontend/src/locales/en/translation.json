@@ -2051,7 +2051,15 @@
     "empty": "No numbers in the blacklist yet",
     "remove": "Remove",
     "removeTitle": "Remove from the blacklist?",
-    "removeMessage": "The number {{phone}} will no longer be flagged on bookings."
+    "removeMessage": "The number {{phone}} will no longer be flagged on bookings.",
+    "addButton": "Add number",
+    "search": "Search by number or reason",
+    "noMatch": "Nothing found.",
+    "addedOn": "Added {{date}}",
+    "noReason": "No reason given",
+    "fromGroup": "From a colleagues' group",
+    "reasonHint": "Say briefly what happened. The guest never sees this entry.",
+    "newestOnly": "Showing the {{limit}} newest numbers. Find an older one by searching."
   },
   "agents": {
     "title": "Agents",
@@ -2068,7 +2076,19 @@
     "stop": "Stopped working",
     "resume": "Working again",
     "nobody": "Nobody, the guest came directly",
-    "stoppedName": "{{name}} (stopped)"
+    "stoppedName": "{{name}} (stopped)",
+    "addButton": "Add agent",
+    "brought_one": "{{count}} booking for {{amount}}",
+    "brought_other": "{{count}} bookings for {{amount}}",
+    "broughtNone": "No bookings yet",
+    "stoppedTitle": "Stopped working",
+    "bookings": "Agent's bookings",
+    "saveChanges": "Save",
+    "changed": "Saved",
+    "totalsFailed": "Couldn't count the agents' bookings. Check the connection and try again.",
+    "bookingsFailed": "Couldn't load the agent's bookings.",
+    "showMore_one": "Show {{count}} more booking",
+    "showMore_other": "Show {{count}} more bookings"
   },
   "readiness": {
     "title": "Properties readiness",

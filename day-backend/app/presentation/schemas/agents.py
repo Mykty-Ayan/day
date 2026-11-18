@@ -42,3 +42,11 @@ class AgentResponse(BaseModel):
     note: str | None = None
     is_active: bool
     created_at: datetime | None = None
+
+
+class AgentTotals(BaseModel):
+    """What an agent brought: bookings naming them, cancelled ones aside, and their sum."""
+
+    agent_id: uuid.UUID
+    bookings: int
+    total: float
