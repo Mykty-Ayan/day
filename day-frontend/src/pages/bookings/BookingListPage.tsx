@@ -1,30 +1,44 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { format, parseISO } from 'date-fns'
-import { ChevronLeft, ChevronRight, Search } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Download, Search } from 'lucide-react'
 import { Link, useNavigate } from '@tanstack/react-router'
+import { listAllBookings } from '../../api/bookings'
 import { useBookings } from '../../hooks/useBookings'
-import { useProperties } from '../../hooks/useProperties'
+import { useAllProperties } from '../../hooks/useProperties'
 import { useCurrency } from '../../hooks/useCurrency'
-import type { Booking, BookingStatus, BookingSource } from '../../types/booking'
+import { useSettings } from '../../hooks/useSettings'
+import type { Booking, BookingFilters, BookingStatus, BookingSource } from '../../types/booking'
+import type { PropertyStatus } from '../../types/property'
 import BookingStatusBadge from '../../components/booking/BookingStatusBadge'
 import Spinner from '../../components/ui/Spinner'
+import { showToast } from '../../components/ui/Toast'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select'
 import { ToggleGroup, ToggleGroupItem } from '../../components/ui/toggle-group'
 import { dateLocale } from '../../lib/date-locale'
 import { formatPhone } from '../../lib/phone'
 import { listOwes, stayLine } from '../../lib/booking-list'
+import { statusKeys } from '../../lib/booking-status'
+import { serverMoment } from '../../lib/bookings-dashboard'
+import { download, toCsv, type CsvColumn } from '../../lib/csv'
+import { wallClock } from '../../lib/property-overview'
 import { formatMoneyExact } from '../miniapp/format'
 
 const SOURCES: BookingSource[] = ['direct', 'booking', 'airbnb', 'other', 'crm', 'offer', 'site']
 const FIELD = 'h-11 w-full rounded-xl border border-line bg-surface-card px-3 text-sm text-ink outline-none placeholder:text-ink-muted focus:border-accent'
 // Guest, flat, dates, status, money: one grid for the header and every row on a wide screen.
 const COLUMNS = 'lg:grid lg:grid-cols-[minmax(0,1.4fr)_minmax(0,0.8fr)_minmax(0,1.2fr)_9rem_8rem] lg:items-center lg:gap-4'
+const ACTION =
+  'inline-flex h-10 shrink-0 items-center gap-1.5 rounded-xl border border-line bg-surface-card px-3.5 text-sm font-semibold text-ink transition-colors hover:bg-surface-page disabled:opacity-50'
+// The filter lists every object, the ones at work first: an archived object's bookings stay in the list.
+const STATUS_ORDER: Record<PropertyStatus, number> = { active: 0, paused: 1, new: 2, archived: 3 }
 
 /** All bookings: found by guest, flat, source and status. A table on a wide screen,
  *  one card per booking on a phone; no switch between the two. */
 export default function BookingListPage() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
+  const settings = useSettings()
+  const [exporting, setExporting] = useState(false)
   const [search, setSearch] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<BookingStatus | 'all'>('all')
@@ -42,17 +56,49 @@ export default function BookingListPage() {
     { value: 'cancelled', label: t('common.cancelled') },
   ]
 
-  const { data: propertiesData } = useProperties({ per_page: 100, status: 'active' })
-  const properties = propertiesData?.items ?? []
+  const { data: propertiesData } = useAllProperties()
+  const properties = [...(propertiesData?.items ?? [])].sort((a, b) => STATUS_ORDER[a.status] - STATUS_ORDER[b.status])
 
-  const { data, isLoading, isError, refetch } = useBookings({
-    page,
-    per_page: 20,
+  const filters: BookingFilters = {
     status: statusFilter === 'all' ? undefined : statusFilter,
     source: sourceFilter === 'all' ? undefined : sourceFilter,
     property_id: propertyFilter === 'all' ? undefined : propertyFilter,
     search: debouncedSearch || undefined,
-  })
+  }
+  const { data, isLoading, isError, refetch } = useBookings({ page, per_page: 20, ...filters })
+
+  /** Every booking the list finds, all its pages, as a file for a spreadsheet. */
+  async function exportList() {
+    const english = i18n.language === 'en'
+    const when = (iso: string) =>
+      `${english ? iso.slice(0, 10) : `${iso.slice(8, 10)}.${iso.slice(5, 7)}.${iso.slice(0, 4)}`} ${iso.slice(11, 16)}`
+    const length = (b: Booking) =>
+      stayLine(b, { day: () => '', dayMonth: () => '', nights: (n) => t('bookings.nights', { count: n }) }).detail
+    const timeZone = settings.data?.time_zone ?? 'Asia/Almaty'
+    const columns: CsvColumn<Booking>[] = [
+      { title: t('bookings.guest'), value: (b) => b.guest_name ?? '' },
+      { title: t('bookings.phone'), value: (b) => (b.guest_phone ? formatPhone(b.guest_phone) : '') },
+      { title: t('bookings.property'), value: (b) => b.property_internal_name || b.property_name || '' },
+      { title: t('bookings.export.checkIn'), value: (b) => when(b.check_in) },
+      { title: t('bookings.export.checkOut'), value: (b) => when(b.check_out) },
+      { title: t('bookings.export.length'), value: length },
+      { title: t('bookings.source'), value: (b) => t(`bookings.sources.${b.source}`) },
+      { title: t('common.status'), value: (b) => t(statusKeys[b.status]) },
+      { title: t('bookings.total'), value: (b) => Number(b.total_price) },
+      { title: t('bookings.card.paid'), value: (b) => Number(b.paid_amount ?? 0) },
+      { title: t('gantt.moneyOwes'), value: (b) => listOwes(b) },
+      { title: t('bookings.export.made'), value: (b) => when(wallClock(serverMoment(b.created_at), timeZone)) },
+    ]
+    setExporting(true)
+    try {
+      const rows = await listAllBookings(filters)
+      download(toCsv(rows, columns, i18n.language), `bookings-${wallClock(new Date(), timeZone).slice(0, 10)}.csv`)
+    } catch {
+      showToast('error', t('bookings.export.failed'))
+    } finally {
+      setExporting(false)
+    }
+  }
 
   // The query fires ~300ms after typing stops.
   useEffect(() => {
@@ -65,8 +111,14 @@ export default function BookingListPage() {
 
   return (
     <div className="mx-auto w-full max-w-7xl px-4 py-4 sm:px-6 sm:py-6">
-      {/* New bookings start from "Create" in the top bar, on every screen. */}
-      <h1 className="mb-5 text-xl font-bold text-ink">{t('bookings.title')}</h1>
+      <div className="mb-5 flex items-center justify-between gap-3">
+        {/* New bookings start from "Create" in the top bar, on every screen. */}
+        <h1 className="text-xl font-bold text-ink">{t('bookings.title')}</h1>
+        <button type="button" onClick={exportList} disabled={exporting} aria-busy={exporting} className={ACTION}>
+          <Download className="h-4 w-4" aria-hidden="true" />
+          {t('bookings.export.button')}
+        </button>
+      </div>
 
       {/* On a phone: search on its own line, the two filters side by side under it. */}
       <div className="mb-4 grid grid-cols-2 gap-3 sm:flex">
@@ -89,7 +141,7 @@ export default function BookingListPage() {
             <SelectItem value="all">{t('common.allProperties')}</SelectItem>
             {properties.map((p) => (
               <SelectItem key={p.id} value={p.id}>
-                {p.internal_name}
+                {p.status === 'active' ? p.internal_name : `${p.internal_name} · ${t(`properties.statusOne.${p.status}`)}`}
               </SelectItem>
             ))}
           </SelectContent>

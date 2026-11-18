@@ -861,6 +861,14 @@
       "more_one": "and {{count}} more",
       "more_other": "and {{count}} more",
       "failed": "Couldn't load the overview. Check the connection and try again."
+    },
+    "export": {
+      "button": "Export",
+      "failed": "Couldn't export the bookings. Check the connection and try again.",
+      "checkIn": "Check-in",
+      "checkOut": "Check-out",
+      "length": "Nights or hours",
+      "made": "Made"
     }
   },
   "today": {

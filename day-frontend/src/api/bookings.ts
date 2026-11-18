@@ -43,6 +43,15 @@ export async function listBookings(
   return res.data
 }
 
+/** Every page of the bookings that match: the list comes a page at a time. */
+export async function listAllBookings(filters: Omit<BookingFilters, 'page' | 'per_page'> = {}): Promise<Booking[]> {
+  const first = await listBookings({ ...filters, per_page: 100 })
+  const rest = await Promise.all(
+    Array.from({ length: Math.max(0, first.pages - 1) }, (_, i) => listBookings({ ...filters, per_page: 100, page: i + 2 })),
+  )
+  return [first, ...rest].flatMap((page) => page.items)
+}
+
 export async function getBooking(id: string, signal?: AbortSignal): Promise<BookingDetail> {
   const res = await apiClient.get(`/bookings/${id}`, { signal })
   return res.data
