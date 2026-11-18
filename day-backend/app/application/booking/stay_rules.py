@@ -37,6 +37,20 @@ async def company_day_utc(
     return start, end
 
 
+def held_until(stay: Booking, today: datetime | None) -> datetime:
+    """When a stay frees its flat. A completed stay is over: from today on the flat is free,
+    before today it keeps its dates (Day does not store the real departure)."""
+    if stay.status == BookingStatus.COMPLETED and today is not None:
+        return min(stay.check_out, today)
+    return stay.check_out
+
+
+def takes(stay: Booking, start: datetime, end: datetime, today: datetime | None) -> bool:
+    """Whether a stay holds any of the time from start to end, as booking judges it."""
+    until = held_until(stay, today)
+    return stay.check_in < until and stay.check_in < end and until > start
+
+
 async def overlapping_stays(
     booking_repo: BookingRepository,
     property_id: uuid.UUID,
@@ -64,7 +78,7 @@ async def overlapping_stays(
     def clashes(stay: Booking) -> bool:
         if stay.status != BookingStatus.COMPLETED:
             return True
-        ended = min(stay.check_out, today)
+        ended = held_until(stay, today)
         return stay.check_in < ended and any(
             start < end and start < ended and end > stay.check_in for start, end in new_time
         )
