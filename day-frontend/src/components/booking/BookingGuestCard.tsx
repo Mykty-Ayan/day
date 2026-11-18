@@ -121,7 +121,7 @@ function GuestEditForm({ guest, onDone }: { guest: Guest; onDone: () => void }) 
   const [form, setForm] = useState<GuestForm>({ name: guest.name, phone: guest.phone ?? '' })
   const [error, setError] = useState('')
   const save = useUpdateGuest(guest.id)
-  const field = 'w-full bg-gray-50 border border-gray-200 rounded-xl p-3 outline-none focus:ring-2 focus:ring-black/10 text-sm'
+  const field = 'w-full bg-surface-page border border-line rounded-xl p-3 outline-none focus:border-accent text-sm'
 
   function submit() {
     const result = guestPatch(guest, form)
@@ -142,7 +142,7 @@ function GuestEditForm({ guest, onDone }: { guest: Guest; onDone: () => void }) 
   return (
     <div className="space-y-3">
       <label className="block">
-        <span className="text-xs text-gray-500">{t('bookings.guestName')}</span>
+        <span className="text-xs text-ink-muted">{t('bookings.guestName')}</span>
         <input
           type="text"
           value={form.name}
@@ -151,7 +151,7 @@ function GuestEditForm({ guest, onDone }: { guest: Guest; onDone: () => void }) 
         />
       </label>
       <label className="block">
-        <span className="text-xs text-gray-500">{t('bookings.phone')}</span>
+        <span className="text-xs text-ink-muted">{t('bookings.phone')}</span>
         <input
           type="tel"
           value={form.phone}

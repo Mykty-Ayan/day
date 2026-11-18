@@ -1288,7 +1288,7 @@ export default function GanttChart({
       {tooltip && (
         // A hover tip shows at once, where it belongs: no fade, no shift after a frame.
         <div
-          className="pointer-events-none fixed z-popover max-w-[280px] rounded-xl border border-white/10 bg-gray-950/95 px-3 py-2.5 text-white shadow-lg backdrop-blur-sm"
+          className="pointer-events-none fixed z-popover max-w-[280px] rounded-xl border border-white/10 bg-ink/95 px-3 py-2.5 text-white shadow-lg backdrop-blur-sm"
           style={{ left: tooltip.x, top: tooltip.y - 8, transform: 'translate(-50%, -100%)' }}
         >
           {tooltip.bookings.map((booking, index) => {
@@ -1301,8 +1301,8 @@ export default function GanttChart({
                 {/* By the hour or by the night: the mark before the name */}
                 <div className="flex items-center gap-1.5">
                   {hourly
-                    ? <Clock className="h-3.5 w-3.5 shrink-0 text-gray-300" aria-label={t('properties.form.rentalModeHourly')} />
-                    : <Moon className="h-3.5 w-3.5 shrink-0 text-gray-300" aria-label={t('properties.form.rentalModeDaily')} />}
+                    ? <Clock className="h-3.5 w-3.5 shrink-0 text-white/80" aria-label={t('properties.form.rentalModeHourly')} />
+                    : <Moon className="h-3.5 w-3.5 shrink-0 text-white/80" aria-label={t('properties.form.rentalModeDaily')} />}
                   <p className="max-w-[160px] truncate text-sm font-semibold text-white">{booking.guest_name}</p>
                   {/* The bar's own word and colour, as the legend has them */}
                   <span className={`ml-auto shrink-0 rounded-md px-1.5 py-0.5 text-[10px] font-semibold ${TONE[barTone(booking, nowKey)]}`}>
@@ -1310,24 +1310,24 @@ export default function GanttChart({
                   </span>
                 </div>
                 {hourly ? (
-                  <p className="mt-1 text-[11px] text-gray-300 tabular-nums">
+                  <p className="mt-1 text-[11px] text-white/80 tabular-nums">
                     {on(booking.check_in)}, {booking.check_in.slice(11, 16)}–{booking.check_out.slice(11, 16)}
-                    <span className="text-gray-500"> · {t('gantt.hourCount', { count: getBookingHours(booking.check_in, booking.check_out) })}</span>
+                    <span className="text-white/50"> · {t('gantt.hourCount', { count: getBookingHours(booking.check_in, booking.check_out) })}</span>
                   </p>
                 ) : (
-                  <p className="mt-1 flex items-center gap-1 whitespace-nowrap text-[11px] text-gray-300 tabular-nums">
-                    <LogIn className="h-3 w-3 text-gray-400" aria-label={t('properties.checkIn')} />
+                  <p className="mt-1 flex items-center gap-1 whitespace-nowrap text-[11px] text-white/80 tabular-nums">
+                    <LogIn className="h-3 w-3 text-white/60" aria-label={t('properties.checkIn')} />
                     {on(booking.check_in)} {booking.check_in.slice(11, 16)}
-                    <LogOut className="ml-2 h-3 w-3 text-gray-400" aria-label={t('properties.checkOut')} />
+                    <LogOut className="ml-2 h-3 w-3 text-white/60" aria-label={t('properties.checkOut')} />
                     {on(booking.check_out)} {booking.check_out.slice(11, 16)}
                   </p>
                 )}
-                <p className="mt-1 flex items-center gap-1 whitespace-nowrap text-[11px] text-gray-300">
-                  <Users className="h-3 w-3 text-gray-400" aria-hidden="true" />
+                <p className="mt-1 flex items-center gap-1 whitespace-nowrap text-[11px] text-white/80">
+                  <Users className="h-3 w-3 text-white/60" aria-hidden="true" />
                   {guests}
-                  <span className="text-gray-500">·</span>
+                  <span className="text-white/50">·</span>
                   {t(sourceKeys[booking.source])}
-                  <span className="text-gray-500">·</span>
+                  <span className="text-white/50">·</span>
                   <span className="font-semibold text-white">{`${formatMoney(booking.total_price, i18n.language)} ${currencySymbol}`}</span>
                   {debt > 0 && (
                     <span className="ml-1 font-semibold text-red-300">

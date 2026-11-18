@@ -34,7 +34,7 @@ export default function GlobalSearch() {
         if (event.key === 'Escape') close()
       }}
     >
-      <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+      <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-muted" />
       <input
         type="search"
         value={text}
@@ -45,7 +45,7 @@ export default function GlobalSearch() {
         onFocus={() => setOpen(true)}
         placeholder={t('nav.searchPlaceholder')}
         aria-label={t('common.search')}
-        className="w-full rounded-lg border border-gray-200 bg-gray-50 py-2 pl-9 pr-3 text-xs outline-none transition-colors focus:border-gray-400 focus:bg-white"
+        className="w-full rounded-lg border border-line bg-surface-page py-2 pl-9 pr-3 text-xs outline-none transition-colors focus:border-accent"
       />
       {open && query && <SearchResults query={query} onPick={close} />}
     </div>
@@ -64,31 +64,31 @@ function SearchResults({ query, onPick }: { query: string; onPick: () => void })
     .slice(0, SHOWN)
   const stays = bookings?.items ?? []
   const day = (value: string) => new Date(value).toLocaleDateString(i18n.language, { month: 'short', day: 'numeric' })
-  const row = 'flex min-h-[40px] items-center gap-2 rounded-lg px-3 py-2 text-sm text-gray-800 transition-colors hover:bg-gray-50'
+  const row = 'flex min-h-[40px] items-center gap-2 rounded-lg px-3 py-2 text-sm text-ink transition-colors hover:bg-surface-page'
 
   return (
     <div
       // Safari does not focus a link on click: the field's blur would close the list first.
       onMouseDown={(event) => event.preventDefault()}
-      className="absolute left-0 right-0 top-full z-popover mt-1 max-h-96 overflow-y-auto rounded-xl border border-gray-200 bg-white p-1 shadow-lg"
+      className="absolute left-0 right-0 top-full z-popover mt-1 max-h-96 overflow-y-auto rounded-xl border border-line bg-surface-card p-1 shadow-lg"
     >
       {stays.map((booking) => (
         <Link key={booking.id} to="/bookings/$bookingId" params={{ bookingId: booking.id }} onClick={onPick} className={row}>
           <span className="min-w-0 flex-1 truncate font-semibold">{booking.guest_name}</span>
-          <span className="shrink-0 text-xs text-gray-500">
+          <span className="shrink-0 text-xs text-ink-muted">
             {booking.property_internal_name || booking.property_name} · {day(booking.check_in)}
           </span>
         </Link>
       ))}
       {flats.map((flat) => (
         <Link key={flat.id} to="/properties/$propertyId" params={{ propertyId: flat.id }} onClick={onPick} className={row}>
-          <Building2 className="h-4 w-4 shrink-0 text-gray-500" />
+          <Building2 className="h-4 w-4 shrink-0 text-ink-muted" />
           <span className="min-w-0 flex-1 truncate font-semibold">{flat.internal_name || flat.name}</span>
         </Link>
       ))}
-      {isError && <p className="px-3 py-2 text-sm text-gray-500">{t('nav.searchFailed')}</p>}
+      {isError && <p className="px-3 py-2 text-sm text-ink-muted">{t('nav.searchFailed')}</p>}
       {!isError && !isFetching && !flatsLoading && stays.length === 0 && flats.length === 0 && (
-        <p className="px-3 py-2 text-sm text-gray-500">{t('nav.searchEmpty')}</p>
+        <p className="px-3 py-2 text-sm text-ink-muted">{t('nav.searchEmpty')}</p>
       )}
     </div>
   )
