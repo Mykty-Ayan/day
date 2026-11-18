@@ -2228,8 +2228,20 @@
       "billing": {
         "invoice": "by invoice",
         "booking": "added to the booking"
+      },
+      "filter": {
+        "new": "New",
+        "awaiting_payment": "Awaiting payment",
+        "accepted": "On its way",
+        "delivered": "Delivered",
+        "cancelled": "Cancelled"
       }
-    }
+    },
+    "addButton": "Add product",
+    "photoChange": "Change photo",
+    "archiveTitle": "Archive the product?",
+    "inStock": "In stock",
+    "parIs": "Threshold: {{par}} pcs"
   },
   "guestPanel": {
     "notFound": "This link was not found. Write to the host for a new one.",

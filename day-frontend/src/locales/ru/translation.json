@@ -2310,8 +2310,20 @@
       "billing": {
         "invoice": "по счёту",
         "booking": "к оплате брони"
+      },
+      "filter": {
+        "new": "Новые",
+        "awaiting_payment": "Ждут оплаты",
+        "accepted": "Везём",
+        "delivered": "Доставлены",
+        "cancelled": "Отменены"
       }
-    }
+    },
+    "addButton": "Добавить товар",
+    "photoChange": "Заменить фото",
+    "archiveTitle": "Убрать товар в архив?",
+    "inStock": "На складе",
+    "parIs": "Порог: {{par}} шт."
   },
   "guestPanel": {
     "notFound": "Ссылка не найдена. Напишите хозяину, он пришлёт новую.",

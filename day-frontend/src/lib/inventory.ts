@@ -1,5 +1,6 @@
 /** The rules of the stock screen, kept apart from the page so they can be tested. */
 
+import { isAxiosError } from 'axios'
 import type { MovementInput, Product, ProductInput } from '../api/inventory'
 import { expenseAmount, plainAmount } from './expenses'
 
@@ -113,3 +114,10 @@ export function movementInput(form: MovementForm): MovementInput {
 /** The stock on screen: red below the threshold, or at nothing when there is none. */
 export const stockIsLow = (p: Pick<Product, 'stock' | 'par_level'>) =>
   p.par_level !== null ? p.stock < p.par_level : p.stock <= 0
+
+/** The server's reason for refusing, when it gave one. */
+export function serverReason(error: unknown): string | null {
+  if (!isAxiosError(error)) return null
+  const detail = (error.response?.data as { detail?: unknown } | undefined)?.detail
+  return typeof detail === 'string' ? detail : null
+}
