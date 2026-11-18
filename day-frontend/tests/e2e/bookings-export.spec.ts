@@ -68,4 +68,23 @@ test.describe('Bookings list export - E2E', () => {
     const money = Number.isInteger(total) ? String(total) : total.toFixed(2)
     expect(row).toContain(`,${money},0,${money},`)
   })
+
+  test('after another window signs in to another company, the open list exports nothing', async ({ page }) => {
+    const asked: string[] = []
+    page.on('request', (r) => { if (r.url().includes('/bookings/export')) asked.push(r.url()) })
+    await page.goto('/bookings')
+    await expect(page.getByRole('button', { name: 'Export' })).toBeEnabled()
+
+    // Another window stores a session of another company; this screen still shows the first one.
+    await page.evaluate(() => {
+      const [head, body, sign] = localStorage.getItem('access_token')!.split('.')
+      const claims = JSON.parse(atob(body.replace(/-/g, '+').replace(/_/g, '/')))
+      const other = btoa(JSON.stringify({ ...claims, company_id: '00000000-0000-4000-8000-000000000000' }))
+      localStorage.setItem('access_token', `${head}.${other.replace(/=+$/, '').replace(/\+/g, '-').replace(/\//g, '_')}.${sign}`)
+    })
+    await page.getByRole('button', { name: 'Export' }).click()
+
+    await expect(page.getByText('You signed in to another company in another window. Reload the page to export its bookings.')).toBeVisible()
+    expect(asked).toEqual([])
+  })
 })

@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react'
+import { isAxiosError } from 'axios'
 import { useTranslation } from 'react-i18next'
 import { format, parseISO } from 'date-fns'
 import { ChevronLeft, ChevronRight, Download, Search } from 'lucide-react'
 import { Link, useNavigate } from '@tanstack/react-router'
-import { listAllBookings } from '../../api/bookings'
+import { exportBookings } from '../../api/bookings'
 import { SessionChangedError } from '../../api/client'
 import { useBookings } from '../../hooks/useBookings'
 import { useAllProperties } from '../../hooks/useProperties'
@@ -41,6 +42,9 @@ export default function BookingListPage() {
   const { t, i18n } = useTranslation()
   const settings = useSettings()
   const [exporting, setExporting] = useState(false)
+  // The company this screen shows: another window may sign in to another one while it stays open,
+  // and the export must not hand over that company's guests under this screen.
+  const [screenCompany] = useState(() => companyFromToken(localStorage.getItem('access_token')))
   const [search, setSearch] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<BookingStatus | 'all'>('all')
@@ -94,17 +98,26 @@ export default function BookingListPage() {
       { title: t('gantt.moneyOwes'), value: (b) => listOwes(b) },
       { title: t('bookings.export.made'), value: (b) => when(wallClock(serverMoment(b.created_at), timeZone)) },
     ]
-    // The file is this company's: no page goes out, and nothing is saved, once another window
-    // has signed in to another company.
-    const company = companyFromToken(localStorage.getItem('access_token'))
+    // The file is the shown company's: nothing is asked or saved once the session is another one's.
+    const company = screenCompany
     if (!company) return
+    if (!sendableFor(company, localStorage.getItem('access_token'))) {
+      showToast('error', t('bookings.export.otherCompany'))
+      return
+    }
     setExporting(true)
     try {
-      const rows = await listAllBookings(filters, company)
+      const rows = await exportBookings(filters, company)
       if (!sendableFor(company, localStorage.getItem('access_token'))) throw new SessionChangedError()
       download(toCsv(rows, columns, i18n.language), `bookings-${wallClock(new Date(), timeZone).slice(0, 10)}.csv`)
-    } catch {
-      showToast('error', t('bookings.export.failed'))
+    } catch (error) {
+      const message =
+        error instanceof SessionChangedError
+          ? 'bookings.export.otherCompany'
+          : isAxiosError(error) && error.response?.status === 422
+            ? 'bookings.export.tooMany'
+            : 'bookings.export.failed'
+      showToast('error', t(message))
     } finally {
       setExporting(false)
     }

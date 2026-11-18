@@ -868,7 +868,9 @@
       "checkIn": "Check-in",
       "checkOut": "Check-out",
       "length": "Nights or hours",
-      "made": "Made"
+      "made": "Made",
+      "otherCompany": "You signed in to another company in another window. Reload the page to export its bookings.",
+      "tooMany": "More than 10,000 bookings. Pick a property, source or status and export in parts."
     }
   },
   "today": {
