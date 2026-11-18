@@ -453,6 +453,9 @@ async def list_bookings(
     date_to: date | None = None,
     # The bookings an agent brought: what their commission is paid for.
     agent_id: uuid.UUID | None = None,
+    # The days the booking was made on (UTC), both whole: what was sold in a period.
+    created_from: date | None = None,
+    created_to: date | None = None,
     session: AsyncSession = Depends(get_session),
     company_id: uuid.UUID = Depends(get_company_id),
     principal: Principal = Depends(get_principal),
@@ -471,6 +474,8 @@ async def list_bookings(
         date_from=date_from,
         date_to=date_to,
         agent_id=agent_id,
+        created_from=created_from,
+        created_to=created_to,
     )
 
     # Enrich with guest and property names, plus what has been received —
