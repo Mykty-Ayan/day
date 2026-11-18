@@ -49,3 +49,26 @@ async def test_the_list_finds_the_bookings_made_on_the_days_asked(flat):  # noqa
     assert await made(created_to="2030-10-31") == [early["id"]]
     assert await made(created_from="2030-10-31") == sorted([early["id"], late["id"]])
     assert await made(created_from="2030-12-01") == []
+
+
+@pytest.mark.integration
+async def test_stays_arriving_at_one_moment_keep_one_order_across_pages(flat):  # noqa: F811  (the imported fixture)
+    client, prop, use = flat
+    use(Permission.BOOKINGS_READ, Permission.BOOKINGS_WRITE, Permission.PROPERTIES_READ)
+    ids = []
+    for i in range(5):
+        # Each one cancelled before the next takes the same nights: five arrivals at one moment.
+        made = await client.post("/api/v1/bookings", json={**_STAY, "property_id": str(prop),
+                                                           "guest_phone": f"+7707901118{i}"})
+        assert made.status_code == 201, made.text
+        ids.append(made.json()["id"])
+        cancelled = await client.post(f"/api/v1/bookings/{ids[-1]}/status", json={"target_status": "cancelled"})
+        assert cancelled.status_code == 200, cancelled.text
+
+    async def page(n: int) -> list[str]:
+        listed = await client.get("/api/v1/bookings", params={"property_id": str(prop), "per_page": 2, "page": n})
+        return [b["id"] for b in listed.json()["items"]]
+
+    paged = await page(1) + await page(2) + await page(3)
+    # Every stay once, in one order: the newest arrival first, a tie broken by the id.
+    assert paged == sorted(ids, reverse=True)

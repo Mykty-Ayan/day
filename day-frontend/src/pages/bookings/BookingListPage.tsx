@@ -4,6 +4,7 @@ import { format, parseISO } from 'date-fns'
 import { ChevronLeft, ChevronRight, Download, Search } from 'lucide-react'
 import { Link, useNavigate } from '@tanstack/react-router'
 import { listAllBookings } from '../../api/bookings'
+import { SessionChangedError } from '../../api/client'
 import { useBookings } from '../../hooks/useBookings'
 import { useAllProperties } from '../../hooks/useProperties'
 import { useCurrency } from '../../hooks/useCurrency'
@@ -22,6 +23,7 @@ import { statusKeys } from '../../lib/booking-status'
 import { serverMoment } from '../../lib/bookings-dashboard'
 import { download, toCsv, type CsvColumn } from '../../lib/csv'
 import { wallClock } from '../../lib/property-overview'
+import { companyFromToken, sendableFor } from '../../lib/token'
 import { formatMoneyExact } from '../miniapp/format'
 
 const SOURCES: BookingSource[] = ['direct', 'booking', 'airbnb', 'other', 'crm', 'offer', 'site']
@@ -74,7 +76,10 @@ export default function BookingListPage() {
       `${english ? iso.slice(0, 10) : `${iso.slice(8, 10)}.${iso.slice(5, 7)}.${iso.slice(0, 4)}`} ${iso.slice(11, 16)}`
     const length = (b: Booking) =>
       stayLine(b, { day: () => '', dayMonth: () => '', nights: (n) => t('bookings.nights', { count: n }) }).detail
-    const timeZone = settings.data?.time_zone ?? 'Asia/Almaty'
+    // The button waits for the settings: a guessed time zone would shift the day a booking was made.
+    if (!settings.data) return
+    // A company without its own zone has the server's default, as everywhere in the app.
+    const timeZone = settings.data.time_zone ?? 'Asia/Almaty'
     const columns: CsvColumn<Booking>[] = [
       { title: t('bookings.guest'), value: (b) => b.guest_name ?? '' },
       { title: t('bookings.phone'), value: (b) => (b.guest_phone ? formatPhone(b.guest_phone) : '') },
@@ -89,9 +94,14 @@ export default function BookingListPage() {
       { title: t('gantt.moneyOwes'), value: (b) => listOwes(b) },
       { title: t('bookings.export.made'), value: (b) => when(wallClock(serverMoment(b.created_at), timeZone)) },
     ]
+    // The file is this company's: no page goes out, and nothing is saved, once another window
+    // has signed in to another company.
+    const company = companyFromToken(localStorage.getItem('access_token'))
+    if (!company) return
     setExporting(true)
     try {
-      const rows = await listAllBookings(filters)
+      const rows = await listAllBookings(filters, company)
+      if (!sendableFor(company, localStorage.getItem('access_token'))) throw new SessionChangedError()
       download(toCsv(rows, columns, i18n.language), `bookings-${wallClock(new Date(), timeZone).slice(0, 10)}.csv`)
     } catch {
       showToast('error', t('bookings.export.failed'))
@@ -114,7 +124,7 @@ export default function BookingListPage() {
       <div className="mb-5 flex items-center justify-between gap-3">
         {/* New bookings start from "Create" in the top bar, on every screen. */}
         <h1 className="text-xl font-bold text-ink">{t('bookings.title')}</h1>
-        <button type="button" onClick={exportList} disabled={exporting} aria-busy={exporting} className={ACTION}>
+        <button type="button" onClick={exportList} disabled={exporting || !settings.data} aria-busy={exporting} className={ACTION}>
           <Download className="h-4 w-4" aria-hidden="true" />
           {t('bookings.export.button')}
         </button>

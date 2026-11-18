@@ -1,5 +1,6 @@
 import { isAxiosError } from 'axios'
 import apiClient from './client'
+import { patiently } from '../lib/patiently'
 import type {
   Booking,
   BookingDetail,
@@ -38,18 +39,26 @@ function getLocalDateParam(): string {
 
 export async function listBookings(
   filters: BookingFilters = {},
+  expectedCompany?: string,
 ): Promise<PaginatedResponse<Booking>> {
-  const res = await apiClient.get('/bookings', { params: filters })
+  const res = await apiClient.get('/bookings', { params: filters, expectedCompany })
   return res.data
 }
 
-/** Every page of the bookings that match: the list comes a page at a time. */
-export async function listAllBookings(filters: Omit<BookingFilters, 'page' | 'per_page'> = {}): Promise<Booking[]> {
-  const first = await listBookings({ ...filters, per_page: 100 })
-  const rest = await Promise.all(
-    Array.from({ length: Math.max(0, first.pages - 1) }, (_, i) => listBookings({ ...filters, per_page: 100, page: i + 2 })),
-  )
-  return [first, ...rest].flatMap((page) => page.items)
+/** Every page of the bookings that match, one after another: all at once a long list would spend
+ *  the session's reads a minute, and a refused page waits for the limit and is asked again.
+ *  With `expectedCompany` no page goes out once the session is another company's. */
+export async function listAllBookings(
+  filters: Omit<BookingFilters, 'page' | 'per_page'> = {},
+  expectedCompany?: string,
+): Promise<Booking[]> {
+  const items: Booking[] = []
+  for (let page = 1, pages = 1; page <= pages; page++) {
+    const data = await patiently(() => listBookings({ ...filters, per_page: 100, page }, expectedCompany))
+    pages = data.pages
+    items.push(...data.items)
+  }
+  return items
 }
 
 export async function getBooking(id: string, signal?: AbortSignal): Promise<BookingDetail> {

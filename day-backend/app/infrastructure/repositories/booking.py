@@ -605,7 +605,8 @@ class SqlBookingRepository(BookingRepository):
             source=source, search=search, date_from=date_from, date_to=date_to, agent_id=agent_id,
             created_from=created_from, created_to=created_to,
         )
-        stmt = stmt.order_by(BookingModel.check_in.desc()).offset(offset).limit(limit)
+        # The id breaks a tie of arrivals: without it two pages may share a stay and miss another.
+        stmt = stmt.order_by(BookingModel.check_in.desc(), BookingModel.id.desc()).offset(offset).limit(limit)
         result = await self._session.scalars(stmt)
         return [_model_to_booking(m) for m in result.all()]
 
