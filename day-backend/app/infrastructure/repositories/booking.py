@@ -555,7 +555,14 @@ class SqlBookingRepository(BookingRepository):
         date_from=None,
         date_to=None,
         agent_id=None,
+        created_from=None,
+        created_to=None,
     ):
+        if created_from is not None:
+            stmt = stmt.where(BookingModel.created_at >= created_from)
+        if created_to is not None:
+            # A whole day, as date_to is.
+            stmt = stmt.where(BookingModel.created_at < created_to + timedelta(days=1))
         if agent_id is not None:
             stmt = stmt.where(BookingModel.agent_id == agent_id)
         if status is not None:
@@ -589,11 +596,14 @@ class SqlBookingRepository(BookingRepository):
         date_from: date | None = None,
         date_to: date | None = None,
         agent_id: uuid.UUID | None = None,
+        created_from: date | None = None,
+        created_to: date | None = None,
     ) -> list[Booking]:
         stmt = select(BookingModel).where(BookingModel.company_id == company_id)
         stmt = self._apply_filters(
             stmt, status=status, property_id=property_id,
             source=source, search=search, date_from=date_from, date_to=date_to, agent_id=agent_id,
+            created_from=created_from, created_to=created_to,
         )
         stmt = stmt.order_by(BookingModel.check_in.desc()).offset(offset).limit(limit)
         result = await self._session.scalars(stmt)
@@ -610,6 +620,8 @@ class SqlBookingRepository(BookingRepository):
         date_from: date | None = None,
         date_to: date | None = None,
         agent_id: uuid.UUID | None = None,
+        created_from: date | None = None,
+        created_to: date | None = None,
     ) -> int:
         stmt = select(func.count()).select_from(BookingModel).where(
             BookingModel.company_id == company_id
@@ -617,6 +629,7 @@ class SqlBookingRepository(BookingRepository):
         stmt = self._apply_filters(
             stmt, status=status, property_id=property_id,
             source=source, search=search, date_from=date_from, date_to=date_to, agent_id=agent_id,
+            created_from=created_from, created_to=created_to,
         )
         result = await self._session.scalar(stmt)
         return result or 0

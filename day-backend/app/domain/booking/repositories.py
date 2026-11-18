@@ -148,6 +148,9 @@ class BookingRepository(abc.ABC):
         date_from: date | None = None,
         date_to: date | None = None,
         agent_id: uuid.UUID | None = None,
+        # The days the booking was made on, both whole: what was sold in a period.
+        created_from: date | None = None,
+        created_to: date | None = None,
     ) -> list[Booking]: ...
 
     @abc.abstractmethod
@@ -162,6 +165,8 @@ class BookingRepository(abc.ABC):
         date_from: date | None = None,
         date_to: date | None = None,
         agent_id: uuid.UUID | None = None,
+        created_from: date | None = None,
+        created_to: date | None = None,
     ) -> int: ...
 
     @abc.abstractmethod
