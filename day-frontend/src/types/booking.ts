@@ -258,6 +258,9 @@ export interface BookingFilters {
   date_to?: string
   /** The bookings this agent brought. */
   agent_id?: string
+  /** The days the booking was made on (UTC), both whole. */
+  created_from?: string
+  created_to?: string
 }
 
 export interface PaymentInput {

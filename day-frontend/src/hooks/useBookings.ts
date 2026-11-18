@@ -66,6 +66,22 @@ export function useBookings(filters: BookingFilters = {}, enabled = true) {
   })
 }
 
+/** Every page of the bookings that match: the list comes a page at a time. */
+async function allBookingPages(filters: BookingFilters) {
+  const first = await listBookings({ ...filters, per_page: 100 })
+  const rest = await Promise.all(
+    Array.from({ length: Math.max(0, first.pages - 1) }, (_, i) => listBookings({ ...filters, per_page: 100, page: i + 2 })),
+  )
+  return [first, ...rest].flatMap((page) => page.items)
+}
+
+export function useAllBookings(filters: BookingFilters = {}) {
+  return useQuery({
+    queryKey: [BOOKINGS_KEY, 'all', filters],
+    queryFn: () => allBookingPages(filters),
+  })
+}
+
 /** The nights a flat's stays take between `from` and `to` (yyyy-MM-dd; see
  *  nightsWindow), every page of them: a short page would leave nights open. */
 export function useBookedNights(
