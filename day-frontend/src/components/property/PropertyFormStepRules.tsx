@@ -127,6 +127,7 @@ export default function PropertyFormStepRules({ data, onChange, errors = {} }: P
           {t('properties.form.checkInInstructions')}
         </label>
         <textarea
+          id="check-in-instructions"
           value={data.check_in_instructions}
           onChange={(e) => update('check_in_instructions', e.target.value)}
           placeholder={t('properties.form.checkInInstructionsPlaceholder')}

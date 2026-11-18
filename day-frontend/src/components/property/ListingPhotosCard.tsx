@@ -109,7 +109,7 @@ export default function ListingPhotosCard({ propertyId, photos }: { propertyId: 
           )
         })}
         <li>
-          <label className="flex aspect-[4/3] cursor-pointer flex-col items-center justify-center gap-1 rounded-xl border border-dashed border-line text-xs font-semibold text-ink-muted transition-colors hover:bg-surface-page hover:text-ink">
+          <label id="add-photos-tile" className="flex aspect-[4/3] cursor-pointer flex-col items-center justify-center gap-1 rounded-xl border border-dashed border-line text-xs font-semibold text-ink-muted transition-colors hover:bg-surface-page hover:text-ink">
             {upload.isPending ? <Loader2 className="h-5 w-5 animate-spin" /> : <ImagePlus className="h-5 w-5" />}
             {upload.isPending ? t('properties.photosUploading') : t('properties.addPhotos')}
             <input

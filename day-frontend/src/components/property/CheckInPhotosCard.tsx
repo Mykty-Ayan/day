@@ -41,7 +41,7 @@ export default function CheckInPhotosCard({ propertyId, photos }: { propertyId: 
         {checkIn.map((photo) => (
           <CheckInPhoto key={photo.id} propertyId={propertyId} photo={photo} onDelete={() => setDeleting(photo)} />
         ))}
-        <label className="h-36 rounded-xl border border-dashed border-gray-300 flex flex-col items-center justify-center gap-1 text-xs font-semibold text-gray-600 cursor-pointer hover:bg-gray-50">
+        <label id="add-check-in-photos-tile" className="h-36 rounded-xl border border-dashed border-gray-300 flex flex-col items-center justify-center gap-1 text-xs font-semibold text-gray-600 cursor-pointer hover:bg-gray-50">
           <ImagePlus className="w-5 h-5" />
           {upload.isPending ? t('properties.photosUploading') : t('properties.checkInPhotos.add')}
           <input

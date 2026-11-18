@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { flushSync } from 'react-dom'
 import { useQueries, useQuery } from '@tanstack/react-query'
 import {
   ArrowLeft,
@@ -43,7 +44,7 @@ import {
 } from '../../hooks/useProperties'
 import { useFlatStaysFrom } from '../../hooks/useBookings'
 import { useSettings } from '../../hooks/useSettings'
-import { occupancy, readiness, stayNow, wallClock, type ReadinessItem, type ReadinessPlace } from '../../lib/property-overview'
+import { occupancy, readiness, stayNow, wallClock, type ReadinessItem } from '../../lib/property-overview'
 import { addDays, format, parseISO } from 'date-fns'
 import { dateLocale } from '../../lib/date-locale'
 import { getCalendarLink, getPricing } from '../../api/properties'
@@ -117,8 +118,8 @@ export default function PropertyDetailPage() {
   const clonePropertyMut = useCloneProperty()
   const [showCloneConfirm, setShowCloneConfirm] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
-  // The block being changed in the panel from the right.
-  const [editing, setEditing] = useState<PropertyBlock | null>(null)
+  // The block being changed in the panel from the right, and the field it was opened for.
+  const [editing, setEditing] = useState<{ block: PropertyBlock; field?: string } | null>(null)
   // The tab lives in the address (?tab=photos): back to the page opens it again.
   const [tab, setTabState] = useState<PropertyTab>(() => {
     const asked = new URLSearchParams(window.location.search).get('tab')
@@ -129,6 +130,14 @@ export default function PropertyDetailPage() {
     const url = new URL(window.location.href)
     url.searchParams.set('tab', next)
     window.history.replaceState(window.history.state, '', url)
+  }
+  // A button above the tabs: the tab alone opens below the screen, so what the button is
+  // for (by its id) is brought to the middle of the screen once the tab is drawn. At once,
+  // not smoothly: a line that loads above mid-way (the stay now) would cut a smooth scroll
+  // short, while after a jump the browser keeps the target in place (not Safari).
+  const showInTab = (next: PropertyTab, target: string) => {
+    flushSync(() => setTab(next))
+    document.getElementById(target)?.scrollIntoView({ block: 'center' })
   }
 
   const otherProperties = useMemo(
@@ -278,13 +287,13 @@ export default function PropertyDetailPage() {
 
       {/* The flat at a glance: its photos, what it is, how it is let and what it costs. */}
       <section className="mb-5 overflow-hidden rounded-2xl border border-line bg-surface-card lg:grid lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)]">
-        <PhotoCarousel photos={listingPhotos} onAdd={() => setTab('photos')} />
+        <PhotoCarousel photos={listingPhotos} onAdd={() => showInTab('photos', 'add-photos-tile')} />
         <div className="min-w-0 p-5 sm:p-6">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
                 <h1 className="truncate text-2xl font-bold text-ink">{property.internal_name || property.name}</h1>
-                <EditPencil label={t('properties.edit.basic')} onClick={() => setEditing('basic')} />
+                <EditPencil label={t('properties.edit.basic')} onClick={() => setEditing({ block: 'basic' })} />
                 <StatusMenu
                   status={property.status}
                   actions={statusActions}
@@ -337,7 +346,7 @@ export default function PropertyDetailPage() {
                 </li>
               ))}
               <li>
-                <EditPencil label={t('properties.edit.details')} onClick={() => setEditing('details')} />
+                <EditPencil label={t('properties.edit.details')} onClick={() => setEditing({ block: 'details' })} />
               </li>
             </ul>
           )}
@@ -359,7 +368,7 @@ export default function PropertyDetailPage() {
                   </span>
                 )}
               </span>
-              <EditPencil label={t('properties.edit.address')} onClick={() => setEditing('address')} />
+              <EditPencil label={t('properties.edit.address')} onClick={() => setEditing({ block: 'address' })} />
             </p>
           )}
 
@@ -384,7 +393,16 @@ export default function PropertyDetailPage() {
       {/* What the guest page and the CRM still lack, each a step to where it is filled in. */}
       <ReadinessCard
         items={readiness(property, pricing)}
-        onOpen={(place) => (place === 'prices' || place === 'photos' ? setTab(place) : setEditing(place))}
+        onOpen={({ key, place }) => {
+          // The prices lacking: the night's, or the hours' once the night has one.
+          if (place === 'prices') {
+            showInTab('prices', property.rental_mode === 'hourly' || Number(pricing?.base_price) > 0 ? 'pricing-hourly' : 'pricing-nightly')
+          } else if (place === 'photos') {
+            showInTab('photos', key === 'checkInPhotos' ? 'add-check-in-photos-tile' : 'add-photos-tile')
+          } else {
+            setEditing({ block: place, field: key === 'checkInInstructions' ? 'check-in-instructions' : undefined })
+          }
+        }}
       />
 
       {/* One part of the flat at a time, as a host's listing is kept on Airbnb. The grey line
@@ -492,7 +510,7 @@ export default function PropertyDetailPage() {
           <section className={`${CARD} space-y-3`} aria-labelledby="property-description">
             <div className="flex items-center justify-between gap-2">
               <h2 id="property-description" className="text-sm font-bold text-ink">{t('properties.description')}</h2>
-              <EditPencil label={t('properties.edit.basic')} onClick={() => setEditing('basic')} />
+              <EditPencil label={t('properties.edit.basic')} onClick={() => setEditing({ block: 'basic' })} />
             </div>
             {property.description ? (
               <p className="whitespace-pre-line text-sm text-ink">{property.description}</p>
@@ -503,7 +521,7 @@ export default function PropertyDetailPage() {
           <section className={`${CARD} space-y-4`} aria-labelledby="property-rules">
             <div className="flex items-center justify-between gap-2">
               <h2 id="property-rules" className="text-sm font-bold text-ink">{t('properties.edit.rules')}</h2>
-              <EditPencil label={t('properties.edit.rules')} onClick={() => setEditing('rules')} />
+              <EditPencil label={t('properties.edit.rules')} onClick={() => setEditing({ block: 'rules' })} />
             </div>
             {(property.check_in_hour != null || property.check_out_hour != null || property.check_in_method) && (
               <p className="text-sm text-ink">
@@ -540,7 +558,7 @@ export default function PropertyDetailPage() {
           <section className={CARD} aria-labelledby="property-amenities">
             <div className="mb-3 flex items-center justify-between gap-2">
               <h2 id="property-amenities" className="text-sm font-bold text-ink">{t('properties.amenities')}</h2>
-              <EditPencil label={t('properties.amenities')} onClick={() => setEditing('amenities')} />
+              <EditPencil label={t('properties.amenities')} onClick={() => setEditing({ block: 'amenities' })} />
             </div>
             {property.amenities.length > 0 ? (
               <ul className="flex flex-wrap gap-2">
@@ -563,7 +581,7 @@ export default function PropertyDetailPage() {
           <section className={CARD} aria-labelledby="property-listings">
             <div className="mb-3 flex items-center justify-between gap-2">
               <h2 id="property-listings" className="text-sm font-bold text-ink">{t('properties.listingsTitle')}</h2>
-              <EditPencil label={t('properties.listingsTitle')} onClick={() => setEditing('listings')} />
+              <EditPencil label={t('properties.listingsTitle')} onClick={() => setEditing({ block: 'listings' })} />
             </div>
             {listingGroups.length > 0 ? (
               listingGroups.map(([label, urls]) => (
@@ -589,7 +607,7 @@ export default function PropertyDetailPage() {
         <TabPanel name="history" current={tab}><PropertyHistory entries={auditLog} /></TabPanel>
       </div>
 
-      <PropertyEditSheet property={property} block={editing} onClose={() => setEditing(null)} />
+      <PropertyEditSheet property={property} block={editing?.block ?? null} field={editing?.field} onClose={() => setEditing(null)} />
 
       <ConfirmDialog
         open={showCloneConfirm}
@@ -823,7 +841,7 @@ function NowLine({ propertyId }: { propertyId: string }) {
 }
 
 /** What the flat still lacks, each item a step to where it is filled in; gone once all is done. */
-function ReadinessCard({ items, onOpen }: { items: ReadinessItem[]; onOpen: (place: ReadinessPlace) => void }) {
+function ReadinessCard({ items, onOpen }: { items: ReadinessItem[]; onOpen: (item: ReadinessItem) => void }) {
   const { t } = useTranslation()
   const done = items.filter((item) => item.done).length
   if (done === items.length) return null
@@ -849,7 +867,7 @@ function ReadinessCard({ items, onOpen }: { items: ReadinessItem[]; onOpen: (pla
             <li key={item.key}>
               <button
                 type="button"
-                onClick={() => onOpen(item.place)}
+                onClick={() => onOpen(item)}
                 className="inline-flex items-center gap-1 rounded-lg border border-line px-2.5 py-1 text-xs font-semibold text-ink transition-colors hover:border-accent hover:bg-accent-soft"
               >
                 + {t(`properties.ready.items.${item.key}`)}
