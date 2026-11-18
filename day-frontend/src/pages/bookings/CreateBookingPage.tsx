@@ -1,27 +1,24 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
-import { motion } from 'framer-motion'
-import { ArrowLeft, Check, Loader2, Calculator, User, Phone, Mail } from 'lucide-react'
+import { ArrowLeft, Building2, Check, Loader2 } from 'lucide-react'
 import { useNavigate } from '@tanstack/react-router'
+import { useQuery } from '@tanstack/react-query'
 import { useBookedNights, useCreateBooking, useCalculatePrice, useGuests } from '../../hooks/useBookings'
 import { useAllProperties, usePropertyPricing } from '../../hooks/useProperties'
 import type { BookingSource, BookingCreateInput, PriceCalculateInput, RentalMode } from '../../types/booking'
+import type { Guest } from '../../types/booking'
 import DateRangePicker from '../../components/ui/date-range-picker'
 import DatePicker from '../../components/ui/date-picker'
 import TimeChips, { CHECK_IN_TIMES, CHECK_OUT_TIMES } from '../../components/ui/time-chips'
 import { hourlyStay, isStayTime } from '../../lib/booking-edit'
 import HourlyTimes from '../../components/booking/HourlyTimes'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '../../components/ui/select'
 import { ToggleGroup, ToggleGroupItem } from '../../components/ui/toggle-group'
 import NumberInput from '../../components/ui/number-input'
+import Button from '../../components/ui/Button'
 import AgentSelect from '../../components/agents/AgentSelect'
 import { useCurrency } from '../../hooks/useCurrency'
+import { getAvailability } from '../../api/miniapp'
+import { formatMoneyExact as formatMoney } from '../miniapp/format'
 import {
   currentBreaches,
   getBookingApiErrorMessage,
@@ -31,6 +28,12 @@ import {
 } from '../../lib/booking-errors'
 import StayRulesAlert from '../../components/booking/StayRulesAlert'
 import { nightsWindow, switchRentalMode } from '../../lib/booking-dates'
+
+const LABEL = 'mb-1.5 block text-xs font-bold text-ink-muted'
+const FIELD =
+  'w-full rounded-xl border bg-surface-page p-3 text-sm text-ink outline-none placeholder:text-ink-muted focus:border-accent'
+const FIELD_ERROR = 'mt-1 text-xs text-danger'
+const edge = (error?: string) => (error ? 'border-danger' : 'border-line')
 
 interface FormData {
   property_id: string
@@ -117,8 +120,9 @@ function getBookingPrefill(): BookingPrefill {
 }
 
 export default function CreateBookingPage() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const { symbol } = useCurrency()
+  const sum = (value: number) => `${formatMoney(value, i18n.language)} ${symbol}`
   const prefill = useMemo(() => getBookingPrefill(), [])
   const navigate = useNavigate()
   const createBooking = useCreateBooking()
@@ -197,10 +201,13 @@ export default function CreateBookingPage() {
       ? `${form.check_out}T${outTime}:00`
       : ''
 
-  // The calendar's first month on screen: its booked nights are shown struck through.
+  // The calendar's first month on screen: its booked nights are shown struck through. Only for
+  // the object the form was opened for (from the chessboard or its page): one picked from the
+  // free list must not keep the dates from moving to nights another object has free.
   const [calendarMonth, setCalendarMonth] = useState(() => new Date())
   const nights = nightsWindow(calendarMonth, form.check_in && !form.check_out ? form.check_in : null)
-  const booked = useBookedNights(form.property_id, nights.from, nights.to, undefined, form.source)
+  const askedFor = form.property_id && form.property_id === prefill.propertyId ? form.property_id : ''
+  const booked = useBookedNights(askedFor, nights.from, nights.to, undefined, form.source)
 
   const { data: guestsData } = useGuests(
     { search: guestSearch, limit: 5 },
@@ -232,6 +239,37 @@ export default function CreateBookingPage() {
 
   const { data: priceData, isFetching: priceLoading } = useCalculatePrice(debouncedPriceParams)
 
+  // The dates first, then the objects free then, each with its price, to pick one from
+  // (the owner's choice, 18 Nov): a call is "is anything free on the 24th?". A daily stay is
+  // searched by its dates alone until a time is picked by hand: midnight tells the server to
+  // take each object's own hours (16:00 at one, 14:00 at another), not the 14:00 on screen.
+  const searchCheckIn = isHourly ? effectiveCheckIn : form.check_in ? `${form.check_in}T${form.in_time || '00:00'}:00` : ''
+  const searchCheckOut = isHourly ? effectiveCheckOut : form.check_out ? `${form.check_out}T${form.out_time || '00:00'}:00` : ''
+  const free = useQuery({
+    queryKey: [
+      'bookings',
+      'availability',
+      rentalMode,
+      searchCheckIn,
+      searchCheckOut,
+      form.adults_count,
+      form.children_count,
+      form.source,
+    ],
+    queryFn: () =>
+      getAvailability(searchCheckIn, searchCheckOut, {
+        adults: form.adults_count,
+        children: form.children_count,
+        rentalMode,
+        withRuleBreaches: true,
+        // A platform's own stay may go over that platform's closed nights, as booking allows.
+        source: form.source,
+      }),
+    enabled: !!searchCheckIn && !!searchCheckOut,
+  })
+  // The object asked for (from the chessboard or its page) that is taken on the dates picked.
+  const taken = !!free.data && !!selectedProperty && !free.data.items.some((item) => item.property_id === form.property_id)
+
   // The request the stay rules refused; "book anyway" sends exactly it again.
   const [refused, setRefused] = useState<RulesRefusal<BookingCreateInput> | null>(null)
 
@@ -246,7 +284,9 @@ export default function CreateBookingPage() {
 
   // The picked date moves to the other mode's field instead of disappearing.
   function switchMode(mode: RentalMode) {
-    setForm((f) => switchRentalMode(f, mode))
+    // An object let only the other way is no longer the choice: the free ones are listed anew.
+    const fits = !selectedProperty || selectedProperty.rental_mode === 'both' || selectedProperty.rental_mode === mode
+    setForm((f) => ({ ...switchRentalMode(f, mode), ...(fits ? {} : { property_id: '' }) }))
     setErrors((e) => {
       const next = { ...e }
       delete next.rental_mode
@@ -258,7 +298,7 @@ export default function CreateBookingPage() {
 
   function validate(): boolean {
     const errs: Record<string, string> = {}
-    if (!form.property_id) errs.property_id = t('bookings.validation.propertyRequired')
+    if (!form.property_id || taken) errs.property_id = t('bookings.validation.propertyRequired')
     else if (!selectedProperty) errs.property_id = t('bookings.validation.propertyUnavailable')
     else if (selectedProperty.status === 'paused') errs.property_id = t('bookings.validation.pausedProperty')
     if (isHourly) {
@@ -341,322 +381,325 @@ export default function CreateBookingPage() {
   // Shown only while the form still says what was refused.
   const breaches = currentBreaches(refused, bookingPayload())
 
-  return (
-    <div className="px-4 py-4 sm:px-6 sm:py-6 max-w-6xl mx-auto w-full">
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4 }}
+  function pickGuest(guest: Guest) {
+    setForm((f) => ({ ...f, guest_name: guest.name, guest_phone: guest.phone, guest_email: guest.email || '' }))
+    setErrors((e) => {
+      const next = { ...e }
+      delete next.guest_name
+      delete next.guest_phone
+      return next
+    })
+    setShowGuestSuggestions(false)
+  }
+
+  const suggestions = (field: 'phone' | 'name') =>
+    guestQueryField === field && showGuestSuggestions && canSearchGuests && guestSuggestions.length > 0 ? (
+      <ul className="absolute left-0 right-0 top-full z-20 mt-1 overflow-hidden rounded-xl border border-line bg-surface-card shadow-lg">
+        {guestSuggestions.map((guest) => (
+          <li key={guest.id}>
+            <button
+              type="button"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => pickGuest(guest)}
+              className="flex min-h-[44px] w-full flex-col justify-center px-3 py-2 text-left transition-colors hover:bg-surface-page"
+            >
+              <span className="text-sm font-semibold text-ink">{guest.name}</span>
+              <span className="text-xs text-ink-muted">{guest.phone}</span>
+            </button>
+          </li>
+        ))}
+      </ul>
+    ) : null
+
+  const modeToggle = (
+    <div>
+      <span id="create-rental-mode-label" className={LABEL}>
+        {t('bookings.rentalMode.label')}
+      </span>
+      <ToggleGroup
+        aria-labelledby="create-rental-mode-label"
+        type="single"
+        value={rentalMode}
+        onValueChange={(value) => value && switchMode(value as RentalMode)}
       >
-        {/* Header */}
-        <div className="flex items-center gap-3 mb-6">
-          <motion.button
-            whileTap={{ scale: 0.97 }}
-            onClick={handleBack}
-            className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg border border-gray-200 text-gray-700 transition-colors hover:bg-gray-50"
-          >
-            <ArrowLeft className="w-4 h-4" />
-          </motion.button>
-          <h1 className="text-xl font-bold text-gray-900">{t('bookings.newBooking')}</h1>
-        </div>
+        <ToggleGroupItem value="daily">{t('bookings.rentalMode.daily')}</ToggleGroupItem>
+        <ToggleGroupItem value="hourly">{t('bookings.rentalMode.hourly')}</ToggleGroupItem>
+      </ToggleGroup>
+    </div>
+  )
 
-        <div className="flex flex-col lg:flex-row gap-6">
-          {/* Form */}
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3, delay: 0.1 }}
-            className="flex-1"
-          >
-            <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm space-y-5">
-              {/* Property */}
-              <div>
-                <label htmlFor="create-property" className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">
-                  {t('bookings.property')}
-                </label>
-                <Select
-                  value={form.property_id || undefined}
-                  onValueChange={(value) => updateField('property_id', value)}
-                >
-                  <SelectTrigger
-                    id="create-property"
-                    className={errors.property_id ? 'border-red-300' : ''}
-                  >
-                    <SelectValue placeholder={t('bookings.selectProperty')} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {properties.map((p) => (
-                      <SelectItem key={p.id} value={p.id}>
-                        {p.internal_name} ({p.name}){p.status === 'paused' ? ` [${t('bookings.paused')}]` : ''}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {errors.property_id && (
-                  <p className="text-xs text-red-500 mt-1">{errors.property_id}</p>
-                )}
-              </div>
+  const dates = isHourly ? (
+    <div className="flex flex-col gap-4">
+      <div>
+        <label htmlFor="create-hourly-date" className={LABEL}>
+          {t('bookings.date')}
+        </label>
+        <DatePicker
+          id="create-hourly-date"
+          value={form.hourly_date}
+          onChange={(value) => updateField('hourly_date', value)}
+          minDate={new Date()}
+          placeholder={t('bookings.selectDates')}
+          className={errors.check_in ? 'border-danger' : ''}
+        />
+        {errors.check_in && <p className={FIELD_ERROR}>{errors.check_in}</p>}
+      </div>
+      <HourlyTimes
+        idPrefix="create-hours"
+        start={form.start_time}
+        end={form.end_time}
+        pricing={pricing}
+        onChange={({ start, end }) => {
+          updateField('start_time', start)
+          updateField('end_time', end)
+        }}
+        errors={{ start: errors.start_time, end: errors.end_time }}
+      />
+    </div>
+  ) : (
+    <div className="flex flex-col gap-4">
+      <div>
+        <label htmlFor="create-date-range" className={LABEL}>
+          {t('bookings.dateRange')}
+        </label>
+        <DateRangePicker
+          id="create-date-range"
+          startDate={form.check_in}
+          endDate={form.check_out}
+          onRangeChange={(start, end) => {
+            updateField('check_in', start)
+            updateField('check_out', end)
+          }}
+          minDate={new Date()}
+          placeholder={t('bookings.selectDates')}
+          error={!!errors.check_in || !!errors.check_out}
+          booked={booked.data}
+          bookedLoading={booked.isLoading}
+          bookedFailed={booked.isError}
+          onBookedRetry={() => booked.refetch()}
+          onMonthChange={setCalendarMonth}
+        />
+        {errors.check_in && <p className={FIELD_ERROR}>{errors.check_in}</p>}
+        {errors.check_out && <p className={FIELD_ERROR}>{errors.check_out}</p>}
+      </div>
+      <div>
+        <span id="create-in-time-label" className={LABEL}>
+          {t('bookings.checkInTime')}
+        </span>
+        <TimeChips
+          id="create-in-time"
+          labelledBy="create-in-time-label"
+          options={CHECK_IN_TIMES}
+          value={inTime}
+          onChange={(value) => updateField('in_time', value)}
+        />
+        {errors.in_time && <p className={FIELD_ERROR}>{errors.in_time}</p>}
+      </div>
+      <div>
+        <span id="create-out-time-label" className={LABEL}>
+          {t('bookings.checkOutTime')}
+        </span>
+        <TimeChips
+          id="create-out-time"
+          labelledBy="create-out-time-label"
+          options={CHECK_OUT_TIMES}
+          value={outTime}
+          onChange={(value) => updateField('out_time', value)}
+        />
+        {errors.out_time && <p className={FIELD_ERROR}>{errors.out_time}</p>}
+      </div>
+    </div>
+  )
 
-              {/* Rental mode toggle - only for properties that allow both */}
-              {selectedProperty?.rental_mode === 'both' && (
-                <div>
-                  <span id="create-rental-mode-label" className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
-                    {t('bookings.rentalMode.label')}
-                  </span>
-                  <ToggleGroup
-                    aria-labelledby="create-rental-mode-label"
-                    type="single"
-                    value={rentalMode}
-                    onValueChange={(value) => {
-                      if (!value) return
-                      switchMode(value as RentalMode)
-                    }}
-                  >
-                    <ToggleGroupItem value="daily">{t('bookings.rentalMode.daily')}</ToggleGroupItem>
-                    <ToggleGroupItem value="hourly">{t('bookings.rentalMode.hourly')}</ToggleGroupItem>
-                  </ToggleGroup>
-                </div>
-              )}
+  const counts = (
+    <div className="grid grid-cols-2 gap-4">
+      <div>
+        <label htmlFor="create-adults" className={LABEL}>
+          {t('bookings.adults')}
+        </label>
+        <NumberInput
+          id="create-adults"
+          value={form.adults_count}
+          onChange={(value) => updateField('adults_count', Math.max(1, parseInt(value) || 1))}
+          min={1}
+          step={1}
+          inputClassName={errors.adults_count ? 'border-danger' : ''}
+        />
+        {errors.adults_count && <p className={FIELD_ERROR}>{errors.adults_count}</p>}
+      </div>
+      <div>
+        <label htmlFor="create-children" className={LABEL}>
+          {t('bookings.children')}
+        </label>
+        <NumberInput
+          id="create-children"
+          value={form.children_count}
+          onChange={(value) => updateField('children_count', Math.max(0, parseInt(value) || 0))}
+          min={0}
+          step={1}
+        />
+      </div>
+    </div>
+  )
 
-              {/* Dates */}
-              <div>
-                {isHourly ? (
-                  <div className="space-y-3">
-                    <div>
-                      <label htmlFor="create-hourly-date" className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">
-                        {t('bookings.date')}
-                      </label>
-                      <DatePicker
-                        id="create-hourly-date"
-                        value={form.hourly_date}
-                        onChange={(value) => updateField('hourly_date', value)}
-                        minDate={new Date()}
-                        placeholder={t('bookings.selectDates')}
-                        className={errors.check_in ? 'border-red-300' : ''}
-                      />
-                      {errors.check_in && (
-                        <p className="text-xs text-red-500 mt-1">{errors.check_in}</p>
-                      )}
-                    </div>
-                    <HourlyTimes
-                      idPrefix="create-hours"
-                      start={form.start_time}
-                      end={form.end_time}
-                      pricing={pricing}
-                      onChange={({ start, end }) => {
-                        updateField('start_time', start)
-                        updateField('end_time', end)
-                      }}
-                      errors={{ start: errors.start_time, end: errors.end_time }}
-                    />
-                  </div>
+  const freeObjects = (
+    <Card title={t('miniapp.freeProperties')}>
+      {!effectiveCheckIn || !effectiveCheckOut ? (
+        <p className="text-sm text-ink-muted">
+          {t('bookings.form.pickDatesFirst')}
+        </p>
+      ) : free.isLoading ? (
+        <Loader2 className="mx-auto h-5 w-5 animate-spin text-ink-muted" aria-hidden="true" />
+      ) : free.isError ? (
+        <p className="text-sm text-danger">
+          {t('bookings.form.freeFailed')}
+        </p>
+      ) : free.data && free.data.items.length === 0 ? (
+        <p className="text-sm text-ink-muted">
+          {t('bookings.form.noneFree')}
+        </p>
+      ) : (
+        <div role="radiogroup" aria-label={t('miniapp.freeProperties')} className="flex flex-col gap-2">
+          {free.data?.items.map((item) => {
+            const on = form.property_id === item.property_id
+            const cover = properties.find((p) => p.id === item.property_id)?.photos.find((photo) => photo.audience !== 'guest')
+            return (
+              <button
+                key={item.property_id}
+                type="button"
+                role="radio"
+                aria-checked={on}
+                onClick={() => updateField('property_id', item.property_id)}
+                className={`flex w-full items-center gap-3 rounded-xl border p-3 text-left transition-colors ${
+                  on ? 'border-accent bg-accent-soft' : 'border-line hover:bg-surface-page'
+                }`}
+              >
+                {cover ? (
+                  <img src={cover.thumbnail_url || cover.url} alt="" className="h-11 w-11 shrink-0 rounded-lg object-cover" />
                 ) : (
-                  <>
-                    <label htmlFor="create-date-range" className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">
-                      {t('bookings.dateRange')}
-                    </label>
-                    <DateRangePicker
-                      id="create-date-range"
-                      startDate={form.check_in}
-                      endDate={form.check_out}
-                      onRangeChange={(start, end) => {
-                        updateField('check_in', start)
-                        updateField('check_out', end)
-                      }}
-                      minDate={new Date()}
-                      placeholder={t('bookings.selectDates')}
-                      error={!!errors.check_in || !!errors.check_out}
-                      booked={booked.data}
-                      bookedLoading={booked.isLoading}
-                      bookedFailed={booked.isError}
-                      onBookedRetry={() => booked.refetch()}
-                      onMonthChange={setCalendarMonth}
-                    />
-                    {errors.check_in && (
-                      <p className="text-xs text-red-500 mt-1">{errors.check_in}</p>
-                    )}
-                    {errors.check_out && (
-                      <p className="text-xs text-red-500 mt-1">{errors.check_out}</p>
-                    )}
-                    <div className="mt-4 space-y-4">
-                      <div>
-                        <span id="create-in-time-label" className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">
-                          {t('bookings.checkInTime')}
-                        </span>
-                        <TimeChips
-                          id="create-in-time"
-                          labelledBy="create-in-time-label"
-                          options={CHECK_IN_TIMES}
-                          value={inTime}
-                          onChange={(value) => updateField('in_time', value)}
-                        />
-                        {errors.in_time && <p className="text-xs text-red-500 mt-1">{errors.in_time}</p>}
-                      </div>
-                      <div>
-                        <span id="create-out-time-label" className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">
-                          {t('bookings.checkOutTime')}
-                        </span>
-                        <TimeChips
-                          id="create-out-time"
-                          labelledBy="create-out-time-label"
-                          options={CHECK_OUT_TIMES}
-                          value={outTime}
-                          onChange={(value) => updateField('out_time', value)}
-                        />
-                        {errors.out_time && <p className="text-xs text-red-500 mt-1">{errors.out_time}</p>}
-                      </div>
-                    </div>
-                  </>
+                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-surface-page">
+                    <Building2 className="h-4 w-4 text-ink-muted" aria-hidden="true" />
+                  </span>
                 )}
+                <span className="min-w-0 flex-1">
+                  <span className={`block truncate text-sm font-semibold ${on ? 'text-accent-ink' : 'text-ink'}`}>
+                    {item.internal_name || item.name}
+                  </span>
+                  <span className="block truncate text-xs text-ink-muted">
+                    {[item.name !== item.internal_name ? item.name : '', item.max_guests ? t('miniapp.unit.maxGuests', { count: item.max_guests }) : '']
+                      .filter(Boolean)
+                      .join(' · ')}
+                  </span>
+                </span>
+                <span className="shrink-0 text-sm font-bold tabular-nums text-ink">
+                  {item.total_price != null ? sum(item.total_price) : t('bookings.form.noPrice')}
+                </span>
+              </button>
+            )
+          })}
+        </div>
+      )}
+      {taken && (
+        <p className="mt-3 text-sm text-warning">
+          {t('bookings.form.taken', { name: selectedProperty.internal_name || selectedProperty.name })}
+        </p>
+      )}
+      {errors.property_id && <p className={FIELD_ERROR}>{errors.property_id}</p>}
+    </Card>
+  )
+
+  return (
+    <div className="mx-auto w-full max-w-6xl px-4 py-4 sm:px-6 sm:py-6">
+      <button
+        type="button"
+        onClick={handleBack}
+        className="mb-4 inline-flex items-center gap-1 text-xs font-bold text-ink-muted transition-colors hover:text-ink"
+      >
+        <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+        {prefill.from === 'gantt' ? t('bookings.backToGantt') : t('bookings.backToBookings')}
+      </button>
+      <h1 className="mb-5 text-xl font-bold text-ink">{t('bookings.newBooking')}</h1>
+
+      <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-[minmax(0,1fr)_340px]">
+        <div className="flex min-w-0 flex-col gap-5">
+          <Card title={t('bookings.form.when')}>
+            <div className="flex flex-col gap-4">
+              {modeToggle}
+              {dates}
+              {counts}
+            </div>
+          </Card>
+          {freeObjects}
+
+          <Card title={t('bookings.guest')}>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div className="relative">
+                <label htmlFor="create-guest-phone" className={LABEL}>
+                  {t('bookings.phone')}
+                </label>
+                <input
+                  id="create-guest-phone"
+                  type="tel"
+                  value={form.guest_phone}
+                  onChange={(e) => {
+                    updateField('guest_phone', e.target.value)
+                    setGuestQueryField('phone')
+                    setShowGuestSuggestions(true)
+                  }}
+                  onBlur={() => setTimeout(() => setShowGuestSuggestions(false), 200)}
+                  placeholder={t('bookings.phonePlaceholder')}
+                  className={`${FIELD} ${edge(errors.guest_phone)}`}
+                />
+                {errors.guest_phone && <p className={FIELD_ERROR}>{errors.guest_phone}</p>}
+                {suggestions('phone')}
               </div>
-
-              {/* Guest */}
-              <div className="border-t border-gray-100 pt-5">
-                <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">
-                  {t('bookings.guestInfo')}
-                </h3>
-                <div className="space-y-3">
-                  <div className="relative">
-                    <label htmlFor="create-guest-phone" className="block text-xs font-bold text-gray-500 mb-1.5">
-                      <span className="flex items-center gap-1"><Phone className="w-3 h-3" /> {t('bookings.phone')}</span>
-                    </label>
-                    <input
-                      id="create-guest-phone"
-                      type="tel"
-                      value={form.guest_phone}
-                      onChange={(e) => {
-                        updateField('guest_phone', e.target.value)
-                        setGuestQueryField('phone')
-                        setShowGuestSuggestions(true)
-                      }}
-                      onBlur={() => setTimeout(() => setShowGuestSuggestions(false), 200)}
-                      placeholder={t('bookings.phonePlaceholder')}
-                      className={`w-full bg-gray-50 border rounded-xl p-3 outline-none focus:ring-2 focus:ring-black/10 text-sm ${
-                        errors.guest_phone ? 'border-red-300' : 'border-gray-200'
-                      }`}
-                    />
-                    {errors.guest_phone && (
-                      <p className="text-xs text-red-500 mt-1">{errors.guest_phone}</p>
-                    )}
-
-                    {/* Guest suggestions */}
-                    {guestQueryField === 'phone' && showGuestSuggestions && canSearchGuests && guestSuggestions.length > 0 && (
-                      <div className="absolute z-20 top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden">
-                        {guestSuggestions.map((g) => (
-                          <button
-                            key={g.id}
-                            type="button"
-                            onMouseDown={(e) => e.preventDefault()}
-                            onClick={() => {
-                              setForm((f) => ({
-                                ...f,
-                                guest_name: g.name,
-                                guest_phone: g.phone,
-                                guest_email: g.email || '',
-                              }))
-                              setErrors((e) => {
-                                const next = { ...e }
-                                delete next.guest_name
-                                delete next.guest_phone
-                                return next
-                              })
-                              setShowGuestSuggestions(false)
-                            }}
-                            className="flex min-h-[44px] w-full flex-col justify-center px-3 py-2 text-left transition-colors hover:bg-gray-50"
-                          >
-                            <span className="text-sm font-medium text-gray-900">{g.name}</span>
-                            <span className="text-xs text-gray-500">{g.phone}</span>
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="relative">
-                    <label htmlFor="create-guest-name" className="block text-xs font-bold text-gray-500 mb-1.5">
-                      <span className="flex items-center gap-1"><User className="w-3 h-3" /> {t('bookings.guestName')}</span>
-                    </label>
-                    <input
-                      id="create-guest-name"
-                      type="text"
-                      value={form.guest_name}
-                      onChange={(e) => {
-                        updateField('guest_name', e.target.value)
-                        setGuestQueryField('name')
-                        setShowGuestSuggestions(true)
-                      }}
-                      onBlur={() => setTimeout(() => setShowGuestSuggestions(false), 200)}
-                      placeholder={t('bookings.guestNamePlaceholder')}
-                      className={`w-full bg-gray-50 border rounded-xl p-3 outline-none focus:ring-2 focus:ring-black/10 text-sm ${
-                        errors.guest_name ? 'border-red-300' : 'border-gray-200'
-                      }`}
-                    />
-                    {errors.guest_name && (
-                      <p className="text-xs text-red-500 mt-1">{errors.guest_name}</p>
-                    )}
-
-                    {/* Guest suggestions */}
-                    {guestQueryField === 'name' && showGuestSuggestions && canSearchGuests && guestSuggestions.length > 0 && (
-                      <div className="absolute z-20 top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden">
-                        {guestSuggestions.map((g) => (
-                          <button
-                            key={g.id}
-                            type="button"
-                            onMouseDown={(e) => e.preventDefault()}
-                            onClick={() => {
-                              setForm((f) => ({
-                                ...f,
-                                guest_name: g.name,
-                                guest_phone: g.phone,
-                                guest_email: g.email || '',
-                              }))
-                              setErrors((e) => {
-                                const next = { ...e }
-                                delete next.guest_name
-                                delete next.guest_phone
-                                return next
-                              })
-                              setShowGuestSuggestions(false)
-                            }}
-                            className="flex min-h-[44px] w-full flex-col justify-center px-3 py-2 text-left transition-colors hover:bg-gray-50"
-                          >
-                            <span className="text-sm font-medium text-gray-900">{g.name}</span>
-                            <span className="text-xs text-gray-500">{g.phone}</span>
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-
-                  <div>
-                    <label htmlFor="create-guest-email" className="block text-xs font-bold text-gray-500 mb-1.5">
-                      <span className="flex items-center gap-1"><Mail className="w-3 h-3" /> {t('bookings.email')}</span>
-                    </label>
-                    <input
-                      id="create-guest-email"
-                      type="email"
-                      value={form.guest_email}
-                      onChange={(e) => updateField('guest_email', e.target.value)}
-                      placeholder={t('bookings.emailOptional')}
-                      className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 outline-none focus:ring-2 focus:ring-black/10 text-sm"
-                    />
-                  </div>
-                </div>
+              <div className="relative">
+                <label htmlFor="create-guest-name" className={LABEL}>
+                  {t('bookings.guestName')}
+                </label>
+                <input
+                  id="create-guest-name"
+                  type="text"
+                  value={form.guest_name}
+                  onChange={(e) => {
+                    updateField('guest_name', e.target.value)
+                    setGuestQueryField('name')
+                    setShowGuestSuggestions(true)
+                  }}
+                  onBlur={() => setTimeout(() => setShowGuestSuggestions(false), 200)}
+                  placeholder={t('bookings.guestNamePlaceholder')}
+                  className={`${FIELD} ${edge(errors.guest_name)}`}
+                />
+                {errors.guest_name && <p className={FIELD_ERROR}>{errors.guest_name}</p>}
+                {suggestions('name')}
               </div>
+              <div className="sm:col-span-2">
+                <label htmlFor="create-guest-email" className={LABEL}>
+                  {t('bookings.email')}
+                </label>
+                <input
+                  id="create-guest-email"
+                  type="email"
+                  value={form.guest_email}
+                  onChange={(e) => updateField('guest_email', e.target.value)}
+                  placeholder={t('bookings.emailOptional')}
+                  className={`${FIELD} ${edge()}`}
+                />
+              </div>
+            </div>
+          </Card>
 
-              {/* Source */}
-              <div className="border-t border-gray-100 pt-5">
-                <span id="create-source-label" className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
+          <Card title={t('bookings.editBlock.source')}>
+            <div className="flex flex-col gap-4">
+              <div>
+                <span id="create-source-label" className={LABEL}>
                   {t('bookings.source')}
                 </span>
                 <ToggleGroup
                   aria-labelledby="create-source-label"
                   type="single"
                   value={form.source}
-                  onValueChange={(value) => {
-                    if (!value) return
-                    updateField('source', value as BookingSource)
-                  }}
+                  onValueChange={(value) => value && updateField('source', value as BookingSource)}
                 >
                   {SOURCES.map((s) => (
                     <ToggleGroupItem key={s.value} value={s.value}>
@@ -665,75 +708,98 @@ export default function CreateBookingPage() {
                   ))}
                 </ToggleGroup>
               </div>
-
-              {/* Who brought the guest */}
-              <div className="border-t border-gray-100 pt-5">
-                <label htmlFor="create-agent" className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">
+              <div>
+                <label htmlFor="create-agent" className={LABEL}>
                   {t('bookings.agent')}
                 </label>
                 <AgentSelect
                   id="create-agent"
                   value={form.agent_id}
                   onChange={(agentId) => updateField('agent_id', agentId)}
-                  className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 outline-none focus:ring-2 focus:ring-black/10 text-sm"
-                />
-              </div>
-
-              {/* Guests Count */}
-              <div className="border-t border-gray-100 pt-5">
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  <div>
-                    <label htmlFor="create-adults" className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">
-                      {t('bookings.adults')}
-                    </label>
-                    <NumberInput
-                      id="create-adults"
-                      value={form.adults_count}
-                      onChange={(value) =>
-                        updateField('adults_count', Math.max(1, parseInt(value) || 1))
-                      }
-                      min={1}
-                      step={1}
-                      inputClassName={errors.adults_count ? 'border-red-300' : ''}
-                    />
-                    {errors.adults_count && (
-                      <p className="text-xs text-red-500 mt-1">{errors.adults_count}</p>
-                    )}
-                  </div>
-                  <div>
-                    <label htmlFor="create-children" className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">
-                      {t('bookings.children')}
-                    </label>
-                    <NumberInput
-                      id="create-children"
-                      value={form.children_count}
-                      onChange={(value) =>
-                        updateField('children_count', Math.max(0, parseInt(value) || 0))
-                      }
-                      min={0}
-                      step={1}
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Notes */}
-              <div className="border-t border-gray-100 pt-5">
-                <label htmlFor="create-notes" className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">
-                  {t('common.notes')}
-                </label>
-                <textarea
-                  id="create-notes"
-                  value={form.notes}
-                  onChange={(e) => updateField('notes', e.target.value)}
-                  placeholder={t('common.optionalNotes')}
-                  rows={3}
-                  className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 outline-none focus:ring-2 focus:ring-black/10 text-sm resize-none"
+                  className={`${FIELD} ${edge()}`}
                 />
               </div>
             </div>
+          </Card>
 
-            {/* Error message */}
+          <Card title={t('bookings.editBlock.notes')}>
+            <label htmlFor="create-notes" className="sr-only">
+              {t('common.notes')}
+            </label>
+            <textarea
+              id="create-notes"
+              value={form.notes}
+              onChange={(e) => updateField('notes', e.target.value)}
+              placeholder={t('common.optionalNotes')}
+              rows={3}
+              className={`${FIELD} ${edge()} resize-none`}
+            />
+          </Card>
+        </div>
+
+        {/* The sum and the one action together: on a desk it stays in view while the form scrolls. */}
+        <aside className="lg:sticky lg:top-6">
+          <section className="rounded-2xl border border-line bg-surface-card p-5">
+            <h2 className="text-sm font-bold text-ink">{t('bookings.priceBreakdown')}</h2>
+            {selectedProperty && (
+              <>
+                <p id="create-property" className="mt-1 truncate text-sm text-ink-muted">
+                  {[selectedProperty.internal_name, selectedProperty.name !== selectedProperty.internal_name ? selectedProperty.name : '']
+                    .filter(Boolean)
+                    .join(' · ')}
+                </p>
+                {/* The rest of the form stays: only the object is let go, and its nights with it. */}
+                <button
+                  type="button"
+                  onClick={() => updateField('property_id', '')}
+                  className="mt-1 text-xs font-semibold text-accent-ink hover:underline"
+                >
+                  {t('bookings.form.otherObject')}
+                </button>
+              </>
+            )}
+            <div className="mt-4">
+              {!form.property_id || !effectiveCheckIn || !effectiveCheckOut ? (
+                <p className="text-sm text-ink-muted">{t('bookings.selectPropertyAndDates')}</p>
+              ) : priceLoading ? (
+                <Loader2 className="mx-auto h-5 w-5 animate-spin text-ink-muted" aria-hidden="true" />
+              ) : priceData ? (
+                <>
+                  <dl className="flex flex-col gap-2 text-sm">
+                    <PriceLine
+                      label={
+                        priceData.unit_label === 'hours'
+                          ? t('bookings.hours', { count: priceData.hours })
+                          : t('bookings.nights', { count: priceData.nights })
+                      }
+                      value={sum(priceData.base_total)}
+                    />
+                    {priceData.weekend_surcharge > 0 && (
+                      <PriceLine label={t('bookings.weekendSurcharge')} value={`+${sum(priceData.weekend_surcharge)}`} />
+                    )}
+                    {priceData.seasonal_adjustment !== 0 && (
+                      <PriceLine
+                        label={t('bookings.seasonalAdjustment')}
+                        value={`${priceData.seasonal_adjustment > 0 ? '+' : '-'}${sum(Math.abs(priceData.seasonal_adjustment))}`}
+                      />
+                    )}
+                    {priceData.extra_guest_surcharge > 0 && (
+                      <PriceLine label={t('bookings.extraGuestSurcharge')} value={`+${sum(priceData.extra_guest_surcharge)}`} />
+                    )}
+                    {priceData.discount_amount > 0 && (
+                      <PriceLine label={t('bookings.discount')} value={`-${sum(priceData.discount_amount)}`} tone="text-success" />
+                    )}
+                  </dl>
+                  <div className="mt-4 flex items-baseline justify-between gap-3 border-t border-line pt-4">
+                    <span className="text-sm font-semibold text-ink">{t('common.total')}</span>
+                    <span className="text-2xl font-bold tabular-nums text-ink">{sum(priceData.total)}</span>
+                  </div>
+                </>
+              ) : (
+                <p className="text-sm text-danger">{t('bookings.unableToCalculate')}</p>
+              )}
+            </div>
+
             {breaches && refused && (
               <StayRulesAlert
                 breaches={breaches}
@@ -743,132 +809,54 @@ export default function CreateBookingPage() {
               />
             )}
             {createBooking.isError && !stayRuleBreaches(createBooking.error) && (
-              <div className="mt-4 bg-red-50 border border-red-200 rounded-xl p-3">
-                <p className="text-sm text-red-600">
-                  {getBookingApiErrorMessage(createBooking.error, t) ||
-                    t('bookings.failedCreate')}
-                </p>
-              </div>
+              <p role="alert" className="mt-4 rounded-xl bg-danger-soft p-3 text-sm text-danger">
+                {getBookingApiErrorMessage(createBooking.error, t) || t('bookings.failedCreate')}
+              </p>
             )}
 
-            {/* Submit */}
-            <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-              <motion.button
-                whileTap={{ scale: 0.97 }}
-                type="button"
-                onClick={handleBack}
-                disabled={createBooking.isPending}
-                className="flex min-h-[44px] w-full items-center justify-center rounded-xl border border-gray-200 bg-white px-6 py-2.5 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 disabled:opacity-50 sm:w-auto"
-              >
-                {t('common.cancel')}
-              </motion.button>
-              <motion.button
-                whileTap={{ scale: 0.97 }}
-                type="button"
-                onClick={() => handleSubmit()}
-                disabled={createBooking.isPending || selectedProperty?.status === 'paused'}
-                className="flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl bg-black px-6 py-2.5 font-semibold text-white shadow-lg transition-colors hover:bg-gray-800 disabled:opacity-50 sm:w-auto"
-              >
-                {createBooking.isPending ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <>
-                    <Check className="w-4 h-4" />
-                    {t('bookings.addBooking')}
-                  </>
-                )}
-              </motion.button>
-            </div>
-          </motion.div>
-
-          {/* Price Calculator Panel */}
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3, delay: 0.2 }}
-            className="order-first lg:order-none lg:w-80 lg:sticky lg:top-6 lg:self-start"
-          >
-            <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
-              <div className="flex items-center gap-2 mb-4">
-                <Calculator className="w-4 h-4 text-gray-500" />
-                <h3 className="text-sm font-bold text-gray-900">{t('bookings.priceBreakdown')}</h3>
-              </div>
-
-              {!form.property_id || !effectiveCheckIn || !effectiveCheckOut ? (
-                <p className="text-xs text-gray-400">
-                  {t('bookings.selectPropertyAndDates')}
-                </p>
-              ) : priceLoading ? (
-                <div className="flex items-center justify-center py-8">
-                  <div className="w-5 h-5 border-2 border-gray-200 border-t-gray-900 rounded-full animate-spin" />
-                </div>
-              ) : priceData ? (
-                <div className="space-y-2">
-                  {priceData.unit_label === 'hours' ? (
-                    <PriceLine label={t('bookings.hours', { count: priceData.hours })} amount={priceData.base_total} currencySymbol={symbol} />
-                  ) : (
-                    <PriceLine label={t('bookings.nights', { count: priceData.nights })} amount={priceData.base_total} currencySymbol={symbol} />
-                  )}
-                  {priceData.weekend_surcharge > 0 && (
-                    <PriceLine label={t('bookings.weekendSurcharge')} amount={priceData.weekend_surcharge} currencySymbol={symbol} />
-                  )}
-                  {priceData.seasonal_adjustment !== 0 && (
-                    <PriceLine
-                      label={t('bookings.seasonalAdjustment')}
-                      amount={priceData.seasonal_adjustment}
-                      currencySymbol={symbol}
-                      signed
-                    />
-                  )}
-                  {priceData.extra_guest_surcharge > 0 && (
-                    <PriceLine label={t('bookings.extraGuestSurcharge')} amount={priceData.extra_guest_surcharge} currencySymbol={symbol} />
-                  )}
-                  {priceData.discount_amount > 0 && (
-                    <PriceLine label={t('bookings.discount')} amount={-priceData.discount_amount} currencySymbol={symbol} isDiscount />
-                  )}
-                  <div className="border-t border-gray-200 pt-2 mt-3">
-                    <div className="flex justify-between items-center">
-                      <span className="text-lg font-bold text-gray-900">{t('common.total')}</span>
-                      <span className="text-lg font-bold text-gray-900">
-                        {symbol}{priceData.total.toLocaleString()}
-                      </span>
-                    </div>
-                  </div>
-                </div>
+            <Button
+              className="mt-5 w-full"
+              onClick={handleSubmit}
+              disabled={createBooking.isPending || selectedProperty?.status === 'paused'}
+            >
+              {createBooking.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
               ) : (
-                <p className="text-xs text-gray-400">
-                  {t('bookings.unableToCalculate')}
-                </p>
+                <>
+                  <Check className="h-4 w-4" aria-hidden="true" />
+                  {t('bookings.addBooking')}
+                </>
               )}
-            </div>
-          </motion.div>
-        </div>
-      </motion.div>
+            </Button>
+            <button
+              type="button"
+              onClick={handleBack}
+              disabled={createBooking.isPending}
+              className="mt-2 min-h-[44px] w-full rounded-xl text-sm font-semibold text-ink-muted transition-colors hover:bg-surface-page hover:text-ink disabled:opacity-50"
+            >
+              {t('common.cancel')}
+            </button>
+          </section>
+        </aside>
+      </div>
     </div>
   )
 }
 
-function PriceLine({
-  label,
-  amount,
-  currencySymbol,
-  isDiscount,
-  signed,
-}: {
-  label: string
-  amount: number
-  currencySymbol: string
-  isDiscount?: boolean
-  signed?: boolean
-}) {
-  const signPrefix = signed ? (amount >= 0 ? '+' : '-') : isDiscount ? '-' : ''
-
+function Card({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <div className="flex justify-between items-center">
-      <span className="text-sm text-gray-600">{label}</span>
-      <span className={`text-sm font-medium ${isDiscount ? 'text-green-600' : 'text-gray-900'}`}>
-        {signPrefix}{currencySymbol}{Math.abs(amount).toLocaleString()}
-      </span>
+    <section className="rounded-2xl border border-line bg-surface-card p-5">
+      <h2 className="mb-4 text-sm font-bold text-ink">{title}</h2>
+      {children}
+    </section>
+  )
+}
+
+function PriceLine({ label, value, tone = 'text-ink' }: { label: string; value: string; tone?: string }) {
+  return (
+    <div className="flex justify-between gap-3">
+      <dt className="text-ink-muted">{label}</dt>
+      <dd className={`font-semibold tabular-nums ${tone}`}>{value}</dd>
     </div>
   )
 }

@@ -196,6 +196,93 @@ test.describe('Booking CRUD - E2E', () => {
     await expect(row.getByText('Paid', { exact: true })).toBeVisible({ timeout: 5000 })
   })
 
+  test('the dates come first: the free objects show with their price, and one is booked from the list', async ({ page, request }) => {
+    const prop = await setupActiveProperty(request)
+    const guestName = `Dates First ${Date.now()}`
+
+    await page.goto(`/bookings/new?check_in=${futureDate(40)}&check_out=${futureDate(42)}`)
+    const option = page.getByRole('radio', { name: new RegExp(prop.internal_name) })
+    await expect(option).toContainText(/\d/)
+    await option.click()
+    await expect(option).toHaveAttribute('aria-checked', 'true')
+    await expect(page.locator('#create-property')).toContainText(prop.internal_name)
+
+    await page.locator('input[type="tel"]').first().fill(`+1555${Math.floor(Math.random() * 9000000 + 1000000)}`)
+    await page.getByPlaceholder(guestNamePlaceholder).first().fill(guestName)
+    await page.getByRole('button', { name: addBookingButtonName }).click()
+    await page.waitForURL(/\/bookings\/[0-9a-f-]{36}$/, { timeout: 10000 })
+
+    const bookingId = page.url().split('/').pop() as string
+    bookingIdsToCleanup.push(bookingId)
+    const { booking } = await (await request.get(`${API_BASE}/bookings/${bookingId}`)).json()
+    expect([booking.property_id, booking.guest_name]).toEqual([prop.id, guestName])
+  })
+
+  test('an object asked for that is taken on the dates says so, and is not booked', async ({ page, request }) => {
+    const prop = await setupActiveProperty(request)
+    await createBookingViaApi(request, prop.id, { check_in: futureDate(50), check_out: futureDate(53) })
+
+    await page.goto(`/bookings/new?property_id=${prop.id}&check_in=${futureDate(51)}&check_out=${futureDate(52)}`)
+    await expect(page.getByText(`${prop.internal_name} is taken on these dates`, { exact: false })).toBeVisible()
+    await expect(page.getByRole('radio', { name: new RegExp(prop.internal_name) })).toHaveCount(0)
+
+    await page.locator('input[type="tel"]').first().fill('+15550001122')
+    await page.getByPlaceholder(guestNamePlaceholder).first().fill('Taken Flat Guest')
+    await page.getByRole('button', { name: addBookingButtonName }).click()
+    await expect(page.getByText('Property is required')).toBeVisible()
+    await expect(page).toHaveURL(/\/bookings\/new/)
+  })
+
+  test('the search counts the children: an object too small for the party is not offered', async ({ page, request }) => {
+    const prop = await setupActiveProperty(request)
+    const patch = await request.patch(`${API_BASE}/properties/${prop.id}`, { data: { max_guests: 2 } })
+    expect(patch.ok(), `PATCH property: ${patch.status()}`).toBeTruthy()
+
+    await page.goto(`/bookings/new?check_in=${futureDate(60)}&check_out=${futureDate(62)}`)
+    const option = page.getByRole('radio', { name: new RegExp(prop.internal_name) })
+    await page.getByLabel('Adults', { exact: true }).fill('2')
+    await expect(option).toBeVisible()
+    await page.getByLabel('Children', { exact: true }).fill('1')
+    await expect(option).toHaveCount(0)
+  })
+
+  test('an object asked for can be let go, and the rest of the form stays', async ({ page, request }) => {
+    const prop = await setupActiveProperty(request)
+
+    await page.goto(`/bookings/new?property_id=${prop.id}`)
+    await expect(page.locator('#create-property')).toContainText(prop.internal_name)
+    await page.getByPlaceholder(guestNamePlaceholder).first().fill('Kept Guest')
+    await page.getByRole('button', { name: 'Choose another property' }).click()
+
+    await expect(page.locator('#create-property')).toHaveCount(0)
+    await expect(page.getByPlaceholder(guestNamePlaceholder).first()).toHaveValue('Kept Guest')
+  })
+
+  test('a stay from Airbnb looks for free objects as from Airbnb', async ({ page }) => {
+    await page.goto(`/bookings/new?check_in=${futureDate(64)}&check_out=${futureDate(66)}`)
+    const searched = page.waitForRequest((r) => r.url().includes('/bookings/availability') && r.url().includes('source=airbnb'))
+    await page.getByRole('radio', { name: 'Airbnb', exact: true }).click()
+    await searched
+  })
+
+  test('the search takes the hours of each object until a time is picked by hand', async ({ page, request }) => {
+    const prop = await setupActiveProperty(request)
+    // Its guests come at 16:00; the one before leaves at 15:00 on that day.
+    const patch = await request.patch(`${API_BASE}/properties/${prop.id}`, { data: { check_in_hour: 16 } })
+    expect(patch.ok(), `PATCH property: ${patch.status()}`).toBeTruthy()
+    await createBookingViaApi(request, prop.id, {
+      check_in: `${futureDate(70)}T14:00:00`,
+      check_out: `${futureDate(72)}T15:00:00`,
+    })
+
+    await page.goto(`/bookings/new?check_in=${futureDate(72)}&check_out=${futureDate(74)}`)
+    // The 14:00 on screen is not asked of each object: this one is free from its own 16:00.
+    await expect(page.getByRole('radio', { name: new RegExp(prop.internal_name) })).toBeVisible()
+    // Picked by hand, 14:00 is asked as it is, and the one before is still there then.
+    await page.locator('#create-in-time').getByRole('button', { name: '14:00', exact: true }).click()
+    await expect(page.getByRole('radio', { name: new RegExp(prop.internal_name) })).toHaveCount(0)
+  })
+
   test('date range picker shows one month on mobile viewport', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 })
     await page.goto('/bookings/new')

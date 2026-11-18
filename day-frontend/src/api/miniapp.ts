@@ -1,6 +1,6 @@
 import apiClient from './client'
 import type { TokenResponse } from './auth'
-import type { RentalMode } from '../types/booking'
+import type { BookingSource, RentalMode } from '../types/booking'
 
 export interface AvailableProperty {
   property_id: string
@@ -44,13 +44,22 @@ export const MINIAPP_ADULTS = 2
 export async function getAvailability(
   checkIn: string,
   checkOut: string,
-  options: { adults?: number; rentalMode?: RentalMode; withRuleBreaches?: boolean } = {},
+  options: {
+    adults?: number
+    children?: number
+    rentalMode?: RentalMode
+    withRuleBreaches?: boolean
+    /** Where the stay comes from: that platform's own closed nights do not hide a flat. */
+    source?: BookingSource
+  } = {},
 ): Promise<Availability> {
   const res = await apiClient.get<Availability>('/bookings/availability', {
     params: {
       check_in: checkIn,
       check_out: checkOut,
       adults_count: options.adults ?? MINIAPP_ADULTS,
+      children_count: options.children ?? 0,
+      ...(options.source ? { source: options.source } : {}),
       rental_mode: options.rentalMode ?? 'daily',
       // Selling, the operator may book against a flat's rule by confirming and sees such
       // flats too; an offer to a guest lists only what Day would book.

@@ -550,7 +550,6 @@
     "source": "Source",
     "total": "Total",
     "bookingDetails": "Booking Details",
-    "guestInfo": "Guest Information",
     "guestName": "Name",
     "guestEdit": {
       "open": "Edit guest",
@@ -567,7 +566,6 @@
     "adults": "Adults",
     "children": "Children",
     "selectProperty": "Select property…",
-    "paused": "paused",
     "steps": {
       "confirmAsk": "Confirm the booking?",
       "completeAsk": "Complete the booking?",
@@ -665,6 +663,15 @@
       "notRecordedRefund": "The {{amount}} refund was not recorded and never will be. If the money was given back, enter it again.",
       "refused": "The server did not accept it. Check the amount and the method.",
       "refusedBecause": "The server did not accept it: {{reason}}"
+    },
+    "form": {
+      "when": "When",
+      "pickDatesFirst": "Pick the dates: the free properties will show here with their prices.",
+      "freeFailed": "The free properties did not load. Check the connection and pick the dates again.",
+      "noneFree": "No property is free on these dates.",
+      "noPrice": "No price",
+      "taken": "{{name}} is taken on these dates. Pick another property or other dates.",
+      "otherObject": "Choose another property"
     },
     "deposits": {
       "createDeposit": "Create Deposit",
