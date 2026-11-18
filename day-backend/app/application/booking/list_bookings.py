@@ -34,6 +34,8 @@ class ListBookingsService:
         date_from: date | None = None,
         date_to: date | None = None,
         agent_id: uuid.UUID | None = None,
+        created_from: date | None = None,
+        created_to: date | None = None,
     ) -> BookingListResult:
         items = await self._booking_repo.list_by_company(
             company_id,
@@ -46,6 +48,8 @@ class ListBookingsService:
             date_from=date_from,
             date_to=date_to,
             agent_id=agent_id,
+            created_from=created_from,
+            created_to=created_to,
         )
         total = await self._booking_repo.count_by_company(
             company_id,
@@ -56,5 +60,7 @@ class ListBookingsService:
             date_from=date_from,
             date_to=date_to,
             agent_id=agent_id,
+            created_from=created_from,
+            created_to=created_to,
         )
         return BookingListResult(items=items, total=total, offset=offset, limit=limit)
