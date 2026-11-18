@@ -201,10 +201,13 @@ export default function CreateBookingPage() {
       ? `${form.check_out}T${outTime}:00`
       : ''
 
-  // The calendar's first month on screen: its booked nights are shown struck through.
+  // The calendar's first month on screen: its booked nights are shown struck through. Only for
+  // the object the form was opened for (from the chessboard or its page): one picked from the
+  // free list must not keep the dates from moving to nights another object has free.
   const [calendarMonth, setCalendarMonth] = useState(() => new Date())
   const nights = nightsWindow(calendarMonth, form.check_in && !form.check_out ? form.check_in : null)
-  const booked = useBookedNights(form.property_id, nights.from, nights.to, undefined, form.source)
+  const askedFor = form.property_id && form.property_id === prefill.propertyId ? form.property_id : ''
+  const booked = useBookedNights(askedFor, nights.from, nights.to, undefined, form.source)
 
   const { data: guestsData } = useGuests(
     { search: guestSearch, limit: 5 },
@@ -239,12 +242,24 @@ export default function CreateBookingPage() {
   // The dates first, then the objects free then, each with its price, to pick one from
   // (the owner's choice, 18 Nov): a call is "is anything free on the 24th?".
   const free = useQuery({
-    queryKey: ['bookings', 'availability', rentalMode, effectiveCheckIn, effectiveCheckOut, form.adults_count],
+    queryKey: [
+      'bookings',
+      'availability',
+      rentalMode,
+      effectiveCheckIn,
+      effectiveCheckOut,
+      form.adults_count,
+      form.children_count,
+      form.source,
+    ],
     queryFn: () =>
       getAvailability(effectiveCheckIn, effectiveCheckOut, {
         adults: form.adults_count,
+        children: form.children_count,
         rentalMode,
         withRuleBreaches: true,
+        // A platform's own stay may go over that platform's closed nights, as booking allows.
+        source: form.source,
       }),
     enabled: !!effectiveCheckIn && !!effectiveCheckOut,
   })
@@ -723,11 +738,21 @@ export default function CreateBookingPage() {
           <section className="rounded-2xl border border-line bg-surface-card p-5">
             <h2 className="text-sm font-bold text-ink">{t('bookings.priceBreakdown')}</h2>
             {selectedProperty && (
-              <p id="create-property" className="mt-1 truncate text-sm text-ink-muted">
-                {[selectedProperty.internal_name, selectedProperty.name !== selectedProperty.internal_name ? selectedProperty.name : '']
-                  .filter(Boolean)
-                  .join(' · ')}
-              </p>
+              <>
+                <p id="create-property" className="mt-1 truncate text-sm text-ink-muted">
+                  {[selectedProperty.internal_name, selectedProperty.name !== selectedProperty.internal_name ? selectedProperty.name : '']
+                    .filter(Boolean)
+                    .join(' · ')}
+                </p>
+                {/* The rest of the form stays: only the object is let go, and its nights with it. */}
+                <button
+                  type="button"
+                  onClick={() => updateField('property_id', '')}
+                  className="mt-1 text-xs font-semibold text-accent-ink hover:underline"
+                >
+                  {t('bookings.form.otherObject')}
+                </button>
+              </>
             )}
             <div className="mt-4">
               {!form.property_id || !effectiveCheckIn || !effectiveCheckOut ? (

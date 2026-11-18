@@ -670,7 +670,8 @@
       "freeFailed": "The free properties did not load. Check the connection and pick the dates again.",
       "noneFree": "No property is free on these dates.",
       "noPrice": "No price",
-      "taken": "{{name}} is taken on these dates. Pick another property or other dates."
+      "taken": "{{name}} is taken on these dates. Pick another property or other dates.",
+      "otherObject": "Choose another property"
     },
     "deposits": {
       "createDeposit": "Create Deposit",
