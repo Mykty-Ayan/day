@@ -76,3 +76,25 @@ test("an agent's bookings past the first twenty are shown on asking", async ({ p
   await expect(stays.getByRole('link')).toHaveCount(21)
   await expect(stays.getByRole('button', { name: /Show/ })).toHaveCount(0)
 })
+
+test("an agent's totals follow a booking changed while the screen was left", async ({ page, request }) => {
+  const agent = await (await request.post(`${API_BASE}/agents`, { data: { name: 'Ермек' } })).json()
+  const flat = await (await request.post(`${API_BASE}/properties`, { data: createTestProperty() })).json()
+  await request.post(`${API_BASE}/properties/${flat.id}/status`, { data: { status: 'active' } })
+  await request.put(`${API_BASE}/properties/${flat.id}/pricing`, { data: createTestPricing() })
+  const booking = await (
+    await request.post(`${API_BASE}/bookings`, { data: { ...createTestBooking(flat.id), agent_id: agent.id } })
+  ).json()
+
+  await page.goto('/agents')
+  const row = page.getByRole('button', { name: /Ермек/ })
+  await expect(row).toContainText('1 booking for')
+
+  // Away and back inside the app, no reload: the booking was cancelled meanwhile.
+  await page.getByRole('link', { name: 'All bookings', exact: true }).click()
+  await expect(page).toHaveURL(/\/bookings$/)
+  const cancelled = await request.post(`${API_BASE}/bookings/${booking.id}/status`, { data: { target_status: 'cancelled' } })
+  expect(cancelled.ok(), await cancelled.text()).toBeTruthy()
+  await page.getByRole('link', { name: 'Agents', exact: true }).click()
+  await expect(row).toContainText('No bookings yet')
+})

@@ -24,7 +24,9 @@ export function useUpdateAgent() {
   })
 }
 
-/** What every agent brought, read at once by the server. */
+/** What every agent brought, read at once by the server. Under the bookings' key, so a booking changed
+ *  anywhere marks it stale; and read again on every visit, as a booking changed elsewhere (the CRM, the
+ *  Mini App) tells this tab nothing. */
 export function useAgentTotals() {
-  return useQuery({ queryKey: [AGENTS_KEY, 'totals'], queryFn: listAgentTotals })
+  return useQuery({ queryKey: ['bookings', 'agent-totals'], queryFn: listAgentTotals, staleTime: 0 })
 }
