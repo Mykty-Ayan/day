@@ -101,19 +101,19 @@ export default function NumberInput({
         disabled={disabled}
         aria-label={ariaLabel}
         className={cn(
-          'number-input w-full bg-gray-50 border border-gray-200 rounded-xl p-3 pr-11 outline-none focus:ring-2 focus:ring-black/10 text-gray-800 text-sm',
+          'number-input w-full bg-surface-page border border-line rounded-xl p-3 pr-11 outline-none focus:border-accent text-ink text-sm',
           disabled && 'opacity-50 cursor-not-allowed',
           inputClassName,
         )}
       />
       {/* Flush spinner: two half-height segments sized to the input so the
           controls sit inside the field instead of overflowing it. */}
-      <div className="absolute right-1.5 top-1.5 bottom-1.5 flex w-7 flex-col overflow-hidden rounded-lg border border-gray-200">
+      <div className="absolute right-1.5 top-1.5 bottom-1.5 flex w-7 flex-col overflow-hidden rounded-lg border border-line">
         <button
           type="button"
           onClick={() => handleStep(1)}
           disabled={disabled}
-          className="flex flex-1 items-center justify-center bg-white text-gray-500 hover:bg-gray-100 disabled:opacity-40"
+          className="flex flex-1 items-center justify-center bg-surface-card text-ink-muted hover:bg-surface-page disabled:opacity-40"
           aria-label={t('common.increment')}
         >
           <ChevronUp className="h-3.5 w-3.5" />
@@ -122,7 +122,7 @@ export default function NumberInput({
           type="button"
           onClick={() => handleStep(-1)}
           disabled={disabled}
-          className="flex flex-1 items-center justify-center border-t border-gray-200 bg-white text-gray-500 hover:bg-gray-100 disabled:opacity-40"
+          className="flex flex-1 items-center justify-center border-t border-line bg-surface-card text-ink-muted hover:bg-surface-page disabled:opacity-40"
           aria-label={t('common.decrement')}
         >
           <ChevronDown className="h-3.5 w-3.5" />

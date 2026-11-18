@@ -41,20 +41,20 @@ export default function MobileShell({
     <div className="min-h-screen bg-surface-page text-ink flex flex-col">
       <header className="sticky top-0 z-sticky border-b border-line bg-surface-card safe-area-top">
         <div className="flex items-center px-4 py-3">
-          <Link to="/bookings/today" className="text-sm font-bold text-gray-900">
+          <Link to="/bookings/today" className="text-sm font-bold text-ink">
             Day
           </Link>
           <div className="mx-3 min-w-0 flex-1">
-            <p className="truncate text-sm font-semibold text-gray-900">{pageTitle}</p>
+            <p className="truncate text-sm font-semibold text-ink">{pageTitle}</p>
             {userEmail && (
-              <p className="truncate text-[11px] text-gray-400">{userEmail}</p>
+              <p className="truncate text-[11px] text-ink-muted">{userEmail}</p>
             )}
           </div>
           <CreateMenu isOwner={isOwner} iconOnly />
           <button
             type="button"
             onClick={() => setIsMoreOpen(true)}
-            className="ml-2 flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg border border-gray-200 text-gray-600 transition-colors hover:bg-gray-50 hover:text-gray-900"
+            className="ml-2 flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg border border-line text-ink-muted transition-colors hover:bg-surface-page hover:text-ink"
             aria-label={t('nav.more')}
           >
             <Ellipsis className="h-5 w-5" />
@@ -112,12 +112,12 @@ export default function MobileShell({
             onClick={() => setIsMoreOpen(false)}
             className="absolute inset-0 bg-black/35"
           />
-          <div className="absolute inset-x-0 bottom-0 rounded-t-2xl border-t border-gray-200 bg-white px-4 pb-4 pt-3 shadow-2xl safe-area-bottom">
-            <div className="mx-auto mb-3 h-1.5 w-12 rounded-full bg-gray-200" />
+          <div className="absolute inset-x-0 bottom-0 rounded-t-2xl border-t border-line bg-surface-card px-4 pb-4 pt-3 shadow-2xl safe-area-bottom">
+            <div className="mx-auto mb-3 h-1.5 w-12 rounded-full bg-line" />
             <div className="mb-3">
-              <p className="text-sm font-bold text-gray-900">{t('nav.more')}</p>
+              <p className="text-sm font-bold text-ink">{t('nav.more')}</p>
               {userEmail && (
-                <p className="mt-0.5 truncate text-xs text-gray-500">{userEmail}</p>
+                <p className="mt-0.5 truncate text-xs text-ink-muted">{userEmail}</p>
               )}
             </div>
 
@@ -127,13 +127,13 @@ export default function MobileShell({
                   key={to}
                   to={to}
                   onClick={() => setIsMoreOpen(false)}
-                  className="flex min-h-[44px] items-center justify-between rounded-xl border border-gray-200 px-3 py-2 text-sm font-semibold text-gray-800 transition-colors hover:bg-gray-50"
+                  className="flex min-h-[44px] items-center justify-between rounded-xl border border-line px-3 py-2 text-sm font-semibold text-ink transition-colors hover:bg-surface-page"
                 >
                   <span className="flex items-center gap-2">
-                    <Icon className="h-4 w-4 text-gray-500" />
+                    <Icon className="h-4 w-4 text-ink-muted" />
                     {t(labelKey)}
                   </span>
-                  <ChevronRight className="h-4 w-4 text-gray-300" />
+                  <ChevronRight className="h-4 w-4 text-ink-muted/60" />
                 </Link>
               ))}
 
