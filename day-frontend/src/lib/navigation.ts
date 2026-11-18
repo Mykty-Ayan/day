@@ -31,6 +31,7 @@ export function navSections(role: string | undefined, aiImport: boolean): NavSec
       labelKey: 'nav.bookings',
       icon: CalendarDays,
       children: [
+        { to: '/bookings/overview', labelKey: 'nav.bookingsOverview' },
         { to: '/bookings', labelKey: 'nav.allBookings' },
         { to: '/agents', labelKey: 'nav.agents' },
         ...(keepsStock ? [{ to: '/blacklist', labelKey: 'nav.blacklist' }] : []),
