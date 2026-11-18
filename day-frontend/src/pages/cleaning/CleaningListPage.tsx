@@ -108,7 +108,6 @@ export default function CleaningListPage() {
                   <li key={task.id}>
                     <button
                       type="button"
-                      aria-label={name}
                       onClick={() => navigate({ to: '/cleaning/$taskId', params: { taskId: task.id } })}
                       className={`grid w-full grid-cols-[minmax(0,1fr)_auto] gap-x-3 gap-y-1.5 px-5 py-3.5 text-left transition-colors hover:bg-surface-page focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent ${COLUMNS}`}
                     >

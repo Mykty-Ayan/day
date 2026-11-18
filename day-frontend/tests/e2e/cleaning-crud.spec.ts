@@ -190,6 +190,22 @@ test.describe('Cleaning Task CRUD - E2E', () => {
     }
   })
 
+  test('two cleanings of one object are told apart by what a screen reader says of each row', async ({ page, request }) => {
+    const prop = await setupActiveProperty(request)
+    const days = [futureDate(5), futureDate(6)]
+    for (const day of days) await createTaskViaApi(request, prop.id, { scheduled_date: day })
+
+    await page.goto('/cleaning')
+    const rows = page.getByRole('button', { name: new RegExp(prop.internal_name as string) })
+    await expect(rows).toHaveCount(2)
+    const shown = (day: string) => new Date(day).toLocaleDateString('en', { month: 'short', day: 'numeric' })
+    // Newest first or not, each row's name carries its own day.
+    const names = await rows.evaluateAll((els) => els.map((el) => el.textContent ?? ''))
+    expect(names.some((n) => n.includes(shown(days[0])))).toBe(true)
+    expect(names.some((n) => n.includes(shown(days[1])))).toBe(true)
+    for (const row of await rows.all()) await expect(row).not.toHaveAttribute('aria-label')
+  })
+
   test('filter tasks by status tabs', async ({ page, request }) => {
     // One flat per task, so the property name says which task a row is.
     const pendingProp = await setupActiveProperty(request)
