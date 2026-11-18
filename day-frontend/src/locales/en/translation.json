@@ -2068,7 +2068,15 @@
     "stop": "Stopped working",
     "resume": "Working again",
     "nobody": "Nobody, the guest came directly",
-    "stoppedName": "{{name}} (stopped)"
+    "stoppedName": "{{name}} (stopped)",
+    "addButton": "Add agent",
+    "brought_one": "{{count}} booking for {{amount}}",
+    "brought_other": "{{count}} bookings for {{amount}}",
+    "broughtNone": "No bookings yet",
+    "stoppedTitle": "Stopped working",
+    "bookings": "Agent's bookings",
+    "saveChanges": "Save",
+    "changed": "Saved"
   },
   "readiness": {
     "title": "Properties readiness",

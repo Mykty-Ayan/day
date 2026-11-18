@@ -2054,7 +2054,14 @@
     "stop": "Енді жұмыс істемейді",
     "resume": "Қайта жұмыс істейді",
     "nobody": "Ешкім, қонақ өзі келді",
-    "stoppedName": "{{name}} (жұмыс істемейді)"
+    "stoppedName": "{{name}} (жұмыс істемейді)",
+    "addButton": "Агент қосу",
+    "brought": "{{count}} бронь, {{amount}}",
+    "broughtNone": "Әзірге бронь жоқ",
+    "stoppedTitle": "Жұмыс істемейтіндер",
+    "bookings": "Агенттің броньдары",
+    "saveChanges": "Сақтау",
+    "changed": "Сақталды"
   },
   "readiness": {
     "title": "Нысандардың дайындығы",
