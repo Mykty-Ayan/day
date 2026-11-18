@@ -864,6 +864,7 @@ async def get_availability(
     children_count: int = Query(default=0, ge=0),
     rental_mode: RentalMode = Query(default=RentalMode.DAILY),
     include_rule_breaches: bool = Query(default=False),
+    source: BookingSource | None = Query(default=None),
     session: AsyncSession = Depends(get_session),
     company_id: uuid.UUID = Depends(get_company_id),
 ):
@@ -885,6 +886,7 @@ async def get_availability(
             children_count=children_count,
             rental_mode=rental_mode,
             with_rule_breaches=include_rule_breaches,
+            source=source.value if source else None,
         )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
