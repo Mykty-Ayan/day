@@ -218,6 +218,8 @@ def create_app() -> FastAPI:
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
+        # The app reads when the rate limit's window ends, to ask a refused page again in time.
+        expose_headers=["X-RateLimit-Limit", "X-RateLimit-Remaining", "X-RateLimit-Reset"],
     )
 
     app.include_router(api_v1_router)

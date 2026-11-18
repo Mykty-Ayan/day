@@ -441,6 +441,81 @@ async def void_booking_key(
     return BookingKeyVoidResponse(voided=True)
 
 
+async def _listed(repos, company_id: uuid.UUID, bookings, principal: Principal) -> list[BookingResponse]:
+    """Bookings as the list shows them: guest and property names, plus what has been received —
+    one aggregate query for all of them rather than one per booking. A guest or a property is read
+    once however many bookings name it (one read per guest: a batch read would be the next step)."""
+    paid = await repos["payment"].sum_paid_by_bookings([b.id for b in bookings])
+    due = await repos["orders"].due_by_bookings(company_id, [b.id for b in bookings])
+    guests: dict = {}
+    props: dict = {}
+    items = []
+    for b in bookings:
+        if b.guest_id not in guests:
+            guests[b.guest_id] = await repos["guest"].get_by_id(b.guest_id)
+        if b.property_id not in props:
+            props[b.property_id] = await repos["property"].get_by_id(b.property_id)
+        guest, prop = guests[b.guest_id], props[b.property_id]
+        items.append(
+            _to_booking_response(
+                b,
+                guest_name=guest.name if guest else None,
+                guest_phone=guest.phone if guest else None,
+                property_name=prop.name if prop else None,
+                property_internal_name=prop.internal_name if prop else None,
+                paid_amount=paid.get(b.id),
+                orders_due=due.get(b.id),
+                with_link=_shows_link(principal),
+            )
+        )
+    return items
+
+
+# More than this asks for a narrower filter: the answer is one read, kept in memory.
+EXPORT_MAX = 10_000
+
+
+@booking_router.get(
+    "/export",
+    response_model=list[BookingResponse],
+    dependencies=[Depends(require(Permission.BOOKINGS_READ))],
+)
+async def export_bookings(
+    status: BookingStatus | None = None,
+    property_id: uuid.UUID | None = None,
+    source: BookingSource | None = None,
+    search: str | None = None,
+    date_from: date | None = None,
+    date_to: date | None = None,
+    agent_id: uuid.UUID | None = None,
+    created_from: date | None = None,
+    created_to: date | None = None,
+    session: AsyncSession = Depends(get_session),
+    company_id: uuid.UUID = Depends(get_company_id),
+    principal: Principal = Depends(get_principal),
+):
+    """Every booking the list finds with these filters, in one read: an export put together from
+    pages could repeat a stay or miss one while bookings change between the pages."""
+    repos = _repos(session)
+    found = await repos["booking"].list_by_company(
+        company_id,
+        offset=0,
+        limit=EXPORT_MAX + 1,
+        status=status,
+        property_id=property_id,
+        source=source,
+        search=search,
+        date_from=date_from,
+        date_to=date_to,
+        agent_id=agent_id,
+        created_from=created_from,
+        created_to=created_to,
+    )
+    if len(found) > EXPORT_MAX:
+        raise HTTPException(status_code=422, detail=f"More than {EXPORT_MAX} bookings: narrow the filter")
+    return await _listed(repos, company_id, found, principal)
+
+
 @booking_router.get("", response_model=BookingListResponse, dependencies=[Depends(require(Permission.BOOKINGS_READ))])
 async def list_bookings(
     page: int = Query(default=1, ge=1),
@@ -478,26 +553,7 @@ async def list_bookings(
         created_to=created_to,
     )
 
-    # Enrich with guest and property names, plus what has been received —
-    # one aggregate query for the whole page rather than one per booking.
-    paid = await repos["payment"].sum_paid_by_bookings([b.id for b in result.items])
-    due = await repos["orders"].due_by_bookings(company_id, [b.id for b in result.items])
-    items = []
-    for b in result.items:
-        guest = await repos["guest"].get_by_id(b.guest_id)
-        prop = await repos["property"].get_by_id(b.property_id)
-        items.append(
-            _to_booking_response(
-                b,
-                guest_name=guest.name if guest else None,
-                guest_phone=guest.phone if guest else None,
-                property_name=prop.name if prop else None,
-                property_internal_name=prop.internal_name if prop else None,
-                paid_amount=paid.get(b.id),
-                orders_due=due.get(b.id),
-                with_link=_shows_link(principal),
-            )
-        )
+    items = await _listed(repos, company_id, result.items, principal)
 
     pages = (result.total + per_page - 1) // per_page if result.total > 0 else 1
     return BookingListResponse(

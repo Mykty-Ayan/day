@@ -49,3 +49,59 @@ async def test_the_list_finds_the_bookings_made_on_the_days_asked(flat):  # noqa
     assert await made(created_to="2030-10-31") == [early["id"]]
     assert await made(created_from="2030-10-31") == sorted([early["id"], late["id"]])
     assert await made(created_from="2030-12-01") == []
+
+
+@pytest.mark.integration
+async def test_stays_arriving_at_one_moment_keep_one_order_across_pages(flat):  # noqa: F811  (the imported fixture)
+    client, prop, use = flat
+    use(Permission.BOOKINGS_READ, Permission.BOOKINGS_WRITE, Permission.PROPERTIES_READ)
+    ids = []
+    for i in range(5):
+        # Each one cancelled before the next takes the same nights: five arrivals at one moment.
+        made = await client.post("/api/v1/bookings", json={**_STAY, "property_id": str(prop),
+                                                           "guest_phone": f"+7707901118{i}"})
+        assert made.status_code == 201, made.text
+        ids.append(made.json()["id"])
+        cancelled = await client.post(f"/api/v1/bookings/{ids[-1]}/status", json={"target_status": "cancelled"})
+        assert cancelled.status_code == 200, cancelled.text
+
+    async def page(n: int) -> list[str]:
+        listed = await client.get("/api/v1/bookings", params={"property_id": str(prop), "per_page": 2, "page": n})
+        return [b["id"] for b in listed.json()["items"]]
+
+    paged = await page(1) + await page(2) + await page(3)
+    # Every stay once, in one order: the newest arrival first, a tie broken by the id.
+    assert paged == sorted(ids, reverse=True)
+
+
+@pytest.mark.integration
+async def test_the_export_gives_every_booking_the_list_finds_in_one_read(flat, monkeypatch):  # noqa: F811
+    from app.presentation.api.v1 import bookings as routes
+
+    client, prop, use = flat
+    use(Permission.BOOKINGS_READ, Permission.BOOKINGS_WRITE, Permission.PROPERTIES_READ)
+    ids = []
+    for i in range(3):
+        made = await client.post("/api/v1/bookings", json={**_STAY, "property_id": str(prop),
+                                                           "guest_phone": f"+7707901119{i}"})
+        assert made.status_code == 201, made.text
+        ids.append(made.json()["id"])
+        if i < 2:
+            await client.post(f"/api/v1/bookings/{ids[-1]}/status", json={"target_status": "cancelled"})
+
+    exported = await client.get("/api/v1/bookings/export", params={"property_id": str(prop)})
+    assert exported.status_code == 200, exported.text
+    rows = exported.json()
+    # All of them, in the list's order, with what the list names: the guest, the object, the money paid.
+    assert [r["id"] for r in rows] == sorted(ids, reverse=True)
+    assert all(r["guest_name"] == _STAY["guest_name"] and r["property_internal_name"] for r in rows)
+    assert all("paid_amount" in r for r in rows)
+    # The list's filters hold.
+    cancelled = {"property_id": str(prop), "status": "cancelled"}
+    kept = (await client.get("/api/v1/bookings/export", params=cancelled)).json()
+    assert sorted(r["id"] for r in kept) == sorted(ids[:2])
+
+    # Past the most one read gives, the export asks for a narrower filter instead of a part.
+    monkeypatch.setattr(routes, "EXPORT_MAX", 2)
+    too_many = await client.get("/api/v1/bookings/export", params={"property_id": str(prop)})
+    assert too_many.status_code == 422
