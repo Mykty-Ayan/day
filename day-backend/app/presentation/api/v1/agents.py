@@ -12,7 +12,7 @@ from app.domain.auth.permissions import Permission
 from app.infrastructure.database import get_session
 from app.infrastructure.repositories.agents import SqlAgentRepository
 from app.presentation.api.deps import get_company_id, require
-from app.presentation.schemas.agents import AgentCreate, AgentResponse, AgentUpdate
+from app.presentation.schemas.agents import AgentCreate, AgentResponse, AgentTotals, AgentUpdate
 
 agent_router = APIRouter(prefix="/agents", tags=["agents"])
 
@@ -25,6 +25,18 @@ async def list_agents(
 ):
     agents = await SqlAgentRepository(session).list(company_id, include_inactive=include_inactive)
     return [AgentResponse.model_validate(a, from_attributes=True) for a in agents]
+
+
+@agent_router.get(
+    "/totals", response_model=list[AgentTotals], dependencies=[Depends(require(Permission.BOOKINGS_READ))]
+)
+async def agent_totals(
+    session: AsyncSession = Depends(get_session),
+    company_id: uuid.UUID = Depends(get_company_id),
+):
+    """What every agent brought, in one read: the agents screen shows it on each row."""
+    totals = await SqlAgentRepository(session).totals(company_id)
+    return [AgentTotals(agent_id=a, bookings=n, total=float(s)) for a, (n, s) in totals.items()]
 
 
 @agent_router.post(

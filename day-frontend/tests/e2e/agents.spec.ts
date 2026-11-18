@@ -48,3 +48,31 @@ test('an agent is added, shows what they brought, is changed and stopped', async
   await page.getByRole('dialog', { name: 'Ермек' }).getByRole('button', { name: 'Working again' }).click()
   await expect(page.getByRole('region', { name: 'Stopped working' })).toHaveCount(0)
 })
+
+test("an agent's bookings past the first twenty are shown on asking", async ({ page, request }) => {
+  const agent = await (await request.post(`${API_BASE}/agents`, { data: { name: 'Айдана' } })).json()
+  const flat = await (await request.post(`${API_BASE}/properties`, { data: createTestProperty() })).json()
+  await request.post(`${API_BASE}/properties/${flat.id}/status`, { data: { status: 'active' } })
+  await request.put(`${API_BASE}/properties/${flat.id}/pricing`, { data: createTestPricing() })
+  for (let night = 0; night < 21; night++) {
+    const day = (offset: number) => {
+      const d = new Date()
+      d.setUTCDate(d.getUTCDate() + 40 + night * 2 + offset)
+      return d.toISOString().slice(0, 10)
+    }
+    const made = await request.post(`${API_BASE}/bookings`, {
+      data: { ...createTestBooking(flat.id, { check_in: day(0), check_out: day(1) }), agent_id: agent.id },
+    })
+    expect(made.ok(), await made.text()).toBeTruthy()
+  }
+
+  await page.goto('/agents')
+  const row = page.getByRole('button', { name: /Айдана/ })
+  await expect(row).toContainText('21 bookings for')
+  await row.click()
+  const stays = page.getByRole('dialog', { name: 'Айдана' }).getByRole('region', { name: "Agent's bookings" })
+  await expect(stays.getByRole('link')).toHaveCount(20)
+  await stays.getByRole('button', { name: 'Show 1 more booking' }).click()
+  await expect(stays.getByRole('link')).toHaveCount(21)
+  await expect(stays.getByRole('button', { name: /Show/ })).toHaveCount(0)
+})

@@ -2076,7 +2076,11 @@
     "stoppedTitle": "Stopped working",
     "bookings": "Agent's bookings",
     "saveChanges": "Save",
-    "changed": "Saved"
+    "changed": "Saved",
+    "totalsFailed": "Couldn't count the agents' bookings. Check the connection and try again.",
+    "bookingsFailed": "Couldn't load the agent's bookings.",
+    "showMore_one": "Show {{count}} more booking",
+    "showMore_other": "Show {{count}} more bookings"
   },
   "readiness": {
     "title": "Properties readiness",

@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useInfiniteQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { format, parseISO } from 'date-fns'
 import { ChevronRight, Plus } from 'lucide-react'
@@ -8,9 +9,9 @@ import Spinner from '../../components/ui/Spinner'
 import { Sheet } from '../../components/ui/sheet'
 import { showToast } from '../../components/ui/Toast'
 import BookingStatusBadge from '../../components/booking/BookingStatusBadge'
-import type { Agent } from '../../api/agents'
-import { useAgents, useCreateAgent, useUpdateAgent } from '../../hooks/useAgents'
-import { useAllBookings } from '../../hooks/useBookings'
+import type { Agent, AgentTotals } from '../../api/agents'
+import { listBookings } from '../../api/bookings'
+import { useAgentTotals, useAgents, useCreateAgent, useUpdateAgent } from '../../hooks/useAgents'
 import { useMoney } from '../../hooks/useMoney'
 import { dateLocale } from '../../lib/date-locale'
 import { formatPhone } from '../../lib/phone'
@@ -21,19 +22,15 @@ const ADD =
   'inline-flex h-10 shrink-0 items-center gap-1.5 rounded-xl border border-line bg-surface-card px-3.5 text-sm font-semibold text-ink transition-colors hover:bg-surface-page'
 const INPUT = 'min-h-[44px] w-full min-w-0 rounded-xl border border-line bg-surface-card px-3 text-sm text-ink outline-none focus:border-accent'
 const LABEL = 'text-xs font-semibold text-ink'
-const SHOWN = 10
-
-/** What an agent brought: every booking that names them, cancelled ones aside, newest first. */
-function useBrought(agentId: string) {
-  const { data, isLoading } = useAllBookings({ agent_id: agentId })
-  const kept = (data ?? []).filter((b) => b.status !== 'cancelled')
-  return { stays: kept, sum: kept.reduce((total, b) => total + Number(b.total_price), 0), isLoading }
-}
+const PAGE = 20
 
 /** The people who bring guests for a cut: what each brought, and their details in a panel. */
 export default function AgentsPage() {
   const { t } = useTranslation()
   const { data: agents = [], isLoading } = useAgents()
+  // What each brought, counted by the server in one read: a page of history per agent would not add up.
+  const totals = useAgentTotals()
+  const byAgent = new Map((totals.data ?? []).map((row) => [row.agent_id, row]))
   const [open, setOpen] = useState<Agent | 'new' | null>(null)
   const working = agents.filter((a) => a.is_active)
   const stopped = agents.filter((a) => !a.is_active)
@@ -51,6 +48,14 @@ export default function AgentsPage() {
         </button>
       </div>
       <p className="mb-5 max-w-2xl text-sm text-ink-muted">{t('agents.hint')}</p>
+      {totals.isError && (
+        <div role="alert" className="mb-5 flex items-center justify-between gap-3 rounded-xl border border-danger/30 bg-danger-soft px-4 py-3">
+          <p className="text-sm text-ink">{t('agents.totalsFailed')}</p>
+          <Button variant="secondary" onClick={() => totals.refetch()}>
+            {t('common.retry')}
+          </Button>
+        </div>
+      )}
 
       {isLoading ? (
         <Spinner />
@@ -64,7 +69,7 @@ export default function AgentsPage() {
             <ul className="divide-y divide-line overflow-hidden rounded-2xl border border-line bg-surface-card">
               {working.map((agent) => (
                 <li key={agent.id}>
-                  <AgentRow agent={agent} onOpen={() => setOpen(agent)} />
+                  <AgentRow agent={agent} totals={totals.data ? (byAgent.get(agent.id) ?? null) : undefined} onOpen={() => setOpen(agent)} />
                 </li>
               ))}
             </ul>
@@ -77,7 +82,7 @@ export default function AgentsPage() {
               <ul className="divide-y divide-line overflow-hidden rounded-2xl border border-line bg-surface-card">
                 {stopped.map((agent) => (
                   <li key={agent.id}>
-                    <AgentRow agent={agent} onOpen={() => setOpen(agent)} />
+                    <AgentRow agent={agent} totals={totals.data ? (byAgent.get(agent.id) ?? null) : undefined} onOpen={() => setOpen(agent)} />
                   </li>
                 ))}
               </ul>
@@ -99,10 +104,10 @@ export default function AgentsPage() {
   )
 }
 
-function AgentRow({ agent, onOpen }: { agent: Agent; onOpen: () => void }) {
+/** `totals`: undefined until read (or when the read failed), null when the agent brought nothing. */
+function AgentRow({ agent, totals, onOpen }: { agent: Agent; totals: AgentTotals | null | undefined; onOpen: () => void }) {
   const { t } = useTranslation()
   const money = useMoney()
-  const brought = useBrought(agent.id)
   const details = [agent.phone ? formatPhone(agent.phone) : null, agent.note].filter(Boolean).join(' · ')
   return (
     <button
@@ -115,8 +120,8 @@ function AgentRow({ agent, onOpen }: { agent: Agent; onOpen: () => void }) {
         {details && <span className="block truncate text-xs text-ink-muted">{details}</span>}
       </span>
       <span className="shrink-0 text-right text-xs tabular-nums text-ink-muted">
-        {brought.isLoading ? null : brought.stays.length > 0 ? (
-          <span className="font-semibold text-ink">{t('agents.brought', { count: brought.stays.length, amount: money(brought.sum) })}</span>
+        {totals === undefined ? null : totals ? (
+          <span className="font-semibold text-ink">{t('agents.brought', { count: totals.bookings, amount: money(totals.total) })}</span>
         ) : (
           t('agents.broughtNone')
         )}
@@ -205,11 +210,19 @@ function AgentPanel({ agent, onDone }: { agent: Agent | null; onDone: () => void
   )
 }
 
+/** Every booking that names the agent, cancelled ones too, newest arrival first, a page at a time. */
 function AgentStays({ agentId }: { agentId: string }) {
   const { t, i18n } = useTranslation()
   const money = useMoney()
   const locale = dateLocale(i18n.language)
-  const brought = useBrought(agentId)
+  const stays = useInfiniteQuery({
+    queryKey: ['bookings', 'agent', agentId],
+    queryFn: ({ pageParam }) => listBookings({ agent_id: agentId, page: pageParam, per_page: PAGE }),
+    initialPageParam: 1,
+    getNextPageParam: (last) => (last.page < last.pages ? last.page + 1 : undefined),
+  })
+  const listed = stays.data?.pages.flatMap((page) => page.items) ?? []
+  const total = stays.data?.pages[0]?.total ?? 0
   const line = (b: Booking) =>
     stayLine(b, {
       day: (iso) => format(parseISO(iso), 'd', { locale }),
@@ -221,42 +234,53 @@ function AgentStays({ agentId }: { agentId: string }) {
     <section aria-label={t('agents.bookings')} className="flex flex-col gap-2">
       <div className="flex items-baseline justify-between gap-3">
         <h3 className="text-sm font-semibold text-ink">{t('agents.bookings')}</h3>
-        {brought.stays.length > 0 && (
-          <span className="text-xs font-semibold tabular-nums text-ink">
-            {t('agents.brought', { count: brought.stays.length, amount: money(brought.sum) })}
-          </span>
-        )}
+        {total > 0 && <span className="text-xs tabular-nums text-ink-muted">{t('analytics.bookingsCount', { count: total })}</span>}
       </div>
-      {brought.isLoading ? (
+      {stays.isLoading ? (
         <Spinner />
-      ) : brought.stays.length === 0 ? (
+      ) : stays.isError ? (
+        <div role="alert" className="flex flex-col items-start gap-2">
+          <p className="text-sm text-ink">{t('agents.bookingsFailed')}</p>
+          <Button variant="secondary" onClick={() => stays.refetch()}>
+            {t('common.retry')}
+          </Button>
+        </div>
+      ) : listed.length === 0 ? (
         <p className="text-sm text-ink-muted">{t('agents.broughtNone')}</p>
       ) : (
-        <ul className="-mx-2">
-          {brought.stays.slice(0, SHOWN).map((b) => (
-            <li key={b.id}>
-              <Link
-                to="/bookings/$bookingId"
-                params={{ bookingId: b.id }}
-                className="flex min-h-[44px] items-center justify-between gap-3 rounded-lg px-2 py-2 hover:bg-surface-page"
-              >
-                <span className="min-w-0">
-                  <span className="block truncate text-sm text-ink">{b.guest_name}</span>
-                  <span className="block truncate text-xs text-ink-muted">
-                    {b.property_internal_name || b.property_name} · {line(b)}
+        <>
+          <ul className="-mx-2">
+            {listed.map((b) => (
+              <li key={b.id}>
+                <Link
+                  to="/bookings/$bookingId"
+                  params={{ bookingId: b.id }}
+                  className="flex min-h-[44px] items-center justify-between gap-3 rounded-lg px-2 py-2 hover:bg-surface-page"
+                >
+                  <span className="min-w-0">
+                    <span className="block truncate text-sm text-ink">{b.guest_name}</span>
+                    <span className="block truncate text-xs text-ink-muted">
+                      {b.property_internal_name || b.property_name} · {line(b)}
+                    </span>
                   </span>
-                </span>
-                <span className="flex shrink-0 flex-col items-end gap-1">
-                  <span className="text-xs font-semibold tabular-nums text-ink">{money(Number(b.total_price))}</span>
-                  <BookingStatusBadge status={b.status} />
-                </span>
-              </Link>
-            </li>
-          ))}
-          {brought.stays.length > SHOWN && (
-            <li className="px-2 pt-1 text-xs text-ink-muted">{t('bookings.overview.more', { count: brought.stays.length - SHOWN })}</li>
+                  <span className="flex shrink-0 flex-col items-end gap-1">
+                    <span
+                      className={`text-xs font-semibold tabular-nums ${b.status === 'cancelled' ? 'text-ink-muted line-through' : 'text-ink'}`}
+                    >
+                      {money(Number(b.total_price))}
+                    </span>
+                    <BookingStatusBadge status={b.status} />
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+          {stays.hasNextPage && (
+            <Button variant="secondary" disabled={stays.isFetchingNextPage} onClick={() => stays.fetchNextPage()}>
+              {t('agents.showMore', { count: total - listed.length })}
+            </Button>
           )}
-        </ul>
+        </>
       )}
     </section>
   )
