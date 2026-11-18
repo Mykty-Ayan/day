@@ -31,9 +31,9 @@ export default function CreateMenu({ isOwner, iconOnly = false }: { isOwner: boo
             key={to}
             to={to}
             onClick={() => setOpen(false)}
-            className="flex min-h-[40px] items-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold text-gray-800 transition-colors hover:bg-gray-50"
+            className="flex min-h-[40px] items-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold text-ink transition-colors hover:bg-surface-page"
           >
-            <Icon className="h-4 w-4 text-gray-500" />
+            <Icon className="h-4 w-4 text-ink-muted" />
             {label}
           </Link>
         ))}

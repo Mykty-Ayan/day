@@ -214,7 +214,7 @@ export default function PropertyDetailPage() {
   if (!property) {
     return (
       <div className="flex flex-col items-center justify-center gap-4 py-20">
-        <p className="text-sm text-gray-500">{t('properties.notFound')}</p>
+        <p className="text-sm text-ink-muted">{t('properties.notFound')}</p>
         <Button variant="secondary" onClick={() => navigate({ to: '/properties' })}>
           {t('properties.backToProperties')}
         </Button>

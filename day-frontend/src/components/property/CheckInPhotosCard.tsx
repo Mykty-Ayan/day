@@ -31,17 +31,17 @@ export default function CheckInPhotosCard({ propertyId, photos }: { propertyId: 
   return (
     <div className="space-y-3 rounded-2xl border border-line bg-surface-card p-5">
       <div className="flex items-start gap-2">
-        <KeyRound className="w-4 h-4 mt-0.5 shrink-0 text-gray-500" />
+        <KeyRound className="w-4 h-4 mt-0.5 shrink-0 text-ink-muted" />
         <div>
-          <h2 className="text-sm font-bold text-gray-900">{t('properties.checkInPhotos.title')}</h2>
-          <p className="text-xs text-gray-500">{t('properties.checkInPhotos.hint')}</p>
+          <h2 className="text-sm font-bold text-ink">{t('properties.checkInPhotos.title')}</h2>
+          <p className="text-xs text-ink-muted">{t('properties.checkInPhotos.hint')}</p>
         </div>
       </div>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         {checkIn.map((photo) => (
           <CheckInPhoto key={photo.id} propertyId={propertyId} photo={photo} onDelete={() => setDeleting(photo)} />
         ))}
-        <label className="h-36 rounded-xl border border-dashed border-gray-300 flex flex-col items-center justify-center gap-1 text-xs font-semibold text-gray-600 cursor-pointer hover:bg-gray-50">
+        <label className="h-36 rounded-xl border border-dashed border-line flex flex-col items-center justify-center gap-1 text-xs font-semibold text-ink-muted cursor-pointer hover:bg-surface-page">
           <ImagePlus className="w-5 h-5" />
           {upload.isPending ? t('properties.photosUploading') : t('properties.checkInPhotos.add')}
           <input
@@ -97,7 +97,7 @@ function CheckInPhoto({
   }
 
   return (
-    <div className="rounded-xl border border-gray-200 overflow-hidden">
+    <div className="rounded-xl border border-line overflow-hidden">
       <img src={photo.url} alt={photo.caption ?? ''} className="w-full h-36 object-cover" />
       <div className="p-2 flex items-center gap-2">
         <input
@@ -107,13 +107,13 @@ function CheckInPhoto({
           onChange={(e) => setCaption(e.target.value)}
           onBlur={commit}
           placeholder={t('properties.checkInPhotos.captionPlaceholder')}
-          className="min-w-0 flex-1 bg-gray-50 border border-gray-200 rounded-lg px-2 py-1.5 outline-none focus:ring-2 focus:ring-black/10 text-gray-800 text-xs"
+          className="min-w-0 flex-1 bg-surface-page border border-line rounded-lg px-2 py-1.5 outline-none focus:border-accent text-ink text-xs"
         />
         <button
           type="button"
           onClick={onDelete}
           aria-label={t('common.delete')}
-          className="shrink-0 p-1.5 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50"
+          className="shrink-0 p-1.5 rounded-lg text-ink-muted hover:text-danger hover:bg-danger/10"
         >
           <Trash2 className="w-4 h-4" />
         </button>
