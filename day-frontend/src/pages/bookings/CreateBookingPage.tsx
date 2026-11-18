@@ -240,20 +240,24 @@ export default function CreateBookingPage() {
   const { data: priceData, isFetching: priceLoading } = useCalculatePrice(debouncedPriceParams)
 
   // The dates first, then the objects free then, each with its price, to pick one from
-  // (the owner's choice, 18 Nov): a call is "is anything free on the 24th?".
+  // (the owner's choice, 18 Nov): a call is "is anything free on the 24th?". A daily stay is
+  // searched by its dates alone until a time is picked by hand: midnight tells the server to
+  // take each object's own hours (16:00 at one, 14:00 at another), not the 14:00 on screen.
+  const searchCheckIn = isHourly ? effectiveCheckIn : form.check_in ? `${form.check_in}T${form.in_time || '00:00'}:00` : ''
+  const searchCheckOut = isHourly ? effectiveCheckOut : form.check_out ? `${form.check_out}T${form.out_time || '00:00'}:00` : ''
   const free = useQuery({
     queryKey: [
       'bookings',
       'availability',
       rentalMode,
-      effectiveCheckIn,
-      effectiveCheckOut,
+      searchCheckIn,
+      searchCheckOut,
       form.adults_count,
       form.children_count,
       form.source,
     ],
     queryFn: () =>
-      getAvailability(effectiveCheckIn, effectiveCheckOut, {
+      getAvailability(searchCheckIn, searchCheckOut, {
         adults: form.adults_count,
         children: form.children_count,
         rentalMode,
@@ -261,7 +265,7 @@ export default function CreateBookingPage() {
         // A platform's own stay may go over that platform's closed nights, as booking allows.
         source: form.source,
       }),
-    enabled: !!effectiveCheckIn && !!effectiveCheckOut,
+    enabled: !!searchCheckIn && !!searchCheckOut,
   })
   // The object asked for (from the chessboard or its page) that is taken on the dates picked.
   const taken = !!free.data && !!selectedProperty && !free.data.items.some((item) => item.property_id === form.property_id)

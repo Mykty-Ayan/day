@@ -265,6 +265,24 @@ test.describe('Booking CRUD - E2E', () => {
     await searched
   })
 
+  test('the search takes the hours of each object until a time is picked by hand', async ({ page, request }) => {
+    const prop = await setupActiveProperty(request)
+    // Its guests come at 16:00; the one before leaves at 15:00 on that day.
+    const patch = await request.patch(`${API_BASE}/properties/${prop.id}`, { data: { check_in_hour: 16 } })
+    expect(patch.ok(), `PATCH property: ${patch.status()}`).toBeTruthy()
+    await createBookingViaApi(request, prop.id, {
+      check_in: `${futureDate(70)}T14:00:00`,
+      check_out: `${futureDate(72)}T15:00:00`,
+    })
+
+    await page.goto(`/bookings/new?check_in=${futureDate(72)}&check_out=${futureDate(74)}`)
+    // The 14:00 on screen is not asked of each object: this one is free from its own 16:00.
+    await expect(page.getByRole('radio', { name: new RegExp(prop.internal_name) })).toBeVisible()
+    // Picked by hand, 14:00 is asked as it is, and the one before is still there then.
+    await page.locator('#create-in-time').getByRole('button', { name: '14:00', exact: true }).click()
+    await expect(page.getByRole('radio', { name: new RegExp(prop.internal_name) })).toHaveCount(0)
+  })
+
   test('date range picker shows one month on mobile viewport', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 })
     await page.goto('/bookings/new')
