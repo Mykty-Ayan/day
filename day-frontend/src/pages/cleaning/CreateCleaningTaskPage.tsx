@@ -90,21 +90,21 @@ export default function CreateCleaningTaskPage() {
     >
       <Link
         to="/cleaning"
-        className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 mb-4"
+        className="inline-flex items-center gap-1 text-sm text-ink-muted hover:text-ink mb-4"
       >
         <ArrowLeft className="w-4 h-4" />
         {t('common.back')}
       </Link>
 
-      <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-6">
+      <h1 className="text-2xl sm:text-3xl font-bold text-ink mb-6">
         {t('cleaning.createCleaningTask')}
       </h1>
 
       <form onSubmit={handleSubmit} className="space-y-6">
-        <div className="bg-white rounded-2xl border border-gray-200 p-4 sm:p-6 md:p-8 space-y-4 sm:space-y-5">
+        <div className="bg-surface-card rounded-2xl border border-line p-4 sm:p-6 md:p-8 space-y-4 sm:space-y-5">
           {/* Property */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-ink mb-1">
               {t('cleaning.property') + ' *'}
             </label>
             <Select
@@ -114,7 +114,7 @@ export default function CreateCleaningTaskPage() {
                 setErrors({ ...errors, property_id: '' })
               }}
             >
-              <SelectTrigger className={errors.property_id ? 'border-red-300' : ''}>
+              <SelectTrigger className={errors.property_id ? 'border-danger/30' : ''}>
                 <SelectValue placeholder={t('bookings.selectProperty')} />
               </SelectTrigger>
               <SelectContent>
@@ -126,13 +126,13 @@ export default function CreateCleaningTaskPage() {
               </SelectContent>
             </Select>
             {errors.property_id && (
-              <p className="text-red-500 text-xs mt-1">{errors.property_id}</p>
+              <p className="text-danger text-xs mt-1">{errors.property_id}</p>
             )}
           </div>
 
           {/* Type */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-ink mb-1">
               {t('cleaning.type')}
             </label>
             <Select
@@ -154,7 +154,7 @@ export default function CreateCleaningTaskPage() {
 
           {/* Cleaner */}
           <div>
-            <label htmlFor="task-cleaner" className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="task-cleaner" className="block text-sm font-medium text-ink mb-1">
               {t('cleaning.cleaner')}
             </label>
             <Select
@@ -173,14 +173,14 @@ export default function CreateCleaningTaskPage() {
               </SelectContent>
             </Select>
             {cleaners.length === 0 && (
-              <p className="mt-1 text-xs text-gray-500">{t('cleaning.noCleaners')}</p>
+              <p className="mt-1 text-xs text-ink-muted">{t('cleaning.noCleaners')}</p>
             )}
           </div>
 
           {/* Scheduled Date */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-ink mb-1">
                 {t('cleaning.scheduledDate')}
               </label>
               <DatePicker
@@ -192,7 +192,7 @@ export default function CreateCleaningTaskPage() {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-ink mb-1">
                 {t('cleaning.scheduledTime')}
               </label>
               <TimePicker
@@ -207,14 +207,14 @@ export default function CreateCleaningTaskPage() {
 
           {/* Notes */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-ink mb-1">
               {t('common.notes')}
             </label>
             <textarea
               value={form.notes}
               onChange={(e) => setForm({ ...form, notes: e.target.value })}
               rows={3}
-              className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 outline-none focus:ring-2 focus:ring-black/10 text-sm resize-none"
+              className="w-full resize-none rounded-xl border border-line bg-surface-card p-3 text-sm outline-none focus:border-accent"
               placeholder={t('cleaning.addNotesForCleaner')}
             />
           </div>

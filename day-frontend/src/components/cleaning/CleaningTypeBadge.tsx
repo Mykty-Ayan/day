@@ -1,26 +1,15 @@
 import { useTranslation } from 'react-i18next'
 import type { CleaningType } from '../../types/cleaning'
+import { Badge } from '../ui/badge'
 
-const typeStyles: Record<CleaningType, string> = {
-  post_checkout: 'bg-purple-100 text-purple-700',
-  mid_stay: 'bg-sky-100 text-sky-700',
-  on_demand: 'bg-orange-100 text-orange-700',
+const KEYS: Record<CleaningType, string> = {
+  post_checkout: 'cleaning.types.postCheckout',
+  mid_stay: 'cleaning.types.midStay',
+  on_demand: 'cleaning.types.onDemand',
 }
 
+/** What kind of cleaning: a fact, not a state, so one quiet colour for all three. */
 export default function CleaningTypeBadge({ type }: { type: CleaningType }) {
   const { t } = useTranslation()
-
-  const typeLabels: Record<CleaningType, string> = {
-    post_checkout: t('cleaning.types.postCheckout'),
-    mid_stay: t('cleaning.types.midStay'),
-    on_demand: t('cleaning.types.onDemand'),
-  }
-
-  return (
-    <span
-      className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wide ${typeStyles[type]}`}
-    >
-      {typeLabels[type]}
-    </span>
-  )
+  return <Badge>{t(KEYS[type])}</Badge>
 }
