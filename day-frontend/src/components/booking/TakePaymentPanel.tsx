@@ -82,7 +82,13 @@ function PaymentForm({
   const sum = (value: number) => `${money(value)} ${symbol}`
 
   if (unsure && !paying) {
-    return <UnsureAttempt attempt={unsure} sum={sum} busy={checking} onCheck={check} />
+    return <UnsureAttempt
+        attempt={unsure}
+        sum={sum}
+        busy={checking}
+        unreachable={outcome?.result === 'unknown'}
+        onCheck={check}
+      />
   }
 
   return (

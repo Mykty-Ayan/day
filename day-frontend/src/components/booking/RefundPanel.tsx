@@ -84,7 +84,13 @@ function RefundForm({
   ].filter((option, i, all) => option.value > 0 && all.findIndex((o) => o.value === option.value) === i)
 
   if (unsure && !paying) {
-    return <UnsureAttempt attempt={unsure} sum={sum} busy={checking} onCheck={check} />
+    return <UnsureAttempt
+        attempt={unsure}
+        sum={sum}
+        busy={checking}
+        unreachable={outcome?.result === 'unknown'}
+        onCheck={check}
+      />
   }
 
   return (

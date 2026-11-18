@@ -363,6 +363,7 @@ test.describe('Booking Payments - E2E', () => {
     // Nothing can be sent for the booking until the server says what became of it
     const check = panel.getByRole('button', { name: 'Check on the server' })
     await expect(check).toBeVisible()
+    await expect(panel.getByText('The server did not answer.', { exact: false })).toBeVisible()
     await expect(panel.getByLabel('Amount')).toHaveCount(0)
     await expect(panel.getByRole('button', { name: /^(Add|Retry)/ })).toHaveCount(0)
     // Closed and opened again, even after a reload, the panel still offers only the check

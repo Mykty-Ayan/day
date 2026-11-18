@@ -7,7 +7,6 @@ import {
   subscribeAttempts,
   writeAttempt,
   type PaymentAttempt,
-  type StoredAttempt,
 } from '../lib/payment-attempt'
 import { paymentMaybeRecorded } from '../pages/miniapp/booking-card'
 import { useAddPayment } from './useBookings'
@@ -15,8 +14,9 @@ import { useAddPayment } from './useBookings'
 export type { PaymentAttempt } from '../lib/payment-attempt'
 
 /** What a failed send leaves: refused (nothing recorded), recorded after all, never recorded
- *  (its key is closed), or unknown (the server could not be asked either). */
-export type AttemptOutcome = 'refused' | 'recorded' | 'notRecorded' | 'unknown'
+ *  (its key is closed), or unknown (the server could not be asked either); `gone` when a check
+ *  finds nothing left to check. */
+export type AttemptOutcome = 'refused' | 'recorded' | 'notRecorded' | 'unknown' | 'gone'
 
 export interface SendOutcome {
   result: AttemptOutcome
@@ -40,10 +40,10 @@ export function usePaymentAttempt(bookingId: string) {
   const raw = useSyncExternalStore(subscribeAttempts, () => readAttemptRaw(bookingId))
   const unsure = raw ? readAttempt(bookingId) : null
 
-  async function ask(current: StoredAttempt): Promise<AttemptOutcome> {
+  async function ask(key: string): Promise<AttemptOutcome> {
     try {
-      const outcome = await voidPaymentKey(bookingId, current.key)
-      if (readAttempt(bookingId)?.key === current.key) writeAttempt(bookingId, null)
+      const outcome = await voidPaymentKey(bookingId, key)
+      if (readAttempt(bookingId)?.key === key) writeAttempt(bookingId, null)
       qc.invalidateQueries({ queryKey: ['booking', bookingId] })
       qc.invalidateQueries({ queryKey: ['booking-payments', bookingId] })
       return outcome.voided ? 'notRecorded' : 'recorded'
@@ -64,18 +64,17 @@ export function usePaymentAttempt(bookingId: string) {
     /** After a failed send of `key`. A refusal proves nothing was recorded; anything else is asked
      *  of the server. */
     async failed(error: unknown, key: string): Promise<AttemptOutcome> {
-      const current = readAttempt(bookingId)
-      if (!current || current.key !== key) return 'refused'
       if (!paymentMaybeRecorded(error)) {
-        writeAttempt(bookingId, null)
+        if (readAttempt(bookingId)?.key === key) writeAttempt(bookingId, null)
         return 'refused'
       }
-      return ask(current)
+      // Asked by its own key, kept or not: storage may have failed to keep it.
+      return ask(key)
     },
     /** Ask the server about the unsure payment now. */
     check(): Promise<AttemptOutcome> {
       const current = readAttempt(bookingId)
-      return current ? ask(current) : Promise.resolve('recorded')
+      return current ? ask(current.key) : Promise.resolve('gone')
     },
   }
 }
@@ -92,7 +91,8 @@ export function useSendPayment(bookingId: string, onDone: () => void) {
     if (result === 'recorded') {
       setOutcome(null)
       onDone()
-    } else setOutcome({ result, attempt: sent, reason })
+    } else if (result === 'gone') setOutcome(null)
+    else setOutcome({ result, attempt: sent, reason })
   }
 
   function send(input: PaymentAttempt) {

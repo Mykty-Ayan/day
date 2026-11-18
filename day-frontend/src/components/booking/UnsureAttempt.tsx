@@ -9,11 +9,14 @@ export default function UnsureAttempt({
   attempt,
   sum,
   busy,
+  unreachable,
   onCheck,
 }: {
   attempt: PaymentAttempt
   sum: (value: number) => string
   busy: boolean
+  /** The last check could not reach the server. */
+  unreachable: boolean
   onCheck: () => void
 }) {
   const { t } = useTranslation()
@@ -23,6 +26,7 @@ export default function UnsureAttempt({
       <p className="text-sm text-ink">
         {t(attempt.type === 'refund' ? 'bookings.attempt.unsettledRefund' : 'bookings.attempt.unsettledPayment', { amount })}
       </p>
+      {unreachable && !busy && <p className="text-sm font-semibold text-danger">{t('bookings.attempt.unreachable')}</p>}
       <Button onClick={onCheck} disabled={busy}>
         {busy ? '…' : t('bookings.attempt.check')}
       </Button>

@@ -660,6 +660,7 @@
       "unsettledPayment": "No answer to the payment of {{amount}} — it may already be recorded. Check on the server before taking the payment again.",
       "unsettledRefund": "No answer to the refund of {{amount}} — it may already be recorded. Check on the server before refunding again.",
       "check": "Check on the server",
+      "unreachable": "The server did not answer. Check the connection and press “Check on the server” again.",
       "notRecordedPayment": "The {{amount}} payment was not recorded and never will be. If the money came, enter it again.",
       "notRecordedRefund": "The {{amount}} refund was not recorded and never will be. If the money was given back, enter it again.",
       "refused": "The server did not accept it. Check the amount and the method.",
