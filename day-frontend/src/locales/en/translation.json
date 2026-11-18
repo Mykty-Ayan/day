@@ -842,8 +842,10 @@
       "atWork_other": "{{count}} properties at work",
       "taken": "{{day}}: {{taken}} of {{total}} taken",
       "made": "New bookings by day",
-      "madeInMonth": "{{count}} this month",
-      "madeOn": "{{day}}: {{count}} for {{amount}}",
+      "madeInMonth_one": "{{count}} booking this month",
+      "madeInMonth_other": "{{count}} bookings this month",
+      "madeOn_one": "{{day}}: {{count}} booking for {{amount}}",
+      "madeOn_other": "{{day}}: {{count}} bookings for {{amount}}",
       "objects": "Properties",
       "sources": "Where bookings come from",
       "noArrivals": "No arrivals this month.",
@@ -856,7 +858,8 @@
       "today": "today, {{time}}",
       "tomorrow": "tomorrow, {{time}}",
       "on": "{{day}}, {{time}}",
-      "more": "and {{count}} more",
+      "more_one": "and {{count}} more",
+      "more_other": "and {{count}} more",
       "failed": "Couldn't load the overview. Check the connection and try again."
     }
   },

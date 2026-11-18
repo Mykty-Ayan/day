@@ -841,8 +841,8 @@
       "atWork": "Жұмыста {{count}} нысан",
       "taken": "{{day}}: {{total}} нысанның {{taken}} бос емес",
       "made": "Күндер бойынша жаңа броньдар",
-      "madeInMonth": "Айында {{count}}",
-      "madeOn": "{{day}}: {{count}}, {{amount}}",
+      "madeInMonth": "Айында {{count}} бронь",
+      "madeOn": "{{day}}: {{count}} бронь, {{amount}}",
       "objects": "Нысандар",
       "sources": "Броньдар қайдан келді",
       "noArrivals": "Бұл айда кіру жоқ.",
@@ -855,7 +855,7 @@
       "today": "бүгін, {{time}}",
       "tomorrow": "ертең, {{time}}",
       "on": "{{day}}, {{time}}",
-      "more": "тағы {{count}}",
+      "more": "тағы {{count}} бронь",
       "failed": "Шолуды жүктеу мүмкін болмады. Интернетті тексеріп, қайталап көріңіз."
     }
   },
