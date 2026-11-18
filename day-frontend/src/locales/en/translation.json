@@ -1176,7 +1176,9 @@
       "bedroom": "Bedroom",
       "other": "Other"
     },
-    "noCleaners": "No cleaners yet — add one under Team & API keys"
+    "noCleaners": "No cleaners yet — add one under Team & API keys",
+    "booking": "Booking",
+    "openBooking": "Open the booking"
   },
   "checklists": {
     "title": "Checklist Templates",
