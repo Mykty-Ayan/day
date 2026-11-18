@@ -196,6 +196,43 @@ test.describe('Booking CRUD - E2E', () => {
     await expect(row.getByText('Paid', { exact: true })).toBeVisible({ timeout: 5000 })
   })
 
+  test('the dates come first: the free objects show with their price, and one is booked from the list', async ({ page, request }) => {
+    const prop = await setupActiveProperty(request)
+    const guestName = `Dates First ${Date.now()}`
+
+    await page.goto(`/bookings/new?check_in=${futureDate(40)}&check_out=${futureDate(42)}`)
+    const option = page.getByRole('radio', { name: new RegExp(prop.internal_name) })
+    await expect(option).toContainText(/\d/)
+    await option.click()
+    await expect(option).toHaveAttribute('aria-checked', 'true')
+    await expect(page.locator('#create-property')).toContainText(prop.internal_name)
+
+    await page.locator('input[type="tel"]').first().fill(`+1555${Math.floor(Math.random() * 9000000 + 1000000)}`)
+    await page.getByPlaceholder(guestNamePlaceholder).first().fill(guestName)
+    await page.getByRole('button', { name: addBookingButtonName }).click()
+    await page.waitForURL(/\/bookings\/[0-9a-f-]{36}$/, { timeout: 10000 })
+
+    const bookingId = page.url().split('/').pop() as string
+    bookingIdsToCleanup.push(bookingId)
+    const { booking } = await (await request.get(`${API_BASE}/bookings/${bookingId}`)).json()
+    expect([booking.property_id, booking.guest_name]).toEqual([prop.id, guestName])
+  })
+
+  test('an object asked for that is taken on the dates says so, and is not booked', async ({ page, request }) => {
+    const prop = await setupActiveProperty(request)
+    await createBookingViaApi(request, prop.id, { check_in: futureDate(50), check_out: futureDate(53) })
+
+    await page.goto(`/bookings/new?property_id=${prop.id}&check_in=${futureDate(51)}&check_out=${futureDate(52)}`)
+    await expect(page.getByText(`${prop.internal_name} is taken on these dates`, { exact: false })).toBeVisible()
+    await expect(page.getByRole('radio', { name: new RegExp(prop.internal_name) })).toHaveCount(0)
+
+    await page.locator('input[type="tel"]').first().fill('+15550001122')
+    await page.getByPlaceholder(guestNamePlaceholder).first().fill('Taken Flat Guest')
+    await page.getByRole('button', { name: addBookingButtonName }).click()
+    await expect(page.getByText('Property is required')).toBeVisible()
+    await expect(page).toHaveURL(/\/bookings\/new/)
+  })
+
   test('date range picker shows one month on mobile viewport', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 })
     await page.goto('/bookings/new')
