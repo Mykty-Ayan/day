@@ -86,7 +86,9 @@ export default function BookingListPage() {
     const timeZone = settings.data.time_zone ?? 'Asia/Almaty'
     const columns: CsvColumn<Booking>[] = [
       { title: t('bookings.guest'), value: (b) => b.guest_name ?? '' },
-      { title: t('bookings.phone'), value: (b) => (b.guest_phone ? formatPhone(b.guest_phone) : '') },
+      // Without the "+": a cell starting with it would be kept as text behind a visible apostrophe.
+      // The spaces keep a spreadsheet from reading the number as a sum.
+      { title: t('bookings.phone'), value: (b) => (b.guest_phone ? formatPhone(b.guest_phone).replace(/^\+/, '') : '') },
       { title: t('bookings.property'), value: (b) => b.property_internal_name || b.property_name || '' },
       { title: t('bookings.export.checkIn'), value: (b) => when(b.check_in) },
       { title: t('bookings.export.checkOut'), value: (b) => when(b.check_out) },

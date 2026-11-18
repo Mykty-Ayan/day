@@ -63,6 +63,9 @@ test.describe('Bookings list export - E2E', () => {
     const row = lines[1]
     expect(row).toContain(stay.guest_name)
     expect(row).toContain(object.internal_name)
+    // The phone without the "+" a spreadsheet would hide behind an apostrophe.
+    expect(row).not.toContain("'")
+    expect(row).toContain(stay.guest_phone.replace(/^\+/, ''))
     expect(row).toContain(`${stay.check_in} 14:00`)
     // Total, paid, owed: numbers a spreadsheet adds up, kopecks kept.
     const money = Number.isInteger(total) ? String(total) : total.toFixed(2)
