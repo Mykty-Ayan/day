@@ -2,9 +2,8 @@ import { useState } from 'react'
 import { useIsMutating } from '@tanstack/react-query'
 import { ArrowLeftRight, Banknote, CreditCard, Undo2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
-import { useAddPayment } from '../../hooks/useBookings'
 import { useCurrency } from '../../hooks/useCurrency'
-import { usePaymentAttempt, type PaymentAttempt } from '../../hooks/usePaymentAttempt'
+import { useSendPayment, type AttemptOutcome, type PaymentAttempt } from '../../hooks/usePaymentAttempt'
 import { halfOf, type bookingMoney } from '../../lib/booking-money'
 import { formatMoneyExact as formatMoney } from '../../pages/miniapp/format'
 import type { Booking, PaymentMethod } from '../../types/booking'
@@ -12,6 +11,7 @@ import Button from '../ui/Button'
 import NumberInput from '../ui/number-input'
 import { Sheet } from '../ui/sheet'
 import { ToggleGroup, ToggleGroupItem } from '../ui/toggle-group'
+import UnsureAttempt from './UnsureAttempt'
 
 /** Money given back to the guest: what was paid over the total, or part of what came in. */
 export default function RefundPanel({
@@ -26,32 +26,21 @@ export default function RefundPanel({
   onClose: () => void
 }) {
   const { t } = useTranslation()
-  // The request and its key live here, not in the form: the form goes when the panel closes,
-  // and the answer may come after that.
-  const addPayment = useAddPayment(booking.id)
-  const attempt = usePaymentAttempt()
-
-  function refund(input: PaymentAttempt) {
-    addPayment.mutate(
-      { ...input, type: 'refund', idempotencyKey: attempt.keyFor(input) },
-      {
-        onSuccess: () => {
-          attempt.settled()
-          onClose()
-        },
-      },
-    )
-  }
+  // The request lives here, not in the form: the form goes when the panel closes, and the
+  // answer may come after that.
+  const payment = useSendPayment(booking.id, onClose)
 
   return (
     <Sheet open={open} onClose={onClose} title={t('bookings.refund.title')}>
       <RefundForm
         booking={booking}
         money={money}
-        last={attempt.last}
-        refund={refund}
-        pending={addPayment.isPending}
-        failed={addPayment.isError}
+        unsure={payment.unsure?.attempt ?? null}
+        outcome={payment.outcome}
+        checking={payment.checking}
+        pending={payment.pending}
+        send={payment.send}
+        check={payment.check}
       />
     </Sheet>
   )
@@ -60,25 +49,28 @@ export default function RefundPanel({
 function RefundForm({
   booking,
   money,
-  last,
-  refund,
+  unsure,
+  outcome,
+  checking,
   pending,
-  failed,
+  send,
+  check,
 }: {
   booking: Booking
   money: ReturnType<typeof bookingMoney>
-  last: PaymentAttempt | null
-  refund: (input: PaymentAttempt) => void
+  unsure: PaymentAttempt | null
+  outcome: { result: AttemptOutcome; attempt: PaymentAttempt } | null
+  checking: boolean
   pending: boolean
-  failed: boolean
+  send: (input: PaymentAttempt) => void
+  check: () => void
 }) {
   const { t, i18n } = useTranslation()
   const { symbol } = useCurrency()
-  // Opens with a refund whose answer never came, as it was sent; else with what is due back;
-  // with nothing due, the owner says how much.
-  const [amount, setAmount] = useState(last ? String(last.amount) : money.toReturn > 0 ? String(money.toReturn) : '')
-  const [method, setMethod] = useState<PaymentMethod>(last?.method ?? 'cash')
-  const [note, setNote] = useState(last?.note ?? '')
+  // Opens with what is due back; with nothing due, the owner says how much.
+  const [amount, setAmount] = useState(money.toReturn > 0 ? String(money.toReturn) : '')
+  const [method, setMethod] = useState<PaymentMethod>('cash')
+  const [note, setNote] = useState('')
   const value = Number(amount)
   const sum = (n: number) => `${formatMoney(n, i18n.language)} ${symbol}`
   // Any payment of this booking on its way, from this panel or another one on the screen.
@@ -90,6 +82,10 @@ function RefundForm({
     { label: t('bookings.refund.all'), value: paid },
     { label: '50%', value: halfOf(paid) },
   ].filter((option, i, all) => option.value > 0 && all.findIndex((o) => o.value === option.value) === i)
+
+  if (unsure && !paying) {
+    return <UnsureAttempt attempt={unsure} sum={sum} busy={checking} onRetry={() => send(unsure)} onCheck={check} />
+  }
 
   return (
     <div className="flex flex-col gap-5">
@@ -155,18 +151,25 @@ function RefundForm({
         />
       </label>
 
-      {failed && (
+      {outcome?.result === 'refused' && (
         <p role="alert" className="text-sm text-danger">
           {t('bookings.refund.failed')}
         </p>
       )}
+      {outcome?.result === 'notRecorded' && (
+        <p role="alert" className="text-sm text-danger">
+          {t(outcome.attempt.type === 'refund' ? 'bookings.attempt.notRecordedRefund' : 'bookings.attempt.notRecordedPayment', {
+            amount: sum(outcome.attempt.amount),
+          })}
+        </p>
+      )}
 
       <Button
-        disabled={paying || !(value > 0)}
-        onClick={() => refund({ amount: value, method, note: note.trim() || undefined })}
+        disabled={paying || checking || !(value > 0)}
+        onClick={() => send({ type: 'refund', amount: value, method, note: note.trim() || undefined })}
       >
         <Undo2 className="h-4 w-4" aria-hidden="true" />
-        {pending ? '…' : t('bookings.card.refund', { amount: sum(value || 0) })}
+        {pending || checking ? '…' : t('bookings.card.refund', { amount: sum(value || 0) })}
       </Button>
     </div>
   )

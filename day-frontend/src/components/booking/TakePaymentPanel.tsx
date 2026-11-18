@@ -3,15 +3,15 @@ import { useIsMutating } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { ArrowLeftRight, Banknote, CreditCard, Plus } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
-import { useAddPayment } from '../../hooks/useBookings'
 import { useCurrency } from '../../hooks/useCurrency'
-import { usePaymentAttempt, type PaymentAttempt } from '../../hooks/usePaymentAttempt'
+import { useSendPayment, type AttemptOutcome, type PaymentAttempt } from '../../hooks/usePaymentAttempt'
 import { formatMoneyExact as formatMoney } from '../../pages/miniapp/format'
 import type { Booking, PaymentMethod } from '../../types/booking'
 import Button from '../ui/Button'
 import NumberInput from '../ui/number-input'
 import { Sheet } from '../ui/sheet'
 import { ToggleGroup, ToggleGroupItem } from '../ui/toggle-group'
+import UnsureAttempt from './UnsureAttempt'
 
 /** The stay's debt only: minibar orders are settled in their own screen. */
 export default function TakePaymentPanel({
@@ -28,22 +28,9 @@ export default function TakePaymentPanel({
   onClose: () => void
 }) {
   const { t } = useTranslation()
-  // The request and its key live here, not in the form: the form goes when the panel closes,
-  // and the answer may come after that.
-  const addPayment = useAddPayment(booking.id)
-  const attempt = usePaymentAttempt()
-
-  function pay(input: PaymentAttempt) {
-    addPayment.mutate(
-      { ...input, type: 'payment', idempotencyKey: attempt.keyFor(input) },
-      {
-        onSuccess: () => {
-          attempt.settled()
-          onClose()
-        },
-      },
-    )
-  }
+  // The request lives here, not in the form: the form goes when the panel closes, and the
+  // answer may come after that.
+  const payment = useSendPayment(booking.id, onClose)
 
   return (
     <Sheet open={open} onClose={onClose} title={t('today.takePayment')}>
@@ -51,10 +38,12 @@ export default function TakePaymentPanel({
         booking={booking}
         stayDebt={stayDebt}
         ordersDue={ordersDue}
-        last={attempt.last}
-        pay={pay}
-        pending={addPayment.isPending}
-        failed={addPayment.isError}
+        unsure={payment.unsure?.attempt ?? null}
+        outcome={payment.outcome}
+        checking={payment.checking}
+        pending={payment.pending}
+        send={payment.send}
+        check={payment.check}
       />
     </Sheet>
   )
@@ -64,29 +53,37 @@ function PaymentForm({
   booking,
   stayDebt,
   ordersDue,
-  last,
-  pay,
+  unsure,
+  outcome,
+  checking,
   pending,
-  failed,
+  send,
+  check,
 }: {
   booking: Booking
   stayDebt: number
   ordersDue: number
-  last: PaymentAttempt | null
-  pay: (input: PaymentAttempt) => void
+  unsure: PaymentAttempt | null
+  outcome: { result: AttemptOutcome; attempt: PaymentAttempt } | null
+  checking: boolean
   pending: boolean
-  failed: boolean
+  send: (input: PaymentAttempt) => void
+  check: () => void
 }) {
   const { t, i18n } = useTranslation()
-  // Opens with a payment whose answer never came, as it was sent; else with the debt.
-  const [amount, setAmount] = useState(String(last?.amount ?? stayDebt))
-  const [method, setMethod] = useState<PaymentMethod>(last?.method ?? 'cash')
+  const [amount, setAmount] = useState(String(stayDebt))
+  const [method, setMethod] = useState<PaymentMethod>('cash')
   const value = Number(amount)
   const { symbol } = useCurrency()
   const money = (sum: number) => formatMoney(sum, i18n.language)
   // Any payment of this booking on its way, from this panel or another one on the
   // screen: each has its own idempotency key, and both would be recorded.
   const paying = useIsMutating({ mutationKey: ['add-payment', booking.id] }) > 0
+  const sum = (value: number) => `${money(value)} ${symbol}`
+
+  if (unsure && !paying) {
+    return <UnsureAttempt attempt={unsure} sum={sum} busy={checking} onRetry={() => send(unsure)} onCheck={check} />
+  }
 
   return (
     <div className="flex flex-col gap-5">
@@ -138,16 +135,23 @@ function PaymentForm({
           {t('today.ordersApart', { amount: money(ordersDue), symbol })}
         </p>
       )}
-      {failed && (
+      {outcome?.result === 'refused' && (
         <p role="alert" className="text-sm text-danger">{t('today.paymentFailed')}</p>
+      )}
+      {outcome?.result === 'notRecorded' && (
+        <p role="alert" className="text-sm text-danger">
+          {t(outcome.attempt.type === 'refund' ? 'bookings.attempt.notRecordedRefund' : 'bookings.attempt.notRecordedPayment', {
+            amount: sum(outcome.attempt.amount),
+          })}
+        </p>
       )}
 
       <Button
-        disabled={paying || !(value > 0)}
-        onClick={() => pay({ amount: value, method })}
+        disabled={paying || checking || !(value > 0)}
+        onClick={() => send({ type: 'payment', amount: value, method })}
       >
         <Plus className="h-4 w-4" aria-hidden="true" />
-        {pending
+        {pending || checking
           ? '…'
           : t('today.takeAmount', { amount: money(value || 0), symbol })}
       </Button>

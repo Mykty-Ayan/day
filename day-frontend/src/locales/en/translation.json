@@ -657,6 +657,15 @@
       "all": "All",
       "failed": "The refund was not saved. Check your connection and press again."
     },
+    "attempt": {
+      "unsettledPayment": "No answer to the payment of {{amount}} — it may already be recorded. Retry: it will not be recorded twice.",
+      "unsettledRefund": "No answer to the refund of {{amount}} — it may already be recorded. Retry: it will not be recorded twice.",
+      "retryPayment": "Retry the payment of {{amount}}",
+      "retryRefund": "Retry the refund of {{amount}}",
+      "check": "Check on the server",
+      "notRecordedPayment": "The {{amount}} payment was not recorded and never will be. If the money came, enter it again.",
+      "notRecordedRefund": "The {{amount}} refund was not recorded and never will be. If the money was given back, enter it again."
+    },
     "deposits": {
       "createDeposit": "Create Deposit",
       "newDeposit": "New Deposit",

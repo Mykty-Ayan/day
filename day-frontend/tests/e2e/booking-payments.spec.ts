@@ -302,11 +302,10 @@ test.describe('Booking Payments - E2E', () => {
     })
   }
 
-  test('a payment whose answer was lost is offered again as it was, and sent again is recorded once', async ({ page, request }) => {
+  test('a payment whose answer was lost is asked of the server and found recorded, once', async ({ page, request }) => {
     const prop = await setupActiveProperty(request)
     const booking = await createBookingViaApi(request, prop.id)
     const half = Number(booking.total_price) / 2
-    const add = new RegExp(`^Add ${half}\\b`)
 
     await page.goto(`/bookings/${booking.id}`)
     await loseFirstAnswer(page)
@@ -314,20 +313,69 @@ test.describe('Booking Payments - E2E', () => {
     const panel = page.getByRole('dialog')
     await panel.getByLabel('Amount').fill(String(half))
     await panel.getByRole('radio', { name: 'Card' }).click()
-    await panel.getByRole('button', { name: add }).click()
-    await expect(panel.getByRole('alert')).toBeVisible()
-    await page.keyboard.press('Escape')
+    await panel.getByRole('button', { name: new RegExp(`^Add ${half}\\b`) }).click()
 
-    // Reopened, the panel offers the payment whose answer never came: the same is a retry
-    await page.getByRole('button', { name: /add payment/i }).click()
-    await expect(panel.getByLabel('Amount')).toHaveValue(String(half))
-    await expect(panel.getByRole('radio', { name: 'Card' })).toHaveAttribute('aria-checked', 'true')
-    await panel.getByRole('button', { name: add }).click()
+    // The server says the key recorded it: the panel closes as on any payment
     await expect(panel).toBeHidden()
+    await expect(page.locator('#payments').getByRole('listitem')).toHaveCount(1)
     await expect.poll(() => paymentsOf(request, booking.id)).toEqual([`payment:card:${half}:`])
   })
 
-  test('a refund whose answer was lost is offered again as it was, and sent again is recorded once', async ({ page, request }) => {
+  test('a payment that never reached the server is said so, and the next press records it', async ({ page, request }) => {
+    const prop = await setupActiveProperty(request)
+    const booking = await createBookingViaApi(request, prop.id)
+    const half = Number(booking.total_price) / 2
+    const add = new RegExp(`^Add ${half}\\b`)
+
+    await page.goto(`/bookings/${booking.id}`)
+    let dropped = false
+    await page.route('**/payments', async (route) => {
+      if (route.request().method() !== 'POST' || dropped) return route.continue()
+      dropped = true
+      await route.abort('failed')
+    })
+    await page.getByRole('button', { name: /add payment/i }).click()
+    const panel = page.getByRole('dialog')
+    await panel.getByLabel('Amount').fill(String(half))
+    await panel.getByRole('button', { name: add }).click()
+
+    // Its key is closed on the server: it never will be recorded, and the amount stays to be sent anew
+    await expect(panel.getByRole('alert')).toContainText('was not recorded and never will be')
+    await expect(panel.getByLabel('Amount')).toHaveValue(String(half))
+    await panel.getByRole('button', { name: add }).click()
+    await expect(panel).toBeHidden()
+    await expect.poll(() => paymentsOf(request, booking.id)).toEqual([`payment:cash:${half}:`])
+  })
+
+  test('when the server cannot be asked either, only the same payment or a check is offered, wherever opened', async ({ page, request }) => {
+    const prop = await setupActiveProperty(request)
+    const booking = await createBookingViaApi(request, prop.id)
+    const half = Number(booking.total_price) / 2
+
+    await page.goto(`/bookings/${booking.id}`)
+    await loseFirstAnswer(page)
+    await page.route('**/idempotency-key/void', (route) => route.abort('failed'))
+    await page.getByRole('button', { name: /add payment/i }).click()
+    const panel = page.getByRole('dialog')
+    await panel.getByLabel('Amount').fill(String(half))
+    await panel.getByRole('button', { name: new RegExp(`^Add ${half}\\b`) }).click()
+
+    const retry = panel.getByRole('button', { name: new RegExp(`^Retry the payment of ${half}\\b`) })
+    await expect(retry).toBeVisible()
+    await expect(panel.getByLabel('Amount')).toHaveCount(0)
+    // Closed and opened again, even after a reload, the panel still offers only that
+    await page.keyboard.press('Escape')
+    await page.reload()
+    await page.getByRole('button', { name: /add payment/i }).click()
+    await expect(retry).toBeVisible()
+
+    await page.unroute('**/idempotency-key/void')
+    await retry.click()
+    await expect(panel).toBeHidden()
+    await expect.poll(() => paymentsOf(request, booking.id)).toEqual([`payment:cash:${half}:`])
+  })
+
+  test('a refund whose answer was lost is asked of the server and found recorded, once', async ({ page, request }) => {
     const prop = await setupActiveProperty(request)
     const booking = await createBookingViaApi(request, prop.id)
     const paid = Number(booking.total_price) + 1000
@@ -341,14 +389,7 @@ test.describe('Booking Payments - E2E', () => {
     await panel.getByRole('radio', { name: 'Card' }).click()
     await panel.getByLabel(/note/i).fill('Lost answer')
     await panel.getByRole('button', { name: /^Refund 50\b/ }).click()
-    await expect(panel.getByRole('alert')).toBeVisible()
-    await page.keyboard.press('Escape')
 
-    await page.getByRole('button', { name: /add refund/i }).click()
-    await expect(panel.getByLabel('Amount')).toHaveValue('50')
-    await expect(panel.getByRole('radio', { name: 'Card' })).toHaveAttribute('aria-checked', 'true')
-    await expect(panel.getByLabel(/note/i)).toHaveValue('Lost answer')
-    await panel.getByRole('button', { name: /^Refund 50\b/ }).click()
     await expect(panel).toBeHidden()
     await expect.poll(() => paymentsOf(request, booking.id)).toEqual([`payment:cash:${paid}:`, 'refund:card:50:Lost answer'])
   })

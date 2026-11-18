@@ -234,6 +234,9 @@ export function useAddPayment(bookingId: string) {
       qc.invalidateQueries({ queryKey: [BOOKINGS_KEY] })
       qc.invalidateQueries({ queryKey: [TODAY_KEY] })
       qc.invalidateQueries({ queryKey: [GANTT_KEY] })
+      // A failure too may have recorded it: the booking's own balance is read again.
+      qc.invalidateQueries({ queryKey: [BOOKING_KEY, bookingId] })
+      qc.invalidateQueries({ queryKey: [PAYMENTS_KEY, bookingId] })
     },
   })
 }
