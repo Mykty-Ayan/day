@@ -88,6 +88,37 @@ test.describe('Bookings overview - E2E', () => {
     await expect(month).toHaveText(name(today))
   })
 
+  test("a day picked on a 31-day month does not break a shorter month's chart", async ({ page }) => {
+    const errors: string[] = []
+    page.on('pageerror', (e) => errors.push(e.message))
+    await page.goto('/bookings/overview')
+    const month = page.getByRole('heading', { level: 2 })
+    const columns = page.getByRole('img', { name: /^Occupancy by day/ }).locator('> div')
+    const next = page.getByRole('button', { name: 'Next month' })
+    await expect(columns.first()).toBeVisible()
+
+    // Forward until a month of 31 days is followed by a shorter one, the mouse on the 31st
+    // while the keyboard turns the month.
+    let shorter = false
+    for (let i = 0; i < 12 && !shorter; i++) {
+      const was = await month.textContent()
+      if ((await columns.count()) === 31) {
+        await columns.nth(30).hover()
+        await expect(page.getByText(/: \d+ of \d+ taken$/)).toBeVisible()
+        await next.focus()
+        await page.keyboard.press('Enter')
+        await expect(month).not.toHaveText(was ?? '')
+        shorter = (await columns.count()) < 31
+      } else {
+        await next.click()
+        await expect(month).not.toHaveText(was ?? '')
+      }
+    }
+    expect(shorter).toBe(true)
+    await expect(page.getByRole('img', { name: /^Occupancy by day/ })).toBeVisible()
+    expect(errors).toEqual([])
+  })
+
   test('the overview and the list of every booking are tabs of one section', async ({ page }) => {
     await page.goto('/bookings')
     await page.getByRole('link', { name: 'Overview', exact: true }).click()

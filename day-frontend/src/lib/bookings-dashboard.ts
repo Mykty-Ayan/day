@@ -153,10 +153,11 @@ export function byObject(stays: Stay[], month: string, objectIds: string[]) {
     .sort((a, b) => b.occupancy - a.occupancy || b.sum - a.sum)
 }
 
-/** What waits on someone now, whatever month is looked at. */
+/** What waits on someone now, whatever month is looked at. A guest kept past the check-out is
+ *  still in the flat, and still owes. */
 export function waiting<T extends Stay>(stays: T[], today: string, ahead = 7) {
   const until = shiftDay(today, ahead)
-  const notOver = (s: T) => day(s.check_out) >= today
+  const notOver = (s: T) => day(s.check_out) >= today || s.status === 'checked_in'
   return {
     unconfirmed: stays.filter((s) => s.status === 'pending' && notOver(s)).sort((a, b) => a.check_in.localeCompare(b.check_in)),
     owing: stays

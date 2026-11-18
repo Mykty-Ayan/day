@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { addDays, format, parseISO } from 'date-fns'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { Link } from '@tanstack/react-router'
-import { useAllBookings } from '../../hooks/useBookings'
+import { useAllBookings, useCheckedIn } from '../../hooks/useBookings'
 import { useAllProperties } from '../../hooks/useProperties'
 import { useCurrency } from '../../hooks/useCurrency'
 import { useSettings } from '../../hooks/useSettings'
@@ -35,7 +35,7 @@ function useMoney() {
   const { i18n } = useTranslation()
   const { symbol } = useCurrency()
   // "57 000 ₸", as on the booking's screen.
-  return (value: number) => `${formatMoneyExact(Math.round(value), i18n.language)} ${symbol}`
+  return (value: number) => `${formatMoneyExact(value, i18n.language)} ${symbol}`
 }
 
 const percent = (share: number) => `${Math.round(share * 100)}%`
@@ -67,8 +67,10 @@ export default function BookingsDashboard() {
   const stays = useAllBookings(stayWindow(month))
   const made = useAllBookings(madeWindow(month))
   const open = useAllBookings({ date_from: today })
+  // A guest kept past the check-out ends before today and is still in.
+  const living = useCheckedIn()
   const objects = useAllProperties()
-  const queries = [settings, stays, made, open, objects]
+  const queries = [settings, stays, made, open, living, objects]
   if (queries.some((q) => q.isError)) {
     return (
       <div role="alert" className="flex items-center justify-between gap-3 rounded-xl border border-danger/30 bg-danger-soft px-4 py-3">
@@ -79,7 +81,7 @@ export default function BookingsDashboard() {
       </div>
     )
   }
-  if (!settings.data || !stays.data || !made.data || !open.data || !objects.data) return <Spinner />
+  if (!settings.data || !stays.data || !made.data || !open.data || !living.data || !objects.data) return <Spinner />
 
   const all = objects.data.items
   const atWork = all.filter((p) => p.status === 'active' || p.status === 'paused').map((p) => p.id)
@@ -92,7 +94,7 @@ export default function BookingsDashboard() {
   const sold = madeByDay(made.data, month, (iso) => wallClock(serverMoment(iso), timeZone).slice(0, 10))
   const sources = bySource(stays.data, month)
   const busiest = byObject(stays.data, month, listed)
-  const waits = waiting(open.data, today)
+  const waits = waiting([...open.data, ...living.data.filter((s) => !open.data.some((o) => o.id === s.id))], today)
 
   const monthName = format(parseISO(`${month}-01`), 'LLLL yyyy', { locale })
   const was = (value: string) =>
@@ -157,12 +159,18 @@ export default function BookingsDashboard() {
           }
         />
         <Figure label={t('bookings.overview.occupancy')} value={percent(now.occupancy)} note={was(percent(before.occupancy))} meter={now.occupancy} />
-        <Figure label={t('bookings.overview.nightPrice')} value={money(now.nightPrice)} note={was(money(before.nightPrice))} />
+        <Figure
+          label={t('bookings.overview.nightPrice')}
+          value={money(Math.round(now.nightPrice))}
+          note={was(money(Math.round(before.nightPrice)))}
+        />
         <Figure label={t('bookings.overview.cancelled')} value={String(now.cancelled)} note={was(String(before.cancelled))} />
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
+        {/* A month of its own: a day picked in the last one may not exist in this one. */}
         <DayBars
+          key={`nights-${month}`}
           title={t('bookings.overview.nights')}
           summary={t('bookings.overview.atWork', { count: atWork.length })}
           points={nights.map((n) => ({ day: n.day, value: n.taken }))}
@@ -172,6 +180,7 @@ export default function BookingsDashboard() {
           describe={(p) => t('bookings.overview.taken', { day: dayName(p.day), taken: p.value, total: atWork.length })}
         />
         <DayBars
+          key={`made-${month}`}
           title={t('bookings.overview.made')}
           summary={t('bookings.overview.madeInMonth', { count: sold.reduce((n, d) => n + d.count, 0) })}
           points={sold.map((d) => ({ day: d.day, value: d.count, sum: d.sum }))}
@@ -281,7 +290,7 @@ function DayBars({
       <div className="flex items-baseline justify-between gap-3">
         <h3 className="text-sm font-semibold text-ink">{title}</h3>
         <span className="truncate text-xs tabular-nums text-ink-muted" aria-live="polite">
-          {at === null ? summary : describe(points[at])}
+          {at === null || !points[at] ? summary : describe(points[at])}
         </span>
       </div>
       <div

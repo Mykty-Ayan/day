@@ -122,3 +122,9 @@ test('what waits now: unconfirmed and owing stays not over yet, arrivals in the 
   expect(waits.owing.map((s) => s.total_price)).toEqual([90000, 10000])
   expect(waits.arriving.map((s) => s.check_in.slice(0, 10))).toEqual(['2026-11-19', '2026-11-25'])
 })
+
+test('a guest kept past the check-out still owes in the overview', () => {
+  const kept = stay('a', '2026-11-15T14:00:00', '2026-11-18T12:00:00', { status: 'checked_in', total_price: 30000 })
+  const left = stay('a', '2026-11-15T14:00:00', '2026-11-18T12:00:00', { status: 'checked_out', total_price: 30000 })
+  expect(waiting([kept, left], '2026-11-19').owing).toEqual([kept])
+})
