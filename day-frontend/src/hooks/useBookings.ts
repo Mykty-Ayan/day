@@ -6,6 +6,7 @@ import {
 import { blockNights, bookedNights } from '../lib/booking-dates'
 import { listBlocks } from '../api/properties'
 import { CLEANING_KEY } from './useCleaning'
+import { settleAttempt } from '../lib/payment-attempt'
 import type {
   BookingFilters,
   BookingCreateInput,
@@ -222,18 +223,24 @@ export function useAddPayment(bookingId: string) {
     mutationFn: ({ idempotencyKey, ...data }: PaymentInput & { idempotencyKey?: string }) =>
       addPayment(bookingId, data, idempotencyKey),
     // Pending until the new balance is read: the screen offers what is owed or due back
-    // from it, and the old one would offer the same sum again.
-    onSuccess: () =>
-      Promise.all([
+    // from it, and the old one would offer the same sum again. The payment's key is settled
+    // here, not in the panel: this runs even when the panel was closed before the answer.
+    onSuccess: (_payment, { idempotencyKey }) => {
+      if (idempotencyKey) settleAttempt(bookingId, idempotencyKey)
+      return Promise.all([
         qc.invalidateQueries({ queryKey: [PAYMENTS_KEY, bookingId] }),
         qc.invalidateQueries({ queryKey: [BOOKING_KEY, bookingId] }),
-      ]),
+      ])
+    },
     // After a failure too: the answer may be lost with the money recorded. The
     // chessboard shows what is paid and owed on its bars, the booking list on its lines.
     onSettled: () => {
       qc.invalidateQueries({ queryKey: [BOOKINGS_KEY] })
       qc.invalidateQueries({ queryKey: [TODAY_KEY] })
       qc.invalidateQueries({ queryKey: [GANTT_KEY] })
+      // A failure too may have recorded it: the booking's own balance is read again.
+      qc.invalidateQueries({ queryKey: [BOOKING_KEY, bookingId] })
+      qc.invalidateQueries({ queryKey: [PAYMENTS_KEY, bookingId] })
     },
   })
 }

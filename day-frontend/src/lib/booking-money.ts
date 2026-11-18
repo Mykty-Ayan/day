@@ -4,6 +4,11 @@
 import { settlement } from '../pages/miniapp/booking-card'
 import type { BookingPayment, BookingStatus, PriceCalculation } from '../types/booking'
 
+/** Half of a sum, to the tiyn: tiyn first, so 327.03 halves to 163.52, not a float's 163.51. */
+export function halfOf(sum: number): number {
+  return Math.round(Math.round(sum * 100) / 2) / 100
+}
+
 export function bookingMoney(status: BookingStatus, total: number, payments: BookingPayment[]) {
   const { paid } = settlement(total, payments)
   const owes = status === 'cancelled' ? 0 : Math.max(0, total - paid)

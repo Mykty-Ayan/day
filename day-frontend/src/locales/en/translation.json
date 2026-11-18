@@ -30,9 +30,7 @@
   },
   "common": {
     "close": "Close",
-    "date": "Date",
     "method": "Method",
-    "note": "Note",
     "save": "Save",
     "cancel": "Cancel",
     "edit": "Edit",
@@ -634,7 +632,6 @@
       "complete": "Complete"
     },
     "payments": {
-      "payment": "Payment",
       "refund": "Refund",
       "addPayment": "Add Payment",
       "addRefund": "Add Refund",
@@ -653,6 +650,21 @@
         "failed": "Failed"
       },
       "confirm": "Confirm"
+    },
+    "refund": {
+      "title": "Give money back",
+      "paid": "paid {{amount}}",
+      "all": "All"
+    },
+    "attempt": {
+      "unsettledPayment": "No answer to the payment of {{amount}} — it may already be recorded. Check on the server before taking the payment again.",
+      "unsettledRefund": "No answer to the refund of {{amount}} — it may already be recorded. Check on the server before refunding again.",
+      "check": "Check on the server",
+      "unreachable": "The server did not answer. Check the connection and press “Check on the server” again.",
+      "notRecordedPayment": "The {{amount}} payment was not recorded and never will be. If the money came, enter it again.",
+      "notRecordedRefund": "The {{amount}} refund was not recorded and never will be. If the money was given back, enter it again.",
+      "refused": "The server did not accept it. Check the amount and the method.",
+      "refusedBecause": "The server did not accept it: {{reason}}"
     },
     "deposits": {
       "createDeposit": "Create Deposit",
@@ -863,7 +875,6 @@
     "takeAmount": "Add {{amount}} {{symbol}}",
     "openBooking": "Open booking",
     "ordersApart": "Minibar {{amount}} {{symbol}} is paid separately, in orders.",
-    "paymentFailed": "The payment was not saved. Check your connection and press again.",
     "assignCleaner": "Assign a cleaner",
     "pickCleaner": "Choose a cleaner",
     "assignFailed": "Could not assign. Try again."

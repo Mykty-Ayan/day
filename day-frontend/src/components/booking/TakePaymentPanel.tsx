@@ -3,14 +3,15 @@ import { useIsMutating } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { ArrowLeftRight, Banknote, CreditCard, Plus } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
-import { useAddPayment } from '../../hooks/useBookings'
 import { useCurrency } from '../../hooks/useCurrency'
+import { useSendPayment, type PaymentAttempt, type SendOutcome } from '../../hooks/usePaymentAttempt'
 import { formatMoneyExact as formatMoney } from '../../pages/miniapp/format'
 import type { Booking, PaymentMethod } from '../../types/booking'
 import Button from '../ui/Button'
 import NumberInput from '../ui/number-input'
 import { Sheet } from '../ui/sheet'
 import { ToggleGroup, ToggleGroupItem } from '../ui/toggle-group'
+import UnsureAttempt from './UnsureAttempt'
 
 /** The stay's debt only: minibar orders are settled in their own screen. */
 export default function TakePaymentPanel({
@@ -27,9 +28,9 @@ export default function TakePaymentPanel({
   onClose: () => void
 }) {
   const { t } = useTranslation()
-  // One key for one payment: a retry after a lost answer records it once. It lives
-  // here because the form goes when the panel closes, and a reopened panel is a retry.
-  const [idempotencyKey, setIdempotencyKey] = useState(() => crypto.randomUUID())
+  // The request lives here, not in the form: the form goes when the panel closes, and the
+  // answer may come after that.
+  const payment = useSendPayment(booking.id, onClose)
 
   return (
     <Sheet open={open} onClose={onClose} title={t('today.takePayment')}>
@@ -37,9 +38,12 @@ export default function TakePaymentPanel({
         booking={booking}
         stayDebt={stayDebt}
         ordersDue={ordersDue}
-        idempotencyKey={idempotencyKey}
-        newPayment={() => setIdempotencyKey(crypto.randomUUID())}
-        onDone={onClose}
+        unsure={payment.unsure?.attempt ?? null}
+        outcome={payment.outcome}
+        checking={payment.checking}
+        pending={payment.pending}
+        send={payment.send}
+        check={payment.check}
       />
     </Sheet>
   )
@@ -49,19 +53,24 @@ function PaymentForm({
   booking,
   stayDebt,
   ordersDue,
-  idempotencyKey,
-  newPayment,
-  onDone,
+  unsure,
+  outcome,
+  checking,
+  pending,
+  send,
+  check,
 }: {
   booking: Booking
   stayDebt: number
   ordersDue: number
-  idempotencyKey: string
-  newPayment: () => void
-  onDone: () => void
+  unsure: PaymentAttempt | null
+  outcome: SendOutcome | null
+  checking: boolean
+  pending: boolean
+  send: (input: PaymentAttempt) => void
+  check: () => void
 }) {
   const { t, i18n } = useTranslation()
-  const addPayment = useAddPayment(booking.id)
   const [amount, setAmount] = useState(String(stayDebt))
   const [method, setMethod] = useState<PaymentMethod>('cash')
   const value = Number(amount)
@@ -70,6 +79,17 @@ function PaymentForm({
   // Any payment of this booking on its way, from this panel or another one on the
   // screen: each has its own idempotency key, and both would be recorded.
   const paying = useIsMutating({ mutationKey: ['add-payment', booking.id] }) > 0
+  const sum = (value: number) => `${money(value)} ${symbol}`
+
+  if (unsure && !paying) {
+    return <UnsureAttempt
+        attempt={unsure}
+        sum={sum}
+        busy={checking}
+        unreachable={outcome?.result === 'unknown'}
+        onCheck={check}
+      />
+  }
 
   return (
     <div className="flex flex-col gap-5">
@@ -81,10 +101,7 @@ function PaymentForm({
         {t('common.amount')}
         <NumberInput
           value={amount}
-          onChange={(next) => {
-            setAmount(next)
-            newPayment()
-          }}
+          onChange={setAmount}
           min={0}
           step={1000}
           ariaLabel={t('common.amount')}
@@ -99,7 +116,6 @@ function PaymentForm({
           onValueChange={(next) => {
             if (!next) return
             setMethod(next as PaymentMethod)
-            newPayment()
           }}
         >
           <ToggleGroupItem value="cash">
@@ -125,26 +141,27 @@ function PaymentForm({
           {t('today.ordersApart', { amount: money(ordersDue), symbol })}
         </p>
       )}
-      {addPayment.isError && (
-        <p role="alert" className="text-sm text-danger">{t('today.paymentFailed')}</p>
+      {outcome?.result === 'refused' && (
+        <p role="alert" className="text-sm text-danger">
+          {outcome.reason
+            ? t('bookings.attempt.refusedBecause', { reason: outcome.reason })
+            : t('bookings.attempt.refused')}
+        </p>
+      )}
+      {outcome?.result === 'notRecorded' && (
+        <p role="alert" className="text-sm text-danger">
+          {t(outcome.attempt.type === 'refund' ? 'bookings.attempt.notRecordedRefund' : 'bookings.attempt.notRecordedPayment', {
+            amount: sum(outcome.attempt.amount),
+          })}
+        </p>
       )}
 
       <Button
-        disabled={paying || !(value > 0)}
-        onClick={() =>
-          addPayment.mutate(
-            { amount: value, type: 'payment', method, idempotencyKey },
-            {
-              onSuccess: () => {
-                newPayment()
-                onDone()
-              },
-            },
-          )
-        }
+        disabled={paying || checking || !(value > 0)}
+        onClick={() => send({ type: 'payment', amount: value, method })}
       >
         <Plus className="h-4 w-4" aria-hidden="true" />
-        {addPayment.isPending
+        {pending || checking
           ? '…'
           : t('today.takeAmount', { amount: money(value || 0), symbol })}
       </Button>
