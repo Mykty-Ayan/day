@@ -49,7 +49,7 @@ import { dateLocale } from '../../lib/date-locale'
 import { getCalendarLink, getPricing } from '../../api/properties'
 import { useCurrentUser } from '../../hooks/useAuth'
 import { useCurrency } from '../../hooks/useCurrency'
-import { formatMoneyExact } from '../miniapp/format'
+import { formatMoneyExact, intlLocale } from '../miniapp/format'
 import type { PricingConfig, PricingInput, PropertyPhoto, PropertyStatus, SeasonalPrice } from '../../types/property'
 import type { RentalMode } from '../../types/booking'
 import PricingForm, { type SeasonalSuggestion } from '../../components/property/PricingForm'
@@ -93,7 +93,7 @@ function seasonalKey(seasonal: Pick<SeasonalPrice, 'name' | 'start_date' | 'end_
 }
 
 export default function PropertyDetailPage() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const { propertyId } = useParams({ strict: false }) as { propertyId: string }
   const navigate = useNavigate()
   const { data: property, isLoading } = useProperty(propertyId)
@@ -231,7 +231,11 @@ export default function PropertyDetailPage() {
     { icon: Bed, label: t('properties.beds'), value: property.beds },
     { icon: Users, label: t('properties.form.maxGuests'), value: property.max_guests },
     { icon: Bath, label: t('properties.form.bathrooms'), value: property.bathrooms },
-    { icon: Ruler, label: t('properties.area'), value: property.area_total != null ? `${property.area_total} m²` : null },
+    {
+      icon: Ruler,
+      label: t('properties.area'),
+      value: property.area_total != null ? t('guest.area', { area: property.area_total.toLocaleString(intlLocale(i18n.language)) }) : null,
+    },
   ].filter((fact) => fact.value != null && fact.value !== '')
   const links = (
     [

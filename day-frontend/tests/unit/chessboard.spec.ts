@@ -2,6 +2,7 @@
 
 import { expect, test } from '@playwright/test'
 import { assignLanes, barDays, barSpan, barTone, dayNumber, freeWindows, busyOn, byCompanyOrder, hoursOn, nightlyRate, nightRuns, nightsBetween, owes, rowLayout, toReturn, weekendDays } from '../../src/lib/chessboard'
+import { formatMoneyShort } from '../../src/pages/miniapp/format'
 import type { PricingConfig } from '../../src/types/property'
 
 const stay = (id: string, check_in: string, check_out: string, rental_mode = 'daily') => ({ id, check_in, check_out, rental_mode })
@@ -278,4 +279,14 @@ test('free hours follow a closed time as it was made, not a fixed noon', () => {
     { from: '10:00', to: '12:00', hours: 2 },
     { from: '23:00', to: '24:00', hours: 1 },
   ])
+})
+
+test("a night's price in a cell is in thousands, written as the screen's language writes numbers", () => {
+  expect(formatMoneyShort(15000, 'ru')).toEqual({ amount: '15', thousands: true })
+  expect(formatMoneyShort(1500, 'ru')).toEqual({ amount: '1,5', thousands: true })
+  expect(formatMoneyShort(15500, 'ru')).toEqual({ amount: '16', thousands: true })
+  expect(formatMoneyShort(9960, 'ru')).toEqual({ amount: '10', thousands: true })
+  expect(formatMoneyShort(950, 'ru')).toEqual({ amount: '950', thousands: false })
+  expect(formatMoneyShort(1500, 'kz')).toEqual({ amount: '1,5', thousands: true })
+  expect(formatMoneyShort(1500, 'en')).toEqual({ amount: '1.5', thousands: true })
 })

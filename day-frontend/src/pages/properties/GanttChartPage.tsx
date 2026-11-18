@@ -16,6 +16,7 @@ import type { PricingConfig } from '../../types/property'
 import Spinner from '../../components/ui/Spinner'
 import { ToggleGroup, ToggleGroupItem } from '../../components/ui/toggle-group'
 import GanttAgendaView from '../../components/property/GanttAgendaView'
+import { formatMoneyShort } from '../miniapp/format'
 
 const TOOLS: Array<{ value: ChessTool; icon: typeof Wrench; labelKey: string }> = [
   { value: 'booking', icon: MousePointer2, labelKey: 'gantt.toolBooking' },
@@ -56,7 +57,7 @@ const HOURLY_START = '14:00'
 const NAV = 'inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-line text-ink transition-colors hover:bg-surface-card'
 
 export default function GanttChartPage() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const navigate = useNavigate()
   const [year, setYear] = useState(() => readMonth().year)
   const [month, setMonth] = useState(() => readMonth().month)
@@ -160,6 +161,8 @@ export default function GanttChartPage() {
     setSelection(picked)
   }
 
+  // A night's own price as a cell shows it.
+  const ownExample = formatMoneyShort(27000, i18n.language)
   const legend = (
     <>
       <li className="flex items-center gap-1.5"><span className="h-3 w-5 rounded bg-success" />{t('gantt.tone.inHouse')}</li>
@@ -172,7 +175,7 @@ export default function GanttChartPage() {
       <li className="flex items-center gap-1.5"><Clock className="h-3.5 w-3.5" aria-hidden="true" />{t('properties.form.rentalModeHourly')}</li>
       <li className="flex items-center gap-1.5"><Moon className="h-3.5 w-3.5" aria-hidden="true" />{t('properties.form.rentalModeDaily')}</li>
       <li className="flex items-center gap-1.5"><span className="h-3 w-5 rounded" style={{ background: 'repeating-linear-gradient(45deg, #e2e2e8 0 4px, #f2f3f7 4px 8px)' }} />{t('gantt.closed')}</li>
-      <li className="flex items-center gap-1.5"><span className="font-semibold text-violet-700">₸27k</span>{t('gantt.legendOwn')}</li>
+      <li className="flex items-center gap-1.5"><span className="font-semibold text-violet-700">{ownExample.amount} {t('gantt.thousands')}</span>{t('gantt.legendOwn')}</li>
     </>
   )
 

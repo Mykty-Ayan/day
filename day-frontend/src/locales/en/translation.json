@@ -959,6 +959,7 @@
     "flatsCount_other": "{{count}} properties",
     "flat3h": "3 h {{price}}",
     "legendOwn": "own price",
+    "thousands": "K",
     "newTitle": "New booking",
     "newSum": "At these nights' prices: {{sum}}",
     "newSumHint": "The form works out the exact sum with guests and discounts.",

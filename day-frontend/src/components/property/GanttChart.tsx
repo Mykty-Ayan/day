@@ -11,7 +11,7 @@ import { moveBooking } from '../../api/bookings'
 import { orderProperties } from '../../api/properties'
 import { stayRuleBreaches, stayRuleText, type StayRuleBreach } from '../../lib/booking-errors'
 import { addDays, barDays, busyOn, byCompanyOrder, barSpan, barTone, dayNumber, dayOf, hoursOn, nightlyRate, nightsBetween, owes, rowLayout, toReturn, type BarTone } from '../../lib/chessboard'
-import { formatMoney } from '../../pages/miniapp/format'
+import { formatMoney, formatMoneyShort } from '../../pages/miniapp/format'
 import ConfirmDialog from '../ui/ConfirmDialog'
 import { Sheet } from '../ui/sheet'
 import { useQueryClient } from '@tanstack/react-query'
@@ -100,15 +100,6 @@ function isBookedOnDate(bookings: Booking[], dayKey: string): boolean {
     const { start, end } = barDays(booking.check_in, booking.check_out)
     return start <= dayKey && dayKey < end
   })
-}
-
-function formatCellPrice(value: number, sym: string): string {
-  if (value >= 10000) return `${sym}${Math.round(value / 1000)}k`
-  if (value >= 1000) {
-    const short = value / 1000
-    return `${sym}${Number.isInteger(short) ? short : short.toFixed(1)}k`
-  }
-  return `${sym}${Math.round(value)}`
 }
 
 // What a bar's colour says, as on Mews' timeline: green the guest is in, indigo they
@@ -954,6 +945,8 @@ export default function GanttChart({
                   const rate = hasBooking || closed || row.property.rental_mode === 'hourly'
                     ? null
                     : nightlyRate(pricingByProperty?.[row.property.id], dayKey, custom, weekend)
+                  // The whole price does not fit a cell: the thousands over their word, «15» over «тыс.».
+                  const short = rate !== null ? formatMoneyShort(rate, i18n.language) : null
                   const cell = { row: rowIndex, day: dayKey }
                   // A booking is not made on a paused flat; its prices and nights can still change.
                   const refused = isPaused && tool === 'booking'
@@ -999,15 +992,14 @@ export default function GanttChart({
                         if (e.detail === 0 && !refused) clickCell(cell)
                       }}
                     >
-                      {rate !== null && (
-                        <div className="pointer-events-none flex h-full items-center justify-center">
-                          <span
-                            className={`text-[10px] font-semibold ${
-                              isPaused ? 'text-ink-muted' : custom !== undefined ? 'text-violet-700' : 'text-success'
-                            }`}
-                          >
-                            {formatCellPrice(rate, currencySymbol)}
-                          </span>
+                      {short && (
+                        <div
+                          className={`pointer-events-none flex h-full flex-col items-center justify-center leading-tight ${
+                            isPaused ? 'text-ink-muted' : custom !== undefined ? 'text-violet-700' : 'text-success'
+                          }`}
+                        >
+                          <span className="text-[10px] font-semibold">{short.amount}</span>
+                          {short.thousands && <span className="text-[9px] font-medium">{t('gantt.thousands')}</span>}
                         </div>
                       )}
                     </button>
