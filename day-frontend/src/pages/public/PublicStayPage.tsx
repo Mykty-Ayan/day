@@ -2,21 +2,23 @@ import { useMemo, useState, type CSSProperties } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { addDays, format, parseISO } from 'date-fns'
-import { BedDouble, Building2, ChevronLeft, Images, KeyRound, LayoutGrid, MapPin, Ruler, Share2, Users, X } from 'lucide-react'
+import { BedDouble, Building2, ChevronLeft, Images, KeyRound, LayoutGrid, LogIn, LogOut, Map as MapIcon, MapPin, MapPinned, Navigation, Ruler, ScrollText, Share2, Users, X } from 'lucide-react'
 import { getPublicStay, type PublicOfferBooking, type PublicStay } from '../../api/public'
-import { isDayBlocked } from '../../lib/booking-dates'
 import { amenityIcon } from '../../lib/amenity-icons'
 import { MASK } from '../../lib/clarity'
-import { fromThisWeek, money, monthCells, onAccent, openedInFlat, retryNetwork, stayQuote } from '../../lib/public-stay'
+import { money, onAccent, openedInFlat, retryNetwork, stayQuote } from '../../lib/public-stay'
 import { GuestFrame, LoadFailed } from './GuestFrame'
 import { BookBar, BookSheet, HeldView } from './StayBooking'
+import { StayCalendar } from './StayCalendar'
 import { StayHereBanner } from './StayHere'
 
-// Day's own green when the company has no color of its own.
-const DEFAULT_ACCENT = '#047857'
+// The mockup's blue when the company has no color of its own.
+const DEFAULT_ACCENT = '#2F5BFF'
 
-// Two months on screen, one under the other, as a phone scrolls.
-const WINDOW_NIGHTS = 62
+// About four months ahead: the server gives 120 nights at most.
+const WINDOW_NIGHTS = 119
+// Photos under the page, after the one on top: the flat at a glance.
+const GALLERY_SHOWN = 4
 // The guest does it themselves: no lock and no code to send.
 const SELF_CHECK_IN = ['lockbox', 'keypad', 'smart_lock']
 // Enough amenities to tell the flat, the rest a tap away.
@@ -70,24 +72,9 @@ function StayView({ stay, locale, today }: { stay: PublicStay; locale: string; t
     checkOut: null,
   })
 
-  // A night is taken if the page has it as taken; one it has not loaded counts as taken too.
-  const free = useMemo(() => new Set(stay.nights.filter((n) => n.free).map((n) => n.date)), [stay.nights])
-  const taken = useMemo(() => {
-    const set = new Set(stay.nights.filter((n) => !n.free).map((n) => n.date))
-    const last = stay.nights.at(-1)?.date
-    if (last) set.add(format(addDays(parseISO(last), 1), 'yyyy-MM-dd'))
-    return set
-  }, [stay.nights])
-  const prices = useMemo(() => new Map(stay.nights.map((n) => [n.date, n.price])), [stay.nights])
-  const months = useMemo(() => {
-    const first = parseISO(today)
-    return [0, 1].map((n) => new Date(first.getFullYear(), first.getMonth() + n, 1))
-  }, [today])
   const quote = checkIn && checkOut ? stayQuote(stay.nights, checkIn, checkOut) : null
 
-  const dayLabel = useMemo(() => new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'long' }), [locale])
   const shortDay = useMemo(() => new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'short' }), [locale])
-  const monthName = useMemo(() => new Intl.DateTimeFormat(locale, { month: 'long' }), [locale])
   // The company's weekend nights by name in the guest's language ("Sat, Sun"): the weekend
   // tariff prices are for them. 2 Nov 2026 is a Monday, the server's 0.
   const weekendLabel = useMemo(() => {
@@ -96,30 +83,17 @@ function StayView({ stay, locale, today }: { stay: PublicStay; locale: string; t
   }, [locale, stay.prices.weekend_nights])
   const short = !quote || stay.min_nights == null || quote.count >= stay.min_nights ? null : stay.min_nights
 
-  // From the state as it is now, not as this render saw it: two quick taps both
-  // count. A day past the next taken night cannot end the stay: it starts a new one.
-  function pick(day: string) {
-    setStay((now) =>
-      now.checkIn && !now.checkOut && day > now.checkIn && !isDayBlocked(day, taken, now.checkIn)
-        ? { checkIn: now.checkIn, checkOut: day }
-        : { checkIn: day, checkOut: null },
-    )
-  }
-
-  const facts = [
-    stay.max_guests ? { icon: Users, text: t('guest.guests', { count: stay.max_guests }) } : null,
-    stay.rooms ? { icon: LayoutGrid, text: t('guest.rooms', { count: stay.rooms }) } : null,
-    stay.beds ? { icon: BedDouble, text: t('guest.beds', { count: stay.beds }) } : null,
-    stay.area_total ? { icon: Ruler, text: t('guest.area', { area: stay.area_total.toLocaleString(locale) }) } : null,
-    stay.floor != null
-      ? {
-          icon: Building2,
-          text: stay.floors_total
-            ? t('guest.floorOf', { floor: stay.floor, total: stay.floors_total })
-            : t('guest.floor', { floor: stay.floor }),
-        }
-      : null,
-  ].filter(Boolean) as { icon: typeof Users; text: string }[]
+  // Three tiles as the mockup, a number over its word: who fits, the rooms, the size;
+  // beds and the floor fill in for what the flat does not say.
+  const tiles = [
+    stay.max_guests ? { icon: Users, value: String(stay.max_guests), label: t('guest.tileGuests', { count: stay.max_guests }) } : null,
+    stay.rooms ? { icon: LayoutGrid, value: String(stay.rooms), label: t('guest.tileRooms', { count: stay.rooms }) } : null,
+    stay.area_total ? { icon: Ruler, value: stay.area_total.toLocaleString(locale), label: t('guest.tileArea') } : null,
+    stay.beds ? { icon: BedDouble, value: String(stay.beds), label: t('guest.tileBeds', { count: stay.beds }) } : null,
+    stay.floor != null ? { icon: Building2, value: String(stay.floor), label: t('guest.tileFloor') } : null,
+  ]
+    .filter((tile): tile is { icon: typeof Users; value: string; label: string } => tile !== null)
+    .slice(0, 3)
 
   const color = stay.company?.accent_color ?? DEFAULT_ACCENT
   const accent = { '--accent': color, '--on-accent': onAccent(color) } as CSSProperties
@@ -134,23 +108,15 @@ function StayView({ stay, locale, today }: { stay: PublicStay; locale: string; t
     )
   }
 
-  // The first free night from `from` on, for the quick picks.
-  const firstFree = (from: string) => stay.nights.find((n) => n.free && n.date >= from)?.date ?? null
-  const quickStart = checkIn ?? firstFree(today)
-  // A quick pick of n nights from the picked check-in (or the first free night): every night free.
-  const quickRange = (n: number) => {
-    if (!quickStart) return null
-    const out = format(addDays(parseISO(quickStart), n), 'yyyy-MM-dd')
-    for (let d = quickStart; d < out; d = format(addDays(parseISO(d), 1), 'yyyy-MM-dd')) if (!free.has(d)) return null
-    return { checkIn: quickStart, checkOut: out }
-  }
-  const tiles = facts.slice(0, 6)
-
   return (
-    <main style={accent} className={`min-h-screen bg-[#EDEDF2] text-[#111114] ${stay.company ? 'pb-28' : 'pb-4'}`}>
+    <main style={accent} className="min-h-screen bg-[#EDEDF2] pb-28 text-[#111114]">
       <div className="mx-auto max-w-[480px]">
-        {/* The flat in a rounded frame, its name over the photo, as the approved mockup (28.10). */}
-        <section aria-label={t('guest.photos')} className={`relative m-2 overflow-hidden rounded-[34px] bg-[#D9D9E0] ${stay.photos.length > 0 ? 'h-[480px]' : 'h-[260px]'}`}>
+        {/* The flat in a rounded frame, its name over the photo, as the approved mockup (28.10).
+            With no photo yet, a dark frame carries the name. */}
+        <section
+          aria-label={t('guest.photos')}
+          className={`relative m-2 overflow-hidden rounded-[34px] ${stay.photos.length > 0 ? 'h-[480px] bg-[#D9D9E0]' : 'h-[300px] bg-[#111114]'}`}
+        >
           {stay.photos.length > 0 && (
             <div
               className="flex h-full w-full snap-x snap-mandatory overflow-x-auto [scrollbar-width:none]"
@@ -164,7 +130,9 @@ function StayView({ stay, locale, today }: { stay: PublicStay; locale: string; t
               ))}
             </div>
           )}
-          <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(0,0,0,.25),rgba(0,0,0,0)_25%,rgba(0,0,0,0)_50%,rgba(0,0,0,.6))]" aria-hidden />
+          {stay.photos.length > 0 && (
+            <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(0,0,0,.25),rgba(0,0,0,0)_25%,rgba(0,0,0,0)_50%,rgba(0,0,0,.6))]" aria-hidden />
+          )}
           {/* The language picker floats at the top end (GuestFrame overlay); these take the start. */}
           <div className="absolute start-3.5 top-3.5 z-10 flex gap-2">
             {stay.company && (
@@ -186,7 +154,7 @@ function StayView({ stay, locale, today }: { stay: PublicStay; locale: string; t
               {stay.photos.length > 1 && (
                 <button type="button" onClick={() => setGallery(true)} className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full bg-white px-3.5 text-sm font-semibold text-[#111114]">
                   <Images className="h-4 w-4" aria-hidden />
-                  {t('guest.allPhotos', { count: stay.photos.length })}
+                  {t('guest.photoCount', { count: stay.photos.length })}
                 </button>
               )}
             </div>
@@ -200,7 +168,7 @@ function StayView({ stay, locale, today }: { stay: PublicStay; locale: string; t
         {openedInFlat(window.location.search) && <StayHereBanner code={stay.code} whatsapp={stay.company?.whatsapp ?? null} />}
 
         {(stay.prices.night != null || stay.prices.hour != null || !!stay.prices.tariffs?.length) && (
-          <section aria-label={t('guest.price')} className={`${CARD} flex flex-col gap-2`}>
+          <section aria-label={t('guest.price')} className={`${CARD} flex flex-col gap-1`}>
             {(stay.prices.night != null || stay.prices.hour != null) && (
               <div className="flex items-baseline gap-1.5">
                 <span className="text-[30px] font-bold tracking-[-0.03em]">{money((stay.prices.night ?? stay.prices.hour)!, locale)}</span>
@@ -242,119 +210,34 @@ function StayView({ stay, locale, today }: { stay: PublicStay; locale: string; t
         )}
 
         {tiles.length > 0 && (
-          <ul className="m-2 grid grid-cols-3 gap-2">
-            {tiles.map(({ icon: Icon, text }) => (
-              <li key={text} className="flex flex-col gap-3 rounded-[24px] bg-white px-3.5 py-4">
+          <ul className="m-2 grid gap-2" style={{ gridTemplateColumns: `repeat(${tiles.length}, minmax(0, 1fr))` }}>
+            {tiles.map(({ icon: Icon, value, label }) => (
+              <li key={label} className="flex flex-col gap-3 rounded-[24px] bg-white px-3.5 py-4">
                 <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[#111114] text-white">
                   <Icon className="h-[18px] w-[18px]" aria-hidden />
                 </span>
-                <span className="text-[15px] font-semibold leading-tight">{text}</span>
+                <span className="flex flex-col">
+                  <b className="text-[22px] leading-tight tracking-[-0.02em]">{value}</b>
+                  <span className={`text-[13px] ${MUTE}`}>{label}</span>
+                </span>
               </li>
             ))}
           </ul>
         )}
 
         {stay.nights.length > 0 && (
-          <section id="dates" className={`${CARD} flex scroll-mt-4 flex-col gap-4`}>
-            <h2 className={H2}>{t('guest.freeDates')}</h2>
-            {stay.prices.night != null && (
-              <div className="-mx-1 flex gap-2 overflow-x-auto px-1 [scrollbar-width:none]">
-                {[1, 2, 3, 7].map((n) => {
-                  const range = quickRange(n)
-                  const on = range && checkIn === range.checkIn && checkOut === range.checkOut
-                  return (
-                    <button
-                      key={n}
-                      type="button"
-                      disabled={!range || (stay.min_nights != null && n < stay.min_nights)}
-                      aria-pressed={Boolean(on)}
-                      onClick={() => range && setStay(range)}
-                      className={`h-9 shrink-0 rounded-full px-3.5 text-sm font-semibold disabled:opacity-40 ${on ? 'bg-[#111114] text-white' : 'bg-[#F3F3F6]'}`}
-                    >
-                      {t('guest.nights', { count: n })}
-                    </button>
-                  )
-                })}
-              </div>
-            )}
-            {months.map((month) => (
-              <div key={month.getMonth()} className="flex flex-col gap-2">
-                <h3 className="text-[15px] font-semibold capitalize">
-                  {monthName.format(month)} {month.getFullYear()}
-                </h3>
-                <div className={`grid grid-cols-7 text-center text-xs ${MUTE}`}>
-                  {t('guest.weekdays').split(' ').map((d) => <span key={d}>{d}</span>)}
-                </div>
-                <div className="grid grid-cols-7 gap-y-1.5">
-                  {fromThisWeek(monthCells(month.getFullYear(), month.getMonth()), today).map((day, n) => {
-                    if (!day) return <span key={`blank-${n}`} />
-                    // Past the next taken night a free day is not a check-out, but it can start a new stay.
-                    const disabled = day < today || (isDayBlocked(day, taken, checkIn && !checkOut ? checkIn : null) && taken.has(day))
-                    const edge = day === checkIn || day === checkOut
-                    const inside = Boolean(checkIn && checkOut && day > checkIn && day < checkOut)
-                    const band = inside || (checkIn && checkOut && edge)
-                    const price = free.has(day) && day >= today ? prices.get(day) : undefined
-                    return (
-                      <button
-                        key={day}
-                        type="button"
-                        data-night={day}
-                        disabled={disabled}
-                        onClick={() => pick(day)}
-                        aria-pressed={Boolean(edge || inside)}
-                        aria-label={`${dayLabel.format(parseISO(day))}${taken.has(day) && day >= today ? `, ${t('guest.taken')}` : ''}`}
-                        className="relative flex h-[54px] flex-col items-center justify-start"
-                      >
-                        {band && (
-                          <span
-                            aria-hidden
-                            className={`absolute top-0 h-10 bg-[color-mix(in_srgb,var(--accent)_16%,white)] ${
-                              day === checkIn ? 'inset-x-0 start-1/2' : day === checkOut ? 'inset-x-0 end-1/2' : 'inset-x-0'
-                            }`}
-                          />
-                        )}
-                        <span
-                          className={`relative z-[1] flex h-10 w-10 items-center justify-center rounded-full text-[15px] font-medium ${
-                            edge
-                              ? 'bg-[var(--accent)] font-bold text-[var(--on-accent)]'
-                              : inside
-                                ? 'font-bold text-[var(--accent)]'
-                                : disabled
-                                  ? day < today
-                                    ? 'text-[#C3C3CB]'
-                                    : 'text-[#C3C3CB] line-through'
-                                  : 'bg-[#F3F3F6]'
-                          }`}
-                        >
-                          {Number(day.slice(8))}
-                        </span>
-                        {price != null && !edge && (
-                          <span className={`mt-0.5 text-[10px] leading-none ${MUTE}`}>
-                            {(price / 1000).toLocaleString(locale, { maximumFractionDigits: 1 })}k
-                          </span>
-                        )}
-                      </button>
-                    )
-                  })}
-                </div>
-              </div>
-            ))}
-            <div aria-live="polite" className="flex items-center justify-between gap-3 rounded-2xl bg-[color-mix(in_srgb,var(--accent)_12%,white)] px-4 py-3">
-              <div className="flex flex-col gap-0.5">
-                <span className="text-sm font-semibold">
-                  {checkIn && checkOut
-                    ? `${shortDay.format(parseISO(checkIn))} – ${shortDay.format(parseISO(checkOut))}`
-                    : checkIn
-                      ? t('guest.pickCheckOut')
-                      : t('guest.pickCheckIn')}
-                </span>
-                {quote && <span className={`text-sm ${MUTE}`}>{t('guest.nights', { count: quote.count })}</span>}
-              </div>
-              {quote && short == null && <span data-testid="stay-total" className="text-lg font-bold">{money(quote.total, locale)}</span>}
-              {short != null && <span className="text-end text-sm font-semibold text-[#8A5A00]">{t('guest.minNights', { count: short })}</span>}
-            </div>
-            {quote && short == null && <p className={`text-xs ${MUTE}`}>{t('guest.totalHint')}</p>}
-          </section>
+          <StayCalendar
+            nights={stay.nights}
+            today={today}
+            locale={locale}
+            range={{ checkIn, checkOut }}
+            onRange={setStay}
+            minNights={stay.min_nights}
+            deposit={stay.prices.deposit}
+            checkInHour={stay.rental_mode !== 'hourly' ? stay.check_in_hour : null}
+            checkOutHour={stay.rental_mode !== 'hourly' ? stay.check_out_hour : null}
+            byNight={stay.prices.night != null}
+          />
         )}
 
         {stay.amenities.length > 0 && (
@@ -388,74 +271,97 @@ function StayView({ stay, locale, today }: { stay: PublicStay; locale: string; t
           </section>
         )}
 
-        {(stay.rental_mode !== 'hourly' || stay.check_in_method) && (
-          <section className={`${CARD} flex flex-col gap-3`}>
-            <h2 className={H2}>{t('guest.checkInTitle')}</h2>
-            {stay.rental_mode !== 'hourly' && (
-              <div className="grid grid-cols-2 gap-2">
+        <section className={`${CARD} flex flex-col gap-3`}>
+          <h2 className={H2}>{t('guest.location')}</h2>
+          {stay.complex_name && (
+            <span dir="auto" className="inline-flex h-9 w-fit items-center gap-1.5 rounded-full bg-[#F3F3F6] px-3.5 text-sm font-semibold">
+              <MapPin className="h-4 w-4" aria-hidden />
+              {stay.complex_name}
+            </span>
+          )}
+          <p className={`text-sm ${MUTE}`}>{t('guest.addressAfter')}</p>
+          {/* The complex by its name on the guest's map: the street and the flat stay for the booking page. */}
+          {stay.complex_name && (
+            <div className="grid grid-cols-3 gap-2">
+              {[
+                { icon: Navigation, label: t('guest.map2gis'), href: `https://2gis.kz/search/${encodeURIComponent(stay.complex_name)}` },
+                { icon: MapIcon, label: t('guest.mapYandex'), href: `https://yandex.kz/maps/?text=${encodeURIComponent(stay.complex_name)}` },
+                { icon: MapPinned, label: t('guest.mapGoogle'), href: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(stay.complex_name)}` },
+              ].map(({ icon: Icon, label, href }) => (
+                <a key={label} href={href} target="_blank" rel="noopener noreferrer" className="flex h-[46px] items-center justify-center gap-1.5 rounded-full bg-[#F3F3F6] text-sm font-semibold">
+                  <Icon className="h-4 w-4" aria-hidden />
+                  {label}
+                </a>
+              ))}
+            </div>
+          )}
+        </section>
+
+        {(stay.rental_mode !== 'hourly' || stay.check_in_method || stay.house_rules) && (
+          <section className={`${CARD} flex flex-col gap-3.5`}>
+            <h2 className={H2}>{t('guest.rules')}</h2>
+            {stay.rental_mode !== 'hourly' && (stay.check_in_hour != null || stay.check_out_hour != null) && (
+              <ul className="grid grid-cols-2 gap-2">
                 {stay.check_in_hour != null && (
-                  <div className="flex flex-col gap-1 rounded-[20px] bg-[#F3F3F6] p-4">
-                    <span className={`text-sm ${MUTE}`}>{t('guest.checkIn')}</span>
-                    <span className="text-lg font-bold">{t('guest.from', { hour: stay.check_in_hour })}</span>
-                  </div>
+                  <li className="flex items-center gap-2.5 text-sm">
+                    <span className="flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-full bg-[#F3F3F6]"><LogIn className="h-[17px] w-[17px] rtl:rotate-180" aria-hidden /></span>
+                    {t('guest.checkIn')} {t('guest.from', { hour: stay.check_in_hour })}
+                  </li>
                 )}
                 {stay.check_out_hour != null && (
-                  <div className="flex flex-col gap-1 rounded-[20px] bg-[#F3F3F6] p-4">
-                    <span className={`text-sm ${MUTE}`}>{t('guest.checkOut')}</span>
-                    <span className="text-lg font-bold">{t('guest.until', { hour: stay.check_out_hour })}</span>
-                  </div>
+                  <li className="flex items-center gap-2.5 text-sm">
+                    <span className="flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-full bg-[#F3F3F6]"><LogOut className="h-[17px] w-[17px] rtl:rotate-180" aria-hidden /></span>
+                    {t('guest.checkOut')} {t('guest.until', { hour: stay.check_out_hour })}
+                  </li>
                 )}
-              </div>
+              </ul>
             )}
             {stay.check_in_method && (
-              <p className="flex items-start gap-3 text-[15px] leading-normal">
+              <p className="flex items-center gap-2.5 text-sm">
                 <span className="flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-full bg-[#F3F3F6]">
                   <KeyRound className="h-[17px] w-[17px]" aria-hidden />
                 </span>
-                <span className="pt-1.5">
+                <span>
                   {SELF_CHECK_IN.includes(stay.check_in_method)
                     ? t('guest.checkInHow', { method: t(`properties.checkInMethod.${stay.check_in_method}`) })
                     : t(`properties.checkInMethod.${stay.check_in_method}`)}
                 </span>
               </p>
             )}
+            {stay.house_rules && (
+              <div className="flex items-start gap-2.5">
+                <span className="flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-full bg-[#F3F3F6]"><ScrollText className="h-[17px] w-[17px]" aria-hidden /></span>
+                <div className="flex min-w-0 flex-col gap-1 pt-1.5 text-sm">
+                  <LongText text={stay.house_rules} />
+                </div>
+              </div>
+            )}
           </section>
         )}
 
-        {stay.house_rules && (
-          <section className={`${CARD} flex flex-col gap-2`}>
-            <h2 className={H2}>{t('guest.rules')}</h2>
-            <LongText text={stay.house_rules} />
-          </section>
-        )}
-
-        <section className={`${CARD} flex flex-col gap-3`}>
-          <h2 className={H2}>{t('guest.location')}</h2>
-          <div className="flex items-start gap-3 rounded-[20px] bg-[#F3F3F6] p-4">
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white text-[var(--accent)]">
-              <MapPin className="h-5 w-5" aria-hidden />
-            </span>
-            <div className="flex flex-col gap-0.5">
-              {stay.complex_name && <span dir="auto" className="text-base font-semibold">{stay.complex_name}</span>}
-              <span className={`text-sm ${MUTE}`}>{t('guest.addressAfter')}</span>
-            </div>
+        {stay.photos.length > 1 && (
+          <div className="m-2 columns-2 gap-2">
+            {stay.photos.slice(1, 1 + GALLERY_SHOWN).map((url, n) => (
+              <button key={url} type="button" onClick={() => setZoomed(n + 1)} className="mb-2 block w-full break-inside-avoid overflow-hidden rounded-[22px] bg-[#D9D9E0]">
+                <img src={url} alt={t('guest.photoOf', { n: n + 2, total: stay.photos.length })} loading="lazy" decoding="async" className="w-full" />
+              </button>
+            ))}
           </div>
-        </section>
+        )}
 
         <footer className={`px-6 pb-6 pt-4 text-xs ${MUTE}`}>{t('guest.poweredBy')}</footer>
       </div>
 
-      {stay.company && (
-        <BookBar
-          stay={stay}
-          locale={locale}
-          quote={bookable}
-          dates={datesText}
-          canPickDates={stay.nights.length > 0}
-          onPickDates={() => document.getElementById('dates')?.scrollIntoView({ behavior: 'smooth' })}
-          onBook={() => setBooking(true)}
-        />
-      )}
+      {/* Always on screen, as the mockup: the price, then the stay picked; booking needs the company's site. */}
+      <BookBar
+        stay={stay}
+        locale={locale}
+        quote={bookable}
+        dates={datesText}
+        canPickDates={stay.nights.length > 0}
+        onPickDates={() => document.getElementById('dates')?.scrollIntoView({ behavior: 'smooth' })}
+        onBook={stay.company ? () => setBooking(true) : null}
+      />
       {booking && bookable && checkIn && checkOut && (
         <BookSheet
           stay={stay}
@@ -569,7 +475,7 @@ function ShareButton({ title }: { title: string }) {
         <Share2 className="h-[18px] w-[18px]" aria-hidden />
       </button>
       {copied && (
-        <span role="status" className="fixed inset-x-0 top-4 z-overlay mx-auto w-fit rounded-full bg-gray-900 px-4 py-2 text-sm font-semibold text-white shadow-lg">
+        <span role="status" className="fixed inset-x-0 top-4 z-overlay mx-auto w-fit rounded-full bg-[#111114] px-4 py-2 text-sm font-semibold text-white shadow-lg">
           {t('guest.linkCopied')}
         </span>
       )}

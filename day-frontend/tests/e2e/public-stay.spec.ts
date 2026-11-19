@@ -35,7 +35,8 @@ test('a guest with the link sees the flat, its free nights and what a stay costs
   await page.goto(`/s/${code}`)
   await expect(page).toHaveURL(new RegExp(`/s/${code}$`))
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Двухкомнатная у парка')
-  await expect(page.getByText('до 4 гостей')).toBeVisible()
+  // A tile as the mockup: the number over its word.
+  await expect(page.getByRole('listitem').filter({ hasText: 'гостя' })).toContainText('4')
   await expect(page.getByText(data.internal_name)).toHaveCount(0)
 
   const night = (offset: number) => page.locator(`[data-night="${day(offset)}"]`)
@@ -61,6 +62,38 @@ test('a guest with the link sees the flat, its free nights and what a stay costs
   await page.getByRole('button', { name: /Тіл/ }).click()
   await page.getByRole('radio', { name: 'English' }).click()
   await expect(page.getByRole('heading', { name: 'Free dates' })).toBeVisible()
+  await guest.close()
+})
+
+test('a quick pick takes the nearest free nights, and the month view shows the same stay', async ({ browser, request }) => {
+  const { id } = await (await request.post(`${API_BASE}/properties`, { data: createTestProperty({ name: 'Быстрый выбор' }) })).json()
+  await request.post(`${API_BASE}/properties/${id}/status`, { data: { target_status: 'active' } })
+  await request.put(`${API_BASE}/properties/${id}/pricing`, {
+    data: { base_price: 10000, weekend_markup: 0, default_deposit: 5000, extra_adult_price: 0, extra_child_price: 0, base_guests: 2 },
+  })
+  // Tonight and tomorrow are taken: two free nights in a row begin the day after.
+  const booked = await request.post(`${API_BASE}/bookings`, { data: createTestBooking(id, { check_in: day(0), check_out: day(2) }) })
+  expect(booked.ok(), await booked.text()).toBeTruthy()
+  const code = (await (await request.get(`${API_BASE}/properties/${id}`)).json()).public_code as string
+
+  const guest = await browser.newContext({ locale: 'ru-RU', baseURL: test.info().project.use.baseURL })
+  const page = await guest.newPage()
+  await page.goto(`/s/${code}`)
+  // Tonight is taken: nothing to take for tonight.
+  await expect(page.getByRole('button', { name: 'На сегодня' })).toBeDisabled()
+  await page.getByRole('button', { name: 'На 2 ночи' }).click()
+  await expect(page.getByRole('button', { name: 'На 2 ночи' })).toHaveAttribute('aria-pressed', 'true')
+  await expect(page.locator(`[data-night="${day(2)}"]`)).toHaveAttribute('aria-pressed', 'true')
+  await expect(page.locator(`[data-night="${day(4)}"]`)).toHaveAttribute('aria-pressed', 'true')
+  await expect(page.getByTestId('stay-total')).toHaveText('20 000 ₸')
+  await expect(page.getByText('Залог, вернём в течение дня после выезда')).toBeVisible()
+
+  await page.getByRole('radio', { name: 'Месяц' }).click()
+  await expect(page.locator(`[data-night="${day(2)}"]`)).toHaveAttribute('aria-pressed', 'true')
+  await expect(page.getByTestId('stay-total')).toHaveText('20 000 ₸')
+  await page.getByRole('button', { name: 'Сбросить даты' }).click()
+  await expect(page.getByText('Выберите день заезда')).toBeVisible()
+  await expect(page.getByTestId('stay-total')).toHaveCount(0)
   await guest.close()
 })
 
