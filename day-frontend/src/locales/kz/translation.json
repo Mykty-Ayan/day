@@ -1202,10 +1202,10 @@
     "bookings": "Броньдар",
     "bookingsCount": "{{count}} бронь",
     "occupancy": "Толымдылық",
-    "adr": "ADR",
+    "adr": "Түннің орташа бағасы",
     "properties": "Нысандар",
-    "revpar": "RevPAR",
-    "avgStay": "Орт. тұру",
+    "revpar": "Қолжетімді түнге кіріс",
+    "avgStay": "Орташа түн саны",
     "property": "Нысан",
     "week": "Апта",
     "month": "Ай",
@@ -1227,7 +1227,8 @@
     "occupancyRate": "Толымдылық деңгейі",
     "revenueOverTime": "Кезең бойынша кіріс",
     "occupancyOverTime": "Кезең бойынша толымдылық",
-    "propertiesCount": "{{count}} нысан"
+    "propertiesCount": "{{count}} нысан",
+    "nightsTaken": "Бос емес түндер: {{nights}}"
   },
   "cleaner": {
     "todaysTasks": "Бүгінгі тазалаулар",
@@ -1989,7 +1990,7 @@
     "total": "Барлығы: {{amount}}",
     "empty": "Бұл айда шығыс жоқ",
     "void": "Жою",
-    "voidConfirm": "Шығысты жою керек пе? Ол тарихта қалады, бірақ қорытындыдан шығады.",
+    "voidConfirm": "Ол тарихта қалады, бірақ қорытындыдан шығады.",
     "voided": "Шығыс жойылды",
     "saved": "Шығыс жазылды",
     "failed": "Сақтау мүмкін болмады",
@@ -2021,7 +2022,9 @@
     "agent": "Агент",
     "booking": "Бронь",
     "bookingNone": "Броньсыз",
-    "agentChoose": "Агентті таңдаңыз"
+    "agentChoose": "Агентті таңдаңыз",
+    "addButton": "Шығыс қосу",
+    "voidTitle": "Шығысты жою керек пе?"
   },
   "blacklist": {
     "title": "Қара тізім",

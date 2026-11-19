@@ -11,7 +11,6 @@ import {
 
 let propertyIdsToCleanup: string[] = []
 let bookingIdsToCleanup: string[] = []
-const METRICS_TABLE_VIEW_MODE_STORAGE_KEY = 'day:analytics:metrics-view-mode'
 
 test.afterEach(async ({ request }) => {
   for (const id of bookingIdsToCleanup) {
@@ -340,10 +339,7 @@ test.describe('Analytics Dashboard - Table', () => {
     }
   })
 
-  test('mobile metrics view toggle switches to table and persists after reload', async ({
-    page,
-    request,
-  }) => {
+  test('the metrics by object: cards on a phone, the table on a wide screen, no switch', async ({ page, request }) => {
     const typedRequest = request as Parameters<
       Parameters<typeof test>[2]
     >[0]['request']
@@ -352,41 +348,14 @@ test.describe('Analytics Dashboard - Table', () => {
 
     await page.setViewportSize({ width: 390, height: 844 })
     await page.goto('/analytics?period=year')
-    await page.waitForLoadState('networkidle')
+    await expect(page.getByText(prop.internal_name as string).first()).toBeVisible({ timeout: 10000 })
+    await expect(page.getByRole('columnheader', { name: /property/i })).toBeHidden()
+    await expect(page.getByRole('radio', { name: /^(cards|table)$/i })).toHaveCount(0)
 
-    await page.evaluate((storageKey) => {
-      localStorage.removeItem(storageKey)
-    }, METRICS_TABLE_VIEW_MODE_STORAGE_KEY)
-    await page.reload({ waitUntil: 'networkidle' })
-
-    await page
-      .locator('.animate-spin')
-      .waitFor({ state: 'hidden', timeout: 10000 })
-      .catch(() => {})
-
-    const cardsToggle = page.getByRole('radio', { name: /cards/i }).first()
-    const tableToggle = page.getByRole('radio', { name: /table/i }).first()
-    await expect(cardsToggle).toHaveAttribute('data-state', 'on')
-
-    await tableToggle.click()
-    await expect(tableToggle).toHaveAttribute('data-state', 'on')
-    await expect(page.getByRole('columnheader', { name: /property/i }).first()).toBeVisible({ timeout: 5000 })
-    await expect
-      .poll(async () => page.evaluate((storageKey) => localStorage.getItem(storageKey), METRICS_TABLE_VIEW_MODE_STORAGE_KEY))
-      .toBe('table')
-
-    await page.reload({ waitUntil: 'networkidle' })
-    await page
-      .locator('.animate-spin')
-      .waitFor({ state: 'hidden', timeout: 10000 })
-      .catch(() => {})
-
-    await expect(page.getByRole('radio', { name: /table/i }).first()).toHaveAttribute('data-state', 'on')
+    await page.setViewportSize({ width: 1280, height: 900 })
     await expect(page.getByRole('columnheader', { name: /property/i }).first()).toBeVisible({ timeout: 5000 })
   })
-})
 
-test.describe('Analytics Dashboard - With Data', () => {
   test('dashboard shows data when bookings exist', async ({
     page,
     request,

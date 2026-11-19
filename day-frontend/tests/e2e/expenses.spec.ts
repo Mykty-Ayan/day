@@ -12,6 +12,7 @@ test('the owner records rent for a flat, sees the month total and voids a wrong 
   expect(created.ok(), await created.text()).toBeTruthy()
 
   await page.goto('/expenses')
+  await page.getByRole('button', { name: 'Add expense' }).click()
   await page.locator('#expense-category').selectOption('rent')
   await page.locator('#expense-amount').fill('150 000')
   await page.getByRole('button', { name: 'Record' }).click()
@@ -23,8 +24,12 @@ test('the owner records rent for a flat, sees the month total and voids a wrong 
   await expect(page.getByTestId('expenses-total')).toContainText('150')
   await expect(page.getByText(flat.internal_name, { exact: false }).last()).toBeVisible()
 
-  page.once('dialog', (dialog) => dialog.accept())
+  // Voiding asks in the app's dialog; cancelling it keeps the expense.
   await page.getByRole('button', { name: 'Void' }).click()
+  await page.getByRole('dialog', { name: 'Void this expense?' }).getByRole('button', { name: 'Cancel' }).click()
+  await expect(page.getByTestId('expenses-total')).toContainText('150')
+  await page.getByRole('button', { name: 'Void' }).click()
+  await page.getByRole('dialog', { name: 'Void this expense?' }).getByRole('button', { name: 'Void' }).click()
   await expect(page.getByText('No expenses this month')).toBeVisible()
   const listed = await (await request.get(`${API_BASE}/expenses`, { params: { include_voided: 'true' } })).json()
   expect(listed.map((e: { voided_at: string | null }) => e.voided_at !== null)).toEqual([true])
