@@ -37,12 +37,12 @@ export default function WeekendCard() {
   }
 
   return (
-    <form onSubmit={save} className="mt-4 space-y-3 rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+    <form onSubmit={save} className="mt-4 space-y-3 rounded-xl border border-line bg-surface-card p-5">
       <div className="flex items-center gap-2">
-        <CalendarDays className="h-4 w-4 text-gray-500" />
+        <CalendarDays className="h-4 w-4 text-ink-muted" />
         <div>
-          <h2 className="text-sm font-bold text-gray-900">{t('settings.weekend.title')}</h2>
-          <p className="text-xs text-gray-500">{t('settings.weekend.description')}</p>
+          <h2 className="text-sm font-bold text-ink">{t('settings.weekend.title')}</h2>
+          <p className="text-xs text-ink-muted">{t('settings.weekend.description')}</p>
         </div>
       </div>
       <div className="flex gap-2" role="group" aria-label={t('settings.weekend.title')}>
