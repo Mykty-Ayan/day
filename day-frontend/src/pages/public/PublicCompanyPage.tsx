@@ -24,7 +24,7 @@ function Company({ slug, locale }: { slug: string; locale: string }) {
   })
   return (
     <>
-      {company.isPending && <p className="p-6 text-sm text-gray-500">{t('guest.loading')}</p>}
+      {company.isPending && <p className="p-6 text-sm text-[#76767F]">{t('guest.loading')}</p>}
       {company.isError && !company.data && (
         <LoadFailed error={company.error} onRetry={() => void company.refetch()} gone={{ 404: t('guestCompany.notFound') }} />
       )}
@@ -40,21 +40,22 @@ function CompanyView({ company, locale }: { company: PublicCompany; locale: stri
   const style = { '--accent': accent, '--on-accent': onAccent(accent) } as CSSProperties
 
   return (
-    <main style={style} className="pb-10">
+    <main style={style} className="min-h-screen bg-[#EDEDF2] pb-10 text-[#111114]">
+      <div className="mx-auto max-w-[480px]">
       <HeroSection company={company} accent={accent} />
 
-      <section className="flex flex-col gap-3 px-5 pt-5">
+      <section className="m-2 flex flex-col gap-3 rounded-[28px] bg-white p-5">
         {company.about && (
-          <p dir="auto" className="whitespace-pre-line text-base leading-relaxed text-gray-700">{company.about}</p>
+          <p dir="auto" className="whitespace-pre-line text-base leading-relaxed text-[#2A2A30]">{company.about}</p>
         )}
         <Contacts company={company} />
       </section>
 
-      <section aria-labelledby="company-flats" className="mt-8 flex flex-col gap-4 px-3">
+      <section aria-labelledby="company-flats" className="m-2 flex flex-col gap-4 rounded-[28px] bg-white px-3 py-5">
         <h2 id="company-flats" className="font-guest-display px-2 text-[22px] font-bold tracking-tight">
           {t('guestCompany.flats', { count: company.flats.length })}
         </h2>
-        {company.flats.length === 0 && <p className="px-2 text-base text-gray-600">{t('guestCompany.noFlats')}</p>}
+        {company.flats.length === 0 && <p className="px-2 text-base text-[#76767F]">{t('guestCompany.noFlats')}</p>}
         {/* A board of pins: two columns, the photos at alternating heights so the eye keeps moving. */}
         <div className={company.flats.length > 1 ? 'columns-2 gap-3 sm:columns-3' : ''}>
           {company.flats.map((flat, n) => (
@@ -64,11 +65,11 @@ function CompanyView({ company, locale }: { company: PublicCompany; locale: stri
       </section>
 
       {company.rules.length > 0 && (
-        <section aria-labelledby="company-rules" className="mx-5 mt-8 rounded-[24px] bg-stone-50 p-5">
+        <section aria-labelledby="company-rules" className="m-2 rounded-[28px] bg-white p-5">
           <h2 id="company-rules" className="mb-3 text-lg font-bold">{t('guestCompany.rules')}</h2>
           <ul className="flex flex-col gap-2.5">
             {company.rules.map((rule) => (
-              <li key={rule} className="flex items-start gap-2.5 text-[15px] leading-normal text-gray-800">
+              <li key={rule} className="flex items-start gap-2.5 text-[15px] leading-normal text-[#111114]">
                 <Check className="mt-0.5 h-4 w-4 shrink-0 text-[var(--accent)]" aria-hidden />
                 <span dir="auto">{rule}</span>
               </li>
@@ -77,7 +78,8 @@ function CompanyView({ company, locale }: { company: PublicCompany; locale: stri
         </section>
       )}
 
-      <footer className="px-5 pt-8 text-xs text-gray-500">{t('guest.poweredBy')}</footer>
+      <footer className="px-6 pt-4 text-xs text-[#76767F]">{t('guest.poweredBy')}</footer>
+      </div>
     </main>
   )
 }
@@ -92,7 +94,7 @@ function Contacts({ company }: { company: PublicCompany }) {
           href={`https://wa.me/${company.whatsapp}`}
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex h-12 items-center gap-2 rounded-full bg-[var(--accent)] px-5 text-base font-semibold text-[var(--on-accent)]"
+          className="inline-flex h-12 items-center gap-2 rounded-full bg-[#111114] px-5 text-base font-semibold text-white"
         >
           <MessageCircle className="h-5 w-5" aria-hidden />
           {t('guestCompany.write')}
@@ -103,7 +105,7 @@ function Contacts({ company }: { company: PublicCompany }) {
           href={`https://instagram.com/${company.instagram}`}
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex h-12 items-center gap-2 rounded-full bg-stone-100 px-4 text-base font-semibold text-gray-800"
+          className="inline-flex h-12 items-center gap-2 rounded-full bg-[#F3F3F6] px-4 text-base font-semibold text-[#111114]"
         >
           <Instagram className="h-5 w-5" aria-hidden />@{company.instagram}
         </a>
@@ -116,7 +118,7 @@ function Contacts({ company }: { company: PublicCompany }) {
 function HeroSection({ company, accent }: { company: PublicCompany; accent: string }) {
   const picture = company.cover_url ?? company.flats.find((f) => f.photo)?.photo ?? null
   return (
-    <section className="px-3 pt-3">
+    <section className="px-2 pt-2">
       <div className="relative overflow-hidden rounded-[28px]">
         {/* An <img>, not a CSS url(): the owner's link never becomes style text. */}
         {picture ? (
@@ -146,20 +148,20 @@ function FlatPin({ flat, locale, tall }: { flat: PublicCompanyFlat; locale: stri
 
   return (
     <a href={`/s/${flat.code}`} className="mb-4 flex break-inside-avoid flex-col gap-2">
-      <div className={`relative overflow-hidden rounded-[22px] bg-stone-100 ${tall ? 'aspect-[3/4]' : 'aspect-[4/5]'}`}>
+      <div className={`relative overflow-hidden rounded-[22px] bg-[#F3F3F6] ${tall ? 'aspect-[3/4]' : 'aspect-[4/5]'}`}>
         {flat.photo && <img src={flat.photo} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover transition-transform duration-500 hover:scale-105" />}
         {price != null && (
           <span className="absolute bottom-2.5 start-2.5 rounded-full bg-white/95 px-3 py-1.5 text-sm font-bold shadow-sm">
             {money(price, locale)}
-            <span className="font-medium text-gray-600"> {flat.night_price != null ? t('guest.perNight') : t('guest.perHour')}</span>
+            <span className="font-medium text-[#76767F]"> {flat.night_price != null ? t('guest.perNight') : t('guest.perHour')}</span>
           </span>
         )}
       </div>
       <div className="flex flex-col gap-1 px-1">
         <span dir="auto" className="text-[15px] font-bold leading-snug">{flat.name}</span>
-        {flat.complex_name && <span dir="auto" className="text-[13px] text-gray-600">{flat.complex_name}</span>}
+        {flat.complex_name && <span dir="auto" className="text-[13px] text-[#76767F]">{flat.complex_name}</span>}
         {facts.length > 0 && (
-          <span className="flex flex-wrap gap-x-3 gap-y-0.5 text-[13px] text-gray-600">
+          <span className="flex flex-wrap gap-x-3 gap-y-0.5 text-[13px] text-[#76767F]">
             {facts.map(({ icon: Icon, text }) => (
               <span key={text} className="inline-flex items-center gap-1">
                 <Icon className="h-3.5 w-3.5" aria-hidden />

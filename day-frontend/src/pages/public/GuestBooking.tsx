@@ -122,12 +122,12 @@ export function BookForm({
         <h1 ref={heading} tabIndex={-1} className="text-2xl font-bold leading-tight tracking-tight outline-none">
           {t('guestBook.title')}
         </h1>
-        <p dir="auto" className="text-base text-gray-700">{flat.name}</p>
+        <p dir="auto" className="text-base text-[#2A2A30]">{flat.name}</p>
       </section>
 
       <div className="grid grid-cols-2 gap-2">
-        <div className="flex flex-col gap-1 rounded-2xl bg-gray-50 p-3.5">
-          <span className="text-sm text-gray-600">{t('guest.checkIn')}</span>
+        <div className="flex flex-col gap-1 rounded-2xl bg-[#F3F3F6] p-3.5">
+          <span className="text-sm text-[#76767F]">{t('guest.checkIn')}</span>
           <span className="text-base font-bold">
             {hourly && offer.starts_at
               ? `${day.format(parseISO(offer.starts_at))}, ${clock(offer.starts_at)}`
@@ -135,8 +135,8 @@ export function BookForm({
             {!hourly && stay.data?.check_in_hour != null && `, ${t('guest.from', { hour: stay.data.check_in_hour })}`}
           </span>
         </div>
-        <div className="flex flex-col gap-1 rounded-2xl bg-gray-50 p-3.5">
-          <span className="text-sm text-gray-600">{t('guest.checkOut')}</span>
+        <div className="flex flex-col gap-1 rounded-2xl bg-[#F3F3F6] p-3.5">
+          <span className="text-sm text-[#76767F]">{t('guest.checkOut')}</span>
           <span className="text-base font-bold">
             {hourly && offer.ends_at
               ? `${day.format(parseISO(offer.ends_at))}, ${clock(offer.ends_at)}`
@@ -149,7 +149,7 @@ export function BookForm({
       {stay.isError && !stay.data && (
         <LoadFailed error={stay.error} onRetry={() => void stay.refetch()} gone={{}} />
       )}
-      <p className="text-sm text-gray-600">{offer.guest !== null ? t('guestBook.fromChat') : t('guestBook.nameNeeded')}</p>
+      <p className="text-sm text-[#76767F]">{offer.guest !== null ? t('guestBook.fromChat') : t('guestBook.nameNeeded')}</p>
 
       <label className="flex flex-col gap-1.5">
         <span className="text-sm font-semibold">{t('guestBook.name')}</span>
@@ -189,7 +189,7 @@ export function BookForm({
             className={`h-12 rounded-xl border px-3 text-base ${phoneWrong ? 'border-amber-600' : 'border-gray-300'}`}
           />
         )}
-        <span id="phone-hint" className={`text-xs ${phoneWrong ? 'text-amber-800' : 'text-gray-500'}`}>
+        <span id="phone-hint" className={`text-xs ${phoneWrong ? 'text-amber-800' : 'text-[#76767F]'}`}>
           {otherPhone === null ? t('guestBook.phoneHidden') : phoneWrong ? t('guestBook.phoneWrong') : t('guestBook.phoneHint')}
         </span>
       </div>
@@ -219,25 +219,25 @@ export function BookForm({
         </div>
       </div>
 
-      <section className="flex flex-col gap-2 rounded-2xl border border-gray-200 p-4">
+      <section className="flex flex-col gap-2 rounded-2xl border border-[#E7E7ED] p-4">
         {deposit != null && (
           <>
             <div className="flex items-baseline justify-between gap-3">
               <span className="text-base font-semibold">{t('guestBook.depositNow')}</span>
               <span data-testid="deposit" className="text-xl font-bold">{money(deposit, locale)}</span>
             </div>
-            <p className="text-sm text-gray-600">{t('guestBook.depositWhy')}</p>
+            <p className="text-sm text-[#76767F]">{t('guestBook.depositWhy')}</p>
           </>
         )}
         <div className="flex items-baseline justify-between gap-3">
-          <span className="text-sm text-gray-700">{t('guestBook.nightsLater', { nights: length })}</span>
+          <span className="text-sm text-[#2A2A30]">{t('guestBook.nightsLater', { nights: length })}</span>
           {flat.total != null && guests === offer.guests && <span className="text-base font-semibold">{money(flat.total, locale)}</span>}
         </div>
-        {guests !== offer.guests && <p className="text-xs text-gray-500">{t('guestBook.totalAfter')}</p>}
+        {guests !== offer.guests && <p className="text-xs text-[#76767F]">{t('guestBook.totalAfter')}</p>}
       </section>
 
       {rules && (
-        <details className="rounded-2xl bg-gray-50 p-4">
+        <details className="rounded-2xl bg-[#F3F3F6] p-4">
           <summary className="cursor-pointer text-sm font-semibold">{t('guest.rules')}</summary>
           <p dir="auto" className="mt-2 whitespace-pre-line text-sm leading-relaxed">{rules}</p>
         </details>
@@ -265,7 +265,7 @@ export function BookForm({
           {book.isPending ? t('guestBook.booking') : t('guestBook.book')}
         </button>
       )}
-      <p className="text-xs leading-relaxed text-gray-500">{t('guestBook.holdNote')}</p>
+      <p className="text-xs leading-relaxed text-[#76767F]">{t('guestBook.holdNote')}</p>
     </form>
   )
 }
@@ -297,7 +297,7 @@ export function Waiting({ offer, booking, locale }: { offer: PublicOffer; bookin
           <h1 ref={heading} tabIndex={-1} className="text-2xl font-bold leading-tight tracking-tight outline-none">
             {ranOut ? t('guestBook.ranOut') : until ? t('guestBook.heldUntil', { time: until }) : t('guestBook.held')}
           </h1>
-          <p className="text-base leading-relaxed text-gray-700">
+          <p className="text-base leading-relaxed text-[#2A2A30]">
             {deposit
               ? t('guestBook.invoice', { deposit, phone: booking.phone, time: until ?? '' })
               : t('guestBook.noDeposit')}
@@ -320,18 +320,18 @@ export function Waiting({ offer, booking, locale }: { offer: PublicOffer; bookin
           <h1 ref={heading} tabIndex={-1} className="text-2xl font-bold leading-tight tracking-tight outline-none">
             {t('guestBook.confirmed')}
           </h1>
-          <p className="text-base leading-relaxed text-gray-700">{t('guestBook.confirmedNext')}</p>
+          <p className="text-base leading-relaxed text-[#2A2A30]">{t('guestBook.confirmedNext')}</p>
         </section>
       )}
 
-      <section className="flex flex-col gap-1 rounded-2xl border border-gray-200 p-4">
+      <section className="flex flex-col gap-1 rounded-2xl border border-[#E7E7ED] p-4">
         {flat && <h2 dir="auto" className="text-base font-bold">{flat.name}</h2>}
-        <p className="text-sm text-gray-600">
+        <p className="text-sm text-[#76767F]">
           {dates} · {hourly ? t('guest.hours', { count: offer.hours ?? 0 }) : t('guest.nights', { count: offer.nights })} ·{' '}
           {t('guestOffer.guests', { count: booking.guests })}
         </p>
         {booking.total != null && (
-          <p className="text-sm text-gray-700">{t(hourly ? 'guestBook.hoursAtCheckIn' : 'guestBook.nightsAtCheckIn', { total: money(booking.total, locale) })}</p>
+          <p className="text-sm text-[#2A2A30]">{t(hourly ? 'guestBook.hoursAtCheckIn' : 'guestBook.nightsAtCheckIn', { total: money(booking.total, locale) })}</p>
         )}
       </section>
     </main>

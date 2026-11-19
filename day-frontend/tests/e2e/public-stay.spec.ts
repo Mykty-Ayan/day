@@ -56,7 +56,8 @@ test('a guest with the link sees the flat, its free nights and what a stay costs
   // Kazakh on a Russian phone: the count is Kazakh too, not the Russian form.
   await page.getByRole('button', { name: /Язык/ }).click()
   await page.getByRole('radio', { name: 'Қазақша' }).click()
-  await expect(page.getByText('2 түн', { exact: true })).toBeVisible()
+  // The summary of the picked nights, not the quick pick of two nights above the calendar.
+  await expect(page.locator('[aria-live="polite"]').getByText('2 түн', { exact: true })).toBeVisible()
   await page.getByRole('button', { name: /Тіл/ }).click()
   await page.getByRole('radio', { name: 'English' }).click()
   await expect(page.getByRole('heading', { name: 'Free dates' })).toBeVisible()
@@ -120,5 +121,33 @@ test('a wrong link says so instead of asking to sign in', async ({ browser }) =>
   await page.goto('/s/nosuchcode')
   await expect(page).toHaveURL(/\/s\/nosuchcode$/)
   await expect(page.getByText('This link does not lead to a flat on sale')).toBeVisible()
+  await guest.close()
+})
+
+test('on a narrow phone the booking bar keeps the whole total clear of its buttons', async ({ browser, request }) => {
+  // The bar shows on a company's flat; WhatsApp adds its button next to the step.
+  const slug = `bar-${Date.now().toString(36)}`
+  const site = await request.put(`${API_BASE}/site`, {
+    data: { slug, title: 'Бар', about: null, logo_url: null, cover_url: null, accent_color: null, whatsapp: '+77010000000', instagram: null },
+  })
+  expect(site.ok(), await site.text()).toBeTruthy()
+  const data = createTestProperty({ name: 'Узкий экран' })
+  const { id } = await (await request.post(`${API_BASE}/properties`, { data })).json()
+  await request.post(`${API_BASE}/properties/${id}/status`, { data: { target_status: 'active' } })
+  await request.put(`${API_BASE}/properties/${id}/pricing`, {
+    data: { base_price: 10000, weekend_markup: 0, default_deposit: 0, extra_adult_price: 0, extra_child_price: 0, base_guests: 2 },
+  })
+  const code = (await (await request.get(`${API_BASE}/properties/${id}`)).json()).public_code as string
+
+  const guest = await browser.newContext({ locale: 'ru-RU', viewport: { width: 360, height: 740 }, baseURL: test.info().project.use.baseURL })
+  const page = await guest.newPage()
+  await page.goto(`/s/${code}`)
+  await page.locator(`[data-night="${day(1)}"]`).click()
+  await page.locator(`[data-night="${day(3)}"]`).click()
+  const total = page.getByTestId('bar-total')
+  await expect(total).toHaveText('20 000 ₸')
+  const totalBox = (await total.boundingBox())!
+  const askBox = (await page.getByRole('link', { name: /Спросить|Написать/ }).boundingBox())!
+  expect(totalBox.x + totalBox.width).toBeLessThanOrEqual(askBox.x)
   await guest.close()
 })

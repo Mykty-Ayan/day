@@ -36,9 +36,9 @@ import type { CreatedApiKey, TeamMember, UserRole } from '../../api/team'
 const ASSIGNABLE_ROLES: UserRole[] = ['manager', 'cleaner']
 
 const ROLE_TONE: Record<UserRole, string> = {
-  owner: 'bg-gray-900 text-white',
-  manager: 'bg-blue-50 text-blue-700 border border-blue-200',
-  cleaner: 'bg-emerald-50 text-emerald-700 border border-emerald-200',
+  owner: 'bg-accent-soft text-accent-ink',
+  manager: 'bg-accent-soft text-accent-ink border border-accent/30',
+  cleaner: 'bg-success-soft text-success border border-success/30',
 }
 
 function formatDate(value: string | null, language: string): string {
@@ -102,8 +102,8 @@ export default function TeamPage() {
   if (!isOwner) {
     return (
       <div className="flex flex-col items-center justify-center gap-3 px-4 py-20 text-center">
-        <ShieldAlert className="h-8 w-8 text-gray-300" />
-        <p className="text-sm text-gray-500">{t('team.ownerOnly')}</p>
+        <ShieldAlert className="h-8 w-8 text-ink-muted/60" />
+        <p className="text-sm text-ink-muted">{t('team.ownerOnly')}</p>
       </div>
     )
   }
@@ -205,16 +205,16 @@ export default function TeamPage() {
         transition={{ duration: 0.4 }}
         className="space-y-6"
       >
-        <h1 className="text-xl font-bold text-gray-900">{t('team.title')}</h1>
+        <h1 className="text-xl font-bold text-ink">{t('team.title')}</h1>
 
         {/* ---------- team ---------- */}
-        <section className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+        <section className="rounded-xl border border-line bg-surface-card p-5">
           <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
             <div className="flex items-center gap-2">
-              <Users className="h-4 w-4 text-gray-500" />
+              <Users className="h-4 w-4 text-ink-muted" />
               <div>
-                <h2 className="text-sm font-bold text-gray-900">{t('team.members')}</h2>
-                <p className="text-xs text-gray-500">{t('team.membersDescription')}</p>
+                <h2 className="text-sm font-bold text-ink">{t('team.members')}</h2>
+                <p className="text-xs text-ink-muted">{t('team.membersDescription')}</p>
               </div>
             </div>
             <Button variant="secondary" onClick={() => setShowMemberForm((open) => !open)}>
@@ -224,10 +224,10 @@ export default function TeamPage() {
           </div>
 
           {showMemberForm && (
-            <div className="mb-4 space-y-3 rounded-xl bg-gray-50 p-4">
+            <div className="mb-4 space-y-3 rounded-xl bg-surface-page p-4">
               <div className="grid gap-3 sm:grid-cols-2">
                 <div>
-                  <label htmlFor="member-email" className="mb-1.5 block text-xs font-bold text-gray-500">
+                  <label htmlFor="member-email" className="mb-1.5 block text-xs font-bold text-ink-muted">
                     {t('team.email')}
                   </label>
                   <input
@@ -235,11 +235,11 @@ export default function TeamPage() {
                     type="email"
                     value={memberForm.email}
                     onChange={(e) => setMemberForm((f) => ({ ...f, email: e.target.value }))}
-                    className="w-full rounded-xl border border-gray-200 bg-white p-3 text-sm outline-none focus:ring-2 focus:ring-black/10"
+                    className="w-full rounded-xl border border-line bg-surface-card p-3 text-sm outline-none focus:border-accent"
                   />
                 </div>
                 <div>
-                  <label htmlFor="member-password" className="mb-1.5 block text-xs font-bold text-gray-500">
+                  <label htmlFor="member-password" className="mb-1.5 block text-xs font-bold text-ink-muted">
                     {t('team.password')}
                   </label>
                   <input
@@ -249,11 +249,11 @@ export default function TeamPage() {
                     value={memberForm.password}
                     onChange={(e) => setMemberForm((f) => ({ ...f, password: e.target.value }))}
                     placeholder={t('team.passwordHint')}
-                    className="w-full rounded-xl border border-gray-200 bg-white p-3 text-sm outline-none focus:ring-2 focus:ring-black/10"
+                    className="w-full rounded-xl border border-line bg-surface-card p-3 text-sm outline-none focus:border-accent"
                   />
                 </div>
                 <div>
-                  <label htmlFor="member-name" className="mb-1.5 block text-xs font-bold text-gray-500">
+                  <label htmlFor="member-name" className="mb-1.5 block text-xs font-bold text-ink-muted">
                     {t('team.fullName')}
                   </label>
                   <input
@@ -261,11 +261,11 @@ export default function TeamPage() {
                     type="text"
                     value={memberForm.full_name}
                     onChange={(e) => setMemberForm((f) => ({ ...f, full_name: e.target.value }))}
-                    className="w-full rounded-xl border border-gray-200 bg-white p-3 text-sm outline-none focus:ring-2 focus:ring-black/10"
+                    className="w-full rounded-xl border border-line bg-surface-card p-3 text-sm outline-none focus:border-accent"
                   />
                 </div>
                 <div>
-                  <label htmlFor="member-phone" className="mb-1.5 block text-xs font-bold text-gray-500">
+                  <label htmlFor="member-phone" className="mb-1.5 block text-xs font-bold text-ink-muted">
                     {t('team.phone')}
                   </label>
                   <input
@@ -273,20 +273,20 @@ export default function TeamPage() {
                     type="tel"
                     value={memberForm.phone}
                     onChange={(e) => setMemberForm((f) => ({ ...f, phone: e.target.value }))}
-                    className="w-full rounded-xl border border-gray-200 bg-white p-3 text-sm outline-none focus:ring-2 focus:ring-black/10"
+                    className="w-full rounded-xl border border-line bg-surface-card p-3 text-sm outline-none focus:border-accent"
                   />
                 </div>
               </div>
 
               <div>
-                <label htmlFor="member-role" className="mb-1.5 block text-xs font-bold text-gray-500">
+                <label htmlFor="member-role" className="mb-1.5 block text-xs font-bold text-ink-muted">
                   {t('team.role')}
                 </label>
                 <Select
                   value={memberForm.role}
                   onValueChange={(value) => setMemberForm((f) => ({ ...f, role: value as UserRole }))}
                 >
-                  <SelectTrigger id="member-role" className="bg-white">
+                  <SelectTrigger id="member-role" className="bg-surface-card">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -297,7 +297,7 @@ export default function TeamPage() {
                     ))}
                   </SelectContent>
                 </Select>
-                <p className="mt-1.5 text-xs text-gray-500">{t(`team.roleHints.${memberForm.role}`)}</p>
+                <p className="mt-1.5 text-xs text-ink-muted">{t(`team.roleHints.${memberForm.role}`)}</p>
               </div>
 
               <Button onClick={submitMember} disabled={createMember.isPending}>
@@ -310,17 +310,17 @@ export default function TeamPage() {
           {isTeamLoading ? (
             <Spinner />
           ) : isTeamError ? (
-            <p className="py-6 text-center text-sm text-gray-500">{t('common.errorLoading')}</p>
+            <p className="py-6 text-center text-sm text-ink-muted">{t('common.errorLoading')}</p>
           ) : (
-            <ul className="divide-y divide-gray-100">
+            <ul className="divide-y divide-line">
               {sortedTeam.map((member) => (
                 <li key={member.id} className="flex flex-wrap items-center gap-3 py-3">
                   {/* Room for the name: on a phone the buttons wrap below it instead. */}
                   <div className="min-w-[10rem] flex-1">
-                    <p className="truncate text-sm font-semibold text-gray-900">
+                    <p className="truncate text-sm font-semibold text-ink">
                       {member.full_name || member.email}
                     </p>
-                    <p className="truncate text-xs text-gray-500">{member.email}</p>
+                    <p className="truncate text-xs text-ink-muted">{member.email}</p>
                   </div>
                   <span className={`rounded-md px-2 py-1 text-[11px] font-bold ${ROLE_TONE[member.role]}`}>
                     {t(`team.roles.${member.role}`)}
@@ -330,7 +330,7 @@ export default function TeamPage() {
                       type="button"
                       onClick={() => requestMemberCode(member)}
                       disabled={requestTelegramCode.isPending}
-                      className="flex min-h-[44px] items-center gap-1.5 rounded-lg px-3 text-xs font-bold text-gray-600 transition-colors hover:bg-gray-100 disabled:opacity-40"
+                      className="flex min-h-[44px] items-center gap-1.5 rounded-lg px-3 text-xs font-bold text-ink-muted transition-colors hover:bg-surface-page disabled:opacity-40"
                     >
                       <Send className="h-3.5 w-3.5" />
                       {t('team.telegramCode')}
@@ -341,7 +341,7 @@ export default function TeamPage() {
                       <button
                         type="button"
                         onClick={() => setMemberToDeactivate(member)}
-                        className="min-h-[44px] rounded-lg px-3 text-xs font-bold text-red-600 transition-colors hover:bg-red-50"
+                        className="min-h-[44px] rounded-lg px-3 text-xs font-bold text-danger transition-colors hover:bg-danger/10"
                       >
                         {t('team.deactivate')}
                       </button>
@@ -352,15 +352,15 @@ export default function TeamPage() {
                       onClick={() =>
                         updateMember.mutate({ userId: member.id, data: { is_active: true } })
                       }
-                      className="min-h-[44px] rounded-lg px-3 text-xs font-bold text-gray-600 transition-colors hover:bg-gray-100"
+                      className="min-h-[44px] rounded-lg px-3 text-xs font-bold text-ink-muted transition-colors hover:bg-surface-page"
                     >
                       {t('team.reactivate')}
                     </button>
                   )}
                   {memberCode?.userId === member.id && (
-                    <div className="basis-full rounded-lg border border-gray-200 bg-gray-50 p-3">
+                    <div className="basis-full rounded-lg border border-line bg-surface-page p-3">
                       <div className="flex flex-wrap items-center gap-2">
-                        <code className="flex-1 text-base font-bold tracking-widest text-gray-900">
+                        <code className="flex-1 text-base font-bold tracking-widest text-ink">
                           /start {memberCode.code}
                         </code>
                         <Button variant="secondary" onClick={() => copyKey(`/start ${memberCode.code}`)}>
@@ -368,7 +368,7 @@ export default function TeamPage() {
                           {t('team.copy')}
                         </Button>
                       </div>
-                      <p className="mt-2 text-xs text-gray-500">
+                      <p className="mt-2 text-xs text-ink-muted">
                         {t('team.telegramCodeHint', { role: t(`team.roles.${member.role}`) })}
                       </p>
                     </div>
@@ -380,22 +380,22 @@ export default function TeamPage() {
         </section>
 
         {/* ---------- bots ---------- */}
-        <section className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+        <section className="rounded-xl border border-line bg-surface-card p-5">
           <div className="mb-4 flex items-center gap-2">
-            <MessageCircle className="h-4 w-4 text-gray-500" />
+            <MessageCircle className="h-4 w-4 text-ink-muted" />
             <div>
-              <h2 className="text-sm font-bold text-gray-900">{t('channels.title')}</h2>
-              <p className="text-xs text-gray-500">{t('channels.description')}</p>
+              <h2 className="text-sm font-bold text-ink">{t('channels.title')}</h2>
+              <p className="text-xs text-ink-muted">{t('channels.description')}</p>
             </div>
           </div>
 
           <div className="space-y-4">
             {/* Telegram */}
-            <div className="rounded-xl bg-gray-50 p-4">
+            <div className="rounded-xl bg-surface-page p-4">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
-                  <Send className="h-4 w-4 text-gray-500" />
-                  <span className="text-sm font-semibold text-gray-900">
+                  <Send className="h-4 w-4 text-ink-muted" />
+                  <span className="text-sm font-semibold text-ink">
                     {t('channels.telegram')}
                   </span>
                 </div>
@@ -407,11 +407,11 @@ export default function TeamPage() {
                   {t('channels.getCode')}
                 </Button>
               </div>
-              <p className="mt-2 text-xs text-gray-500">{t('channels.telegramHint')}</p>
+              <p className="mt-2 text-xs text-ink-muted">{t('channels.telegramHint')}</p>
 
               {telegramCode && (
-                <div className="mt-3 flex flex-wrap items-center gap-2 rounded-lg border border-gray-200 bg-white p-3">
-                  <code className="flex-1 text-base font-bold tracking-widest text-gray-900">
+                <div className="mt-3 flex flex-wrap items-center gap-2 rounded-lg border border-line bg-surface-card p-3">
+                  <code className="flex-1 text-base font-bold tracking-widest text-ink">
                     /start {telegramCode}
                   </code>
                   <Button variant="secondary" onClick={() => copyKey(`/start ${telegramCode}`)}>
@@ -423,19 +423,19 @@ export default function TeamPage() {
             </div>
 
             {/* WhatsApp */}
-            <div className="rounded-xl bg-gray-50 p-4">
+            <div className="rounded-xl bg-surface-page p-4">
               <div className="flex items-center gap-2">
-                <MessageCircle className="h-4 w-4 text-gray-500" />
-                <span className="text-sm font-semibold text-gray-900">
+                <MessageCircle className="h-4 w-4 text-ink-muted" />
+                <span className="text-sm font-semibold text-ink">
                   {t('channels.whatsapp')}
                 </span>
               </div>
-              <p className="mt-2 text-xs text-gray-500">{t('channels.whatsappHint')}</p>
+              <p className="mt-2 text-xs text-ink-muted">{t('channels.whatsappHint')}</p>
               <div className="mt-3 flex flex-wrap items-end gap-2">
                 <div className="min-w-[200px] flex-1">
                   <label
                     htmlFor="whapi-channel"
-                    className="mb-1.5 block text-xs font-bold text-gray-500"
+                    className="mb-1.5 block text-xs font-bold text-ink-muted"
                   >
                     {t('channels.channelId')}
                   </label>
@@ -445,7 +445,7 @@ export default function TeamPage() {
                     value={whatsappChannelId}
                     onChange={(e) => setWhatsappChannelId(e.target.value)}
                     placeholder="ABCDEF-1234"
-                    className="w-full rounded-xl border border-gray-200 bg-white p-3 text-sm outline-none focus:ring-2 focus:ring-black/10"
+                    className="w-full rounded-xl border border-line bg-surface-card p-3 text-sm outline-none focus:border-accent"
                   />
                 </div>
                 <Button onClick={submitWhatsApp} disabled={registerWhatsApp.isPending}>
@@ -456,15 +456,15 @@ export default function TeamPage() {
 
             {/* Connected */}
             {channels.length > 0 && (
-              <ul className="divide-y divide-gray-100">
+              <ul className="divide-y divide-line">
                 {channels.map((channel) => (
                   <li key={channel.id} className="flex flex-wrap items-center gap-3 py-3">
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-semibold text-gray-900">
+                      <p className="truncate text-sm font-semibold text-ink">
                         {t(`channels.${channel.channel}`)}
                         {channel.display_name ? ` · ${channel.display_name}` : ''}
                       </p>
-                      <p className="truncate text-xs text-gray-500">
+                      <p className="truncate text-xs text-ink-muted">
                         <code>{channel.external_id}</code>
                       </p>
                     </div>
@@ -482,7 +482,7 @@ export default function TeamPage() {
                             ),
                         })
                       }
-                      className="min-h-[44px] rounded-lg px-3 text-xs font-bold text-red-600 transition-colors hover:bg-red-50"
+                      className="min-h-[44px] rounded-lg px-3 text-xs font-bold text-danger transition-colors hover:bg-danger/10"
                     >
                       {t('channels.disconnect')}
                     </button>
@@ -494,13 +494,13 @@ export default function TeamPage() {
         </section>
 
         {/* ---------- service keys ---------- */}
-        <section className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+        <section className="rounded-xl border border-line bg-surface-card p-5">
           <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
             <div className="flex items-center gap-2">
-              <KeyRound className="h-4 w-4 text-gray-500" />
+              <KeyRound className="h-4 w-4 text-ink-muted" />
               <div>
-                <h2 className="text-sm font-bold text-gray-900">{t('team.apiKeys')}</h2>
-                <p className="text-xs text-gray-500">{t('team.apiKeysDescription')}</p>
+                <h2 className="text-sm font-bold text-ink">{t('team.apiKeys')}</h2>
+                <p className="text-xs text-ink-muted">{t('team.apiKeysDescription')}</p>
               </div>
             </div>
             <Button variant="secondary" onClick={() => setShowKeyForm((open) => !open)}>
@@ -510,12 +510,12 @@ export default function TeamPage() {
           </div>
 
           {issuedKey && (
-            <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 p-4">
-              <p className="text-xs font-bold uppercase tracking-wide text-amber-800">
+            <div className="mb-4 rounded-xl border border-warning/30 bg-warning-soft p-4">
+              <p className="text-xs font-bold text-warning">
                 {t('team.keyShownOnce')}
               </p>
               <div className="mt-2 flex flex-wrap items-center gap-2">
-                <code className="min-w-0 flex-1 overflow-x-auto rounded-lg bg-white px-3 py-2 text-xs text-gray-800">
+                <code className="min-w-0 flex-1 overflow-x-auto rounded-lg bg-surface-card px-3 py-2 text-xs text-ink">
                   {issuedKey.key}
                 </code>
                 <Button variant="secondary" onClick={() => copyKey(issuedKey.key)}>
@@ -526,7 +526,7 @@ export default function TeamPage() {
               <button
                 type="button"
                 onClick={() => setIssuedKey(null)}
-                className="mt-2 min-h-[44px] text-xs font-bold text-amber-800 underline"
+                className="mt-2 min-h-[44px] text-xs font-bold text-warning underline"
               >
                 {t('team.keyStored')}
               </button>
@@ -534,9 +534,9 @@ export default function TeamPage() {
           )}
 
           {showKeyForm && (
-            <div className="mb-4 space-y-3 rounded-xl bg-gray-50 p-4">
+            <div className="mb-4 space-y-3 rounded-xl bg-surface-page p-4">
               <div>
-                <label htmlFor="key-name" className="mb-1.5 block text-xs font-bold text-gray-500">
+                <label htmlFor="key-name" className="mb-1.5 block text-xs font-bold text-ink-muted">
                   {t('team.keyName')}
                 </label>
                 <input
@@ -545,18 +545,18 @@ export default function TeamPage() {
                   value={keyName}
                   onChange={(e) => setKeyName(e.target.value)}
                   placeholder={t('team.keyNamePlaceholder')}
-                  className="w-full rounded-xl border border-gray-200 bg-white p-3 text-sm outline-none focus:ring-2 focus:ring-black/10"
+                  className="w-full rounded-xl border border-line bg-surface-card p-3 text-sm outline-none focus:border-accent"
                 />
               </div>
 
               <div>
                 <div className="mb-1.5 flex items-center justify-between gap-2">
-                  <span className="text-xs font-bold text-gray-500">{t('team.scopes')}</span>
+                  <span className="text-xs font-bold text-ink-muted">{t('team.scopes')}</span>
                   {scopes.length > 0 && (
                     <button
                       type="button"
                       onClick={() => setKeyScopes(keyScopes.length === scopes.length ? [] : [...scopes])}
-                      className="min-h-[44px] rounded-lg px-2 text-xs font-semibold text-gray-700 hover:bg-gray-100"
+                      className="min-h-[44px] rounded-lg px-2 text-xs font-semibold text-ink hover:bg-surface-page"
                     >
                       {keyScopes.length === scopes.length ? t('team.scopesNone') : t('team.scopesAll')}
                     </button>
@@ -566,7 +566,7 @@ export default function TeamPage() {
                   {scopes.map((scope) => (
                     <label
                       key={scope}
-                      className="flex min-h-[44px] items-center gap-2 rounded-lg bg-white px-3 py-2 text-xs font-medium text-gray-700"
+                      className="flex min-h-[44px] items-center gap-2 rounded-lg bg-surface-card px-3 py-2 text-xs font-medium text-ink"
                     >
                       <Checkbox
                         checked={keyScopes.includes(scope)}
@@ -588,14 +588,14 @@ export default function TeamPage() {
           {areKeysLoading ? (
             <Spinner />
           ) : apiKeys.length === 0 ? (
-            <p className="py-6 text-center text-sm text-gray-500">{t('team.noKeys')}</p>
+            <p className="py-6 text-center text-sm text-ink-muted">{t('team.noKeys')}</p>
           ) : (
-            <ul className="divide-y divide-gray-100">
+            <ul className="divide-y divide-line">
               {apiKeys.map((key) => (
                 <li key={key.id} className="flex flex-wrap items-center gap-3 py-3">
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-semibold text-gray-900">{key.name}</p>
-                    <p className="truncate text-xs text-gray-500">
+                    <p className="truncate text-sm font-semibold text-ink">{key.name}</p>
+                    <p className="truncate text-xs text-ink-muted">
                       <code>{key.key_hint}…</code> · {t('team.scopesCount', { count: key.scopes.length })} ·{' '}
                       {t('team.lastUsed')}: {formatDate(key.last_used_at, i18n.language)}
                     </p>
@@ -604,12 +604,12 @@ export default function TeamPage() {
                     <button
                       type="button"
                       onClick={() => setKeyToRevoke({ id: key.id, name: key.name })}
-                      className="min-h-[44px] rounded-lg px-3 text-xs font-bold text-red-600 transition-colors hover:bg-red-50"
+                      className="min-h-[44px] rounded-lg px-3 text-xs font-bold text-danger transition-colors hover:bg-danger/10"
                     >
                       {t('team.revoke')}
                     </button>
                   ) : (
-                    <span className="rounded-md bg-gray-100 px-2 py-1 text-[11px] font-bold text-gray-500">
+                    <span className="rounded-md bg-surface-page px-2 py-1 text-[11px] font-bold text-ink-muted">
                       {t('team.revoked')}
                     </span>
                   )}
