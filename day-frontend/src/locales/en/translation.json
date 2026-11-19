@@ -2326,7 +2326,6 @@
     "paid": "Paid {{paid}} of {{total}}",
     "checkIn": "How to check in",
     "rules": "House rules",
-    "checkOutBy": "Check-out by {{time}}",
     "contact": "Contact the host",
     "buttons": {
       "pay": "How to pay",
@@ -2403,12 +2402,8 @@
     "statusPaid": "Paid",
     "statusDue": "{{amount}} left to pay",
     "statusClosed": "Booking closed",
-    "quickActions": "Quick actions",
     "quick": {
-      "route": "Route",
-      "wifi": "Wi-Fi",
-      "write": "Message",
-      "minibar": "Minibar"
+      "wifi": "Wi-Fi"
     },
     "copy": "Copy",
     "copied": "Copied",
@@ -2418,8 +2413,38 @@
     "stepTime": "Opens {{when}}, {{hours}} h before check-in",
     "stepTimeDone": "Less than {{hours}} h to check-in",
     "cannotGetInHint": "Message us, we will help right away",
-    "departureToday": "Check-out today by {{time}}",
-    "helpHint": "Pick a topic: WhatsApp opens with the message ready."
+    "helpHint": "Pick a topic: WhatsApp opens with the message ready.",
+    "yourLink": "Your link",
+    "stages": "Stages of the stay",
+    "tabs": {
+      "in": "Getting in",
+      "stay": "In the flat",
+      "out": "Check-out"
+    },
+    "arriveToday": "Check-in today from {{time}}",
+    "arriveOn": "Check-in {{day}} from {{time}}",
+    "inHours": "In {{h}} h {{m}} min",
+    "inDays_one": "In {{count}} day",
+    "inDays_other": "In {{count}} days",
+    "canEnter": "You can check in",
+    "leaveToday": "Check-out today by {{time}}",
+    "leaveOn": "Check-out {{day}} by {{time}}",
+    "timeToLeave": "Time to check out",
+    "welcome": "You are in the flat",
+    "confirmed": "Booking confirmed",
+    "doorLater": "The door code appears on this page once the stay is paid in full, closer to check-in",
+    "password": "password",
+    "fromTime": "from {{time}}",
+    "untilTime": "by {{time}}",
+    "needMore": "Need anything else?",
+    "beforeLeaving": "Before you leave",
+    "allDone": "All done, you can leave",
+    "doneOf": "{{done}} of {{total}}",
+    "left": "Left to pay",
+    "needHelp": "Need help?",
+    "inWhatsApp": "on WhatsApp",
+    "writeHost": "Write to the host",
+    "doorAfterPay": "Door code once paid"
   },
   "stayHere": {
     "title": "Staying here?",
