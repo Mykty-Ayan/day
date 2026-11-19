@@ -15,9 +15,6 @@ const STILL_OLD = new Set([
   '/ai-import/$jobId',
   '/cleaner/',
   '/cleaner/$taskId',
-  '/forgot-password',
-  '/login',
-  '/register',
 ])
 
 const OWN_LOOK = /^\/(s|o|g|c)\/|^\/tma/

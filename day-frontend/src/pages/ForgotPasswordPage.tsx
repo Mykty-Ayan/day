@@ -63,17 +63,17 @@ export default function ForgotPasswordPage() {
   }
 
   const field =
-    'w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-gray-400 transition-colors'
+    'w-full rounded-lg border border-line px-3 py-2 text-sm outline-none focus:border-accent transition-colors'
   return (
-    <div className="flex flex-1 items-center justify-center px-4 py-4 sm:px-6 sm:py-6 min-h-screen bg-white">
-      <div className="bg-white border border-gray-200 rounded-xl p-5 sm:p-8 shadow-sm w-full max-w-sm">
+    <div className="flex flex-1 items-center justify-center px-4 py-4 sm:px-6 sm:py-6 min-h-screen bg-surface-card">
+      <div className="bg-surface-card border border-line rounded-xl p-5 sm:p-8 w-full max-w-sm">
         <div className="flex justify-center mb-4">
-          <div className="bg-gray-50 p-3 rounded-full">
-            <KeyRound className="w-6 h-6 text-gray-900" />
+          <div className="bg-surface-page p-3 rounded-full">
+            <KeyRound className="w-6 h-6 text-ink" />
           </div>
         </div>
-        <h1 className="text-xl font-bold text-gray-900 mb-1 text-center">{t('auth.forgot.title')}</h1>
-        <p className="text-sm text-gray-500 mb-6 text-center">
+        <h1 className="text-xl font-bold text-ink mb-1 text-center">{t('auth.forgot.title')}</h1>
+        <p className="text-sm text-ink-muted mb-6 text-center">
           {step === 'email' ? t('auth.forgot.emailHint') : t('auth.forgot.codeHint')}
         </p>
 
@@ -81,7 +81,7 @@ export default function ForgotPasswordPage() {
           <form onSubmit={sendCode} className="flex flex-col gap-4">
             <input id="reset-email" type="email" autoComplete="email" placeholder="Email" required value={email}
               onChange={(e) => setEmail(e.target.value)} className={field} />
-            {error && <p role="alert" className="text-xs text-red-600">{error}</p>}
+ {error && <p role="alert" className="text-xs text-danger">{error}</p>}
             <Button type="submit" disabled={busy}>{t('auth.forgot.sendCode')}</Button>
           </form>
         ) : (
@@ -89,19 +89,19 @@ export default function ForgotPasswordPage() {
             <input id="reset-code" inputMode="numeric" autoComplete="one-time-code" maxLength={6}
               placeholder={t('auth.forgot.code')} required value={code}
               onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))} className={field} />
-            <input id="reset-password" type="password" autoComplete="new-password"
+ <input id="reset-password" type="password" autoComplete="new-password"
               placeholder={t('settings.password.new')} required value={password}
               onChange={(e) => setPassword(e.target.value)} className={field} />
-            {error && <p role="alert" className="text-xs text-red-600">{error}</p>}
+ {error && <p role="alert" className="text-xs text-danger">{error}</p>}
             <Button type="submit" disabled={busy}>{t('auth.forgot.reset')}</Button>
-            <button type="button" onClick={() => setStep('email')} className="text-xs text-gray-500 hover:underline">
+            <button type="button" onClick={() => setStep('email')} className="text-xs text-ink-muted hover:underline">
               {t('auth.forgot.again')}
             </button>
           </form>
         )}
 
-        <p className="text-xs text-gray-500 mt-4 text-center">
-          <Link to="/login" className="text-gray-900 font-semibold hover:underline">
+        <p className="text-xs text-ink-muted mt-4 text-center">
+          <Link to="/login" className="text-ink font-semibold hover:underline">
             {t('auth.forgot.backToLogin')}
           </Link>
         </p>

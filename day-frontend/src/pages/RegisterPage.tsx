@@ -3,9 +3,11 @@ import { Link } from '@tanstack/react-router'
 import { motion } from 'framer-motion'
 import { UserPlus } from 'lucide-react'
 import Button from '../components/ui/Button'
+import { useTranslation } from 'react-i18next'
 import { useRegister } from '../hooks/useAuth'
 
 export default function RegisterPage() {
+  const { t } = useTranslation()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [companyName, setCompanyName] = useState('')
@@ -17,64 +19,71 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="flex flex-1 items-center justify-center px-4 py-4 sm:px-6 sm:py-6 min-h-screen bg-white">
+    <div className="flex flex-1 items-center justify-center px-4 py-4 sm:px-6 sm:py-6 min-h-screen bg-surface-card">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4 }}
-        className="bg-white border border-gray-200 rounded-xl p-5 sm:p-8 shadow-sm w-full max-w-sm"
+        className="bg-surface-card border border-line rounded-xl p-5 sm:p-8 w-full max-w-sm"
       >
         <div className="flex justify-center mb-4">
-          <div className="bg-gray-50 p-3 rounded-full">
-            <UserPlus className="w-6 h-6 text-gray-900" />
+          <div className="bg-surface-page p-3 rounded-full">
+            <UserPlus className="w-6 h-6 text-ink" />
           </div>
         </div>
-        <h1 className="text-xl font-bold text-gray-900 mb-1 text-center">Create account</h1>
-        <p className="text-sm text-gray-500 mb-6 text-center">Register your company</p>
+        <h1 className="text-xl font-bold text-ink mb-1 text-center">{t('auth.register.title')}</h1>
+        <p className="text-sm text-ink-muted mb-6 text-center">{t('auth.register.hint')}</p>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <input
             type="text"
-            placeholder="Company name"
+            placeholder={t('auth.register.company')}
+            aria-label={t('auth.register.company')}
             value={companyName}
             onChange={(e) => setCompanyName(e.target.value)}
             required
-            className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-gray-400 transition-colors"
+            className="w-full rounded-lg border border-line px-3 py-2 text-sm outline-none focus:border-accent transition-colors"
           />
           <input
             type="email"
-            placeholder="Email"
+            placeholder={t('auth.login.email')}
+            aria-label={t('auth.login.email')}
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
-            className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-gray-400 transition-colors"
+            className="w-full rounded-lg border border-line px-3 py-2 text-sm outline-none focus:border-accent transition-colors"
           />
           <input
             type="password"
-            placeholder="Password"
+            placeholder={t('auth.login.password')}
+            aria-label={t('auth.login.password')}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
             minLength={6}
-            className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-gray-400 transition-colors"
+            className="w-full rounded-lg border border-line px-3 py-2 text-sm outline-none focus:border-accent transition-colors"
           />
 
           {registerMutation.isError && (
-            <p className="text-xs text-red-600">
-              {(registerMutation.error as { response?: { data?: { detail?: string } } })?.response?.data?.detail ||
-                'Registration failed'}
+            <p role="alert" className="text-xs text-danger">
+              {/* The server answers in English; the owner reads the reason in their language. */}
+              {/^email already/i.test(
+                (registerMutation.error as { response?: { data?: { detail?: string } } })?.response?.data?.detail ?? '',
+              )
+                ? t('auth.register.emailTaken')
+                : t('auth.register.failed')}
             </p>
           )}
 
           <Button type="submit" disabled={registerMutation.isPending}>
-            {registerMutation.isPending ? 'Creating...' : 'Create account'}
+            {registerMutation.isPending ? t('auth.register.submitting') : t('auth.register.submit')}
           </Button>
         </form>
 
-        <p className="text-xs text-gray-500 mt-4 text-center">
-          Already have an account?{' '}
-          <Link to="/login" className="text-gray-900 font-semibold hover:underline">
-            Sign in
+        <p className="text-xs text-ink-muted mt-4 text-center">
+          {t('auth.register.haveAccount')}{' '}
+          <Link to="/login" className="text-ink font-semibold hover:underline">
+            {t('auth.register.signIn')}
           </Link>
         </p>
       </motion.div>

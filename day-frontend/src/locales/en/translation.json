@@ -1837,7 +1837,16 @@
   },
   "auth": {
     "login": {
-      "wrongPassword": "Wrong email or password"
+      "wrongPassword": "Wrong email or password",
+      "title": "Sign in to Day",
+      "hint": "Enter your credentials",
+      "email": "Email",
+      "password": "Password",
+      "submit": "Sign in",
+      "submitting": "Signing in...",
+      "noAccount": "Don't have an account?",
+      "register": "Register",
+      "failed": "Couldn't sign in. Check the connection and try again."
     },
     "forgot": {
       "link": "Forgot your password?",
@@ -1867,6 +1876,17 @@
       "disable": "Turn off",
       "saved": "Saved",
       "wrongPassword": "Wrong password"
+    },
+    "register": {
+      "title": "Create account",
+      "hint": "Register your company",
+      "company": "Company name",
+      "submit": "Create account",
+      "submitting": "Creating...",
+      "haveAccount": "Already have an account?",
+      "signIn": "Sign in",
+      "emailTaken": "This email is already registered. Sign in or reset the password.",
+      "failed": "Couldn't register. Check the connection and try again."
     }
   },
   "guest": {
