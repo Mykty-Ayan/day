@@ -17,11 +17,7 @@ const STILL_OLD = new Set([
   '/cleaner/$taskId',
   '/forgot-password',
   '/login',
-  '/readiness/',
   '/register',
-  '/settings/',
-  '/settings/team',
-  '/site/',
 ])
 
 const OWN_LOOK = /^\/(s|o|g|c)\/|^\/tma/
