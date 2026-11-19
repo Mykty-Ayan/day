@@ -39,10 +39,10 @@ export function BookBar({
     // A floating bar, as the approved mockup: the price on the start, the step on a dark pill with the accent arrow.
     <div className="fixed inset-x-0 bottom-0 z-sticky px-2.5 pb-[max(10px,env(safe-area-inset-bottom))] pt-2.5">
       <div className="mx-auto flex max-w-[460px] items-center justify-between gap-2.5 rounded-full bg-white/90 py-2 pe-2 ps-[22px] shadow-[0_10px_30px_rgba(17,17,20,0.12)] backdrop-blur-xl">
-        <div className="min-w-0">
+        <div className="min-w-0 shrink-0">
           {quote ? (
             <>
-              <span data-testid="bar-total" className="block text-lg font-bold leading-tight">{money(quote.total, locale)}</span>
+              <span data-testid="bar-total" className="block whitespace-nowrap text-lg font-bold leading-tight">{money(quote.total, locale)}</span>
               <span className="block truncate text-[13px] text-[#76767F]">
                 {dates} · {t('guest.nights', { count: quote.count })}
               </span>
@@ -61,7 +61,7 @@ export function BookBar({
             </>
           ) : null}
         </div>
-        <div className="flex shrink-0 items-center gap-2">
+        <div className="flex min-w-0 items-center gap-2">
           {ask && (
             <a
               href={ask}
@@ -78,10 +78,11 @@ export function BookBar({
             <button
               type="button"
               onClick={quote ? onBook : onPickDates}
-              className="flex h-14 items-center gap-3 rounded-full bg-[#111114] pe-2 ps-[22px] text-base font-semibold text-white"
+              className="flex h-14 items-center gap-3 rounded-full bg-[#111114] px-5 text-base font-semibold text-white min-[400px]:pe-2 min-[400px]:ps-[22px]"
             >
               {quote ? t('guestBook.book') : t('guestStay.pickDates')}
-              <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[var(--accent)] text-[var(--on-accent)]">
+              {/* The arrow is decoration: a narrow phone keeps its room for the total. */}
+              <span className="hidden h-10 w-10 items-center justify-center rounded-full bg-[var(--accent)] text-[var(--on-accent)] min-[400px]:flex">
                 <ArrowRight className="h-5 w-5 rtl:rotate-180" aria-hidden />
               </span>
             </button>
