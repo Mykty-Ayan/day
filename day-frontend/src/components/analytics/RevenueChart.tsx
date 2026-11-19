@@ -64,7 +64,7 @@ export default function RevenueChart({ data }: { data: TimeSeriesPoint[] }) {
                 onClick={() => setActiveIndex((current) => (current === i ? null : i))}
                 onFocus={() => setActiveIndex(i)}
                 className="group relative flex h-full min-w-0 flex-1 flex-col items-center justify-end focus:outline-none"
-                aria-label={`${periodLabel(point, locale)}: ${money(value, 0)}`}
+                aria-label={`${periodLabel(point, locale)}: ${money(value)}`}
               >
                 <div
                   className={`absolute bottom-full mb-2 z-10 ${
@@ -72,7 +72,7 @@ export default function RevenueChart({ data }: { data: TimeSeriesPoint[] }) {
                   }`}
                 >
                   <div className="bg-ink text-white text-xs rounded-lg px-3 py-2 whitespace-nowrap">
-                    <div className="font-bold">{money(value, 0)}</div>
+                    <div className="font-bold">{money(value)}</div>
                     <div className="text-white/70">
                       {t('analytics.bookingsCount', { count: point.bookings_count })}
                     </div>

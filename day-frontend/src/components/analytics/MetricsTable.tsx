@@ -20,10 +20,10 @@ export default function MetricsTable({ properties }: { properties: PropertyMetri
     Number(v).toLocaleString(intlLocale(i18n.language), { minimumFractionDigits: digits, maximumFractionDigits: digits })
 
   const columns: { key: SortField; label: string; format: (v: number) => string }[] = [
-    { key: 'revenue', label: t('analytics.revenue'), format: (v) => money(v, 0) },
+    { key: 'revenue', label: t('analytics.revenue'), format: (v) => money(v) },
     { key: 'adr', label: t('analytics.adr'), format: (v) => money(Math.round(v), 0) },
     { key: 'revpar', label: t('analytics.revpar'), format: (v) => money(Math.round(v), 0) },
-    { key: 'profit', label: t('analytics.profit'), format: (v) => money(v, 0) },
+    { key: 'profit', label: t('analytics.profit'), format: (v) => money(v) },
     { key: 'occupancy_rate', label: t('analytics.occupancy'), format: (v) => `${number(v, 1)}%` },
     { key: 'avg_stay_duration', label: t('analytics.avgStay'), format: (v) => number(v, 1) },
     { key: 'total_bookings', label: t('analytics.bookings'), format: (v) => v.toString() },
