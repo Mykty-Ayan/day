@@ -19,11 +19,7 @@ const STILL_OLD = new Set([
   '/expenses/',
   '/forgot-password',
   '/login',
-  '/readiness/',
   '/register',
-  '/settings/',
-  '/settings/team',
-  '/site/',
 ])
 
 const OWN_LOOK = /^\/(s|o|g|c)\/|^\/tma/
