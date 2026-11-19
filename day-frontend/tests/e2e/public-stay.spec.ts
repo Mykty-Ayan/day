@@ -56,7 +56,8 @@ test('a guest with the link sees the flat, its free nights and what a stay costs
   // Kazakh on a Russian phone: the count is Kazakh too, not the Russian form.
   await page.getByRole('button', { name: /Язык/ }).click()
   await page.getByRole('radio', { name: 'Қазақша' }).click()
-  await expect(page.getByText('2 түн', { exact: true })).toBeVisible()
+  // The summary of the picked nights, not the quick pick of two nights above the calendar.
+  await expect(page.locator('[aria-live="polite"]').getByText('2 түн', { exact: true })).toBeVisible()
   await page.getByRole('button', { name: /Тіл/ }).click()
   await page.getByRole('radio', { name: 'English' }).click()
   await expect(page.getByRole('heading', { name: 'Free dates' })).toBeVisible()

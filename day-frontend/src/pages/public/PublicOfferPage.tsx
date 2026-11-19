@@ -31,7 +31,7 @@ function Offer({ code, locale }: { code: string; locale: string }) {
   })
   return (
     <>
-      {offer.isPending && <p className="p-6 text-sm text-gray-500">{t('guest.loading')}</p>}
+      {offer.isPending && <p className="p-6 text-sm text-[#76767F]">{t('guest.loading')}</p>}
       {offer.isError && !offer.data && (
         <LoadFailed
           error={offer.error}
@@ -81,15 +81,15 @@ function OfferView({ offer, locale, onRefresh }: { offer: PublicOffer; locale: s
   }
 
   return (
-    <main className="flex flex-col gap-6 px-4 pb-10 pt-6">
-      <section className="flex flex-col gap-3 px-1">
+    <main className="mx-auto flex min-h-screen max-w-[480px] flex-col gap-2 bg-[#EDEDF2] px-2 pb-10 pt-2 text-[#111114]">
+      <section className="flex flex-col gap-3 rounded-[28px] bg-white p-5">
         <h1 className="font-guest-display text-[30px] font-bold leading-[1.15] tracking-tight">
           {offer.guest ? t('guestOffer.hello', { name: offer.guest }) : t('guestOffer.title')}
         </h1>
         <p className="flex flex-wrap gap-2 text-sm font-medium">
-          <span className="rounded-full bg-stone-100 px-3.5 py-2">{dates}</span>
-          <span className="rounded-full bg-stone-100 px-3.5 py-2">{nights}</span>
-          <span className="rounded-full bg-stone-100 px-3.5 py-2">{t('guestOffer.guests', { count: offer.guests })}</span>
+          <span className="rounded-full bg-[#F3F3F6] px-3.5 py-2">{dates}</span>
+          <span className="rounded-full bg-[#F3F3F6] px-3.5 py-2">{nights}</span>
+          <span className="rounded-full bg-[#F3F3F6] px-3.5 py-2">{t('guestOffer.guests', { count: offer.guests })}</span>
         </p>
         {allFree && (
           // Two sentences of their own: joined by a space they read as one, with no stop between.
@@ -107,7 +107,7 @@ function OfferView({ offer, locale, onRefresh }: { offer: PublicOffer; locale: s
         </p>
       )}
 
-      {offer.flats.length === 0 && <p className="text-base text-gray-700">{t('guestOffer.none')}</p>}
+      {offer.flats.length === 0 && <p className="text-base text-[#2A2A30]">{t('guestOffer.none')}</p>}
       <div className="flex flex-col gap-8">
       {offer.flats.map((flat, n) => (
         <FlatCard
@@ -125,7 +125,7 @@ function OfferView({ offer, locale, onRefresh }: { offer: PublicOffer; locale: s
       ))}
       </div>
 
-      <footer className="pt-3 text-xs text-gray-500">{t('guest.poweredBy')}</footer>
+      <footer className="pt-3 text-xs text-[#76767F]">{t('guest.poweredBy')}</footer>
     </main>
   )
 }
@@ -152,7 +152,7 @@ function FlatCard({
 
   return (
     <article data-flat={flat.code} className="flex flex-col gap-3">
-      <div className="relative overflow-hidden rounded-[24px] bg-stone-100">
+      <div className="relative overflow-hidden rounded-[24px] bg-[#F3F3F6]">
         {flat.photo ? (
           // The name is the heading below; photos past the first wait for the scroll.
           <img
@@ -169,16 +169,16 @@ function FlatCard({
       <div className="flex flex-col gap-2 px-1">
         <h2 dir="auto" className="text-xl font-bold leading-snug tracking-tight">{flat.name}</h2>
         {(flat.complex_name || facts.length > 0) && (
-          <p className="text-sm text-gray-600">{[flat.complex_name, ...facts].filter(Boolean).join(' · ')}</p>
+          <p className="text-sm text-[#76767F]">{[flat.complex_name, ...facts].filter(Boolean).join(' · ')}</p>
         )}
         {flat.free ? (
           flat.total != null ? (
             <p className="flex items-baseline gap-1.5">
               <span className="text-xl font-bold">{money(flat.total, locale)}</span>
-              <span className="text-sm text-gray-600">{t('guestOffer.forStay', { nights })}</span>
+              <span className="text-sm text-[#76767F]">{t('guestOffer.forStay', { nights })}</span>
             </p>
           ) : (
-            <p className="text-sm text-gray-600">{t('guestOffer.noPrice')}</p>
+            <p className="text-sm text-[#76767F]">{t('guestOffer.noPrice')}</p>
           )
         ) : (
           <p className="text-sm font-semibold text-amber-800">{t('guestOffer.taken')}</p>
@@ -188,7 +188,7 @@ function FlatCard({
             to="/s/$code"
             params={{ code: flat.code }}
             aria-label={`${t('guestOffer.details')}: ${flat.name}`}
-            className="flex h-12 items-center justify-center rounded-full bg-stone-100 text-sm font-semibold"
+            className="flex h-12 items-center justify-center rounded-full bg-[#F3F3F6] text-sm font-semibold"
           >
             {t('guestOffer.details')}
           </Link>
