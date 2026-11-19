@@ -11,18 +11,18 @@ interface Props {
 
 function SkeletonCard() {
   return (
-    <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm animate-pulse">
+    <div className="bg-surface-card border border-line rounded-xl p-4 animate-pulse">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <div className="w-4 h-4 bg-gray-200 rounded-full" />
-          <div className="w-16 h-3 bg-gray-200 rounded" />
+          <div className="w-4 h-4 bg-line rounded-full" />
+          <div className="w-16 h-3 bg-line rounded" />
         </div>
-        <div className="w-10 h-3 bg-gray-100 rounded" />
+        <div className="w-10 h-3 bg-surface-page rounded" />
       </div>
-      <div className="w-3/4 h-4 bg-gray-200 rounded mt-3" />
+      <div className="w-3/4 h-4 bg-line rounded mt-3" />
       <div className="flex items-center gap-2 mt-3">
-        <div className="w-16 h-4 bg-gray-200 rounded-md" />
-        <div className="w-24 h-3 bg-gray-100 rounded" />
+        <div className="w-16 h-4 bg-line rounded-md" />
+        <div className="w-24 h-3 bg-surface-page rounded" />
       </div>
     </div>
   )
@@ -48,8 +48,8 @@ export default function ImportJobsList({ jobs, isLoading, onJobClick }: Props) {
         animate={{ opacity: 1 }}
         className="flex flex-col items-center justify-center py-16"
       >
-        <p className="text-sm text-gray-500">{t('aiImport.noJobsYet')}</p>
-        <p className="text-xs text-gray-400 mt-1">
+        <p className="text-sm text-ink-muted">{t('aiImport.noJobsYet')}</p>
+        <p className="text-xs text-ink-muted mt-1">
           {t('aiImport.enterUrlToStart')}
         </p>
       </motion.div>

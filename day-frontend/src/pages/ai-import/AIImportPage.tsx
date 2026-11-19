@@ -60,21 +60,21 @@ export default function AIImportPage() {
       >
         {/* Header */}
         <div className="mb-6 flex flex-wrap items-center gap-2 sm:gap-3">
-          <Sparkles className="w-5 h-5 text-gray-900" />
-          <h1 className="text-xl font-bold text-gray-900">{t('aiImport.title')}</h1>
+          <Sparkles className="w-5 h-5 text-ink" />
+          <h1 className="text-xl font-bold text-ink">{t('aiImport.title')}</h1>
         </div>
 
         {/* Import form card */}
-        <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden mb-8">
+        <div className="bg-surface-card border border-line rounded-xl overflow-hidden mb-8">
           {/* Tab switcher */}
-          <div className="flex flex-col border-b border-gray-100 sm:flex-row">
+          <div className="flex flex-col border-b border-line sm:flex-row">
             <button
               type="button"
               onClick={() => setActiveTab('single')}
               className={`w-full px-4 py-3 text-xs font-bold transition-colors sm:flex-1 ${
                 activeTab === 'single'
-                  ? 'text-gray-900 border-b-2 border-black'
-                  : 'text-gray-500 hover:text-gray-700'
+                  ? 'text-ink border-b-2 border-ink'
+                  : 'text-ink-muted hover:text-ink'
               }`}
             >
               {t('aiImport.singleImport')}
@@ -84,8 +84,8 @@ export default function AIImportPage() {
               onClick={() => setActiveTab('batch')}
               className={`w-full px-4 py-3 text-xs font-bold transition-colors sm:flex-1 ${
                 activeTab === 'batch'
-                  ? 'text-gray-900 border-b-2 border-black'
-                  : 'text-gray-500 hover:text-gray-700'
+                  ? 'text-ink border-b-2 border-ink'
+                  : 'text-ink-muted hover:text-ink'
               }`}
             >
               {t('aiImport.batchImport')}
@@ -110,8 +110,8 @@ export default function AIImportPage() {
           {/* Error */}
           {error && (
             <div className="px-4 pb-4 sm:px-5 sm:pb-5">
-              <div className="bg-red-50 border border-red-200 rounded-xl p-3">
-                <p className="text-sm text-red-600">{error}</p>
+              <div className="bg-danger-soft border border-danger/30 rounded-xl p-3">
+                <p className="text-sm text-danger">{error}</p>
               </div>
             </div>
           )}
@@ -119,7 +119,7 @@ export default function AIImportPage() {
 
         {/* Recent imports */}
         <div>
-          <h2 className="text-sm font-bold text-gray-900 mb-4">{t('aiImport.recentImports')}</h2>
+          <h2 className="text-sm font-bold text-ink mb-4">{t('aiImport.recentImports')}</h2>
           <ImportJobsList
             jobs={sortedJobs}
             isLoading={jobsLoading}

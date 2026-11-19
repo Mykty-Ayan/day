@@ -10,12 +10,8 @@ import { dirname, join, normalize } from 'node:path'
 import { expect, test } from '@playwright/test'
 
 /** Screens not redone yet: this list only shrinks. Take a screen off it in the PR that redoes it. */
-const STILL_OLD = new Set([
-  '/ai-import/',
-  '/ai-import/$jobId',
-  '/cleaner/',
-  '/cleaner/$taskId',
-])
+// Empty: every cabinet screen is in the new look (19 Nov 2026). A screen added in the old look fails.
+const STILL_OLD = new Set<string>([])
 
 const OWN_LOOK = /^\/(s|o|g|c)\/|^\/tma/
 // Grey and black of the old look, on any side of a border; the tokens are text-ink, bg-surface-*, border-line
