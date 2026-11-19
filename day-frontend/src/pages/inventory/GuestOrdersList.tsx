@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { listGuestOrders, type OrderStatus } from '../../api/inventory'
 import { useMoney } from '../../hooks/useMoney'
@@ -21,6 +21,8 @@ export default function GuestOrdersList() {
   const { data: orders = [], isLoading } = useQuery({
     queryKey: ['guest-orders', status],
     queryFn: () => listGuestOrders(status || undefined),
+    // Another status keeps the list on screen until its own orders come: no blank flash.
+    placeholderData: keepPreviousData,
   })
 
   return (
