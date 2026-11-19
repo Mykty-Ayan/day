@@ -21,7 +21,7 @@ export default function AgentSelect({ id, value, onChange, className, emptyLabel
 
   return (
     <select id={id} value={value} onChange={(e) => onChange(e.target.value)} className={className}>
-      <option value="">{emptyLabel ?? t('agents.nobody')}</option>
+ <option value="">{emptyLabel ?? t('agents.nobody')}</option>
       {unknown && (
         <option value={value} disabled>
           …

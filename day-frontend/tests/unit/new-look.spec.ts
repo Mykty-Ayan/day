@@ -13,10 +13,8 @@ import { expect, test } from '@playwright/test'
 const STILL_OLD = new Set([
   '/ai-import/',
   '/ai-import/$jobId',
-  '/analytics/',
   '/cleaner/',
   '/cleaner/$taskId',
-  '/expenses/',
   '/readiness/',
   '/settings/',
   '/settings/team',

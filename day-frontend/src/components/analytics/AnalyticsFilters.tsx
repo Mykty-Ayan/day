@@ -157,14 +157,14 @@ export default function AnalyticsFilterBar({
             <button
               type="button"
               className={cn(
-                'flex h-11 w-full items-center justify-between rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700 shadow-sm',
-                'focus:outline-none focus:ring-2 focus:ring-black/10',
+ 'flex h-11 w-full items-center justify-between rounded-xl border border-line bg-surface-page px-3 py-2 text-sm text-ink',
+                'focus:outline-none focus:border-accent',
                 'sm:w-56',
               )}
               title={propertyTitle}
             >
               <span className="truncate">{propertyLabel}</span>
-              <ChevronDown className="h-4 w-4 text-gray-400" />
+              <ChevronDown className="h-4 w-4 text-ink-muted" />
             </button>
           </PopoverTrigger>
           <PopoverContent className="w-64 p-2" align="start">
@@ -172,8 +172,8 @@ export default function AnalyticsFilterBar({
               <label
                 htmlFor="analytics-all-properties"
                 className={cn(
-                  'flex w-full cursor-pointer items-center gap-2 rounded-lg px-2 py-2 text-sm text-gray-700',
-                  'hover:bg-gray-100',
+ 'flex w-full cursor-pointer items-center gap-2 rounded-lg px-2 py-2 text-sm text-ink',
+                  'hover:bg-surface-page',
                 )}
               >
                 <Checkbox
@@ -186,10 +186,10 @@ export default function AnalyticsFilterBar({
                 <span className="truncate">{t('common.allProperties')}</span>
               </label>
 
-              <div className="my-1 h-px bg-gray-100" />
+              <div className="my-1 h-px bg-surface-page" />
 
               {properties.length === 0 ? (
-                <div className="px-2 py-2 text-sm text-gray-400">
+                <div className="px-2 py-2 text-sm text-ink-muted">
                   {t('analytics.noPropertiesAvailable')}
                 </div>
               ) : (
@@ -200,8 +200,8 @@ export default function AnalyticsFilterBar({
                       key={p.id}
                       htmlFor={`analytics-property-${p.id}`}
                       className={cn(
-                        'flex w-full cursor-pointer items-center gap-2 rounded-lg px-2 py-2 text-sm text-gray-700',
-                        'hover:bg-gray-100',
+ 'flex w-full cursor-pointer items-center gap-2 rounded-lg px-2 py-2 text-sm text-ink',
+                        'hover:bg-surface-page',
                       )}
                     >
                       <Checkbox
@@ -235,7 +235,7 @@ export default function AnalyticsFilterBar({
           whileTap={{ scale: 0.97 }}
           onClick={onExport}
           disabled={exportDisabled}
-          className="flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 disabled:opacity-50 sm:w-auto"
+          className="flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl border border-line bg-surface-card px-4 py-2 text-sm font-semibold text-ink transition-colors hover:bg-surface-page disabled:opacity-50 sm:w-auto"
         >
           <Download className="w-4 h-4" />
           {t('analytics.exportCsv')}

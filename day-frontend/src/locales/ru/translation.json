@@ -1248,10 +1248,10 @@
     "bookingsCount_many": "{{count}} броней",
     "bookingsCount_other": "{{count}} брони",
     "occupancy": "Загрузка",
-    "adr": "ADR",
+    "adr": "Средняя цена ночи",
     "properties": "Объекты",
-    "revpar": "RevPAR",
-    "avgStay": "Сред. пребывание",
+    "revpar": "Доход на доступную ночь",
+    "avgStay": "Ночей в среднем",
     "property": "Объект",
     "week": "Неделя",
     "month": "Месяц",
@@ -1276,7 +1276,8 @@
     "propertiesCount_one": "{{count}} объект",
     "propertiesCount_few": "{{count}} объекта",
     "propertiesCount_many": "{{count}} объектов",
-    "propertiesCount_other": "{{count}} объекта"
+    "propertiesCount_other": "{{count}} объекта",
+    "nightsTaken": "Занято ночей: {{nights}}"
   },
   "cleaner": {
     "todaysTasks": "Уборки на сегодня",
@@ -2103,7 +2104,7 @@
     "total": "Итого: {{amount}}",
     "empty": "В этом месяце расходов нет",
     "void": "Аннулировать",
-    "voidConfirm": "Аннулировать расход? Он останется в истории, но уйдёт из итогов.",
+    "voidConfirm": "Он останется в истории, но уйдёт из итогов.",
     "voided": "Расход аннулирован",
     "saved": "Расход записан",
     "failed": "Не удалось сохранить",
@@ -2135,7 +2136,9 @@
     "agent": "Агент",
     "booking": "Бронь",
     "bookingNone": "Без брони",
-    "agentChoose": "Выберите агента"
+    "agentChoose": "Выберите агента",
+    "addButton": "Добавить расход",
+    "voidTitle": "Аннулировать расход?"
   },
   "blacklist": {
     "title": "Чёрный список",

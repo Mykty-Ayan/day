@@ -1229,7 +1229,8 @@
     "noOccupancyData": "No occupancy data for the selected period",
     "revenueOverTime": "Revenue Over Time",
     "occupancyOverTime": "Occupancy Over Time",
-    "propertiesCount": "{{count}} properties"
+    "propertiesCount": "{{count}} properties",
+    "nightsTaken": "Nights taken: {{nights}}"
   },
   "cleaner": {
     "todaysTasks": "Today's cleanings",
@@ -2023,7 +2024,7 @@
     "total": "Total: {{amount}}",
     "empty": "No expenses this month",
     "void": "Void",
-    "voidConfirm": "Void this expense? It stays in the history but leaves the totals.",
+    "voidConfirm": "It stays in the history but leaves the totals.",
     "voided": "Expense voided",
     "saved": "Expense recorded",
     "failed": "Could not save",
@@ -2055,7 +2056,9 @@
     "agent": "Agent",
     "booking": "Booking",
     "bookingNone": "No booking",
-    "agentChoose": "Choose the agent"
+    "agentChoose": "Choose the agent",
+    "addButton": "Add expense",
+    "voidTitle": "Void this expense?"
   },
   "blacklist": {
     "title": "Blacklist",

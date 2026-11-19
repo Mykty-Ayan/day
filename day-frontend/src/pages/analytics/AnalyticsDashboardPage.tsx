@@ -86,7 +86,7 @@ export default function AnalyticsDashboardPage() {
       >
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
-          <h1 className="text-xl font-bold text-gray-900">{t('analytics.title')}</h1>
+          <h1 className="text-xl font-bold text-ink">{t('analytics.title')}</h1>
         </div>
 
         {/* Filters */}
@@ -110,25 +110,25 @@ export default function AnalyticsDashboardPage() {
 
         {waiting ? (
           <div className="flex flex-col items-center justify-center py-20 text-center">
-            <p className="text-sm text-gray-500">{t('analytics.pickPeriod')}</p>
+            <p className="text-sm text-ink-muted">{t('analytics.pickPeriod')}</p>
           </div>
         ) : isLoading ? (
           <Spinner />
         ) : isError ? (
           <div className="flex flex-col items-center justify-center py-20 text-center">
-            <p className="mb-1 text-sm font-semibold text-gray-900">{t('common.errorTitle')}</p>
-            <p className="mb-4 text-sm text-gray-500">{t('common.errorLoading')}</p>
+            <p className="mb-1 text-sm font-semibold text-ink">{t('common.errorTitle')}</p>
+            <p className="mb-4 text-sm text-ink-muted">{t('common.errorLoading')}</p>
             <motion.button
               whileTap={{ scale: 0.97 }}
               onClick={handleRetry}
-              className="flex min-h-[44px] items-center gap-2 rounded-xl border border-gray-200 bg-white px-6 py-2.5 font-semibold text-gray-700 shadow-sm transition-colors hover:bg-gray-50"
+              className="flex min-h-[44px] items-center gap-2 rounded-xl border border-line bg-surface-card px-6 py-2.5 font-semibold text-ink transition-colors hover:bg-surface-page"
             >
               {t('common.retry')}
             </motion.button>
           </div>
         ) : isEmpty ? (
           <div className="flex flex-col items-center justify-center py-20 text-center">
-            <p className="text-sm text-gray-500">{t('analytics.noData')}</p>
+            <p className="text-sm text-ink-muted">{t('analytics.noData')}</p>
           </div>
         ) : (
           <div className="flex flex-col gap-6">
@@ -144,7 +144,7 @@ export default function AnalyticsDashboardPage() {
             {/* Property Table */}
             {metricsData && (
               <div>
-                <h2 className="text-sm font-bold text-gray-900 mb-3">{t('analytics.byProperty')}</h2>
+                <h2 className="text-sm font-bold text-ink mb-3">{t('analytics.byProperty')}</h2>
                 <MetricsTable properties={metricsData.properties} />
               </div>
             )}
