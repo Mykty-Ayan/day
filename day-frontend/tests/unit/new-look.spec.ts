@@ -11,10 +11,6 @@ import { expect, test } from '@playwright/test'
 
 /** Screens not redone yet: this list only shrinks. Take a screen off it in the PR that redoes it. */
 const STILL_OLD = new Set([
-  '/ai-import/',
-  '/ai-import/$jobId',
-  '/cleaner/',
-  '/cleaner/$taskId',
   '/forgot-password',
   '/login',
   '/readiness/',

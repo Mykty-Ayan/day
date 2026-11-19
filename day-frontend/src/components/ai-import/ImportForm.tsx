@@ -22,10 +22,10 @@ function detectSourceType(url: string): ImportSourceType | null {
 }
 
 const sourceStyles: Record<ImportSourceType, string> = {
-  booking: 'bg-blue-100 text-blue-700',
+  booking: 'bg-accent-soft text-accent-ink',
   airbnb: 'bg-rose-100 text-rose-700',
-  krisha: 'bg-amber-100 text-amber-700',
-  other: 'bg-gray-100 text-gray-600',
+  krisha: 'bg-warning-soft text-warning',
+  other: 'bg-surface-page text-ink-muted',
 }
 
 const sourceKeys: Record<ImportSourceType, string> = {
@@ -53,11 +53,11 @@ export default function ImportForm({ onSubmit, isLoading }: Props) {
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div>
-        <label htmlFor="import-url" className="block text-xs font-bold text-gray-700 mb-1.5">
+        <label htmlFor="import-url" className="block text-xs font-bold text-ink mb-1.5">
           {t('aiImport.propertyUrl')}
         </label>
         <div className="relative">
-          <Globe className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <Globe className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-muted" />
           <input
             id="import-url"
             type="url"
@@ -66,7 +66,7 @@ export default function ImportForm({ onSubmit, isLoading }: Props) {
             onChange={(e) => setUrl(normalizeInputUrl(e.target.value))}
             placeholder={t('aiImport.urlPlaceholder')}
             required
-            className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 pl-9 pr-28 outline-none focus:ring-2 focus:ring-black/10 text-gray-800 text-sm"
+            className="w-full bg-surface-page border border-line rounded-xl p-3 pl-9 pr-28 outline-none focus:border-accent text-ink text-sm"
           />
           {sourceType && (
             <span
@@ -79,9 +79,9 @@ export default function ImportForm({ onSubmit, isLoading }: Props) {
       </div>
 
       <div>
-        <label htmlFor="import-prompt" className="block text-xs font-bold text-gray-700 mb-1.5">
+        <label htmlFor="import-prompt" className="block text-xs font-bold text-ink mb-1.5">
           {t('aiImport.additionalInstructions')}
-          <span className="font-normal text-gray-400 ml-1">{t('aiImport.optional')}</span>
+          <span className="font-normal text-ink-muted ml-1">{t('aiImport.optional')}</span>
         </label>
         <textarea
           id="import-prompt"
@@ -89,7 +89,7 @@ export default function ImportForm({ onSubmit, isLoading }: Props) {
           onChange={(e) => setPrompt(e.target.value)}
           placeholder={t('aiImport.instructionsPlaceholder')}
           rows={3}
-          className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 outline-none focus:ring-2 focus:ring-black/10 text-gray-800 text-sm resize-none"
+          className="w-full bg-surface-page border border-line rounded-xl p-3 outline-none focus:border-accent text-ink text-sm resize-none"
         />
       </div>
 
@@ -97,7 +97,7 @@ export default function ImportForm({ onSubmit, isLoading }: Props) {
         whileTap={{ scale: 0.97 }}
         type="submit"
         disabled={isLoading || !isValidUrl}
-        className="flex items-center justify-center gap-2 w-full bg-black text-white hover:bg-gray-800 rounded-xl px-6 py-2.5 font-semibold shadow-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        className="flex items-center justify-center gap-2 w-full bg-accent text-white hover:bg-accent-hover rounded-xl px-6 py-2.5 font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
       >
         {isLoading ? (
           <>
