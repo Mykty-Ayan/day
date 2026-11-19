@@ -116,13 +116,15 @@ export function GuestFrame({
   }
 
   return (
-    <div className="min-h-screen bg-white text-gray-900">
-      <div className="relative mx-auto max-w-[640px]">
+    // The guest mockups' page (28.10): light grey under white cards, a phone-wide column on any screen.
+    <div className="flow-root min-h-screen bg-[#EDEDF2] text-[#111114]">
+      <div className="relative mx-auto max-w-[480px]">
         <header
           className={
             overlay
-              ? 'absolute inset-x-0 top-0 z-10 flex h-16 items-center justify-end px-4'
-              : 'flex h-14 items-center justify-end border-b border-gray-200 px-4'
+              ? // Over the page's photo, inside its rounded frame: 8px of margin and 14px in.
+                'absolute end-[22px] top-[22px] z-20'
+              : 'flex h-14 items-center justify-end px-4'
           }
         >
           <button
@@ -132,16 +134,16 @@ export function GuestFrame({
             aria-label={`${t('guest.language')}: ${LANGUAGES.find((l) => l.code === language)?.name}`}
             className={
               overlay
-                ? 'flex h-10 items-center gap-1.5 rounded-full bg-black/30 px-3.5 text-sm font-semibold text-white ring-1 ring-white/25 backdrop-blur-md'
-                : 'flex h-11 items-center gap-1.5 rounded-xl border border-gray-200 px-3 text-sm font-semibold'
+                ? 'flex h-11 items-center gap-1.5 rounded-full border border-white/30 bg-white/20 px-3.5 text-sm font-semibold text-white backdrop-blur-md'
+                : 'flex h-11 items-center gap-1.5 rounded-full bg-white px-3.5 text-sm font-semibold'
             }
           >
-            <Globe className="h-4 w-4" aria-hidden />
+            <Globe className="h-[18px] w-[18px]" aria-hidden />
             {language.toUpperCase()}
           </button>
         </header>
         <div {...(personal ? MASK : {})}>
-          {shown === null ? <p className="p-6 text-sm text-gray-500">…</p> : children(locale)}
+          {shown === null ? <p className="p-6 text-sm text-[#76767F]">…</p> : children(locale)}
         </div>
       </div>
       {picking && (
@@ -154,11 +156,11 @@ export function GuestFrame({
             onKeyDown={(e) => {
               if (e.key === 'Escape') closeLanguages()
             }}
-            className="w-full max-w-sm rounded-t-2xl bg-white p-4 sm:rounded-2xl"
+            className="w-full max-w-sm rounded-t-[28px] bg-white p-4 sm:rounded-[28px]"
           >
             <div className="mb-2 flex items-center justify-between">
               <h2 className="text-base font-bold">{t('guest.language')}</h2>
-              <button type="button" onClick={closeLanguages} aria-label={t('guest.close')} className="flex h-11 w-11 items-center justify-center rounded-lg">
+              <button type="button" onClick={closeLanguages} aria-label={t('guest.close')} className="flex h-11 w-11 items-center justify-center rounded-full bg-[#F3F3F6]">
                 <X className="h-5 w-5" aria-hidden />
               </button>
             </div>
@@ -171,10 +173,10 @@ export function GuestFrame({
                   aria-checked={l.code === language}
                   autoFocus={l.code === language}
                   onClick={() => choose(l.code)}
-                  className={`flex min-h-[48px] items-center justify-between rounded-xl px-3 text-start text-base ${l.code === language ? 'bg-emerald-50 font-semibold' : ''}`}
+                  className={`flex min-h-[48px] items-center justify-between rounded-2xl px-3 text-start text-base ${l.code === language ? 'bg-[#F3F3F6] font-semibold' : ''}`}
                 >
                   {l.name}
-                  {l.code === language && <span aria-hidden className="text-emerald-700">✓</span>}
+                  {l.code === language && <span aria-hidden className="text-[#2F5BFF]">✓</span>}
                 </button>
               ))}
             </div>
@@ -193,9 +195,9 @@ export function LoadFailed({ error, onRetry, gone }: { error: unknown; onRetry: 
   const told = status !== undefined ? gone[status] : undefined
   return (
     <div className="flex flex-col items-start gap-3 p-6">
-      <p className="text-base text-gray-700">{told ?? t('guest.failed')}</p>
+      <p className="text-base text-[#2A2A30]">{told ?? t('guest.failed')}</p>
       {told === undefined && (
-        <button type="button" onClick={onRetry} className="h-11 rounded-xl border border-gray-200 px-4 text-sm font-semibold">
+        <button type="button" onClick={onRetry} className="h-11 rounded-full bg-white px-5 text-sm font-semibold">
           {t('guest.retry')}
         </button>
       )}
