@@ -121,6 +121,41 @@ async def test_the_page_opens_on_the_flat_s_cover_never_on_a_check_in_photo():
     assert (await _setup().execute(CODE, NOW)).photo_url is None
 
 
+async def test_the_way_in_shows_the_check_in_photos_in_order_with_their_words_once_paid():
+    def photos(flat_id):
+        return [
+            PropertyPhoto(property_id=flat_id, url="https://s3/door.jpg", audience=FactAudience.GUEST, sort_order=3,
+                          caption="Дверь и замок"),
+            PropertyPhoto(property_id=flat_id, url="https://s3/yard.jpg", audience=FactAudience.GUEST, sort_order=1,
+                          caption="Калитка во двор, код 1590"),
+            PropertyPhoto(property_id=flat_id, url="https://s3/kitchen.jpg", sort_order=0, caption="Кухня"),
+        ]
+
+    panel = await _setup(photos=photos).execute(CODE, NOW)
+    page = GuestPanelResponse.from_panel(panel)
+    # The path to the door: the check-in photos only, by the owner's order.
+    assert [(p.url, p.caption) for p in page.access.photos] == [
+        ("https://s3/yard.jpg", "Калитка во двор, код 1590"),
+        ("https://s3/door.jpg", "Дверь и замок"),
+    ]
+    # Unpaid, the way in keeps them back like the code.
+    unpaid = GuestPanelResponse.from_panel(await _setup(paid=Decimal("0"), photos=photos).execute(CODE, NOW))
+    assert "yard.jpg" not in unpaid.model_dump_json() and "1590" not in unpaid.model_dump_json()
+
+
+async def test_the_flat_number_and_entrance_come_with_the_way_in_the_complex_and_floor_before():
+    svc = _setup(paid=Decimal("0"))
+    flat_ = next(iter(svc._properties.rows.values()))
+    flat_.complex_name, flat_.floor = "Auezov City", 10
+    flat_.entrance, flat_.block, flat_.apartment_number = "2", "Б", "54"
+    page = GuestPanelResponse.from_panel(await svc.execute(CODE, NOW))
+    assert (page.flat.complex_name, page.flat.floor) == ("Auezov City", 10)
+    assert page.access is None and '"54"' not in page.model_dump_json()
+    svc._payments.amount = Decimal("40000")
+    paid = GuestPanelResponse.from_panel(await svc.execute(CODE, NOW))
+    assert (paid.access.entrance, paid.access.block, paid.access.apartment_number) == ("2", "Б", "54")
+
+
 async def test_a_debt_or_a_pending_booking_keeps_the_door_code_back():
     for svc in (_setup(paid=Decimal("39999.99")), _setup(paid=Decimal("0")), _setup(status=BookingStatus.PENDING)):
         panel = await svc.execute(CODE, NOW)

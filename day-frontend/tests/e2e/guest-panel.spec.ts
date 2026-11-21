@@ -309,3 +309,37 @@ test('on the departure day the host instructions are a checklist the guest ticks
   await page.getByRole('checkbox', { name: 'Выключите свет' }).check()
   await expect(page.getByText('Всё готово, можно выезжать')).toBeVisible()
 })
+
+test('paid in full, the guest sees the way to the door step by step, the entrance and the flat number, and a taxi', async ({ page }) => {
+  await open(
+    page,
+    answer(
+      {
+        flat: { ...answer().flat, complex_name: 'Auezov City', floor: 10 },
+        access: {
+          instructions: 'Код двери 4821', wifi_name: 'T13', wifi_password: 'secret-wifi', facts: [],
+          photos: [
+            { url: 'https://example.com/yard.jpg', caption: 'Калитка во двор, код 1590' },
+            { url: 'https://example.com/door.jpg', caption: 'Дверь и замок' },
+          ],
+          entrance: '2', block: null, apartment_number: '54',
+        },
+      },
+      { paid: 40000, remaining: 0 },
+    ),
+  )
+  const path = page.getByRole('region', { name: 'Путь до двери' })
+  await expect(path.getByRole('listitem')).toHaveCount(2)
+  await expect(path.getByRole('listitem').first()).toContainText('Калитка во двор, код 1590')
+  const address = page.getByRole('region', { name: 'Адрес' })
+  await expect(address).toContainText('Auezov City · подъезд 2 · 10 этаж · кв. 54')
+  await expect(address.getByRole('link', { name: 'Вызвать такси сюда' })).toHaveAttribute('href', /end-lat=51\.12&end-lon=71\.43/)
+})
+
+test('before payment the address keeps the entrance and the flat number back', async ({ page }) => {
+  await open(page, answer({ flat: { ...answer().flat, complex_name: 'Auezov City', floor: 10 } }))
+  const address = page.getByRole('region', { name: 'Адрес' })
+  await expect(address).toContainText('Auezov City · 10 этаж')
+  await expect(address).not.toContainText('кв.')
+  await expect(page.getByRole('region', { name: 'Путь до двери' })).toHaveCount(0)
+})

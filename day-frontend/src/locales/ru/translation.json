@@ -2544,7 +2544,14 @@
     "needHelp": "Нужна помощь?",
     "inWhatsApp": "в WhatsApp",
     "writeHost": "Написать хозяину",
-    "doorAfterPay": "Код двери — после оплаты"
+    "doorAfterPay": "Код двери — после оплаты",
+    "entrance": "подъезд {{n}}",
+    "block": "блок {{n}}",
+    "floor": "{{n}} этаж",
+    "apartment": "кв. {{n}}",
+    "taxi": "Вызвать такси сюда",
+    "path": "Путь до двери",
+    "pathStep": "Шаг {{n}}"
   },
   "stayHere": {
     "title": "Вы живёте здесь?",

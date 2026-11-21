@@ -41,10 +41,18 @@ class GuestPanelFlat(BaseModel):
     latitude: float | None = None
     longitude: float | None = None
     map_url: str | None = None
+    # Public on the flat's page too: the guest finds the complex and the floor.
+    complex_name: str | None = None
+    floor: int | None = None
     check_in_hour: int | None = None
     check_out_hour: int | None = None
     house_rules: str | None = None
     check_out_instructions: str | None = None
+
+
+class GuestPanelPhoto(BaseModel):
+    url: str
+    caption: str | None = None
 
 
 class GuestPanelAccess(BaseModel):
@@ -52,6 +60,11 @@ class GuestPanelAccess(BaseModel):
     wifi_name: str | None = None
     wifi_password: str | None = None
     facts: list[str] = []
+    # The path to the door, step by step: the flat's check-in photos with the owner's words.
+    photos: list[GuestPanelPhoto] = []
+    entrance: str | None = None
+    block: str | None = None
+    apartment_number: str | None = None
 
 
 class GuestPanelProduct(BaseModel):
@@ -141,6 +154,8 @@ class GuestPanelResponse(BaseModel):
                 latitude=p.latitude,
                 longitude=p.longitude,
                 map_url=p.map_url,
+                complex_name=p.complex_name,
+                floor=p.floor,
                 check_in_hour=p.check_in_hour,
                 check_out_hour=p.check_out_hour,
                 house_rules=p.house_rules,
@@ -172,6 +187,13 @@ class GuestPanelResponse(BaseModel):
         ]
         if (a := panel.access) is not None:
             page.access = GuestPanelAccess(
-                instructions=a.instructions, wifi_name=a.wifi_name, wifi_password=a.wifi_password, facts=a.facts
+                instructions=a.instructions,
+                wifi_name=a.wifi_name,
+                wifi_password=a.wifi_password,
+                facts=a.facts,
+                photos=[GuestPanelPhoto(url=url, caption=caption) for url, caption in a.photos],
+                entrance=a.entrance,
+                block=a.block,
+                apartment_number=a.apartment_number,
             )
         return page
