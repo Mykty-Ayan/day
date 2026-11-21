@@ -95,7 +95,8 @@
     "hold": "选择一套，我们为您保留 30 分钟。",
     "lapsed": "预订时间已过，未收到付款。请重新选择房源。",
     "next": "接下来",
-    "freeOf": "{{total}} 套中 {{free}} 套可订"
+    "freeOf": "{{total}} 套中 {{free}} 套可订",
+    "deposit": "押金 {{price}}"
   },
   "guestBook": {
     "back": "全部房源",

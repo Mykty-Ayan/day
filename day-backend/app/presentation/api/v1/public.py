@@ -63,6 +63,7 @@ from app.presentation.schemas.guest_panel import GuestPanelResponse
 from app.presentation.schemas.public import (
     PublicOfferBook,
     PublicOfferBooking,
+    PublicOfferCompany,
     PublicOfferResponse,
     PublicStayBook,
     PublicStayCompany,
@@ -132,7 +133,11 @@ async def public_offer(code: str, session: AsyncSession = Depends(get_session)):
         raise HTTPException(status_code=410, detail="Expired")
     except ValueError:
         raise HTTPException(status_code=404, detail="Not found")
-    return PublicOfferResponse.from_offer(offer, await _holds(session).current(offer.offer))
+    page = PublicOfferResponse.from_offer(offer, await _holds(session).current(offer.offer))
+    site = await SqlCompanySiteRepository(session).get(offer.offer.company_id)
+    if site is not None:
+        page.company = PublicOfferCompany(title=site.title, logo_url=site.logo_url)
+    return page
 
 
 def _holds(session: AsyncSession) -> GuestHoldService:

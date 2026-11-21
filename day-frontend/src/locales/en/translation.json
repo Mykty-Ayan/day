@@ -1997,7 +1997,8 @@
     "hold": "Pick one and we hold it for you for 30 minutes.",
     "lapsed": "We held the dates for you, but the deposit did not arrive in time. Choose a flat again.",
     "next": "What happens next",
-    "freeOf": "{{free}} of {{total}} free"
+    "freeOf": "{{free}} of {{total}} free",
+    "deposit": "deposit {{price}}"
   },
   "guestBook": {
     "back": "All flats",

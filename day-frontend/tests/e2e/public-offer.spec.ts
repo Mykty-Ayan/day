@@ -60,6 +60,8 @@ test('a guest with a personal link sees the flats for their dates', async ({ bro
   const studioCard = page.locator('article', { hasText: 'Студия у парка' })
   await expect(studioCard.getByText('20 000 ₸')).toBeVisible()
   await expect(studioCard.getByText('за 2 ночи')).toBeVisible()
+  // The deposit a booking from the link asks, next to the stay's price.
+  await expect(studioCard.getByText('залог 10 000 ₸')).toBeVisible()
   await expect(page.locator('article', { hasText: 'Двухкомнатная с видом' }).getByText('Занята на эти даты')).toBeVisible()
 
   await studioCard.getByRole('link', { name: 'Подробнее' }).click()

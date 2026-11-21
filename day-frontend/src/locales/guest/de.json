@@ -102,7 +102,8 @@
     "hold": "Wählen Sie eine aus, wir halten sie 30 Minuten für Sie frei.",
     "lapsed": "Die Buchungszeit ist abgelaufen, ohne dass die Zahlung eingegangen ist. Wählen Sie die Wohnung erneut.",
     "next": "Wie es weitergeht",
-    "freeOf": "{{free}} von {{total}} frei"
+    "freeOf": "{{free}} von {{total}} frei",
+    "deposit": "Kaution {{price}}"
   },
   "guestBook": {
     "back": "Alle Wohnungen",
