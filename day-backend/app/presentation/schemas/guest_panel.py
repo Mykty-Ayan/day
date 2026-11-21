@@ -4,6 +4,7 @@ on the booking or the flat stays private until it is added to this list."""
 from __future__ import annotations
 
 import uuid
+from collections.abc import Callable
 from datetime import date, datetime, time
 
 from pydantic import BaseModel
@@ -130,7 +131,8 @@ class GuestPanelResponse(BaseModel):
     orders: list[GuestPanelOrder] = []
 
     @classmethod
-    def from_panel(cls, panel: GuestPanel) -> GuestPanelResponse:
+    def from_panel(cls, panel: GuestPanel, sign: Callable[[str], str] = lambda url: url) -> GuestPanelResponse:
+        """`sign`: a stored check-in photo as a link that expires (the bucket keeps them private)."""
         site = panel.site
         page = cls(
             closed=panel.closed,
@@ -207,7 +209,7 @@ class GuestPanelResponse(BaseModel):
                 wifi_name=a.wifi_name,
                 wifi_password=a.wifi_password,
                 facts=a.facts,
-                photos=[GuestPanelPhoto(url=url, caption=caption) for url, caption in a.photos],
+                photos=[GuestPanelPhoto(url=sign(url), caption=caption) for url, caption in a.photos],
                 entrance=a.entrance,
                 block=a.block,
                 apartment_number=a.apartment_number,

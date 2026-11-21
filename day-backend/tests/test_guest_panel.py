@@ -161,6 +161,9 @@ async def test_the_way_in_shows_the_check_in_photos_in_order_with_their_words_on
         ("https://s3/yard.jpg", "Калитка во двор, код 1590"),
         ("https://s3/door.jpg", "Дверь и замок"),
     ]
+    # The bucket keeps check-in photos private: the page hands out links that expire.
+    signed = GuestPanelResponse.from_panel(panel, sign=lambda url: f"{url}?expires=1")
+    assert [p.url for p in signed.access.photos] == ["https://s3/yard.jpg?expires=1", "https://s3/door.jpg?expires=1"]
     # Unpaid, the way in keeps them back like the code.
     unpaid = GuestPanelResponse.from_panel(await _setup(paid=Decimal("0"), photos=photos).execute(CODE, NOW))
     assert "yard.jpg" not in unpaid.model_dump_json() and "1590" not in unpaid.model_dump_json()

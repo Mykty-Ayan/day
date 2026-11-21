@@ -494,7 +494,7 @@ function PanelView({ code, panel, locale }: { code: string; panel: GuestPanel; l
                 )}
               </section>
 
-              {flat && (flat.address || maps.length > 0) && (
+              {flat && (flat.address || maps.length > 0 || where.length > 0) && (
                 <section aria-label={t('guestPanel.address')} className={CARD}>
                   <h2 className={H2}>{t('guestPanel.address')}</h2>
                   {flat.address && <p dir="auto" className="text-[17px] font-semibold">{flat.address}</p>}

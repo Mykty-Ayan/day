@@ -377,3 +377,8 @@ test('a deposit kept in part says what comes back and what was kept', async ({ p
   }))
   await expect(page.getByRole('region', { name: 'Залог' })).toContainText('Вернём 7 000 ₸, удержали 3 000 ₸')
 })
+
+test('with no address yet the complex and the floor still show', async ({ page }) => {
+  await open(page, answer({ flat: { ...answer().flat, address: null, latitude: null, longitude: null, complex_name: 'Auezov City', floor: 10 } }))
+  await expect(page.getByRole('region', { name: 'Адрес' })).toContainText('Auezov City · 10 этаж')
+})
