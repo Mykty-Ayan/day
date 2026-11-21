@@ -533,7 +533,8 @@ function PanelView({ code, panel, locale }: { code: string; panel: GuestPanel; l
 
           {tab === 'out' && b && (
             <div role="tabpanel">
-              <section className={`${CARD} bg-[#111114] text-white`}>
+              {/* Dark on its own: CARD's white would win over another background in the stylesheet. */}
+              <section data-testid="leave-card" className="m-2 rounded-[28px] bg-[#111114] p-5 text-white">
                 <p className="text-xs font-semibold uppercase tracking-[0.06em] text-white/55">{t('guestPanel.checkOutLabel')}</p>
                 <p className="mb-0.5 mt-1.5 text-[26px] font-bold leading-[1.15] tracking-[-0.03em] first-letter:uppercase">
                   {fullDay(b.check_out)}, {t('guestPanel.untilTime', { time: checkOut })}

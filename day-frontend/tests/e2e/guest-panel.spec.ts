@@ -299,6 +299,10 @@ test('on the departure day the host instructions are a checklist the guest ticks
     check_in: `${addDays(now, -2)}T14:00:00`, check_out: `${now}T12:00:00`, paid: 40000, remaining: 0,
   }))
   await expect(page.getByRole('tab', { name: 'Выезд' })).toHaveAttribute('aria-selected', 'true')
+  // The check-out card is dark with white words, never white on white.
+  const leaveCard = page.getByTestId('leave-card')
+  await expect(leaveCard).toContainText('до 12:00')
+  await expect(leaveCard).toHaveCSS('background-color', 'rgb(17, 17, 20)')
   await expect(page.getByText('0 из 2')).toBeVisible()
   await page.getByRole('checkbox', { name: 'Закройте окна' }).check()
   await expect(page.getByText('1 из 2')).toBeVisible()
