@@ -57,6 +57,7 @@ from app.infrastructure.repositories.property import (
 )
 from app.infrastructure.repositories.settings import SqlCompanySettingsRepository
 from app.infrastructure.repositories.site import SqlCompanySiteRepository
+from app.infrastructure.storage.s3 import signed_photo_url
 from app.presentation.api.v1.offers import offers_service
 from app.presentation.schemas.guest_orders import GuestOrderCreate, GuestOrderPlaced
 from app.presentation.schemas.guest_panel import GuestPanelResponse
@@ -294,7 +295,7 @@ async def guest_panel(code: str, session: AsyncSession = Depends(get_session)):
         panel = await service.execute(code)
     except ValueError:
         raise HTTPException(status_code=404, detail="Not found")
-    return GuestPanelResponse.from_panel(panel)
+    return GuestPanelResponse.from_panel(panel, sign=signed_photo_url)
 
 
 @public_router.post("/guest/{code}/checked-out")
