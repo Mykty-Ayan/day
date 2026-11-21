@@ -2451,7 +2451,24 @@
     "apartment": "flat {{n}}",
     "taxi": "Call a taxi here",
     "path": "The way to the door",
-    "pathStep": "Step {{n}}"
+    "pathStep": "Step {{n}}",
+    "freeUntil": "free until {{day}}",
+    "deposit": {
+      "title": "Deposit",
+      "pending": "The deposit is not paid yet",
+      "paid": "Back within a day of check-out",
+      "returned": "The deposit is back with you",
+      "held": "The deposit was kept. If you disagree, write to the host.",
+      "partially_held": "{{back}} comes back, {{held}} was kept. If you disagree, write to the host.",
+      "step1": "You check out by {{time}}",
+      "step2": "The host checks the flat",
+      "step3": "We send the deposit back"
+    },
+    "again": {
+      "title": "Enjoyed your stay?",
+      "text": "Next time book directly with the host — the link to the flat is always here.",
+      "open": "Open the flat's page"
+    }
   },
   "stayHere": {
     "title": "Staying here?",

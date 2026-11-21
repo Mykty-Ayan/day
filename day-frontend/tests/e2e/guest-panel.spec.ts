@@ -343,3 +343,37 @@ test('before payment the address keeps the entrance and the flat number back', a
   await expect(address).not.toContainText('кв.')
   await expect(page.getByRole('region', { name: 'Путь до двери' })).toHaveCount(0)
 })
+
+test('on check-out the guest sees the deposit coming back and the flat to book again', async ({ page }) => {
+  const now = today()
+  await open(
+    page,
+    answer(
+      { deposit: { amount: 10000, status: 'paid', held: 0 }, flat: { ...answer().flat, code: 'vk7nys9' } },
+      { check_in: `${addDays(now, -2)}T14:00:00`, check_out: `${now}T12:00:00`, paid: 40000, remaining: 0 },
+    ),
+  )
+  const deposit = page.getByRole('region', { name: 'Залог' })
+  await expect(deposit).toContainText('10 000 ₸')
+  await expect(deposit).toContainText('Вернём в течение дня после выезда')
+  await expect(deposit).toContainText('Хозяин проверяет квартиру')
+  await expect(page.getByRole('link', { name: 'Открыть страницу квартиры' })).toHaveAttribute('href', '/s/vk7nys9')
+})
+
+test('during the stay «extend» says until when the flat is free', async ({ page }) => {
+  const now = today()
+  await open(page, answer({}, {
+    check_in: `${addDays(now, -1)}T14:00:00`, check_out: `${addDays(now, 2)}T12:00:00`, paid: 40000, remaining: 0,
+    free_until: addDays(now, 5),
+  }))
+  await expect(page.getByRole('tab', { name: 'В квартире' })).toHaveAttribute('aria-selected', 'true')
+  await expect(page.getByRole('link', { name: /Продлить проживание/ })).toContainText('свободно до')
+})
+
+test('a deposit kept in part says what comes back and what was kept', async ({ page }) => {
+  const now = today()
+  await open(page, answer({ deposit: { amount: 10000, status: 'partially_held', held: 3000 } }, {
+    check_in: `${addDays(now, -2)}T14:00:00`, check_out: `${now}T12:00:00`, paid: 40000, remaining: 0,
+  }))
+  await expect(page.getByRole('region', { name: 'Залог' })).toContainText('Вернём 7 000 ₸, удержали 3 000 ₸')
+})

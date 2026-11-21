@@ -15,6 +15,7 @@ import {
   MessageCircle,
   Navigation,
   ScrollText,
+  SearchCheck,
   Sofa,
   Sparkles,
   Sunrise,
@@ -214,6 +215,9 @@ function PanelView({ code, panel, locale }: { code: string; panel: GuestPanel; l
     flat?.latitude != null && flat.longitude != null
       ? `https://3.redirect.appmetrica.yandex.com/route?end-lat=${flat.latitude}&end-lon=${flat.longitude}&ref=day&appmetrica_tracking_id=1178268795219780156`
       : null
+  // Extending: until the next guest arrives, when there is a free night after this stay.
+  const freeUntil = b?.free_until && b.free_until > b.check_out.slice(0, 10) ? t('guestPanel.freeUntil', { day: longDay(b.free_until) }) : null
+  const hint = (key: PanelButton) => (key === 'extend' ? freeUntil : null)
   const opensAt = accessOpensAt(panel)
   const paidInFull = b ? b.paid >= b.total : false
   // What is owed for the minibar is the server's figure, part of remaining: one rule
@@ -553,6 +557,7 @@ function PanelView({ code, panel, locale }: { code: string; panel: GuestPanel; l
                         <a key={key} href={href(key)} target="_blank" rel="noopener noreferrer" className="flex flex-col gap-2.5 rounded-[20px] bg-[#F3F3F6] p-3.5 text-sm font-semibold leading-tight">
                           <span className="flex h-9 w-9 items-center justify-center rounded-full bg-white"><Icon className="h-[18px] w-[18px]" aria-hidden /></span>
                           {t(`guestPanel.buttons.${key}`)}
+                          {hint(key) && <span className={`-mt-1.5 text-xs font-normal ${MUTE}`}>{hint(key)}</span>}
                         </a>
                       )
                     })}
@@ -590,6 +595,7 @@ function PanelView({ code, panel, locale }: { code: string; panel: GuestPanel; l
                           <a key={key} href={href(key)} target="_blank" rel="noopener noreferrer" className="flex flex-col gap-1.5 rounded-[18px] bg-white/10 p-3 text-[15px] font-semibold">
                             <Icon className="h-[18px] w-[18px] text-[#8FA8FF]" aria-hidden />
                             {t(`guestPanel.buttons.${key}`)}
+                            {hint(key) && <span className="text-xs font-normal text-white/60">{hint(key)}</span>}
                           </a>
                         )
                       })}
@@ -609,6 +615,39 @@ function PanelView({ code, panel, locale }: { code: string; panel: GuestPanel; l
                 </section>
               )}
 
+              {panel.deposit && (
+                <section aria-label={t('guestPanel.deposit.title')} className={CARD}>
+                  <h2 className={H2}>{t('guestPanel.deposit.title')}</h2>
+                  <p className="text-[30px] font-bold tracking-[-0.03em]">{money(panel.deposit.amount, locale)}</p>
+                  <p className={`text-sm ${panel.deposit.status === 'returned' ? 'text-[#17A34A]' : MUTE}`}>
+                    {t(`guestPanel.deposit.${panel.deposit.status}`, {
+                      back: money(panel.deposit.amount - panel.deposit.held, locale),
+                      held: money(panel.deposit.held, locale),
+                    })}
+                  </p>
+                  {/* Paid and waiting for the stay's end: how it comes back, as the mockup. */}
+                  {panel.deposit.status === 'paid' && (
+                    <ol className="mt-3.5 flex flex-col gap-3">
+                      {[
+                        [LogOut, t('guestPanel.deposit.step1', { time: checkOut })],
+                        [SearchCheck, t('guestPanel.deposit.step2')],
+                        [Wallet, t('guestPanel.deposit.step3')],
+                      ].map(([Icon, text], n) => {
+                        const StepIcon = Icon as typeof Wallet
+                        return (
+                          <li key={n} className="flex items-center gap-3 text-[15px] font-semibold">
+                            <span className={`flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-full ${n === 0 ? 'bg-[var(--accent)] text-[var(--on-accent)]' : 'bg-[#F3F3F6]'}`}>
+                              <StepIcon className="h-4 w-4" aria-hidden />
+                            </span>
+                            {text as string}
+                          </li>
+                        )
+                      })}
+                    </ol>
+                  )}
+                </section>
+              )}
+
               <section className={CARD}>
                 <h2 className={H2}>{t('guestPanel.payment')}</h2>
                 <p className="flex justify-between py-1.5 text-[15px]">
@@ -621,6 +660,16 @@ function PanelView({ code, panel, locale }: { code: string; panel: GuestPanel; l
                   <b className={`font-semibold ${b.remaining > 0 ? 'text-[#8A5A00]' : 'text-[#17A34A]'}`}>{money(b.remaining > 0 ? b.remaining : b.paid, locale)}</b>
                 </p>
               </section>
+
+              {flat?.code && (
+                <section className={CARD}>
+                  <b className="block text-lg">{t('guestPanel.again.title')}</b>
+                  <p className={`mt-1 text-sm leading-relaxed ${MUTE}`}>{t('guestPanel.again.text')}</p>
+                  <a href={`/s/${flat.code}`} className="mt-3 flex h-12 items-center justify-center rounded-full bg-[#111114] text-[15px] font-semibold text-white">
+                    {t('guestPanel.again.open')}
+                  </a>
+                </section>
+              )}
             </div>
           )}
         </>

@@ -31,10 +31,21 @@ class GuestPanelBooking(BaseModel):
     # the tab; unpaid); part of remaining.
     orders_due: float = 0
     remaining: float
+    # The day the next guest arrives after this stay; None when nobody is in sight.
+    free_until: date | None = None
+
+
+class GuestPanelDeposit(BaseModel):
+    amount: float
+    # pending, paid, returned, held, partially_held. Never the owner's reason.
+    status: str
+    held: float = 0
 
 
 class GuestPanelFlat(BaseModel):
     name: str
+    # The flat's own page (/s/<code>): to book it again directly.
+    code: str | None = None
     # The cover of the flat's listing; None for a closed booking.
     photo_url: str | None = None
     address: str | None = None
@@ -111,6 +122,7 @@ class GuestPanelResponse(BaseModel):
     # check-in until check-out.
     access: GuestPanelAccess | None = None
     lead_hours: int = 24
+    deposit: GuestPanelDeposit | None = None
     # The minibar during the stay; None outside it.
     menu: list[GuestPanelProduct] | None = None
     minibar: GuestPanelMinibar | None = None
@@ -142,13 +154,17 @@ class GuestPanelResponse(BaseModel):
             paid=float(panel.paid),
             orders_due=float(panel.orders_due),
             remaining=float(panel.remaining),
+            free_until=panel.free_until,
         )
+        if (d := panel.deposit) is not None:
+            page.deposit = GuestPanelDeposit(amount=float(d.amount), status=d.status.value, held=float(d.held_amount))
         if (p := panel.flat) is not None and panel.closed:
             # Its name for the messages; the address and the rules are for a live stay.
             page.flat = GuestPanelFlat(name=p.name)
         elif p is not None:
             page.flat = GuestPanelFlat(
                 name=p.name,
+                code=p.public_code,
                 photo_url=panel.photo_url,
                 address=p.address_full,
                 latitude=p.latitude,
