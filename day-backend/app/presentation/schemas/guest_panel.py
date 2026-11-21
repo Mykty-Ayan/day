@@ -161,8 +161,8 @@ class GuestPanelResponse(BaseModel):
         if (d := panel.deposit) is not None:
             page.deposit = GuestPanelDeposit(amount=float(d.amount), status=d.status.value, held=float(d.held_amount))
         if (p := panel.flat) is not None and panel.closed:
-            # Its name for the messages; the address and the rules are for a live stay.
-            page.flat = GuestPanelFlat(name=p.name)
+            # Its name for the messages and its page to book again; the address and the rules are for a live stay.
+            page.flat = GuestPanelFlat(name=p.name, code=p.public_code)
         elif p is not None:
             page.flat = GuestPanelFlat(
                 name=p.name,

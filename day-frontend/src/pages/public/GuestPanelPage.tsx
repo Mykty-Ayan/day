@@ -216,7 +216,7 @@ function PanelView({ code, panel, locale }: { code: string; panel: GuestPanel; l
       ? `https://3.redirect.appmetrica.yandex.com/route?end-lat=${flat.latitude}&end-lon=${flat.longitude}&ref=day&appmetrica_tracking_id=1178268795219780156`
       : null
   // Extending: until the next guest arrives, when there is a free night after this stay.
-  const freeUntil = b?.free_until && b.free_until > b.check_out.slice(0, 10) ? t('guestPanel.freeUntil', { day: longDay(b.free_until) }) : null
+  const freeUntil = b?.free_until && b.free_until > b.check_out.slice(0, 10) ? t('guestPanel.freeUntil', { day: longDay(`${b.free_until}T00:00`) }) : null
   const hint = (key: PanelButton) => (key === 'extend' ? freeUntil : null)
   const opensAt = accessOpensAt(panel)
   const paidInFull = b ? b.paid >= b.total : false
@@ -284,6 +284,48 @@ function PanelView({ code, panel, locale }: { code: string; panel: GuestPanel; l
     ]
   }
   const [line1, line2] = heroLines()
+  // On check-out, and still once the booking is closed: the deposit's fate and the flat to book again.
+  const depositCard = panel.deposit ? (
+                <section aria-label={t('guestPanel.deposit.title')} className={CARD}>
+                  <h2 className={H2}>{t('guestPanel.deposit.title')}</h2>
+                  <p className="text-[30px] font-bold tracking-[-0.03em]">{money(panel.deposit.amount, locale)}</p>
+                  <p className={`text-sm ${panel.deposit.status === 'returned' ? 'text-[#17A34A]' : MUTE}`}>
+                    {t(`guestPanel.deposit.${panel.deposit.status}`, {
+                      back: money(panel.deposit.amount - panel.deposit.held, locale),
+                      held: money(panel.deposit.held, locale),
+                    })}
+                  </p>
+                  {/* Paid and waiting for the stay's end: how it comes back, as the mockup. */}
+                  {panel.deposit.status === 'paid' && (
+                    <ol className="mt-3.5 flex flex-col gap-3">
+                      {[
+                        [LogOut, t('guestPanel.deposit.step1', { time: checkOut })],
+                        [SearchCheck, t('guestPanel.deposit.step2')],
+                        [Wallet, t('guestPanel.deposit.step3')],
+                      ].map(([Icon, text], n) => {
+                        const StepIcon = Icon as typeof Wallet
+                        return (
+                          <li key={n} className="flex items-center gap-3 text-[15px] font-semibold">
+                            <span className={`flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-full ${n === 0 ? 'bg-[var(--accent)] text-[var(--on-accent)]' : 'bg-[#F3F3F6]'}`}>
+                              <StepIcon className="h-4 w-4" aria-hidden />
+                            </span>
+                            {text as string}
+                          </li>
+                        )
+                      })}
+                    </ol>
+                  )}
+                </section>
+              ) : null
+  const againCard = flat?.code ? (
+                <section className={CARD}>
+                  <b className="block text-lg">{t('guestPanel.again.title')}</b>
+                  <p className={`mt-1 text-sm leading-relaxed ${MUTE}`}>{t('guestPanel.again.text')}</p>
+                  <a href={`/s/${flat.code}`} className="mt-3 flex h-12 items-center justify-center rounded-full bg-[#111114] text-[15px] font-semibold text-white">
+                    {t('guestPanel.again.open')}
+                  </a>
+                </section>
+              ) : null
   const chip = 'inline-flex h-7 items-center gap-1.5 rounded-full bg-white/20 px-2.5 text-xs font-semibold backdrop-blur-md'
 
   const wifi = access && (access.wifi_name || access.wifi_password) && (
@@ -357,7 +399,10 @@ function PanelView({ code, panel, locale }: { code: string; panel: GuestPanel; l
           <p role="status" className="text-[15px] text-[#2A2A30]">{t('guestPanel.closed')}</p>
           {helpButtons.length > 0 && <div className="mt-3 flex flex-col">{helpButtons.map(reason)}</div>}
         </section>
-      ) : (
+      ) : null}
+      {panel.closed && depositCard}
+      {panel.closed && againCard}
+      {panel.closed ? null : (
         <>
           {helpButtons.length > 0 && !panel.closed && (
             // As the mockup: help is one tap away on every stage. Before the stages in the page,
@@ -615,38 +660,7 @@ function PanelView({ code, panel, locale }: { code: string; panel: GuestPanel; l
                 </section>
               )}
 
-              {panel.deposit && (
-                <section aria-label={t('guestPanel.deposit.title')} className={CARD}>
-                  <h2 className={H2}>{t('guestPanel.deposit.title')}</h2>
-                  <p className="text-[30px] font-bold tracking-[-0.03em]">{money(panel.deposit.amount, locale)}</p>
-                  <p className={`text-sm ${panel.deposit.status === 'returned' ? 'text-[#17A34A]' : MUTE}`}>
-                    {t(`guestPanel.deposit.${panel.deposit.status}`, {
-                      back: money(panel.deposit.amount - panel.deposit.held, locale),
-                      held: money(panel.deposit.held, locale),
-                    })}
-                  </p>
-                  {/* Paid and waiting for the stay's end: how it comes back, as the mockup. */}
-                  {panel.deposit.status === 'paid' && (
-                    <ol className="mt-3.5 flex flex-col gap-3">
-                      {[
-                        [LogOut, t('guestPanel.deposit.step1', { time: checkOut })],
-                        [SearchCheck, t('guestPanel.deposit.step2')],
-                        [Wallet, t('guestPanel.deposit.step3')],
-                      ].map(([Icon, text], n) => {
-                        const StepIcon = Icon as typeof Wallet
-                        return (
-                          <li key={n} className="flex items-center gap-3 text-[15px] font-semibold">
-                            <span className={`flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-full ${n === 0 ? 'bg-[var(--accent)] text-[var(--on-accent)]' : 'bg-[#F3F3F6]'}`}>
-                              <StepIcon className="h-4 w-4" aria-hidden />
-                            </span>
-                            {text as string}
-                          </li>
-                        )
-                      })}
-                    </ol>
-                  )}
-                </section>
-              )}
+              {depositCard}
 
               <section className={CARD}>
                 <h2 className={H2}>{t('guestPanel.payment')}</h2>
@@ -661,15 +675,7 @@ function PanelView({ code, panel, locale }: { code: string; panel: GuestPanel; l
                 </p>
               </section>
 
-              {flat?.code && (
-                <section className={CARD}>
-                  <b className="block text-lg">{t('guestPanel.again.title')}</b>
-                  <p className={`mt-1 text-sm leading-relaxed ${MUTE}`}>{t('guestPanel.again.text')}</p>
-                  <a href={`/s/${flat.code}`} className="mt-3 flex h-12 items-center justify-center rounded-full bg-[#111114] text-[15px] font-semibold text-white">
-                    {t('guestPanel.again.open')}
-                  </a>
-                </section>
-              )}
+              {againCard}
             </div>
           )}
         </>

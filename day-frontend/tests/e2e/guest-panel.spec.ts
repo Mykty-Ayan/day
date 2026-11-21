@@ -367,7 +367,8 @@ test('during the stay «extend» says until when the flat is free', async ({ pag
     free_until: addDays(now, 5),
   }))
   await expect(page.getByRole('tab', { name: 'В квартире' })).toHaveAttribute('aria-selected', 'true')
-  await expect(page.getByRole('link', { name: /Продлить проживание/ })).toContainText('свободно до')
+  // A real date, as the guest reads it: never «Invalid Date».
+  await expect(page.getByRole('link', { name: /Продлить проживание/ })).toContainText(/свободно до \d{1,2} [а-я]+$/)
 })
 
 test('a deposit kept in part says what comes back and what was kept', async ({ page }) => {
@@ -381,4 +382,13 @@ test('a deposit kept in part says what comes back and what was kept', async ({ p
 test('with no address yet the complex and the floor still show', async ({ page }) => {
   await open(page, answer({ flat: { ...answer().flat, address: null, latitude: null, longitude: null, complex_name: 'Auezov City', floor: 10 } }))
   await expect(page.getByRole('region', { name: 'Адрес' })).toContainText('Auezov City · 10 этаж')
+})
+
+test('a closed booking still shows the deposit coming back and the flat to book again', async ({ page }) => {
+  await open(page, answer(
+    { closed: true, flat: { name: 'Т13 у Байтерека', code: 'vk7nys9' }, deposit: { amount: 10000, status: 'returned', held: 0 } },
+    { status: 'checked_out' },
+  ))
+  await expect(page.getByRole('region', { name: 'Залог' })).toContainText('Залог вернули')
+  await expect(page.getByRole('link', { name: 'Открыть страницу квартиры' })).toHaveAttribute('href', '/s/vk7nys9')
 })

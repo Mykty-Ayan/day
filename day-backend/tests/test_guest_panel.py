@@ -40,7 +40,9 @@ class _Repo:
         return [
             b for b in self.rows.values()
             if getattr(b, "property_id", None) == property_id and b.id != exclude_id
-            and b.check_in.date() < check_out and b.check_out.date() > check_in
+            # As SQL compares a stay's times with a day: from its midnight.
+            and b.check_in < datetime.combine(check_out, datetime.min.time())
+            and b.check_out > datetime.combine(check_in, datetime.min.time())
         ]
 
     async def list_blocks(self, property_id, date_from, date_to):
@@ -194,6 +196,37 @@ async def test_the_page_says_until_when_the_flat_is_free_after_the_stay():
     assert page.booking.free_until.isoformat() == "2026-10-30"
     # Nobody after: no date to tell, and the page says nothing it cannot.
     assert GuestPanelResponse.from_panel(await _setup().execute(CODE, NOW)).booking.free_until is None
+
+
+async def test_an_earlier_stay_the_same_day_does_not_cut_the_extension_short():
+    def morning(b):
+        # By the hour on the same day, before this stay: it ends before this one does.
+        return Booking(
+            company_id=COMPANY_ID, property_id=b.property_id, guest_id=uuid.uuid4(), status=BookingStatus.CONFIRMED,
+            check_in=datetime(2026, 10, 27, 8), check_out=datetime(2026, 10, 27, 10),
+        )
+
+    def next_week(b):
+        return Booking(
+            company_id=COMPANY_ID, property_id=b.property_id, guest_id=uuid.uuid4(), status=BookingStatus.CONFIRMED,
+            check_in=datetime(2026, 11, 3, 14), check_out=datetime(2026, 11, 5, 12),
+        )
+
+    page = GuestPanelResponse.from_panel(await _setup(others=[morning, next_week]).execute(CODE, NOW))
+    assert page.booking.free_until.isoformat() == "2026-11-03"
+
+
+async def test_after_check_out_the_deposit_and_the_flat_s_page_stay():
+    def deposit(b):
+        return BookingDeposit(booking_id=b.id, amount=Decimal("10000"), status=DepositStatus.RETURNED)
+
+    svc = _setup(status=BookingStatus.CHECKED_OUT, deposits=[deposit])
+    flat_ = next(iter(svc._properties.rows.values()))
+    flat_.public_code = "vk7nys9"
+    page = GuestPanelResponse.from_panel(await svc.execute(CODE, NOW))
+    assert page.closed and (page.deposit.status, page.flat.code) == ("returned", "vk7nys9")
+    # Still nothing of the stay's address or way in.
+    assert page.flat.address is None and page.access is None
 
 
 async def test_the_deposit_shows_its_amount_and_state_never_the_owner_s_reason():

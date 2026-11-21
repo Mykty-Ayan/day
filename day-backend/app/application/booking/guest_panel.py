@@ -220,6 +220,7 @@ class GuestPanelService:
         end = start + timedelta(days=_FREE_AHEAD_DAYS)
         later = await self._bookings.get_by_property_and_dates(booking.property_id, start, end, exclude_id=booking.id)
         blocks = await self._bookings.list_blocks(booking.property_id, start, end)
-        days = [b.check_in.date() for b in later] + [b.start_date for b in blocks]
+        # Only stays after this one: an hourly stay earlier the same day ends before it.
+        days = [b.check_in.date() for b in later if b.check_out > booking.check_out] + [b.start_date for b in blocks]
         # A stay or block already running at check-out leaves no room: the stay ends as booked.
         return min((max(day, start) for day in days), default=None)
