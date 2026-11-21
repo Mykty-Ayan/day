@@ -158,7 +158,9 @@
     "how2": "Garovni Kaspi orqali toʻlang",
     "how3": "Eshik kodini oling",
     "askTitle": "Savollar qoldimi?",
-    "askHint": "Yozing — javob beramiz va kvartira tanlab beramiz."
+    "askHint": "Yozing — javob beramiz va kvartira tanlab beramiz.",
+    "freeToday": "Bugun boʻsh",
+    "freeFrom": "{{day}}dan boʻsh"
   },
   "guestStay": {
     "pickDates": "Sanalarni tanlash",

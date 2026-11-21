@@ -158,7 +158,9 @@
     "how2": "通过 Kaspi 支付押金",
     "how3": "获取门锁密码",
     "askTitle": "还有问题？",
-    "askHint": "给我们留言，我们会回复并帮您挑选公寓。"
+    "askHint": "给我们留言，我们会回复并帮您挑选公寓。",
+    "freeToday": "今晚可订",
+    "freeFrom": "{{day}}起可订"
   },
   "guestStay": {
     "pickDates": "选择日期",

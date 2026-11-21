@@ -2,6 +2,7 @@
 /c/<slug> and sees the company, its rules for anyone and its flats on sale."""
 
 import uuid
+from datetime import date, timedelta
 
 import pytest
 from pydantic import ValidationError
@@ -61,6 +62,20 @@ async def test_the_owner_sets_up_the_site_and_a_guest_opens_it(flat):  # noqa: F
     cards = [(f["code"], f["rooms"], f["night_price"], f["hour_price"]) for f in body["flats"]]
     assert cards == [(code, 2, 20000.0, None)]
     assert "9090" not in page.text
+    # Nothing booked: free tonight; no photo yet.
+    assert (body["flats"][0]["free_from"], body["flats"][0]["photos"]) == (date.today().isoformat(), 0)
+
+    # Booked tonight and tomorrow: free from the day after.
+    use(Permission.BOOKINGS_READ, Permission.BOOKINGS_WRITE, Permission.PROPERTIES_READ)
+    first, after = date.today(), date.today() + timedelta(days=2)
+    booked = await client.post("/api/v1/bookings", json={
+        "property_id": str(prop), "guest_name": "Ерлан", "guest_phone": "+77010001232",
+        "check_in": f"{first}T14:00:00", "check_out": f"{after}T12:00:00",
+    })
+    assert booked.status_code == 201, booked.text
+    use()
+    later = (await client.get(f"/api/v1/public/companies/{slug}")).json()
+    assert later["flats"][0]["free_from"] == after.isoformat()
     # The flat's own page names the company, to link back and to write to it.
     stay = (await client.get(f"/api/v1/public/stays/{code}")).json()
     assert (stay["company"]["slug"], stay["company"]["whatsapp"]) == (slug, "77012345678")
