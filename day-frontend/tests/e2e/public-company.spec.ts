@@ -7,7 +7,7 @@ import { test, expect } from '../fixtures/e2e-auth'
 import { createTestBooking, createTestProperty, API_BASE } from '../fixtures/test-data'
 
 test('a guest reads the company site, narrows the flats by rooms and opens one', async ({ browser, request }) => {
-  const slug = `site-${Date.now().toString(36)}`
+  const slug = `site-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`
   const site = await request.put(`${API_BASE}/site`, {
     data: { slug, title: 'Сайт Ауэзова', about: 'Квартиры у парка', logo_url: null, cover_url: null, accent_color: null, whatsapp: '+77010000000', instagram: 'auezov.flats' },
   })

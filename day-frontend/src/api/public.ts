@@ -144,6 +144,8 @@ export interface PublicCompany {
   instagram: string | null
   rules: string[]
   flats: PublicCompanyFlat[]
+  /** The company's own day: a flat free from it is free tonight. */
+  today?: string | null
 }
 
 export async function getPublicCompany(slug: string): Promise<PublicCompany> {

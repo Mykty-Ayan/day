@@ -2,7 +2,8 @@
 /c/<slug> and sees the company, its rules for anyone and its flats on sale."""
 
 import uuid
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
+from types import SimpleNamespace
 
 import pytest
 from pydantic import ValidationError
@@ -10,6 +11,24 @@ from pydantic import ValidationError
 from app.domain.auth.permissions import Permission
 from app.presentation.schemas.site import SiteUpdate
 from tests.test_property_facts import flat  # noqa: F401  (a fixture)
+
+
+def test_the_site_s_today_is_the_company_s_day_not_the_server_s():
+    # 21:00 UTC on the 21st is already the 22nd in Almaty (UTC+5).
+    from app.presentation.api.v1 import site as site_api
+
+    class _Clock(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return datetime(2026, 11, 21, 21, tzinfo=timezone.utc).astimezone(tz)
+
+    real = site_api.datetime
+    site_api.datetime = _Clock
+    try:
+        assert site_api.company_today(SimpleNamespace(time_zone="Asia/Almaty")).isoformat() == "2026-11-22"
+        assert site_api.company_today(None).isoformat() == "2026-11-22"
+    finally:
+        site_api.datetime = real
 
 
 def test_an_address_is_short_latin_and_not_day_s_own():
@@ -63,7 +82,7 @@ async def test_the_owner_sets_up_the_site_and_a_guest_opens_it(flat):  # noqa: F
     assert cards == [(code, 2, 20000.0, None)]
     assert "9090" not in page.text
     # Nothing booked: free tonight; no photo yet.
-    assert (body["flats"][0]["free_from"], body["flats"][0]["photos"]) == (date.today().isoformat(), 0)
+    assert (body["flats"][0]["free_from"], body["flats"][0]["photos"]) == (body["today"], 0)
 
     # Booked tonight and tomorrow: free from the day after.
     use(Permission.BOOKINGS_READ, Permission.BOOKINGS_WRITE, Permission.PROPERTIES_READ)

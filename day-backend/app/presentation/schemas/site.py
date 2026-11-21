@@ -121,5 +121,7 @@ class PublicCompanyResponse(BaseModel):
     # The company's rules for anyone (pets, smoking, documents); never a rule for staying guests.
     rules: list[str] = []
     flats: list[PublicCompanyFlat] = []
+    # The company's own day: a flat free from it is free tonight.
+    today: date | None = None
 
 

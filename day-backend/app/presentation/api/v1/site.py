@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 import uuid
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
+from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -13,6 +14,7 @@ from app.application.property.public_stay import taken_nights
 from app.domain.auth.permissions import Permission
 from app.domain.booking.value_objects import RentalMode
 from app.domain.property.value_objects import FactAudience, PropertyStatus
+from app.domain.settings.entities import DEFAULT_TIME_ZONE, CompanySettings
 from app.domain.site.entities import CompanySite
 from app.domain.site.repositories import SlugTakenError
 from app.infrastructure.database import get_session
@@ -23,6 +25,7 @@ from app.infrastructure.repositories.property import (
     SqlPropertyPhotoRepository,
     SqlPropertyRepository,
 )
+from app.infrastructure.repositories.settings import SqlCompanySettingsRepository
 from app.infrastructure.repositories.site import SqlCompanySiteRepository
 from app.presentation.api.deps import get_company_id, require
 from app.presentation.schemas.site import PublicCompanyFlat, PublicCompanyResponse, SiteResponse, SiteUpdate
@@ -64,6 +67,11 @@ async def save_site(
 FREE_AHEAD_DAYS = 60
 
 
+def company_today(company: CompanySettings | None) -> date:
+    zone = ZoneInfo(company.time_zone if company and company.time_zone else DEFAULT_TIME_ZONE)
+    return datetime.now(tz=zone).date()
+
+
 def _days(first: date, count: int) -> list[date]:
     return [first + timedelta(days=n) for n in range(count)]
 
@@ -77,8 +85,9 @@ async def public_company(slug: str, session: AsyncSession = Depends(get_session)
     properties, photos = SqlPropertyRepository(session), SqlPropertyPhotoRepository(session)
     pricing = SqlPricingConfigRepository(session)
     bookings = SqlBookingRepository(session)
-    # The flat's page counts its nights by the server's day: the same here.
-    today = date.today()
+    # «Free tonight» is the company's night: its own day, whatever the server's zone.
+    company = await SqlCompanySettingsRepository(session).get_by_company(site.company_id)
+    today = company_today(company)
     flats = []
     # A few queries a flat; a company has a handful of them.
     for prop in await properties.list_by_company(site.company_id, status=PropertyStatus.ACTIVE, limit=MAX_FLATS):
@@ -120,4 +129,5 @@ async def public_company(slug: str, session: AsyncSession = Depends(get_session)
         **SiteResponse.model_validate(site, from_attributes=True).model_dump(exclude={"updated_at"}),
         rules=rules,
         flats=flats,
+        today=today,
     )
