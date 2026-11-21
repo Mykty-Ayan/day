@@ -73,7 +73,7 @@ function Panel({ code, locale }: { code: string; locale: string }) {
       </div>
     )
   }
-  return <PanelView code={code} panel={panel.data} locale={locale} />
+  return <PanelView code={code} panel={panel.data} locale={locale} receivedAt={panel.dataUpdatedAt} />
 }
 
 // The stored times are the flat's wall clock: read them as such, whatever the phone's zone.
@@ -167,7 +167,7 @@ function Checklist({ text }: { text: string }) {
   )
 }
 
-function PanelView({ code, panel, locale }: { code: string; panel: GuestPanel; locale: string }) {
+function PanelView({ code, panel, locale, receivedAt }: { code: string; panel: GuestPanel; locale: string; receivedAt: number }) {
   const { t } = useTranslation()
   const [help, setHelp] = useState(false)
   // A second tap while the first «I have left» is on its way tells the host nothing new.
@@ -178,6 +178,9 @@ function PanelView({ code, panel, locale }: { code: string; panel: GuestPanel; l
   const [tab, setTab] = useState<Tab>(stage === 'departure' || stage === null ? 'out' : stage === 'stay' || b?.status === 'checked_in' ? 'stay' : 'in')
   // The countdown moves with the clock.
   const [now, setNow] = useState(() => new Date())
+  // The company's clock against the phone's at the answer: the countdown runs on the
+  // company's wall clock whatever zone the phone is in.
+  const skew = panel.now ? wallClock(panel.now).getTime() - receivedAt : 0
   useEffect(() => {
     const timer = window.setInterval(() => setNow(new Date()), 60_000)
     return () => window.clearInterval(timer)
@@ -247,7 +250,7 @@ function PanelView({ code, panel, locale }: { code: string; panel: GuestPanel; l
   // How long until the next step, by the flat's wall clock against the phone's: hours on
   // the day itself, days before. A guest in another time zone sees the hours off by it.
   function countdown(iso: string): string {
-    const minutes = Math.round((wallClock(iso).getTime() - now.getTime()) / 60_000)
+    const minutes = Math.round((wallClock(iso).getTime() - (now.getTime() + skew)) / 60_000)
     if (minutes <= 0) return ''
     if (iso.slice(0, 10) === panel.today) return t('guestPanel.inHours', { h: Math.floor(minutes / 60), m: minutes % 60 })
     const days = Math.round((Date.parse(iso.slice(0, 10)) - Date.parse(panel.today)) / 86_400_000)
@@ -495,15 +498,15 @@ function PanelView({ code, panel, locale }: { code: string; panel: GuestPanel; l
             </div>
           )}
 
-          {tab === 'stay' && (
-            <div role="tabpanel">
-              {wifi && <div className="m-2 grid grid-cols-2 gap-2">{wifi}</div>}
+          {/* Kept mounted while another stage is open: the minibar's cart and note stay as the guest left them. */}
+          <div role="tabpanel" hidden={tab !== 'stay'}>
+              {tab === 'stay' && wifi && <div className="m-2 grid grid-cols-2 gap-2">{wifi}</div>}
               {panel.menu && (
                 <div id="minibar" className="m-2 scroll-mt-16">
                   <GuestMinibar code={code} menu={panel.menu} minibar={panel.minibar} orders={panel.orders} locale={locale} />
                 </div>
               )}
-              {DURING.some((k) => buttons.includes(k)) && (
+              {tab === 'stay' && DURING.some((k) => buttons.includes(k)) && (
                 <section className={CARD}>
                   <h2 className={H2}>{t('guestPanel.needMore')}</h2>
                   <div className="grid grid-cols-2 gap-2">
@@ -519,7 +522,7 @@ function PanelView({ code, panel, locale }: { code: string; panel: GuestPanel; l
                   </div>
                 </section>
               )}
-              {flat?.house_rules && (
+              {tab === 'stay' && flat?.house_rules && (
                 <section className={CARD}>
                   <h2 className={H2}>{t('guestPanel.rules')}</h2>
                   <p dir="auto" className="flex items-start gap-3 whitespace-pre-line text-[15px] leading-relaxed">
@@ -528,8 +531,7 @@ function PanelView({ code, panel, locale }: { code: string; panel: GuestPanel; l
                   </p>
                 </section>
               )}
-            </div>
-          )}
+          </div>
 
           {tab === 'out' && b && (
             <div role="tabpanel">

@@ -165,6 +165,12 @@ async def test_the_page_names_the_guest_but_never_a_phone():
     assert "79011161" not in page.model_dump_json()
 
 
+async def test_the_page_tells_the_company_s_clock_for_the_countdown():
+    page = GuestPanelResponse.from_panel(await _setup().execute(CODE, NOW))
+    # 15:00 UTC is 20:00 in Almaty: the clock check-in and check-out are read on.
+    assert page.now.isoformat() == "2026-10-25T20:00:00"
+
+
 async def test_a_wrong_code_finds_nothing():
     for code in ("nosuchcodeatall0", "short", CODE + "x"):
         with pytest.raises(ValueError):
