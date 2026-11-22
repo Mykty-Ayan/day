@@ -1,0 +1,345 @@
+<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>Макет — квартира</title><link href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700&display=swap" rel="stylesheet"><script src="https://unpkg.com/lucide@0.460.0/dist/umd/lucide.min.js"></script><script src="https://cdn.jsdelivr.net/npm/motion@12.33.0/dist/motion.js"></script><link rel="stylesheet" href="base.css">
+<style>
+.hero { position:relative; margin:8px; height:480px; border-radius:34px; overflow:hidden; }
+.hero img.main { width:100%; height:100%; object-fit:cover; display:block; }
+.hero::after { content:''; position:absolute; inset:0; background:linear-gradient(180deg,rgba(0,0,0,.25),rgba(0,0,0,0) 25%,rgba(0,0,0,0) 50%,rgba(0,0,0,.6)); pointer-events:none; }
+.top { position:absolute; z-index:2; top:14px; left:14px; right:14px; display:flex; justify-content:space-between; }
+.top .r { display:flex; gap:8px; }
+.hero-text { position:absolute; z-index:2; left:20px; right:20px; bottom:20px; color:#fff; }
+.hero-text .row { display:flex; justify-content:space-between; align-items:flex-end; gap:10px; margin-top:12px; }
+.hero h1 { flex:1; min-width:0; font-size:36px; line-height:1.02; letter-spacing:-.035em; }
+.here { background:var(--ink); color:#fff; display:flex; flex-direction:column; gap:16px; }
+.here .row { display:flex; gap:14px; align-items:center; }
+.here .ico { flex:none; width:48px; height:48px; border-radius:50%; background:rgba(255,255,255,.12); display:grid; place-items:center; }
+.here b { font-size:18px; display:block; } .here span { font-size:14px; color:rgba(255,255,255,.65); }
+.btn-w { height:52px; border-radius:99px; background:#fff; color:var(--ink); border:0; font:600 16px 'Onest'; display:flex; align-items:center; justify-content:center; gap:8px; }
+.pricecard { display:flex; justify-content:space-between; align-items:center; }
+.pricecard b { font-size:30px; letter-spacing:-.03em; }
+.facts { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin:8px; }
+.fact { background:#fff; border-radius:24px; padding:16px 14px; display:flex; flex-direction:column; gap:12px; }
+.fact .ico { width:40px; height:40px; border-radius:50%; background:var(--ink); color:#fff; display:grid; place-items:center; }
+.fact .ico svg.lucide { width:18px; height:18px; }
+.fact b { font-size:22px; display:block; letter-spacing:-.02em; } .fact span { font-size:13px; color:var(--mute); }
+.am { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:14px; }
+.am div { background:var(--chip); border-radius:20px; padding:14px; display:flex; align-items:center; gap:10px; font-size:14px; font-weight:500; line-height:1.25; }
+.am .ic { width:34px; height:34px; border-radius:50%; background:#fff; display:grid; place-items:center; flex:none; }
+.am .ic svg.lucide { width:17px; height:17px; }
+.more-btn { margin-top:10px; width:100%; height:48px; border-radius:99px; background:var(--chip); border:0; font:600 14px 'Onest'; }
+.txt { font-size:16px; line-height:1.55; color:#2A2A30; margin-top:12px; display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; }
+.link { margin-top:8px; font-weight:600; font-size:15px; text-decoration:underline; }
+.rules { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:14px; }
+.rules div { display:flex; gap:10px; align-items:center; font-size:14px; }
+.rules .ic { width:34px; height:34px; border-radius:50%; background:var(--chip); display:grid; place-items:center; flex:none; }
+.rules .ic svg.lucide { width:17px; height:17px; }
+.cal-h { display:flex; justify-content:space-between; align-items:center; }
+.hint { display:flex; align-items:center; gap:8px; margin:14px 0; padding:12px 14px; border-radius:16px; background:var(--accent-soft); color:#1C3BB8; font-size:14px; font-weight:600; }
+.hint svg.lucide { width:18px; height:18px; flex:none; }
+.month { font-size:15px; font-weight:600; margin-bottom:10px; }
+.grid { display:grid; grid-template-columns:repeat(7,1fr); row-gap:6px; text-align:center; }
+.dow { font-size:12px; color:var(--mute); padding-bottom:6px; }
+.d { position:relative; height:42px; display:grid; place-items:center; cursor:pointer; }
+.d i { font-style:normal; width:40px; height:40px; border-radius:50%; display:grid; place-items:center; font-size:15px; font-weight:500; background:var(--chip); position:relative; z-index:1; }
+.d.off { cursor:default; } .d.off i { background:transparent; color:#C3C3CB; text-decoration:line-through; }
+.d.sel i { background:var(--accent); color:#fff; font-weight:700; }
+.d.in::before { content:''; position:absolute; inset:1px 0; background:var(--accent-soft); } .d.in i { background:transparent; }
+.d.s::before { content:''; position:absolute; inset:1px 0 1px 50%; background:var(--accent-soft); }
+.d.e::before { content:''; position:absolute; inset:1px 50% 1px 0; background:var(--accent-soft); }
+.strip { display:flex; overflow-x:auto; scroll-snap-type:x mandatory; scrollbar-width:none; margin:0 -4px; }
+.strip::-webkit-scrollbar { display:none; }
+.strip .d { flex:0 0 calc(100% / 7); height:auto; display:block; text-align:center; padding:0 0 6px; scroll-snap-align:start; }
+.strip .d small { display:block; font-size:12px; color:var(--mute); font-weight:600; margin-bottom:6px; }
+.strip .d.we small { color:#D9534F; }
+.strip .d.in::before, .strip .d.s::before, .strip .d.e::before { inset:auto; top:19px; height:40px; left:0; right:0; }
+.strip .d.in i { background:transparent; color:var(--accent); font-weight:700; }
+.strip .d.s::before { left:50%; } .strip .d.e::before { right:50%; }
+.strip .d i { margin:0 auto; }
+.strip .d u { display:block; text-decoration:none; font-size:11px; color:var(--mute); margin-top:4px; height:14px; }
+.strip .d.sel u, .strip .d.in u { color:var(--accent); font-weight:600; }
+.stay { display:none; justify-content:space-between; margin-top:12px; padding-top:12px; border-top:1px solid #EEEEF2; font-size:13px; }
+.stay.on { display:flex; } .stay b { display:block; font-size:15px; }
+.ap-h { display:flex; justify-content:space-between; align-items:baseline; }
+.ap-h { align-items:center; }
+.ap-h .mt { display:flex; align-items:center; gap:6px; border:0; background:none; font:inherit; color:var(--ink); cursor:pointer; padding:0; white-space:nowrap; }
+.ap-h .mt b { font-size:24px; letter-spacing:-.03em; } .ap-h .mt em { font-style:normal; font-size:14px; font-weight:600; color:var(--mute); margin-top:6px; }
+.ap-h .mt svg { width:20px; height:20px; color:var(--accent); transition:transform .25s; margin-top:4px; }
+.ap-h .mt.open svg { transform:rotate(90deg); } .ap-h .mt.open b, .ap-h .mt.open em { color:var(--accent); }
+/* Барабаны месяца и года — компактное окошко прямо под названием, календарь остаётся виден. */
+.ap-h { position:relative; }
+.wheels { display:none; position:absolute; top:calc(100% + 6px); left:-16px; z-index:20; padding:6px; border-radius:18px; background:var(--card); box-shadow:0 12px 32px rgba(17,17,20,.16), 0 0 0 1px rgba(17,17,20,.05); transform-origin:24px 0; }
+.wheels.on { display:block; }
+.wheels .cols { display:grid; grid-template-columns:120px 76px; position:relative; transition:grid-template-columns .25s cubic-bezier(.2,.8,.2,1); }
+.wheels .band { position:absolute; left:0; right:0; top:34px; height:34px; border-radius:10px; background:var(--chip); pointer-events:none; }
+.wheel { position:relative; height:102px; overflow-y:auto; scroll-snap-type:y mandatory; scrollbar-width:none; padding:34px 0;
+  -webkit-mask-image:linear-gradient(rgba(0,0,0,.45),#000 32%,#000 68%,rgba(0,0,0,.45)); mask-image:linear-gradient(rgba(0,0,0,.45),#000 32%,#000 68%,rgba(0,0,0,.45)); }
+.wheel::-webkit-scrollbar { display:none; }
+.wheel div { height:34px; line-height:34px; text-align:left; padding-left:10px; white-space:nowrap; font-size:16px; font-weight:500; scroll-snap-align:center; cursor:pointer; color:var(--ink); }
+.wheel div.on { font-weight:700; }
+.wheel div.no { color:#B4B4BD; }
+.ap-h button { border:0; background:none; font:inherit; font-size:16px; font-weight:600; color:var(--accent); cursor:pointer; padding:6px 0; }
+.ap-tools { display:flex; align-items:center; gap:4px; }
+.ap-tools .seg { display:flex; background:var(--chip); border-radius:12px; padding:3px; }
+.ap-tools .vw { width:36px; height:32px; border-radius:9px; display:grid; place-items:center; padding:0; color:var(--mute); transition:background .2s, color .2s; }
+.ap-tools .vw svg { width:22px; height:22px; stroke-width:1.8; }
+.ap-tools .seg { position:relative; }
+.ap-tools .seg .thumb { position:absolute; top:3px; left:3px; width:36px; height:32px; border-radius:9px; background:#fff; box-shadow:0 1px 3px rgba(17,17,20,.12); }
+.ap-tools .vw { position:relative; z-index:1; background:none; }
+.ap-tools .vw.on { color:var(--accent); }
+.ap-h .mt b { display:inline-block; }
+.ap-tools .td { margin-left:4px; font-size:15px; }
+.mview { display:none; height:380px; overflow-y:auto; scroll-snap-type:y proximity; scrollbar-width:none; margin-top:4px;
+  -webkit-mask-image:linear-gradient(#000 88%,transparent); mask-image:linear-gradient(#000 88%,transparent); }
+.mview::-webkit-scrollbar { display:none; }
+.mview.on { display:block; } .ap.off { display:none; }
+.mview .mb { scroll-snap-align:start; padding-bottom:10px; }
+.mview .mb h5 { font-size:15px; font-weight:700; color:var(--accent); padding:10px 0 4px 6px; }
+.mview .g { display:grid; grid-template-columns:repeat(7,1fr); }
+.mview .c.first.in::before, .mview .c.first.e::before { left:4px; border-radius:20px 0 0 20px; }
+.mview .c.last.in::before, .mview .c.last.s::before { right:4px; border-radius:0 20px 20px 0; }
+.mview .c.first.e::before, .mview .c.last.s::before { display:none; }
+.qf { display:grid; grid-template-columns:repeat(4,1fr); gap:6px; margin-top:12px; }
+.qf::-webkit-scrollbar { display:none; }
+.qf button { flex:none; border:0; font:inherit; font-size:13.5px; font-weight:600; padding:9px 2px; border-radius:99px; white-space:nowrap; background:var(--chip); color:var(--ink); cursor:pointer; }
+.qf button.on { background:var(--ink); color:#fff; }
+.ap-wd { display:grid; grid-template-columns:repeat(7,1fr); text-align:center; margin-top:14px; font-size:12px; font-weight:600; color:var(--mute); }
+.ap-wd span:nth-child(n+6) { color:#A0A0AA; }
+.ap { display:flex; overflow-x:auto; scroll-snap-type:x mandatory; scrollbar-width:none; margin-top:6px; }
+.ap::-webkit-scrollbar { display:none; }
+:is(.ap,.mview) .c { flex:0 0 calc(100% / 7); text-align:center; position:relative; padding:4px 0 2px; cursor:pointer; }
+:is(.ap,.mview) .c.mon { scroll-snap-align:start; scroll-snap-stop:always; }
+:is(.ap,.mview) .c i { font-style:normal; display:grid; place-items:center; width:40px; height:40px; margin:0 auto; border-radius:50%; font-size:20px; font-weight:500; position:relative; z-index:1; }
+:is(.ap,.mview) .c u { display:block; text-decoration:none; font-size:10px; color:var(--mute); margin-top:2px; height:13px; }
+:is(.ap,.mview) .c.today i { color:var(--accent); font-weight:700; }
+:is(.ap,.mview) .c.past i, :is(.ap,.mview) .c.off i { color:#C7C7CC; } :is(.ap,.mview) .c.off i { text-decoration:line-through; } :is(.ap,.mview) .c.past, :is(.ap,.mview) .c.off { cursor:default; }
+:is(.ap,.mview) .c.past u { visibility:hidden; }
+:is(.ap,.mview) .c.sel i { background:var(--accent); color:#fff; font-weight:700; }
+:is(.ap,.mview) .c.in i { color:var(--accent); font-weight:700; }
+:is(.ap,.mview) .c.in::before, :is(.ap,.mview) .c.s::before, :is(.ap,.mview) .c.e::before { content:''; position:absolute; top:4px; height:40px; left:0; right:0; background:var(--accent-soft); }
+:is(.ap,.mview) .c.s::before { left:50%; } :is(.ap,.mview) .c.e::before { right:50%; }
+:is(.ap,.mview) .c.in.mon::before, :is(.ap,.mview) .c.e.mon::before { left:4px; border-radius:20px 0 0 20px; }
+:is(.ap,.mview) .c.in.sun::before, :is(.ap,.mview) .c.s.sun::before { right:4px; border-radius:0 20px 20px 0; }
+:is(.ap,.mview) .c.e.mon::before { display:none; } :is(.ap,.mview) .c.s.sun::before { display:none; }
+:is(.ap,.mview) .c.sel u, :is(.ap,.mview) .c.in u { color:var(--accent); font-weight:600; }
+.ap-line { text-align:center; font-size:15px; font-weight:600; padding:12px 0 2px; margin-top:6px; border-top:1px solid #EEEEF2; }
+.ap-line { position:relative; } .ap-line span { color:var(--mute); font-weight:500; }
+.ap-line .rs { display:block; margin:6px auto 0; border:0; background:none; font:inherit; font-size:14px; font-weight:600; color:var(--accent); cursor:pointer; }
+.legend { display:flex; gap:16px; margin-top:12px; font-size:13px; color:var(--mute); }
+.legend span { display:inline-flex; align-items:center; gap:6px; }
+.legend i { width:14px; height:14px; border-radius:50%; display:inline-block; }
+.calc { margin-top:16px; background:var(--chip); border-radius:20px; padding:16px; display:none; }
+.calc.on { display:block; }
+.calc .ln { display:flex; justify-content:space-between; font-size:15px; padding:4px 0; }
+.calc .tot { border-top:1px solid #DDDDE3; margin-top:8px; padding-top:10px; font-weight:700; font-size:17px; }
+.gallery { columns:2; column-gap:8px; margin:8px; }
+.gallery img { width:100%; border-radius:22px; margin-bottom:8px; display:block; }
+.bar b { font-size:20px; letter-spacing:-.02em; } .bar .sub { font-size:13px; color:var(--mute); }
+</style></head><body><div class="wrap">
+<section class="hero">
+  <img class="main" src="https://picsum.photos/id/1018/900/1200">
+  <div class="top"><a class="glass"><i data-lucide="chevron-left"></i></a><div class="r"><a class="glass"><i data-lucide="share"></i></a><a class="lang glass-l"><i data-lucide="globe"></i>RU</a></div></div>
+  <div class="hero-text">
+    <span class="pill glass-p"><i data-lucide="map-pin"></i>Алматы, Ауэзова 89</span>
+    <div class="row"><h1>Двухкомнатная у&nbsp;парка</h1><a class="pill" style="flex:none;color:var(--ink)"><i data-lucide="images"></i>6 фото</a></div>
+  </div>
+</section>
+
+<section class="card here">
+  <div class="row"><div class="ico"><i data-lucide="key-round"></i></div><div><b>Вы сейчас живёте здесь?</b><span>Откройте свою бронь: код двери, Wi-Fi, мини-бар</span></div></div>
+  <button class="btn-w">Открыть мою бронь <i data-lucide="arrow-right"></i></button>
+</section>
+
+<div class="card pricecard"><div><b>18&nbsp;000&nbsp;₸</b> <span class="mute">за ночь</span><div class="mute" style="font-size:14px;margin-top:4px">Залог 10&nbsp;000&nbsp;₸ — вернём в течение дня после выезда</div></div></div>
+
+<div class="facts">
+  <div class="fact"><div class="ico"><i data-lucide="users"></i></div><div><b>4</b><span>гостя</span></div></div>
+  <div class="fact"><div class="ico"><i data-lucide="door-open"></i></div><div><b>2</b><span>комнаты</span></div></div>
+  <div class="fact"><div class="ico"><i data-lucide="maximize"></i></div><div><b>58</b><span>м²</span></div></div>
+</div>
+
+<section class="card" id="dates">
+  <div class="ap-h"><div class="wheels" id="wheels"><div class="cols"><div class="band"></div><div class="wheel" id="wM"></div><div class="wheel" id="wY"></div></div></div><button class="mt" id="mt" onclick="toggleWheels()"><b>Ноябрь</b><em>2026</em><i data-lucide="chevron-right"></i></button><div class="ap-tools"><div class="seg" id="seg"><span class="thumb"></span><button class="vw on" id="vWeek" onclick="setView('week')" aria-label="Неделя" title="Неделя"><i data-lucide="rows-2"></i></button><button class="vw" id="vMonth" onclick="setView('month')" aria-label="Месяц" title="Месяц"><i data-lucide="calendar-days"></i></button></div><button class="td" onclick="toToday()">Сегодня</button></div></div>
+  <div class="qf" id="qf"><button data-n="1">На сегодня</button><button data-n="2">На 2 ночи</button><button data-n="3">На 3 ночи</button><button data-n="7">На неделю</button></div>
+  <div class="ap-wd"><span>пн</span><span>вт</span><span>ср</span><span>чт</span><span>пт</span><span>сб</span><span>вс</span></div>
+  <div class="ap" id="cal"></div>
+  <div class="mview" id="mon"></div>
+  <div class="ap-line" id="hint"></div>
+  <div class="stay" id="stay"></div>
+  <div class="legend"><span><i style="background:var(--chip)"></i>свободно</span><span><i style="background:transparent;border:1px solid #C3C3CB"></i>занято</span><span><i style="background:var(--accent)"></i>ваши даты</span></div>
+  <div class="calc" id="calc"></div>
+</section>
+
+<section class="card"><h2>Удобства</h2>
+  <div class="am">
+    <div><span class="ic"><i data-lucide="wifi"></i></span>Wi-Fi</div><div><span class="ic"><i data-lucide="air-vent"></i></span>Кондиционер</div>
+    <div><span class="ic"><i data-lucide="key-round"></i></span>Заселение без встречи</div><div><span class="ic"><i data-lucide="washing-machine"></i></span>Стиральная машина</div>
+    <div><span class="ic"><i data-lucide="chef-hat"></i></span>Кухня</div><div><span class="ic"><i data-lucide="tv"></i></span>Smart TV</div>
+  </div><button class="more-btn">Все 10 удобств</button></section>
+
+<section class="card"><h2>О квартире</h2>
+  <p class="txt">Светлая двухкомнатная квартира 58&nbsp;м² на 10&nbsp;этаже ЖК Auezov City. Спальня с большой двуспальной кроватью и гостиная с диваном-кроватью: удобно до 4 гостей, окна во двор. Заселение без встречи: код двери появится на странице брони, свежее бельё и уборка после каждого гостя.</p>
+  <div class="link">Читать полностью</div></section>
+
+<section class="card"><h2>Где находится</h2>
+  <div class="mapimg" style="margin:14px 0 12px"><span class="area"></span><span class="pill tag"><i data-lucide="map-pin"></i>Бостандыкский район</span></div>
+  <div class="mute" style="font-size:14px">Номер квартиры и путь до двери с фото появятся на странице брони после оплаты залога.</div>
+  <div class="maps3"><a><i data-lucide="navigation"></i>2ГИС</a><a><i data-lucide="map"></i>Яндекс</a><a><i data-lucide="map-pinned"></i>Google</a></div>
+  <div class="near" style="margin-top:10px">
+    <div class="row"><span class="round chip" style="width:36px;height:36px"><i data-lucide="trees"></i></span><div class="t">Парк Первого Президента</div><span class="mins">10 мин пешком</span></div>
+    <div class="row"><span class="round chip" style="width:36px;height:36px"><i data-lucide="shopping-cart"></i></span><div class="t">Продукты 24/7</div><span class="mins">3 мин</span></div>
+    <div class="row"><span class="round chip" style="width:36px;height:36px"><i data-lucide="plane"></i></span><div class="t">Аэропорт</div><span class="mins">35 мин на такси</span></div>
+  </div>
+</section>
+
+<section class="card"><h2>Правила</h2><div class="rules">
+  <div><span class="ic"><i data-lucide="log-in"></i></span>Заезд с 14:00</div><div><span class="ic"><i data-lucide="log-out"></i></span>Выезд до 12:00</div>
+  <div><span class="ic"><i data-lucide="cigarette-off"></i></span>Не курить</div><div><span class="ic"><i data-lucide="moon"></i></span>Тишина после 23:00</div>
+</div></section>
+
+<div class="gallery"><img src="https://picsum.photos/id/1015/600/800"><img src="https://picsum.photos/id/1019/600/450"><img src="https://picsum.photos/id/1036/600/450"><img src="https://picsum.photos/id/1043/600/800"></div>
+</div>
+
+<div class="bar"><div class="in"><div><b id="bp">18&nbsp;000&nbsp;₸</b><br><span class="sub" id="bs">за ночь</span></div><a class="cta" id="cta" href="#dates"><span id="ct">Выбрать даты</span> <span class="arr"><i data-lucide="arrow-right"></i></span></a></div></div>
+<script>
+// Сегодня — 28 октября 2026. Дни считаются с понедельника 26 октября, до конца марта 2027.
+const START=new Date(2026,9,26), TODAY=2, DAYS=160, P=18000, f=n=>new Intl.NumberFormat('ru-RU').format(n)+'\u00a0₸';
+const busy=['2026-11-02','2026-11-03','2026-11-12','2026-11-13','2026-12-05','2026-12-06','2026-12-31','2027-01-01'];
+const W='вс пн вт ср чт пт сб'.split(' '), WL='воскресенье понедельник вторник среда четверг пятница суббота'.split(' ');
+const MG='января февраля марта апреля мая июня июля августа сентября октября ноября декабря'.split(' '), MS='янв фев мар апр мая июн июл авг сен окт ноя дек'.split(' '), MN='Январь Февраль Март Апрель Май Июнь Июль Август Сентябрь Октябрь Ноябрь Декабрь'.split(' ');
+const day=i=>new Date(2026,9,26+i), iso=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+const idx=d=>Math.round((d-START)/864e5);
+const isBusy=i=>busy.includes(iso(day(i))), price=i=>[5,6].includes(day(i).getDay())?20000:18000;
+const word=n=>n%10===1&&n%100!==11?'ночь':[2,3,4].includes(n%10)&&![12,13,14].includes(n%100)?'ночи':'ночей';
+const long=i=>`${day(i).getDate()} ${MG[day(i).getMonth()]}`, short=i=>`${day(i).getDate()} ${MS[day(i).getMonth()]}`;
+let a=null,b=null,view='week',qn=null,cur=[9,2026]; const cal=document.getElementById('cal'), mon=document.getElementById('mon');
+function cell(i,extra=''){ const d=day(i), off=i>=0&&isBusy(i), past=i<TODAY; let c=(past?'past':off?'off':'')+extra;
+ if(d.getDay()===1) c+=' mon'; if(d.getDay()===0) c+=' sun'; if(i===TODAY) c+=' today';
+ if(i===a) c+=' sel'+(b!==null?' s':''); if(i===b) c+=' sel e'; if(a!==null&&b!==null&&i>a&&i<b) c+=' in';
+ const lbl=past?'':off?'занято':i===a?'заезд':i===b?'выезд':f(price(i)).replace(' ₸','');
+ return `<div class="c ${c}" data-i="${i}"><i>${d.getDate()}</i><u>${lbl}</u></div>`; }
+function draw(){ const x=cal.scrollLeft; let h=''; for(let i=0;i<DAYS;i++) h+=cell(i); cal.innerHTML=h; cal.scrollLeft=x;
+ if(view!=='month') return; const y=mon.scrollTop; h='';
+ // Месяцы подряд сверху вниз, как вид «Месяц» в Календаре; сетка с понедельника.
+ for(let m=0;m<6;m++){ // Прошедшие недели текущего месяца не показываем: месяц начинается с недели «сегодня».
+  const from=m===0?day(0).getDate():1, first=new Date(2026,9+m,from), len=new Date(2026,10+m,0).getDate(), lead=(first.getDay()+6)%7;
+  h+=`<div class="mb" data-m="${m}"><h5>${MN[first.getMonth()]}${first.getFullYear()!==2026?' '+first.getFullYear():''}</h5><div class="g">`+'<div></div>'.repeat(lead);
+  for(let d=from;d<=len;d++) h+=cell(idx(new Date(2026,9+m,d)),d===from?' first':d===len?' last':'');
+  h+='</div></div>'; }
+ mon.innerHTML=h; mon.scrollTop=y; }
+function setTitle(d){ const was=cur[1]*12+cur[0], now=d.getFullYear()*12+d.getMonth(); cur=[d.getMonth(),d.getFullYear()];
+ const mt=document.getElementById('mt'); if(mt.dataset.k==now) return; mt.dataset.k=now;
+ mt.innerHTML=`<b>${MN[d.getMonth()]}</b><em>${d.getFullYear()}</em><i data-lucide="chevron-right"></i>`; lucide.createIcons();
+ // Месяц вперёд — название въезжает снизу, назад — сверху.
+ if(was!==now&&!still) Motion.animate(mt.querySelector('b'),{y:[now>was?10:-10,0],opacity:[0,1]},SPRING);
+ if(document.getElementById('wheels').classList.contains('on')) alignWheels(); }
+// Заголовок — месяц, который сейчас на экране: у недели — по её четвергу, у месяцев — верхний.
+function title(){ if(view==='month'){ let m=0; mon.querySelectorAll('.mb').forEach(el=>{ if(el.offsetTop-mon.offsetTop<=mon.scrollTop+40) m=+el.dataset.m; }); setTitle(new Date(2026,9+m,1)); }
+ else { const w=Math.round(cal.scrollLeft/cal.clientWidth); setTitle(day(w*7+3)); } }
+cal.addEventListener('scroll',title); mon.addEventListener('scroll',title);
+function onDay(e){ const el=e.target.closest('.c'); if(!el||el.classList.contains('off')||el.classList.contains('past')) return; qn=null; pick(+el.dataset.i); }
+cal.addEventListener('click',onDay); mon.addEventListener('click',onDay);
+function monthOf(i){ const d=day(i); return (d.getFullYear()-2026)*12+d.getMonth()-9; }
+function scrollMonth(m,smooth){ const el=mon.querySelector(`[data-m="${m}"]`); if(el) mon.scrollTo({top:el.offsetTop-mon.offsetTop,behavior:smooth?'smooth':'auto'}); }
+function toToday(){ if(view==='month') scrollMonth(0,true); else cal.scrollTo({left:0,behavior:'smooth'}); }
+// Неделя — лента вбок; месяцы — вертикальная прокрутка. Тап по названию месяца переключает так же.
+// Переход неделя ⇄ месяц на Motion: строка недели остаётся на месте, месяц открывается
+// от неё шторкой (clip-path), высота карточки идёт той же пружиной. Ячейки не двигаются —
+// поэтому строки не наезжают друг на друга.
+const still=matchMedia('(prefers-reduced-motion: reduce)').matches;
+const SPRING={type:'spring',visualDuration:.42,bounce:.12};
+let moving=false, queued=null, WEEK_H=70;
+// Нажатие во время перехода не теряем: запоминаем последнее и выполняем после анимации.
+function flush(){ moving=false; const q=queued; queued=null; if(!q) return; if(q[0]!==view) setView(q[0],q[1]); else show(q[1]); }
+// Показать выбранные даты в текущем виде, без смены вида.
+function show(i){ upd(); if(i==null) return;
+ if(view==='month'){ const c=mon.querySelector(`.c[data-i="${i}"]`); if(c) mon.scrollTo({top:relTop(c)-40,behavior:still?'auto':'smooth'}); }
+ else cal.scrollTo({left:Math.floor(i/7)*cal.clientWidth,behavior:still?'auto':'smooth'}); }
+const relTop=el=>el.getBoundingClientRect().top-mon.getBoundingClientRect().top+mon.scrollTop;
+function marks(v){ document.getElementById('vWeek').classList.toggle('on',v==='week'); document.getElementById('vMonth').classList.toggle('on',v==='month');
+ const th=document.querySelector('#seg .thumb'); if(still) th.style.transform=`translateX(${v==='month'?36:0}px)`; else Motion.animate(th,{x:v==='month'?36:0},{type:'spring',visualDuration:.3,bounce:.3}); }
+// Ячейки на экране по строкам: расстояние строки от строки-якоря.
+function rowsAround(rowY,rh){ const top=mon.scrollTop, bot=top+mon.clientHeight, rows=new Map();
+ mon.querySelectorAll('.c, h5').forEach(el=>{ const t=relTop(el); if(t<top-rh||t>bot) return; const d=Math.round((t-rowY)/rh); if(!rows.has(d)) rows.set(d,[]); rows.get(d).push(el); });
+ return rows; }
+// Шторка: видна только полоса строки-якоря → весь месяц.
+const slit=(y,rh)=>`inset(${Math.max(0,y-4)}px 0 ${Math.max(0,mon.clientHeight-y-rh-4)}px 0 round 20px)`;
+async function setView(v,anchor){ if(moving){ queued=[v,anchor]; return; } if(v===view) return; moving=true;
+ const box=document.getElementById('dates'), h0=box.offsetHeight; marks(v);
+ if(v==='month'){
+  const at=anchor??(a!==null&&b!==null?a:Math.round(cal.scrollLeft/cal.clientWidth)*7+3);
+  WEEK_H=cal.offsetHeight||WEEK_H; view='month'; cal.classList.add('off'); mon.classList.add('on'); upd();
+  const ac=mon.querySelector(`.c[data-i="${at}"]`);
+  if(ac){ mon.scrollTop=relTop(ac)-4; } else scrollMonth(monthOf(at),false);
+  title(); const h1=box.offsetHeight;
+  if(still||!ac){ flush(); return; }
+  const rowY=relTop(ac), rh=ac.offsetHeight, y=rowY-mon.scrollTop;
+  // Начальный кадр ставим сразу, иначе браузер успеет нарисовать полный месяц до старта.
+  const rows=rowsAround(rowY,rh); box.style.overflow='hidden'; box.style.height=h0+'px'; mon.style.clipPath=slit(y,rh);
+  rows.forEach((els,d)=>{ if(d!==0) els.forEach(el=>el.style.opacity=0); });
+  const runs=[ Motion.animate(box,{height:[h0,h1]},SPRING), Motion.animate(mon,{clipPath:[slit(y,rh),'inset(0px 0px 0px 0px round 0px)']},SPRING) ];
+  rows.forEach((els,d)=>{ if(d===0) return;
+   runs.push(Motion.animate(els,{opacity:[0,1],y:[d<0?6:-6,0]},{...SPRING,delay:Math.abs(d)*.04})); });
+  await Promise.all(runs.map(r=>r.finished)); box.style.height=''; box.style.overflow=''; mon.style.clipPath=''; flush();
+ } else {
+  // Неделя, к которой собираемся: с выбранным заездом, иначе верхняя строка на экране.
+  let at=anchor; if(at==null){ const first=[...mon.querySelectorAll('.c[data-i]')].find(el=>relTop(el)>=mon.scrollTop-4); at=a!==null&&b!==null?a:(first?+first.dataset.i:TODAY); }
+  const ac=mon.querySelector(`.c[data-i="${at}"]`);
+  const done=()=>{ view='week'; mon.classList.remove('on'); cal.classList.remove('off'); upd(); cal.scrollLeft=Math.floor(at/7)*cal.clientWidth; title(); };
+  if(still||!ac){ done(); flush(); return; }
+  if(relTop(ac)<mon.scrollTop||relTop(ac)>mon.scrollTop+mon.clientHeight-ac.offsetHeight) mon.scrollTop=relTop(ac)-4;
+  const rowY=relTop(ac), rh=ac.offsetHeight, y=rowY-mon.scrollTop, rows=rowsAround(rowY,rh);
+  const far=Math.max(0,...[...rows.keys()].map(Math.abs)); box.style.overflow='hidden'; box.style.height=h0+'px';
+  const runs=[ Motion.animate(mon,{clipPath:['inset(0px 0px 0px 0px round 0px)',slit(y,rh)],y:[0,-y]},SPRING),
+               Motion.animate(box,{height:[h0,h0-mon.clientHeight+WEEK_H]},SPRING) ];
+  rows.forEach((els,d)=>{ if(d===0) return; runs.push(Motion.animate(els,{opacity:[1,0]},{duration:.18,delay:(far-Math.abs(d))*.025})); });
+  await Promise.all(runs.map(r=>r.finished));
+  // Шторка закрылась на строке недели — подменяем месяц лентой той же недели.
+  done(); mon.style.clipPath=''; mon.style.transform=''; mon.querySelectorAll('.c, h5').forEach(el=>{ el.style.opacity=''; el.style.transform=''; });
+  box.style.height=''; box.style.overflow=''; flush();
+ } }
+function pick(i){ if(a===null||b!==null||i<=a){a=i;b=null}else{ let ok=true; for(let k=a;k<i;k++) if(isBusy(k)) ok=false; if(ok) b=i; else {a=i;b=null} } upd(); }
+function upd(){ draw(); const h=document.getElementById('hint'), c=document.getElementById('calc');
+ const st=document.getElementById('stay'); st.classList.toggle('on',a!==null&&b!==null); if(a!==null&&b!==null) st.innerHTML=`<div><span class="mute">Заезд</span><b>${W[day(a).getDay()]}, ${short(a)}, с 14:00</b></div><div style="text-align:right"><span class="mute">Выезд</span><b>${W[day(b).getDay()]}, ${short(b)}, до 12:00</b></div>`;
+ if(a===null){h.innerHTML='Выберите день заезда'; c.classList.remove('on')}
+ else if(b===null){h.innerHTML=`${WL[day(a).getDay()][0].toUpperCase()+WL[day(a).getDay()].slice(1)}, ${long(a)} <span>— заезд. Теперь день выезда</span>`; c.classList.remove('on')}
+ else{ const n=b-a; let sum=0; for(let k=a;k<b;k++) sum+=price(k); h.innerHTML=`${long(a)} → ${long(b)} <span>· ${n} ${word(n)}</span>`;
+  c.innerHTML=`<div class="ln"><span>${n} ${word(n)}</span><span>${f(sum)}</span></div><div class="ln mute"><span>Залог, вернём в течение дня после выезда</span><span>${f(10000)}</span></div><div class="ln tot"><span>Сейчас оплатить залог</span><span>${f(10000)}</span></div><div class="mute" style="font-size:13px;margin-top:6px">За ночи — при заселении</div>`; c.classList.add('on');
+  document.getElementById('bp').textContent=f(sum); document.getElementById('bs').textContent=day(a).getMonth()===day(b).getMonth()?`${day(a).getDate()}–${short(b)}`:`${short(a)} – ${short(b)}`; document.getElementById('ct').textContent='Забронировать'; return; }
+ document.getElementById('bp').textContent=f(P); document.getElementById('bs').textContent='за ночь'; document.getElementById('ct').textContent='Выбрать даты'; }
+// Готовые фильтры: с сегодняшнего дня, а если он занят — с ближайшего дня, где столько ночей свободно подряд.
+document.querySelectorAll('#qf button').forEach(bt=>bt.onclick=()=>{ const n=+bt.dataset.n;
+ for(let s=TODAY;s+n<DAYS;s++){ let ok=true; for(let k=s;k<s+n;k++) if(isBusy(k)) ok=false;
+  if(ok){ a=s; b=s+n; qn=n; const want=n>=7?'month':'week'; // неделя не влезает в ленту — вид месяца; короткие — лента недели
+   if(moving){ queued=[want,s]; return; } if(view!==want){ setView(want,s); return; } show(s); return; } } });
+const upd0=upd; upd=function(){ upd0();
+ document.querySelectorAll('#qf button').forEach(x=>x.classList.toggle('on',+x.dataset.n===qn&&b!==null&&b-a===qn));
+ if(a!==null){ const r=document.createElement('button'); r.className='rs'; r.textContent='Сбросить даты'; r.onclick=()=>{ a=b=null; qn=null; upd(); }; document.getElementById('hint').appendChild(r); } };
+// Барабаны месяца и года, как выбор месяца в iOS. Брать можно с текущего месяца по март 2027.
+const MNI='Январь Февраль Март Апрель Май Июнь Июль Август Сентябрь Октябрь Ноябрь Декабрь'.split(' '), YEARS=[2026,2027];
+const wM=document.getElementById('wM'), wY=document.getElementById('wY'), ROW=34;
+const ok=(m,y)=>{ const k=(y-2026)*12+m-9; return k>=0&&k<6; };
+// Месяцы по кругу, как в iOS: три копии списка, стоим всегда в средней — под декабрём идёт январь.
+function fillWheels(){ wM.innerHTML=[0,1,2].map(()=>MNI.map((n,i)=>`<div data-v="${i}" class="${ok(i,cur[1])?'':'no'} ${i===cur[0]?'on':''}">${n}</div>`).join('')).join('');
+ wY.innerHTML=YEARS.map(y=>`<div data-v="${y}" class="${y===cur[1]?'on':''}">${y}</div>`).join(''); }
+function wheelAt(w){ return Math.round(w.scrollTop/ROW); }
+function setWheels(){ wM.scrollTop=(12+cur[0])*ROW; wY.scrollTop=YEARS.indexOf(cur[1])*ROW; }
+function goTo(m,y){ const k=(y-2026)*12+m-9;
+ if(view==='month') scrollMonth(k,false); else { const i=k===0?TODAY:idx(new Date(y,m,4)); /* неделя с 4-м числом: её четверг в этом месяце */ cal.scrollLeft=Math.floor(i/7)*cal.clientWidth; } title(); }
+// Остановился барабан — берём месяц; недоступный месяц доводим до ближайшего доступного.
+let tm; function settle(){ clearTimeout(tm); tm=setTimeout(()=>{ let m=wheelAt(wM)%12; wM.scrollTop=(12+m)*ROW; let y=YEARS[Math.min(wheelAt(wY),YEARS.length-1)];
+ if(!ok(m,y)){ const k=Math.max(0,Math.min(5,(y-2026)*12+m-9)), d=new Date(2026,9+k,1); m=d.getMonth(); y=d.getFullYear(); }
+ cur=[m,y]; fillWheels(); wM.scrollTo({top:(12+m)*ROW,behavior:'smooth'}); wY.scrollTo({top:YEARS.indexOf(y)*ROW,behavior:'smooth'}); goTo(m,y); setTitle(new Date(y,m,1));
+ document.getElementById('mt').classList.add('open'); },120); }
+wM.addEventListener('scroll',settle); wY.addEventListener('scroll',settle);
+[wM,wY].forEach(w=>w.addEventListener('click',e=>{ const el=e.target.closest('[data-v]'); if(el) w.scrollTo({top:[...w.children].indexOf(el)*ROW,behavior:'smooth'}); }));
+// Колонки окошка встают под заголовок: месяц — под названием месяца, год — под годом.
+function alignWheels(){ const w=document.getElementById('wheels'), h=w.parentElement.getBoundingClientRect(), mt=document.getElementById('mt'),
+  bx=mt.querySelector('b').getBoundingClientRect(), ex=mt.querySelector('em').getBoundingClientRect(), PAD=6+10;
+ w.style.left=(bx.left-h.left-PAD)+'px'; w.querySelector('.cols').style.gridTemplateColumns=`${Math.round(ex.left-bx.left)}px 76px`; }
+function toggleWheels(force){ const w=document.getElementById('wheels'), open=force??!w.classList.contains('on');
+ if(open===w.classList.contains('on')) return; document.getElementById('mt').classList.toggle('open',open);
+ if(open){ w.classList.add('on'); alignWheels(); fillWheels(); setWheels(); if(!still) Motion.animate(w,{opacity:[0,1],scale:[.94,1],y:[-6,0]},{type:'spring',visualDuration:.25,bounce:.15}); }
+ else if(still) w.classList.remove('on');
+ else Motion.animate(w,{opacity:0,scale:.96,y:-4},{duration:.12}).finished.then(()=>{ w.classList.remove('on'); w.style.opacity=''; w.style.transform=''; }); }
+// Тап мимо окошка закрывает его.
+document.addEventListener('click',e=>{ if(!e.target.closest('#wheels')&&!e.target.closest('#mt')) toggleWheels(false); });
+upd(); title(); lucide.createIcons();
+</script></body></html>

@@ -114,7 +114,17 @@ test("the owner reads guests' orders by status", async ({ page, request }) => {
   await expect(orders).toHaveCount(2)
   await expect(orders.first()).toContainText('#2')
   await expect(orders.first()).toContainText('cancelled')
+  // A slow answer for another status: the list stays on screen meanwhile, it does not blink empty.
+  let release!: () => void
+  const answered = new Promise<void>((done) => { release = done })
+  await page.route((url) => url.pathname.endsWith('/guest-orders') && url.searchParams.get('status') === 'delivered', async (route) => {
+    await answered
+    await route.continue()
+  })
   await page.getByRole('radio', { name: 'Delivered' }).click()
+  await page.waitForTimeout(300)
+  await expect(orders).toHaveCount(2)
+  release()
   await expect(orders).toHaveCount(1)
   await expect(orders.first()).toContainText('on the tab')
   await expect(orders.first()).toContainText('by invoice')

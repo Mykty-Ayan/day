@@ -100,7 +100,9 @@
     "expired": "Der Reisezeitraum dieses Links ist vorbei. Schreiben Sie uns, wir finden einen neuen.",
     "choose": "Auswählen",
     "hold": "Wählen Sie eine aus, wir halten sie 30 Minuten für Sie frei.",
-    "lapsed": "Die Buchungszeit ist abgelaufen, ohne dass die Zahlung eingegangen ist. Wählen Sie die Wohnung erneut."
+    "lapsed": "Die Buchungszeit ist abgelaufen, ohne dass die Zahlung eingegangen ist. Wählen Sie die Wohnung erneut.",
+    "next": "Wie es weitergeht",
+    "freeOf": "{{free}} von {{total}} frei"
   },
   "guestBook": {
     "back": "Alle Wohnungen",

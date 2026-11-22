@@ -299,9 +299,33 @@ test('on the departure day the host instructions are a checklist the guest ticks
     check_in: `${addDays(now, -2)}T14:00:00`, check_out: `${now}T12:00:00`, paid: 40000, remaining: 0,
   }))
   await expect(page.getByRole('tab', { name: 'Выезд' })).toHaveAttribute('aria-selected', 'true')
+  // The check-out card is dark with white words, never white on white.
+  const leaveCard = page.getByTestId('leave-card')
+  await expect(leaveCard).toContainText('до 12:00')
+  await expect(leaveCard).toHaveCSS('background-color', 'rgb(17, 17, 20)')
   await expect(page.getByText('0 из 2')).toBeVisible()
   await page.getByRole('checkbox', { name: 'Закройте окна' }).check()
   await expect(page.getByText('1 из 2')).toBeVisible()
   await page.getByRole('checkbox', { name: 'Выключите свет' }).check()
   await expect(page.getByText('Всё готово, можно выезжать')).toBeVisible()
+})
+
+test('the cart waits while the guest looks at another stage', async ({ page }) => {
+  await openStay(page, answer({ menu: MENU }, { paid: 40000, remaining: 0 }))
+  const minibar = page.getByRole('region', { name: 'Мини-бар' })
+  await minibar.getByRole('button', { name: 'Добавить: Кола 0,5' }).click()
+  await page.getByRole('tab', { name: 'Заселение' }).click()
+  await page.getByRole('tab', { name: 'В квартире' }).click()
+  await expect(minibar.getByRole('button', { name: /Корзина: 1 шт\./ })).toBeVisible()
+})
+
+test.describe('a phone in another time zone', () => {
+  test.use({ timezoneId: 'Asia/Tokyo' })
+
+  test('counts down to check-in by the company\'s clock, not the phone\'s', async ({ page }) => {
+    const now = today()
+    // An hour to check-in on the company's clock; Tokyo is four hours ahead of Almaty.
+    await open(page, answer({ now: `${now}T13:00:00` }, { check_in: `${now}T14:00:00` }))
+    await expect(page.getByRole('region', { name: 'Ваша поездка' })).toContainText(/Через (1 ч 0|0 ч 59) мин/)
+  })
 })

@@ -1,0 +1,348 @@
+<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>Макет — бронь гостя</title><link href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700&display=swap" rel="stylesheet"><script src="https://unpkg.com/lucide@0.460.0/dist/umd/lucide.min.js"></script><script src="https://cdn.jsdelivr.net/npm/motion@12.33.0/dist/motion.js"></script><link rel="stylesheet" href="base.css">
+<style>
+/* Страница гостя по этапам: Заселение → В квартире → Выезд. Плитки — как в приложениях умного дома, выезд — как расписание поездки. */
+.mute { color:var(--mute); }
+.lab { font-size:12px; font-weight:600; color:var(--mute); text-transform:uppercase; letter-spacing:.06em; }
+section h2 { margin-bottom:12px; }
+
+/* приветствие */
+.top { display:flex; align-items:center; gap:12px; padding:16px 16px 4px; }
+.ava { width:44px; height:44px; border-radius:50%; background:var(--accent-soft); color:var(--accent); display:grid; place-items:center; font-weight:700; font-size:18px; flex:none; }
+.top .hi { flex:1; min-width:0; } .top .hi b { display:block; font-size:18px; letter-spacing:-.02em; } .top .hi span { font-size:13px; color:var(--mute); }
+
+/* шапка с фото и отсчётом */
+.hero { position:relative; margin:8px; border-radius:30px; overflow:hidden; height:236px; color:#fff; }
+.hero img { width:100%; height:100%; object-fit:cover; }
+.hero::after { content:''; position:absolute; inset:0; background:linear-gradient(180deg,rgba(0,0,0,.05) 30%,rgba(0,0,0,.72)); }
+.hero .in { position:absolute; inset:auto 18px 16px; z-index:1; }
+.hero .t1 { font-size:13px; font-weight:600; opacity:.8; }
+.hero .t2 { font-size:30px; font-weight:700; letter-spacing:-.03em; line-height:1.1; margin:2px 0 10px; }
+.hero .chips { display:flex; gap:6px; flex-wrap:wrap; }
+.hero .chips span { display:inline-flex; align-items:center; gap:5px; height:28px; padding:0 10px; border-radius:99px; font-size:12px; font-weight:600; background:rgba(255,255,255,.18); backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px); }
+.hero .chips svg { width:14px; height:14px; color:#4ADE80; }
+.hero .lock { position:absolute; top:14px; left:14px; z-index:1; }
+.hero .bar2 { height:4px; border-radius:2px; background:rgba(255,255,255,.25); margin:12px 0 0; overflow:hidden; }
+.hero .bar2 i { display:block; height:100%; width:72%; background:#fff; border-radius:2px; }
+
+/* вкладки этапов */
+.tabs { position:sticky; top:env(safe-area-inset-top,0px); z-index:4; padding:8px 8px 6px; background:linear-gradient(var(--bg) 80%,transparent); }
+.seg3 { position:relative; display:grid; grid-template-columns:repeat(3,1fr); background:#E2E2E9; border-radius:16px; padding:4px; }
+.seg3 .th { position:absolute; top:4px; left:4px; height:calc(100% - 8px); width:calc((100% - 8px)/3); border-radius:12px; background:#fff; box-shadow:0 1px 4px rgba(17,17,20,.12); }
+.seg3 button { position:relative; z-index:1; border:0; background:none; font:600 14px 'Onest'; color:var(--mute); height:40px; display:flex; align-items:center; justify-content:center; gap:6px; cursor:pointer; }
+.seg3 button svg { width:16px; height:16px; }
+.seg3 button.on { color:var(--ink); }
+.panel[hidden] { display:none; }
+
+/* бенто: код двери, Wi-Fi, время */
+.bento { display:grid; grid-template-columns:1fr 1fr; grid-template-rows:auto auto; gap:8px; margin:8px; }
+.tile { background:var(--card); border-radius:26px; padding:16px; display:flex; flex-direction:column; gap:6px; min-width:0; }
+.tile .ic { width:38px; height:38px; border-radius:50%; background:var(--chip); display:grid; place-items:center; } .tile .ic svg { width:18px; height:18px; }
+.door { grid-row:span 2; background:var(--ink); color:#fff; justify-content:space-between; }
+.door .lab { color:rgba(255,255,255,.55); }
+.door .code { font-size:44px; font-weight:700; letter-spacing:.06em; line-height:1; }
+.door .code em { font-style:normal; color:#8FA8FF; }
+.door .how { font-size:13px; color:rgba(255,255,255,.7); line-height:1.35; }
+.door .vid { display:inline-flex; align-items:center; gap:6px; height:36px; padding:0 12px; border-radius:99px; background:rgba(255,255,255,.12); font-size:13px; font-weight:600; align-self:flex-start; }
+.door .vid svg { width:14px; height:14px; }
+.tile b.v { font-size:17px; letter-spacing:-.01em; overflow-wrap:anywhere; } .tile .s { font-size:12px; color:var(--mute); }
+.tile .row { display:flex; align-items:center; justify-content:space-between; }
+.cp { width:34px; height:34px; border-radius:50%; border:0; background:var(--chip); display:grid; place-items:center; cursor:pointer; } .cp svg { width:16px; height:16px; }
+
+/* путь до двери — шаги сверху вниз */
+.path { display:flex; flex-direction:column; }
+.st { display:grid; grid-template-columns:28px 76px 1fr; gap:12px; align-items:start; position:relative; padding-bottom:16px; }
+.st:last-child { padding-bottom:0; }
+.st .n { width:28px; height:28px; border-radius:50%; background:var(--ink); color:#fff; font-size:13px; font-weight:700; display:grid; place-items:center; position:relative; z-index:1; }
+.st:not(:last-child)::before { content:''; position:absolute; left:13px; top:28px; bottom:0; width:2px; background:#E4E4EA; }
+.st .ph { position:relative; width:76px; height:76px; border-radius:18px; overflow:hidden; } .st .ph img { width:100%; height:100%; object-fit:cover; }
+.st .ph .pl { position:absolute; inset:auto 6px 6px auto; height:22px; padding:0 7px; border-radius:99px; background:rgba(0,0,0,.6); color:#fff; font-size:11px; font-weight:600; display:flex; align-items:center; gap:3px; } .st .ph .pl svg { width:11px; height:11px; }
+.st b { display:block; font-size:16px; margin-top:3px; } .st span.d { font-size:14px; color:var(--mute); line-height:1.4; }
+.st .code-chip { display:inline-block; margin-top:6px; font-size:13px; font-weight:700; background:var(--accent-soft); color:var(--accent); padding:3px 9px; border-radius:99px; }
+
+/* техника — плитки как в умном доме */
+.dev { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+.dev a { background:var(--chip); border-radius:22px; padding:14px; display:flex; flex-direction:column; gap:10px; }
+.dev a .r { display:flex; justify-content:space-between; align-items:center; }
+.dev a .ic { width:38px; height:38px; border-radius:50%; background:#fff; display:grid; place-items:center; } .dev a .ic svg { width:18px; height:18px; }
+.dev a .pv { height:26px; padding:0 9px; border-radius:99px; background:var(--ink); color:#fff; font-size:12px; font-weight:600; display:flex; align-items:center; gap:4px; } .dev a .pv svg { width:11px; height:11px; }
+.dev a b { font-size:15px; } .dev a span { font-size:12px; color:var(--mute); margin-top:-8px; }
+
+/* мини-бар */
+.mock-set { margin:2px 0 12px; padding:10px; border:1.5px dashed #CFCFD8; border-radius:16px; font-size:12px; color:var(--mute); }
+.mock-set div { display:flex; gap:6px; margin-top:6px; } .mock-set button { flex:1; height:32px; border:0; border-radius:10px; background:var(--chip); font:600 12px 'Onest'; color:var(--mute); cursor:pointer; } .mock-set button.on { background:var(--ink); color:#fff; }
+.mbl .it { display:grid; grid-template-columns:38px 1fr auto; gap:12px; align-items:center; padding:8px 0; }
+.mbl .it + .it { border-top:1px solid var(--line); }
+.mbl .ic { width:38px; height:38px; border-radius:50%; background:var(--chip); display:grid; place-items:center; } .mbl .ic svg { width:18px; height:18px; }
+.mbl b { display:block; font-size:15px; font-weight:600; } .mbl .it > div > span { font-size:13px; color:var(--mute); }
+.stp { display:flex; align-items:center; gap:2px; background:var(--chip); border-radius:99px; padding:3px; }
+.stp button { width:32px; height:32px; border:0; border-radius:50%; background:#fff; display:grid; place-items:center; cursor:pointer; } .stp button svg { width:15px; height:15px; }
+.stp output { min-width:22px; text-align:center; font-weight:700; font-size:15px; }
+.it:not(.has) .stp button[data-d="-1"] { opacity:.35; pointer-events:none; }
+.pm { display:flex; flex-direction:column; gap:8px; margin-top:12px; }
+.pm label { display:flex; gap:12px; align-items:center; padding:12px; border-radius:16px; background:var(--chip); cursor:pointer; border:2px solid transparent; }
+.pm label:has(input:checked) { border-color:var(--accent); background:var(--accent-soft); }
+.pm input { appearance:none; width:20px; height:20px; border-radius:50%; border:2px solid #CFCFD8; flex:none; margin:0; display:grid; place-items:center; }
+.pm input:checked { border-color:var(--accent); } .pm input:checked::after { content:''; width:10px; height:10px; border-radius:50%; background:var(--accent); }
+.pm b { display:block; font-size:15px; font-weight:600; } .pm span { font-size:13px; color:var(--mute); }
+#mbOrders { border-top:1px solid var(--line); margin-top:14px; padding-top:12px; } #mbOrders h3 { font-size:15px; margin:0 0 4px; }
+.ord { display:flex; justify-content:space-between; gap:10px; padding:8px 0; font-size:14px; } .ord span { display:block; font-size:13px; color:var(--mute); } .ord b { white-space:nowrap; font-weight:600; }
+.ord em { font-style:normal; display:inline-block; margin-top:4px; font-size:12px; font-weight:600; padding:2px 8px; border-radius:99px; background:var(--chip); color:var(--ink); }
+.ord em.bk { background:var(--accent-soft); color:var(--accent); }
+
+/* рядом — фото-карточки */
+.near2 { display:flex; gap:8px; overflow-x:auto; scroll-snap-type:x mandatory; scrollbar-width:none; margin:0 -20px; padding:0 20px; }
+.near2::-webkit-scrollbar { display:none; }
+.place { flex:none; width:160px; height:200px; border-radius:22px; overflow:hidden; position:relative; color:#fff; scroll-snap-align:start; }
+.place img { width:100%; height:100%; object-fit:cover; }
+.place::after { content:''; position:absolute; inset:0; background:linear-gradient(180deg,transparent 40%,rgba(0,0,0,.7)); }
+.place .m { position:absolute; top:10px; left:10px; z-index:1; height:26px; padding:0 9px; border-radius:99px; background:rgba(255,255,255,.9); color:var(--ink); font-size:12px; font-weight:600; display:flex; align-items:center; gap:4px; } .place .m svg { width:12px; height:12px; }
+.place b { position:absolute; left:12px; right:12px; bottom:12px; z-index:1; font-size:15px; line-height:1.2; }
+
+/* выезд — расписание */
+.days { display:flex; gap:6px; margin-bottom:14px; }
+.days span { flex:1; text-align:center; padding:8px 0; border-radius:16px; background:var(--chip); font-size:12px; color:var(--mute); font-weight:600; }
+.days span b { display:block; font-size:18px; color:var(--ink); }
+.days span.on { background:var(--ink); color:rgba(255,255,255,.7); } .days span.on b { color:#fff; }
+.tl { display:flex; flex-direction:column; gap:8px; }
+.ev { display:grid; grid-template-columns:52px 1fr auto; gap:10px; align-items:center; background:var(--chip); border-radius:18px; padding:12px 12px 12px 14px; }
+.ev .tm { font-size:15px; font-weight:700; } .ev b { display:block; font-size:15px; } .ev span { font-size:13px; color:var(--mute); }
+.ev.main { background:var(--ink); color:#fff; } .ev.main span { color:rgba(255,255,255,.65); }
+.ev .go { width:34px; height:34px; border-radius:50%; background:#fff; display:grid; place-items:center; color:var(--ink); } .ev .go svg { width:16px; height:16px; }
+.chk { display:flex; flex-direction:column; gap:2px; }
+.chk label { display:flex; align-items:center; gap:12px; padding:10px 0; font-size:15px; cursor:pointer; border-bottom:1px solid var(--line); }
+.chk label:last-child { border:0; }
+.chk input { appearance:none; width:24px; height:24px; border-radius:8px; border:2px solid #CFCFD8; display:grid; place-items:center; flex:none; margin:0; transition:.15s; }
+.chk input:checked { background:var(--accent); border-color:var(--accent); }
+.chk input:checked::after { content:''; width:6px; height:11px; border:solid #fff; border-width:0 2px 2px 0; transform:rotate(45deg) translate(-1px,-1px); }
+.chk input:checked + span { color:var(--mute); text-decoration:line-through; }
+.prog { display:flex; justify-content:space-between; align-items:center; }
+.prog .pb { height:6px; border-radius:3px; background:var(--chip); margin:10px 0 4px; overflow:hidden; } .prog + .pb i { display:block; height:100%; width:0; background:var(--accent); border-radius:3px; transition:width .3s; }
+.pay { display:flex; justify-content:space-between; padding:6px 0; font-size:15px; } .pay b { font-weight:600; }
+details { border-top:1px solid var(--line); padding:12px 0 0; margin-top:12px; } summary { list-style:none; display:flex; justify-content:space-between; align-items:center; cursor:pointer; font-weight:600; } summary::-webkit-details-marker { display:none; }
+details[open] summary svg { transform:rotate(90deg); } details p { font-size:14px; line-height:1.5; color:#2A2A30; margin-top:8px; }
+.leave { background:var(--ink); color:#fff; }
+.leave .lab { color:rgba(255,255,255,.55); }
+.leave .when { font-size:26px; font-weight:700; letter-spacing:-.03em; line-height:1.15; margin:6px 0 2px; }
+.leave .sub { font-size:14px; color:rgba(255,255,255,.65); }
+.leave .more { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:16px; }
+.leave .more a { background:rgba(255,255,255,.1); border-radius:18px; padding:12px; display:flex; flex-direction:column; gap:4px; }
+.leave .more svg { width:18px; height:18px; color:#8FA8FF; margin-bottom:4px; }
+.leave .more b { font-size:15px; } .leave .more span { font-size:12px; color:rgba(255,255,255,.6); }
+.dep b { display:block; font-size:30px; letter-spacing:-.03em; } .dep span { font-size:14px; color:var(--mute); }
+.steps3 { display:flex; flex-direction:column; gap:0; margin-top:14px; }
+.steps3 > div { display:grid; grid-template-columns:34px 1fr; column-gap:12px; position:relative; padding-bottom:14px; }
+.steps3 > div:last-child { padding-bottom:0; }
+.steps3 > div:not(:last-child)::before { content:''; position:absolute; left:16px; top:34px; bottom:0; width:2px; background:#E4E4EA; }
+.steps3 .n { grid-row:span 2; width:34px; height:34px; border-radius:50%; background:var(--chip); display:grid; place-items:center; }
+.steps3 .n svg { width:16px; height:16px; }
+.steps3 .on .n { background:var(--accent); color:#fff; }
+.steps3 b { font-size:15px; } .steps3 span:not(.n) { font-size:13px; color:var(--mute); }
+.again b { display:block; font-size:18px; } .again span { display:block; font-size:14px; color:var(--mute); margin-top:4px; line-height:1.45; }
+.rules { display:flex; flex-direction:column; gap:10px; }
+.rules div { display:flex; align-items:center; gap:12px; font-size:15px; } .rules svg { width:20px; height:20px; color:var(--mute); flex:none; }
+:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+</style></head><body><div class="wrap">
+
+<div class="top">
+  <span class="ava">А</span>
+  <div class="hi"><b>Здравствуйте, Айгерим</b><span>Двухкомнатная у&nbsp;парка · 4–6 ноя</span></div>
+  <a class="lang"><i data-lucide="globe"></i>RU</a>
+</div>
+
+<div class="hero">
+  <img src="https://picsum.photos/id/1018/900/600" alt="Квартира">
+  <span class="pill glass-p lock"><i data-lucide="lock"></i>Ваша ссылка</span>
+  <div class="in">
+    <div class="t1">Заезд сегодня с 14:00</div>
+    <div class="t2">Через 2 ч 15 мин</div>
+    <div class="chips"><span><i data-lucide="circle-check"></i>Бронь подтверждена</span><span><i data-lucide="circle-check"></i>Залог оплачен</span></div>
+    <div class="bar2"><i></i></div>
+  </div>
+</div>
+
+<div class="tabs"><div class="seg3" id="seg3"><span class="th" id="th"></span>
+  <button class="on" data-t="in"><i data-lucide="key-round"></i>Заселение</button>
+  <button data-t="stay"><i data-lucide="sofa"></i>В квартире</button>
+  <button data-t="out"><i data-lucide="log-out"></i>Выезд</button>
+</div></div>
+
+<!-- ЗАСЕЛЕНИЕ -->
+<div class="panel" id="p-in">
+  <div class="bento">
+    <div class="tile door">
+      <div class="lab">Код двери</div>
+      <div><div class="code">4821<em>#</em></div><div class="how" style="margin-top:8px">Наберите цифры на замке и нажмите #</div></div>
+      <a class="vid"><i data-lucide="play"></i>Видео 0:15</a>
+    </div>
+    <div class="tile">
+      <div class="row"><span class="ic"><i data-lucide="wifi"></i></span><button class="cp" data-copy="sunrise2026" aria-label="Скопировать пароль Wi-Fi"><i data-lucide="copy"></i></button></div>
+      <span class="s">Сеть Auezov_89 · пароль</span><b class="v">sunrise2026</b>
+    </div>
+    <div class="tile">
+      <span class="ic"><i data-lucide="clock"></i></span>
+      <span class="s">Заезд · ср, 4 ноя</span><b class="v">с 14:00</b>
+    </div>
+  </div>
+
+  <section class="card"><h2>Адрес</h2>
+    <div class="mapimg"><span class="pin"></span></div>
+    <div style="margin-top:12px"><b style="font-size:17px">Алматы, Ауэзова 89, кв. 54</b><div class="mute" style="font-size:14px">ЖК Auezov City · подъезд 2 · 10&nbsp;этаж</div></div>
+    <div class="maps3"><a><i data-lucide="navigation"></i>2ГИС</a><a><i data-lucide="map"></i>Яндекс</a><a><i data-lucide="map-pinned"></i>Google</a></div>
+    <a class="btn light" style="width:100%;margin-top:8px;height:46px;font-size:15px"><i data-lucide="car-taxi-front"></i>Вызвать такси сюда</a>
+  </section>
+
+  <section class="card"><h2>Путь до двери</h2>
+    <div class="path">
+      <div class="st"><span class="n">1</span><div class="ph"><img src="https://picsum.photos/id/122/200/200" alt=""></div><div><b>Это наш дом</b><span class="d">Серая 16-этажка, вход со двора, не с Ауэзова</span></div></div>
+      <div class="st"><span class="n">2</span><div class="ph"><img src="https://picsum.photos/id/164/200/200" alt=""><span class="pl"><i data-lucide="play"></i>0:24</span></div><div><b>Калитка во двор</b><span class="d">Слева от аптеки</span><br><span class="code-chip">код 1590</span></div></div>
+      <div class="st"><span class="n">3</span><div class="ph"><img src="https://picsum.photos/id/193/200/200" alt=""></div><div><b>Подъезд 2</b><span class="d">Второй слева</span><br><span class="code-chip">домофон: 54, затем В</span></div></div>
+      <div class="st"><span class="n">4</span><div class="ph"><img src="https://picsum.photos/id/1067/200/200" alt=""><span class="pl"><i data-lucide="play"></i>0:15</span></div><div><b>Дверь и замок</b><span class="d">Лифт на 10&nbsp;этаж, налево. Код двери — выше</span></div></div>
+    </div>
+    <div class="copyable" style="margin-top:16px"><div><span class="lab2">Парковка</span><b style="font-size:15px">Во дворе бесплатно, у шлагбаума</b></div><button><i data-lucide="image"></i>Показать фото</button></div>
+  </section>
+</div>
+
+<!-- В КВАРТИРЕ -->
+<div class="panel" id="p-stay" hidden>
+  <section class="card"><h2>Как пользоваться</h2>
+    <div class="dev">
+      <a><div class="r"><span class="ic"><i data-lucide="air-vent"></i></span><span class="pv"><i data-lucide="play"></i>0:30</span></div><b>Кондиционер</b><span>пульт в тумбочке</span></a>
+      <a><div class="r"><span class="ic"><i data-lucide="cooking-pot"></i></span><span class="pv"><i data-lucide="play"></i>0:20</span></div><b>Плита</b><span>индукционная</span></a>
+      <a><div class="r"><span class="ic"><i data-lucide="washing-machine"></i></span><span class="pv"><i data-lucide="play"></i>0:40</span></div><b>Стиральная машина</b><span>порошок под раковиной</span></a>
+      <a><div class="r"><span class="ic"><i data-lucide="tv"></i></span><span class="pv"><i data-lucide="play"></i>0:25</span></div><b>Smart TV</b><span>YouTube уже вошёл</span></a>
+    </div>
+  </section>
+
+  <section class="card" id="mb"><div style="display:flex;justify-content:space-between;align-items:baseline"><h2>Мини-бар</h2><span class="mute" style="font-size:13px">привезём до квартиры</span></div>
+    <div class="mock-set"><span>Макет · способы оплаты у компании</span><div><button data-m="delivery" class="on">Только по счёту</button><button data-m="both">Оба способа</button></div></div>
+    <div class="mbl">
+      <div class="it" data-id="w" data-p="500"><span class="ic"><i data-lucide="glass-water"></i></span><div><b>Вода 0,5 л</b><span>500&nbsp;₸</span></div><div class="stp"><button data-d="-1" aria-label="Убрать"><i data-lucide="minus"></i></button><output>0</output><button data-d="1" aria-label="Добавить"><i data-lucide="plus"></i></button></div></div>
+      <div class="it" data-id="c" data-p="700"><span class="ic"><i data-lucide="cup-soda"></i></span><div><b>Кола</b><span>700&nbsp;₸</span></div><div class="stp"><button data-d="-1" aria-label="Убрать"><i data-lucide="minus"></i></button><output>0</output><button data-d="1" aria-label="Добавить"><i data-lucide="plus"></i></button></div></div>
+      <div class="it" data-id="p" data-p="900"><span class="ic"><i data-lucide="popcorn"></i></span><div><b>Чипсы</b><span>900&nbsp;₸</span></div><div class="stp"><button data-d="-1" aria-label="Убрать"><i data-lucide="minus"></i></button><output>0</output><button data-d="1" aria-label="Добавить"><i data-lucide="plus"></i></button></div></div>
+    </div>
+    <div id="mbPay" hidden>
+      <div class="pm" id="pmBoth" hidden>
+        <label><input type="radio" name="pm" value="delivery" checked><div><b>Оплачу по счёту</b><span>Счёт придёт в приложение Kaspi, привезём после оплаты</span></div></label>
+        <label><input type="radio" name="pm" value="booking"><div><b>Добавить к оплате брони</b><span>Заплатите вместе с бронью до выезда</span></div></label>
+      </div>
+      <p class="mute" id="pmOne" style="font-size:13px;margin-top:12px">Хозяин подтвердит заказ, счёт придёт в приложение Kaspi на +7&nbsp;702&nbsp;•••&nbsp;••&nbsp;67. Привезём за 10–15 минут после оплаты.</p>
+      <button class="btn dark" id="mbGo" style="width:100%;height:46px;font-size:15px;margin-top:12px;border:0"><i data-lucide="shopping-bag"></i><span>Заказать</span></button>
+    </div>
+    <p class="mute" id="mbHint" style="font-size:13px;margin-top:10px">Выберите, что привезти.</p>
+    <div id="mbOrders" hidden><h3>Ваши заказы</h3><div id="mbList"></div></div>
+  </section>
+
+  <section class="card"><h2>Нужно что-то ещё?</h2>
+    <div class="acts4" style="margin-top:0">
+      <a><span class="round chip" style="width:36px;height:36px"><i data-lucide="calendar-plus"></i></span>Продлить бронь<span class="s">свободно до 9&nbsp;ноября</span></a>
+      <a><span class="round chip" style="width:36px;height:36px"><i data-lucide="clock"></i></span>Выехать позже<span class="s">до 15:00 · 5&nbsp;000&nbsp;₸</span></a>
+      <a><span class="round chip" style="width:36px;height:36px"><i data-lucide="sparkles"></i></span>Уборка или бельё<span class="s">в удобное время</span></a>
+      <a><span class="round chip" style="width:36px;height:36px"><i data-lucide="wrench"></i></span>Что-то сломалось<span class="s">пришлите фото</span></a>
+    </div>
+  </section>
+
+  <section class="card"><h2>Рядом</h2>
+    <div class="near2">
+      <div class="place"><img src="https://picsum.photos/id/292/320/400" alt=""><span class="m"><i data-lucide="footprints"></i>3 мин</span><b>Magnum, продукты 24/7</b></div>
+      <div class="place"><img src="https://picsum.photos/id/431/320/400" alt=""><span class="m"><i data-lucide="footprints"></i>5 мин</span><b>Кофейня Coffee Boom</b></div>
+      <div class="place"><img src="https://picsum.photos/id/1039/320/400" alt=""><span class="m"><i data-lucide="footprints"></i>10 мин</span><b>Парк Первого Президента</b></div>
+      <div class="place"><img src="https://picsum.photos/id/225/320/400" alt=""><span class="m"><i data-lucide="footprints"></i>1 мин</span><b>Аптека у калитки</b></div>
+    </div>
+  </section>
+  <section class="card"><h2>Правила дома</h2>
+    <div class="rules">
+      <div><i data-lucide="cigarette-off"></i>Не курить в квартире и на балконе</div>
+      <div><i data-lucide="moon"></i>Тишина после 23:00 — рядом соседи</div>
+      <div><i data-lucide="party-popper"></i>Без вечеринок</div>
+    </div>
+  </section>
+</div>
+
+<!-- ВЫЕЗД -->
+<div class="panel" id="p-out" hidden>
+  <section class="card leave">
+    <div class="lab">Выезд</div>
+    <div class="when">Пятница, 6&nbsp;ноября, до&nbsp;12:00</div>
+    <div class="sub">Через 2 дня</div>
+    <div class="more">
+      <a><i data-lucide="calendar-plus"></i><b>Продлить бронь</b><span>свободно до 9&nbsp;ноября</span></a>
+      <a><i data-lucide="clock"></i><b>Выехать позже</b><span>до 15:00 · 5&nbsp;000&nbsp;₸</span></a>
+    </div>
+  </section>
+
+  <section class="card"><div class="prog"><h2 style="margin:0">Перед выездом</h2><span class="mute" id="cnt" style="font-size:14px">0 из 4</span></div>
+    <div class="pb" style="height:6px;border-radius:3px;background:var(--chip);margin:12px 0 6px;overflow:hidden"><i id="pbar" style="display:block;height:100%;width:0;background:var(--accent);border-radius:3px;transition:width .3s"></i></div>
+    <div class="chk" id="chk">
+      <label><input type="checkbox" id="c1"><span>Выключите свет и кондиционер</span></label>
+      <label><input type="checkbox" id="c2"><span>Закройте окна и балкон</span></label>
+      <label><input type="checkbox" id="c3"><span>Посуду сложите в раковину, мусор оставьте у двери</span></label>
+      <label><input type="checkbox" id="c4"><span>Захлопните дверь — замок закроется сам</span></label>
+    </div>
+  </section>
+
+  <section class="card"><h2>Залог</h2>
+    <div class="dep"><b>10&nbsp;000&nbsp;₸</b><span>вернём в течение дня после выезда</span></div>
+    <div class="steps3">
+      <div class="on"><span class="n"><i data-lucide="log-out"></i></span><b>Вы выезжаете</b><span>до 12:00</span></div>
+      <div><span class="n"><i data-lucide="search-check"></i></span><b>Хозяин проверяет квартиру</b><span>за пару часов</span></div>
+      <div><span class="n"><i data-lucide="wallet"></i></span><b>Вернём залог на Kaspi</b><span>+7&nbsp;702&nbsp;•••&nbsp;••&nbsp;67</span></div>
+    </div>
+    <p class="mute" style="font-size:13px;margin-top:12px;line-height:1.45">Из залога вычтем только поломки. Каждую сумму покажем с фото.</p>
+  </section>
+
+  <section class="card"><h2>Оплата</h2>
+    <div class="pay"><span>2 ночи</span><b>36&nbsp;000&nbsp;₸ · при заезде</b></div>
+    <div class="pay" id="payMb" hidden><span>Мини-бар</span><b id="payMbSum"></b></div>
+    <div class="pay"><span>Залог</span><b style="color:#17A34A">оплачен</b></div>
+  </section>
+
+  <section class="card again">
+    <div><b>Понравилось?</b><span>В следующий раз бронируйте напрямую у&nbsp;хозяина — ссылка на квартиру всегда здесь.</span></div>
+    <a class="btn dark" style="height:46px;font-size:15px;width:100%;margin-top:12px">Открыть страницу квартиры</a>
+  </section>
+</div>
+
+</div>
+<div class="bar"><div class="in"><div><b style="font-size:15px;white-space:nowrap">Нужна помощь?</b><br><span class="mute" style="font-size:13px">в WhatsApp</span></div><a class="cta" style="white-space:nowrap;font-size:15px;gap:8px;padding:0 6px 0 16px">Написать хозяину <span class="arr"><i data-lucide="message-circle"></i></span></a></div></div>
+<div class="toast" id="toast">Скопировано</div>
+<script>
+const still=matchMedia('(prefers-reduced-motion: reduce)').matches;
+// Вкладки этапов: подложка едет пружиной, содержимое мягко сменяется.
+const tabs=[...document.querySelectorAll('#seg3 button')], th=document.getElementById('th');
+function openTab(t,anim=true){ const i=tabs.findIndex(b=>b.dataset.t===t);
+ tabs.forEach(b=>b.classList.toggle('on',b.dataset.t===t));
+ if(still||!anim) th.style.transform=`translateX(${i*100}%)`; else Motion.animate(th,{x:`${i*100}%`},{type:'spring',visualDuration:.3,bounce:.2});
+ document.querySelectorAll('.panel').forEach(p=>p.hidden=p.id!=='p-'+t);
+ const p=document.getElementById('p-'+t); if(anim&&!still) Motion.animate([...p.children],{opacity:[0,1],y:[10,0]},{type:'spring',visualDuration:.35,bounce:0,delay:Motion.stagger(.04)});
+ const tb=document.querySelector('.tabs'); if(anim&&tb.getBoundingClientRect().top<=8) scrollTo({top:tb.offsetTop-0,behavior:still?'auto':'smooth'}); }
+tabs.forEach(b=>b.onclick=()=>openTab(b.dataset.t));
+// Открываем этап, который нужен сейчас: до заезда — «Заселение», в день выезда — «Выезд», иначе — «В квартире».
+openTab('in',false);
+// Копирование
+document.querySelectorAll('[data-copy]').forEach(b=>b.onclick=()=>{ navigator.clipboard?.writeText(b.dataset.copy).catch(()=>{}); const t=document.getElementById('toast'); t.classList.add('on'); setTimeout(()=>t.classList.remove('on'),1400); });
+// Чек-лист выезда
+const boxes=[...document.querySelectorAll('#chk input')];
+function prog(){ const n=boxes.filter(x=>x.checked).length; document.getElementById('cnt').textContent=n===boxes.length?'Всё готово, можно выезжать':`${n} из ${boxes.length}`; document.getElementById('pbar').style.width=(n/boxes.length*100)+'%'; }
+boxes.forEach(x=>x.onchange=prog);
+// Мини-бар: компания выбирает способы оплаты, гость — один из разрешённых при заказе.
+const money=n=>new Intl.NumberFormat('ru-RU').format(n)+'\u00a0₸';
+let mode='delivery'; const cart={}, orders=[];
+const names={w:'Вода',c:'Кола',p:'Чипсы'};
+function mbDraw(){ const items=[...document.querySelectorAll('.mbl .it')]; let sum=0, n=0;
+ items.forEach(it=>{ const q=cart[it.dataset.id]||0; it.querySelector('output').textContent=q; it.classList.toggle('has',q>0); sum+=q*+it.dataset.p; n+=q; });
+ document.getElementById('mbPay').hidden=!n; document.getElementById('mbHint').hidden=!!n||orders.length>0;
+ document.getElementById('pmBoth').hidden=mode!=='both'; document.getElementById('pmOne').hidden=mode==='both';
+ document.querySelector('#mbGo span').textContent=n?`Заказать · ${money(sum)}`:'Заказать';
+ document.getElementById('mbOrders').hidden=!orders.length;
+ document.getElementById('mbList').innerHTML=orders.map(o=>`<div class="ord"><div>${o.what}<span>${o.pm==='booking'?'К оплате с бронью до выезда':'Счёт придёт в Kaspi'}</span><em class="${o.pm==='booking'?'bk':''}">${o.pm==='booking'?'Хозяин везёт заказ':'Ждём подтверждения'}</em></div><b>${money(o.sum)}</b></div>`).join('');
+ const due=orders.filter(o=>o.pm==='booking').reduce((a,o)=>a+o.sum,0);
+ document.getElementById('payMb').hidden=!due; document.getElementById('payMbSum').textContent=`${money(due)} · с бронью`; }
+document.querySelectorAll('.mbl .stp button').forEach(b=>b.onclick=()=>{ const id=b.closest('.it').dataset.id; cart[id]=Math.max(0,(cart[id]||0)+ +b.dataset.d); mbDraw(); });
+document.querySelectorAll('.mock-set button').forEach(b=>b.onclick=()=>{ mode=b.dataset.m; document.querySelectorAll('.mock-set button').forEach(x=>x.classList.toggle('on',x===b)); mbDraw(); });
+document.getElementById('mbGo').onclick=()=>{ const ids=Object.keys(cart).filter(k=>cart[k]>0); if(!ids.length) return;
+ const sum=ids.reduce((a,k)=>a+cart[k]*+document.querySelector(`.it[data-id="${k}"]`).dataset.p,0);
+ const pm=mode==='both'?document.querySelector('input[name=pm]:checked').value:'delivery';
+ orders.unshift({what:ids.map(k=>cart[k]>1?`${names[k]} × ${cart[k]}`:names[k]).join(', '),sum,pm}); ids.forEach(k=>cart[k]=0); mbDraw(); };
+mbDraw();
+lucide.createIcons();
+</script></body></html>
