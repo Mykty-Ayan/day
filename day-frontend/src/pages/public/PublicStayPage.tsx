@@ -2,11 +2,11 @@ import { useMemo, useState, type CSSProperties } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { addDays, format, parseISO } from 'date-fns'
-import { BedDouble, Building2, ChevronLeft, Images, KeyRound, LayoutGrid, LogIn, LogOut, Map as MapIcon, MapPin, MapPinned, Navigation, Ruler, ScrollText, Share2, Users, X } from 'lucide-react'
+import { BedDouble, Building2, ChevronLeft, CigaretteOff, Images, KeyRound, LayoutGrid, LogIn, LogOut, Map as MapIcon, MapPin, MapPinned, Moon, Navigation, PartyPopper, PawPrint, Ruler, ScrollText, Share2, Users, X } from 'lucide-react'
 import { getPublicStay, type PublicOfferBooking, type PublicStay } from '../../api/public'
 import { amenityIcon } from '../../lib/amenity-icons'
 import { MASK } from '../../lib/clarity'
-import { SITE_MAX_NIGHTS, money, onAccent, openedInFlat, retryNetwork, stayFromUrl, stayQuote } from '../../lib/public-stay'
+import { amenitiesFirst, ruleItems, type RuleKind, SITE_MAX_NIGHTS, money, onAccent, openedInFlat, retryNetwork, stayFromUrl, stayQuote } from '../../lib/public-stay'
 import { GuestFrame, LoadFailed } from './GuestFrame'
 import { BookBar, BookSheet, HeldView } from './StayBooking'
 import { StayCalendar } from './StayCalendar'
@@ -23,6 +23,7 @@ const GALLERY_SHOWN = 4
 const SELF_CHECK_IN = ['lockbox', 'keypad', 'smart_lock']
 // Enough amenities to tell the flat, the rest a tap away.
 const AMENITIES_SHOWN = 6
+const RULE_ICONS: Record<RuleKind, typeof ScrollText> = { smoke: CigaretteOff, quiet: Moon, pets: PawPrint, party: PartyPopper, other: ScrollText }
 // The approved guest mockup (28.10): white cards on a light grey page.
 const CARD = 'm-2 rounded-[28px] bg-white p-5'
 const H2 = 'font-guest-display text-[22px] font-bold tracking-[-0.025em]'
@@ -249,7 +250,7 @@ function StayView({ stay, locale, today, until }: { stay: PublicStay; locale: st
           <section className={CARD}>
             <h2 className={H2}>{t('guest.amenities')}</h2>
             <ul className="mt-3.5 grid grid-cols-2 gap-2">
-              {(allAmenities ? stay.amenities : stay.amenities.slice(0, AMENITIES_SHOWN)).map((a) => {
+              {(allAmenities ? amenitiesFirst(stay.amenities) : amenitiesFirst(stay.amenities).slice(0, AMENITIES_SHOWN)).map((a) => {
                 const Icon = amenityIcon(a.name, a.category)
                 return (
                   <li key={a.name} className="flex items-center gap-2.5 rounded-[20px] bg-[#F3F3F6] p-3.5 text-sm font-medium leading-tight">
@@ -333,14 +334,27 @@ function StayView({ stay, locale, today, until }: { stay: PublicStay; locale: st
                 </span>
               </p>
             )}
-            {stay.house_rules && (
+            {stay.house_rules && ruleItems(stay.house_rules) ? (
+              // Short rules one by one, each with its icon, as the mockup; prose stays one text.
+              <ul aria-label={t('guest.rules')} className="grid grid-cols-2 gap-2">
+                {ruleItems(stay.house_rules)!.map(({ text, kind }) => {
+                  const Icon = RULE_ICONS[kind]
+                  return (
+                    <li key={text} dir="auto" className="flex items-center gap-2.5 text-sm">
+                      <span className="flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-full bg-[#F3F3F6]"><Icon className="h-[17px] w-[17px]" aria-hidden /></span>
+                      {text}
+                    </li>
+                  )
+                })}
+              </ul>
+            ) : stay.house_rules ? (
               <div className="flex items-start gap-2.5">
                 <span className="flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-full bg-[#F3F3F6]"><ScrollText className="h-[17px] w-[17px]" aria-hidden /></span>
                 <div className="flex min-w-0 flex-col gap-1 pt-1.5 text-sm">
                   <LongText text={stay.house_rules} />
                 </div>
               </div>
-            )}
+            ) : null}
           </section>
         )}
 

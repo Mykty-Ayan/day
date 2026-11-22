@@ -89,6 +89,36 @@ export function isHourly(offer: PublicOffer): boolean {
   return offer.rental_mode === 'hourly'
 }
 
+// What a guest looks for first: comfort (Wi-Fi, air conditioning), the kitchen, the TV;
+// a step-free entrance or a grab bar matter to fewer guests, and are found under «all».
+const AMENITY_ORDER = ['comfort', 'kitchen', 'entertainment', 'bathroom', 'outdoor', 'safety', 'other', 'accessibility']
+
+/** A flat's amenities, the ones most guests look for first; the order within a kind kept. */
+export function amenitiesFirst<T extends { category?: string | null }>(amenities: T[]): T[] {
+  const rank = (a: T) => {
+    const at = AMENITY_ORDER.indexOf(a.category ?? 'other')
+    return at < 0 ? AMENITY_ORDER.indexOf('other') : at
+  }
+  return amenities.map((a, n) => ({ a, n })).sort((x, y) => rank(x.a) - rank(y.a) || x.n - y.n).map(({ a }) => a)
+}
+
+export type RuleKind = 'smoke' | 'quiet' | 'pets' | 'party' | 'other'
+
+/** House rules as short items, one per line or sentence, each with its kind for an icon.
+ *  Prose (a long sentence, or many) stays one text: null. */
+export function ruleItems(text: string): { text: string; kind: RuleKind }[] | null {
+  const lines = text.split(/\n+/).map((l) => l.trim()).filter(Boolean)
+  const parts = (lines.length > 1 ? lines : text.split(/(?<=[.!;])\s+/)).map((p) => p.trim().replace(/[.;]$/, '')).filter(Boolean)
+  if (parts.length < 2 || parts.length > 8 || parts.some((p) => p.length > 60)) return null
+  const kind = (p: string): RuleKind =>
+    /кур|сигар|темекі|smok|vap|кальян/i.test(p) ? 'smoke'
+      : /тиш|шум|тынысты|quiet|noise/i.test(p) ? 'quiet'
+        : /живот|жануар|pet|собак|кошк/i.test(p) ? 'pets'
+          : /вечерин|тусов|кеш|party/i.test(p) ? 'party'
+            : 'other'
+  return parts.map((p) => ({ text: p, kind: kind(p) }))
+}
+
 /** The most nights a guest books from a public page (SITE_MAX_NIGHTS on the server):
  *  a longer stay is the host's to agree. */
 export const SITE_MAX_NIGHTS = 30
