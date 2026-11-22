@@ -103,6 +103,18 @@ class OutboundNotification:
         self.next_attempt_at = None
         self.last_error = reason[:500]
 
+    @property
+    def undelivered(self) -> bool:
+        """Given up on after every try: the host never heard. A dropped one (the chat may no
+        longer read it) is not undelivered, it was not to be sent."""
+        return self.status == NotificationStatus.FAILED and self.attempts >= self.MAX_ATTEMPTS
+
+    def send_again(self, now: datetime | None = None) -> None:
+        """The owner asks for another round of tries, from now."""
+        self.status = NotificationStatus.PENDING
+        self.attempts = 0
+        self.next_attempt_at = now or datetime.utcnow()
+
     def mark_sent(self, now: datetime | None = None) -> None:
         self.status = NotificationStatus.SENT
         self.sent_at = now or datetime.utcnow()
