@@ -57,6 +57,12 @@ export function panelButtons(panel: GuestPanel): PanelButton[] {
   return shown.filter(([, on]) => on).map(([key]) => key)
 }
 
+/** «I have left» on the departure day: with or without the company's WhatsApp, the host
+ *  must hear of it and the flat must get its cleaning. */
+export function canReportLeaving(panel: GuestPanel): boolean {
+  return Boolean(panel.booking) && !panel.closed && stageOf(panel) === 'departure'
+}
+
 /** wa.me with the text: every message names the guest, the flat and the dates. */
 export function waLink(phone: string, text: string): string {
   return `https://wa.me/${phone.replace(/\D/g, '')}?text=${encodeURIComponent(text)}`
