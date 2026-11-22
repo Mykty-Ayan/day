@@ -440,6 +440,17 @@ async def test_a_flat_holds_three_unpaid_bookings_from_its_page_at_most():
         await _site(h, unit, check_in=date(2030, 11, 1), check_out=date(2030, 11, 2), phone="+77015554409")
 
 
+async def test_a_flats_page_holds_thirty_nights_at_most():
+    # A pending hold is exported as taken: a longer one would close the flat on every OTA.
+    h = Holds()
+    unit = await h.flat()
+    start = date(2030, 10, 20)
+    with pytest.raises(ValueError, match="up to 30 nights"):
+        await _site(h, unit, check_in=start, check_out=start + timedelta(days=31))
+    held = await _site(h, unit, check_in=start, check_out=start + timedelta(days=30))
+    assert held.booking.property_id == unit.id
+
+
 async def test_a_blacklisted_guest_is_refused_like_any_other():
     h = Holds()
     unit = await h.flat()
@@ -490,7 +501,10 @@ async def test_booking_from_a_flats_page_through_the_api(flat):  # noqa: F811  (
     await client.put("/api/v1/site", json={"slug": f"t-{uuid.uuid4().hex[:8]}", "title": "Munar"})
     use()
     assert (await client.post(f"/api/v1/public/stays/{code}/book", json={**stay, "phone": "12"})).status_code == 422
-    booked = await client.post(f"/api/v1/public/stays/{code}/book", json=stay)
+    month = {**stay, "check_out": (day + timedelta(days=31)).isoformat()}
+    too_long = await client.post(f"/api/v1/public/stays/{code}/book", json=month)
+    assert (too_long.status_code, too_long.json()["detail"]) == (422, "A stay is up to 30 nights, within two years")
+    booked =await client.post(f"/api/v1/public/stays/{code}/book", json=stay)
     assert booked.status_code == 201, booked.text
     assert booked.json()["phone"] == "+7 701 ••• •• 31" and booked.json()["total"] == 40000.0
     # The guest's own booking page opens from the answer.

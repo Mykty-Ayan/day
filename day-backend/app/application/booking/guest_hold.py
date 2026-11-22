@@ -34,8 +34,12 @@ from app.domain.settings.repositories import CompanySettingsRepository
 from app.domain.site.repositories import CompanySiteRepository
 
 HOLD_MINUTES = 30
-# A stay booked from a flat's page: as long and as far ahead as a personal link takes.
-SITE_MAX_NIGHTS = 120
+# A stay booked from a flat's page, by anyone with no login. Its unpaid hold is exported
+# to iCal as taken, so a long one closes the flat on Airbnb and Booking.com; with three
+# holds per flat, 120 nights let made-up phones close four months. Thirty nights is a
+# month's stay; a longer one goes through the host. A personal link (/o/) is not capped
+# here: its dates are set by the host or the CRM, not by the guest.
+SITE_MAX_NIGHTS = 30
 SITE_MAX_HOURS = 24
 SITE_HORIZON_DAYS = 730
 # Unpaid holds from a flat's page at once: real guests rarely wait on more, and
