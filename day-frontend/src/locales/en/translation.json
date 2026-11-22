@@ -2483,7 +2483,9 @@
       "title": "Enjoyed your stay?",
       "text": "Next time book directly with the host — the link to the flat is always here.",
       "open": "Open the flat's page"
-    }
+    },
+    "leftSent": "The host knows you have left. Thank you.",
+    "leftFailed": "Could not send it. Check the connection and try again."
   },
   "stayHere": {
     "title": "Staying here?",

@@ -128,6 +128,29 @@ test('on the departure day «I have left» tells Day first, then opens WhatsApp'
   expect(decodeURIComponent(page.url())).toContain('Мы выехали. Ключи:')
 })
 
+test('with no WhatsApp for the company «I have left» still tells Day, and says the host knows', async ({ page }) => {
+  const left: string[] = []
+  let fail = true
+  await page.route(`**/api/v1/public/guest/${CODE}/checked-out`, (route) => {
+    left.push(route.request().method())
+    return fail ? route.fulfill({ status: 503, json: { detail: 'down' } }) : route.fulfill({ json: { cleaning_created: true } })
+  })
+  const now = today()
+  await open(page, answer(
+    { company: { title: 'Munar', logo_url: null, accent_color: null, whatsapp: null } },
+    { check_in: `${addDays(now, -2)}T14:00:00`, check_out: `${now}T12:00:00`, paid: 40000, remaining: 0 },
+  ))
+  const tell = page.getByRole('button', { name: 'Сообщить о выезде' })
+  // A failed request says so and lets the guest try again.
+  await tell.click()
+  await expect(page.getByRole('alert')).toHaveText('Не получилось отправить. Проверьте интернет и попробуйте ещё раз.')
+  fail = false
+  await tell.click()
+  await expect(page.getByRole('status').filter({ hasText: 'Хозяин знает, что вы выехали.' })).toBeVisible()
+  await expect(tell).toHaveCount(0)
+  expect(left).toEqual(['POST', 'POST'])
+})
+
 test('a closed booking says so and keeps only the contact', async ({ page }) => {
   await open(page, answer({ closed: true, flat: { name: 'Т13 у Байтерека' } }, { status: 'checked_out' }))
   await expect(page.getByText('Бронь закрыта. Если остались вопросы, напишите хозяину.')).toBeVisible()

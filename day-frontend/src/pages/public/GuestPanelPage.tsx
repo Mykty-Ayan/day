@@ -25,7 +25,7 @@ import {
   X,
 } from 'lucide-react'
 import { getGuestPanel, markGuestLeft, type GuestPanel } from '../../api/public'
-import { accessOpensAt, accessTimeReached, mapLinks, nightsOf, panelButtons, stageOf, waLink, type PanelButton } from '../../lib/guest-panel'
+import { accessOpensAt, accessTimeReached, canReportLeaving, mapLinks, nightsOf, panelButtons, stageOf, waLink, type PanelButton } from '../../lib/guest-panel'
 import { money, onAccent, retryNetwork } from '../../lib/public-stay'
 import { GuestFrame, LoadFailed } from './GuestFrame'
 import { GuestMinibar } from './GuestMinibar'
@@ -174,6 +174,8 @@ function PanelView({ code, panel, locale, receivedAt }: { code: string; panel: G
   const [help, setHelp] = useState(false)
   // A second tap while the first «I have left» is on its way tells the host nothing new.
   const leaving = useRef(false)
+  // Without the company's WhatsApp «I have left» goes to Day alone, and says so here.
+  const [left, setLeft] = useState<'sent' | 'failed' | null>(null)
   const { booking: b, flat, access, company } = panel
   const stage = stageOf(panel)
   // The stage the guest is at opens first: before getting in, in the flat, leaving.
@@ -244,6 +246,19 @@ function PanelView({ code, panel, locale, receivedAt }: { code: string; panel: G
     leaving.current = true
     await markGuestLeft(code).catch(() => undefined)
     window.location.assign(href('checkedOut'))
+  }
+
+  /** «I have left» with no WhatsApp to open: Day is told, and the page says it was. */
+  async function leaveQuietly() {
+    if (leaving.current) return
+    leaving.current = true
+    try {
+      await markGuestLeft(code)
+      setLeft('sent')
+    } catch {
+      leaving.current = false
+      setLeft('failed')
+    }
   }
 
   const reason = (key: PanelButton) => {
@@ -650,15 +665,24 @@ function PanelView({ code, panel, locale, receivedAt }: { code: string; panel: G
                 )}
               </section>
 
-              {(flat?.check_out_instructions || buttons.includes('checkedOut')) && (
+              {(flat?.check_out_instructions || canReportLeaving(panel)) && (
                 <section className={CARD}>
                   <h2 className={H2}>{t('guestPanel.beforeLeaving')}</h2>
                   {flat?.check_out_instructions && <Checklist text={flat.check_out_instructions} />}
-                  {buttons.includes('checkedOut') && (
+                  {buttons.includes('checkedOut') ? (
                     <a href={href('checkedOut')} onClick={leave} className="mt-4 flex h-[52px] items-center justify-center rounded-full bg-[#111114] text-base font-semibold text-white">
                       {t('guestPanel.buttons.checkedOut')}
                     </a>
-                  )}
+                  ) : canReportLeaving(panel) && left === 'sent' ? (
+                    <p role="status" className="mt-4 rounded-2xl bg-[#E8F7EE] px-4 py-3 text-[15px] font-medium text-[#17663A]">{t('guestPanel.leftSent')}</p>
+                  ) : canReportLeaving(panel) ? (
+                    <>
+                      <button type="button" onClick={() => void leaveQuietly()} className="mt-4 flex h-[52px] w-full items-center justify-center rounded-full bg-[#111114] text-base font-semibold text-white">
+                        {t('guestPanel.buttons.checkedOut')}
+                      </button>
+                      {left === 'failed' && <p role="alert" className="mt-2 text-sm text-[#8A5A00]">{t('guestPanel.leftFailed')}</p>}
+                    </>
+                  ) : null}
                 </section>
               )}
 
