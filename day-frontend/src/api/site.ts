@@ -4,6 +4,8 @@ import apiClient from './client'
 export interface Site {
   slug: string
   title: string
+  /** The big line on top of the site; the title then sits by the logo. */
+  tagline: string | null
   about: string | null
   logo_url: string | null
   cover_url: string | null

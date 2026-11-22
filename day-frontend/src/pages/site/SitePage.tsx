@@ -17,6 +17,7 @@ type Form = Record<keyof Omit<Site, 'updated_at'>, string>
 const EMPTY: Form = {
   slug: '',
   title: '',
+  tagline: '',
   about: '',
   logo_url: '',
   cover_url: '',
@@ -30,6 +31,7 @@ function toForm(site: Site | null | undefined): Form {
   return {
     slug: site.slug,
     title: site.title,
+    tagline: site.tagline ?? '',
     about: site.about ?? '',
     logo_url: site.logo_url ?? '',
     cover_url: site.cover_url ?? '',
@@ -98,6 +100,7 @@ function SiteForm({ saved }: { saved: Site | null }) {
       await save.mutateAsync({
         slug: form.slug.trim().toLowerCase(),
         title: form.title.trim(),
+        tagline: blank(form.tagline),
         about: blank(form.about),
         logo_url: blank(form.logo_url),
         cover_url: blank(form.cover_url),
@@ -164,6 +167,18 @@ function SiteForm({ saved }: { saved: Site | null }) {
           <label className={label}>
  {t('site.name')}
             <input id="site-title" value={form.title} onChange={(e) => update('title', e.target.value)} className={`mt-1.5 ${field}`} />
+          </label>
+          <label className={`${label} sm:col-span-2`}>
+            {t('site.tagline')}
+            <input
+              id="site-tagline"
+              value={form.tagline}
+              onChange={(e) => update('tagline', e.target.value)}
+              maxLength={120}
+              placeholder={t('site.taglinePlaceholder')}
+              className={`mt-1.5 ${field}`}
+            />
+            <span className="mt-1 block text-xs font-normal normal-case tracking-normal text-ink-muted">{t('site.taglineHint')}</span>
           </label>
           <label className={`${label} sm:col-span-2`}>
             {t('site.about')}

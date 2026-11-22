@@ -142,3 +142,21 @@ test('a guest searches the site by dates and guests, and the flat opens with the
   await expect(page.getByTestId('stay-total')).toHaveText('40 000 ₸')
   await guest.close()
 })
+
+test('the owner gives the site a headline: it shows big, and the name moves by the logo', async ({ page, browser }) => {
+  const slug = `site-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`
+  await page.goto('/site')
+  await page.locator('#site-slug').fill(slug)
+  await page.locator('#site-title').fill('Munar Apartments')
+  await page.locator('#site-tagline').fill('Квартиры посуточно в Алматы')
+  // The owner's app speaks the account's language (English for the test owner).
+  await page.getByRole('button', { name: /^(Сохранить|Save)$/ }).click()
+  await expect(page.getByText(/^(Сайт сохранён|Site saved)/)).toBeVisible()
+
+  const guest = await browser.newContext({ locale: 'ru-RU', baseURL: test.info().project.use.baseURL })
+  const site = await guest.newPage()
+  await site.goto(`/c/${slug}`)
+  await expect(site.getByRole('heading', { level: 1 })).toHaveText('Квартиры посуточно в Алматы')
+  await expect(site.getByText('Munar Apartments', { exact: true })).toBeVisible()
+  await guest.close()
+})

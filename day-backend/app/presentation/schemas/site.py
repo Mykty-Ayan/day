@@ -13,6 +13,7 @@ class SiteUpdate(BaseModel):
     # The site's address: /c/<slug>.
     slug: str = Field(min_length=3, max_length=40)
     title: str = Field(min_length=1, max_length=120)
+    tagline: str | None = Field(default=None, max_length=120)
     about: str | None = Field(default=None, max_length=2000)
     logo_url: WebLink | None = None
     cover_url: WebLink | None = None
@@ -69,7 +70,7 @@ class SiteUpdate(BaseModel):
             raise ValueError("An Instagram name: letters, digits, dots and underscores")
         return handle
 
-    @field_validator("about")
+    @field_validator("tagline", "about")
     @classmethod
     def _about(cls, value: str | None) -> str | None:
         return value.strip() or None if value else None
@@ -80,6 +81,7 @@ class SiteResponse(BaseModel):
 
     slug: str
     title: str
+    tagline: str | None = None
     about: str | None = None
     logo_url: str | None = None
     cover_url: str | None = None
@@ -116,6 +118,7 @@ class PublicCompanyResponse(BaseModel):
 
     slug: str
     title: str
+    tagline: str | None = None
     about: str | None = None
     logo_url: str | None = None
     cover_url: str | None = None
