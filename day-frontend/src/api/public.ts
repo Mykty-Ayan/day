@@ -144,6 +144,8 @@ export interface PublicCompanyFlat {
 export interface PublicCompany {
   slug: string
   title: string
+  /** The big line on top; the title then sits by the logo. */
+  tagline?: string | null
   about: string | null
   logo_url: string | null
   cover_url: string | null

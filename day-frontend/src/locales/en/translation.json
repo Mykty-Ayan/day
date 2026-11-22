@@ -2271,7 +2271,10 @@
     "open": "Open",
     "flatLinks": "Property links",
     "flatLinksHint": "Each property's lasting page — for the WhatsApp catalogue, Instagram and listings",
-    "noFlats": "No properties on sale"
+    "noFlats": "No properties on sale",
+    "tagline": "Headline on the site",
+    "taglinePlaceholder": "By the night in Almaty, by the park",
+    "taglineHint": "The big line on top of the site. The name then sits by the logo. Empty: the name is shown big."
   },
   "guestStay": {
     "pickDates": "Pick dates",

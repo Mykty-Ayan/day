@@ -85,10 +85,12 @@ function CompanyView({ company, locale }: { company: PublicCompany; locale: stri
             {company.title.trim().charAt(0).toUpperCase()}
           </span>
         )}
+        {/* With a headline the name sits by the logo; without one the name is the headline. */}
+        {company.tagline && <span dir="auto" className="min-w-0 truncate text-base font-bold">{company.title}</span>}
       </div>
 
-      <div className="px-5 pb-4">
-        <h1 dir="auto" className="font-guest-display text-[40px] font-bold leading-[1.02] tracking-[-0.035em]">{company.title}</h1>
+      <div className="px-5 pb-4 pt-2.5">
+        <h1 dir="auto" className="font-guest-display text-[40px] font-bold leading-[1.02] tracking-[-0.035em]">{company.tagline || company.title}</h1>
         {company.about && <p dir="auto" className="mt-3 whitespace-pre-line text-base leading-relaxed text-[#76767F]">{company.about}</p>}
       </div>
 

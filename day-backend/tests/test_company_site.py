@@ -63,7 +63,7 @@ async def test_the_owner_sets_up_the_site_and_a_guest_opens_it(flat):  # noqa: F
     use(Permission.SETTINGS_READ, Permission.SETTINGS_WRITE, Permission.PROPERTIES_READ, Permission.PROPERTIES_WRITE,
         Permission.PROPERTY_FACTS_WRITE)
     saved = await client.put("/api/v1/site", json={"slug": slug, "title": "Munar", "whatsapp": "+7 701 234 56 78",
-                                                   "accent_color": "#0E7A5F"})
+                                                   "accent_color": "#0E7A5F", "tagline": " Квартиры у парка "})
     assert saved.status_code == 200, saved.text
     assert (await client.get("/api/v1/site")).json()["slug"] == slug
     await client.patch(f"/api/v1/properties/{prop}", json={"rooms": 2, "max_guests": 4})
@@ -75,8 +75,8 @@ async def test_the_owner_sets_up_the_site_and_a_guest_opens_it(flat):  # noqa: F
     page = await client.get(f"/api/v1/public/companies/{slug.upper()}")
     assert page.status_code == 200, page.text
     body = page.json()
-    assert (body["title"], body["whatsapp"], body["accent_color"], body["rules"]) == (
-        "Munar", "77012345678", "#0e7a5f", ["Без животных"]
+    assert (body["title"], body["tagline"], body["whatsapp"], body["accent_color"], body["rules"]) == (
+        "Munar", "Квартиры у парка", "77012345678", "#0e7a5f", ["Без животных"]
     )
     cards = [(f["code"], f["rooms"], f["night_price"], f["hour_price"]) for f in body["flats"]]
     assert cards == [(code, 2, 20000.0, None)]

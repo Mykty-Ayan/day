@@ -11,7 +11,7 @@ from app.domain.site.entities import CompanySite
 from app.domain.site.repositories import CompanySiteRepository, SlugTakenError
 from app.infrastructure.models.site import CompanySiteModel
 
-_FIELDS = ("slug", "title", "about", "logo_url", "cover_url", "accent_color", "whatsapp", "instagram")
+_FIELDS = ("slug", "title", "tagline", "about", "logo_url", "cover_url", "accent_color", "whatsapp", "instagram")
 
 
 def _to_site(m: CompanySiteModel) -> CompanySite:
