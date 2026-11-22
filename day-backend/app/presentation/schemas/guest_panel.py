@@ -90,6 +90,8 @@ class GuestPanelOrder(BaseModel):
 class GuestPanelResponse(BaseModel):
     closed: bool
     today: date
+    # The company's wall clock at the answer, no zone: check-in and check-out are read on it.
+    now: datetime | None = None
     company: GuestPanelCompany | None = None
     guest_name: str | None = None
     booking: GuestPanelBooking | None = None
@@ -110,6 +112,7 @@ class GuestPanelResponse(BaseModel):
         page = cls(
             closed=panel.closed,
             today=panel.today,
+            now=panel.now,
             lead_hours=panel.lead_hours,
             company=GuestPanelCompany(
                 title=site.title, logo_url=site.logo_url, accent_color=site.accent_color, whatsapp=site.whatsapp

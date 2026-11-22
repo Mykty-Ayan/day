@@ -62,6 +62,8 @@ class GuestPanel:
     # The company's own day: which buttons fit (arrival, the stay, departure).
     today: date
     closed: bool
+    # The company's wall clock now: the page counts down by it, not by the phone's zone.
+    now: datetime | None = None
     guest_name: str | None = None
     flat: Property | None = None
     paid: Decimal = Decimal("0")
@@ -134,6 +136,7 @@ class GuestPanelService:
             booking=booking,
             site=site,
             today=today,
+            now=local_now.replace(microsecond=0),
             closed=booking.status in _CLOSED,
             # The name of this booking's guest only: never a phone, never anyone else.
             guest_name=guest.name if guest and guest.company_id == booking.company_id else None,

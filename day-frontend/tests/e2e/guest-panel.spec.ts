@@ -60,6 +60,12 @@ async function open(page: Page, body: object) {
   await page.goto(`/g/${CODE}`)
 }
 
+/** The page on its «In the flat» stage, where the minibar is. */
+async function openStay(page: Page, body: object) {
+  await open(page, body)
+  await page.getByRole('tab', { name: 'В квартире' }).click()
+}
+
 test('with a debt the guest sees what is left and a button to pay, not the door code', async ({ page }) => {
   await open(page, answer())
   await expect(page.getByRole('heading', { name: 'Т13 у Байтерека' })).toBeVisible()
@@ -152,7 +158,7 @@ test('during the stay the guest fills a cart, sends the order and WhatsApp opens
     await route.fulfill({ status: 201, json: { number: 7, total: 2200, whatsapp_url: 'https://wa.me/77001234567?text=order' } })
   })
   await page.route('https://wa.me/**', (route) => route.fulfill({ contentType: 'text/html', body: '<p>WhatsApp</p>' }))
-  await open(page, answer({ menu: MENU }, { paid: 40000, remaining: 0 }))
+  await openStay(page, answer({ menu: MENU }, { paid: 40000, remaining: 0 }))
 
   const minibar = page.getByRole('region', { name: 'Мини-бар' })
   await minibar.getByRole('button', { name: 'Добавить: Кола 0,5' }).click()
@@ -196,7 +202,7 @@ test('with both ways the guest chooses, sees the orders state and reads what is 
   ]
   const minibar = { billings: ['invoice', 'booking'], opens: null, closes: null, open_now: true }
   // The server owes the confirmed one (№6), not the new one (№8).
-  await open(page, answer({ menu: MENU, minibar, orders }, { paid: 40000, orders_due: 800, remaining: 800 }))
+  await openStay(page, answer({ menu: MENU, minibar, orders }, { paid: 40000, orders_due: 800, remaining: 800 }))
 
   const region = page.getByRole('region', { name: 'Мини-бар' })
   const listed = region.getByTestId('guest-order')
@@ -228,7 +234,7 @@ test('the guest calls off an order still waiting, after a yes; the host has the 
     { number: 8, status: 'awaiting_payment', billing: 'invoice', payment_status: null, invoiced: true, total: 1200, lines: ['Кола 0,5'] },
     { number: 7, status: 'accepted', billing: 'invoice', payment_status: 'paid', invoiced: true, total: 600, lines: ['Арахис'] },
   ]
-  await open(page, answer({ menu: MENU, orders }, { paid: 40000, remaining: 0 }))
+  await openStay(page, answer({ menu: MENU, orders }, { paid: 40000, remaining: 0 }))
   const listed = page.getByRole('region', { name: 'Мини-бар' }).getByTestId('guest-order')
   await expect(listed.last().getByRole('button', { name: 'Отменить' })).toHaveCount(0)
   const asked: string[] = []
@@ -243,7 +249,7 @@ test('the guest calls off an order still waiting, after a yes; the host has the 
 
 test('outside the hours the guest sees when ordering opens and cannot send', async ({ page }) => {
   const minibar = { billings: ['invoice'], opens: '10:00:00', closes: '02:00:00', open_now: false }
-  await open(page, answer({ menu: MENU, minibar }))
+  await openStay(page, answer({ menu: MENU, minibar }))
   const region = page.getByRole('region', { name: 'Мини-бар' })
   await expect(region.getByText('Сейчас заказы не принимаем. Откроемся в 10:00.')).toBeVisible()
   await region.getByRole('button', { name: 'Добавить: Кола 0,5' }).click()
@@ -255,7 +261,7 @@ test('an order the stock cannot cover is refused with a reason, and nothing open
   await page.route(`**/api/v1/public/guest/${CODE}/orders`, (route) =>
     route.fulfill({ status: 409, json: { detail: 'Not enough Кола 0,5: 1 left' } }),
   )
-  await open(page, answer({ menu: MENU }))
+  await openStay(page, answer({ menu: MENU }))
   const minibar = page.getByRole('region', { name: 'Мини-бар' })
   await minibar.getByRole('button', { name: 'Добавить: Кола 0,5' }).click()
   await minibar.getByRole('button', { name: /Корзина: 1 шт\./ }).click()
@@ -265,7 +271,7 @@ test('an order the stock cannot cover is refused with a reason, and nothing open
 })
 
 test('orders on the tab are owed with the stay, and said apart', async ({ page }) => {
-  await open(page, answer({ menu: MENU }, { paid: 40000, orders_due: 1600, remaining: 1600 }))
+  await openStay(page, answer({ menu: MENU }, { paid: 40000, orders_due: 1600, remaining: 1600 }))
   await expect(page.getByTestId('guest-remaining')).toContainText('1 600')
   await expect(page.getByTestId('guest-minibar-due')).toHaveText('Мини-бар · 1 600 ₸ · с бронью')
   await expect(page.getByRole('link', { name: 'Как оплатить' })).toBeVisible()
@@ -275,4 +281,51 @@ test('outside the stay there is no minibar', async ({ page }) => {
   await open(page, answer({ menu: null }))
   await expect(page.getByRole('heading', { name: 'Т13 у Байтерека' })).toBeVisible()
   await expect(page.getByRole('region', { name: 'Мини-бар' })).toHaveCount(0)
+})
+
+test('before the stay the page opens on getting in: the days to wait and when the door code comes', async ({ page }) => {
+  const now = today()
+  await open(page, answer({}, { check_in: `${addDays(now, 3)}T14:00:00`, check_out: `${addDays(now, 5)}T12:00:00` }))
+  await expect(page.getByRole('tab', { name: 'Заселение' })).toHaveAttribute('aria-selected', 'true')
+  await expect(page.getByRole('region', { name: 'Ваша поездка' })).toContainText('Через 3 дня')
+  // Locked, the tile says when the door code comes, in the owner's words.
+  await expect(page.getByRole('region', { name: 'Как заселиться' })).toContainText('Код двери появится на странице брони после полной оплаты, ближе к заезду')
+})
+
+test('on the departure day the host instructions are a checklist the guest ticks', async ({ page }) => {
+  const now = today()
+  const instructions = 'Выключите свет\n- Закройте окна'
+  await open(page, answer({ flat: { ...answer().flat, check_out_instructions: instructions } }, {
+    check_in: `${addDays(now, -2)}T14:00:00`, check_out: `${now}T12:00:00`, paid: 40000, remaining: 0,
+  }))
+  await expect(page.getByRole('tab', { name: 'Выезд' })).toHaveAttribute('aria-selected', 'true')
+  // The check-out card is dark with white words, never white on white.
+  const leaveCard = page.getByTestId('leave-card')
+  await expect(leaveCard).toContainText('до 12:00')
+  await expect(leaveCard).toHaveCSS('background-color', 'rgb(17, 17, 20)')
+  await expect(page.getByText('0 из 2')).toBeVisible()
+  await page.getByRole('checkbox', { name: 'Закройте окна' }).check()
+  await expect(page.getByText('1 из 2')).toBeVisible()
+  await page.getByRole('checkbox', { name: 'Выключите свет' }).check()
+  await expect(page.getByText('Всё готово, можно выезжать')).toBeVisible()
+})
+
+test('the cart waits while the guest looks at another stage', async ({ page }) => {
+  await openStay(page, answer({ menu: MENU }, { paid: 40000, remaining: 0 }))
+  const minibar = page.getByRole('region', { name: 'Мини-бар' })
+  await minibar.getByRole('button', { name: 'Добавить: Кола 0,5' }).click()
+  await page.getByRole('tab', { name: 'Заселение' }).click()
+  await page.getByRole('tab', { name: 'В квартире' }).click()
+  await expect(minibar.getByRole('button', { name: /Корзина: 1 шт\./ })).toBeVisible()
+})
+
+test.describe('a phone in another time zone', () => {
+  test.use({ timezoneId: 'Asia/Tokyo' })
+
+  test('counts down to check-in by the company\'s clock, not the phone\'s', async ({ page }) => {
+    const now = today()
+    // An hour to check-in on the company's clock; Tokyo is four hours ahead of Almaty.
+    await open(page, answer({ now: `${now}T13:00:00` }, { check_in: `${now}T14:00:00` }))
+    await expect(page.getByRole('region', { name: 'Ваша поездка' })).toContainText(/Через (1 ч 0|0 ч 59) мин/)
+  })
 })

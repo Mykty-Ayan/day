@@ -49,7 +49,8 @@ function savedLanguage(): string | null {
 /** A guest page's frame: the language picker on top, the page in the guest's
  *  language (the phone's, or the one picked here) below. `only`: a page written in
  *  fewer languages offers just those, and English for any other. `overlay`: the
- *  picker floats over the page's own header photo instead of a bar above it.
+ *  picker floats over the page's own header photo instead of a bar above it;
+ *  'page': at the top end of the page itself, by the page's own greeting.
  *  `personal`: the page is one guest's (their booking, their offer): recordings
  *  keep its layout and taps, never its text. */
 // The guest pages' heading font: loaded with the first guest page.
@@ -63,7 +64,7 @@ export function GuestFrame({
 }: {
   children: (locale: string) => ReactNode
   only?: GuestLanguage[]
-  overlay?: boolean
+  overlay?: boolean | 'page'
   personal?: boolean
 }) {
   const { t } = useTranslation()
@@ -121,7 +122,9 @@ export function GuestFrame({
       <div className="relative mx-auto max-w-[480px]">
         <header
           className={
-            overlay
+            overlay === 'page'
+              ? 'absolute end-4 top-4 z-20'
+              : overlay
               ? // Over the page's photo, inside its rounded frame: 8px of margin and 14px in.
                 'absolute end-[22px] top-[22px] z-20'
               : 'flex h-14 items-center justify-end px-4'
@@ -133,7 +136,7 @@ export function GuestFrame({
             onClick={() => setPicking(true)}
             aria-label={`${t('guest.language')}: ${LANGUAGES.find((l) => l.code === language)?.name}`}
             className={
-              overlay
+              overlay && overlay !== 'page'
                 ? 'flex h-11 items-center gap-1.5 rounded-full border border-white/30 bg-white/20 px-3.5 text-sm font-semibold text-white backdrop-blur-md'
                 : 'flex h-11 items-center gap-1.5 rounded-full bg-white px-3.5 text-sm font-semibold'
             }
