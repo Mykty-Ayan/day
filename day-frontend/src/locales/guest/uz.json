@@ -134,7 +134,9 @@
     "nameNeeded": "Telefon yozishmangizdan olindi. Bron kimning nomiga ekanini yozing.",
     "phoneWrong": "Raqamda mamlakat kodi bilan 10–15 ta raqam bo‘lishi kerak.",
     "ranOut": "Vaqt tugadi — to‘lovni tekshirmoqdamiz",
-    "hoursAtCheckIn": "Soatlar uchun {{total}} — kirishda to‘lanadi"
+    "hoursAtCheckIn": "Soatlar uchun {{total}} — kirishda to‘lanadi",
+    "openPage": "Bron sahifasini ochish",
+    "openPageHint": "Bu havolani saqlang: bron sahifasida manzil, toʻlov va eshik kodi bor."
   },
   "properties": {
     "checkInMethod": {
@@ -161,7 +163,22 @@
     "how2": "Garovni Kaspi orqali toʻlang",
     "how3": "Eshik kodini oling",
     "askTitle": "Savollar qoldimi?",
-    "askHint": "Yozing — javob beramiz va kvartira tanlab beramiz."
+    "askHint": "Yozing — javob beramiz va kvartira tanlab beramiz.",
+    "freeToday": "Bugun boʻsh",
+    "freeFrom": "{{day}}dan boʻsh",
+    "guests": "Mehmonlar",
+    "pick": "Tanlash",
+    "guestsCount_one": "{{count}} mehmon",
+    "guestsCount_other": "{{count}} mehmon",
+    "showFree": "Boʻsh kvartiralarni koʻrsatish",
+    "freeOn": "{{dates}} boʻsh",
+    "freeForDates": "Sanalaringizga boʻsh",
+    "forNights_one": "{{count}} kecha uchun",
+    "forNights_other": "{{count}} kecha uchun",
+    "noneFree": "Bu sanalarda boʻsh kvartira yoʻq. Boshqa sanalarni tanlang yoki bizga yozing.",
+    "family": "Oila uchun",
+    "lessGuests": "Kamroq mehmon",
+    "moreGuests": "Koʻproq mehmon"
   },
   "guestStay": {
     "pickDates": "Sanalarni tanlash",

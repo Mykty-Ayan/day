@@ -190,7 +190,7 @@ test.describe('Mobile shell/nav smoke', () => {
     await page.waitForLoadState('networkidle')
 
     await page.getByRole('button', { name: /Русский/i }).click()
-    const toast = page.locator('div.bg-emerald-500').first()
+    const toast = page.locator('div[role="status"].bg-success').first()
     await expect(toast).toBeVisible()
 
     const containerClassName = await toast.evaluate((element) => {

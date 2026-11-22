@@ -6,6 +6,7 @@ import { parseApiDateTime } from '../../utils/date-time'
 
 import Button from '../../components/ui/Button'
 import { showToast } from '../../components/ui/Toast'
+import { errorText } from '../miniapp/errors'
 import {
   useAddChecklistItem,
   useChecklistTemplate,
@@ -41,7 +42,7 @@ export default function ChecklistTemplatesPage() {
           setNewName('')
           setShowCreate(false)
         },
-        onError: (err: Error) => showToast('error', err.message),
+        onError: (err: Error) => showToast('error', errorText(err, t('checklists.failed'), t)),
       },
     )
   }
@@ -52,7 +53,7 @@ export default function ChecklistTemplatesPage() {
         showToast('success', t('checklists.templateDeleted'))
         if (selectedId === id) setSelectedId(null)
       },
-      onError: (err: Error) => showToast('error', err.message),
+      onError: (err: Error) => showToast('error', errorText(err, t('checklists.failed'), t)),
     })
   }
 
@@ -84,7 +85,7 @@ export default function ChecklistTemplatesPage() {
           cancelTemplateEdit()
         },
         onError: (err: Error) => {
-          showToast('error', err.message)
+          showToast('error', errorText(err, t('checklists.failed'), t))
         },
       },
     )
@@ -291,6 +292,7 @@ function TemplateDetail({ templateId }: { templateId: string }) {
           setNewItemTitle('')
           showToast('success', t('checklists.itemAdded'))
         },
+        onError: (err: Error) => showToast('error', errorText(err, t('checklists.failed'), t)),
       },
     )
   }
@@ -333,7 +335,7 @@ function TemplateDetail({ templateId }: { templateId: string }) {
     }
     reorderMutation.mutate(next.map((item) => item.id), {
       onError: (err: Error) => {
-        showToast('error', err.message)
+        showToast('error', errorText(err, t('checklists.failed'), t))
       },
     })
     setDraggingId(null)
@@ -370,7 +372,7 @@ function TemplateDetail({ templateId }: { templateId: string }) {
           cancelItemEdit()
         },
         onError: (err: Error) => {
-          showToast('error', err.message)
+          showToast('error', errorText(err, t('checklists.failed'), t))
         },
       },
     )
@@ -477,7 +479,11 @@ function TemplateDetail({ templateId }: { templateId: string }) {
                 </button>
               )}
               <button
-                onClick={() => deleteItemMutation.mutate(item.id)}
+                onClick={() =>
+                  deleteItemMutation.mutate(item.id, {
+                    onError: (err: Error) => showToast('error', errorText(err, t('checklists.failed'), t)),
+                  })
+                }
                 className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-ink-muted/60 transition-colors hover:bg-danger/10 hover:text-danger"
                 aria-label="Delete checklist item"
               >

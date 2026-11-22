@@ -12,6 +12,7 @@ import Button from '../../components/ui/Button'
 import { useSettings, useUpdateSettings } from '../../hooks/useSettings'
 import MinibarCard from './MinibarCard'
 import WeekendCard from './WeekendCard'
+import LoadError from '../../components/ui/LoadError'
 
 const LANGUAGES = [
   { code: 'ru', label: 'Русский', flag: 'RU' },
@@ -249,16 +250,18 @@ function TwoFactorCard() {
  *  before check-in. The owner's, as the settings are. */
 function GuestPageCard() {
   const { t } = useTranslation()
-  const { data: settings } = useSettings()
+  const { data: settings, isSuccess: known, isError, refetch } = useSettings()
   const update = useUpdateSettings()
   const [daily, setDaily] = useState<string | null>(null)
   const [hourly, setHourly] = useState<string | null>(null)
-  const shownDaily = daily ?? String(settings?.secrets_lead_hours_daily ?? 24)
-  const shownHourly = hourly ?? String(settings?.secrets_lead_hours_hourly ?? 1)
+  // Locked until the company's own hours are read: a guessed 24 and 1 would be saved over them.
+  const shownDaily = daily ?? (known ? String(settings?.secrets_lead_hours_daily ?? 24) : '')
+  const shownHourly = hourly ?? (known ? String(settings?.secrets_lead_hours_hourly ?? 1) : '')
   const valid = (v: string) => /^\d{1,3}$/.test(v) && Number(v) <= 168
 
   async function save(event: React.FormEvent) {
     event.preventDefault()
+    if (!known) return
     if (!valid(shownDaily) || !valid(shownHourly)) {
       showToast('error', t('settings.guestPage.invalid'))
       return
@@ -283,17 +286,18 @@ function GuestPageCard() {
           <p className="text-xs text-ink-muted">{t('settings.guestPage.description')}</p>
         </div>
       </div>
+      {isError && <LoadError message={t('settings.loadFailed')} onRetry={() => refetch()} />}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <label className="text-xs font-semibold text-ink-muted">
           {t('settings.guestPage.daily')}
-          <input id="lead-daily" inputMode="numeric" value={shownDaily} onChange={(e) => setDaily(e.target.value)} className={input} />
+          <input id="lead-daily" inputMode="numeric" disabled={!known} value={shownDaily} onChange={(e) => setDaily(e.target.value)} className={input} />
  </label>
         <label className="text-xs font-semibold text-ink-muted">
           {t('settings.guestPage.hourly')}
-          <input id="lead-hourly" inputMode="numeric" value={shownHourly} onChange={(e) => setHourly(e.target.value)} className={input} />
+          <input id="lead-hourly" inputMode="numeric" disabled={!known} value={shownHourly} onChange={(e) => setHourly(e.target.value)} className={input} />
  </label>
       </div>
-      <Button type="submit" disabled={update.isPending}>
+      <Button type="submit" disabled={!known || update.isPending}>
         {t('settings.guestPage.save')}
       </Button>
     </form>

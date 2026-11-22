@@ -26,6 +26,15 @@ interface Stay {
   rental_mode?: string
 }
 
+/** A night's price in its cell, «27k ₸»: a cell is 34–40 px wide, so thousands are a «k», not
+ *  «тыс.»; the sign after the number, as in all Day money. The legend shows the same. */
+export function cellPrice(value: number, sign: string): string {
+  const short = value / 1000
+  const number =
+    value >= 10000 ? `${Math.round(short)}k` : value >= 1000 ? `${Number.isInteger(short) ? short : short.toFixed(1)}k` : `${Math.round(value)}`
+  return `${number}\u202f${sign}`
+}
+
 /** Days from 1970-01-01 to a yyyy-mm-dd: the grid's x axis. */
 export function dayNumber(day: string): number {
   const [y, m, d] = day.split('-').map(Number)

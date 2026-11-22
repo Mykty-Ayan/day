@@ -2,8 +2,9 @@ import { useState } from 'react'
 import { CalendarDays } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import Button from '../../components/ui/Button'
+import LoadError from '../../components/ui/LoadError'
 import { showToast } from '../../components/ui/Toast'
-import { useUpdateSettings, useWeekendSettings } from '../../hooks/useSettings'
+import { useSettings, useUpdateSettings, useWeekendSettings } from '../../hooks/useSettings'
 
 // The nights the owner may call the weekend, as the server numbers them (Monday 0),
 // with the Date.getDay() of their short names.
@@ -18,6 +19,7 @@ const NIGHTS = [
 export default function WeekendCard() {
   const { t } = useTranslation()
   const { days, known } = useWeekendSettings()
+  const { isError, refetch } = useSettings()
   const update = useUpdateSettings()
   const [picked, setPicked] = useState<number[] | null>(null)
   // Locked until the company's own nights are read: a tick on a guessed Friday and
@@ -45,6 +47,7 @@ export default function WeekendCard() {
           <p className="text-xs text-ink-muted">{t('settings.weekend.description')}</p>
         </div>
       </div>
+      {isError && <LoadError message={t('settings.loadFailed')} onRetry={() => refetch()} />}
       <div className="flex gap-2" role="group" aria-label={t('settings.weekend.title')}>
         {NIGHTS.map(({ server, day }) => {
           const on = shown.includes(server)

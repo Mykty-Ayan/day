@@ -160,7 +160,7 @@ function GuestEditForm({ guest, onDone }: { guest: Guest; onDone: () => void }) 
         />
       </label>
       {error && (
-        <p role="alert" className="text-sm font-semibold text-red-600">
+        <p role="alert" className="text-sm font-semibold text-danger">
           {error}
         </p>
       )}

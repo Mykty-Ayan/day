@@ -217,6 +217,16 @@ def _name_taken(e: IntegrityError, internal_name: str | None) -> HTTPException:
     return HTTPException(status_code=409, detail=f"Property with internal name '{internal_name}' already exists")
 
 
+# What the property services say when the flat, its photo or the tag is not the
+# caller's: absent or another company's alike.
+_NOT_FOUND = frozenset({"Property not found", "Photo not found", "Tag not found"})
+
+
+def _refused(e: ValueError) -> HTTPException:
+    """404 for a flat, photo or tag that is not the caller's; 400 for any other refusal."""
+    return HTTPException(status_code=404 if str(e) in _NOT_FOUND else 400, detail=str(e))
+
+
 @router.post(
     "",
     response_model=PropertyResponse,
@@ -622,7 +632,7 @@ async def change_property_status(
         return _to_property_response(result, sees_secrets=_sees_secrets(principal))
     except ValueError as e:
         await session.rollback()
-        raise HTTPException(status_code=400, detail=str(e))
+        raise _refused(e)
 
 
 # ---------- Clone ----------
@@ -700,7 +710,7 @@ async def add_photo(
         return _photo_response(result)
     except ValueError as e:
         await session.rollback()
-        raise HTTPException(status_code=400, detail=str(e))
+        raise _refused(e)
 
 
 def _sniff_photo(head: bytes) -> str | None:
@@ -845,7 +855,7 @@ async def delete_photo(
         await session.commit()
     except ValueError as e:
         await session.rollback()
-        raise HTTPException(status_code=400, detail=str(e))
+        raise _refused(e)
 
 
 @router.put(
@@ -868,7 +878,7 @@ async def reorder_photos(
         return [_photo_response(p) for p in _visible_photos(result, sees_secrets=_sees_secrets(principal))]
     except ValueError as e:
         await session.rollback()
-        raise HTTPException(status_code=400, detail=str(e))
+        raise _refused(e)
 
 
 # ---------- Amenities ----------
@@ -905,7 +915,7 @@ async def set_property_amenities(
         return [AmenityResponse.model_validate(a, from_attributes=True) for a in result]
     except ValueError as e:
         await session.rollback()
-        raise HTTPException(status_code=400, detail=str(e))
+        raise _refused(e)
 
 
 # ---------- Costs ----------
@@ -1299,7 +1309,7 @@ async def assign_property_tag(
         return [TagResponse.model_validate(t, from_attributes=True) for t in result]
     except ValueError as e:
         await session.rollback()
-        raise HTTPException(status_code=400, detail=str(e))
+        raise _refused(e)
 
 
 @router.delete(
@@ -1324,7 +1334,7 @@ async def remove_property_tag(
         await session.commit()
     except ValueError as e:
         await session.rollback()
-        raise HTTPException(status_code=400, detail=str(e))
+        raise _refused(e)
 
 
 @router.get(

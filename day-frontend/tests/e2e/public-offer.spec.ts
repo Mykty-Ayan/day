@@ -79,6 +79,8 @@ async function offerFor(request: APIRequestContext, flats: string[], from: numbe
 }
 
 test('a guest books a flat by the link and waits for the Kaspi invoice', async ({ browser, request }) => {
+  // The page reads the link again after 30 seconds; the test waits for it.
+  test.setTimeout(90_000)
   const studio = await flatOnSale(request, 'Студия для брони')
   const code = await offerFor(request, [studio], 20)
 
@@ -103,9 +105,20 @@ test('a guest books a flat by the link and waits for the Kaspi invoice', async (
   // The sum's thousands are split by a no-break space.
   await expect(page.getByText(/счёт на залог 10\s000\s₸ на номер \+7 701 ••• •• 78/)).toBeVisible()
   await expect(page.getByText('За ночи 20 000 ₸ — при заселении')).toBeVisible()
-  // The link remembers its booking: the guest who comes back sees it, not the flats.
+  // The guest gets their own booking page to keep.
+  const own = page.getByRole('link', { name: 'Открыть страницу брони' })
+  await expect(own).toHaveAttribute('href', /^\/g\/[a-z0-9]{16}$/)
+  const ownPage = await own.getAttribute('href')
+  // The link reads its booking again every 30 seconds without the code: the button stays.
+  await page.waitForResponse((r) => r.request().method() === 'GET' && new URL(r.url()).pathname.endsWith(`/public/offers/${code}`), { timeout: 45_000 })
+  await expect(own).toHaveAttribute('href', ownPage!)
+  // The link remembers its booking: the guest who comes back sees it, not the flats; the booking
+  // page's code is not handed to whoever opens the shorter offer link later.
   await page.reload()
   await expect(page.getByRole('heading', { level: 1 })).toHaveText(/^Даты за вами до/)
+  await expect(own).toHaveCount(0)
+  await page.goto(ownPage!)
+  await expect(page.getByRole('tab', { name: 'Заселение' })).toBeVisible()
   // The page knew the first name alone; the booking has the full one from the chat.
   const { items } = await (await request.get(`${API_BASE}/bookings`, { params: { property_id: studio } })).json()
   expect(items.map((b: { guest_name: string; status: string }) => [b.guest_name, b.status])).toEqual([['Ерлан Сапаров', 'pending']])
