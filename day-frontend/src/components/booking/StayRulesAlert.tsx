@@ -15,7 +15,7 @@ export default function StayRulesAlert({
 }) {
   const { t } = useTranslation()
   return (
-    <div role="alert" className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+    <div role="alert" className="mt-4 rounded-xl border border-warning/30 bg-warning-soft p-3 text-sm text-warning">
       <p className="font-semibold">{t('bookings.stayRules.title')}</p>
       <ul className="mt-1 list-disc space-y-0.5 pl-5">
         {breaches.map((breach) => (
@@ -26,7 +26,7 @@ export default function StayRulesAlert({
         type="button"
         onClick={onOverride}
         disabled={busy}
-        className="mt-3 min-h-[44px] rounded-xl border border-amber-300 bg-white px-4 py-2 text-sm font-semibold text-amber-900 transition-colors hover:bg-amber-100 disabled:opacity-50"
+        className="mt-3 min-h-[44px] rounded-xl border border-warning/40 bg-surface-card px-4 py-2 text-sm font-semibold text-warning transition-colors hover:bg-warning-soft disabled:opacity-50"
       >
         {action}
       </button>

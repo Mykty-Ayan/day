@@ -143,7 +143,7 @@ export default function MobileShell({
                   setIsMoreOpen(false)
                   onLogout()
                 }}
-                className="flex min-h-[44px] w-full items-center gap-2 rounded-xl border border-red-200 px-3 py-2 text-sm font-semibold text-red-700 transition-colors hover:bg-red-50"
+                className="flex min-h-[44px] w-full items-center gap-2 rounded-xl border border-danger/30 px-3 py-2 text-sm font-semibold text-danger transition-colors hover:bg-danger-soft"
               >
                 <LogOut className="h-4 w-4" />
                 {t('common.logout')}

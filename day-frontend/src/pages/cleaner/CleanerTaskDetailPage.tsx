@@ -293,7 +293,7 @@ export default function CleanerTaskDetailPage() {
                 {report.checklist.map((item, idx) => (
                   <div key={item.id} className="flex items-center gap-2">
                     {item.is_done ? (
-                      <CheckCircle2 className="w-4 h-4 text-green-500" />
+                      <CheckCircle2 className="w-4 h-4 text-success" />
                     ) : (
                       <Circle className="w-4 h-4 text-ink-muted/60" />
                     )}
@@ -469,7 +469,7 @@ function ChecklistSection({
             className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-surface-page transition-colors text-left min-h-[48px]"
           >
             {checklist[item.id] ? (
-              <CheckCircle2 className="w-5 h-5 text-green-500 shrink-0" />
+              <CheckCircle2 className="w-5 h-5 text-success shrink-0" />
             ) : (
               <Circle className="w-5 h-5 text-ink-muted/60 shrink-0" />
             )}

@@ -156,7 +156,7 @@ export default function DateRangePicker({
         />
         {/* Below the calendar: its month navigation overlays the top edge. */}
         {bookedFailed && (
-          <p role="alert" className="px-2 pb-2 text-xs text-red-600">
+          <p role="alert" className="px-2 pb-2 text-xs text-danger">
             {t('bookings.bookedNightsFailed')}{' '}
             <button type="button" onClick={onBookedRetry} className="font-semibold underline">
               {t('common.retry')}

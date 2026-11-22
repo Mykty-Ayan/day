@@ -187,6 +187,7 @@ function SetPrice({
   const { t } = useTranslation()
   const queryClient = useQueryClient()
   const money = useMoney()
+  const { symbol } = useCurrency()
   const [text, setText] = useState('')
   // The weekend nights' extra, on top of the price: one step instead of two passes by weekday.
   const [markupText, setMarkupText] = useState('')
@@ -319,7 +320,7 @@ function SetPrice({
                 placeholder={t('gantt.pricePlaceholder')}
                 className="min-h-[44px] w-full rounded-xl border border-line bg-surface-card px-3 pr-8 text-base font-semibold text-ink outline-none placeholder:font-normal placeholder:text-ink-muted/60 focus:border-accent"
               />
-              <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm text-ink-muted">₸</span>
+              <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm text-ink-muted">{symbol}</span>
             </div>
             {text !== '' && price === null && <p id="night-price-error" className="text-xs text-danger">{t('gantt.priceInvalid')}</p>}
           </div>
@@ -339,7 +340,7 @@ function SetPrice({
                   placeholder="0"
                   className="min-h-[44px] w-full rounded-xl border border-line bg-surface-card px-3 pl-7 pr-8 text-base font-semibold text-ink outline-none placeholder:font-normal placeholder:text-ink-muted/60 focus:border-accent"
                 />
-                <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm text-ink-muted">₸</span>
+                <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm text-ink-muted">{symbol}</span>
               </div>
               {markup === null || tooHigh ? (
                 <p id="weekend-markup-error" className="text-xs text-danger">{t('gantt.priceInvalid')}</p>
@@ -677,7 +678,7 @@ export function HourlyDayPanel({
                     </span>
                     <span className="min-w-0 flex-1 truncate text-sm text-ink">
                       {item.stay.stay.overbooking && (
-                        <span className="mr-1.5 rounded bg-red-600 px-1 text-[10px] font-bold text-white">{t('bookings.overbooking.short')}</span>
+                        <span className="mr-1.5 rounded bg-danger px-1 text-[10px] font-bold text-white">{t('bookings.overbooking.short')}</span>
                       )}
                       {item.stay.stay.guest_name}
                     </span>
