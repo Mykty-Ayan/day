@@ -35,6 +35,7 @@ The new interface: every cabinet screen, the guest pages after the approved mock
 - A guest's «I have left» works without the company's WhatsApp, is kept in the booking's history and tells the host once (#344, #346)
 - The flat's page leads with the amenities guests look for and lists short house rules one by one (#349); the guest's page greets by the first name (#350); an offer says «free on your dates» (#351)
 - «Email» is «Почта» on Russian screens (#348)
+- The Mini App's costs tile says how much of it is the platforms' commission (#357)
 
 ### Fixed
 - A failed load or save says so instead of an empty screen or a silent close; prices and settings are never saved over values that did not load (#336, #337)
