@@ -131,7 +131,9 @@
     "nameNeeded": "Telefon yozishmangizdan olindi. Bron kimning nomiga ekanini yozing.",
     "phoneWrong": "Raqamda mamlakat kodi bilan 10–15 ta raqam bo‘lishi kerak.",
     "ranOut": "Vaqt tugadi — to‘lovni tekshirmoqdamiz",
-    "hoursAtCheckIn": "Soatlar uchun {{total}} — kirishda to‘lanadi"
+    "hoursAtCheckIn": "Soatlar uchun {{total}} — kirishda to‘lanadi",
+    "openPage": "Bron sahifasini ochish",
+    "openPageHint": "Bu havolani saqlang: bron sahifasida manzil, toʻlov va eshik kodi bor."
   },
   "properties": {
     "checkInMethod": {

@@ -138,7 +138,9 @@
     "nameNeeded": "Ihre Telefonnummer stammt aus unserem Chat. Geben Sie den Namen an, auf den wir buchen.",
     "phoneWrong": "Eine Nummer hat 10 bis 15 Ziffern, mit Ländervorwahl.",
     "ranOut": "Die Zeit ist um — wir prüfen die Zahlung",
-    "hoursAtCheckIn": "Die Stunden, {{total}}, zahlen Sie bei Anreise"
+    "hoursAtCheckIn": "Die Stunden, {{total}}, zahlen Sie bei Anreise",
+    "openPage": "Buchungsseite öffnen",
+    "openPageHint": "Speichern Sie diesen Link: Auf Ihrer Buchungsseite finden Sie Adresse, Zahlung und Türcode."
   },
   "properties": {
     "checkInMethod": {

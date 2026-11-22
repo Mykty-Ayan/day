@@ -296,6 +296,10 @@ async def test_booking_from_a_link_through_the_api(flat):  # noqa: F811  (the im
     page = (await client.get(f"/api/v1/public/offers/{code}")).json()
     assert page["booking"]["flat"] == flat_code and page["booking"]["status"] == "pending"
     assert "2345678" not in str(page)
+    # The booking page's code goes to the one who just booked, not to whoever opens the link later.
+    assert len(booked.json()["guest_code"]) == 16
+    assert page["booking"]["guest_code"] is None
+    assert (await client.get(f"/api/v1/public/guest/{booked.json()['guest_code']}")).status_code == 200
 
 
 @pytest.mark.integration
@@ -489,6 +493,8 @@ async def test_booking_from_a_flats_page_through_the_api(flat):  # noqa: F811  (
     booked = await client.post(f"/api/v1/public/stays/{code}/book", json=stay)
     assert booked.status_code == 201, booked.text
     assert booked.json()["phone"] == "+7 701 ••• •• 31" and booked.json()["total"] == 40000.0
+    # The guest's own booking page opens from the answer.
+    assert (await client.get(f"/api/v1/public/guest/{booked.json()['guest_code']}")).status_code == 200
     # The same number written another way is the same guest.
     later = {**stay, "phone": "+7 (701) 555-44-31", "check_in": (day + timedelta(days=5)).isoformat(),
              "check_out": (day + timedelta(days=6)).isoformat()}

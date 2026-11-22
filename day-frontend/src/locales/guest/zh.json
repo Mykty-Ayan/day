@@ -131,7 +131,9 @@
     "nameNeeded": "电话来自我们的聊天记录。请填写预订人的姓名。",
     "phoneWrong": "号码应为 10 到 15 位数字，含国家代码。",
     "ranOut": "时间已到——正在核实付款",
-    "hoursAtCheckIn": "使用费 {{total}}，入住时支付"
+    "hoursAtCheckIn": "使用费 {{total}}，入住时支付",
+    "openPage": "打开预订页面",
+    "openPageHint": "请保存此链接：预订页面上有地址、付款和门锁密码。"
   },
   "properties": {
     "checkInMethod": {
