@@ -26,7 +26,7 @@ test('a hold from the site shows until when it is held', async ({ page, request 
 
   await page.goto('/bookings')
   await page.getByPlaceholder(SEARCH).fill(name)
-  const row = page.getByRole('link', { name: new RegExp(name) }).first()
+  const row = page.getByRole('button', { name: new RegExp(name) }).first()
   await expect(row).toContainText(/Held until \d{2}:\d{2}/)
   await expect(row).not.toContainText('Pending')
 })
