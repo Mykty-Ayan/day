@@ -25,6 +25,7 @@ The new interface: every cabinet screen, the guest pages after the approved mock
 - After booking from a public page the guest gets the link to their booking page (#333)
 - The owner sees until when a hold from the site is held (#343)
 - A guest sees the price the booking will be made at, extra guests and discounts included (#345)
+- Today shows the Telegram notices the bot gave up on (a double sale, a guest's booking), with «Send again» (#355)
 - Maestro flows for the guest pages (#342); a check of every screen for stray scrolls, sideways pages and English (#348)
 
 ### Changed
