@@ -111,7 +111,9 @@ export default function DepositRow({
   })
 
   // A failed read says so: an empty "Take" field would hide a deposit already taken.
-  if (deposits.isError && !deposits.data) {
+  // Any failed read, even with an older list kept: an empty older list would offer to take
+  // a deposit the server may already hold.
+  if (deposits.isError) {
     return (
       <div className="space-y-2">
         <p role="alert" className="tg-surface rounded-xl px-3 py-2 text-sm">

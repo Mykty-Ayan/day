@@ -31,6 +31,16 @@ test('deposits that did not load say so in the booking card, not an empty "Take"
     await page.unroute(depositsUrl)
     await page.getByRole('button', { name: 'Try again', exact: true }).click()
     await expect(page.getByRole('button', { name: 'Take', exact: true })).toBeVisible()
+
+    // The list read again after taking a deposit fails: the older empty list is not shown
+    // as if nothing were taken.
+    await page.route(depositsUrl, (route) =>
+      route.request().method() === 'GET' ? route.fulfill({ status: 500, json: { detail: 'down' } }) : route.continue(),
+    )
+    await page.getByLabel('Deposit', { exact: true }).fill('5000')
+    await page.getByRole('button', { name: 'Take', exact: true }).click()
+    await expect(page.getByText('Could not load the deposit. Check the connection and try again')).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Take', exact: true })).toHaveCount(0)
   } finally {
     await request.delete(`${API_BASE}/properties/${property.id}`)
   }
