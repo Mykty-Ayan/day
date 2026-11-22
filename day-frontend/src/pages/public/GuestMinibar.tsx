@@ -61,8 +61,11 @@ export function GuestMinibar({
     // Cancelled, or already past that: the list reads anew either way.
     onSettled: () => void queryClient.invalidateQueries({ queryKey: ['guest-panel', code] }),
   })
+  // The order asked about before it is cancelled, right under its line.
+  const [asking, setAsking] = useState<number | null>(null)
   function cancel(number: number) {
-    if (window.confirm(t('guestPanel.minibar.cancelAsk', { number }))) callOff.mutate(number)
+    setAsking(null)
+    callOff.mutate(number)
   }
   const status = isAxiosError(order.error) ? order.error.response?.status : undefined
   const detail = isAxiosError(order.error) ? String(order.error.response?.data?.detail ?? '') : ''
@@ -171,7 +174,7 @@ export function GuestMinibar({
         <div className="mt-5 space-y-2 border-t border-[#E7E7ED] pt-4">
           <h3 className="text-[13px] font-semibold uppercase tracking-wider text-[#A3A3AD]">{t('guestPanel.minibar.yourOrders')}</h3>
           {callOff.isError && (
-            <p role="alert" className="text-sm text-red-600">
+            <p role="alert" className="text-sm text-[#8A5A00]">
               {t('guestPanel.minibar.cancelFailed')}
             </p>
           )}
@@ -187,15 +190,28 @@ export function GuestMinibar({
                 >
                   {t(`guestPanel.minibar.state.${orderState(o)}`)}
                 </span>
-                {guestMayCancel(o) && (
+                {guestMayCancel(o) && asking !== o.number && (
                   <button
                     type="button"
-                    onClick={() => cancel(o.number)}
+                    onClick={() => setAsking(o.number)}
                     disabled={callOff.isPending}
                     className="ms-3 text-[13px] font-semibold text-[#76767F] underline disabled:opacity-50"
                   >
                     {t('guestPanel.minibar.cancel')}
                   </button>
+                )}
+                {guestMayCancel(o) && asking === o.number && (
+                  <div role="group" aria-label={t('guestPanel.minibar.cancelAsk', { number: o.number })} className="mt-2 space-y-2">
+                    <p className="text-[15px] font-semibold text-[#111114]">{t('guestPanel.minibar.cancelAsk', { number: o.number })}</p>
+                    <div className="flex flex-wrap gap-2">
+                      <button type="button" onClick={() => cancel(o.number)} className="h-10 rounded-full bg-[#111114] px-4 text-[14px] font-semibold text-white">
+                        {t('guestPanel.minibar.cancelYes')}
+                      </button>
+                      <button type="button" onClick={() => setAsking(null)} className="h-10 rounded-full bg-[#F3F3F6] px-4 text-[14px] font-semibold text-[#111114]">
+                        {t('guestPanel.minibar.cancelKeep')}
+                      </button>
+                    </div>
+                  </div>
                 )}
               </div>
               <span className="shrink-0 font-semibold tabular-nums">{money(o.total, locale)}</span>
@@ -264,7 +280,7 @@ export function GuestMinibar({
               </p>
             )}
             {closedNow && hours && <p className="text-sm font-semibold text-[#111114]">{t('guestPanel.minibar.closedNow', hours)}</p>}
-            {failure && <p role="alert" className="text-sm text-red-600">{failure}</p>}
+            {failure && <p role="alert" className="text-sm text-[#8A5A00]">{failure}</p>}
             <button type="button" onClick={() => order.mutate()} disabled={order.isPending || count === 0 || closedNow} className="flex min-h-12 w-full items-center justify-center rounded-full bg-[#111114] text-[15px] font-semibold text-white disabled:opacity-50">
               {t('guestPanel.minibar.send')}
             </button>

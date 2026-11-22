@@ -237,14 +237,13 @@ test('the guest calls off an order still waiting, after a yes; the host has the 
   await openStay(page, answer({ menu: MENU, orders }, { paid: 40000, remaining: 0 }))
   const listed = page.getByRole('region', { name: 'Мини-бар' }).getByTestId('guest-order')
   await expect(listed.last().getByRole('button', { name: 'Отменить' })).toHaveCount(0)
-  const asked: string[] = []
-  page.once('dialog', (dialog) => {
-    asked.push(dialog.message())
-    void dialog.accept()
-  })
   await listed.first().getByRole('button', { name: 'Отменить' }).click()
+  // Asked right under the order, in the page's own look; nothing is sent before the answer.
+  const ask = listed.first().getByRole('group', { name: 'Отменить заказ №8?' })
+  await expect(ask).toBeVisible()
+  expect(cancelled).toEqual([])
+  await ask.getByRole('button', { name: 'Да, отменить' }).click()
   await expect.poll(() => cancelled).toEqual([`/api/v1/public/guest/${CODE}/orders/8/cancel`])
-  expect(asked).toEqual(['Отменить заказ №8?'])
 })
 
 test('outside the hours the guest sees when ordering opens and cannot send', async ({ page }) => {

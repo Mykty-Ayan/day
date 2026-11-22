@@ -83,6 +83,10 @@ function BlockForm({ property, block, onDone }: { property: Property; block: Pro
     if (block === 'rules' && !bufferMinutesValid(form.rules.buffer_minutes)) {
       found.buffer_minutes = t('properties.validation.bufferMinutes')
     }
+    for (const key of ['check_in_hour', 'check_out_hour'] as const) {
+      // A typed time that is not a whole hour: the flat keeps hours only.
+      if (block === 'rules' && !/^\d{0,2}$/.test(form.rules[key])) found[key] = t('properties.validation.wholeHour')
+    }
     setErrors(found)
     return Object.keys(found).length === 0
   }

@@ -315,7 +315,8 @@
       "webLink": "The link must start with https://",
       "listingLinks": "One link per line, each starting with http:// or https://, no spaces, up to 500 characters; at most 20",
       "listingInBoth": "One link cannot be both a nightly and an hourly listing",
-      "bufferMinutes": "15 to 1440 minutes, in steps of 15"
+      "bufferMinutes": "15 to 1440 minutes, in steps of 15",
+      "wholeHour": "Whole hours only, such as 07:00 or 15:00"
     },
     "amenityCategories": {
       "accessibility": "Accessibility",
@@ -2232,6 +2233,7 @@
     "slugTaken": "Another company has this address",
     "copy": "Copy",
     "copied": "Link copied",
+    "copyByHand": "Could not copy. Select the link and copy it yourself",
     "open": "Open",
     "flatLinks": "Property links",
     "flatLinksHint": "Each property's lasting page — for the WhatsApp catalogue, Instagram and listings",
@@ -2413,6 +2415,8 @@
       },
       "cancel": "Cancel",
       "cancelAsk": "Cancel order #{{number}}?",
+      "cancelYes": "Yes, cancel",
+      "cancelKeep": "Keep it",
       "cancelFailed": "Could not cancel: the order is paid or on its way. Write to the host."
     },
     "ordersDue": "Minibar · {{amount}} · with the booking",

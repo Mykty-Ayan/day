@@ -2,6 +2,9 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link } from '@tanstack/react-router'
 import { Plus, Trash2 } from 'lucide-react'
+import Button from '../../components/ui/Button'
+import ConfirmDialog from '../../components/ui/ConfirmDialog'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select'
 import { showToast } from '../../components/ui/Toast'
 import { useCurrentUser } from '../../hooks/useAuth'
 import { useAddCompanyFact, useCompanyFacts, useDeleteCompanyFact, useReadiness } from '../../hooks/useReadiness'
@@ -21,6 +24,8 @@ export default function ReadinessPage() {
   const deleteFact = useDeleteCompanyFact()
   const [text, setText] = useState('')
   const [audience, setAudience] = useState<FactAudience>('public')
+  // The rule asked about before it is deleted.
+  const [asking, setAsking] = useState<string | null>(null)
 
   async function submit() {
     if (!text.trim() || addFact.isPending) return
@@ -33,9 +38,9 @@ export default function ReadinessPage() {
   }
 
   async function remove(id: string) {
-    if (!window.confirm(t('readiness.deleteConfirm'))) return
     try {
       await deleteFact.mutateAsync(id)
+      setAsking(null)
     } catch {
       showToast('error', t('readiness.failed'))
     }
@@ -66,7 +71,7 @@ export default function ReadinessPage() {
                 {canWrite && (
                   <button
                     type="button"
-                    onClick={() => remove(f.id)}
+                    onClick={() => setAsking(f.id)}
                     aria-label={t('readiness.delete')}
                     title={t('readiness.delete')}
                     className="flex min-h-11 min-w-11 items-center justify-center rounded-lg text-ink-muted hover:bg-surface-page hover:text-danger"
@@ -95,27 +100,33 @@ export default function ReadinessPage() {
             <label htmlFor="rule-audience" className="sr-only">
               {t('readiness.audienceLabel')}
             </label>
-            <select
-              id="rule-audience"
-              value={audience}
-              onChange={(e) => setAudience(e.target.value as FactAudience)}
-              className={`${field} sm:w-56`}
-            >
-              <option value="public">{t('readiness.audience.public')}</option>
-              <option value="guest">{t('readiness.audience.guest')}</option>
-            </select>
-            <button
-              type="button"
-              onClick={submit}
-              disabled={addFact.isPending || !text.trim()}
-              className="inline-flex items-center justify-center gap-2 rounded-xl bg-accent px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
-            >
+            <Select value={audience} onValueChange={(value) => setAudience(value as FactAudience)}>
+              <SelectTrigger id="rule-audience" className="h-auto bg-surface-page p-3 sm:w-56">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="public">{t('readiness.audience.public')}</SelectItem>
+                <SelectItem value="guest">{t('readiness.audience.guest')}</SelectItem>
+              </SelectContent>
+            </Select>
+            <Button onClick={submit} disabled={addFact.isPending || !text.trim()} nowrap className="px-4">
               <Plus className="h-4 w-4" />
               {t('readiness.add')}
-            </button>
+            </Button>
           </div>
         )}
       </section>
+
+      <ConfirmDialog
+        open={asking !== null}
+        title={t('readiness.deleteConfirm')}
+        message={facts.find((f) => f.id === asking)?.text ?? ''}
+        confirmLabel={t('readiness.delete')}
+        variant="danger"
+        loading={deleteFact.isPending}
+        onConfirm={() => asking && remove(asking)}
+        onCancel={() => setAsking(null)}
+      />
 
       <section className="rounded-xl border border-line bg-surface-card">
         <h2 className="border-b border-line px-4 py-3 text-sm font-bold text-ink">{t('readiness.flats')}</h2>
