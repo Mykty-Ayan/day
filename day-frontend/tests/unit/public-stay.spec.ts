@@ -135,6 +135,7 @@ test('short house rules become items with their kind; prose stays one text', () 
     { text: 'Тишина после 23:00', kind: 'quiet' },
   ])
   expect(ruleItems('Без животных\nБез вечеринок\nОбувь у двери')?.map((r) => r.kind)).toEqual(['pets', 'party', 'other'])
+  expect(ruleItems('Без обуви! Не курить; Тишина')?.map((r) => r.text)).toEqual(['Без обуви!', 'Не курить', 'Тишина'])
   // One rule, or a long story, is read as written.
   expect(ruleItems('Не курить.')).toBeNull()
   expect(ruleItems('Пожалуйста, берегите мебель и технику: за поломки, которые случились по вашей вине, придётся заплатить. Спасибо.')).toBeNull()

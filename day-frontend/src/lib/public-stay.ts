@@ -107,8 +107,9 @@ export type RuleKind = 'smoke' | 'quiet' | 'pets' | 'party' | 'other'
 /** House rules as short items, one per line or sentence, each with its kind for an icon.
  *  Prose (a long sentence, or many) stays one text: null. */
 export function ruleItems(text: string): { text: string; kind: RuleKind }[] | null {
+  // No lookbehind in a pattern: Safari before 16.4 cannot read one, and the page would fail.
   const lines = text.split(/\n+/).map((l) => l.trim()).filter(Boolean)
-  const parts = (lines.length > 1 ? lines : text.split(/(?<=[.!;])\s+/)).map((p) => p.trim().replace(/[.;]$/, '')).filter(Boolean)
+  const parts = (lines.length > 1 ? lines : text.replace(/([.!;])\s+/g, '$1\n').split('\n')).map((p) => p.trim().replace(/[.;]$/, '')).filter(Boolean)
   if (parts.length < 2 || parts.length > 8 || parts.some((p) => p.length > 60)) return null
   const kind = (p: string): RuleKind =>
     /кур|сигар|темекі|smok|vap|кальян/i.test(p) ? 'smoke'
