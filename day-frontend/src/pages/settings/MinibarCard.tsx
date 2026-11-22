@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Wine } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import Button from '../../components/ui/Button'
+import LoadError from '../../components/ui/LoadError'
 import { showToast } from '../../components/ui/Toast'
 import { useSettings, useUpdateSettings } from '../../hooks/useSettings'
 import { minibarSettings, type MinibarDraft } from './minibar'
@@ -10,7 +11,8 @@ import { minibarSettings, type MinibarDraft } from './minibar'
  *  as the settings are. */
 export default function MinibarCard() {
   const { t } = useTranslation()
-  const { data: settings } = useSettings()
+  // Locked until the company's own ways and hours are read: guessed ones would be saved over them.
+  const { data: settings, isSuccess: known, isError, refetch } = useSettings()
   const update = useUpdateSettings()
   const [edit, setEdit] = useState<Partial<MinibarDraft>>({})
   const draft: MinibarDraft = {
@@ -24,6 +26,7 @@ export default function MinibarCard() {
 
   async function save(event: React.FormEvent) {
     event.preventDefault()
+    if (!known) return
     const body = minibarSettings(draft)
     if (!body) {
       showToast('error', !draft.invoice && !draft.onBooking ? t('settings.minibar.oneWay') : t('settings.minibar.hoursInvalid'))
@@ -49,7 +52,8 @@ export default function MinibarCard() {
           <p className="text-xs text-ink-muted">{t('settings.minibar.description')}</p>
         </div>
       </div>
-      <fieldset className="space-y-2">
+      {isError && <LoadError message={t('settings.loadFailed')} onRetry={() => refetch()} />}
+      <fieldset className="space-y-2" disabled={!known}>
         <legend className="text-xs font-semibold text-ink-muted">{t('settings.minibar.ways')}</legend>
         <label className="flex gap-3 text-sm">
           <input id="minibar-invoice" type="checkbox" checked={draft.invoice} onChange={(e) => change({ invoice: e.target.checked })} className={box} />
@@ -67,20 +71,20 @@ export default function MinibarCard() {
         </label>
       </fieldset>
       <label className="flex items-center gap-3 text-sm font-semibold text-ink">
-        <input id="minibar-all-day" type="checkbox" checked={draft.allDay} onChange={(e) => change({ allDay: e.target.checked })} className={box} />
+        <input id="minibar-all-day" type="checkbox" disabled={!known} checked={draft.allDay} onChange={(e) => change({ allDay: e.target.checked })} className={box} />
  {t('settings.minibar.allDay')}
       </label>
       <div className="grid grid-cols-2 gap-3">
         <label className="text-xs font-semibold text-ink-muted">
           {t('settings.minibar.opens')}
-          <input id="minibar-opens" type="time" disabled={draft.allDay} value={draft.opens} onChange={(e) => change({ opens: e.target.value })} className={input} />
+          <input id="minibar-opens" type="time" disabled={!known || draft.allDay} value={draft.opens} onChange={(e) => change({ opens: e.target.value })} className={input} />
  </label>
         <label className="text-xs font-semibold text-ink-muted">
           {t('settings.minibar.closes')}
-          <input id="minibar-closes" type="time" disabled={draft.allDay} value={draft.closes} onChange={(e) => change({ closes: e.target.value })} className={input} />
+          <input id="minibar-closes" type="time" disabled={!known || draft.allDay} value={draft.closes} onChange={(e) => change({ closes: e.target.value })} className={input} />
  </label>
       </div>
-      <Button type="submit" disabled={update.isPending}>
+      <Button type="submit" disabled={!known || update.isPending}>
         {t('settings.minibar.save')}
       </Button>
     </form>
