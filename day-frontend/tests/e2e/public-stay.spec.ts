@@ -182,6 +182,9 @@ test('on a narrow phone the booking bar keeps the whole total clear of its butto
   const totalBox = (await total.boundingBox())!
   const askBox = (await page.getByRole('link', { name: /Спросить|Написать/ }).boundingBox())!
   expect(totalBox.x + totalBox.width).toBeLessThanOrEqual(askBox.x)
+  // The dates line must not push the button off the screen: the guest could not book.
+  const bookBox = (await page.getByRole('button', { name: 'Забронировать' }).boundingBox())!
+  expect(bookBox.x + bookBox.width).toBeLessThanOrEqual(360)
   await guest.close()
 })
 
