@@ -40,7 +40,7 @@ export default function StayCard({
       <div className="min-w-0 flex-1 p-5 sm:p-6">
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
           <h1 className="min-w-0 truncate text-xl font-bold text-ink">{booking.guest_name}</h1>
-          <BookingStatusBadge status={booking.status} />
+          <BookingStatusBadge status={booking.status} expiresAt={booking.expires_at} />
         </div>
         <p className="mt-1 flex flex-wrap items-center gap-x-2 text-sm text-ink-muted">
           <span>{flat}</span>

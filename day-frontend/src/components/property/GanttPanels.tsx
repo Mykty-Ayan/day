@@ -794,7 +794,7 @@ function BookingPanelBody({ bookingId, fallback }: { bookingId: string; fallback
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center gap-2 text-sm text-ink-muted">
-        <BookingStatusBadge status={booking.status} />
+        <BookingStatusBadge status={booking.status} expiresAt={booking.expires_at} />
         <span>{booking.property_internal_name || booking.property_name}</span>
         <span aria-hidden="true">·</span>
         <span>{t(`bookings.sources.${booking.source}`)}</span>

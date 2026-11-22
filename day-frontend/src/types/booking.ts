@@ -28,6 +28,9 @@ export interface GuestUpdateInput {
 
 export interface Booking {
   id: string
+  /** A hold from the site or a personal link: it cancels itself at this instant unless
+   *  confirmed. With its zone; null for any other booking. */
+  expires_at?: string | null
   company_id: string
   property_id: string
   guest_id: string
