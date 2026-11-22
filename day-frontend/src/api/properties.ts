@@ -148,13 +148,6 @@ export async function linkAmenities(
   })
 }
 
-export async function unlinkAmenity(
-  propertyId: string,
-  amenityId: string,
-): Promise<void> {
-  await apiClient.delete(`/properties/${propertyId}/amenities/${amenityId}`)
-}
-
 // --- Pricing ---
 
 export async function createOrUpdatePricing(
@@ -288,13 +281,6 @@ export async function deleteTag(id: string): Promise<void> {
 export async function getPropertyTags(propertyId: string): Promise<Tag[]> {
   const res = await apiClient.get(`/properties/${propertyId}/tags`)
   return res.data
-}
-
-export async function assignTags(
-  propertyId: string,
-  tagIds: string[],
-): Promise<void> {
-  await apiClient.put(`/properties/${propertyId}/tags`, { tag_ids: tagIds })
 }
 
 /** The iCal link to paste into Airbnb and Booking.com (owners and managers only). */

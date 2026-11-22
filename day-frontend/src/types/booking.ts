@@ -144,7 +144,6 @@ export interface PriceCalculation {
   nights: number
   hours: number
   unit_label: string
-  rental_mode: RentalMode
   base_total: number
   weekend_surcharge: number
   seasonal_adjustment: number
@@ -292,8 +291,6 @@ export interface PriceCalculateInput {
   check_out: string
   adults_count: number
   children_count: number
-  hours?: number
-  unit_label?: string
   rental_mode?: RentalMode
 }
 

@@ -1,9 +1,6 @@
 import apiClient from './client'
 
 export interface UserSettings {
-  language: string
-  timezone: string
-  notifications_enabled: boolean
   default_currency: string
   /** The company's IANA time zone, e.g. "Asia/Almaty": stays' times are its wall clock. */
   time_zone?: string
