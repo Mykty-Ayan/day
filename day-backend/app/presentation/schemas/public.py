@@ -166,6 +166,15 @@ class PublicOfferFlat(BaseModel):
     # The stay's price for the offer's dates and guests, as a booking would count it.
     total: float | None = None
     free: bool
+    # The deposit a booking from the link asks; None when the flat has none.
+    deposit: float | None = None
+
+
+class PublicOfferCompany(BaseModel):
+    """Who sent the link, once the company has set up its site."""
+
+    title: str
+    logo_url: str | None = None
 
 
 class PublicOfferBook(BaseModel):
@@ -263,6 +272,7 @@ class PublicOfferResponse(BaseModel):
     guests: int
     flats: list[PublicOfferFlat]
     booking: PublicOfferBooking | None = None
+    company: PublicOfferCompany | None = None
 
     @classmethod
     def from_offer(cls, public: PublicOffer, held: OfferBooking | None = None) -> PublicOfferResponse:
@@ -293,6 +303,7 @@ class PublicOfferResponse(BaseModel):
                     photo=f.photo,
                     total=float(f.total) if f.total is not None else None,
                     free=f.free,
+                    deposit=float(f.deposit) if f.deposit is not None else None,
                 )
                 for f in public.flats
             ],

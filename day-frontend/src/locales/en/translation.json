@@ -1995,7 +1995,10 @@
     "expired": "The dates of this link have passed. Write to us and we will find new ones.",
     "choose": "Choose",
     "hold": "Pick one and we hold it for you for 30 minutes.",
-    "lapsed": "We held the dates for you, but the deposit did not arrive in time. Choose a flat again."
+    "lapsed": "We held the dates for you, but the deposit did not arrive in time. Choose a flat again.",
+    "next": "What happens next",
+    "freeOf": "{{free}} of {{total}} free",
+    "deposit": "deposit {{price}}"
   },
   "guestBook": {
     "back": "All flats",
@@ -2456,7 +2459,14 @@
     "needHelp": "Need help?",
     "inWhatsApp": "on WhatsApp",
     "writeHost": "Write to the host",
-    "doorAfterPay": "Door code once paid"
+    "doorAfterPay": "Door code once paid",
+    "entrance": "entrance {{n}}",
+    "block": "block {{n}}",
+    "floor": "floor {{n}}",
+    "apartment": "flat {{n}}",
+    "taxi": "Call a taxi here",
+    "path": "The way to the door",
+    "pathStep": "Step {{n}}"
   },
   "stayHere": {
     "title": "Staying here?",

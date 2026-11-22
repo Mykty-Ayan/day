@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import {
   CalendarPlus,
+  CarTaxiFront,
   Check,
   CircleCheck,
   Clock,
@@ -73,7 +74,7 @@ function Panel({ code, locale }: { code: string; locale: string }) {
       </div>
     )
   }
-  return <PanelView code={code} panel={panel.data} locale={locale} />
+  return <PanelView code={code} panel={panel.data} locale={locale} receivedAt={panel.dataUpdatedAt} />
 }
 
 // The stored times are the flat's wall clock: read them as such, whatever the phone's zone.
@@ -167,7 +168,7 @@ function Checklist({ text }: { text: string }) {
   )
 }
 
-function PanelView({ code, panel, locale }: { code: string; panel: GuestPanel; locale: string }) {
+function PanelView({ code, panel, locale, receivedAt }: { code: string; panel: GuestPanel; locale: string; receivedAt: number }) {
   const { t } = useTranslation()
   const [help, setHelp] = useState(false)
   // A second tap while the first «I have left» is on its way tells the host nothing new.
@@ -178,6 +179,9 @@ function PanelView({ code, panel, locale }: { code: string; panel: GuestPanel; l
   const [tab, setTab] = useState<Tab>(stage === 'departure' || stage === null ? 'out' : stage === 'stay' || b?.status === 'checked_in' ? 'stay' : 'in')
   // The countdown moves with the clock.
   const [now, setNow] = useState(() => new Date())
+  // The company's clock against the phone's at the answer: the countdown runs on the
+  // company's wall clock whatever zone the phone is in.
+  const skew = panel.now ? wallClock(panel.now).getTime() - receivedAt : 0
   useEffect(() => {
     const timer = window.setInterval(() => setNow(new Date()), 60_000)
     return () => window.clearInterval(timer)
@@ -200,6 +204,19 @@ function PanelView({ code, panel, locale }: { code: string; panel: GuestPanel; l
   // On arrival day «cannot get in» has its own red card; any other day it is one of the reasons.
   const helpButtons = buttons.filter((k) => k !== 'pay' && !(k === 'cannotGetIn' && stage === 'arrival'))
   const maps = flat ? [...(flat.map_url ? [{ name: t('guestPanel.map'), url: flat.map_url }] : []), ...mapLinks(flat)] : []
+  // Under the address: the complex and the floor always, the entrance and the flat's number with the way in.
+  const where = [
+    flat?.complex_name,
+    access?.entrance ? t('guestPanel.entrance', { n: access.entrance }) : null,
+    access?.block ? t('guestPanel.block', { n: access.block }) : null,
+    flat?.floor != null ? t('guestPanel.floor', { n: flat.floor }) : null,
+    access?.apartment_number ? t('guestPanel.apartment', { n: access.apartment_number }) : null,
+  ].filter(Boolean)
+  // Yandex Go to the door, by the flat's point (Yandex's own link format, the app's redirect id).
+  const taxi =
+    flat?.latitude != null && flat.longitude != null
+      ? `https://3.redirect.appmetrica.yandex.com/route?end-lat=${flat.latitude}&end-lon=${flat.longitude}&ref=day&appmetrica_tracking_id=1178268795219780156`
+      : null
   const opensAt = accessOpensAt(panel)
   const paidInFull = b ? b.paid >= b.total : false
   // What is owed for the minibar is the server's figure, part of remaining: one rule
@@ -247,7 +264,7 @@ function PanelView({ code, panel, locale }: { code: string; panel: GuestPanel; l
   // How long until the next step, by the flat's wall clock against the phone's: hours on
   // the day itself, days before. A guest in another time zone sees the hours off by it.
   function countdown(iso: string): string {
-    const minutes = Math.round((wallClock(iso).getTime() - now.getTime()) / 60_000)
+    const minutes = Math.round((wallClock(iso).getTime() - (now.getTime() + skew)) / 60_000)
     if (minutes <= 0) return ''
     if (iso.slice(0, 10) === panel.today) return t('guestPanel.inHours', { h: Math.floor(minutes / 60), m: minutes % 60 })
     const days = Math.round((Date.parse(iso.slice(0, 10)) - Date.parse(panel.today)) / 86_400_000)
@@ -476,10 +493,11 @@ function PanelView({ code, panel, locale }: { code: string; panel: GuestPanel; l
                 )}
               </section>
 
-              {flat && (flat.address || maps.length > 0) && (
+              {flat && (flat.address || maps.length > 0 || where.length > 0) && (
                 <section aria-label={t('guestPanel.address')} className={CARD}>
                   <h2 className={H2}>{t('guestPanel.address')}</h2>
                   {flat.address && <p dir="auto" className="text-[17px] font-semibold">{flat.address}</p>}
+                  {where.length > 0 && <p dir="auto" className={`mt-0.5 text-sm ${MUTE}`}>{where.join(' · ')}</p>}
                   {maps.length > 0 && (
                     <div className={`mt-3 grid gap-2 ${maps.length > 3 ? 'grid-cols-2' : 'grid-cols-3'}`}>
                       {maps.map((m) => (
@@ -490,20 +508,45 @@ function PanelView({ code, panel, locale }: { code: string; panel: GuestPanel; l
                       ))}
                     </div>
                   )}
+                  {taxi && (
+                    <a href={taxi} target="_blank" rel="noopener noreferrer" className="mt-2 flex h-[46px] items-center justify-center gap-2 rounded-full bg-[#F3F3F6] text-[15px] font-semibold">
+                      <CarTaxiFront className="h-[18px] w-[18px]" aria-hidden />
+                      {t('guestPanel.taxi')}
+                    </a>
+                  )}
+                </section>
+              )}
+
+              {/* The path to the door, as the mockup: the owner's check-in photos, a step each. */}
+              {!!access?.photos?.length && (
+                <section aria-label={t('guestPanel.path')} className={CARD}>
+                  <h2 className={H2}>{t('guestPanel.path')}</h2>
+                  <ol className="flex flex-col">
+                    {access.photos.map((photo, n) => (
+                      <li key={photo.url} className="relative grid grid-cols-[28px_76px_1fr] items-start gap-3 pb-4 last:pb-0">
+                        {n < access.photos!.length - 1 && <span aria-hidden className="absolute bottom-0 start-[13px] top-7 w-0.5 bg-[#E4E4EA]" />}
+                        <span className="relative flex h-7 w-7 items-center justify-center rounded-full bg-[#111114] text-[13px] font-bold text-white">{n + 1}</span>
+                        <a href={photo.url} target="_blank" rel="noopener noreferrer" className="block h-[76px] w-[76px] overflow-hidden rounded-[18px] bg-[#F3F3F6]">
+                          <img src={photo.url} alt={photo.caption ?? t('guestPanel.pathStep', { n: n + 1 })} loading="lazy" className="h-full w-full object-cover" />
+                        </a>
+                        {photo.caption && <p dir="auto" className="pt-1 text-[15px] font-semibold leading-snug">{photo.caption}</p>}
+                      </li>
+                    ))}
+                  </ol>
                 </section>
               )}
             </div>
           )}
 
-          {tab === 'stay' && (
-            <div role="tabpanel">
-              {wifi && <div className="m-2 grid grid-cols-2 gap-2">{wifi}</div>}
+          {/* Kept mounted while another stage is open: the minibar's cart and note stay as the guest left them. */}
+          <div role="tabpanel" hidden={tab !== 'stay'}>
+              {tab === 'stay' && wifi && <div className="m-2 grid grid-cols-2 gap-2">{wifi}</div>}
               {panel.menu && (
                 <div id="minibar" className="m-2 scroll-mt-16">
                   <GuestMinibar code={code} menu={panel.menu} minibar={panel.minibar} orders={panel.orders} locale={locale} />
                 </div>
               )}
-              {DURING.some((k) => buttons.includes(k)) && (
+              {tab === 'stay' && DURING.some((k) => buttons.includes(k)) && (
                 <section className={CARD}>
                   <h2 className={H2}>{t('guestPanel.needMore')}</h2>
                   <div className="grid grid-cols-2 gap-2">
@@ -519,7 +562,7 @@ function PanelView({ code, panel, locale }: { code: string; panel: GuestPanel; l
                   </div>
                 </section>
               )}
-              {flat?.house_rules && (
+              {tab === 'stay' && flat?.house_rules && (
                 <section className={CARD}>
                   <h2 className={H2}>{t('guestPanel.rules')}</h2>
                   <p dir="auto" className="flex items-start gap-3 whitespace-pre-line text-[15px] leading-relaxed">
@@ -528,12 +571,12 @@ function PanelView({ code, panel, locale }: { code: string; panel: GuestPanel; l
                   </p>
                 </section>
               )}
-            </div>
-          )}
+          </div>
 
           {tab === 'out' && b && (
             <div role="tabpanel">
-              <section className={`${CARD} bg-[#111114] text-white`}>
+              {/* Dark on its own: CARD's white would win over another background in the stylesheet. */}
+              <section data-testid="leave-card" className="m-2 rounded-[28px] bg-[#111114] p-5 text-white">
                 <p className="text-xs font-semibold uppercase tracking-[0.06em] text-white/55">{t('guestPanel.checkOutLabel')}</p>
                 <p className="mb-0.5 mt-1.5 text-[26px] font-bold leading-[1.15] tracking-[-0.03em] first-letter:uppercase">
                   {fullDay(b.check_out)}, {t('guestPanel.untilTime', { time: checkOut })}
