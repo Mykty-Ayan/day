@@ -141,7 +141,9 @@
     "nameNeeded": "Ihre Telefonnummer stammt aus unserem Chat. Geben Sie den Namen an, auf den wir buchen.",
     "phoneWrong": "Eine Nummer hat 10 bis 15 Ziffern, mit Ländervorwahl.",
     "ranOut": "Die Zeit ist um — wir prüfen die Zahlung",
-    "hoursAtCheckIn": "Die Stunden, {{total}}, zahlen Sie bei Anreise"
+    "hoursAtCheckIn": "Die Stunden, {{total}}, zahlen Sie bei Anreise",
+    "openPage": "Buchungsseite öffnen",
+    "openPageHint": "Speichern Sie diesen Link: Auf Ihrer Buchungsseite finden Sie Adresse, Zahlung und Türcode."
   },
   "properties": {
     "checkInMethod": {
@@ -168,7 +170,22 @@
     "how2": "Kaution über Kaspi zahlen",
     "how3": "Türcode erhalten",
     "askTitle": "Noch Fragen?",
-    "askHint": "Schreiben Sie uns, wir antworten und finden eine Wohnung."
+    "askHint": "Schreiben Sie uns, wir antworten und finden eine Wohnung.",
+    "freeToday": "Heute frei",
+    "freeFrom": "Frei ab {{day}}",
+    "guests": "Gäste",
+    "pick": "Wählen",
+    "guestsCount_one": "{{count}} Gast",
+    "guestsCount_other": "{{count}} Gäste",
+    "showFree": "Freie Wohnungen zeigen",
+    "freeOn": "Frei {{dates}}",
+    "freeForDates": "Frei an Ihren Daten",
+    "forNights_one": "für {{count}} Nacht",
+    "forNights_other": "für {{count}} Nächte",
+    "noneFree": "An diesen Daten ist keine Wohnung frei. Wählen Sie andere Daten oder schreiben Sie uns.",
+    "family": "Für Familien",
+    "lessGuests": "Weniger Gäste",
+    "moreGuests": "Mehr Gäste"
   },
   "guestStay": {
     "pickDates": "Daten wählen",

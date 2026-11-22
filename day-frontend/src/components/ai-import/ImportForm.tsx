@@ -23,7 +23,7 @@ function detectSourceType(url: string): ImportSourceType | null {
 
 const sourceStyles: Record<ImportSourceType, string> = {
   booking: 'bg-accent-soft text-accent-ink',
-  airbnb: 'bg-rose-100 text-rose-700',
+  airbnb: 'bg-danger-soft text-danger',
   krisha: 'bg-warning-soft text-warning',
   other: 'bg-surface-page text-ink-muted',
 }

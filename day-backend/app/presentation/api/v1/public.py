@@ -196,7 +196,7 @@ async def book_from_offer(code: str, body: PublicOfferBook, session: AsyncSessio
         await session.rollback()
         raise HTTPException(status_code=404 if str(e) == "Not found" else 422, detail=str(e))
     await session.commit()
-    return PublicOfferBooking.from_hold(held)
+    return PublicOfferBooking.from_hold(held, with_page=True)
 
 
 @public_router.post("/stays/{code}/book", response_model=PublicOfferBooking, status_code=201)
@@ -230,7 +230,7 @@ async def book_from_stay(code: str, body: PublicStayBook, session: AsyncSession 
         await session.rollback()
         raise HTTPException(status_code=404 if str(e) == "Not found" else 422, detail=str(e))
     await session.commit()
-    return PublicOfferBooking.from_hold(held)
+    return PublicOfferBooking.from_hold(held, with_page=True)
 
 
 def _stay_key(session: AsyncSession) -> StayKeyService:
@@ -295,6 +295,7 @@ async def guest_panel(code: str, session: AsyncSession = Depends(get_session)):
         SqlProductRepository(session),
         SqlGuestOrderRepository(session),
         photos=SqlPropertyPhotoRepository(session),
+        deposits=SqlBookingDepositRepository(session),
     )
     try:
         panel = await service.execute(code)

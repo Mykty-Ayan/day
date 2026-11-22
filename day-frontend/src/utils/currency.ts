@@ -29,29 +29,25 @@ export function formatCurrency(
   return `${text}\u00a0${symbol}`
 }
 
+/** "27 тыс. ₸", "1,2 млн ₸": the short word of the app's language, the sign after it. */
 export function formatCurrencyCompact(
   value: number | string,
   currency: string,
+  language: string = i18next.language || 'ru',
 ): string {
   const num = typeof value === 'string' ? parseFloat(value) || 0 : value || 0
-  const symbol = getCurrencySymbol(currency)
-  const abs = Math.abs(num)
-  if (abs >= 1_000_000) {
-    const v = num / 1_000_000
-    return `${symbol}${Number.isInteger(v) ? v : v.toFixed(1)}m`
-  }
-  if (abs >= 1_000) {
-    const v = num / 1_000
-    return `${symbol}${Number.isInteger(v) ? v : v.toFixed(1)}k`
-  }
-  return `${symbol}${Math.round(num)}`
+  const text = new Intl.NumberFormat(language === 'kz' ? 'kk' : language, {
+    notation: 'compact',
+    maximumFractionDigits: 1,
+  }).format(num)
+  return `${text}\u00a0${getCurrencySymbol(currency)}`
 }
 
+/** "432 980 ₸": whole money, for a chip or a list line. */
 export function formatCurrencyChip(
   value: number | string,
   currency: string,
+  language: string = i18next.language || 'ru',
 ): string {
-  const num = typeof value === 'string' ? parseFloat(value) || 0 : value || 0
-  const symbol = getCurrencySymbol(currency)
-  return `${symbol}${num.toLocaleString(undefined, { maximumFractionDigits: 0 })}`
+  return formatCurrency(value, currency, 0, language)
 }

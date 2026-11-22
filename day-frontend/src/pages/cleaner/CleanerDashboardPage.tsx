@@ -12,6 +12,7 @@ import { Link } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 import { intlLocale } from '../miniapp/format'
 import Spinner from '../../components/ui/Spinner'
+import LoadError from '../../components/ui/LoadError'
 import { useCleaningTasks } from '../../hooks/useCleaning'
 import type { CleaningTask, CleaningStatus, CleaningType } from '../../types/cleaning'
 
@@ -81,7 +82,7 @@ function TaskCard({ task }: { task: CleaningTask }) {
 export default function CleanerDashboardPage() {
   const { t, i18n } = useTranslation()
   const today = getTodayDateString()
-  const { data, isLoading } = useCleaningTasks({
+  const { data, isLoading, isError, refetch } = useCleaningTasks({
     date_from: today,
     date_to: today,
   })
@@ -120,28 +121,34 @@ export default function CleanerDashboardPage() {
         </div>
       </div>
 
-      {/* Summary bar */}
-      <div className="px-4 py-3">
-        <div className="grid grid-cols-3 gap-2">
-          <div className="bg-surface-card rounded-xl p-3 border border-line text-center">
-            <p className="text-lg font-bold text-ink">{tasks.length}</p>
-            <p className="text-[10px] font-bold text-ink-muted uppercase">{t('cleaner.total')}</p>
-          </div>
-          <div className="bg-surface-card rounded-xl p-3 border border-line text-center">
-            <p className="text-lg font-bold text-warning">{grouped.active.length}</p>
-            <p className="text-[10px] font-bold text-ink-muted uppercase">{t('cleaner.active')}</p>
-          </div>
-          <div className="bg-surface-card rounded-xl p-3 border border-line text-center">
-            <p className="text-lg font-bold text-success">{grouped.completed.length}</p>
-            <p className="text-[10px] font-bold text-ink-muted uppercase">{t('cleaner.done')}</p>
+      {/* Summary bar: no zeros when the list did not load */}
+      {!isError && (
+        <div className="px-4 py-3">
+          <div className="grid grid-cols-3 gap-2">
+            <div className="bg-surface-card rounded-xl p-3 border border-line text-center">
+              <p className="text-lg font-bold text-ink">{tasks.length}</p>
+              <p className="text-[10px] font-bold text-ink-muted uppercase">{t('cleaner.total')}</p>
+            </div>
+            <div className="bg-surface-card rounded-xl p-3 border border-line text-center">
+              <p className="text-lg font-bold text-warning">{grouped.active.length}</p>
+              <p className="text-[10px] font-bold text-ink-muted uppercase">{t('cleaner.active')}</p>
+            </div>
+            <div className="bg-surface-card rounded-xl p-3 border border-line text-center">
+              <p className="text-lg font-bold text-success">{grouped.completed.length}</p>
+              <p className="text-[10px] font-bold text-ink-muted uppercase">{t('cleaner.done')}</p>
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Task list */}
       <div className="px-4 pb-[calc(7rem+env(safe-area-inset-bottom))]">
         {isLoading ? (
           <Spinner />
+        ) : isError ? (
+          <div className="py-6">
+            <LoadError message={t('cleaner.loadFailed')} onRetry={() => refetch()} />
+          </div>
         ) : tasks.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20">
             <CheckCircle2 className="w-12 h-12 text-line mb-3" />

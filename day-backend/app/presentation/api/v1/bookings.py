@@ -46,6 +46,7 @@ from app.domain.booking.entities import Booking, BookingComment, BookingFile
 from app.domain.booking.exceptions import (
     BookingOverlapError,
     DepositAlreadyOpenError,
+    DepositNotFoundError,
     IdempotencyKeyReusedError,
     IdempotencyKeyTakenError,
     IdempotencyKeyVoidedError,
@@ -1226,6 +1227,9 @@ async def deposit_action(
         )
         await session.commit()
         return DepositResponse.model_validate(result, from_attributes=True)
+    except DepositNotFoundError:
+        await session.rollback()
+        raise HTTPException(status_code=404, detail="Not found")
     except ValueError as e:
         await session.rollback()
         raise HTTPException(status_code=400, detail=str(e))

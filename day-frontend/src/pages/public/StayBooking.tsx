@@ -106,6 +106,7 @@ export function BookSheet({
   checkIn,
   checkOut,
   total,
+  guests: searched = null,
   onClose,
   onBooked,
 }: {
@@ -114,6 +115,8 @@ export function BookSheet({
   checkIn: string
   checkOut: string
   total: number
+  /** The guests the company's search asked for. */
+  guests?: number | null
   onClose: () => void
   onBooked: (booking: PublicOfferBooking) => void
 }) {
@@ -121,7 +124,7 @@ export function BookSheet({
   const most = stay.max_guests ?? 50
   const [name, setName] = useState('')
   const [phone, setPhone] = useState('')
-  const [guests, setGuests] = useState(Math.min(2, most))
+  const [guests, setGuests] = useState(Math.min(searched ?? 2, most))
   const [sending, setSending] = useState(false)
   // Two taps in one moment both see `sending` false; this does not wait for a render.
   const inFlight = useRef(false)
@@ -267,6 +270,24 @@ export function BookSheet({
   )
 }
 
+/** The guest's own booking page, right after booking: the one link to keep. */
+export function BookingPageLink({ code }: { code: string | null | undefined }) {
+  const { t } = useTranslation()
+  if (!code) return null
+  return (
+    <div className="flex flex-col gap-2 rounded-[22px] bg-[#F3F3F6] p-4">
+      <a
+        href={`/g/${code}`}
+        className="flex h-[52px] items-center justify-center gap-2 rounded-full bg-[#111114] px-5 text-base font-semibold text-white"
+      >
+        {t('guestBook.openPage')}
+        <ArrowRight className="h-5 w-5 rtl:rotate-180" aria-hidden />
+      </a>
+      <p className="text-sm leading-snug text-[#76767F]">{t('guestBook.openPageHint')}</p>
+    </div>
+  )
+}
+
 /** After booking: until when the dates are the guest's and what comes next. */
 export function HeldView({ booking, locale }: { booking: PublicOfferBooking; locale: string }) {
   const { t } = useTranslation()
@@ -295,6 +316,7 @@ export function HeldView({ booking, locale }: { booking: PublicOfferBooking; loc
       {booking.total != null && (
         <p className="text-sm text-[#2A2A30]">{t('guestBook.nightsAtCheckIn', { total: money(booking.total, locale) })}</p>
       )}
+      <BookingPageLink code={booking.guest_code} />
     </section>
   )
 }

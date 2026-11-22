@@ -12,6 +12,8 @@ import CleaningTypeBadge from '../../components/cleaning/CleaningTypeBadge'
 import Button from '../../components/ui/Button'
 import { showToast } from '../../components/ui/Toast'
 import Spinner from '../../components/ui/Spinner'
+import LoadError from '../../components/ui/LoadError'
+import { isNotFound } from '../../lib/utils'
 import { useChangeCleaningTaskStatus, useCleaningTask } from '../../hooks/useCleaning'
 import type { CleaningStatus, CleaningTaskDetail, CleaningType } from '../../types/cleaning'
 import { CLEANING_VALID_TRANSITIONS } from '../../types/cleaning'
@@ -23,7 +25,7 @@ const TABS: Tab[] = ['overview', 'report']
 export default function CleaningDetailPage() {
   const { t } = useTranslation()
   const { taskId } = useParams({ strict: false }) as { taskId: string }
-  const { data, isLoading } = useCleaningTask(taskId)
+  const { data, isLoading, isError, error, refetch } = useCleaningTask(taskId)
   const [activeTab, setActiveTab] = useState<Tab>('overview')
 
   if (isLoading) {
@@ -40,9 +42,14 @@ export default function CleaningDetailPage() {
           <ArrowLeft className="w-4 h-4" />
           {t('cleaning.backToCleaningTasks')}
         </Link>
-        <div className="flex flex-col items-center justify-center py-20 text-center">
-          <p className="text-sm text-ink-muted">{t('cleaning.taskNotFound')}</p>
-        </div>
+        {/* Only an answer that the cleaning is not there is «not found»: any other failure says so. */}
+        {isError && !isNotFound(error) ? (
+          <LoadError message={t('cleaning.taskLoadFailed')} onRetry={() => refetch()} />
+        ) : (
+          <div className="flex flex-col items-center justify-center py-20 text-center">
+            <p className="text-sm text-ink-muted">{t('cleaning.taskNotFound')}</p>
+          </div>
+        )}
       </div>
     )
   }

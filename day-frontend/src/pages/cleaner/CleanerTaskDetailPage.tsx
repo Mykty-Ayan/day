@@ -15,6 +15,8 @@ import {
 import { useNavigate, useParams } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 import Spinner from '../../components/ui/Spinner'
+import LoadError from '../../components/ui/LoadError'
+import { isNotFound } from '../../lib/utils'
 import {
   useCleaningTask,
   useChangeCleaningTaskStatus,
@@ -59,7 +61,7 @@ export default function CleanerTaskDetailPage() {
   const { t } = useTranslation()
   const { taskId } = useParams({ strict: false }) as { taskId: string }
   const navigate = useNavigate()
-  const { data: taskDetail, isLoading } = useCleaningTask(taskId)
+  const { data: taskDetail, isLoading, isError, error, refetch } = useCleaningTask(taskId)
   const changeStatus = useChangeCleaningTaskStatus(taskId)
   const submitReport = useSubmitReport(taskId)
   const { data: templates } = useChecklistTemplates()
@@ -190,6 +192,15 @@ export default function CleanerTaskDetailPage() {
     return <Spinner />
   }
 
+  // Only an answer that the cleaning is not there is «not found»: any other failure says so.
+  if (!task && isError && !isNotFound(error)) {
+    return (
+      <div className="px-4 py-6">
+        <LoadError message={t('cleaner.taskLoadFailed')} onRetry={() => refetch()} />
+      </div>
+    )
+  }
+
   if (!task) {
     return (
       <div className="flex flex-col items-center justify-center gap-4 py-20">
@@ -293,7 +304,7 @@ export default function CleanerTaskDetailPage() {
                 {report.checklist.map((item, idx) => (
                   <div key={item.id} className="flex items-center gap-2">
                     {item.is_done ? (
-                      <CheckCircle2 className="w-4 h-4 text-green-500" />
+                      <CheckCircle2 className="w-4 h-4 text-success" />
                     ) : (
                       <Circle className="w-4 h-4 text-ink-muted/60" />
                     )}
@@ -469,7 +480,7 @@ function ChecklistSection({
             className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-surface-page transition-colors text-left min-h-[48px]"
           >
             {checklist[item.id] ? (
-              <CheckCircle2 className="w-5 h-5 text-green-500 shrink-0" />
+              <CheckCircle2 className="w-5 h-5 text-success shrink-0" />
             ) : (
               <Circle className="w-5 h-5 text-ink-muted/60 shrink-0" />
             )}
