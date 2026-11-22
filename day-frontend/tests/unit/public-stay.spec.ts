@@ -4,7 +4,7 @@
  */
 
 import { expect, test } from '@playwright/test'
-import { fromThisWeek, guestLanguage, isHourly, monthCells, offerDates, onAccent, openedInFlat, stayDates, stayQuote } from '../../src/lib/public-stay'
+import { fromThisWeek, guestLanguage, isHourly, monthCells, offerDates, onAccent, openedInFlat, stayDates, stayFromUrl, stayQuote } from '../../src/lib/public-stay'
 
 test('a month is laid out from Monday, with blanks before its first day', () => {
   // 1 October 2026 is a Thursday.
@@ -91,4 +91,16 @@ test("the calendar opens on this week: the month's weeks that are all past are l
   expect(shown.at(-1)).toBe('2026-10-31')
   // A month still ahead keeps every week, its leading blanks too.
   expect(fromThisWeek(monthCells(2026, 10), '2026-10-27')).toEqual(monthCells(2026, 10))
+})
+
+test('the company search hands the flat its dates and guests, and only ones a guest can pick', () => {
+  const today = '2026-11-22'
+  const until = '2027-03-21'
+  expect(stayFromUrl('?in=2026-11-24&out=2026-11-26&guests=3', today, until)).toEqual({ checkIn: '2026-11-24', checkOut: '2026-11-26', guests: 3 })
+  // Past, reversed, past the nights loaded, or not a date: no dates; the guests still count.
+  for (const q of ['?in=2026-11-21&out=2026-11-23', '?in=2026-11-26&out=2026-11-24', '?in=2027-03-20&out=2027-03-22', '?in=24.11&out=26.11'])
+    expect(stayFromUrl(`${q}&guests=2`, today, until)).toEqual({ checkIn: null, checkOut: null, guests: 2 })
+  expect(stayFromUrl('?guests=0', today, until).guests).toBeNull()
+  expect(stayFromUrl('?guests=2.5', today, until).guests).toBeNull()
+  expect(stayFromUrl('', today, until)).toEqual({ checkIn: null, checkOut: null, guests: null })
 })

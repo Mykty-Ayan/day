@@ -160,7 +160,18 @@
     "askTitle": "هل لديك أسئلة؟",
     "askHint": "اكتب لنا، سنرد ونختار لك شقة.",
     "freeToday": "متاحة الليلة",
-    "freeFrom": "متاحة من {{day}}"
+    "freeFrom": "متاحة من {{day}}",
+    "guests": "الضيوف",
+    "pick": "اختر",
+    "showFree": "عرض الشقق المتاحة",
+    "freeOn": "متاحة {{dates}}",
+    "freeForDates": "متاحة في تواريخك",
+    "noneFree": "لا توجد شقق متاحة في هذه التواريخ. اختر تواريخ أخرى أو راسلنا.",
+    "family": "للعائلات",
+    "lessGuests": "ضيوف أقل",
+    "moreGuests": "ضيوف أكثر",
+    "guestsCount": "الضيوف: {{count}}",
+    "forNights": "مقابل {{count}} ليالٍ"
   },
   "guestStay": {
     "pickDates": "اختر التواريخ",

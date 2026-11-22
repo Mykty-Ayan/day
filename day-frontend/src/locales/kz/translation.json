@@ -2177,7 +2177,20 @@
     "askTitle": "Сұрақтар қалды ма?",
     "askHint": "Жазыңыз — жауап беріп, пәтер таңдап береміз.",
     "freeToday": "Бүгін бос",
-    "freeFrom": "{{day}} бастап бос"
+    "freeFrom": "{{day}} бастап бос",
+    "guests": "Қонақтар",
+    "pick": "Таңдау",
+    "showFree": "Бос пәтерлерді көрсету",
+    "freeOn": "{{dates}} бос",
+    "freeForDates": "Сіздің күндеріңізге бос",
+    "noneFree": "Бұл күндерге бос пәтер жоқ. Басқа күндерді таңдаңыз немесе бізге жазыңыз.",
+    "family": "Отбасыға",
+    "lessGuests": "Қонақ азырақ",
+    "moreGuests": "Қонақ көбірек",
+    "guestsCount": "{{count}} қонақ",
+    "guestsCount_other": "{{count}} қонақ",
+    "forNights": "{{count}} түнге",
+    "forNights_other": "{{count}} түнге"
   },
   "site": {
     "title": "Компания сайты",

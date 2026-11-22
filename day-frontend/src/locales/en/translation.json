@@ -2199,7 +2199,20 @@
     "askTitle": "Any questions?",
     "askHint": "Write to us — we will answer and find you a flat.",
     "freeToday": "Free tonight",
-    "freeFrom": "Free from {{day}}"
+    "freeFrom": "Free from {{day}}",
+    "guests": "Guests",
+    "pick": "Pick",
+    "guestsCount_one": "{{count}} guest",
+    "guestsCount_other": "{{count}} guests",
+    "showFree": "Show free flats",
+    "freeOn": "Free {{dates}}",
+    "freeForDates": "Free on your dates",
+    "forNights_one": "for {{count}} night",
+    "forNights_other": "for {{count}} nights",
+    "noneFree": "No flats are free on these dates. Pick other dates or write to us.",
+    "family": "For a family",
+    "lessGuests": "Fewer guests",
+    "moreGuests": "More guests"
   },
   "site": {
     "title": "Company site",

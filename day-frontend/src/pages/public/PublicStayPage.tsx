@@ -6,7 +6,7 @@ import { BedDouble, Building2, ChevronLeft, Images, KeyRound, LayoutGrid, LogIn,
 import { getPublicStay, type PublicOfferBooking, type PublicStay } from '../../api/public'
 import { amenityIcon } from '../../lib/amenity-icons'
 import { MASK } from '../../lib/clarity'
-import { money, onAccent, openedInFlat, retryNetwork, stayQuote } from '../../lib/public-stay'
+import { money, onAccent, openedInFlat, retryNetwork, stayFromUrl, stayQuote } from '../../lib/public-stay'
 import { GuestFrame, LoadFailed } from './GuestFrame'
 import { BookBar, BookSheet, HeldView } from './StayBooking'
 import { StayCalendar } from './StayCalendar'
@@ -53,12 +53,12 @@ function Stay({ code, locale }: { code: string; locale: string }) {
       {stay.isError && !stay.data && (
         <LoadFailed error={stay.error} onRetry={() => void stay.refetch()} gone={{ 404: t('guest.notFound') }} />
       )}
-      {stay.data && <StayView stay={stay.data} locale={locale} today={today} />}
+      {stay.data && <StayView stay={stay.data} locale={locale} today={today} until={until} />}
     </>
   )
 }
 
-function StayView({ stay, locale, today }: { stay: PublicStay; locale: string; today: string }) {
+function StayView({ stay, locale, today, until }: { stay: PublicStay; locale: string; today: string; until: string }) {
   const { t } = useTranslation()
   const [photo, setPhoto] = useState(0)
   const [gallery, setGallery] = useState(false)
@@ -67,9 +67,11 @@ function StayView({ stay, locale, today }: { stay: PublicStay; locale: string; t
   const [zoomed, setZoomed] = useState<number | null>(null)
   const [booking, setBooking] = useState(false)
   const [held, setHeld] = useState<PublicOfferBooking | null>(null)
+  // Opened from the company's search: its dates and guests come picked.
+  const [fromSearch] = useState(() => stayFromUrl(window.location.search, today, until))
   const [{ checkIn, checkOut }, setStay] = useState<{ checkIn: string | null; checkOut: string | null }>({
-    checkIn: null,
-    checkOut: null,
+    checkIn: fromSearch.checkIn,
+    checkOut: fromSearch.checkOut,
   })
 
   const quote = checkIn && checkOut ? stayQuote(stay.nights, checkIn, checkOut) : null
@@ -369,6 +371,7 @@ function StayView({ stay, locale, today }: { stay: PublicStay; locale: string; t
           checkIn={checkIn}
           checkOut={checkOut}
           total={bookable.total}
+          guests={fromSearch.guests}
           onClose={() => setBooking(false)}
           onBooked={(made) => {
             setBooking(false)
