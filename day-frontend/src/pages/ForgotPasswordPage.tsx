@@ -79,7 +79,7 @@ export default function ForgotPasswordPage() {
 
         {step === 'email' ? (
           <form onSubmit={sendCode} className="flex flex-col gap-4">
-            <input id="reset-email" type="email" autoComplete="email" placeholder="Email" required value={email}
+            <input id="reset-email" type="email" autoComplete="email" placeholder={t('auth.login.email')} required value={email}
               onChange={(e) => setEmail(e.target.value)} className={field} />
  {error && <p role="alert" className="text-xs text-danger">{error}</p>}
             <Button type="submit" disabled={busy}>{t('auth.forgot.sendCode')}</Button>

@@ -1193,7 +1193,15 @@
     "itemUpdated": "Item updated",
     "itemTitleRequired": "Item title is required",
     "newItem": "New item…",
-    "created": "Created {{date}}"
+    "created": "Created {{date}}",
+    "saveName": "Save template name",
+    "cancelName": "Cancel editing template name",
+    "editName": "Edit template name",
+    "deleteTemplate": "Delete template",
+    "saveItem": "Save checklist item",
+    "cancelItem": "Cancel checklist item editing",
+    "editItem": "Edit checklist item",
+    "deleteItem": "Delete checklist item"
   },
   "analytics": {
     "title": "Analytics",

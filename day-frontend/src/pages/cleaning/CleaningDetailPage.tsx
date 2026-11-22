@@ -3,6 +3,7 @@ import { ArrowLeft, Camera, CheckCircle2, ClipboardList, Info } from 'lucide-rea
 import { useState } from 'react'
 import { Link, useParams } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
+import { intlLocale } from '../miniapp/format'
 import { parseApiDateTime } from '../../utils/date-time'
 import { cleaningStatusKey } from '../../lib/cleaning-status'
 
@@ -197,7 +198,7 @@ function OverviewTab({ data }: { data: CleaningTaskDetail }) {
             <div>
               <span className="text-ink-muted">{t('cleaning.started')}</span>
               <p className="font-medium mt-1">
-                {parseApiDateTime(task.started_at).toLocaleString()}
+                {parseApiDateTime(task.started_at).toLocaleString(intlLocale(i18n.language))}
               </p>
             </div>
           )}
@@ -205,7 +206,7 @@ function OverviewTab({ data }: { data: CleaningTaskDetail }) {
             <div>
               <span className="text-ink-muted">{t('cleaning.completed')}</span>
               <p className="font-medium mt-1">
-                {parseApiDateTime(task.completed_at).toLocaleString()}
+                {parseApiDateTime(task.completed_at).toLocaleString(intlLocale(i18n.language))}
               </p>
             </div>
           )}
@@ -213,7 +214,7 @@ function OverviewTab({ data }: { data: CleaningTaskDetail }) {
             <div>
               <span className="text-ink-muted">{t('cleaning.verified')}</span>
               <p className="font-medium mt-1">
-                {parseApiDateTime(task.verified_at).toLocaleString()}
+                {parseApiDateTime(task.verified_at).toLocaleString(intlLocale(i18n.language))}
               </p>
             </div>
           )}
@@ -246,7 +247,7 @@ function OverviewTab({ data }: { data: CleaningTaskDetail }) {
 }
 
 function ReportTab({ data }: { data: CleaningTaskDetail }) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const { report } = data
 
   if (!report) {
@@ -275,7 +276,7 @@ function ReportTab({ data }: { data: CleaningTaskDetail }) {
             <span className="text-ink-muted">{t('cleaning.submitted')}</span>
             <p className="font-medium mt-1">
               {report.report.submitted_at
-                ? parseApiDateTime(report.report.submitted_at).toLocaleString()
+                ? parseApiDateTime(report.report.submitted_at).toLocaleString(intlLocale(i18n.language))
                 : '—'}
             </p>
           </div>

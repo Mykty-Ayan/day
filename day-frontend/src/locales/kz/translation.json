@@ -1192,7 +1192,15 @@
     "itemUpdated": "Элемент жаңартылды",
     "itemTitleRequired": "Элемент атауы міндетті",
     "newItem": "Жаңа элемент…",
-    "created": "Жасалған {{date}}"
+    "created": "Жасалған {{date}}",
+    "saveName": "Үлгі атауын сақтау",
+    "cancelName": "Атауды сақтамау",
+    "editName": "Үлгі атауын өзгерту",
+    "deleteTemplate": "Үлгіні жою",
+    "saveItem": "Элементті сақтау",
+    "cancelItem": "Элементті сақтамау",
+    "editItem": "Элементті өзгерту",
+    "deleteItem": "Элементті жою"
   },
   "analytics": {
     "title": "Аналитика",

@@ -10,6 +10,7 @@ import {
 } from 'lucide-react'
 import { Link } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
+import { intlLocale } from '../miniapp/format'
 import Spinner from '../../components/ui/Spinner'
 import { useCleaningTasks } from '../../hooks/useCleaning'
 import type { CleaningTask, CleaningStatus, CleaningType } from '../../types/cleaning'
@@ -113,7 +114,7 @@ export default function CleanerDashboardPage() {
           <div>
             <h1 className="text-lg font-bold text-ink">{t('cleaner.todaysTasks')}</h1>
             <p className="text-xs text-ink-muted">
-              {new Date().toLocaleDateString(i18n.language, { weekday: 'long', month: 'long', day: 'numeric' })}
+              {new Date().toLocaleDateString(intlLocale(i18n.language), { weekday: 'long', month: 'long', day: 'numeric' })}
             </p>
           </div>
         </div>
