@@ -505,3 +505,28 @@ async def test_booking_from_a_flats_page_through_the_api(flat):  # noqa: F811  (
     use(Permission.BOOKINGS_READ)
     [made] = (await client.get("/api/v1/bookings", params={"source": "site"})).json()["items"]
     assert (made["status"], made["guest_name"]) == ("pending", "Айгерим")
+
+
+@pytest.mark.integration
+async def test_a_number_the_company_knows_gets_no_booking_page_from_an_anonymous_form(flat):  # noqa: F811
+    """The booking page greets the guest by name: a stranger who types a known guest's
+    number on the flat's page must not read that name through the page."""
+    client, prop, use = flat
+    day = date.today() + timedelta(days=40)
+    use(Permission.PROPERTIES_READ, Permission.BOOKINGS_READ, Permission.BOOKINGS_WRITE, Permission.SETTINGS_WRITE)
+    code = (await client.get(f"/api/v1/properties/{prop}")).json()["public_code"]
+    await client.put("/api/v1/site", json={"slug": f"t-{uuid.uuid4().hex[:8]}", "title": "Munar"})
+    known = "+77015557788"
+    made = await client.post("/api/v1/bookings", json={
+        "property_id": str(prop), "guest_name": "Настоящая Фамилия", "guest_phone": known,
+        "check_in": f"{day + timedelta(days=10)}T14:00:00", "check_out": f"{day + timedelta(days=11)}T12:00:00",
+    })
+    assert made.status_code == 201, made.text
+
+    use()  # a stranger with the number
+    stay = {"check_in": day.isoformat(), "check_out": (day + timedelta(days=1)).isoformat(), "guests": 1,
+            "name": "Кто угодно", "phone": known}
+    booked = await client.post(f"/api/v1/public/stays/{code}/book", json=stay)
+    assert booked.status_code == 201, booked.text
+    assert booked.json()["guest_code"] is None
+    assert "Фамилия" not in booked.text

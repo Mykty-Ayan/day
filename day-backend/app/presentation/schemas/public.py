@@ -232,14 +232,15 @@ class PublicOfferBooking(BaseModel):
     # What the nights cost for the guests booked, paid at check-in; none when the flat has no price.
     total: float | None = None
     # The guest's own booking page, /g/<code>: only in the answer to the booking itself, to the
-    # one who just made it. Opening the offer link again does not give it (a shorter, shared code).
+    # one who just made it, and only for a number the company did not know (or the offer's own):
+    # the page shows the guest's name. Opening the offer link again does not give it.
     guest_code: str | None = None
 
     @classmethod
     def from_hold(cls, held: OfferBooking, *, with_page: bool = False) -> PublicOfferBooking:
         b = held.booking
         return cls(
-            guest_code=b.guest_code if with_page else None,
+            guest_code=b.guest_code if with_page and held.page_for_booker else None,
             flat=held.flat,
             status=b.status.value,
             expires_at=b.expires_at.replace(tzinfo=timezone.utc) if b.expires_at else None,

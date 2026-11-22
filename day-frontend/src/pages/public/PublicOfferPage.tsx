@@ -52,8 +52,12 @@ function OfferView({ offer, locale, onRefresh }: { offer: PublicOffer; locale: s
   const held = offer.booking !== null
   const [wasHeld, setWasHeld] = useState(held)
   const [lapsed, setLapsed] = useState(false)
+  // The booking page's code comes only with the answer to the booking: the link's own reads
+  // every 30 seconds leave it out, so it is kept here for the booking it came with.
+  const [page, setPage] = useState<{ booking: string; code: string } | null>(null)
   if (held !== wasHeld) {
     setWasHeld(held)
+    if (!held) setPage(null)
     setLapsed(!held)
     setChosen(null)
   }
@@ -63,7 +67,10 @@ function OfferView({ offer, locale, onRefresh }: { offer: PublicOffer; locale: s
   const allFree = offer.flats.length > 0 && offer.flats.every((f) => f.free)
   const choice = offer.flats.find((f) => f.code === chosen)
 
-  if (offer.booking) return <Waiting offer={offer} booking={offer.booking} locale={locale} />
+  if (offer.booking) {
+    const code = offer.booking.guest_code ?? (page && page.booking === offer.booking.flat ? page.code : null)
+    return <Waiting offer={offer} booking={{ ...offer.booking, guest_code: code }} locale={locale} />
+  }
   if (choice) {
     return (
       <BookForm
@@ -72,6 +79,7 @@ function OfferView({ offer, locale, onRefresh }: { offer: PublicOffer; locale: s
         locale={locale}
         onBack={() => setChosen(null)}
         onBooked={(booking) => {
+          if (booking.guest_code) setPage({ booking: booking.flat, code: booking.guest_code })
           queryClient.setQueryData<PublicOffer>(['public-offer', offer.code], (old) => old && { ...old, booking })
           window.scrollTo(0, 0)
         }}

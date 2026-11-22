@@ -60,6 +60,10 @@ class OfferBooking:
     # Who booked: the name on the form, or the one aidyn took from the chat. The
     # booking's guest is found by phone and may carry an older name.
     name: str = ""
+    # The booking page may go to whoever just booked: false when the number on the form
+    # belongs to a guest the company already has. The page shows that guest's name, and
+    # an anonymous form proves nothing about owning the number.
+    page_for_booker: bool = False
 
 
 class GuestHoldService:
@@ -134,6 +138,10 @@ class GuestHoldService:
             # The guest found by phone keeps its own name: who booked is told here.
             notes += f". С формы: {name or offer.guest_name}, {phone or offer.guest_phone}"
         name, phone = name or offer.guest_name, phone or offer.guest_phone
+        # The link's own number is the guest the company sent it to; another number given on
+        # the form is anyone's until the company knows nobody by it.
+        own_number = bool(offer.guest_phone) and normalise_phone(phone) == normalise_phone(offer.guest_phone)
+        page_for_booker = own_number or not await self._guests.list_by_phone(offer.company_id, phone)
         booking = await self._create.execute(
             CreateBookingInput(
                 company_id=offer.company_id,
@@ -156,7 +164,10 @@ class GuestHoldService:
             await self._deposits.create(BookingDeposit(booking_id=booking.id, amount=deposit))
         await self._offers.set_booking(offer.id, booking.id)
         offer.booking_id = booking.id
-        return OfferBooking(booking=booking, flat=prop.public_code, deposit=deposit, phone=phone, name=name)
+        return OfferBooking(
+            booking=booking, flat=prop.public_code, deposit=deposit, phone=phone, name=name,
+            page_for_booker=page_for_booker,
+        )
 
     async def book_stay(
         self,
@@ -242,7 +253,10 @@ class GuestHoldService:
         )
         if deposit is not None:
             await self._deposits.create(BookingDeposit(booking_id=booking.id, amount=deposit))
-        return OfferBooking(booking=booking, flat=prop.public_code, deposit=deposit, phone=phone, name=name)
+        return OfferBooking(
+            booking=booking, flat=prop.public_code, deposit=deposit, phone=phone, name=name,
+            page_for_booker=not same_phone,
+        )
 
     async def current(self, offer: GuestOffer) -> OfferBooking | None:
         """The link's booking while it holds its dates: waiting for payment or confirmed."""
