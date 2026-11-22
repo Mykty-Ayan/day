@@ -30,6 +30,7 @@ from app.infrastructure.repositories.property import (
 from app.infrastructure.repositories.settings import SqlCompanySettingsRepository
 from app.infrastructure.repositories.site import SqlCompanySiteRepository
 from app.presentation.api.deps import get_company_id, require
+from app.presentation.api.v1.public import public_prices
 from app.presentation.schemas.site import PublicCompanyFlat, PublicCompanyResponse, SiteResponse, SiteUpdate
 
 site_router = APIRouter(prefix="/site", tags=["site"])
@@ -87,6 +88,7 @@ async def public_company(
     slug: str,
     check_in: date | None = Query(default=None),
     check_out: date | None = Query(default=None),
+    guests: int = Query(default=1, ge=1, le=50),
     session: AsyncSession = Depends(get_session),
 ):
     """The company's page for guests, with no sign-in: the slug is the key. With the guest's
@@ -109,6 +111,7 @@ async def public_company(
             raise HTTPException(status_code=422, detail=f"Check-out within {MAX_SEARCH_AHEAD_DAYS} days from today")
     weekend = company.weekend_nights if company else DEFAULT_WEEKEND_NIGHTS
     seasonals, day_prices = SqlSeasonalPriceRepository(session), SqlDayPriceRepository(session)
+    prices = public_prices(session)
     flats = []
     # A few queries a flat; a company has a handful of them.
     for prop in await properties.list_by_company(site.company_id, status=PropertyStatus.ACTIVE, limit=MAX_FLATS):
@@ -130,8 +133,11 @@ async def public_company(
                 fits = (prop.min_nights is None or len(nights) >= prop.min_nights) and (
                     prop.max_nights is None or len(nights) <= prop.max_nights
                 )
+                fits = fits and (prop.max_guests is None or guests <= prop.max_guests)
                 if fits and all(n.free for n in nights):
-                    stay_free, stay_total = True, float(sum(n.price for n in nights))
+                    # What the booking will cost: extra guests and discounts, not the nights alone.
+                    price_of = await prices.calculate(prop.id, check_in, check_out, guests, 0, RentalMode.DAILY)
+                    stay_free, stay_total = True, float(price_of.total)
         flats.append(
             PublicCompanyFlat(
                 code=prop.public_code,

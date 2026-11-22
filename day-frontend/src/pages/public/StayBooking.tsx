@@ -1,9 +1,10 @@
 import { useRef, useState } from 'react'
+import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { isAxiosError } from 'axios'
 import { useTranslation } from 'react-i18next'
 import { parseISO } from 'date-fns'
 import { ArrowRight, MessageCircle, Minus, Plus, X } from 'lucide-react'
-import { bookStay, type PublicOfferBooking, type PublicStay } from '../../api/public'
+import { bookStay, getStayQuote, type PublicOfferBooking, type PublicStay } from '../../api/public'
 import { money } from '../../lib/public-stay'
 
 /** wa.me with the flat and, once picked, the dates: the owner sees what is asked. */
@@ -125,6 +126,14 @@ export function BookSheet({
   const [name, setName] = useState('')
   const [phone, setPhone] = useState('')
   const [guests, setGuests] = useState(Math.min(searched ?? 2, most))
+  // The booking's own price for these guests: extra guests and discounts, as it will be made.
+  const exact = useQuery({
+    queryKey: ['stay-quote', stay.code, checkIn, checkOut, guests],
+    queryFn: () => getStayQuote(stay.code, checkIn, checkOut, guests),
+    placeholderData: keepPreviousData,
+    retry: 1,
+  })
+  const priced = exact.data && !exact.isPlaceholderData ? exact.data : null
   const [sending, setSending] = useState(false)
   // Two taps in one moment both see `sending` false; this does not wait for a render.
   const inFlight = useRef(false)
@@ -246,9 +255,22 @@ export function BookSheet({
           )}
           <div className="flex items-baseline justify-between gap-3">
             <span className="text-sm text-[#2A2A30]">{t('guestBook.nightsLater', { nights: t('guest.nights', { count: Math.round((Date.parse(checkOut) - Date.parse(checkIn)) / 86_400_000) }) })}</span>
-            <span className="text-base font-semibold">{money(total, locale)}</span>
+            <span data-testid="sheet-total" className="text-base font-semibold">{money(priced ? priced.total : total, locale)}</span>
           </div>
-          <p className="text-xs text-[#76767F]">{t('guest.totalHint')}</p>
+          {priced && priced.extra_guests > 0 && (
+            <div className="flex items-baseline justify-between gap-3 text-sm text-[#76767F]">
+              <span>{t('guestBook.extraGuests')}</span>
+              <span>+{money(priced.extra_guests, locale)}</span>
+            </div>
+          )}
+          {priced && priced.discount > 0 && (
+            <div className="flex items-baseline justify-between gap-3 text-sm text-[#76767F]">
+              <span>{t('guestBook.discount')}</span>
+              <span>−{money(priced.discount, locale)}</span>
+            </div>
+          )}
+          {/* Until the booking's own price is in, the nights alone, and said so. */}
+          {!priced && <p className="text-xs text-[#76767F]">{t('guest.totalHint')}</p>}
         </section>
 
         {error && (

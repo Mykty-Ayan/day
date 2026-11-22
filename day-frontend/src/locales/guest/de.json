@@ -143,7 +143,9 @@
     "ranOut": "Die Zeit ist um — wir prüfen die Zahlung",
     "hoursAtCheckIn": "Die Stunden, {{total}}, zahlen Sie bei Anreise",
     "openPage": "Buchungsseite öffnen",
-    "openPageHint": "Speichern Sie diesen Link: Auf Ihrer Buchungsseite finden Sie Adresse, Zahlung und Türcode."
+    "openPageHint": "Speichern Sie diesen Link: Auf Ihrer Buchungsseite finden Sie Adresse, Zahlung und Türcode.",
+    "extraGuests": "Aufpreis für weitere Gäste",
+    "discount": "Rabatt"
   },
   "properties": {
     "checkInMethod": {

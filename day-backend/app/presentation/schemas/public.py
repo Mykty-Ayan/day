@@ -192,6 +192,16 @@ class PublicOfferBook(BaseModel):
         return full_phone(value) if value else None
 
 
+class PublicStayQuote(BaseModel):
+    """What a stay costs for the guests asked, as the booking counts it: extra guests
+    above the flat's base and the best discount included."""
+
+    nights: int
+    total: float
+    extra_guests: float = 0
+    discount: float = 0
+
+
 class PublicStayBook(BaseModel):
     """A guest books the flat from its own page: by the night (check_in, check_out) or
     by the hour (starts_at, ends_at, the company's local time without a zone)."""

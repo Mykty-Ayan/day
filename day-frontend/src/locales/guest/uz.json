@@ -136,7 +136,9 @@
     "ranOut": "Vaqt tugadi — to‘lovni tekshirmoqdamiz",
     "hoursAtCheckIn": "Soatlar uchun {{total}} — kirishda to‘lanadi",
     "openPage": "Bron sahifasini ochish",
-    "openPageHint": "Bu havolani saqlang: bron sahifasida manzil, toʻlov va eshik kodi bor."
+    "openPageHint": "Bu havolani saqlang: bron sahifasida manzil, toʻlov va eshik kodi bor.",
+    "extraGuests": "Qoʻshimcha mehmonlar uchun",
+    "discount": "Chegirma"
   },
   "properties": {
     "checkInMethod": {

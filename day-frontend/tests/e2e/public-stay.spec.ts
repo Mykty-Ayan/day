@@ -184,3 +184,32 @@ test('on a narrow phone the booking bar keeps the whole total clear of its butto
   expect(totalBox.x + totalBox.width).toBeLessThanOrEqual(askBox.x)
   await guest.close()
 })
+
+test('the booking panel shows what the booking will cost, extra guests included', async ({ browser, request }) => {
+  const slug = `site-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`
+  expect((await request.put(`${API_BASE}/site`, { data: { slug, title: 'Extra guests' } })).ok()).toBeTruthy()
+  const { id } = await (await request.post(`${API_BASE}/properties`, { data: createTestProperty({ name: `Гости ${Date.now()}` }) })).json()
+  await request.post(`${API_BASE}/properties/${id}/status`, { data: { target_status: 'active' } })
+  await request.patch(`${API_BASE}/properties/${id}`, { data: { max_guests: 4 } })
+  await request.put(`${API_BASE}/properties/${id}/pricing`, {
+    data: { base_price: 20000, weekend_markup: 0, default_deposit: 0, extra_adult_price: 3000, extra_child_price: 0, base_guests: 2 },
+  })
+  const code = (await (await request.get(`${API_BASE}/properties/${id}`)).json()).public_code
+
+  const guest = await browser.newContext({ locale: 'ru-RU', baseURL: test.info().project.use.baseURL })
+  const page = await guest.newPage()
+  // Opened from the company's search: two nights, four guests.
+  await page.goto(`/s/${code}?in=${day(10)}&out=${day(12)}&guests=4`)
+  await expect(page.getByTestId('bar-total')).toHaveText('40 000 ₸')
+  await page.getByRole('button', { name: 'Забронировать' }).click()
+  const sheet = page.getByRole('dialog')
+  // Two guests over the base, 3 000 a night each, for two nights.
+  await expect(sheet.getByTestId('sheet-total')).toHaveText('52 000 ₸')
+  await expect(sheet.getByText('Доплата за гостей')).toBeVisible()
+  // Fewer guests: the extra goes.
+  await sheet.getByRole('button', { name: /Меньше|Fewer/ }).click()
+  await sheet.getByRole('button', { name: /Меньше|Fewer/ }).click()
+  await expect(sheet.getByTestId('sheet-total')).toHaveText('40 000 ₸')
+  await expect(sheet.getByText('Доплата за гостей')).toHaveCount(0)
+  await guest.close()
+})

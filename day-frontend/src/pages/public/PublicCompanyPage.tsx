@@ -52,7 +52,7 @@ function CompanyView({ company, locale }: { company: PublicCompany; locale: stri
   // The guest's dates once they ask: the flats free for all the nights, each with their price.
   const [stay, setStay] = useState<Stay | null>(null)
   const searched = useQuery({
-    queryKey: ['public-company', company.slug, stay?.checkIn, stay?.checkOut],
+    queryKey: ['public-company', company.slug, stay?.checkIn, stay?.checkOut, stay?.guests],
     queryFn: () => getPublicCompany(company.slug, stay!),
     enabled: stay != null,
     retry: retryNetwork,
