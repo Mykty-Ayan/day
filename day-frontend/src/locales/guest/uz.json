@@ -83,7 +83,6 @@
     "hello": "{{name}}, sanalaringiz uchun kvartiralar",
     "title": "Sanalaringiz uchun kvartiralar",
     "guests": "{{count}} mehmon",
-    "freeOne": "Hozir bo‘sh",
     "freeAll": "Hammasi hozir bo‘sh",
     "none": "Bu havoladagi kvartiralar hozir sotuvda emas. Bizga yozing — boshqasini topamiz.",
     "taken": "Bu sanalarda band",

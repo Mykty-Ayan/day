@@ -90,7 +90,6 @@
     "title": "Wohnungen für Ihre Reisedaten",
     "guests_one": "{{count}} Gast",
     "guests_other": "{{count}} Gäste",
-    "freeOne": "Gerade frei",
     "freeAll": "Alle gerade frei",
     "none": "Die Wohnungen dieses Links sind gerade nicht verfügbar. Schreiben Sie uns, wir finden andere.",
     "taken": "Im gewählten Zeitraum belegt",

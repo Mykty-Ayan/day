@@ -83,7 +83,6 @@
     "hello": "{{name}}, tarihleriniz için daireler",
     "title": "Tarihleriniz için daireler",
     "guests": "{{count}} misafir",
-    "freeOne": "Şu anda boş",
     "freeAll": "Hepsi şu anda boş",
     "none": "Bu bağlantıdaki daireler şu anda satışta değil. Bize yazın, başkalarını bulalım.",
     "taken": "Bu tarihlerde dolu",
