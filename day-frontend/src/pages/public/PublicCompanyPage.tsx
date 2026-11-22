@@ -9,8 +9,10 @@ import { GuestFrame, LoadFailed } from './GuestFrame'
 
 // The mockup's blue when the company has no color of its own.
 const DEFAULT_ACCENT = '#2F5BFF'
-// A search by dates holds as many nights as the server takes (MAX_SEARCH_NIGHTS).
+// A search by dates holds as many nights as the server takes (MAX_SEARCH_NIGHTS), and checks
+// out no later than the flat's page shows nights (MAX_SEARCH_AHEAD_DAYS, WINDOW_NIGHTS).
 const MAX_SEARCH_NIGHTS = 30
+const MAX_SEARCH_AHEAD_DAYS = 119
 // «For a family»: a flat that takes four guests or more.
 const FAMILY_GUESTS = 4
 
@@ -57,7 +59,9 @@ function CompanyView({ company, locale }: { company: PublicCompany; locale: stri
     // The old answer stays on screen while new dates load: no blink.
     placeholderData: keepPreviousData,
   })
-  const flats = stay && searched.data ? searched.data.flats : company.flats
+  // An answer for earlier dates is not shown as one for the new dates: wait for the new one.
+  const answered = stay != null && searched.data != null && !searched.isPlaceholderData
+  const flats = answered ? searched.data!.flats : company.flats
   const fit = stay
     ? flats.filter((f) => f.stay_free && (f.max_guests == null || f.max_guests >= stay.guests))
     : flats
@@ -108,7 +112,7 @@ function CompanyView({ company, locale }: { company: PublicCompany; locale: stri
               ? t('guestCompany.freeOn', { dates: range.formatRange(parseISO(stay.checkIn), parseISO(stay.checkOut)) })
               : t('guestCompany.ourFlats')}
           </h2>
-          <span aria-live="polite" className="text-sm text-[#76767F]">{shown.length}</span>
+          {(!stay || answered) && <span aria-live="polite" className="text-sm text-[#76767F]">{shown.length}</span>}
         </div>
         {filters.length > 0 && (
           <div role="radiogroup" aria-label={t('guestCompany.byRooms')} className="flex gap-1.5 overflow-x-auto px-3 pb-1 pt-1 [scrollbar-width:none]">
@@ -127,10 +131,10 @@ function CompanyView({ company, locale }: { company: PublicCompany; locale: stri
           </div>
         )}
         {company.flats.length === 0 && <p className="m-2 rounded-[28px] bg-white p-5 text-base text-[#76767F]">{t('guestCompany.noFlats')}</p>}
-        {stay && searched.isError && !searched.data && (
+        {stay && searched.isError && !answered && (
           <LoadFailed error={searched.error} onRetry={() => void searched.refetch()} gone={{ 404: t('guestCompany.notFound') }} />
         )}
-        {stay && searched.data && shown.length === 0 && (
+        {answered && shown.length === 0 && (
           <div className="m-2 rounded-[28px] bg-white p-5 text-base text-[#76767F]">
             <p>{t('guestCompany.noneFree')}</p>
             <button type="button" onClick={() => setStay(null)} className="mt-2 h-11 font-semibold text-[var(--accent)]">
@@ -138,11 +142,11 @@ function CompanyView({ company, locale }: { company: PublicCompany; locale: stri
             </button>
           </div>
         )}
-        {(!stay || searched.data) &&
+        {(!stay || answered) &&
           shown.map((flat, n) => (
             <FlatTile key={flat.code} flat={flat} locale={locale} first={n === 0} today={today} stay={stay} />
           ))}
-        {stay && searched.isPending && <p className="p-6 text-sm text-[#76767F]">{t('guest.loading')}</p>}
+        {stay && !answered && !searched.isError && <p className="p-6 text-sm text-[#76767F]">{t('guest.loading')}</p>}
       </section>
 
       {company.flats.length > 0 && (
@@ -287,15 +291,16 @@ function SearchCard({ today, most, stay, onSearch }: { today: string; most: numb
   const outRef = useRef<HTMLInputElement>(null)
   const day = new Intl.DateTimeFormat(i18n.language, { weekday: 'short', day: 'numeric', month: 'short' })
   const iso = (d: Date) => format(d, 'yyyy-MM-dd')
-  const lastIn = iso(addDays(parseISO(today), 365))
+  const horizon = iso(addDays(parseISO(today), MAX_SEARCH_AHEAD_DAYS))
+  const lastIn = iso(addDays(parseISO(horizon), -1))
   const firstOut = checkIn ? iso(addDays(parseISO(checkIn), 1)) : iso(addDays(parseISO(today), 1))
-  const lastOut = checkIn ? iso(addDays(parseISO(checkIn), MAX_SEARCH_NIGHTS)) : undefined
-  const ready = Boolean(checkIn && checkOut && checkIn >= today && checkOut > checkIn && (!lastOut || checkOut <= lastOut))
+  const lastOut = checkIn ? [iso(addDays(parseISO(checkIn), MAX_SEARCH_NIGHTS)), horizon].sort()[0] : horizon
+  const ready = Boolean(checkIn && checkOut && checkIn >= today && checkIn <= lastIn && checkOut > checkIn && checkOut <= lastOut)
 
   function pickIn(value: string) {
     setCheckIn(value)
     // A check-out no longer after the check-in, or too far from it, moves to the next day.
-    if (value && (!checkOut || checkOut <= value || checkOut > iso(addDays(parseISO(value), MAX_SEARCH_NIGHTS)))) {
+    if (value && (!checkOut || checkOut <= value || checkOut > iso(addDays(parseISO(value), MAX_SEARCH_NIGHTS)) || checkOut > horizon)) {
       setCheckOut(iso(addDays(parseISO(value), 1)))
     }
   }
