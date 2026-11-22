@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from '@tanstack/react-router'
 import { Building2, Search } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
+import { intlLocale } from '../../pages/miniapp/format'
 import { useBookings } from '../../hooks/useBookings'
 import { useAllProperties } from '../../hooks/useProperties'
 
@@ -63,7 +64,7 @@ function SearchResults({ query, onPick }: { query: string; onPick: () => void })
     .filter((flat) => `${flat.name} ${flat.internal_name}`.toLowerCase().includes(needle))
     .slice(0, SHOWN)
   const stays = bookings?.items ?? []
-  const day = (value: string) => new Date(value).toLocaleDateString(i18n.language, { month: 'short', day: 'numeric' })
+  const day = (value: string) => new Date(value).toLocaleDateString(intlLocale(i18n.language), { month: 'short', day: 'numeric' })
   const row = 'flex min-h-[40px] items-center gap-2 rounded-lg px-3 py-2 text-sm text-ink transition-colors hover:bg-surface-page'
 
   return (

@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { motion } from 'framer-motion'
 import { Copy, KeyRound, MessageCircle, Plus, Send, ShieldAlert, UserPlus, Users, X } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
+import { intlLocale } from '../miniapp/format'
 import Button from '../../components/ui/Button'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import Spinner from '../../components/ui/Spinner'
@@ -44,7 +45,7 @@ const ROLE_TONE: Record<UserRole, string> = {
 
 function formatDate(value: string | null, language: string): string {
   if (!value) return '—'
-  return new Date(value).toLocaleDateString(language, {
+  return new Date(value).toLocaleDateString(intlLocale(language), {
     day: '2-digit',
     month: 'short',
     year: 'numeric',

@@ -1198,6 +1198,14 @@
     "itemTitleRequired": "Элемент атауы міндетті",
     "newItem": "Жаңа элемент…",
     "created": "Жасалған {{date}}",
+    "saveName": "Үлгі атауын сақтау",
+    "cancelName": "Атауды сақтамау",
+    "editName": "Үлгі атауын өзгерту",
+    "deleteTemplate": "Үлгіні жою",
+    "saveItem": "Элементті сақтау",
+    "cancelItem": "Элементті сақтамау",
+    "editItem": "Элементті өзгерту",
+    "deleteItem": "Элементті жою",
     "failed": "Өзгеріс сақталмады. Интернетті тексеріп, қайталап көріңіз"
   },
   "analytics": {
@@ -1316,6 +1324,13 @@
     "typeAmenityHint": "Ыңғайлылықты жазып, Enter басыңыз…",
     "dragPhotosHint": "Ретін өзгерту үшін фотоларды сүйреңіз. Бірінші фото негізгі болады.",
     "mainPhoto": "Негізгі",
+    "noPhotosExtracted": "Фото шығарылмаған",
+    "basePricePerNight": "Базалық баға / түн",
+    "totalArea": "Жалпы м²",
+    "livingArea": "Тұрғын м²",
+    "urlPlaceholder": "https://booking.com/hotel/…",
+    "instructionsPlaceholder": "мыс. Ыңғайлылықтар мен үй ережелеріне назар аударыңыз…",
+    "sourceKrisha": "Krisha.kz",
     "photo": {
       "alt": "Нысан фотосы {{n}}",
       "openFull": "Толық өлшемде ашу",
@@ -1326,14 +1341,7 @@
       "setMainTitle": "Негізгі ету",
       "remove": "{{n}}-фотоны алып тастау",
       "failed": "Фото жүктелмеді"
-    },
-    "noPhotosExtracted": "Фото шығарылмаған",
-    "basePricePerNight": "Базалық баға / түн",
-    "totalArea": "Жалпы м²",
-    "livingArea": "Тұрғын м²",
-    "urlPlaceholder": "https://booking.com/hotel/…",
-    "instructionsPlaceholder": "мыс. Ыңғайлылықтар мен үй ережелеріне назар аударыңыз…",
-    "sourceKrisha": "Krisha.kz"
+    }
   },
   "settings": {
     "title": "Баптаулар",

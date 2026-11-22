@@ -1241,6 +1241,14 @@
     "itemTitleRequired": "Название элемента обязательно",
     "newItem": "Новый элемент…",
     "created": "Создан {{date}}",
+    "saveName": "Сохранить название шаблона",
+    "cancelName": "Не сохранять название",
+    "editName": "Изменить название шаблона",
+    "deleteTemplate": "Удалить шаблон",
+    "saveItem": "Сохранить элемент",
+    "cancelItem": "Не сохранять элемент",
+    "editItem": "Изменить элемент",
+    "deleteItem": "Удалить элемент",
     "failed": "Изменение не сохранилось. Проверьте интернет и попробуйте ещё раз"
   },
   "analytics": {
@@ -1377,6 +1385,13 @@
     "typeAmenityHint": "Введите удобство и нажмите Enter…",
     "dragPhotosHint": "Перетаскивайте фото для изменения порядка. Первое фото — главное.",
     "mainPhoto": "Главное",
+    "noPhotosExtracted": "Фото не извлечены",
+    "basePricePerNight": "Базовая цена за ночь",
+    "totalArea": "Общая м²",
+    "livingArea": "Жилая м²",
+    "urlPlaceholder": "https://booking.com/hotel/…",
+    "instructionsPlaceholder": "напр. Сфокусируйтесь на удобствах и правилах дома…",
+    "sourceKrisha": "Krisha.kz",
     "photo": {
       "alt": "Фото объекта {{n}}",
       "openFull": "Открыть в полном размере",
@@ -1387,14 +1402,7 @@
       "setMainTitle": "Сделать главным",
       "remove": "Убрать фото {{n}}",
       "failed": "Фото не загрузилось"
-    },
-    "noPhotosExtracted": "Фото не извлечены",
-    "basePricePerNight": "Базовая цена за ночь",
-    "totalArea": "Общая м²",
-    "livingArea": "Жилая м²",
-    "urlPlaceholder": "https://booking.com/hotel/…",
-    "instructionsPlaceholder": "напр. Сфокусируйтесь на удобствах и правилах дома…",
-    "sourceKrisha": "Krisha.kz"
+    }
   },
   "settings": {
     "title": "Настройки",

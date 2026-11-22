@@ -2,6 +2,7 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { Check, GripVertical, Pencil, Plus, Trash2, X } from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { intlLocale } from '../miniapp/format'
 import { parseApiDateTime } from '../../utils/date-time'
 
 import Button from '../../components/ui/Button'
@@ -21,7 +22,7 @@ import {
 import type { ChecklistItem } from '../../types/cleaning'
 
 export default function ChecklistTemplatesPage() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const { data: templates, isLoading } = useChecklistTemplates()
   const createMutation = useCreateChecklistTemplate()
   const deleteMutation = useDeleteChecklistTemplate()
@@ -205,7 +206,7 @@ export default function ChecklistTemplatesPage() {
                           }}
                           disabled={updateTemplateMutation.isPending}
                           className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-ink-muted transition-colors hover:bg-success-soft hover:text-success disabled:opacity-50"
-                          aria-label="Save template name"
+                          aria-label={t('checklists.saveName')}
                         >
                           <Check className="w-4 h-4" />
                         </button>
@@ -215,7 +216,7 @@ export default function ChecklistTemplatesPage() {
                             cancelTemplateEdit()
                           }}
                           className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-ink-muted transition-colors hover:bg-surface-page hover:text-ink"
-                          aria-label="Cancel editing template name"
+                          aria-label={t('checklists.cancelName')}
                         >
                           <X className="w-4 h-4" />
                         </button>
@@ -227,7 +228,7 @@ export default function ChecklistTemplatesPage() {
                           startTemplateEdit(tmpl.id, tmpl.name)
                         }}
                         className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-ink-muted/60 transition-colors hover:bg-surface-page hover:text-ink"
-                        aria-label="Edit template name"
+                        aria-label={t('checklists.editName')}
                       >
                         <Pencil className="w-4 h-4" />
                       </button>
@@ -238,14 +239,14 @@ export default function ChecklistTemplatesPage() {
                         handleDelete(tmpl.id)
                       }}
                       className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-ink-muted/60 transition-colors hover:bg-danger/10 hover:text-danger"
-                      aria-label="Delete template"
+                      aria-label={t('checklists.deleteTemplate')}
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
                   </div>
                 </div>
                 <p className="text-xs text-ink-muted mt-1">
-                  {t('checklists.created', { date: parseApiDateTime(tmpl.created_at).toLocaleDateString() })}
+                  {t('checklists.created', { date: parseApiDateTime(tmpl.created_at).toLocaleDateString(intlLocale(i18n.language)) })}
                 </p>
               </motion.div>
             ))
@@ -451,7 +452,7 @@ function TemplateDetail({ templateId }: { templateId: string }) {
                     }}
                     disabled={updateItemMutation.isPending}
                     className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-ink-muted transition-colors hover:bg-success-soft hover:text-success disabled:opacity-50"
-                    aria-label="Save checklist item"
+                    aria-label={t('checklists.saveItem')}
                   >
                     <Check className="h-4 w-4" />
                   </button>
@@ -461,7 +462,7 @@ function TemplateDetail({ templateId }: { templateId: string }) {
                       cancelItemEdit()
                     }}
                     className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-ink-muted transition-colors hover:bg-surface-page hover:text-ink"
-                    aria-label="Cancel checklist item editing"
+                    aria-label={t('checklists.cancelItem')}
                   >
                     <X className="h-4 w-4" />
                   </button>
@@ -473,7 +474,7 @@ function TemplateDetail({ templateId }: { templateId: string }) {
                     startItemEdit(item)
                   }}
                   className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-ink-muted/60 transition-colors hover:bg-surface-page hover:text-ink"
-                  aria-label="Edit checklist item"
+                  aria-label={t('checklists.editItem')}
                 >
                   <Pencil className="h-4 w-4" />
                 </button>
@@ -485,7 +486,7 @@ function TemplateDetail({ templateId }: { templateId: string }) {
                   })
                 }
                 className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-ink-muted/60 transition-colors hover:bg-danger/10 hover:text-danger"
-                aria-label="Delete checklist item"
+                aria-label={t('checklists.deleteItem')}
               >
                 <Trash2 className="h-4 w-4" />
               </button>

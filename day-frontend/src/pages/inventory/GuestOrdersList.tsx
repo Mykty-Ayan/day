@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
+import { intlLocale } from '../miniapp/format'
 import { listGuestOrders, type OrderStatus } from '../../api/inventory'
 import { useMoney } from '../../hooks/useMoney'
 import LoadError from '../../components/ui/LoadError'
@@ -69,7 +70,7 @@ export default function GuestOrdersList() {
                 <span className={`inline-block rounded-full px-2 py-0.5 font-semibold first-letter:uppercase ${TONE[o.status]}`}>{t(`inventory.orders.statuses.${o.status}`)}</span>
                 {[
                   // The server keeps UTC without a zone: shown on this device's clock.
-                  o.created_at ? new Date(`${o.created_at}Z`).toLocaleString(i18n.language, { dateStyle: 'short', timeStyle: 'short' }) : null,
+                  o.created_at ? new Date(`${o.created_at}Z`).toLocaleString(intlLocale(i18n.language), { dateStyle: 'short', timeStyle: 'short' }) : null,
                   t(`inventory.orders.billing.${o.billing}`),
                   o.payment_status === 'on_booking' ? t('inventory.orders.onTab') : null,
                   o.payment_method ? t(`inventory.orders.payments.${o.payment_method}`) : null,
