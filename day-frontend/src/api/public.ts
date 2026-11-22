@@ -73,6 +73,8 @@ export interface PublicOfferFlat {
 /** The link's booking: which flat, until when the dates are held, the deposit to
  *  pay and the masked number the Kaspi invoice goes to. */
 export interface PublicOfferBooking {
+  /** The guest's own booking page, /g/<code>: only right after booking. */
+  guest_code?: string | null
   flat: string
   /** pending: waiting for the deposit; confirmed: the dates are the guest's. */
   status: 'pending' | 'confirmed' | 'checked_in' | 'checked_out' | 'completed'
@@ -130,6 +132,13 @@ export interface PublicCompanyFlat {
   photo: string | null
   night_price: number | null
   hour_price: number | null
+  /** The first free night from today (60 days at most); null when taken all that time or let by the hour. */
+  free_from?: string | null
+  /** How many photos the flat's page has. */
+  photos?: number
+  /** Only for a search by dates: free for all the nights, and what they cost together. */
+  stay_free?: boolean | null
+  stay_total?: number | null
 }
 
 export interface PublicCompany {
@@ -144,10 +153,14 @@ export interface PublicCompany {
   instagram: string | null
   rules: string[]
   flats: PublicCompanyFlat[]
+  /** The company's own day: a flat free from it is free tonight. */
+  today?: string | null
 }
 
-export async function getPublicCompany(slug: string): Promise<PublicCompany> {
-  const res = await publicClient.get(`/public/companies/${encodeURIComponent(slug)}`)
+export async function getPublicCompany(slug: string, dates?: { checkIn: string; checkOut: string }): Promise<PublicCompany> {
+  const res = await publicClient.get(`/public/companies/${encodeURIComponent(slug)}`, {
+    params: dates ? { check_in: dates.checkIn, check_out: dates.checkOut } : undefined,
+  })
   return res.data
 }
 
@@ -180,9 +193,15 @@ export interface GuestPanel {
     /** Minibar orders owed with the stay, by the server's one rule; part of remaining. */
     orders_due?: number
     remaining: number
+    /** The day the next guest arrives after this stay; null when nobody is in sight. */
+    free_until?: string | null
   } | null
+  /** The stay's deposit: the amount and what became of it, never the owner's reason. */
+  deposit?: { amount: number; status: 'pending' | 'paid' | 'returned' | 'held' | 'partially_held'; held: number } | null
   flat: {
     name: string
+    /** The flat's own page: /s/<code>. */
+    code?: string | null
     /** The listing's cover; null when the flat has no public photo. */
     photo_url?: string | null
     address: string | null

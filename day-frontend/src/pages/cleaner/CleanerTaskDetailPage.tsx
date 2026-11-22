@@ -15,6 +15,8 @@ import {
 import { useNavigate, useParams } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 import Spinner from '../../components/ui/Spinner'
+import LoadError from '../../components/ui/LoadError'
+import { isNotFound } from '../../lib/utils'
 import {
   useCleaningTask,
   useChangeCleaningTaskStatus,
@@ -59,7 +61,7 @@ export default function CleanerTaskDetailPage() {
   const { t } = useTranslation()
   const { taskId } = useParams({ strict: false }) as { taskId: string }
   const navigate = useNavigate()
-  const { data: taskDetail, isLoading } = useCleaningTask(taskId)
+  const { data: taskDetail, isLoading, isError, error, refetch } = useCleaningTask(taskId)
   const changeStatus = useChangeCleaningTaskStatus(taskId)
   const submitReport = useSubmitReport(taskId)
   const { data: templates } = useChecklistTemplates()
@@ -188,6 +190,15 @@ export default function CleanerTaskDetailPage() {
 
   if (isLoading) {
     return <Spinner />
+  }
+
+  // Only an answer that the cleaning is not there is «not found»: any other failure says so.
+  if (!task && isError && !isNotFound(error)) {
+    return (
+      <div className="px-4 py-6">
+        <LoadError message={t('cleaner.taskLoadFailed')} onRetry={() => refetch()} />
+      </div>
+    )
   }
 
   if (!task) {

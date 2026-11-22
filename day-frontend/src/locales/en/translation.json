@@ -192,7 +192,8 @@
       "seasonNameExample": "E.g. New Year",
       "seasonPrice": "Night price in season",
       "discountsHint": "A discount for a long stay: from so many nights.",
-      "discountType": "Kind of discount"
+      "discountType": "Kind of discount",
+      "loadFailed": "Could not load the prices. You can change them once they load — press Retry"
     },
     "checkIn": "Check-in",
     "checkOut": "Check-out",
@@ -532,7 +533,9 @@
       "was": "Was",
       "now": "Now",
       "asCompany": "as the company has it"
-    }
+    },
+    "loadFailed": "Could not load the property. Check the connection and try again",
+    "statusFailed": "Could not change the property's status. Try again"
   },
   "bookings": {
     "title": "Bookings",
@@ -647,7 +650,8 @@
         "completed": "Completed",
         "failed": "Failed"
       },
-      "confirm": "Confirm"
+      "confirm": "Confirm",
+      "confirmFailed": "Could not confirm the payment. It is still pending — try again"
     },
     "refund": {
       "title": "Give money back",
@@ -870,7 +874,8 @@
       "made": "Made",
       "otherCompany": "You signed in to another company in another window. Reload the page to export its bookings.",
       "tooMany": "More than 10,000 bookings. Pick a property, source or status and export in parts."
-    }
+    },
+    "loadFailed": "Could not load the booking. Check the connection and try again"
   },
   "today": {
     "title": "Today",
@@ -1177,7 +1182,8 @@
     },
     "noCleaners": "No cleaners yet — add one under Team & API keys",
     "booking": "Booking",
-    "openBooking": "Open the booking"
+    "openBooking": "Open the booking",
+    "taskLoadFailed": "Could not load the cleaning. Check the connection and try again"
   },
   "checklists": {
     "title": "Checklist Templates",
@@ -1192,7 +1198,8 @@
     "itemUpdated": "Item updated",
     "itemTitleRequired": "Item title is required",
     "newItem": "New item…",
-    "created": "Created {{date}}"
+    "created": "Created {{date}}",
+    "failed": "The change was not saved. Check the connection and try again"
   },
   "analytics": {
     "title": "Analytics",
@@ -1254,7 +1261,9 @@
     "cleaningTask": "Cleaning",
     "activeCount": "In progress ({{count}})",
     "completedCount": "Done ({{count}})",
-    "backToTasks": "Back to cleanings"
+    "backToTasks": "Back to cleanings",
+    "loadFailed": "Could not load the cleanings. Check the connection and try again",
+    "taskLoadFailed": "Could not load the cleaning. Check the connection and try again"
   },
   "aiImport": {
     "title": "AI Import",
@@ -1377,7 +1386,8 @@
       "description": "Nights with the weekend markup and the weekend tariff prices. The chessboard greys them.",
       "save": "Save weekend",
       "failed": "Could not save the weekend"
-    }
+    },
+    "loadFailed": "Could not load the settings. You can change them once they load — press Retry"
   },
   "team": {
     "title": "Team & API keys",
@@ -1438,7 +1448,10 @@
     "telegramCode": "Telegram code",
     "telegramCodeHint": "Send it to the team member. They send it to the Day bot and get Telegram with the “{{role}}” rights, not yours. The code works once, for 30 minutes.",
     "scopesAll": "Select all",
-    "scopesNone": "Clear all"
+    "scopesNone": "Clear all",
+    "reactivateFailed": "Could not reactivate the account. Try again",
+    "deactivateFailed": "Could not deactivate the account. Try again",
+    "revokeFailed": "Could not revoke the key. It still works — try again"
   },
   "channels": {
     "title": "Bots",
@@ -1619,7 +1632,8 @@
       "cleaner": "Cleaner",
       "noCleaners": "No cleaners yet",
       "schedule": "Schedule cleaning",
-      "failed": "Could not schedule cleaning"
+      "failed": "Could not schedule cleaning",
+      "cleanersFailed": "Could not load the cleaners. You can schedule the cleaning without one"
     },
     "money": {
       "owed": "Outstanding",
@@ -1644,7 +1658,8 @@
       "reason": "Reason",
       "reasonPlaceholder": "Broken mirror",
       "cancel": "Cancel",
-      "alreadyTaken": "A deposit is already taken; the list is updated"
+      "alreadyTaken": "A deposit is already taken; the list is updated",
+      "loadFailed": "Could not load the deposit. Check the connection and try again"
     },
     "ask": {
       "intro": "Ask in words — I answer and act.",
@@ -1843,7 +1858,8 @@
       "delivered": "Delivered",
       "deliverAsk": "Order #{{number}} delivered?",
       "cancelPaidAsk": "Order #{{number}} is paid. You return the money to the guest yourself. Cancel it?"
-    }
+    },
+    "flatsFailed": "Could not load the properties. You can save the expense without one"
   },
   "auth": {
     "login": {
@@ -2046,7 +2062,9 @@
     "nameNeeded": "Your phone comes from our chat. Write the name we book for.",
     "phoneWrong": "A number has 10 to 15 digits, with the country code.",
     "ranOut": "Time is up — checking the payment",
-    "hoursAtCheckIn": "The hours, {{total}}, are paid at check-in"
+    "hoursAtCheckIn": "The hours, {{total}}, are paid at check-in",
+    "openPage": "Open your booking page",
+    "openPageHint": "Keep this link: your booking page has the address, payment and the door code."
   },
   "expenses": {
     "title": "Expenses",
@@ -2099,7 +2117,8 @@
     "bookingNone": "No booking",
     "agentChoose": "Choose the agent",
     "addButton": "Add expense",
-    "voidTitle": "Void this expense?"
+    "voidTitle": "Void this expense?",
+    "loadFailed": "Could not load the expenses. Check the connection and try again"
   },
   "blacklist": {
     "title": "Blacklist",
@@ -2193,7 +2212,9 @@
       "pricing": "Prices",
       "facts": "Facts for guests",
       "whatsapp_product": "WhatsApp catalogue product"
-    }
+    },
+    "loadFailed": "Could not load the properties. Check the connection and try again",
+    "rulesLoadFailed": "Could not load the rules. Check the connection and try again"
   },
   "guestCompany": {
     "notFound": "This link does not lead to a company's site.",
@@ -2210,7 +2231,22 @@
     "how2": "Pay the deposit in Kaspi",
     "how3": "Get the door code",
     "askTitle": "Any questions?",
-    "askHint": "Write to us — we will answer and find you a flat."
+    "askHint": "Write to us — we will answer and find you a flat.",
+    "freeToday": "Free tonight",
+    "freeFrom": "Free from {{day}}",
+    "guests": "Guests",
+    "pick": "Pick",
+    "guestsCount_one": "{{count}} guest",
+    "guestsCount_other": "{{count}} guests",
+    "showFree": "Show free flats",
+    "freeOn": "Free {{dates}}",
+    "freeForDates": "Free on your dates",
+    "forNights_one": "for {{count}} night",
+    "forNights_other": "for {{count}} nights",
+    "noneFree": "No flats are free on these dates. Pick other dates or write to us.",
+    "family": "For a family",
+    "lessGuests": "Fewer guests",
+    "moreGuests": "More guests"
   },
   "site": {
     "title": "Company site",
@@ -2332,13 +2368,15 @@
         "accepted": "On its way",
         "delivered": "Delivered",
         "cancelled": "Cancelled"
-      }
+      },
+      "loadFailed": "Could not load the orders. Check the connection and try again"
     },
     "addButton": "Add product",
     "photoChange": "Change photo",
     "archiveTitle": "Archive the product?",
     "inStock": "In stock",
-    "parIs": "Threshold: {{par}} pcs"
+    "parIs": "Threshold: {{par}} pcs",
+    "loadFailed": "Could not load the products. Check the connection and try again"
   },
   "guestPanel": {
     "notFound": "This link was not found. Write to the host for a new one.",
@@ -2477,7 +2515,24 @@
     "apartment": "flat {{n}}",
     "taxi": "Call a taxi here",
     "path": "The way to the door",
-    "pathStep": "Step {{n}}"
+    "pathStep": "Step {{n}}",
+    "freeUntil": "free until {{day}}",
+    "deposit": {
+      "title": "Deposit",
+      "pending": "The deposit is not paid yet",
+      "paid": "Back within a day of check-out",
+      "returned": "The deposit is back with you",
+      "held": "The deposit was kept. If you disagree, write to the host.",
+      "partially_held": "{{back}} comes back, {{held}} was kept. If you disagree, write to the host.",
+      "step1": "You check out by {{time}}",
+      "step2": "The host checks the flat",
+      "step3": "We send the deposit back"
+    },
+    "again": {
+      "title": "Enjoyed your stay?",
+      "text": "Next time book directly with the host — the link to the flat is always here.",
+      "open": "Open the flat's page"
+    }
   },
   "stayHere": {
     "title": "Staying here?",

@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.application.property.batch_pricing_by_tag import BatchUpdatePricingByTagService
-from app.application.property.manage_tags import ManageTagsService
+from app.application.property.manage_tags import ManageTagsService, TagNameTakenError
 from app.domain.auth.permissions import Permission
 from app.infrastructure.database import get_session
 from app.infrastructure.repositories.property import (
@@ -55,10 +55,12 @@ async def create_tag(
         result = await svc.create_tag(company_id, body.name, body.color)
         await session.commit()
         return TagResponse.model_validate(result, from_attributes=True)
+    except TagNameTakenError as e:
+        await session.rollback()
+        raise HTTPException(status_code=409, detail=str(e))
     except ValueError as e:
         await session.rollback()
-        status_code = 409 if "already exists" in str(e).lower() else 400
-        raise HTTPException(status_code=status_code, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 @tag_router.get("", response_model=list[TagResponse], dependencies=[Depends(require(Permission.PROPERTIES_READ))])
@@ -86,10 +88,12 @@ async def update_tag(
         result = await svc.update_tag(tag_id, company_id, **provided)
         await session.commit()
         return TagResponse.model_validate(result, from_attributes=True)
+    except TagNameTakenError as e:
+        await session.rollback()
+        raise HTTPException(status_code=409, detail=str(e))
     except ValueError as e:
         await session.rollback()
-        status_code = 409 if "already exists" in str(e).lower() else 404
-        raise HTTPException(status_code=status_code, detail=str(e))
+        raise HTTPException(status_code=404, detail=str(e))
 
 
 @tag_router.delete("/{tag_id}", status_code=204, dependencies=[Depends(require(Permission.PROPERTIES_WRITE))])

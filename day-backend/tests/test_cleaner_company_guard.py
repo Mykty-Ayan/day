@@ -89,6 +89,7 @@ async def tenants():
 
     try:
         yield SimpleNamespace(call=call, new_task=new_task, prop_id=prop_id, their_task=their_task,
+                              their_prop_id=their_prop_id, their_company=their_company,
                               mine=mine, theirs=theirs, ghost=ghost, maker=maker, company=mine_company)
     finally:
         app.dependency_overrides.pop(get_session, None)
@@ -129,6 +130,53 @@ async def test_a_task_is_created_without_a_cleaner(tenants):
     assert response.status_code == 201, response.text
     assert response.json()["cleaner_id"] is None
     assert response.json()["status"] == "pending"
+
+
+async def _booking(tenants, company_id, property_id):
+    """A stay in the given company's flat."""
+    from datetime import datetime
+
+    from app.infrastructure.models.booking import BookingModel, GuestModel
+
+    guest_id, booking_id = uuid.uuid4(), uuid.uuid4()
+    async with tenants.maker() as session:
+        session.add(GuestModel(id=guest_id, company_id=company_id, name="Жалгас"))
+        await session.flush()
+        session.add(BookingModel(id=booking_id, company_id=company_id, property_id=property_id, guest_id=guest_id,
+                                 check_in=datetime(2030, 12, 1, 14), check_out=datetime(2030, 12, 3, 12),
+                                 status="confirmed"))
+        await session.commit()
+    return booking_id
+
+
+async def test_a_task_cannot_be_tied_to_a_booking_of_another_company_or_flat_or_nobody(tenants):
+    their_booking = await _booking(tenants, tenants.their_company, tenants.their_prop_id)
+    # The caller's own company, but another of its flats.
+    other_flat = uuid.uuid4()
+    async with tenants.maker() as session:
+        from app.infrastructure.models.property import PropertyModel
+
+        session.add(PropertyModel(id=other_flat, company_id=tenants.company, name="Т14",
+                                  internal_name=f"t-{other_flat.hex[:6]}", type="apartment", status="active",
+                                  rental_mode="daily"))
+        await session.commit()
+    other_flats_booking = await _booking(tenants, tenants.company, other_flat)
+
+    for booking_id in (their_booking, other_flats_booking, uuid.uuid4()):
+        response = await tenants.call("POST", "/cleaning", {"property_id": str(tenants.prop_id),
+                                                            "booking_id": str(booking_id)})
+        assert response.status_code == 404, response.text
+        assert response.json() == {"detail": "Booking not found"}
+
+
+async def test_a_task_is_tied_to_a_booking_of_its_flat(tenants):
+    booking_id = await _booking(tenants, tenants.company, tenants.prop_id)
+
+    response = await tenants.call("POST", "/cleaning", {"property_id": str(tenants.prop_id),
+                                                        "booking_id": str(booking_id)})
+
+    assert response.status_code == 201, response.text
+    assert response.json()["booking_id"] == str(booking_id)
 
 
 # ---------- assign ----------

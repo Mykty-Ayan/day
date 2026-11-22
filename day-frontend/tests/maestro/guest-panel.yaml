@@ -1,0 +1,16 @@
+# The guest's own booking page, stage by stage.
+url: ${BASE_URL}/g/${GUEST}
+---
+- launchApp
+- extendedWaitUntil:
+    visible: "Check-in|Заселение"
+    timeout: 20000
+- runFlow: _ru.yaml
+- tapOn: "Заселение"
+- takeScreenshot: shots/guest-panel-arrive
+- tapOn: "В квартире"
+- assertVisible: "Мини-бар|.*Wi-Fi.*"
+- takeScreenshot: shots/guest-panel-stay
+- tapOn: "Выезд"
+- takeScreenshot: shots/guest-panel-leave
+- assertNotVisible: "Не получилось.*"

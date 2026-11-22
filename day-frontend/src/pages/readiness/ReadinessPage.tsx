@@ -5,6 +5,7 @@ import { Plus, Trash2 } from 'lucide-react'
 import Button from '../../components/ui/Button'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select'
+import LoadError from '../../components/ui/LoadError'
 import { showToast } from '../../components/ui/Toast'
 import { useCurrentUser } from '../../hooks/useAuth'
 import { useAddCompanyFact, useCompanyFacts, useDeleteCompanyFact, useReadiness } from '../../hooks/useReadiness'
@@ -18,8 +19,8 @@ export default function ReadinessPage() {
   const { data: user } = useCurrentUser()
   // A cleaner reads the rules; the owner and the manager write them.
   const canWrite = user?.role === 'owner' || user?.role === 'manager'
-  const { data: facts = [] } = useCompanyFacts()
-  const { data: readiness, isLoading } = useReadiness()
+  const { data: facts = [], isError: factsFailed, refetch: refetchFacts } = useCompanyFacts()
+  const { data: readiness, isLoading, isError, refetch } = useReadiness()
   const addFact = useAddCompanyFact()
   const deleteFact = useDeleteCompanyFact()
   const [text, setText] = useState('')
@@ -58,6 +59,7 @@ export default function ReadinessPage() {
           <h2 className="text-sm font-bold text-ink">{t('readiness.rules')}</h2>
           <p className="mt-1 text-xs text-ink-muted">{t('readiness.rulesHint')}</p>
         </div>
+        {factsFailed && <LoadError message={t('readiness.rulesLoadFailed')} onRetry={() => refetchFacts()} />}
         {facts.length > 0 && (
           <ul className="divide-y divide-line">
             {facts.map((f) => (
@@ -130,7 +132,11 @@ export default function ReadinessPage() {
 
       <section className="rounded-xl border border-line bg-surface-card">
         <h2 className="border-b border-line px-4 py-3 text-sm font-bold text-ink">{t('readiness.flats')}</h2>
-        {isLoading ? null : (readiness?.items ?? []).length === 0 ? (
+        {isLoading ? null : isError ? (
+          <div className="p-4">
+            <LoadError message={t('readiness.loadFailed')} onRetry={() => refetch()} />
+          </div>
+        ) : (readiness?.items ?? []).length === 0 ? (
           <p className="px-4 py-6 text-sm text-ink-muted">{t('readiness.noFlats')}</p>
         ) : (
           <ul className="divide-y divide-line">
