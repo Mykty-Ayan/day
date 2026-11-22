@@ -295,6 +295,7 @@ async def guest_panel(code: str, session: AsyncSession = Depends(get_session)):
         SqlProductRepository(session),
         SqlGuestOrderRepository(session),
         photos=SqlPropertyPhotoRepository(session),
+        deposits=SqlBookingDepositRepository(session),
     )
     try:
         panel = await service.execute(code)

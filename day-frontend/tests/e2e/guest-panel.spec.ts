@@ -344,9 +344,53 @@ test('before payment the address keeps the entrance and the flat number back', a
   await expect(page.getByRole('region', { name: 'Путь до двери' })).toHaveCount(0)
 })
 
+test('on check-out the guest sees the deposit coming back and the flat to book again', async ({ page }) => {
+  const now = today()
+  await open(
+    page,
+    answer(
+      { deposit: { amount: 10000, status: 'paid', held: 0 }, flat: { ...answer().flat, code: 'vk7nys9' } },
+      { check_in: `${addDays(now, -2)}T14:00:00`, check_out: `${now}T12:00:00`, paid: 40000, remaining: 0 },
+    ),
+  )
+  const deposit = page.getByRole('region', { name: 'Залог' })
+  await expect(deposit).toContainText('10 000 ₸')
+  await expect(deposit).toContainText('Вернём в течение дня после выезда')
+  await expect(deposit).toContainText('Хозяин проверяет квартиру')
+  await expect(page.getByRole('link', { name: 'Открыть страницу квартиры' })).toHaveAttribute('href', '/s/vk7nys9')
+})
+
+test('during the stay «extend» says until when the flat is free', async ({ page }) => {
+  const now = today()
+  await open(page, answer({}, {
+    check_in: `${addDays(now, -1)}T14:00:00`, check_out: `${addDays(now, 2)}T12:00:00`, paid: 40000, remaining: 0,
+    free_until: addDays(now, 5),
+  }))
+  await expect(page.getByRole('tab', { name: 'В квартире' })).toHaveAttribute('aria-selected', 'true')
+  // A real date, as the guest reads it: never «Invalid Date».
+  await expect(page.getByRole('link', { name: /Продлить проживание/ })).toContainText(/свободно до \d{1,2} [а-я]+$/)
+})
+
+test('a deposit kept in part says what comes back and what was kept', async ({ page }) => {
+  const now = today()
+  await open(page, answer({ deposit: { amount: 10000, status: 'partially_held', held: 3000 } }, {
+    check_in: `${addDays(now, -2)}T14:00:00`, check_out: `${now}T12:00:00`, paid: 40000, remaining: 0,
+  }))
+  await expect(page.getByRole('region', { name: 'Залог' })).toContainText('Вернём 7 000 ₸, удержали 3 000 ₸')
+})
+
 test('with no address yet the complex and the floor still show', async ({ page }) => {
   await open(page, answer({ flat: { ...answer().flat, address: null, latitude: null, longitude: null, complex_name: 'Auezov City', floor: 10 } }))
   await expect(page.getByRole('region', { name: 'Адрес' })).toContainText('Auezov City · 10 этаж')
+})
+
+test('a closed booking still shows the deposit coming back and the flat to book again', async ({ page }) => {
+  await open(page, answer(
+    { closed: true, flat: { name: 'Т13 у Байтерека', code: 'vk7nys9' }, deposit: { amount: 10000, status: 'returned', held: 0 } },
+    { status: 'checked_out' },
+  ))
+  await expect(page.getByRole('region', { name: 'Залог' })).toContainText('Залог вернули')
+  await expect(page.getByRole('link', { name: 'Открыть страницу квартиры' })).toHaveAttribute('href', '/s/vk7nys9')
 })
 
 test('the cart waits while the guest looks at another stage', async ({ page }) => {

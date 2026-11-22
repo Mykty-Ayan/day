@@ -180,9 +180,15 @@ export interface GuestPanel {
     /** Minibar orders owed with the stay, by the server's one rule; part of remaining. */
     orders_due?: number
     remaining: number
+    /** The day the next guest arrives after this stay; null when nobody is in sight. */
+    free_until?: string | null
   } | null
+  /** The stay's deposit: the amount and what became of it, never the owner's reason. */
+  deposit?: { amount: number; status: 'pending' | 'paid' | 'returned' | 'held' | 'partially_held'; held: number } | null
   flat: {
     name: string
+    /** The flat's own page: /s/<code>. */
+    code?: string | null
     /** The listing's cover; null when the flat has no public photo. */
     photo_url?: string | null
     address: string | null
