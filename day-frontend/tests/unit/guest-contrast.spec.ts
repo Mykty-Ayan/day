@@ -16,8 +16,7 @@ const contrast = (a: string, b: string) => {
   return (hi + 0.05) / (lo + 0.05)
 }
 
-// Lighter on purpose: past days and disabled steps (not to be read, WCAG exempts them),
-// the weekend's letters (hidden from a reader, the day under them is read), a lock icon.
+// Lighter on purpose: past days and disabled steps (not to be read, WCAG exempts them), a lock icon.
 const LIGHT = new Set(['#C7C7CC', '#C3C3CB', '#B4B4BD', '#A0A0AA'])
 // On the dark hero and cards (#111114): read against the dark.
 const ON_DARK = new Set(['#4ADE80', '#8FA8FF'])

@@ -131,7 +131,7 @@ function OfferView({ offer, locale, onRefresh }: { offer: PublicOffer; locale: s
             <p className="font-guest-display text-[30px] font-bold leading-tight tracking-[-0.03em]">{from.big}</p>
             <p className="text-[13px] text-[#6B6B74]">{from.small}</p>
           </div>
-          <span className="rounded-full bg-[color-mix(in_srgb,#2F5BFF_16%,white)] px-2.5 py-1 text-xs font-semibold text-[#2F5BFF]">{nights}</span>
+          <span className="rounded-full bg-[color-mix(in_srgb,#2F5BFF_8%,white)] px-2.5 py-1 text-xs font-semibold text-[#2F5BFF]">{nights}</span>
           <div className="text-end">
             <p className="text-xs font-semibold text-[#6B6B74]">{t('guest.checkOut')}</p>
             <p className="font-guest-display text-[30px] font-bold leading-tight tracking-[-0.03em]">{to.big}</p>

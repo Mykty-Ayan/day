@@ -483,7 +483,8 @@ function PanelView({ code, panel, locale, receivedAt }: { code: string; panel: G
                   aria-selected={tab === key}
                   onClick={() => setTab(key)}
                   className={`flex h-10 items-center justify-center gap-1.5 rounded-xl text-sm font-semibold ${
-                    tab === key ? 'bg-white text-[#111114] shadow-[0_1px_4px_rgba(17,17,20,0.12)]' : MUTE
+                    // A tab not picked sits on the tab bar's grey: a shade darker than the page's grey text.
+                    tab === key ? 'bg-white text-[#111114] shadow-[0_1px_4px_rgba(17,17,20,0.12)]' : 'text-[#5C5C66]'
                   }`}
                 >
                   <Icon className="h-4 w-4 shrink-0" aria-hidden />

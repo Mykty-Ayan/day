@@ -262,8 +262,8 @@ export function StayCalendar({
       )}
 
       <div aria-hidden className="mt-3.5 grid grid-cols-7 text-center text-xs font-semibold text-[#6B6B74]">
-        {weekdays.map((d, n) => (
-          <span key={d} className={n >= 5 ? 'text-[#A0A0AA]' : ''}>{d}</span>
+        {weekdays.map((d) => (
+          <span key={d}>{d}</span>
         ))}
       </div>
 
