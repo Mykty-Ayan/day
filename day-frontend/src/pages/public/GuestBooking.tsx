@@ -13,6 +13,7 @@ import {
 } from '../../api/public'
 import { clock, isHourly, money, offerDates, retryNetwork } from '../../lib/public-stay'
 import { LoadFailed } from './GuestFrame'
+import { BookingPageLink } from './StayBooking'
 
 // As the server checks it: E.164 holds up to 15 digits, fewer than 10 is no full number.
 const fullPhone = (phone: string) => /^\d{10,15}$/.test(phone.replace(/\D/g, ''))
@@ -323,6 +324,7 @@ export function Waiting({ offer, booking, locale }: { offer: PublicOffer; bookin
           <p className="text-base leading-relaxed text-[#2A2A30]">{t('guestBook.confirmedNext')}</p>
         </section>
       )}
+      <BookingPageLink code={booking.guest_code} />
 
       <section className="flex flex-col gap-1 rounded-2xl border border-[#E7E7ED] p-4">
         {flat && <h2 dir="auto" className="text-base font-bold">{flat.name}</h2>}

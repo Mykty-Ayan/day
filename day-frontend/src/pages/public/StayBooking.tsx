@@ -270,6 +270,24 @@ export function BookSheet({
   )
 }
 
+/** The guest's own booking page, right after booking: the one link to keep. */
+export function BookingPageLink({ code }: { code: string | null | undefined }) {
+  const { t } = useTranslation()
+  if (!code) return null
+  return (
+    <div className="flex flex-col gap-2 rounded-[22px] bg-[#F3F3F6] p-4">
+      <a
+        href={`/g/${code}`}
+        className="flex h-[52px] items-center justify-center gap-2 rounded-full bg-[#111114] px-5 text-base font-semibold text-white"
+      >
+        {t('guestBook.openPage')}
+        <ArrowRight className="h-5 w-5 rtl:rotate-180" aria-hidden />
+      </a>
+      <p className="text-sm leading-snug text-[#76767F]">{t('guestBook.openPageHint')}</p>
+    </div>
+  )
+}
+
 /** After booking: until when the dates are the guest's and what comes next. */
 export function HeldView({ booking, locale }: { booking: PublicOfferBooking; locale: string }) {
   const { t } = useTranslation()
@@ -298,6 +316,7 @@ export function HeldView({ booking, locale }: { booking: PublicOfferBooking; loc
       {booking.total != null && (
         <p className="text-sm text-[#2A2A30]">{t('guestBook.nightsAtCheckIn', { total: money(booking.total, locale) })}</p>
       )}
+      <BookingPageLink code={booking.guest_code} />
     </section>
   )
 }

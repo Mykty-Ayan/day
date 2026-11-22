@@ -134,7 +134,9 @@
     "nameNeeded": "전화번호는 채팅 내용에서 가져왔습니다. 예약자 이름을 입력해 주세요.",
     "phoneWrong": "번호는 국가 번호를 포함해 10~15자리여야 합니다.",
     "ranOut": "시간이 끝났습니다 — 결제를 확인하고 있습니다",
-    "hoursAtCheckIn": "이용 요금 {{total}}: 체크인 시 결제"
+    "hoursAtCheckIn": "이용 요금 {{total}}: 체크인 시 결제",
+    "openPage": "예약 페이지 열기",
+    "openPageHint": "이 링크를 저장하세요. 예약 페이지에서 주소, 결제, 출입문 비밀번호를 볼 수 있습니다."
   },
   "properties": {
     "checkInMethod": {
