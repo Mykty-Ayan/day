@@ -10,7 +10,7 @@ import { showToast } from '../ui/Toast'
 import { moveBooking } from '../../api/bookings'
 import { orderProperties } from '../../api/properties'
 import { stayRuleBreaches, stayRuleText, type StayRuleBreach } from '../../lib/booking-errors'
-import { addDays, barDays, busyOn, byCompanyOrder, barSpan, barTone, dayNumber, dayOf, hoursOn, nightlyRate, nightsBetween, owes, rowLayout, toReturn, type BarTone } from '../../lib/chessboard'
+import { addDays, barDays, busyOn, byCompanyOrder, barSpan, barTone, cellPrice, dayNumber, dayOf, hoursOn, nightlyRate, nightsBetween, owes, rowLayout, toReturn, type BarTone } from '../../lib/chessboard'
 import { formatMoney } from '../../pages/miniapp/format'
 import ConfirmDialog from '../ui/ConfirmDialog'
 import { Sheet } from '../ui/sheet'
@@ -100,15 +100,6 @@ function isBookedOnDate(bookings: Booking[], dayKey: string): boolean {
     const { start, end } = barDays(booking.check_in, booking.check_out)
     return start <= dayKey && dayKey < end
   })
-}
-
-function formatCellPrice(value: number, sym: string): string {
-  if (value >= 10000) return `${sym}${Math.round(value / 1000)}k`
-  if (value >= 1000) {
-    const short = value / 1000
-    return `${sym}${Number.isInteger(short) ? short : short.toFixed(1)}k`
-  }
-  return `${sym}${Math.round(value)}`
 }
 
 // What a bar's colour says, as on Mews' timeline: green the guest is in, indigo they
@@ -1003,10 +994,10 @@ export default function GanttChart({
                         <div className="pointer-events-none flex h-full items-center justify-center">
                           <span
                             className={`text-[10px] font-semibold ${
-                              isPaused ? 'text-ink-muted' : custom !== undefined ? 'text-violet-700' : 'text-success'
+                              isPaused ? 'text-ink-muted' : custom !== undefined ? 'text-accent-ink' : 'text-success'
                             }`}
                           >
-                            {formatCellPrice(rate, currencySymbol)}
+                            {cellPrice(rate, currencySymbol)}
                           </span>
                         </div>
                       )}
@@ -1062,7 +1053,7 @@ export default function GanttChart({
                           role="img"
                           aria-label={`${t('gantt.doubleSale')}: ${block.reason || t('gantt.closed')}`}
                           title={label}
-                          className="pointer-events-none absolute rounded-lg text-[11px] font-semibold text-red-800 outline outline-2 outline-red-600"
+                          className="pointer-events-none absolute rounded-lg text-[11px] font-semibold text-danger outline outline-2 outline-danger"
                           style={{
                             left: pos.left,
                             width: pos.width,
@@ -1120,7 +1111,7 @@ export default function GanttChart({
                         hideTip()
                       }}
                       className={`absolute flex cursor-pointer flex-col justify-between overflow-hidden rounded-lg bg-surface-card px-0.5 pb-0.5 pt-px shadow-sm ring-1 ring-inset ring-line transition-shadow hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent ${
-                        overbooked ? 'outline outline-2 outline-offset-1 outline-red-600' : ''
+                        overbooked ? 'outline outline-2 outline-offset-1 outline-danger' : ''
                       }`}
                       style={{
                         // Inside a stay's bar it keeps a rim of the bar around it.
@@ -1174,7 +1165,7 @@ export default function GanttChart({
                   const debt = owes(booking)
                   const arrivesToday = (booking.status === 'confirmed' || booking.status === 'pending') && booking.check_in.slice(0, 10) === todayStr
                   const leavesToday = booking.status === 'checked_in' && booking.check_out.slice(0, 10) === todayStr
-                  const debtTone = DEBT_NOW.includes(tone) ? 'bg-danger text-white' : 'bg-white text-warning ring-1 ring-warning/50'
+                  const debtTone = DEBT_NOW.includes(tone) ? 'bg-danger text-white' : 'bg-surface-card text-warning ring-1 ring-warning/50'
                   // One cell holds the night and the hours of its morning: the badge owns both debts.
                   const morningAll = clocked ? hoursOn(row.bookings, dayOf(booking.check_in)) : []
                   const morningCount = morningAll.length
@@ -1212,7 +1203,7 @@ export default function GanttChart({
                       }}
                       className={`absolute flex cursor-pointer items-center gap-1 overflow-hidden rounded-lg shadow-sm transition-shadow hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-1 ${TONE[tone]} ${
                         hourly || narrow ? 'justify-center' : 'px-2'
-                      } ${booking.overbooking ? 'outline outline-2 outline-offset-1 outline-red-600' : ''}`}
+                      } ${booking.overbooking ? 'outline outline-2 outline-offset-1 outline-danger' : ''}`}
                       style={{
                         left: pos.left + 1,
                         width: pos.width - 2,
@@ -1238,7 +1229,7 @@ export default function GanttChart({
                         </>
                       )}
                       {booking.overbooking && (
-                        <span className="shrink-0 rounded bg-red-600 px-1 text-[9px] font-bold text-white">!</span>
+                        <span className="shrink-0 rounded bg-danger px-1 text-[9px] font-bold text-white">!</span>
                       )}
                       {/* One night is one cell: an icon, or the name, never both */}
                       {!(narrow && (clocked || arrivesToday || leavesToday)) && <span className={`min-w-0 font-semibold ${hourly ? 'whitespace-nowrap text-[10px] tracking-tight tabular-nums' : 'truncate text-[11px]'}`}>
@@ -1330,12 +1321,12 @@ export default function GanttChart({
                   <span className="text-white/50">·</span>
                   <span className="font-semibold text-white">{`${formatMoney(booking.total_price, i18n.language)} ${currencySymbol}`}</span>
                   {debt > 0 && (
-                    <span className="ml-1 font-semibold text-red-300">
+                    <span className="ml-1 font-semibold text-danger-soft">
                       {t('gantt.owes', { amount: `${formatMoney(debt, i18n.language)} ${currencySymbol}` })}
                     </span>
                   )}
                   {toReturn(booking) > 0 && (
-                    <span className="ml-1 font-semibold text-amber-300">
+                    <span className="ml-1 font-semibold text-warning-soft">
                       {t('gantt.toReturn', { amount: `${formatMoney(toReturn(booking), i18n.language)} ${currencySymbol}` })}
                     </span>
                   )}

@@ -73,6 +73,8 @@ export interface PublicOfferFlat {
 /** The link's booking: which flat, until when the dates are held, the deposit to
  *  pay and the masked number the Kaspi invoice goes to. */
 export interface PublicOfferBooking {
+  /** The guest's own booking page, /g/<code>: only right after booking. */
+  guest_code?: string | null
   flat: string
   /** pending: waiting for the deposit; confirmed: the dates are the guest's. */
   status: 'pending' | 'confirmed' | 'checked_in' | 'checked_out' | 'completed'

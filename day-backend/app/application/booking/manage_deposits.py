@@ -4,7 +4,7 @@ import uuid
 from decimal import Decimal
 
 from app.domain.booking.entities import BookingDeposit
-from app.domain.booking.exceptions import DepositAlreadyOpenError
+from app.domain.booking.exceptions import DepositAlreadyOpenError, DepositNotFoundError
 from app.domain.booking.repositories import (
     BookingDepositRepository,
     BookingRepository,
@@ -69,15 +69,15 @@ class ManageDepositsService:
     ) -> BookingDeposit:
         booking = await self._booking_repo.get_by_id(booking_id)
         if booking is None:
-            raise ValueError("Booking not found")
+            raise DepositNotFoundError("Booking not found")
         if booking.company_id != company_id:
-            raise ValueError("Booking does not belong to company")
+            raise DepositNotFoundError("Booking does not belong to company")
 
         deposit = await self._deposit_repo.get_by_id(deposit_id)
         if deposit is None:
-            raise ValueError("Deposit not found")
+            raise DepositNotFoundError("Deposit not found")
         if deposit.booking_id != booking_id:
-            raise ValueError("Deposit does not belong to booking")
+            raise DepositNotFoundError("Deposit does not belong to booking")
 
         if action == "pay":
             target = DepositStatus.PAID

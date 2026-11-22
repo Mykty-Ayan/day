@@ -6,11 +6,12 @@ import { useNavigate } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 import { useGanttData } from '../../hooks/useBookings'
 import { useMediaQuery } from '../../hooks/useMediaQuery'
+import { useCurrency } from '../../hooks/useCurrency'
 import { getPricing } from '../../api/properties'
 import GanttChart from '../../components/property/GanttChart'
 import type { ChessSelection, ChessTool, GanttRow } from '../../components/property/GanttChart'
 import { BlockPanel, BookingPanel, HourlyDayPanel, SelectionPanel } from '../../components/property/GanttPanels'
-import { addDays, busyOn } from '../../lib/chessboard'
+import { addDays, busyOn, cellPrice } from '../../lib/chessboard'
 import type { Booking, GanttBlock } from '../../types/booking'
 import type { PricingConfig } from '../../types/property'
 import Spinner from '../../components/ui/Spinner'
@@ -57,6 +58,7 @@ const NAV = 'inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-
 
 export default function GanttChartPage() {
   const { t } = useTranslation()
+  const { symbol } = useCurrency()
   const navigate = useNavigate()
   const [year, setYear] = useState(() => readMonth().year)
   const [month, setMonth] = useState(() => readMonth().month)
@@ -167,12 +169,12 @@ export default function GanttChartPage() {
       <li className="flex items-center gap-1.5"><span className="h-3 w-5 rounded border border-dashed border-accent bg-accent-soft" />{t('gantt.tone.pending')}</li>
       <li className="flex items-center gap-1.5"><span className="h-3 w-5 rounded bg-warning-soft ring-1 ring-inset ring-warning/50" />{t('gantt.tone.late')}</li>
       <li className="flex items-center gap-1.5"><span className="h-3 w-5 rounded bg-line" />{t('gantt.tone.done')}</li>
-      <li className="flex items-center gap-1.5"><span className="flex h-4 w-4 items-center justify-center rounded-full bg-danger text-[9px] font-bold text-white">₸</span>{t('gantt.legendDebt')}</li>
-      <li className="flex items-center gap-1.5"><span className="flex h-4 w-4 items-center justify-center rounded-full bg-warning-soft text-[9px] font-bold text-warning">₸</span>{t('gantt.legendDebtLater')}</li>
+      <li className="flex items-center gap-1.5"><span className="flex h-4 w-4 items-center justify-center rounded-full bg-danger text-[9px] font-bold text-white">{symbol}</span>{t('gantt.legendDebt')}</li>
+      <li className="flex items-center gap-1.5"><span className="flex h-4 w-4 items-center justify-center rounded-full bg-warning-soft text-[9px] font-bold text-warning">{symbol}</span>{t('gantt.legendDebtLater')}</li>
       <li className="flex items-center gap-1.5"><Clock className="h-3.5 w-3.5" aria-hidden="true" />{t('properties.form.rentalModeHourly')}</li>
       <li className="flex items-center gap-1.5"><Moon className="h-3.5 w-3.5" aria-hidden="true" />{t('properties.form.rentalModeDaily')}</li>
       <li className="flex items-center gap-1.5"><span className="h-3 w-5 rounded" style={{ background: 'repeating-linear-gradient(45deg, #e2e2e8 0 4px, #f2f3f7 4px 8px)' }} />{t('gantt.closed')}</li>
-      <li className="flex items-center gap-1.5"><span className="font-semibold text-violet-700">₸27k</span>{t('gantt.legendOwn')}</li>
+      <li className="flex items-center gap-1.5"><span className="font-semibold text-accent-ink">{cellPrice(27000, symbol)}</span>{t('gantt.legendOwn')}</li>
     </>
   )
 

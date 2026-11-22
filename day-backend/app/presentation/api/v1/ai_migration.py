@@ -84,6 +84,23 @@ def _normalize_external_photo_url(url: str) -> str:
     return candidate
 
 
+_MAX_PHOTO_REDIRECTS = 3
+
+
+async def _fetch_external_photo(client: httpx.AsyncClient, url: str) -> httpx.Response:
+    """GET the photo, following redirects by hand: an allowed host may redirect
+    anywhere, so every hop is checked against the allowed hosts before it is fetched."""
+    response = await client.get(url, follow_redirects=False)
+    for _ in range(_MAX_PHOTO_REDIRECTS):
+        if response.next_request is None:
+            return response
+        next_url = _normalize_external_photo_url(str(response.next_request.url))
+        response = await client.get(next_url, follow_redirects=False)
+    if response.next_request is not None:
+        raise ValueError("Photo URL has too many redirects")
+    return response
+
+
 def _filename_from_url(url: str) -> str:
     parsed = urlsplit(url)
     name = Path(parsed.path).name
@@ -332,9 +349,11 @@ async def download_external_photo(
 
     timeout = httpx.Timeout(20.0)
     try:
-        async with httpx.AsyncClient(timeout=timeout, follow_redirects=True) as client:
-            upstream = await client.get(normalized_url)
+        async with httpx.AsyncClient(timeout=timeout) as client:
+            upstream = await _fetch_external_photo(client, normalized_url)
             upstream.raise_for_status()
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
     except httpx.HTTPError as e:
         raise HTTPException(status_code=422, detail=f"Failed to download photo: {e}") from e
 

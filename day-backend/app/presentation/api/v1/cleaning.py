@@ -40,6 +40,7 @@ from app.domain.cleaning.value_objects import CleaningStatus
 from app.infrastructure.database import get_session
 from app.infrastructure.messaging.cleaning_notice import notify_cleaner
 from app.infrastructure.repositories.auth import SqlUserRepository
+from app.infrastructure.repositories.booking import SqlBookingRepository
 from app.infrastructure.repositories.cleaning import (
     SqlCleanerRatingRepository,
     SqlCleanerRouteRepository,
@@ -171,6 +172,18 @@ async def _assert_company_cleaner(session: AsyncSession, cleaner_id: uuid.UUID, 
         raise HTTPException(status_code=404, detail="Cleaner not found")
 
 
+async def _assert_flat_booking(
+    session: AsyncSession, booking_id: uuid.UUID, company_id: uuid.UUID, property_id: uuid.UUID
+) -> None:
+    """Guard a booking id from the body: the task ties to a stay of its own flat only.
+
+    404 for an unknown id, another company's or another flat's alike, as for a cleaner.
+    """
+    booking = await SqlBookingRepository(session).get_by_id(booking_id)
+    if booking is None or booking.company_id != company_id or booking.property_id != property_id:
+        raise HTTPException(status_code=404, detail="Booking not found")
+
+
 # ---------- Cleaning Task CRUD ----------
 
 
@@ -187,6 +200,8 @@ async def create_cleaning_task(
 ):
     if body.cleaner_id is not None:
         await _assert_company_cleaner(session, body.cleaner_id, company_id)
+    if body.booking_id is not None:
+        await _assert_flat_booking(session, body.booking_id, company_id, body.property_id)
     repos = _repos(session)
     svc = CreateCleaningTaskService(repos["task"], repos["property"])
     try:

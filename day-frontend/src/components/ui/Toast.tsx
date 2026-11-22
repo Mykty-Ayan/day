@@ -103,7 +103,7 @@ export default function ToastContainer() {
             exit={{ opacity: 0, y: -20, scale: 0.95 }}
             transition={{ duration: 0.2 }}
             className={`flex w-full items-start gap-2 rounded-xl px-4 py-3 text-sm font-medium text-white shadow-lg sm:min-w-[320px] sm:max-w-md ${
-              toast.type === 'success' ? 'bg-emerald-500' : 'bg-red-500'
+              toast.type === 'success' ? 'bg-success' : 'bg-danger'
             }`}
           >
             {toast.type === 'success' ? (

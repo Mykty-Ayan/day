@@ -2,31 +2,17 @@ import { useMemo } from 'react'
 import { motion } from 'framer-motion'
 import { Link, useNavigate } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
-import type { BookingStatus } from '../../types/booking'
 import type { GanttRow } from './GanttChart'
 import { useCurrency } from '../../hooks/useCurrency'
 import { byCompanyOrder } from '../../lib/chessboard'
+import StatusBadge from './StatusBadge'
+import BookingStatusBadge from '../booking/BookingStatusBadge'
+import { Badge } from '../ui/badge'
 
 interface Props {
   rows: GanttRow[]
   rangeStart: string
   rangeEnd: string
-}
-
-const propertyStatusClass: Record<GanttRow['property']['status'], string> = {
-  new: 'border-blue-200 bg-blue-50 text-blue-700',
-  active: 'border-emerald-200 bg-emerald-50 text-emerald-700',
-  paused: 'border-amber-200 bg-amber-50 text-amber-700',
-  archived: 'border-line bg-surface-page text-ink-muted',
-}
-
-const bookingStatusClass: Record<BookingStatus, string> = {
-  pending: 'border-line bg-surface-page text-ink',
-  confirmed: 'border-sky-200 bg-sky-50 text-sky-700',
-  checked_in: 'border-emerald-200 bg-emerald-50 text-emerald-700',
-  checked_out: 'border-amber-200 bg-amber-50 text-amber-700',
-  completed: 'border-green-200 bg-green-50 text-green-700',
-  cancelled: 'border-rose-200 bg-rose-50 text-rose-700',
 }
 
 // Take only the date component so ISO date-time strings (hourly bookings) parse
@@ -108,11 +94,7 @@ export default function GanttAgendaView({ rows, rangeStart, rangeEnd }: Props) {
               <div>
                 <div className="flex flex-wrap items-center gap-2">
                   <h2 className="text-sm font-bold text-ink">{row.property.internal_name}</h2>
-                  <span
-                    className={`inline-flex rounded-md border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${propertyStatusClass[row.property.status]}`}
-                  >
-                    {t(`common.${row.property.status}`)}
-                  </span>
+                  <StatusBadge status={row.property.status} />
                 </div>
                 <p className="mt-0.5 text-xs text-ink-muted">{row.property.name}</p>
               </div>
@@ -148,29 +130,19 @@ export default function GanttAgendaView({ rows, rangeStart, rangeEnd }: Props) {
                       })
                     }
                     className={`w-full rounded-lg border border-line bg-surface-page p-3 text-left transition-colors hover:bg-surface-page ${
-                      booking.overbooking ? 'outline outline-2 outline-red-600 outline-offset-1' : ''
+                      booking.overbooking ? 'outline outline-2 outline-danger outline-offset-1' : ''
                     }`}
                   >
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <p className="text-sm font-semibold text-ink">
                         {booking.overbooking && (
-                          <span className="mr-1.5 inline-flex rounded bg-red-600 px-1.5 py-0.5 text-[10px] font-bold text-white">
+                          <span className="mr-1.5 inline-flex rounded bg-danger px-1.5 py-0.5 text-[10px] font-bold text-white">
                             {t('bookings.overbooking.short')}
                           </span>
                         )}
                         {booking.guest_name}
                       </p>
-                      <span
-                        className={`inline-flex rounded-md border px-2 py-0.5 text-[10px] font-semibold ${bookingStatusClass[booking.status]}`}
-                      >
-                        {t(
-                          booking.status === 'checked_in'
-                            ? 'common.checkedIn'
-                            : booking.status === 'checked_out'
-                              ? 'common.checkedOut'
-                              : `common.${booking.status}`,
-                        )}
-                      </span>
+                      <BookingStatusBadge status={booking.status} />
                     </div>
                     <p className="mt-1 text-xs text-ink-muted">
                       {booking.rental_mode === 'hourly' ? (
@@ -178,9 +150,9 @@ export default function GanttAgendaView({ rows, rangeStart, rangeEnd }: Props) {
                           {formatAgendaDate(booking.check_in, shortMonthNames)}
                           {' · '}
                           {formatTimeOfDay(booking.check_in)}–{formatTimeOfDay(booking.check_out)}
-                          <span className="ml-1.5 inline-flex rounded border border-indigo-200 bg-indigo-50 px-1 py-0.5 text-[10px] font-semibold text-indigo-700">
+                          <Badge tone="accent" className="ml-1.5">
                             {t('bookings.rentalMode.hourly')}
-                          </span>
+                          </Badge>
                         </>
                       ) : (
                         <>
