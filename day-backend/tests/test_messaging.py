@@ -112,6 +112,13 @@ class FakeNotificationRepository(OutboundNotificationRepository):
             and (n.next_attempt_at is None or n.next_attempt_at <= now)
         ][:limit]
 
+    async def list_failed(self, company_id, since, limit=50):
+        found = [n for n in self.items if n.company_id == company_id and n.undelivered]
+        return found[:limit]
+
+    async def get_for_company(self, company_id, notification_id):
+        return next((n for n in self.items if n.id == notification_id and n.company_id == company_id), None)
+
 
 class StubProperty:
     def __init__(self, name: str, property_id: uuid.UUID | None = None) -> None:

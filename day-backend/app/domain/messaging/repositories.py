@@ -78,6 +78,15 @@ class OutboundNotificationRepository(abc.ABC):
     async def claim_due(self, *, now: datetime, limit: int = 20) -> list[OutboundNotification]:
         """Pending notifications whose next attempt is due."""
 
+    @abc.abstractmethod
+    async def list_failed(self, company_id: uuid.UUID, since: datetime, limit: int = 50) -> list[OutboundNotification]:
+        """The company's notifications given up on since then, the newest first."""
+
+    @abc.abstractmethod
+    async def get_for_company(
+        self, company_id: uuid.UUID, notification_id: uuid.UUID
+    ) -> OutboundNotification | None: ...
+
 
 class ChannelLinkCodeRepository(abc.ABC):
     @abc.abstractmethod

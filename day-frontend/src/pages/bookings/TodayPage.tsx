@@ -33,6 +33,7 @@ import TakePaymentPanel from '../../components/booking/TakePaymentPanel'
 import AssignCleanersPanel from '../../components/cleaning/AssignCleanersPanel'
 import { Badge } from '../../components/ui/badge'
 import Spinner from '../../components/ui/Spinner'
+import FailedNotices from '../../components/messaging/FailedNotices'
 
 export default function TodayPage() {
   const { t, i18n } = useTranslation()
@@ -64,6 +65,7 @@ export default function TodayPage() {
       ) : (
         <div className="space-y-6">
           {isError && <p role="alert" className="text-sm text-danger">{t('today.refreshFailed')}</p>}
+          <FailedNotices />
           <DaySummary checks={data} debt={totalDebt(items)} today={today} />
           <AttentionCard items={items} today={today} cleaningLoading={cleaning.isLoading} cleaningFailed={cleaning.isError} />
           <div className="grid grid-cols-1 items-start gap-6 md:grid-cols-2 xl:grid-cols-3">

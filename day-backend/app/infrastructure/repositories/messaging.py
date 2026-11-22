@@ -304,6 +304,24 @@ class SqlOutboundNotificationRepository(OutboundNotificationRepository):
         rows = (await self._session.scalars(stmt)).all()
         return [_to_notification(m) for m in rows]
 
+    async def list_failed(self, company_id: uuid.UUID, since: datetime, limit: int = 50) -> list[OutboundNotification]:
+        stmt = (
+            select(OutboundNotificationModel)
+            .where(
+                OutboundNotificationModel.company_id == company_id,
+                OutboundNotificationModel.status == NotificationStatus.FAILED.value,
+                OutboundNotificationModel.attempts >= OutboundNotification.MAX_ATTEMPTS,
+                OutboundNotificationModel.created_at >= since,
+            )
+            .order_by(OutboundNotificationModel.created_at.desc())
+            .limit(limit)
+        )
+        return [_to_notification(m) for m in (await self._session.scalars(stmt)).all()]
+
+    async def get_for_company(self, company_id: uuid.UUID, notification_id: uuid.UUID) -> OutboundNotification | None:
+        model = await self._session.get(OutboundNotificationModel, notification_id)
+        return _to_notification(model) if model is not None and model.company_id == company_id else None
+
 
 class SqlChannelLinkCodeRepository(ChannelLinkCodeRepository):
     def __init__(self, session: AsyncSession) -> None:

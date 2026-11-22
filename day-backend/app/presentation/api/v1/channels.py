@@ -8,6 +8,7 @@ inbound guest message find its tenant.
 from __future__ import annotations
 
 import uuid
+from datetime import datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
@@ -16,11 +17,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.application.messaging.link_channel import StrandsTwoFactor
 from app.config import settings
 from app.domain.auth.permissions import Permission
-from app.domain.messaging.entities import ChannelIdentity
+from app.domain.messaging.entities import ChannelIdentity, OutboundNotification
 from app.domain.messaging.value_objects import Channel
 from app.infrastructure.database import get_session
 from app.infrastructure.messaging.factory import build_link_service
-from app.infrastructure.repositories.messaging import SqlChannelIdentityRepository
+from app.infrastructure.repositories.messaging import SqlChannelIdentityRepository, SqlOutboundNotificationRepository
 from app.presentation.api.deps import get_company_id, get_user_id, require
 
 channel_router = APIRouter(prefix="/channels", tags=["channels"])
@@ -174,3 +175,69 @@ async def disconnect_channel(
     updated = await repo.update(identity)
     await session.commit()
     return _to_response(updated)
+
+
+# ---------- Notifications that never reached the host ----------
+
+# How far back the owner is shown what did not arrive: older news is no longer news.
+FAILED_DAYS = 7
+
+
+class FailedNotificationResponse(BaseModel):
+    id: uuid.UUID
+    event: str
+    created_at: datetime | None = None
+    # The provider's last word, cut short: «Forbidden: bot was blocked by the user».
+    reason: str | None = None
+    property_name: str | None = None
+    guest_name: str | None = None
+    booking_id: str | None = None
+
+
+def _failed(n: OutboundNotification) -> FailedNotificationResponse:
+    payload = n.payload or {}
+    return FailedNotificationResponse(
+        id=n.id,
+        event=n.event.value,
+        created_at=n.created_at,
+        reason=(n.last_error or "")[:200] or None,
+        property_name=payload.get("property_name") if isinstance(payload.get("property_name"), str) else None,
+        guest_name=payload.get("guest_name") if isinstance(payload.get("guest_name"), str) else None,
+        booking_id=str(payload["booking_id"]) if payload.get("booking_id") else None,
+    )
+
+
+@channel_router.get(
+    "/failed",
+    response_model=list[FailedNotificationResponse],
+    dependencies=[Depends(require(Permission.API_KEYS_MANAGE))],
+)
+async def list_failed_notifications(
+    session: AsyncSession = Depends(get_session),
+    company_id: uuid.UUID = Depends(get_company_id),
+):
+    """The company's notices the bot gave up on in the last week: a double sale, a guest's
+    booking or order the host never heard of, said on the owner's Today."""
+    since = datetime.utcnow() - timedelta(days=FAILED_DAYS)
+    return [_failed(n) for n in await SqlOutboundNotificationRepository(session).list_failed(company_id, since)]
+
+
+@channel_router.post(
+    "/failed/{notification_id}/send-again",
+    status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[Depends(require(Permission.API_KEYS_MANAGE))],
+)
+async def send_failed_notification_again(
+    notification_id: uuid.UUID,
+    session: AsyncSession = Depends(get_session),
+    company_id: uuid.UUID = Depends(get_company_id),
+):
+    """Another round of tries for a notice given up on, once the owner fixed what kept it
+    back (a bot unblocked, a chat linked again)."""
+    repo = SqlOutboundNotificationRepository(session)
+    notification = await repo.get_for_company(company_id, notification_id)
+    if notification is None or not notification.undelivered:
+        raise HTTPException(status_code=404, detail="Not found")
+    notification.send_again()
+    await repo.update(notification)
+    await session.commit()
