@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { addDays, format, parseISO } from 'date-fns'
 import { CalendarDays, Rows2 } from 'lucide-react'
 import { isDayBlocked } from '../../lib/booking-dates'
-import { money, stayQuote, type PublicNight } from '../../lib/public-stay'
+import { money, stayQuote, takenDays, type PublicNight } from '../../lib/public-stay'
 
 type Range = { checkIn: string | null; checkOut: string | null }
 
@@ -44,13 +44,6 @@ export function StayCalendar({
   const months = useRef<HTMLDivElement>(null)
 
   const free = useMemo(() => new Set(nights.filter((n) => n.free).map((n) => n.date)), [nights])
-  // A night the page has not loaded counts as taken.
-  const taken = useMemo(() => {
-    const set = new Set(nights.filter((n) => !n.free).map((n) => n.date))
-    const last = nights.at(-1)?.date
-    if (last) set.add(next(last))
-    return set
-  }, [nights])
   const prices = useMemo(() => new Map(nights.map((n) => [n.date, n.price])), [nights])
   // From this week's Monday to the day after the last night loaded: whole weeks for the strip.
   const days = useMemo(() => {
@@ -61,6 +54,8 @@ export function StayCalendar({
     for (let d = monday; iso(d) <= next(last) || out.length % 7 !== 0; d = addDays(d, 1)) out.push(iso(d))
     return out
   }, [today, nights])
+  // A night the page has not loaded counts as taken, to the calendar's last cell.
+  const taken = useMemo(() => takenDays(nights, days.at(-1) ?? today), [nights, days, today])
   const byMonth = useMemo(() => {
     const groups = new Map<string, string[]>()
     for (const day of days) if (day >= today) groups.set(day.slice(0, 7), [...(groups.get(day.slice(0, 7)) ?? []), day])

@@ -208,7 +208,7 @@ export function GuestMinibar({
         <>
           {/* Room under the last product for the bar that floats over it. */}
           <div className="h-16" aria-hidden />
-          <div className="fixed inset-x-0 bottom-0 z-10 mx-auto max-w-[640px] px-4 pb-[max(1rem,env(safe-area-inset-bottom))] motion-safe:animate-[sheet-up_250ms_cubic-bezier(.2,.8,.2,1)]">
+          <div className="fixed inset-x-0 bottom-0 z-sticky mx-auto max-w-[480px] px-2.5 pb-[max(10px,env(safe-area-inset-bottom))] motion-safe:animate-[sheet-up_250ms_cubic-bezier(.2,.8,.2,1)]">
             <button type="button" onClick={() => setOpen(true)} className="flex min-h-14 w-full items-center justify-between rounded-full bg-[#111114] px-5 text-[15px] font-semibold text-white shadow-[0_8px_24px_rgb(0_0_0/0.2)]">
               <span>{t('guestPanel.minibar.cart', { qty: count })}</span>
               <span className="tabular-nums">{money(cartTotal(lines), locale)}</span>

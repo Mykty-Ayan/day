@@ -165,6 +165,8 @@ export interface GuestPanel {
   closed: boolean
   /** The company's own day, YYYY-MM-DD: which buttons fit the stay. */
   today: string
+  /** The company's wall clock at the answer, no zone: the countdown runs on it. */
+  now?: string | null
   company: { title: string; logo_url: string | null; accent_color: string | null; whatsapp: string | null } | null
   guest_name: string | null
   booking: {

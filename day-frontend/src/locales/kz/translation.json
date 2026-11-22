@@ -2307,7 +2307,6 @@
     "paid": "{{total}} ішінен {{paid}} төленді",
     "checkIn": "Қалай кіруге болады",
     "rules": "Ереже",
-    "checkOutBy": "{{time}} дейін шығу",
     "contact": "Үй иесімен байланыс",
     "buttons": {
       "pay": "Қалай төлеуге болады",
@@ -2385,12 +2384,8 @@
     "statusPaid": "Төленді",
     "statusDue": "Қалғаны {{amount}}",
     "statusClosed": "Бронь жабылды",
-    "quickActions": "Жылдам әрекеттер",
     "quick": {
-      "route": "Бағыт",
-      "wifi": "Wi-Fi",
-      "write": "Жазу",
-      "minibar": "Мини-бар"
+      "wifi": "Wi-Fi"
     },
     "copy": "Көшіру",
     "copied": "Көшірілді",
@@ -2400,8 +2395,37 @@
     "stepTime": "{{when}} ашылады — кіруге {{hours}} сағ қалғанда",
     "stepTimeDone": "Кіруге {{hours}} сағаттан аз қалды",
     "cannotGetInHint": "Үй иесіне жазыңыз — бірден көмектесеміз",
-    "departureToday": "Бүгін {{time}} дейін шығу",
-    "helpHint": "Тақырыпты таңдаңыз — WhatsApp дайын хатпен ашылады."
+    "helpHint": "Тақырыпты таңдаңыз — WhatsApp дайын хатпен ашылады.",
+    "yourLink": "Сіздің сілтемеңіз",
+    "stages": "Сапар кезеңдері",
+    "tabs": {
+      "in": "Кіру",
+      "stay": "Пәтерде",
+      "out": "Шығу"
+    },
+    "arriveToday": "Кіру бүгін {{time}}-ден",
+    "arriveOn": "Кіру {{day}} {{time}}-ден",
+    "inHours": "{{h}} сағ {{m}} мин қалды",
+    "inDays": "{{count}} күн қалды",
+    "canEnter": "Кіруге болады",
+    "leaveToday": "Шығу бүгін {{time}}-ге дейін",
+    "leaveOn": "Шығу {{day}} {{time}}-ге дейін",
+    "timeToLeave": "Шығатын уақыт болды",
+    "welcome": "Сіз пәтердесіз",
+    "confirmed": "Бронь расталды",
+    "doorLater": "Есік коды толық төлемнен кейін, кіруге жақын бронь бетінде шығады",
+    "password": "құпиясөз",
+    "fromTime": "{{time}}-ден",
+    "untilTime": "{{time}}-ге дейін",
+    "needMore": "Тағы бірдеңе керек пе?",
+    "beforeLeaving": "Шығар алдында",
+    "allDone": "Бәрі дайын, шығуға болады",
+    "doneOf": "{{total}} ішінен {{done}}",
+    "left": "Қалды",
+    "needHelp": "Көмек керек пе?",
+    "inWhatsApp": "WhatsApp-та",
+    "writeHost": "Үй иесіне жазу",
+    "doorAfterPay": "Есік коды — төлемнен кейін"
   },
   "stayHere": {
     "title": "Сіз осында тұрасыз ба?",

@@ -1,21 +1,20 @@
-import { useRef, useState, type CSSProperties, type MouseEvent, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type CSSProperties, type MouseEvent, type ReactNode } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import {
   CalendarPlus,
   Check,
-  Circle,
+  CircleCheck,
   Clock,
   Copy,
   FileText,
   KeyRound,
   Lock,
   LogOut,
-  MapPin,
   MessageCircle,
   Navigation,
   ScrollText,
-  ShoppingBag,
+  Sofa,
   Sparkles,
   Sunrise,
   Wallet,
@@ -29,8 +28,8 @@ import { money, onAccent, retryNetwork } from '../../lib/public-stay'
 import { GuestFrame, LoadFailed } from './GuestFrame'
 import { GuestMinibar } from './GuestMinibar'
 
-// Day's own green when the company has no color of its own, as on the flat's page.
-const DEFAULT_ACCENT = '#047857'
+// The mockup's blue when the company has no color of its own, as on the flat's page.
+const DEFAULT_ACCENT = '#2F5BFF'
 
 const ICONS: Record<PanelButton, typeof Wallet> = {
   pay: Wallet,
@@ -44,12 +43,20 @@ const ICONS: Record<PanelButton, typeof Wallet> = {
   checkedOut: LogOut,
   question: MessageCircle,
 }
+// What the guest may need while staying: tiles on «In the flat».
+const DURING: PanelButton[] = ['extend', 'lateCheckOut', 'cleaning', 'broken']
 
-/** A guest's own page for their booking: the stay, what is left to pay, how to get
- *  in once paid, the address, the rules, the minibar, and a way to write to the host. */
+const CARD = 'm-2 rounded-[28px] bg-white p-5'
+const H2 = 'font-guest-display mb-3 text-[22px] font-bold tracking-[-0.025em]'
+const MUTE = 'text-[#76767F]'
+
+type Tab = 'in' | 'stay' | 'out'
+
+/** A guest's own page for their booking, as the approved mockup (28.10): the stay and
+ *  how long until it, then by stage: getting in, in the flat, leaving. */
 export default function GuestPanelPage({ code }: { code: string }) {
   return (
-    <GuestFrame only={['ru', 'kz', 'en']} overlay personal>
+    <GuestFrame only={['ru', 'kz', 'en']} overlay="page" personal>
       {(locale) => <Panel code={code} locale={locale} />}
     </GuestFrame>
   )
@@ -66,58 +73,30 @@ function Panel({ code, locale }: { code: string; locale: string }) {
       </div>
     )
   }
-  return <PanelView code={code} panel={panel.data} locale={locale} />
+  return <PanelView code={code} panel={panel.data} locale={locale} receivedAt={panel.dataUpdatedAt} />
 }
 
 // The stored times are the flat's wall clock: read them as such, whatever the phone's zone.
 const wallClock = (iso: string) => new Date(`${iso.slice(0, 16)}:00`)
 
-function Card({ children, className = '', ...rest }: { children: ReactNode; className?: string; id?: string; 'aria-label'?: string }) {
-  return (
-    <section
-      {...rest}
-      className={`rounded-[28px] bg-white p-5 ${className}`}
-    >
-      {children}
-    </section>
-  )
-}
-
-function CardTitle({ icon, children }: { icon: ReactNode; children: ReactNode }) {
-  return (
-    <h2 className="mb-3 flex items-center gap-2.5 text-[17px] font-semibold text-[#111114]">
-      <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--accent-soft)] text-[var(--accent)]">{icon}</span>
-      {children}
-    </h2>
-  )
-}
-
-/** One value the guest types into their phone (the Wi-Fi password): big, with a copy button. */
-function CopyRow({ label, value }: { label: string; value: string }) {
+/** A copy button for one value the guest types into their phone (the Wi-Fi password). */
+function CopyButton({ label, value }: { label: string; value: string }) {
   const { t } = useTranslation()
   const [copied, setCopied] = useState(false)
   return (
-    <div className="flex items-center gap-3 rounded-2xl bg-[#F3F3F6] px-4 py-3">
-      <div className="min-w-0 flex-1">
-        <p className="text-[13px] text-[#76767F]">{label}</p>
-        <p dir="ltr" className="break-all text-lg font-semibold tabular-nums text-[#111114]">{value}</p>
-      </div>
-      <button
-        type="button"
-        onClick={() => {
-          void navigator.clipboard?.writeText(value).then(() => {
-            setCopied(true)
-            window.setTimeout(() => setCopied(false), 1500)
-          })
-        }}
-        aria-label={`${copied ? t('guestPanel.copied') : t('guestPanel.copy')}: ${label}`}
-        className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full ring-1 transition-colors ${
-          copied ? 'bg-emerald-600 text-white ring-emerald-600' : 'bg-white text-[var(--accent)] ring-[#E7E7ED]'
-        }`}
-      >
-        {copied ? <Check className="h-5 w-5" aria-hidden /> : <Copy className="h-5 w-5" aria-hidden />}
-      </button>
-    </div>
+    <button
+      type="button"
+      onClick={() => {
+        void navigator.clipboard?.writeText(value).then(() => {
+          setCopied(true)
+          window.setTimeout(() => setCopied(false), 1500)
+        })
+      }}
+      aria-label={`${copied ? t('guestPanel.copied') : t('guestPanel.copy')}: ${label}`}
+      className={`flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-full ${copied ? 'bg-[var(--accent)] text-[var(--on-accent)]' : 'bg-[#F3F3F6]'}`}
+    >
+      {copied ? <Check className="h-4 w-4" aria-hidden /> : <Copy className="h-4 w-4" aria-hidden />}
+    </button>
   )
 }
 
@@ -134,9 +113,9 @@ function Sheet({ title, onClose, children }: { title: string; onClose: () => voi
         onKeyDown={(e) => {
           if (e.key === 'Escape') onClose()
         }}
-        className="max-h-[85vh] w-full max-w-[640px] overflow-y-auto rounded-t-3xl bg-white px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-3 motion-safe:animate-[sheet-up_250ms_cubic-bezier(.2,.8,.2,1)]"
+        className="max-h-[85vh] w-full max-w-[480px] overflow-y-auto rounded-t-[28px] bg-white px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-3 motion-safe:animate-[sheet-up_250ms_cubic-bezier(.2,.8,.2,1)]"
       >
-        <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-gray-200" aria-hidden />
+        <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-[#E7E7ED]" aria-hidden />
         <div className="mb-3 flex items-center justify-between">
           <h2 className="text-lg font-semibold">{title}</h2>
           <button type="button" onClick={onClose} aria-label={t('guest.close')} className="flex h-11 w-11 items-center justify-center rounded-full bg-[#F3F3F6]">
@@ -149,28 +128,77 @@ function Sheet({ title, onClose, children }: { title: string; onClose: () => voi
   )
 }
 
-type Open = 'help' | 'rules' | 'checkout' | 'maps' | null
-
-function PanelView({ code, panel, locale }: { code: string; panel: GuestPanel; locale: string }) {
+/** The departure checklist: the host's instructions, a line each, ticked on this phone only. */
+function Checklist({ text }: { text: string }) {
   const { t } = useTranslation()
-  const [open, setOpen] = useState<Open>(null)
+  const lines = text
+    .split('\n')
+    .map((line) => line.replace(/^\s*(?:[-•*]|\d+[.)])\s*/, '').trim())
+    .filter(Boolean)
+  const [done, setDone] = useState<Set<number>>(new Set())
+  if (lines.length < 2) return <p dir="auto" className="whitespace-pre-line text-[15px] leading-relaxed">{text}</p>
+  return (
+    <>
+      <p className={`-mt-1 mb-2 text-sm ${MUTE}`}>
+        {done.size === lines.length ? t('guestPanel.allDone') : t('guestPanel.doneOf', { done: done.size, total: lines.length })}
+      </p>
+      <div className="mb-1.5 h-1.5 overflow-hidden rounded-full bg-[#F3F3F6]">
+        <i className="block h-full rounded-full bg-[var(--accent)] transition-[width]" style={{ width: `${(done.size / lines.length) * 100}%` }} />
+      </div>
+      {lines.map((line, n) => (
+        <label key={n} className="flex cursor-pointer items-center gap-3 border-b border-[#E7E7ED] py-2.5 text-[15px] last:border-0">
+          <input
+            type="checkbox"
+            checked={done.has(n)}
+            onChange={() =>
+              setDone((now) => {
+                const next = new Set(now)
+                if (next.has(n)) next.delete(n)
+                else next.add(n)
+                return next
+              })
+            }
+            className="h-6 w-6 shrink-0 rounded-lg accent-[var(--accent)]"
+          />
+          <span dir="auto" className={done.has(n) ? `${MUTE} line-through` : ''}>{line}</span>
+        </label>
+      ))}
+    </>
+  )
+}
+
+function PanelView({ code, panel, locale, receivedAt }: { code: string; panel: GuestPanel; locale: string; receivedAt: number }) {
+  const { t } = useTranslation()
+  const [help, setHelp] = useState(false)
   // A second tap while the first «I have left» is on its way tells the host nothing new.
   const leaving = useRef(false)
   const { booking: b, flat, access, company } = panel
+  const stage = stageOf(panel)
+  // The stage the guest is at opens first: before getting in, in the flat, leaving.
+  const [tab, setTab] = useState<Tab>(stage === 'departure' || stage === null ? 'out' : stage === 'stay' || b?.status === 'checked_in' ? 'stay' : 'in')
+  // The countdown moves with the clock.
+  const [now, setNow] = useState(() => new Date())
+  // The company's clock against the phone's at the answer: the countdown runs on the
+  // company's wall clock whatever zone the phone is in.
+  const skew = panel.now ? wallClock(panel.now).getTime() - receivedAt : 0
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(new Date()), 60_000)
+    return () => window.clearInterval(timer)
+  }, [])
+
   const color = company?.accent_color ?? DEFAULT_ACCENT
   const style = {
     '--accent': color,
     '--on-accent': onAccent(color),
-    '--accent-soft': `color-mix(in oklab, ${color} 12%, white)`,
+    '--accent-soft': `color-mix(in oklab, ${color} 16%, white)`,
   } as CSSProperties
 
   const longDay = (iso: string) => wallClock(iso).toLocaleDateString(locale, { day: 'numeric', month: 'long' })
-  const shortDay = (iso: string) => wallClock(iso).toLocaleDateString(locale, { day: 'numeric', month: 'short' })
-  const weekday = (iso: string) => wallClock(iso).toLocaleDateString(locale, { weekday: 'short' })
+  const shortDay = (iso: string) => wallClock(iso).toLocaleDateString(locale, { weekday: 'short', day: 'numeric', month: 'short' })
+  const fullDay = (iso: string) => wallClock(iso).toLocaleDateString(locale, { weekday: 'long', day: 'numeric', month: 'long' })
   const dates = b ? `${longDay(b.check_in)} — ${longDay(b.check_out)}` : ''
   const checkIn = b?.check_in.slice(11, 16) ?? ''
   const checkOut = b?.check_out.slice(11, 16) ?? ''
-  const stage = stageOf(panel)
   const buttons = panelButtons(panel)
   // On arrival day «cannot get in» has its own red card; any other day it is one of the reasons.
   const helpButtons = buttons.filter((k) => k !== 'pay' && !(k === 'cannotGetIn' && stage === 'arrival'))
@@ -211,7 +239,7 @@ function PanelView({ code, panel, locale }: { code: string; panel: GuestPanel; l
         onClick={key === 'checkedOut' ? leave : undefined}
         className="flex min-h-14 items-center gap-3 rounded-2xl px-2 text-[15px] font-medium text-[#111114] active:bg-[#F3F3F6]"
       >
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--accent-soft)] text-[var(--accent)]">
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#F3F3F6]">
           <Icon className="h-5 w-5" aria-hidden />
         </span>
         {t(`guestPanel.buttons.${key}`)}
@@ -219,289 +247,351 @@ function PanelView({ code, panel, locale }: { code: string; panel: GuestPanel; l
     )
   }
 
-  const quick: { key: string; label: string; icon: typeof Wallet; onClick?: () => void; href?: string; locked?: boolean }[] = []
-  if (maps.length > 0) quick.push({ key: 'route', label: t('guestPanel.quick.route'), icon: Navigation, onClick: () => setOpen('maps') })
-  if (!panel.closed) {
-    quick.push({
-      key: 'wifi',
-      label: t('guestPanel.quick.wifi'),
-      icon: access ? Wifi : Lock,
-      locked: !access,
-      onClick: () => document.getElementById('check-in')?.scrollIntoView({ behavior: 'smooth', block: 'start' }),
-    })
+  // How long until the next step, by the flat's wall clock against the phone's: hours on
+  // the day itself, days before. A guest in another time zone sees the hours off by it.
+  function countdown(iso: string): string {
+    const minutes = Math.round((wallClock(iso).getTime() - (now.getTime() + skew)) / 60_000)
+    if (minutes <= 0) return ''
+    if (iso.slice(0, 10) === panel.today) return t('guestPanel.inHours', { h: Math.floor(minutes / 60), m: minutes % 60 })
+    const days = Math.round((Date.parse(iso.slice(0, 10)) - Date.parse(panel.today)) / 86_400_000)
+    return t('guestPanel.inDays', { count: days })
   }
-  if (panel.menu) {
-    quick.push({
-      key: 'minibar',
-      label: t('guestPanel.quick.minibar'),
-      icon: ShoppingBag,
-      onClick: () => document.getElementById('minibar')?.scrollIntoView({ behavior: 'smooth', block: 'start' }),
-    })
+  const heroLines = (): [string, string] => {
+    if (!b || panel.closed) return ['', t('guestPanel.statusClosed')]
+    // Past the check-out day and not closed yet: the host has not marked it.
+    if (stage === null) return [t('guestPanel.leaveOn', { day: shortDay(b.check_out), time: checkOut }), t('guestPanel.timeToLeave')]
+    if (stage === 'departure') return [t('guestPanel.leaveToday', { time: checkOut }), countdown(b.check_out) || t('guestPanel.timeToLeave')]
+    if (stage === 'stay' || b.status === 'checked_in') return [t('guestPanel.leaveOn', { day: shortDay(b.check_out), time: checkOut }), t('guestPanel.welcome')]
+    return [
+      stage === 'arrival' ? t('guestPanel.arriveToday', { time: checkIn }) : t('guestPanel.arriveOn', { day: shortDay(b.check_in), time: checkIn }),
+      // The hour has come: in with the way in open, else the code still waits for the payment.
+      countdown(b.check_in) || (access ? t('guestPanel.canEnter') : t('guestPanel.doorAfterPay')),
+    ]
   }
-  if (helpButtons.length > 0) quick.push({ key: 'write', label: t('guestPanel.quick.write'), icon: MessageCircle, onClick: () => setOpen('help') })
+  const [line1, line2] = heroLines()
+  const chip = 'inline-flex h-7 items-center gap-1.5 rounded-full bg-white/20 px-2.5 text-xs font-semibold backdrop-blur-md'
+
+  const wifi = access && (access.wifi_name || access.wifi_password) && (
+    <div className="flex min-w-0 flex-col gap-1.5 rounded-[26px] bg-white p-4">
+      <div className="flex items-center justify-between">
+        <span className="flex h-[38px] w-[38px] items-center justify-center rounded-full bg-[#F3F3F6]"><Wifi className="h-[18px] w-[18px]" aria-hidden /></span>
+        {access.wifi_password && <CopyButton label={t('guestPanel.wifiPassword')} value={access.wifi_password} />}
+      </div>
+      {access.wifi_name && (
+        <span className={`text-xs ${MUTE}`}>
+          <span dir="ltr">{access.wifi_name}</span>
+          {access.wifi_password && ` · ${t('guestPanel.password')}`}
+        </span>
+      )}
+      <b dir="ltr" className="break-all text-[17px]">{access.wifi_password ?? access.wifi_name}</b>
+      {!access.wifi_password && access.wifi_name && <CopyButton label={t('guestPanel.wifiNetwork')} value={access.wifi_name} />}
+    </div>
+  )
 
   return (
-    <div style={style} className="mx-auto min-h-screen max-w-[480px] bg-[#EDEDF2] pb-10">
-      {/* The flat's photo in a rounded frame, as the approved mockup; the company's color when it has none. */}
-      <header className="relative m-2 h-[300px] overflow-hidden rounded-[34px] bg-[var(--accent)]">
-        {flat?.photo_url && <img src={flat.photo_url} alt="" className="absolute inset-0 h-full w-full object-cover" fetchPriority="high" />}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-black/30" aria-hidden />
-        <div className="absolute inset-x-0 bottom-0 space-y-1 px-5 pb-5 text-white">
-          {company && (
-            <p dir="auto" className="flex items-center gap-2 text-[13px] font-medium text-white/85">
-              {company.logo_url && <img src={company.logo_url} alt="" className="h-6 w-6 rounded-md object-cover" />}
-              {company.title}
-            </p>
-          )}
-          {panel.guest_name && <p className="text-[15px] text-white/90">{t('guestPanel.hello', { name: panel.guest_name })}</p>}
-          <h1 dir="auto" className="font-guest-display text-[30px] font-bold leading-tight tracking-tight">{flat?.name}</h1>
+    <div style={style} className={`min-h-screen bg-[#EDEDF2] text-[#111114] ${helpButtons.length > 0 && !panel.closed ? 'pb-28' : 'pb-8'}`}>
+      {/* Hello and the stay in a line; the language button floats at its end (GuestFrame). */}
+      <div className="flex items-center gap-3 px-4 pb-1 pe-24 pt-4">
+        <span aria-hidden className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[var(--accent-soft)] text-lg font-bold text-[var(--accent)]">
+          {(panel.guest_name ?? flat?.name ?? '·').trim().charAt(0).toUpperCase()}
+        </span>
+        <div className="min-w-0">
+          {panel.guest_name && <p className="truncate text-lg font-bold tracking-[-0.02em]">{t('guestPanel.hello', { name: panel.guest_name })}</p>}
+          <h1 dir="auto" className={`truncate text-[13px] ${MUTE}`}>{flat?.name}</h1>
         </div>
-      </header>
-
-      <div className="relative space-y-2 px-2">
-        {b && (
-          <Card aria-label={t('guestPanel.trip')} className="!p-4">
-            <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
-              <div>
-                <p className="text-[13px] text-[#76767F]">{t('guestPanel.checkInLabel')}</p>
-                <p className="text-[17px] font-semibold tabular-nums">{shortDay(b.check_in)}</p>
-                <p className="text-[13px] tabular-nums text-[#76767F]">{weekday(b.check_in)}, {checkIn}</p>
-              </div>
-              <span className="rounded-full bg-[#F3F3F6] px-3 py-1 text-[13px] font-medium text-[#76767F]">
-                {b.rental_mode === 'hourly' ? `${checkIn}–${checkOut}` : t('guestPanel.nights', { count: nightsOf(b) })}
-              </span>
-              <div className="text-end">
-                <p className="text-[13px] text-[#76767F]">{t('guestPanel.checkOutLabel')}</p>
-                <p className="text-[17px] font-semibold tabular-nums">{shortDay(b.check_out)}</p>
-                <p className="text-[13px] tabular-nums text-[#76767F]">{weekday(b.check_out)}, {checkOut}</p>
-              </div>
-            </div>
-            <div className="mt-3 border-t border-stone-100 pt-3">
-              {panel.closed ? (
-                <span className="inline-flex rounded-full bg-[#F3F3F6] px-3 py-1 text-[13px] font-semibold text-[#76767F]">{t('guestPanel.statusClosed')}</span>
-              ) : b.remaining > 0 ? (
-                <span className="inline-flex rounded-full bg-amber-100 px-3 py-1 text-[13px] font-semibold text-amber-900">
-                  {t('guestPanel.statusDue', { amount: money(b.remaining, locale) })}
-                </span>
-              ) : (
-                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-3 py-1 text-[13px] font-semibold text-emerald-900">
-                  <Check className="h-3.5 w-3.5" aria-hidden />
-                  {t('guestPanel.statusPaid')}
-                </span>
-              )}
-            </div>
-          </Card>
-        )}
-
-        {quick.length > 0 && (
-          <nav aria-label={t('guestPanel.quickActions')} className="grid grid-flow-col auto-cols-fr gap-2 py-1">
-            {quick.map(({ key, label, icon: Icon, onClick, locked }) => (
-              <button key={key} type="button" onClick={onClick} className="flex flex-col items-center gap-1.5">
-                <span
-                  className={`flex h-14 w-14 items-center justify-center rounded-2xl bg-white ${
-                    locked ? 'text-[#A3A3AD]' : 'text-[var(--accent)]'
-                  }`}
-                >
-                  <Icon className="h-6 w-6" aria-hidden />
-                </span>
-                <span className="text-xs font-medium text-[#2A2A30]">{label}</span>
-              </button>
-            ))}
-          </nav>
-        )}
-
-        {panel.closed ? (
-          <Card>
-            <p role="status" className="text-[15px] text-[#2A2A30]">{t('guestPanel.closed')}</p>
-            {helpButtons.length > 0 && <div className="mt-3 flex flex-col">{helpButtons.map(reason)}</div>}
-          </Card>
-        ) : (
-          <>
-            {buttons.includes('cannotGetIn') && stage === 'arrival' && (
-              <a
-                href={href('cannotGetIn')}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-3 rounded-3xl bg-red-600 px-5 py-4 text-white shadow-[0_8px_24px_rgb(220_38_38/0.25)]"
-              >
-                <KeyRound className="h-6 w-6 shrink-0" aria-hidden />
-                <span className="min-w-0">
-                  <span className="block text-[15px] font-semibold">{t('guestPanel.buttons.cannotGetIn')}</span>
-                  <span className="block text-[13px] text-white/85">{t('guestPanel.cannotGetInHint')}</span>
-                </span>
-              </a>
-            )}
-
-            {stage === 'departure' && buttons.includes('checkedOut') && (
-              <Card>
-                <CardTitle icon={<LogOut className="h-4 w-4" aria-hidden />}>{t('guestPanel.departureToday', { time: checkOut })}</CardTitle>
-                {flat?.check_out_instructions && (
-                  <p dir="auto" className="mb-3 whitespace-pre-line text-[15px] leading-relaxed text-[#2A2A30]">{flat.check_out_instructions}</p>
-                )}
-                <a
-                  href={href('checkedOut')}
-                  onClick={leave}
-                  className="flex min-h-12 items-center justify-center rounded-full bg-[#111114] text-[15px] font-semibold text-white"
-                >
-                  {t('guestPanel.buttons.checkedOut')}
-                </a>
-              </Card>
-            )}
-
-            {b && due > 0 && (
-              <Card aria-label={t('guestPanel.payment')}>
-                <CardTitle icon={<Wallet className="h-4 w-4" aria-hidden />}>{t('guestPanel.payment')}</CardTitle>
-                <p data-testid="guest-remaining" className="text-[28px] font-bold tabular-nums tracking-tight text-[#111114]">
-                  {money(due, locale)}
-                </p>
-                <p className="text-[13px] text-[#76767F]">{t('guestPanel.paid', { paid: money(b.paid, locale), total: money(b.total, locale) })}</p>
-                {minibarDue > 0 && (
-                  <p data-testid="guest-minibar-due" className="text-[13px] text-[#76767F]">
-                    {t('guestPanel.ordersDue', { amount: money(minibarDue, locale) })}
-                  </p>
-                )}
-                {buttons.includes('pay') && (
-                  <a
-                    href={href('pay')}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="mt-4 flex min-h-12 items-center justify-center gap-2 rounded-full bg-[#111114] text-[15px] font-semibold text-white"
-                  >
-                    <Wallet className="h-5 w-5" aria-hidden />
-                    {t('guestPanel.buttons.pay')}
-                  </a>
-                )}
-              </Card>
-            )}
-
-            <Card id="check-in" aria-label={t('guestPanel.checkIn')} className="scroll-mt-4">
-              <CardTitle icon={access ? <KeyRound className="h-4 w-4" aria-hidden /> : <Lock className="h-4 w-4" aria-hidden />}>
-                {t('guestPanel.checkIn')}
-              </CardTitle>
-              {access ? (
-                <div className="space-y-3 motion-safe:animate-[fade-in_400ms_ease-out]">
-                  {access.instructions && (
-                    <p dir="auto" className="whitespace-pre-line text-[15px] leading-relaxed text-[#111114]">{access.instructions}</p>
-                  )}
-                  {access.facts.map((fact) => (
-                    <p key={fact} dir="auto" className="whitespace-pre-line rounded-2xl bg-[#F3F3F6] px-4 py-3 text-[15px] text-[#111114]">{fact}</p>
-                  ))}
-                  {access.wifi_name && <CopyRow label={t('guestPanel.wifiNetwork')} value={access.wifi_name} />}
-                  {access.wifi_password && <CopyRow label={t('guestPanel.wifiPassword')} value={access.wifi_password} />}
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {/* What is behind the lock, as a blur: the guest sees there is a code to come. */}
-                  <div aria-hidden className="select-none space-y-2 rounded-2xl bg-[#F3F3F6] px-4 py-3 blur-[5px]">
-                    <p className="text-lg font-semibold tracking-[0.3em]">•••• ••</p>
-                    <p className="text-[15px]">Wi-Fi •••••••• · ••••••</p>
-                  </div>
-                  <ul className="space-y-2 text-[15px]">
-                    <li className="flex items-center gap-2.5">
-                      {paidInFull ? <Check className="h-5 w-5 shrink-0 text-emerald-600" aria-hidden /> : <Circle className="h-5 w-5 shrink-0 text-gray-300" aria-hidden />}
-                      <span className={paidInFull ? 'text-[#76767F]' : 'text-[#111114]'}>{t('guestPanel.stepPaid')}</span>
-                    </li>
-                    {opensAt && (
-                      <li className="flex items-center gap-2.5">
-                        {timeReached ? <Check className="h-5 w-5 shrink-0 text-emerald-600" aria-hidden /> : <Clock className="h-5 w-5 shrink-0 text-gray-300" aria-hidden />}
-                        <span className={timeReached ? 'text-[#76767F]' : 'text-[#111114]'}>
-                          {timeReached
-                            ? t('guestPanel.stepTimeDone', { hours: panel.lead_hours })
-                            : t('guestPanel.stepTime', { when: `${longDay(opensAt)}, ${opensAt.slice(11, 16)}`, hours: panel.lead_hours })}
-                        </span>
-                      </li>
-                    )}
-                  </ul>
-                </div>
-              )}
-            </Card>
-
-            {flat && (flat.address || maps.length > 0) && (
-              <Card aria-label={t('guestPanel.address')}>
-                <CardTitle icon={<MapPin className="h-4 w-4" aria-hidden />}>{t('guestPanel.address')}</CardTitle>
-                {flat.address && <p dir="auto" className="text-[15px] text-[#111114]">{flat.address}</p>}
-                {maps.length > 0 && (
-                  <div className="mt-3 grid grid-flow-col auto-cols-fr gap-1 rounded-2xl bg-[#F3F3F6] p-1">
-                    {maps.map((m) => (
-                      <a
-                        key={m.name}
-                        href={m.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex min-h-11 items-center justify-center rounded-xl bg-white text-sm font-semibold text-[#111114] shadow-sm"
-                      >
-                        {m.name}
-                      </a>
-                    ))}
-                  </div>
-                )}
-              </Card>
-            )}
-
-            {flat && (
-              <div className="grid grid-cols-2 gap-3">
-                <button type="button" onClick={() => setOpen('rules')} className="flex flex-col items-start gap-3 rounded-[28px] bg-white p-4 text-start">
-                  <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[var(--accent-soft)] text-[var(--accent)]">
-                    <ScrollText className="h-5 w-5" aria-hidden />
-                  </span>
-                  <span className="text-[15px] font-semibold text-[#111114]">{t('guestPanel.rules')}</span>
-                </button>
-                <button type="button" onClick={() => setOpen('checkout')} className="flex flex-col items-start gap-3 rounded-[28px] bg-white p-4 text-start">
-                  <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[var(--accent-soft)] text-[var(--accent)]">
-                    <LogOut className="h-5 w-5" aria-hidden />
-                  </span>
-                  <span className="text-[15px] font-semibold text-[#111114]">{t('guestPanel.checkOutBy', { time: checkOut })}</span>
-                </button>
-              </div>
-            )}
-
-            {panel.menu && (
-              <div id="minibar" className="scroll-mt-4">
-                <GuestMinibar code={code} menu={panel.menu} minibar={panel.minibar} orders={panel.orders} locale={locale} />
-              </div>
-            )}
-
-            {helpButtons.length > 0 && (
-              <button
-                type="button"
-                onClick={() => setOpen('help')}
-                className="flex min-h-14 w-full items-center justify-center gap-2 rounded-[28px] bg-white text-[15px] font-semibold text-[#111114]"
-              >
-                <MessageCircle className="h-5 w-5 text-[var(--accent)]" aria-hidden />
-                {t('guestPanel.contact')}
-              </button>
-            )}
-          </>
-        )}
       </div>
 
-      {open === 'help' && (
-        <Sheet title={t('guestPanel.contact')} onClose={() => setOpen(null)}>
-          <p className="mb-2 text-[13px] text-[#76767F]">{t('guestPanel.helpHint')}</p>
-          <div className="flex flex-col">{helpButtons.map(reason)}</div>
-        </Sheet>
+      {/* The flat's photo with how long until the next step, as the mockup. */}
+      <section aria-label={t('guestPanel.trip')} className="relative m-2 h-[236px] overflow-hidden rounded-[30px] bg-[#111114] text-white">
+        {flat?.photo_url && <img src={flat.photo_url} alt="" className="absolute inset-0 h-full w-full object-cover" fetchPriority="high" />}
+        <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(0,0,0,.05)_30%,rgba(0,0,0,.72))]" aria-hidden />
+        <span className="absolute start-3.5 top-3.5 inline-flex h-9 items-center gap-1.5 rounded-full border border-white/30 bg-white/20 px-3.5 text-sm font-semibold backdrop-blur-md">
+          <Lock className="h-4 w-4" aria-hidden />
+          {t('guestPanel.yourLink')}
+        </span>
+        <div className="absolute inset-x-[18px] bottom-4">
+          {line1 && <p className="text-[13px] font-semibold opacity-80">{line1}</p>}
+          <p className="font-guest-display mb-2.5 mt-0.5 text-[30px] font-bold leading-[1.1] tracking-[-0.03em]">{line2}</p>
+          {b && (
+            <div className="flex flex-wrap gap-1.5">
+              <span className={chip}>
+                {b.rental_mode === 'hourly' ? `${checkIn}–${checkOut}` : t('guestPanel.nights', { count: nightsOf(b) })}
+              </span>
+              {!panel.closed && (b.status === 'confirmed' || b.status === 'checked_in') && (
+                <span className={chip}>
+                  <CircleCheck className="h-3.5 w-3.5 text-[#4ADE80]" aria-hidden />
+                  {t('guestPanel.confirmed')}
+                </span>
+              )}
+              {!panel.closed &&
+                (b.remaining > 0 ? (
+                  <span className={`${chip} !bg-[#FFF3DC] text-[#8A5A00]`}>{t('guestPanel.statusDue', { amount: money(b.remaining, locale) })}</span>
+                ) : (
+                  <span className={chip}>
+                    <CircleCheck className="h-3.5 w-3.5 text-[#4ADE80]" aria-hidden />
+                    {t('guestPanel.statusPaid')}
+                  </span>
+                ))}
+            </div>
+          )}
+        </div>
+      </section>
+
+      {panel.closed ? (
+        <section className={CARD}>
+          <p role="status" className="text-[15px] text-[#2A2A30]">{t('guestPanel.closed')}</p>
+          {helpButtons.length > 0 && <div className="mt-3 flex flex-col">{helpButtons.map(reason)}</div>}
+        </section>
+      ) : (
+        <>
+          {helpButtons.length > 0 && !panel.closed && (
+            // As the mockup: help is one tap away on every stage. Before the stages in the page,
+            // so the minibar's cart, later, floats over it.
+            <div className="fixed inset-x-0 bottom-0 z-sticky px-2.5 pb-[max(10px,env(safe-area-inset-bottom))] pt-2.5">
+              <div className="mx-auto flex max-w-[460px] items-center justify-between gap-2.5 rounded-full bg-white/90 py-2 pe-2 ps-[22px] shadow-[0_10px_30px_rgba(17,17,20,0.12)] backdrop-blur-xl">
+                <div className="min-w-0">
+                  <b className="block truncate text-[15px]">{t('guestPanel.needHelp')}</b>
+                  <span className={`block text-[13px] ${MUTE}`}>{t('guestPanel.inWhatsApp')}</span>
+                </div>
+                <button type="button" onClick={() => setHelp(true)} className="flex h-14 shrink-0 items-center gap-2 whitespace-nowrap rounded-full bg-[#111114] pe-1.5 ps-4 text-[15px] font-semibold text-white">
+                  {t('guestPanel.writeHost')}
+                  <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[var(--accent)] text-[var(--on-accent)]">
+                    <MessageCircle className="h-5 w-5" aria-hidden />
+                  </span>
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* What is owed shows on every stage: the minibar on the tab is part of it. */}
+      {b && due > 0 && (
+        <section aria-label={t('guestPanel.payment')} className={CARD}>
+          <h2 className={H2}>{t('guestPanel.payment')}</h2>
+          <p data-testid="guest-remaining" className="text-[30px] font-bold tabular-nums tracking-[-0.03em]">{money(due, locale)}</p>
+          <p className={`text-sm ${MUTE}`}>{t('guestPanel.paid', { paid: money(b.paid, locale), total: money(b.total, locale) })}</p>
+          {minibarDue > 0 && (
+            <p data-testid="guest-minibar-due" className={`text-sm ${MUTE}`}>{t('guestPanel.ordersDue', { amount: money(minibarDue, locale) })}</p>
+          )}
+          {buttons.includes('pay') && (
+            <a
+              href={href('pay')}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-4 flex h-[52px] items-center justify-center gap-2 rounded-full bg-[#111114] text-base font-semibold text-white"
+            >
+              <Wallet className="h-5 w-5" aria-hidden />
+              {t('guestPanel.buttons.pay')}
+            </a>
+          )}
+        </section>
       )}
-      {open === 'maps' && (
-        <Sheet title={t('guestPanel.quick.route')} onClose={() => setOpen(null)}>
-          {flat?.address && <p dir="auto" className="mb-3 text-[15px] text-[#111114]">{flat.address}</p>}
-          <div className="flex flex-col gap-2">
-            {maps.map((m) => (
-              <a key={m.name} href={m.url} target="_blank" rel="noopener noreferrer" className="flex min-h-12 items-center gap-3 rounded-2xl bg-[#F3F3F6] px-4 text-[15px] font-semibold">
-                <Navigation className="h-5 w-5 text-[var(--accent)]" aria-hidden />
-                {m.name}
-              </a>
-            ))}
+
+          <div className="sticky top-0 z-sticky bg-[linear-gradient(#EDEDF2_80%,transparent)] px-2 pb-1.5 pt-2">
+            <div role="tablist" aria-label={t('guestPanel.stages')} className="grid grid-cols-3 rounded-2xl bg-[#E2E2E9] p-1">
+              {(
+                [
+                  ['in', KeyRound, t('guestPanel.tabs.in')],
+                  ['stay', Sofa, t('guestPanel.tabs.stay')],
+                  ['out', LogOut, t('guestPanel.tabs.out')],
+                ] as const
+              ).map(([key, Icon, label]) => (
+                <button
+                  key={key}
+                  type="button"
+                  role="tab"
+                  aria-selected={tab === key}
+                  onClick={() => setTab(key)}
+                  className={`flex h-10 items-center justify-center gap-1.5 rounded-xl text-sm font-semibold ${
+                    tab === key ? 'bg-white text-[#111114] shadow-[0_1px_4px_rgba(17,17,20,0.12)]' : MUTE
+                  }`}
+                >
+                  <Icon className="h-4 w-4 shrink-0" aria-hidden />
+                  <span className="truncate">{label}</span>
+                </button>
+              ))}
+            </div>
           </div>
-        </Sheet>
+
+          {tab === 'in' && (
+            <div role="tabpanel">
+              {buttons.includes('cannotGetIn') && stage === 'arrival' && (
+                <a
+                  href={href('cannotGetIn')}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="m-2 flex items-center gap-3 rounded-[28px] bg-red-600 px-5 py-4 text-white shadow-[0_8px_24px_rgb(220_38_38/0.25)]"
+                >
+                  <KeyRound className="h-6 w-6 shrink-0" aria-hidden />
+                  <span className="min-w-0">
+                    <span className="block text-[15px] font-semibold">{t('guestPanel.buttons.cannotGetIn')}</span>
+                    <span className="block text-[13px] text-white/85">{t('guestPanel.cannotGetInHint')}</span>
+                  </span>
+                </a>
+              )}
+
+              {/* Tiles as a smart home's: the way in, the Wi-Fi, the time. */}
+              <section id="check-in" aria-label={t('guestPanel.checkIn')} className="m-2 grid scroll-mt-16 grid-cols-2 gap-2">
+                <div className="row-span-2 flex min-w-0 flex-col justify-between gap-3 rounded-[26px] bg-[#111114] p-4 text-white">
+                  <h2 className="text-xs font-semibold uppercase tracking-[0.06em] text-white/55">{t('guestPanel.checkIn')}</h2>
+                  {access ? (
+                    <div className="flex flex-col gap-2 motion-safe:animate-[fade-in_400ms_ease-out]">
+                      {access.instructions && <p dir="auto" className="whitespace-pre-line text-[15px] leading-snug">{access.instructions}</p>}
+                      {access.facts.map((fact) => (
+                        <p key={fact} dir="auto" className="whitespace-pre-line rounded-2xl bg-white/[0.12] px-3 py-2 text-[15px] font-semibold">{fact}</p>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="flex flex-col gap-3">
+                      <Lock className="h-8 w-8 text-[#8FA8FF]" aria-hidden />
+                      <p className="text-[13px] leading-snug text-white/70">{t('guestPanel.doorLater')}</p>
+                      <ul className="flex flex-col gap-1.5 text-[13px]">
+                        <li className="flex items-center gap-2">
+                          {paidInFull ? <Check className="h-4 w-4 shrink-0 text-[#4ADE80]" aria-hidden /> : <span className="h-4 w-4 shrink-0 rounded-full border-2 border-white/40" aria-hidden />}
+                          <span className={paidInFull ? 'text-white/55' : ''}>{t('guestPanel.stepPaid')}</span>
+                        </li>
+                        {opensAt && (
+                          <li className="flex items-center gap-2">
+                            {timeReached ? <Check className="h-4 w-4 shrink-0 text-[#4ADE80]" aria-hidden /> : <Clock className="h-4 w-4 shrink-0 text-white/40" aria-hidden />}
+                            <span className={timeReached ? 'text-white/55' : ''}>
+                              {timeReached
+                                ? t('guestPanel.stepTimeDone', { hours: panel.lead_hours })
+                                : t('guestPanel.stepTime', { when: `${longDay(opensAt)}, ${opensAt.slice(11, 16)}`, hours: panel.lead_hours })}
+                            </span>
+                          </li>
+                        )}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+                {wifi || (
+                  <div className="flex min-w-0 flex-col gap-1.5 rounded-[26px] bg-white p-4">
+                    <span className="flex h-[38px] w-[38px] items-center justify-center rounded-full bg-[#F3F3F6] text-[#A0A0AA]"><Lock className="h-[18px] w-[18px]" aria-hidden /></span>
+                    <span className={`text-xs ${MUTE}`}>{t('guestPanel.quick.wifi')}</span>
+                    <b className="text-[17px] tracking-[0.2em] text-[#C3C3CB]" aria-hidden>••••••</b>
+                  </div>
+                )}
+                {b && (
+                  <div className="flex min-w-0 flex-col gap-1.5 rounded-[26px] bg-white p-4">
+                    <span className="flex h-[38px] w-[38px] items-center justify-center rounded-full bg-[#F3F3F6]"><Clock className="h-[18px] w-[18px]" aria-hidden /></span>
+                    <span className={`text-xs ${MUTE}`}>{t('guestPanel.checkInLabel')} · {shortDay(b.check_in)}</span>
+                    <b className="text-[17px]">{t('guestPanel.fromTime', { time: checkIn })}</b>
+                  </div>
+                )}
+              </section>
+
+              {flat && (flat.address || maps.length > 0) && (
+                <section aria-label={t('guestPanel.address')} className={CARD}>
+                  <h2 className={H2}>{t('guestPanel.address')}</h2>
+                  {flat.address && <p dir="auto" className="text-[17px] font-semibold">{flat.address}</p>}
+                  {maps.length > 0 && (
+                    <div className={`mt-3 grid gap-2 ${maps.length > 3 ? 'grid-cols-2' : 'grid-cols-3'}`}>
+                      {maps.map((m) => (
+                        <a key={m.name} href={m.url} target="_blank" rel="noopener noreferrer" className="flex h-[46px] items-center justify-center gap-1.5 rounded-full bg-[#F3F3F6] text-sm font-semibold">
+                          <Navigation className="h-4 w-4 shrink-0" aria-hidden />
+                          {m.name}
+                        </a>
+                      ))}
+                    </div>
+                  )}
+                </section>
+              )}
+            </div>
+          )}
+
+          {/* Kept mounted while another stage is open: the minibar's cart and note stay as the guest left them. */}
+          <div role="tabpanel" hidden={tab !== 'stay'}>
+              {tab === 'stay' && wifi && <div className="m-2 grid grid-cols-2 gap-2">{wifi}</div>}
+              {panel.menu && (
+                <div id="minibar" className="m-2 scroll-mt-16">
+                  <GuestMinibar code={code} menu={panel.menu} minibar={panel.minibar} orders={panel.orders} locale={locale} />
+                </div>
+              )}
+              {tab === 'stay' && DURING.some((k) => buttons.includes(k)) && (
+                <section className={CARD}>
+                  <h2 className={H2}>{t('guestPanel.needMore')}</h2>
+                  <div className="grid grid-cols-2 gap-2">
+                    {DURING.filter((k) => buttons.includes(k)).map((key) => {
+                      const Icon = ICONS[key]
+                      return (
+                        <a key={key} href={href(key)} target="_blank" rel="noopener noreferrer" className="flex flex-col gap-2.5 rounded-[20px] bg-[#F3F3F6] p-3.5 text-sm font-semibold leading-tight">
+                          <span className="flex h-9 w-9 items-center justify-center rounded-full bg-white"><Icon className="h-[18px] w-[18px]" aria-hidden /></span>
+                          {t(`guestPanel.buttons.${key}`)}
+                        </a>
+                      )
+                    })}
+                  </div>
+                </section>
+              )}
+              {tab === 'stay' && flat?.house_rules && (
+                <section className={CARD}>
+                  <h2 className={H2}>{t('guestPanel.rules')}</h2>
+                  <p dir="auto" className="flex items-start gap-3 whitespace-pre-line text-[15px] leading-relaxed">
+                    <ScrollText className={`mt-0.5 h-5 w-5 shrink-0 ${MUTE}`} aria-hidden />
+                    {flat.house_rules}
+                  </p>
+                </section>
+              )}
+          </div>
+
+          {tab === 'out' && b && (
+            <div role="tabpanel">
+              {/* Dark on its own: CARD's white would win over another background in the stylesheet. */}
+              <section data-testid="leave-card" className="m-2 rounded-[28px] bg-[#111114] p-5 text-white">
+                <p className="text-xs font-semibold uppercase tracking-[0.06em] text-white/55">{t('guestPanel.checkOutLabel')}</p>
+                <p className="mb-0.5 mt-1.5 text-[26px] font-bold leading-[1.15] tracking-[-0.03em] first-letter:uppercase">
+                  {fullDay(b.check_out)}, {t('guestPanel.untilTime', { time: checkOut })}
+                </p>
+                {countdown(b.check_out) && <p className="text-sm text-white/65">{countdown(b.check_out)}</p>}
+                {(['extend', 'lateCheckOut'] as const).some((k) => buttons.includes(k)) && (
+                  <div className="mt-4 grid grid-cols-2 gap-2">
+                    {(['extend', 'lateCheckOut'] as const)
+                      .filter((k) => buttons.includes(k))
+                      .map((key) => {
+                        const Icon = ICONS[key]
+                        return (
+                          <a key={key} href={href(key)} target="_blank" rel="noopener noreferrer" className="flex flex-col gap-1.5 rounded-[18px] bg-white/10 p-3 text-[15px] font-semibold">
+                            <Icon className="h-[18px] w-[18px] text-[#8FA8FF]" aria-hidden />
+                            {t(`guestPanel.buttons.${key}`)}
+                          </a>
+                        )
+                      })}
+                  </div>
+                )}
+              </section>
+
+              {(flat?.check_out_instructions || buttons.includes('checkedOut')) && (
+                <section className={CARD}>
+                  <h2 className={H2}>{t('guestPanel.beforeLeaving')}</h2>
+                  {flat?.check_out_instructions && <Checklist text={flat.check_out_instructions} />}
+                  {buttons.includes('checkedOut') && (
+                    <a href={href('checkedOut')} onClick={leave} className="mt-4 flex h-[52px] items-center justify-center rounded-full bg-[#111114] text-base font-semibold text-white">
+                      {t('guestPanel.buttons.checkedOut')}
+                    </a>
+                  )}
+                </section>
+              )}
+
+              <section className={CARD}>
+                <h2 className={H2}>{t('guestPanel.payment')}</h2>
+                <p className="flex justify-between py-1.5 text-[15px]">
+                  <span>{b.rental_mode === 'hourly' ? `${checkIn}–${checkOut}` : t('guestPanel.nights', { count: nightsOf(b) })}</span>
+                  <b className="font-semibold">{money(b.total, locale)}</b>
+                </p>
+                {minibarDue > 0 && <p className={`py-1.5 text-[15px] ${MUTE}`}>{t('guestPanel.ordersDue', { amount: money(minibarDue, locale) })}</p>}
+                <p className="flex justify-between py-1.5 text-[15px]">
+                  <span>{b.remaining > 0 ? t('guestPanel.left') : t('guestPanel.statusPaid')}</span>
+                  <b className={`font-semibold ${b.remaining > 0 ? 'text-[#8A5A00]' : 'text-[#17A34A]'}`}>{money(b.remaining > 0 ? b.remaining : b.paid, locale)}</b>
+                </p>
+              </section>
+            </div>
+          )}
+        </>
       )}
-      {open === 'rules' && flat && (
-        <Sheet title={t('guestPanel.rules')} onClose={() => setOpen(null)}>
-          <p dir="auto" className="whitespace-pre-line text-[15px] leading-relaxed text-[#111114]">{flat.house_rules || '—'}</p>
-        </Sheet>
-      )}
-      {open === 'checkout' && flat && (
-        <Sheet title={t('guestPanel.checkOutBy', { time: checkOut })} onClose={() => setOpen(null)}>
-          <p dir="auto" className="whitespace-pre-line text-[15px] leading-relaxed text-[#111114]">{flat.check_out_instructions || '—'}</p>
+
+      {help && (
+        <Sheet title={t('guestPanel.contact')} onClose={() => setHelp(false)}>
+          <p className={`mb-2 text-[13px] ${MUTE}`}>{t('guestPanel.helpHint')}</p>
+          <div className="flex flex-col">{helpButtons.map(reason)}</div>
         </Sheet>
       )}
     </div>
