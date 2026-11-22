@@ -54,7 +54,10 @@ class GuestCheckoutService:
         self._settings = company_settings
 
     async def execute(self, code: str, now: datetime | None = None) -> GuestLeft:
-        booking = await self._bookings.get_by_guest_code(code) if len(code) == 16 else None
+        found = await self._bookings.get_by_guest_code(code) if len(code) == 16 else None
+        # The booking's row is held until the answer: two taps at once (two tabs) see one
+        # another, and only the first tells the host.
+        booking = await self._bookings.get_for_update(found.id) if found is not None else None
         if booking is None:
             raise LookupError("Not found")
         company = await self._settings.get_by_company(booking.company_id)
@@ -70,8 +73,7 @@ class GuestCheckoutService:
         guest = await self._guests.get_by_id(booking.guest_id)
         first = True
         if self._audit is not None:
-            logs = await self._audit.list_by_booking(booking.id, limit=500)
-            first = not any(log.field_name == GUEST_LEFT for log in logs)
+            first = not await self._audit.has_field(booking.id, GUEST_LEFT)
             if first:
                 await self._audit.create(BookingAuditLog(
                     booking_id=booking.id, field_name=GUEST_LEFT, new_value=today.isoformat(),
