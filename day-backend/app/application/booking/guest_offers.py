@@ -25,7 +25,7 @@ from app.domain.booking.repositories import BookingRepository, GuestOfferReposit
 from app.domain.booking.stay_rules import stay_breaches
 from app.domain.booking.value_objects import RentalMode
 from app.domain.property.entities import Property
-from app.domain.property.repositories import PropertyPhotoRepository, PropertyRepository
+from app.domain.property.repositories import PricingConfigRepository, PropertyPhotoRepository, PropertyRepository
 from app.domain.property.value_objects import FactAudience, PropertyStatus
 from app.domain.settings.repositories import CompanySettingsRepository
 
@@ -66,6 +66,8 @@ class OfferFlat:
     photo: str | None
     total: Decimal | None
     free: bool
+    # The deposit a booking from the link asks, for its kind of stay; None when not set.
+    deposit: Decimal | None = None
 
 
 @dataclass
@@ -86,6 +88,7 @@ class GuestOffersService:
         *,
         today: Callable[[], date] = date.today,
         now: Callable[[], datetime] | None = None,
+        pricing: PricingConfigRepository | None = None,
     ) -> None:
         self._offers = offer_repo
         self._properties = property_repo
@@ -95,6 +98,7 @@ class GuestOffersService:
         self._settings = settings_repo
         self._today = today
         self._now = now
+        self._pricing = pricing
 
     async def _company_now(self, company_id: uuid.UUID) -> datetime:
         """The company's local time, as an hourly stay's hours are written."""
@@ -189,8 +193,16 @@ class GuestOffersService:
             # Let otherwise since the link was made: booking it would be refused, so it leaves the link.
             if prop.rental_mode == (RentalMode.DAILY if hourly else RentalMode.HOURLY):
                 continue
-            flats.append(await self._flat(prop, offer))
+            flat = await self._flat(prop, offer)
+            flat.deposit = await self._deposit(prop, hourly)
+            flats.append(flat)
         return PublicOffer(offer=offer, flats=flats)
+
+    async def _deposit(self, prop: Property, hourly: bool) -> Decimal | None:
+        """As a booking from the link asks it (guest_hold): 0 is not set, never the other kind's."""
+        pricing = await self._pricing.get_by_property(prop.id) if self._pricing else None
+        amount = (pricing.hourly_deposit if hourly else pricing.default_deposit) if pricing else None
+        return amount if amount and amount > 0 else None
 
     async def _flat(self, prop: Property, offer: GuestOffer) -> OfferFlat:
         if offer.rental_mode == RentalMode.HOURLY:

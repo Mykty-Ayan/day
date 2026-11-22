@@ -100,7 +100,8 @@ function StayView({ stay, locale, today, until }: { stay: PublicStay; locale: st
   const color = stay.company?.accent_color ?? DEFAULT_ACCENT
   const accent = { '--accent': color, '--on-accent': onAccent(color) } as CSSProperties
   const datesText = checkIn && checkOut ? `${shortDay.format(parseISO(checkIn))} – ${shortDay.format(parseISO(checkOut))}` : null
-  const bookable = quote && short == null ? quote : null
+  // Every night free as loaded: a stay over a night the page has not seen is not offered.
+  const bookable = quote && quote.free && short == null ? quote : null
 
   if (held) {
     return (

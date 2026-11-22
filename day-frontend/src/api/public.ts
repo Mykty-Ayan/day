@@ -66,6 +66,8 @@ export interface PublicOfferFlat {
   /** The stay for the link's dates and guests, as a booking counts it; null when the flat has no price. */
   total: number | null
   free: boolean
+  /** The deposit a booking from the link asks; null when the flat has none. */
+  deposit?: number | null
 }
 
 /** The link's booking: which flat, until when the dates are held, the deposit to
@@ -98,6 +100,8 @@ export interface PublicOffer {
   guests: number
   flats: PublicOfferFlat[]
   booking: PublicOfferBooking | null
+  /** Who sent the link, once the company has set up its site. */
+  company?: { title: string; logo_url: string | null } | null
 }
 
 export async function getPublicOffer(code: string): Promise<PublicOffer> {
@@ -174,6 +178,8 @@ export interface GuestPanel {
   closed: boolean
   /** The company's own day, YYYY-MM-DD: which buttons fit the stay. */
   today: string
+  /** The company's wall clock at the answer, no zone: the countdown runs on it. */
+  now?: string | null
   company: { title: string; logo_url: string | null; accent_color: string | null; whatsapp: string | null } | null
   guest_name: string | null
   booking: {
@@ -187,22 +193,40 @@ export interface GuestPanel {
     /** Minibar orders owed with the stay, by the server's one rule; part of remaining. */
     orders_due?: number
     remaining: number
+    /** The day the next guest arrives after this stay; null when nobody is in sight. */
+    free_until?: string | null
   } | null
+  /** The stay's deposit: the amount and what became of it, never the owner's reason. */
+  deposit?: { amount: number; status: 'pending' | 'paid' | 'returned' | 'held' | 'partially_held'; held: number } | null
   flat: {
     name: string
+    /** The flat's own page: /s/<code>. */
+    code?: string | null
     /** The listing's cover; null when the flat has no public photo. */
     photo_url?: string | null
     address: string | null
     latitude: number | null
     longitude: number | null
     map_url: string | null
+    complex_name?: string | null
+    floor?: number | null
     check_in_hour: number | null
     check_out_hour: number | null
     house_rules: string | null
     check_out_instructions: string | null
   } | null
   /** Only for a confirmed or checked-in stay paid in full: the server decides. */
-  access: { instructions: string | null; wifi_name: string | null; wifi_password: string | null; facts: string[] } | null
+  access: {
+    instructions: string | null
+    wifi_name: string | null
+    wifi_password: string | null
+    facts: string[]
+    /** The path to the door: the flat's check-in photos with the owner's words, in order. */
+    photos?: { url: string; caption: string | null }[]
+    entrance?: string | null
+    block?: string | null
+    apartment_number?: string | null
+  } | null
   /** Hours before check-in the way in opens, once the stay is paid. */
   lead_hours: number
   /** The minibar during the stay; null outside it. */

@@ -28,6 +28,20 @@ export function fromThisWeek(cells: (string | null)[], today: string): (string |
   return cells.slice(start)
 }
 
+/** The days a stay cannot take: the nights taken, and every day the page has not
+ *  loaded, up to `until` (the calendar's last cell). The first day past the loaded
+ *  nights is among them: it may end a stay, never begin one. */
+export function takenDays(nights: PublicNight[], until: string): Set<string> {
+  const set = new Set(nights.filter((n) => !n.free).map((n) => n.date))
+  const last = nights.at(-1)?.date
+  if (!last) return set
+  for (let day = addDays(parseISO(last), 1); format(day, 'yyyy-MM-dd') <= until; day = addDays(day, 1)) {
+    set.add(format(day, 'yyyy-MM-dd'))
+  }
+  set.add(format(addDays(parseISO(last), 1), 'yyyy-MM-dd'))
+  return set
+}
+
 /** The nights from check-in to the night before check-out: how many, what they
  *  cost, and whether every one is free. A night the page has not loaded is not free. */
 export function stayQuote(nights: PublicNight[], checkIn: string, checkOut: string) {

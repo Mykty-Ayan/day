@@ -4,7 +4,7 @@
  */
 
 import { expect, test } from '@playwright/test'
-import { fromThisWeek, guestLanguage, isHourly, monthCells, offerDates, onAccent, openedInFlat, stayDates, stayFromUrl, stayQuote } from '../../src/lib/public-stay'
+import { fromThisWeek, guestLanguage, isHourly, monthCells, offerDates, onAccent, openedInFlat, stayDates, stayFromUrl, stayQuote, takenDays } from '../../src/lib/public-stay'
 
 test('a month is laid out from Monday, with blanks before its first day', () => {
   // 1 October 2026 is a Thursday.
@@ -103,4 +103,17 @@ test('the company search hands the flat its dates and guests, and only ones a gu
   expect(stayFromUrl('?guests=0', today, until).guests).toBeNull()
   expect(stayFromUrl('?guests=2.5', today, until).guests).toBeNull()
   expect(stayFromUrl('', today, until)).toEqual({ checkIn: null, checkOut: null, guests: null })
+})
+
+test('the calendar days past the loaded nights are taken: none of them begins a stay of unknown price', () => {
+  const nights = [
+    { date: '2027-03-20', price: 20000, free: true },
+    { date: '2027-03-21', price: 20000, free: false },
+  ]
+  // The calendar runs to Sunday 28 March; the nights stop on the 21st.
+  const taken = takenDays(nights, '2027-03-28')
+  expect([...taken].sort()).toEqual(['2027-03-21', '2027-03-22', '2027-03-23', '2027-03-24', '2027-03-25', '2027-03-26', '2027-03-27', '2027-03-28'])
+  expect(taken.has('2027-03-20')).toBe(false)
+  // A stay over an unloaded night is not free, so the page offers no booking for it.
+  expect(stayQuote(nights, '2027-03-22', '2027-03-24').free).toBe(false)
 })

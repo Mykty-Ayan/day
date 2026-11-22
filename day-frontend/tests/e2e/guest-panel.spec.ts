@@ -299,9 +299,116 @@ test('on the departure day the host instructions are a checklist the guest ticks
     check_in: `${addDays(now, -2)}T14:00:00`, check_out: `${now}T12:00:00`, paid: 40000, remaining: 0,
   }))
   await expect(page.getByRole('tab', { name: 'Выезд' })).toHaveAttribute('aria-selected', 'true')
+  // The check-out card is dark with white words, never white on white.
+  const leaveCard = page.getByTestId('leave-card')
+  await expect(leaveCard).toContainText('до 12:00')
+  await expect(leaveCard).toHaveCSS('background-color', 'rgb(17, 17, 20)')
   await expect(page.getByText('0 из 2')).toBeVisible()
   await page.getByRole('checkbox', { name: 'Закройте окна' }).check()
   await expect(page.getByText('1 из 2')).toBeVisible()
   await page.getByRole('checkbox', { name: 'Выключите свет' }).check()
   await expect(page.getByText('Всё готово, можно выезжать')).toBeVisible()
+})
+
+test('paid in full, the guest sees the way to the door step by step, the entrance and the flat number, and a taxi', async ({ page }) => {
+  await open(
+    page,
+    answer(
+      {
+        flat: { ...answer().flat, complex_name: 'Auezov City', floor: 10 },
+        access: {
+          instructions: 'Код двери 4821', wifi_name: 'T13', wifi_password: 'secret-wifi', facts: [],
+          photos: [
+            { url: 'https://example.com/yard.jpg', caption: 'Калитка во двор, код 1590' },
+            { url: 'https://example.com/door.jpg', caption: 'Дверь и замок' },
+          ],
+          entrance: '2', block: null, apartment_number: '54',
+        },
+      },
+      { paid: 40000, remaining: 0 },
+    ),
+  )
+  const path = page.getByRole('region', { name: 'Путь до двери' })
+  await expect(path.getByRole('listitem')).toHaveCount(2)
+  await expect(path.getByRole('listitem').first()).toContainText('Калитка во двор, код 1590')
+  const address = page.getByRole('region', { name: 'Адрес' })
+  await expect(address).toContainText('Auezov City · подъезд 2 · 10 этаж · кв. 54')
+  await expect(address.getByRole('link', { name: 'Вызвать такси сюда' })).toHaveAttribute('href', /end-lat=51\.12&end-lon=71\.43/)
+})
+
+test('before payment the address keeps the entrance and the flat number back', async ({ page }) => {
+  await open(page, answer({ flat: { ...answer().flat, complex_name: 'Auezov City', floor: 10 } }))
+  const address = page.getByRole('region', { name: 'Адрес' })
+  await expect(address).toContainText('Auezov City · 10 этаж')
+  await expect(address).not.toContainText('кв.')
+  await expect(page.getByRole('region', { name: 'Путь до двери' })).toHaveCount(0)
+})
+
+test('on check-out the guest sees the deposit coming back and the flat to book again', async ({ page }) => {
+  const now = today()
+  await open(
+    page,
+    answer(
+      { deposit: { amount: 10000, status: 'paid', held: 0 }, flat: { ...answer().flat, code: 'vk7nys9' } },
+      { check_in: `${addDays(now, -2)}T14:00:00`, check_out: `${now}T12:00:00`, paid: 40000, remaining: 0 },
+    ),
+  )
+  const deposit = page.getByRole('region', { name: 'Залог' })
+  await expect(deposit).toContainText('10 000 ₸')
+  await expect(deposit).toContainText('Вернём в течение дня после выезда')
+  await expect(deposit).toContainText('Хозяин проверяет квартиру')
+  await expect(page.getByRole('link', { name: 'Открыть страницу квартиры' })).toHaveAttribute('href', '/s/vk7nys9')
+})
+
+test('during the stay «extend» says until when the flat is free', async ({ page }) => {
+  const now = today()
+  await open(page, answer({}, {
+    check_in: `${addDays(now, -1)}T14:00:00`, check_out: `${addDays(now, 2)}T12:00:00`, paid: 40000, remaining: 0,
+    free_until: addDays(now, 5),
+  }))
+  await expect(page.getByRole('tab', { name: 'В квартире' })).toHaveAttribute('aria-selected', 'true')
+  // A real date, as the guest reads it: never «Invalid Date».
+  await expect(page.getByRole('link', { name: /Продлить проживание/ })).toContainText(/свободно до \d{1,2} [а-я]+$/)
+})
+
+test('a deposit kept in part says what comes back and what was kept', async ({ page }) => {
+  const now = today()
+  await open(page, answer({ deposit: { amount: 10000, status: 'partially_held', held: 3000 } }, {
+    check_in: `${addDays(now, -2)}T14:00:00`, check_out: `${now}T12:00:00`, paid: 40000, remaining: 0,
+  }))
+  await expect(page.getByRole('region', { name: 'Залог' })).toContainText('Вернём 7 000 ₸, удержали 3 000 ₸')
+})
+
+test('with no address yet the complex and the floor still show', async ({ page }) => {
+  await open(page, answer({ flat: { ...answer().flat, address: null, latitude: null, longitude: null, complex_name: 'Auezov City', floor: 10 } }))
+  await expect(page.getByRole('region', { name: 'Адрес' })).toContainText('Auezov City · 10 этаж')
+})
+
+test('a closed booking still shows the deposit coming back and the flat to book again', async ({ page }) => {
+  await open(page, answer(
+    { closed: true, flat: { name: 'Т13 у Байтерека', code: 'vk7nys9' }, deposit: { amount: 10000, status: 'returned', held: 0 } },
+    { status: 'checked_out' },
+  ))
+  await expect(page.getByRole('region', { name: 'Залог' })).toContainText('Залог вернули')
+  await expect(page.getByRole('link', { name: 'Открыть страницу квартиры' })).toHaveAttribute('href', '/s/vk7nys9')
+})
+
+test('the cart waits while the guest looks at another stage', async ({ page }) => {
+  await openStay(page, answer({ menu: MENU }, { paid: 40000, remaining: 0 }))
+  const minibar = page.getByRole('region', { name: 'Мини-бар' })
+  await minibar.getByRole('button', { name: 'Добавить: Кола 0,5' }).click()
+  await page.getByRole('tab', { name: 'Заселение' }).click()
+  await page.getByRole('tab', { name: 'В квартире' }).click()
+  await expect(minibar.getByRole('button', { name: /Корзина: 1 шт\./ })).toBeVisible()
+})
+
+test.describe('a phone in another time zone', () => {
+  test.use({ timezoneId: 'Asia/Tokyo' })
+
+  test('counts down to check-in by the company\'s clock, not the phone\'s', async ({ page }) => {
+    const now = today()
+    // An hour to check-in on the company's clock; Tokyo is four hours ahead of Almaty.
+    await open(page, answer({ now: `${now}T13:00:00` }, { check_in: `${now}T14:00:00` }))
+    await expect(page.getByRole('region', { name: 'Ваша поездка' })).toContainText(/Через (1 ч 0|0 ч 59) мин/)
+  })
 })
