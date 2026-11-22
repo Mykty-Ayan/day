@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import {
   CalendarPlus,
+  CarTaxiFront,
   Check,
   CircleCheck,
   Clock,
@@ -203,6 +204,19 @@ function PanelView({ code, panel, locale, receivedAt }: { code: string; panel: G
   // On arrival day «cannot get in» has its own red card; any other day it is one of the reasons.
   const helpButtons = buttons.filter((k) => k !== 'pay' && !(k === 'cannotGetIn' && stage === 'arrival'))
   const maps = flat ? [...(flat.map_url ? [{ name: t('guestPanel.map'), url: flat.map_url }] : []), ...mapLinks(flat)] : []
+  // Under the address: the complex and the floor always, the entrance and the flat's number with the way in.
+  const where = [
+    flat?.complex_name,
+    access?.entrance ? t('guestPanel.entrance', { n: access.entrance }) : null,
+    access?.block ? t('guestPanel.block', { n: access.block }) : null,
+    flat?.floor != null ? t('guestPanel.floor', { n: flat.floor }) : null,
+    access?.apartment_number ? t('guestPanel.apartment', { n: access.apartment_number }) : null,
+  ].filter(Boolean)
+  // Yandex Go to the door, by the flat's point (Yandex's own link format, the app's redirect id).
+  const taxi =
+    flat?.latitude != null && flat.longitude != null
+      ? `https://3.redirect.appmetrica.yandex.com/route?end-lat=${flat.latitude}&end-lon=${flat.longitude}&ref=day&appmetrica_tracking_id=1178268795219780156`
+      : null
   const opensAt = accessOpensAt(panel)
   const paidInFull = b ? b.paid >= b.total : false
   // What is owed for the minibar is the server's figure, part of remaining: one rule
@@ -479,10 +493,11 @@ function PanelView({ code, panel, locale, receivedAt }: { code: string; panel: G
                 )}
               </section>
 
-              {flat && (flat.address || maps.length > 0) && (
+              {flat && (flat.address || maps.length > 0 || where.length > 0) && (
                 <section aria-label={t('guestPanel.address')} className={CARD}>
                   <h2 className={H2}>{t('guestPanel.address')}</h2>
                   {flat.address && <p dir="auto" className="text-[17px] font-semibold">{flat.address}</p>}
+                  {where.length > 0 && <p dir="auto" className={`mt-0.5 text-sm ${MUTE}`}>{where.join(' · ')}</p>}
                   {maps.length > 0 && (
                     <div className={`mt-3 grid gap-2 ${maps.length > 3 ? 'grid-cols-2' : 'grid-cols-3'}`}>
                       {maps.map((m) => (
@@ -493,6 +508,31 @@ function PanelView({ code, panel, locale, receivedAt }: { code: string; panel: G
                       ))}
                     </div>
                   )}
+                  {taxi && (
+                    <a href={taxi} target="_blank" rel="noopener noreferrer" className="mt-2 flex h-[46px] items-center justify-center gap-2 rounded-full bg-[#F3F3F6] text-[15px] font-semibold">
+                      <CarTaxiFront className="h-[18px] w-[18px]" aria-hidden />
+                      {t('guestPanel.taxi')}
+                    </a>
+                  )}
+                </section>
+              )}
+
+              {/* The path to the door, as the mockup: the owner's check-in photos, a step each. */}
+              {!!access?.photos?.length && (
+                <section aria-label={t('guestPanel.path')} className={CARD}>
+                  <h2 className={H2}>{t('guestPanel.path')}</h2>
+                  <ol className="flex flex-col">
+                    {access.photos.map((photo, n) => (
+                      <li key={photo.url} className="relative grid grid-cols-[28px_76px_1fr] items-start gap-3 pb-4 last:pb-0">
+                        {n < access.photos!.length - 1 && <span aria-hidden className="absolute bottom-0 start-[13px] top-7 w-0.5 bg-[#E4E4EA]" />}
+                        <span className="relative flex h-7 w-7 items-center justify-center rounded-full bg-[#111114] text-[13px] font-bold text-white">{n + 1}</span>
+                        <a href={photo.url} target="_blank" rel="noopener noreferrer" className="block h-[76px] w-[76px] overflow-hidden rounded-[18px] bg-[#F3F3F6]">
+                          <img src={photo.url} alt={photo.caption ?? t('guestPanel.pathStep', { n: n + 1 })} loading="lazy" className="h-full w-full object-cover" />
+                        </a>
+                        {photo.caption && <p dir="auto" className="pt-1 text-[15px] font-semibold leading-snug">{photo.caption}</p>}
+                      </li>
+                    ))}
+                  </ol>
                 </section>
               )}
             </div>

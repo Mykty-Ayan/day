@@ -185,13 +185,25 @@ export interface GuestPanel {
     latitude: number | null
     longitude: number | null
     map_url: string | null
+    complex_name?: string | null
+    floor?: number | null
     check_in_hour: number | null
     check_out_hour: number | null
     house_rules: string | null
     check_out_instructions: string | null
   } | null
   /** Only for a confirmed or checked-in stay paid in full: the server decides. */
-  access: { instructions: string | null; wifi_name: string | null; wifi_password: string | null; facts: string[] } | null
+  access: {
+    instructions: string | null
+    wifi_name: string | null
+    wifi_password: string | null
+    facts: string[]
+    /** The path to the door: the flat's check-in photos with the owner's words, in order. */
+    photos?: { url: string; caption: string | null }[]
+    entrance?: string | null
+    block?: string | null
+    apartment_number?: string | null
+  } | null
   /** Hours before check-in the way in opens, once the stay is paid. */
   lead_hours: number
   /** The minibar during the stay; null outside it. */
