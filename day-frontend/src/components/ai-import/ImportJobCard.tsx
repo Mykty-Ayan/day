@@ -14,14 +14,14 @@ interface Props {
 
 const statusIcons: Record<ImportJobStatus, { icon: typeof Clock; className: string }> = {
   pending: { icon: Clock, className: 'text-ink-muted' },
-  processing: { icon: Loader2, className: 'text-blue-500 animate-spin' },
-  completed: { icon: CheckCircle2, className: 'text-emerald-500' },
+  processing: { icon: Loader2, className: 'text-accent animate-spin' },
+  completed: { icon: CheckCircle2, className: 'text-success' },
   failed: { icon: XCircle, className: 'text-danger' },
 }
 
 const sourceStyles: Record<string, string> = {
   booking: 'bg-accent-soft text-accent-ink',
-  airbnb: 'bg-rose-100 text-rose-700',
+  airbnb: 'bg-danger-soft text-danger',
   krisha: 'bg-warning-soft text-warning',
   other: 'bg-surface-page text-ink-muted',
 }

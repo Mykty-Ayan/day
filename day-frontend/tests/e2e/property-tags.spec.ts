@@ -197,7 +197,7 @@ test.describe('Property Tags - E2E', () => {
   test('tags UI - create a tag and see it on the property page', async () => {
     test.fixme(
       true,
-      'No such UI: TagSelector (create a tag, assign it to a flat) is not used on any page. ' +
+      'No such UI: creating a tag and assigning it to a flat is not on any page. ' +
         'Tags are only filter chips on the property list, and tags are created through the API',
     )
   })

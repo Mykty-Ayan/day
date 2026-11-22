@@ -271,7 +271,7 @@ export default function ImportPreviewPage() {
             <ul className="space-y-1">
               {warnings.map((w, i) => (
                 <li key={i} className="text-xs text-warning flex items-start gap-1.5">
-                  <span className="text-amber-400 mt-0.5">-</span>
+                  <span className="text-warning mt-0.5">-</span>
                   {w}
                 </li>
               ))}

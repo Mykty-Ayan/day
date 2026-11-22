@@ -55,7 +55,7 @@ export default function PropertyFormStepBasic({ data, onChange, errors, namesOnl
           onChange={(e) => update('name', e.target.value)}
           placeholder={t('properties.form.publicNamePlaceholder')}
           className={`w-full bg-surface-card border rounded-xl p-3 outline-none focus:border-accent text-ink text-sm ${
-            errors.name ? 'border-danger bg-red-50' : 'border-line'
+            errors.name ? 'border-danger bg-danger-soft' : 'border-line'
           }`}
         />
         {errors.name && (
@@ -73,7 +73,7 @@ export default function PropertyFormStepBasic({ data, onChange, errors, namesOnl
           onChange={(e) => update('internal_name', e.target.value)}
           placeholder={t('properties.form.internalNamePlaceholder')}
           className={`w-full bg-surface-card border rounded-xl p-3 outline-none focus:border-accent text-ink text-sm ${
-            errors.internal_name ? 'border-danger bg-red-50' : 'border-line'
+            errors.internal_name ? 'border-danger bg-danger-soft' : 'border-line'
           }`}
         />
         {errors.internal_name && (
@@ -142,7 +142,7 @@ export default function PropertyFormStepBasic({ data, onChange, errors, namesOnl
                 onChange={(e) => update(key, e.target.value)}
                 placeholder={t(`properties.form.${label}Placeholder`)}
                 className={`w-full bg-surface-card border rounded-xl p-3 outline-none focus:border-accent text-ink text-sm ${
-                  errors[key] ? 'border-danger bg-red-50' : 'border-line'
+                  errors[key] ? 'border-danger bg-danger-soft' : 'border-line'
                 }`}
               />
               {errors[key] && <p className="text-danger text-xs mt-1">{errors[key]}</p>}
@@ -173,7 +173,7 @@ export function ListingLinksFields({ data, onChange, errors }: Omit<Props, 'name
             onChange={(e) => onChange({ ...data, [key]: e.target.value })}
             placeholder={t(`properties.form.${label}Placeholder`)}
             className={`w-full resize-none bg-surface-card border rounded-xl p-3 outline-none focus:border-accent text-ink text-sm ${
-              errors[key] ? 'border-danger bg-red-50' : 'border-line'
+              errors[key] ? 'border-danger bg-danger-soft' : 'border-line'
             }`}
           />
           {errors[key] ? (
