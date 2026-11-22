@@ -29,7 +29,8 @@ export function BookBar({
   /** False when the page has no nights to pick: the button would lead nowhere. */
   canPickDates: boolean
   onPickDates: () => void
-  onBook: () => void
+  /** Null when the flat cannot be booked from its page (no company site): the bar tells the price only. */
+  onBook: (() => void) | null
 }) {
   const { t } = useTranslation()
   const ask = askLink(stay, t('guestStay.askText', { flat: stay.name, code: stay.code, dates: dates ? ` — ${dates}` : '' }))
@@ -74,15 +75,15 @@ export function BookBar({
               <MessageCircle className="h-5 w-5" aria-hidden />
             </a>
           )}
-          {byNight && (quote || canPickDates) && (
+          {byNight && (quote ? onBook : canPickDates) && (
             <button
               type="button"
-              onClick={quote ? onBook : onPickDates}
-              className="flex h-14 items-center gap-3 rounded-full bg-[#111114] px-5 text-base font-semibold text-white min-[400px]:pe-2 min-[400px]:ps-[22px]"
+              onClick={quote ? onBook! : onPickDates}
+              className={`flex h-14 items-center gap-3 rounded-full bg-[#111114] px-5 text-base font-semibold text-white ${quote ? 'min-[440px]:pe-2 min-[440px]:ps-[22px]' : 'min-[380px]:pe-2 min-[380px]:ps-[22px]'}`}
             >
               {quote ? t('guestBook.book') : t('guestStay.pickDates')}
               {/* The arrow is decoration: a narrow phone keeps its room for the total. */}
-              <span className="hidden h-10 w-10 items-center justify-center rounded-full bg-[var(--accent)] text-[var(--on-accent)] min-[400px]:flex">
+              <span className={`hidden h-10 w-10 items-center justify-center rounded-full bg-[var(--accent)] text-[var(--on-accent)] ${quote ? 'min-[440px]:flex' : 'min-[380px]:flex'}`}>
                 <ArrowRight className="h-5 w-5 rtl:rotate-180" aria-hidden />
               </span>
             </button>

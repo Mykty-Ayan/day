@@ -1,0 +1,131 @@
+<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>Макет — варианты дат</title><link href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700&display=swap" rel="stylesheet"><script src="https://unpkg.com/lucide@0.460.0/dist/umd/lucide.min.js"></script><link rel="stylesheet" href="base.css">
+<style>
+.lbl { padding:22px 20px 2px; font-size:13px; font-weight:700; color:var(--mute); text-transform:uppercase; letter-spacing:.06em; }
+.lbl small { display:block; text-transform:none; letter-spacing:0; font-weight:500; margin-top:2px; }
+.mute { color:var(--mute); }
+.chips { display:flex; gap:6px; flex-wrap:wrap; margin-top:14px; } .chips .pill { background:var(--chip); }
+
+/* A — current: tear-off leaves */
+.dates { display:flex; align-items:center; gap:10px; }
+.tear { background:var(--chip); border-radius:18px; width:60px; text-align:center; overflow:hidden; flex:none; }
+.tear span { display:block; font-size:12px; font-weight:600; padding:5px 0; background:var(--ink); color:#fff; }
+.tear b { display:block; font-size:24px; line-height:1; padding:8px 0 2px; }
+.tear em { display:block; font-style:normal; font-size:12px; font-weight:600; color:var(--mute); padding:0 0 8px; }
+.times { display:flex; flex-direction:column; gap:8px; margin-left:6px; }
+.tm { display:flex; align-items:center; gap:8px; }
+.tm .ic { width:34px; height:34px; border-radius:50%; display:grid; place-items:center; flex:none; }
+.tm .ic svg { width:17px; height:17px; }
+.tm.in .ic { background:var(--accent-soft); color:var(--accent); } .tm.out .ic { background:var(--chip); }
+.tm b { display:block; font-size:16px; line-height:1.1; } .tm span { display:block; font-size:12px; color:var(--mute); }
+
+/* B — boarding pass */
+.ticket { position:relative; background:#fff; border-radius:28px; margin:8px; overflow:hidden; }
+.ticket .top { display:flex; align-items:center; justify-content:space-between; padding:20px 20px 18px; }
+.ticket .end small { display:block; font-size:12px; color:var(--mute); font-weight:600; }
+.ticket .end b { display:block; font-size:34px; letter-spacing:-.04em; line-height:1.05; }
+.ticket .end span { display:block; font-size:13px; color:var(--mute); }
+.ticket .end.r { text-align:right; }
+.ticket .mid { flex:1; display:flex; flex-direction:column; align-items:center; gap:6px; padding:0 10px; }
+.ticket .line { width:100%; display:flex; align-items:center; gap:6px; color:var(--accent); }
+.ticket .line i { flex:1; border-top:2px dashed #CFCFD8; }
+.ticket .line svg { width:20px; height:20px; }
+.ticket .mid em { font-style:normal; font-size:12px; font-weight:700; background:var(--accent-soft); color:var(--accent); padding:4px 10px; border-radius:99px; }
+.ticket .cut { position:relative; border-top:2px dashed #E3E3EA; margin:0 18px; }
+.ticket .cut::before, .ticket .cut::after { content:""; position:absolute; top:-13px; width:24px; height:24px; border-radius:50%; background:var(--bg); }
+.ticket .cut::before { left:-31px; } .ticket .cut::after { right:-31px; }
+.ticket .bot { display:flex; justify-content:space-between; padding:14px 20px 18px; font-size:14px; }
+.ticket .bot div { display:flex; align-items:center; gap:6px; font-weight:600; } .ticket .bot svg { width:16px; height:16px; color:var(--mute); }
+
+/* C — week strip */
+.week { display:grid; grid-template-columns:repeat(7,1fr); gap:0; margin-top:14px; }
+.week .d { text-align:center; padding:8px 0 10px; position:relative; }
+.week .d small { display:block; font-size:12px; color:var(--mute); font-weight:600; margin-bottom:6px; }
+.week .d b { display:grid; place-items:center; width:38px; height:38px; margin:0 auto; border-radius:50%; font-size:16px; position:relative; z-index:1; }
+.week .d.in::before, .week .d.mid::before, .week .d.out::before { content:""; position:absolute; bottom:10px; height:38px; background:var(--accent-soft); }
+.week .d.in::before { left:50%; right:0; } .week .d.out::before { left:0; right:50%; } .week .d.mid::before { left:0; right:0; }
+.week .d.in b, .week .d.out b { background:var(--accent); color:#fff; }
+.week .d.mid b { color:var(--accent); }
+.week .d.past b { color:#C4C4CC; }
+.wk-h { display:flex; justify-content:space-between; align-items:baseline; }
+.wk-h b { font-size:20px; letter-spacing:-.02em; }
+.legend { display:flex; justify-content:space-between; margin-top:12px; padding-top:12px; border-top:1px solid #EEEEF2; font-size:13px; }
+.legend b { display:block; font-size:15px; }
+
+/* D — two fields */
+.fields { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+.field { background:var(--chip); border-radius:22px; padding:14px; }
+.field .h { display:flex; align-items:center; gap:6px; font-size:12px; font-weight:700; color:var(--mute); text-transform:uppercase; letter-spacing:.04em; }
+.field .h svg { width:15px; height:15px; }
+.field b { display:block; font-size:22px; letter-spacing:-.03em; margin-top:8px; }
+.field span { display:block; font-size:13px; color:var(--mute); }
+.field.in { background:var(--ink); color:#fff; } .field.in .h, .field.in span { color:#A9A9B5; }
+
+/* E — nights path */
+.path { display:flex; align-items:center; margin:18px 4px 6px; }
+.path .stop { display:flex; flex-direction:column; align-items:center; gap:6px; flex:none; width:64px; }
+.path .stop .dot { width:44px; height:44px; border-radius:50%; display:grid; place-items:center; background:var(--ink); color:#fff; }
+.path .stop .dot svg { width:20px; height:20px; }
+.path .stop.out .dot { background:var(--chip); color:var(--ink); }
+.path .stop b { font-size:15px; } .path .stop span { font-size:12px; color:var(--mute); margin-top:-6px; }
+.path .seg { flex:1; display:flex; align-items:center; justify-content:space-evenly; height:44px; align-self:flex-start; position:relative; }
+.path .seg::before { content:""; position:absolute; left:0; right:0; top:50%; border-top:2px dotted #C9C9D3; }
+.path .seg .moon { position:relative; width:30px; height:30px; border-radius:50%; background:var(--accent-soft); color:var(--accent); display:grid; place-items:center; }
+.path .seg .moon svg { width:15px; height:15px; }
+</style></head><body><div class="wrap">
+
+<div class="lbl">A · сейчас<small>Отрывные листки и время с иконками</small></div>
+<div class="card">
+  <div class="dates">
+    <div class="tear"><span>ноя</span><b>4</b><em>ср</em></div><i data-lucide="arrow-right" class="mute"></i><div class="tear"><span>ноя</span><b>6</b><em>пт</em></div>
+    <div class="times"><div class="tm in"><span class="ic"><i data-lucide="key-round"></i></span><div><span>заезд с</span><b>14:00</b></div></div><div class="tm out"><span class="ic"><i data-lucide="door-open"></i></span><div><span>выезд до</span><b>12:00</b></div></div></div>
+  </div>
+  <div class="chips"><span class="pill"><i data-lucide="moon"></i>2 ночи</span><span class="pill"><i data-lucide="users"></i>2 гостя</span></div>
+</div>
+
+<div class="lbl">B · билет<small>Как посадочный талон: даты по краям, ночи посередине, линия отрыва</small></div>
+<div class="ticket">
+  <div class="top">
+    <div class="end"><small>Заезд</small><b>4 ноя</b><span>ср, с 14:00</span></div>
+    <div class="mid"><div class="line"><i></i><i data-lucide="moon"></i><i></i></div><em>2 ночи</em></div>
+    <div class="end r"><small>Выезд</small><b>6 ноя</b><span>пт, до 12:00</span></div>
+  </div>
+  <div class="cut"></div>
+  <div class="bot"><div><i data-lucide="users"></i>2 гостя</div><div style="color:#1E9E5A"><i data-lucide="circle-check" style="color:#1E9E5A"></i>2 из 3 свободны</div></div>
+</div>
+
+<div class="lbl">C · неделя<small>Лента дней: выбранные отмечены полосой</small></div>
+<div class="card">
+  <div class="wk-h"><b>Ноябрь</b><span class="mute">2 ночи · 2 гостя</span></div>
+  <div class="week">
+    <div class="d past"><small>пн</small><b>2</b></div>
+    <div class="d past"><small>вт</small><b>3</b></div>
+    <div class="d in"><small>ср</small><b>4</b></div>
+    <div class="d mid"><small>чт</small><b>5</b></div>
+    <div class="d out"><small>пт</small><b>6</b></div>
+    <div class="d"><small>сб</small><b>7</b></div>
+    <div class="d"><small>вс</small><b>8</b></div>
+  </div>
+  <div class="legend"><div><span class="mute">Заезд</span><b>ср, с 14:00</b></div><div style="text-align:right"><span class="mute">Выезд</span><b>пт, до 12:00</b></div></div>
+</div>
+
+<div class="lbl">D · два поля<small>Заезд тёмным, выезд светлым — как поля поиска</small></div>
+<div class="card">
+  <div class="fields">
+    <div class="field in"><div class="h"><i data-lucide="key-round"></i>Заезд</div><b>4 ноя</b><span>среда, с 14:00</span></div>
+    <div class="field"><div class="h"><i data-lucide="door-open"></i>Выезд</div><b>6 ноя</b><span>пятница, до 12:00</span></div>
+  </div>
+  <div class="chips"><span class="pill"><i data-lucide="moon"></i>2 ночи</span><span class="pill"><i data-lucide="users"></i>2 гостя</span></div>
+</div>
+
+<div class="lbl">E · дорожка<small>Ключ → луна за каждую ночь → дверь</small></div>
+<div class="card">
+  <div class="path">
+    <div class="stop"><span class="dot"><i data-lucide="key-round"></i></span><b>4 ноя</b><span>ср 14:00</span></div>
+    <div class="seg"><span class="moon"><i data-lucide="moon"></i></span><span class="moon"><i data-lucide="moon"></i></span></div>
+    <div class="stop out"><span class="dot"><i data-lucide="door-open"></i></span><b>6 ноя</b><span>пт 12:00</span></div>
+  </div>
+  <div class="chips" style="justify-content:center"><span class="pill">2 ночи</span><span class="pill"><i data-lucide="users"></i>2 гостя</span></div>
+</div>
+
+<div style="height:40px"></div>
+</div><script>lucide.createIcons()</script></body></html>
