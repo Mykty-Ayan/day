@@ -10,7 +10,7 @@ import { API_BASE, createTestProperty } from '../fixtures/test-data'
 test('a typed check-in hour is cleared when the company default is picked', async ({ page, request }) => {
   const prop = await (await request.post(`${API_BASE}/properties`, { data: createTestProperty() })).json()
   try {
-    await page.goto(`/properties/${prop.id}`)
+    await page.goto(`/properties/${prop.id}?tab=about`)
     const panel = await openBlock(page, 'Check-in and rules')
     const checkIn = panel.getByRole('group', { name: /check-in/i }).first()
     const typed = panel.getByRole('textbox', { name: 'other' }).first()
