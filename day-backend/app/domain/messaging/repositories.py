@@ -83,9 +83,9 @@ class OutboundNotificationRepository(abc.ABC):
         """The company's notifications given up on since then, the newest first."""
 
     @abc.abstractmethod
-    async def get_for_company(
-        self, company_id: uuid.UUID, notification_id: uuid.UUID
-    ) -> OutboundNotification | None: ...
+    async def send_again(self, company_id: uuid.UUID, notification_id: uuid.UUID, now: datetime) -> bool:
+        """Queue a given-up notice for another round, in one step: false when it is not the
+        company's or no longer given up on (two taps at once queue it once)."""
 
 
 class ChannelLinkCodeRepository(abc.ABC):

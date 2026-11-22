@@ -1,6 +1,7 @@
 """Notices the bot gave up on: the owner sees them on Today and sends them again,
 instead of a double sale or a guest's booking lost with a line in a log."""
 
+import asyncio
 import uuid
 from datetime import datetime, timedelta
 
@@ -67,7 +68,12 @@ async def test_the_owner_sees_and_sends_again_only_their_undelivered_notices(fla
 
     # Another company's notice is not found from here.
     assert (await client.post(f"/api/v1/channels/failed/{their.id}/send-again")).status_code == 404
-    assert (await client.post(f"/api/v1/channels/failed/{lost.id}/send-again")).status_code == 204
+    # Two taps at once: one queues it, the other finds it queued already.
+    first, second = await asyncio.gather(
+        client.post(f"/api/v1/channels/failed/{lost.id}/send-again"),
+        client.post(f"/api/v1/channels/failed/{lost.id}/send-again"),
+    )
+    assert sorted([first.status_code, second.status_code]) == [204, 404]
     assert (await client.get("/api/v1/channels/failed")).json() == []
     # Once queued again it is no longer «given up on»: a second tap finds nothing.
     assert (await client.post(f"/api/v1/channels/failed/{lost.id}/send-again")).status_code == 404

@@ -4,6 +4,7 @@ import { Link } from '@tanstack/react-router'
 import { BellOff, RotateCcw } from 'lucide-react'
 import { listFailedNotifications, sendNotificationAgain } from '../../api/channels'
 import { useCurrentUser } from '../../hooks/useAuth'
+import { TODAY_REFRESH } from '../../hooks/useBookings'
 import { formatDay, formatTime } from '../../pages/miniapp/format'
 import { errorText } from '../../pages/miniapp/errors'
 import { showToast } from '../ui/Toast'
@@ -21,7 +22,8 @@ export default function FailedNotices() {
   const { data: user } = useCurrentUser()
   const owner = user?.role === 'owner'
   const queryClient = useQueryClient()
-  const failed = useQuery({ queryKey: KEY, queryFn: listFailedNotifications, enabled: owner, retry: false })
+  // Read again with the rest of Today: a notice given up on while the page is open shows up.
+  const failed = useQuery({ queryKey: KEY, queryFn: listFailedNotifications, enabled: owner, retry: false, refetchInterval: TODAY_REFRESH })
   const again = useMutation({
     mutationFn: sendNotificationAgain,
     onSuccess: () => {

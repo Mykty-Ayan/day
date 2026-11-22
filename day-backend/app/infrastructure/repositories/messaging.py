@@ -3,7 +3,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 
-from sqlalchemy import or_, select
+from sqlalchemy import or_, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -318,9 +318,21 @@ class SqlOutboundNotificationRepository(OutboundNotificationRepository):
         )
         return [_to_notification(m) for m in (await self._session.scalars(stmt)).all()]
 
-    async def get_for_company(self, company_id: uuid.UUID, notification_id: uuid.UUID) -> OutboundNotification | None:
-        model = await self._session.get(OutboundNotificationModel, notification_id)
-        return _to_notification(model) if model is not None and model.company_id == company_id else None
+    async def send_again(self, company_id: uuid.UUID, notification_id: uuid.UUID, now: datetime) -> bool:
+        # One conditional UPDATE: a second tap, or a tap after the worker sent it, finds no
+        # row given up on and changes nothing.
+        stmt = (
+            update(OutboundNotificationModel)
+            .where(
+                OutboundNotificationModel.id == notification_id,
+                OutboundNotificationModel.company_id == company_id,
+                OutboundNotificationModel.status == NotificationStatus.FAILED.value,
+                OutboundNotificationModel.attempts >= OutboundNotification.MAX_ATTEMPTS,
+            )
+            .values(status=NotificationStatus.PENDING.value, attempts=0, next_attempt_at=now)
+            .returning(OutboundNotificationModel.id)
+        )
+        return (await self._session.execute(stmt)).first() is not None
 
 
 class SqlChannelLinkCodeRepository(ChannelLinkCodeRepository):

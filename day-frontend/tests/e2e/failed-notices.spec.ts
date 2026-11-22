@@ -37,9 +37,15 @@ test('Today lists the notices that did not arrive, and sends one again', async (
   expect(sent).toEqual(['/api/v1/channels/failed/11111111-1111-1111-1111-111111111111/send-again'])
 })
 
-test('with nothing undelivered Today shows no notice card', async ({ page }) => {
-  await page.route('**/api/v1/channels/failed', (route) => route.fulfill({ json: [] }))
+test('with nothing undelivered Today shows no card, and one appears when a notice fails later', async ({ page }) => {
+  let failed: object[] = []
+  await page.route('**/api/v1/channels/failed', (route) => route.fulfill({ json: failed }))
+  await page.clock.install()
   await page.goto('/bookings/today')
   await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
   await expect(page.getByRole('region', { name: /Telegram notices not delivered/ })).toHaveCount(0)
+  // The page left open: a notice given up on meanwhile shows at the next read.
+  failed = [{ id: '33333333-3333-3333-3333-333333333333', event: 'guest_hold', created_at: '2026-11-22T06:00:00', reason: null, property_name: 'Кв. 28', guest_name: null, booking_id: null }]
+  await page.clock.fastForward('02:00')
+  await expect(page.getByRole('region', { name: 'Telegram notices not delivered: 1' })).toContainText('Booking from the site')
 })

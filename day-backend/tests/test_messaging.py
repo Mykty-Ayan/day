@@ -116,8 +116,12 @@ class FakeNotificationRepository(OutboundNotificationRepository):
         found = [n for n in self.items if n.company_id == company_id and n.undelivered]
         return found[:limit]
 
-    async def get_for_company(self, company_id, notification_id):
-        return next((n for n in self.items if n.id == notification_id and n.company_id == company_id), None)
+    async def send_again(self, company_id, notification_id, now):
+        found = next((n for n in self.items if n.id == notification_id and n.company_id == company_id), None)
+        if found is None or not found.undelivered:
+            return False
+        found.send_again(now)
+        return True
 
 
 class StubProperty:

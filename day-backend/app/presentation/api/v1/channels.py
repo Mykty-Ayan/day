@@ -234,10 +234,6 @@ async def send_failed_notification_again(
 ):
     """Another round of tries for a notice given up on, once the owner fixed what kept it
     back (a bot unblocked, a chat linked again)."""
-    repo = SqlOutboundNotificationRepository(session)
-    notification = await repo.get_for_company(company_id, notification_id)
-    if notification is None or not notification.undelivered:
+    if not await SqlOutboundNotificationRepository(session).send_again(company_id, notification_id, datetime.utcnow()):
         raise HTTPException(status_code=404, detail="Not found")
-    notification.send_again()
-    await repo.update(notification)
     await session.commit()
