@@ -52,7 +52,8 @@ export default function TimeChips({
         </button>
       ))}
       <input
-        value={other}
+        // A value set from outside (a chip, «as the company») clears what was typed.
+        value={custom ? other : ''}
         inputMode="numeric"
         maxLength={5}
         placeholder={t('common.otherTime')}

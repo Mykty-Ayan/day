@@ -35,7 +35,7 @@ export default function ConfirmDialog({
     <DialogPrimitive.Root open={open} onOpenChange={(next) => !next && !loading && onCancel()}>
       <DialogPrimitive.Portal>
         <DialogPrimitive.Overlay className="dialog-fade fixed inset-0 z-overlay bg-black/40" />
-        <DialogPrimitive.Content className="dialog-pop fixed left-1/2 top-1/2 z-overlay w-[calc(100%-2rem)] max-w-sm rounded-2xl bg-surface-card p-6 text-ink shadow-xl outline-none">
+        <DialogPrimitive.Content className="dialog-pop fixed left-1/2 top-1/2 z-overlay max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-sm overflow-y-auto rounded-2xl bg-surface-card p-6 text-ink shadow-xl outline-none">
           <DialogPrimitive.Close
             aria-label={t('common.close')}
             className="absolute right-3 top-3 flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg text-ink-muted transition-colors hover:bg-surface-page hover:text-ink"
@@ -51,7 +51,7 @@ export default function ConfirmDialog({
             )}
             <div>
               <DialogPrimitive.Title className="text-sm font-bold text-ink">{title}</DialogPrimitive.Title>
-              <DialogPrimitive.Description className="mt-1 text-sm text-ink-muted">{message}</DialogPrimitive.Description>
+              <DialogPrimitive.Description className="mt-1 break-words text-sm text-ink-muted">{message}</DialogPrimitive.Description>
             </div>
           </div>
 
