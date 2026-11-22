@@ -1,5 +1,50 @@
 # Changelog
 
+## 0.10.0 — 2026-11-23
+
+The new interface: every cabinet screen, the guest pages after the approved mockups, and a full check of the release.
+
+**Database:** migrations 060 (flat order), 061 (company weekend nights), 062 (site headline). Take the dump first.
+
+**API changes for the CRM:** «not found» answers 404 instead of 400 on property routes and deposit actions; `POST /cleaning` refuses another company's booking; a guest hold from a flat's page is up to 30 nights; `guest_code` comes back after a public booking; new `GET /public/stays/{code}/quote`.
+
+### Added
+- A side menu of seven sections with tabs, a Create button and search in the top bar (#270, #272)
+- Today puts what needs attention first and acts in place; panels to extend, take a payment and assign a maid (#274–#276)
+- The booking screen on one page, edited block by block, moved to another flat from its dates (#277–#279, #286, #287)
+- A new chessboard: the company's own order of objects, what is paid on each booking (#281, #282, #284)
+- Hourly stays by start and length (#289); the company picks its weekend nights (#290)
+- The object's page: prices, closed dates, photos, calendars, history in words, changed in place (#291–#299)
+- A new object in two steps (#301); the objects list as a board for today (#304, #305)
+- A new booking starts from the dates and offers free objects with their price (#307, #308)
+- The bookings overview and export (#309–#311)
+- Agents, blacklist, minibar stock, cleaning, money, settings, team, site and readiness in the new look (#312–#321)
+- Guest pages after the approved mockups: the flat's page with a week strip and quick picks, the guest's booking page by stage (check-in, in the flat, departure), the personal offer and the company site (#320, #323–#326)
+- The guest's booking page: the way to the door with photos, entrance and flat number once paid, a taxi to the door, the deposit and its return, «free until» for extending (#327, #328)
+- The company site: search by dates and guests, «free tonight / from …», photo count, a headline (#329, #331, #332)
+- After booking from a public page the guest gets the link to their booking page (#333)
+- The owner sees until when a hold from the site is held (#343)
+- A guest sees the price the booking will be made at, extra guests and discounts included (#345)
+- Maestro flows for the guest pages (#342); a check of every screen for stray scrolls, sideways pages and English (#348)
+
+### Changed
+- The owner's screens say «объект», a guest's «квартира» (#297)
+- Amounts are written «432 980 ₸» everywhere (#317, #338)
+- No browser lists or question boxes left in the cabinet (#339); dates follow the app's language, Kazakh included (#341)
+- A guest's «I have left» works without the company's WhatsApp, is kept in the booking's history and tells the host once (#344, #346)
+- The flat's page leads with the amenities guests look for and lists short house rules one by one (#349); the guest's page greets by the first name (#350); an offer says «free on your dates» (#351)
+- «Email» is «Почта» on Russian screens (#348)
+
+### Fixed
+- A failed load or save says so instead of an empty screen or a silent close; prices and settings are never saved over values that did not load (#336, #337)
+- Guest orders tabs no longer blink (#322)
+- A guest hold from a flat's page is up to 30 nights; the photo download checks every redirect; a cleaning cannot name another company's booking (#334)
+- «Not found» is 404 (#335)
+- A hold that ran out shows no unpaid deposit; a page books no more than 30 nights (#346)
+- Pages no longer fail on older Safari and in-app browsers: no lookbehind, no Array.at, a fallback for date ranges (#349, #350)
+- Guest text meets WCAG AA contrast; the cabinet's filters have names for screen readers (#352, #353)
+- Frontend calls to API routes that do not exist are gone (#347)
+
 ## 0.9.1 — 2026-10-31
 
 Fixes from the owner's walk through ten daily tasks: dates, money and raw text on the screen.
