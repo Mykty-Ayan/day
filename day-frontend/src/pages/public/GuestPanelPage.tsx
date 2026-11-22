@@ -303,7 +303,10 @@ function PanelView({ code, panel, locale, receivedAt }: { code: string; panel: G
   }
   const [line1, line2] = heroLines()
   // On check-out, and still once the booking is closed: the deposit's fate and the flat to book again.
-  const depositCard = panel.deposit ? (
+  // A deposit never paid on a booking that closed (a hold that ran out, a cancel) is no
+  // money of the guest's: nothing to come back, nothing to show.
+  const depositShown = panel.deposit && !(panel.closed && panel.deposit.status === 'pending')
+  const depositCard = depositShown && panel.deposit ? (
                 <section aria-label={t('guestPanel.deposit.title')} className={CARD}>
                   <h2 className={H2}>{t('guestPanel.deposit.title')}</h2>
                   <p className="text-[30px] font-bold tracking-[-0.03em]">{money(panel.deposit.amount, locale)}</p>

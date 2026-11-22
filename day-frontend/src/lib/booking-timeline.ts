@@ -11,6 +11,7 @@ export type TimelineEvent = { id: string; at: string; by?: string | null } & (
   | { kind: 'price'; from: number; to: number }
   | { kind: 'payment'; amount: number; refund: boolean }
   | { kind: 'comment'; text: string }
+  | { kind: 'guestLeft' }
   | { kind: 'changed' }
 )
 
@@ -23,6 +24,8 @@ function fromLog(log: BookingAuditLog): TimelineEvent | null {
   if (log.field_name === 'status') return { ...base, kind: 'status', status: log.new_value as BookingStatus }
   if (log.field_name === 'check_in') return { ...base, kind: 'checkIn', value: log.new_value ?? '' }
   if (log.field_name === 'check_out') return { ...base, kind: 'checkOut', value: log.new_value ?? '' }
+  // The guest said «I have left» on their own page.
+  if (log.field_name === 'guest_left') return { ...base, kind: 'guestLeft' }
   if (log.field_name === 'total_price') {
     return { ...base, kind: 'price', from: Number(log.old_value), to: Number(log.new_value) }
   }

@@ -53,6 +53,8 @@ export default function BookingTimeline({
         return t(event.refund ? 'bookings.timeline.refund' : 'bookings.timeline.payment', { amount: sum(event.amount) })
       case 'comment':
         return event.text
+      case 'guestLeft':
+        return t('bookings.timeline.guestLeft')
       default:
         return t('bookings.timeline.changed')
     }

@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { addDays, format, parseISO } from 'date-fns'
 import { CalendarDays, Rows2 } from 'lucide-react'
 import { isDayBlocked } from '../../lib/booking-dates'
-import { money, stayQuote, takenDays, type PublicNight } from '../../lib/public-stay'
+import { SITE_MAX_NIGHTS, money, stayQuote, takenDays, type PublicNight } from '../../lib/public-stay'
 
 type Range = { checkIn: string | null; checkOut: string | null }
 
@@ -309,6 +309,7 @@ export function StayCalendar({
               · <span>{t('guest.nights', { count })}</span>
             </span>
             {short != null && <span className="mt-1 block text-sm text-[#8A5A00]">{t('guest.minNights', { count: short })}</span>}
+            {count > SITE_MAX_NIGHTS && <span className="mt-1 block text-sm text-[#8A5A00]">{t('guest.maxSiteNights', { n: SITE_MAX_NIGHTS })}</span>}
           </>
         )}
         {checkIn && (

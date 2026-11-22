@@ -76,7 +76,8 @@
     "depositLine": "التأمين، يُعاد خلال يوم من المغادرة",
     "map2gis": "2GIS",
     "mapYandex": "Yandex",
-    "mapGoogle": "Google"
+    "mapGoogle": "Google",
+    "maxSiteNights": "عبر الموقع حتى {{n}} ليلة. للإقامة الأطول راسل المضيف"
   },
   "guestOffer": {
     "hello": "{{name}}، إليك شققًا لتواريخك",

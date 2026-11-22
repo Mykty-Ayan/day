@@ -89,6 +89,10 @@ export function isHourly(offer: PublicOffer): boolean {
   return offer.rental_mode === 'hourly'
 }
 
+/** The most nights a guest books from a public page (SITE_MAX_NIGHTS on the server):
+ *  a longer stay is the host's to agree. */
+export const SITE_MAX_NIGHTS = 30
+
 export function money(value: number, locale: string): string {
   return `${Math.round(value).toLocaleString(locale)}\u00a0₸`
 }

@@ -82,7 +82,8 @@
     "depositLine": "Kaution, zurück innerhalb eines Tages nach Abreise",
     "map2gis": "2GIS",
     "mapYandex": "Yandex",
-    "mapGoogle": "Google"
+    "mapGoogle": "Google",
+    "maxSiteNights": "Online bis zu {{n}} Nächte. Für einen längeren Aufenthalt schreiben Sie dem Gastgeber"
   },
   "guestOffer": {
     "hello": "{{name}}, hier sind Wohnungen für Ihre Reisedaten",

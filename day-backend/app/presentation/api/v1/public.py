@@ -348,19 +348,21 @@ async def guest_checked_out(code: str, session: AsyncSession = Depends(get_sessi
         SqlPropertyRepository(session),
         SqlCleaningTaskRepository(session),
         SqlCompanySettingsRepository(session),
+        audit=SqlBookingAuditLogRepository(session),
     )
     try:
         left = await service.execute(code)
-        await build_notification_service(session).notify_company(
-            left.booking.company_id,
-            NotificationEvent.GUEST_CHECKED_OUT,
-            {
-                "property_name": left.flat_name or "—",
-                "guest_name": left.guest_name or "—",
-                "cleaning_created": left.cleaning_created,
-                "booking_id": str(left.booking.id),
-            },
-        )
+        if left.first:
+            await build_notification_service(session).notify_company(
+                left.booking.company_id,
+                NotificationEvent.GUEST_CHECKED_OUT,
+                {
+                    "property_name": left.flat_name or "—",
+                    "guest_name": left.guest_name or "—",
+                    "cleaning_created": left.cleaning_created,
+                    "booking_id": str(left.booking.id),
+                },
+            )
     except LookupError:
         await session.rollback()
         raise HTTPException(status_code=404, detail="Not found")

@@ -6,6 +6,7 @@ hours before check-in (the company's setting) until check-out. A closed booking
 shows only that it is closed, and whom to write to.
 """
 
+import asyncio
 import uuid
 from datetime import datetime, timezone
 from decimal import Decimal
@@ -35,6 +36,9 @@ class _Repo:
 
     async def get_by_guest_code(self, code):
         return next((b for b in self.rows.values() if b.guest_code == code), None)
+
+    async def get_for_update(self, row_id):
+        return self.rows.get(row_id)
 
     async def get_by_property_and_dates(self, property_id, check_in, check_out, *, exclude_id=None, **_):
         return [
@@ -523,9 +527,13 @@ async def test_the_owner_sets_the_hours_and_the_guest_marks_leaving(flat):  # no
     path = f"/api/v1/public/guest/{code}/checked-out"
     assert (await client.post(path)).status_code == 409  # still pending
     await client.post(f"/api/v1/bookings/{booking}/status", json={"status": "confirmed"})
-    first = await client.post(path)
-    assert (first.status_code, first.json()) == (200, {"cleaning_created": True})
+    # Two taps at once (two tabs): one makes the cleaning, the other finds it.
+    first, second = await asyncio.gather(client.post(path), client.post(path))
+    assert sorted([first.json()["cleaning_created"], second.json()["cleaning_created"]]) == [False, True]
     assert (await client.post(path)).json() == {"cleaning_created": False}
+    # The booking's history keeps it once, however often the guest taps.
+    logs = (await client.get(f"/api/v1/bookings/{booking}")).json()["audit_logs"]
+    assert [log["field_name"] for log in logs].count("guest_left") == 1
     tasks = (await client.get("/api/v1/cleaning", params={"property_id": str(prop)})).json()
     items = tasks["items"] if isinstance(tasks, dict) else tasks
     assert [t["booking_id"] for t in items] == [booking]

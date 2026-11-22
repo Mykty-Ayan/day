@@ -351,6 +351,10 @@ class BookingAuditLogRepository(abc.ABC):
         limit: int = 50,
     ) -> list[BookingAuditLog]: ...
 
+    async def has_field(self, booking_id: uuid.UUID, field_name: str) -> bool:
+        """Whether the booking's history holds a change of this field, however old."""
+        return any(log.field_name == field_name for log in await self.list_by_booking(booking_id, limit=100_000))
+
 
 class CalendarFeedRepository(abc.ABC):
     @abc.abstractmethod

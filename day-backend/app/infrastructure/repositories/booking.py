@@ -7,7 +7,7 @@ from collections.abc import Sequence
 from datetime import date, datetime, timedelta
 from decimal import Decimal
 
-from sqlalchemy import and_, case, delete, func, or_, select, text, tuple_, update
+from sqlalchemy import and_, case, delete, exists, func, or_, select, text, tuple_, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -1199,6 +1199,12 @@ class SqlBookingAuditLogRepository(BookingAuditLogRepository):
         )
         result = await self._session.scalars(stmt)
         return [_model_to_audit(m) for m in result.all()]
+
+    async def has_field(self, booking_id: uuid.UUID, field_name: str) -> bool:
+        stmt = select(
+            exists().where(BookingAuditLogModel.booking_id == booking_id, BookingAuditLogModel.field_name == field_name)
+        )
+        return bool(await self._session.scalar(stmt))
 
 
 def _model_to_block(m: PropertyBlockModel) -> PropertyBlock:

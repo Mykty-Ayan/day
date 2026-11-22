@@ -76,7 +76,8 @@
     "depositLine": "보증금, 체크아웃 후 하루 안에 반환",
     "map2gis": "2GIS",
     "mapYandex": "Yandex",
-    "mapGoogle": "Google"
+    "mapGoogle": "Google",
+    "maxSiteNights": "온라인 예약은 최대 {{n}}박입니다. 더 오래 머물려면 호스트에게 문의하세요"
   },
   "guestOffer": {
     "hello": "{{name}}님, 원하시는 날짜의 숙소입니다",
