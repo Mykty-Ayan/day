@@ -219,7 +219,7 @@ export default function AnalyticsFilterBar({
         </Popover>
 
         <Select value={source} onValueChange={onSourceChange}>
-          <SelectTrigger className="w-full sm:w-44">
+          <SelectTrigger aria-label={t('bookings.source')} className="w-full sm:w-44">
             <SelectValue placeholder={t('common.allSources')} />
           </SelectTrigger>
           <SelectContent>

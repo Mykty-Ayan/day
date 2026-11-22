@@ -159,7 +159,7 @@ export default function BookingListPage() {
           />
         </label>
         <Select value={propertyFilter} onValueChange={(value) => { setPropertyFilter(value); setPage(1) }}>
-          <SelectTrigger className="w-full sm:w-52">
+          <SelectTrigger aria-label={t('bookings.property')} className="w-full sm:w-52">
             <SelectValue placeholder={t('common.allProperties')} />
           </SelectTrigger>
           <SelectContent>
@@ -172,7 +172,7 @@ export default function BookingListPage() {
           </SelectContent>
         </Select>
         <Select value={sourceFilter} onValueChange={(value) => { setSourceFilter(value as BookingSource | 'all'); setPage(1) }}>
-          <SelectTrigger className="w-full sm:w-44">
+          <SelectTrigger aria-label={t('bookings.source')} className="w-full sm:w-44">
             <SelectValue placeholder={t('common.allSources')} />
           </SelectTrigger>
           <SelectContent>

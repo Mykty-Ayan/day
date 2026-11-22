@@ -1235,7 +1235,7 @@ export default function GanttChart({
                       {!(narrow && (clocked || arrivesToday || leavesToday)) && <span className={`min-w-0 font-semibold ${hourly ? 'whitespace-nowrap text-[10px] tracking-tight tabular-nums' : 'truncate text-[11px]'}`}>
                         {hourly ? hourSpan(booking) : booking.guest_name}
                         {!hourly && pos.width >= cellW * 3.5 && booking.source !== 'direct' && (
-                          <span className="font-normal opacity-75"> · {t(sourceKeys[booking.source])}</span>
+                          <span className="font-normal"> · {t(sourceKeys[booking.source])}</span>
                         )}
                       </span>}
                       {narrow && leavesToday && !clocked && !arrivesToday && <LogOut className="h-3 w-3 shrink-0" aria-hidden="true" />}
