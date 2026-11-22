@@ -100,7 +100,10 @@
     "expired": "Der Reisezeitraum dieses Links ist vorbei. Schreiben Sie uns, wir finden einen neuen.",
     "choose": "Auswählen",
     "hold": "Wählen Sie eine aus, wir halten sie 30 Minuten für Sie frei.",
-    "lapsed": "Die Buchungszeit ist abgelaufen, ohne dass die Zahlung eingegangen ist. Wählen Sie die Wohnung erneut."
+    "lapsed": "Die Buchungszeit ist abgelaufen, ohne dass die Zahlung eingegangen ist. Wählen Sie die Wohnung erneut.",
+    "next": "Wie es weitergeht",
+    "freeOf": "{{free}} von {{total}} frei",
+    "deposit": "Kaution {{price}}"
   },
   "guestBook": {
     "back": "Alle Wohnungen",
@@ -152,10 +155,20 @@
   },
   "guestCompany": {
     "notFound": "Dieser Link führt nicht zur Seite eines Anbieters.",
-    "flats": "Wohnungen · {{count}}",
     "noFlats": "Gerade sind keine Wohnungen frei.",
     "write": "Auf WhatsApp schreiben",
-    "rules": "Hausregeln für Gäste"
+    "rules": "Hausregeln für Gäste",
+    "ourFlats": "Unsere Wohnungen",
+    "all": "Alle",
+    "byRooms": "Nach Zimmern",
+    "view": "Ansehen",
+    "howTitle": "So buchen Sie",
+    "how1": "Wohnung und Daten wählen",
+    "how1Hint": "Der Preis für alle Nächte steht sofort da",
+    "how2": "Kaution über Kaspi zahlen",
+    "how3": "Türcode erhalten",
+    "askTitle": "Noch Fragen?",
+    "askHint": "Schreiben Sie uns, wir antworten und finden eine Wohnung."
   },
   "guestStay": {
     "pickDates": "Daten wählen",

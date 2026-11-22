@@ -1995,7 +1995,10 @@
     "expired": "The dates of this link have passed. Write to us and we will find new ones.",
     "choose": "Choose",
     "hold": "Pick one and we hold it for you for 30 minutes.",
-    "lapsed": "We held the dates for you, but the deposit did not arrive in time. Choose a flat again."
+    "lapsed": "We held the dates for you, but the deposit did not arrive in time. Choose a flat again.",
+    "next": "What happens next",
+    "freeOf": "{{free}} of {{total}} free",
+    "deposit": "deposit {{price}}"
   },
   "guestBook": {
     "back": "All flats",
@@ -2184,10 +2187,20 @@
   },
   "guestCompany": {
     "notFound": "This link does not lead to a company's site.",
-    "flats": "Flats · {{count}}",
     "noFlats": "No flats on sale right now.",
     "write": "Write on WhatsApp",
-    "rules": "Rules for guests"
+    "rules": "Rules for guests",
+    "ourFlats": "Our flats",
+    "all": "All",
+    "byRooms": "By rooms",
+    "view": "View",
+    "howTitle": "How to book",
+    "how1": "Pick a flat and dates",
+    "how1Hint": "The price for all nights shows at once",
+    "how2": "Pay the deposit in Kaspi",
+    "how3": "Get the door code",
+    "askTitle": "Any questions?",
+    "askHint": "Write to us — we will answer and find you a flat."
   },
   "site": {
     "title": "Company site",

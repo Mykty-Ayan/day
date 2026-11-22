@@ -66,6 +66,8 @@ export interface PublicOfferFlat {
   /** The stay for the link's dates and guests, as a booking counts it; null when the flat has no price. */
   total: number | null
   free: boolean
+  /** The deposit a booking from the link asks; null when the flat has none. */
+  deposit?: number | null
 }
 
 /** The link's booking: which flat, until when the dates are held, the deposit to
@@ -98,6 +100,8 @@ export interface PublicOffer {
   guests: number
   flats: PublicOfferFlat[]
   booking: PublicOfferBooking | null
+  /** Who sent the link, once the company has set up its site. */
+  company?: { title: string; logo_url: string | null } | null
 }
 
 export async function getPublicOffer(code: string): Promise<PublicOffer> {
@@ -161,6 +165,8 @@ export interface GuestPanel {
   closed: boolean
   /** The company's own day, YYYY-MM-DD: which buttons fit the stay. */
   today: string
+  /** The company's wall clock at the answer, no zone: the countdown runs on it. */
+  now?: string | null
   company: { title: string; logo_url: string | null; accent_color: string | null; whatsapp: string | null } | null
   guest_name: string | null
   booking: {

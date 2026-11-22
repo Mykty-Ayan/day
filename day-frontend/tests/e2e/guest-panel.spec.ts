@@ -392,3 +392,23 @@ test('a closed booking still shows the deposit coming back and the flat to book 
   await expect(page.getByRole('region', { name: 'Залог' })).toContainText('Залог вернули')
   await expect(page.getByRole('link', { name: 'Открыть страницу квартиры' })).toHaveAttribute('href', '/s/vk7nys9')
 })
+
+test('the cart waits while the guest looks at another stage', async ({ page }) => {
+  await openStay(page, answer({ menu: MENU }, { paid: 40000, remaining: 0 }))
+  const minibar = page.getByRole('region', { name: 'Мини-бар' })
+  await minibar.getByRole('button', { name: 'Добавить: Кола 0,5' }).click()
+  await page.getByRole('tab', { name: 'Заселение' }).click()
+  await page.getByRole('tab', { name: 'В квартире' }).click()
+  await expect(minibar.getByRole('button', { name: /Корзина: 1 шт\./ })).toBeVisible()
+})
+
+test.describe('a phone in another time zone', () => {
+  test.use({ timezoneId: 'Asia/Tokyo' })
+
+  test('counts down to check-in by the company\'s clock, not the phone\'s', async ({ page }) => {
+    const now = today()
+    // An hour to check-in on the company's clock; Tokyo is four hours ahead of Almaty.
+    await open(page, answer({ now: `${now}T13:00:00` }, { check_in: `${now}T14:00:00` }))
+    await expect(page.getByRole('region', { name: 'Ваша поездка' })).toContainText(/Через (1 ч 0|0 ч 59) мин/)
+  })
+})
