@@ -67,9 +67,10 @@ async def save_site(
 
 # How far ahead «free from» looks: a flat taken longer says nothing.
 FREE_AHEAD_DAYS = 60
-# A search by dates: as many nights as a stay on the site holds, and no further than a year ahead.
+# A search by dates: as many nights as a stay on the site holds, and no further than the
+# flat's page shows nights (WINDOW_NIGHTS in PublicStayPage.tsx): a stay found here can be booked there.
 MAX_SEARCH_NIGHTS = 30
-MAX_SEARCH_AHEAD_DAYS = 365
+MAX_SEARCH_AHEAD_DAYS = 119
 
 
 def company_today(company: CompanySettings | None) -> date:
@@ -104,8 +105,8 @@ async def public_company(
     if check_in and check_out:
         if not (today <= check_in < check_out <= check_in + timedelta(days=MAX_SEARCH_NIGHTS)):
             raise HTTPException(status_code=422, detail=f"From today, 1 to {MAX_SEARCH_NIGHTS} nights")
-        if check_in > today + timedelta(days=MAX_SEARCH_AHEAD_DAYS):
-            raise HTTPException(status_code=422, detail="No further than a year ahead")
+        if check_out > today + timedelta(days=MAX_SEARCH_AHEAD_DAYS):
+            raise HTTPException(status_code=422, detail=f"Check-out within {MAX_SEARCH_AHEAD_DAYS} days from today")
     weekend = company.weekend_nights if company else DEFAULT_WEEKEND_NIGHTS
     seasonals, day_prices = SqlSeasonalPriceRepository(session), SqlDayPriceRepository(session)
     flats = []

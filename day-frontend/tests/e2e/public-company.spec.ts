@@ -119,12 +119,22 @@ test('a guest searches the site by dates and guests, and the flat opens with the
   await expect(little).toHaveCount(0)
   await expect(big).toHaveAttribute('href', new RegExp(`\\?in=${day(3)}&out=${day(5)}&guests=2$`))
 
-  // Free nights for both, but three guests: only the family flat takes them.
+  // Free nights for both, but three guests: only the family flat takes them. While the new
+  // dates load, the answer for the old ones is not shown as theirs.
+  let release = () => {}
+  const held = new Promise<void>((resolve) => (release = resolve))
+  await page.route((url) => url.pathname.endsWith(`/public/companies/${slug}`) && url.searchParams.get('check_in') === day(6), async (route) => {
+    await held
+    await route.continue()
+  })
   await checkIn.fill(day(6))
   await checkOut.fill(day(8))
   await page.getByRole('button', { name: 'Больше гостей' }).click()
   await expect(page.getByText('3 гостя')).toBeVisible()
   await show.click()
+  await expect(page.getByText('Загружаем…')).toBeVisible()
+  await expect(big).toHaveCount(0)
+  release()
   await expect(big).toContainText('40 000 ₸')
   await expect(little).toHaveCount(0)
 

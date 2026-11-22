@@ -164,6 +164,8 @@ async def test_a_guest_searches_the_site_by_dates(flat):  # noqa: F811  (the imp
     assert (await search(5, 9)).json()["flats"][0]["stay_free"] is False
 
     # Dates a guest cannot pick are refused.
-    for first, last in ((-1, 1), (3, 3), (4, 2), (0, 31), (366, 367)):
+    # The last night the flat's page shows is the 118th: check-out on the 119th day at most.
+    assert (await search(117, 119)).status_code == 200
+    for first, last in ((-1, 1), (3, 3), (4, 2), (0, 31), (118, 120)):
         assert (await search(first, last)).status_code == 422, (first, last)
     assert (await client.get(f"/api/v1/public/companies/{slug}", params={"check_in": str(today)})).status_code == 422
