@@ -33,7 +33,7 @@ function Offer({ code, locale }: { code: string; locale: string }) {
   })
   return (
     <>
-      {offer.isPending && <p className="p-6 text-sm text-[#76767F]">{t('guest.loading')}</p>}
+      {offer.isPending && <p className="p-6 text-sm text-[#6B6B74]">{t('guest.loading')}</p>}
       {offer.isError && !offer.data && (
         <LoadFailed
           error={offer.error}
@@ -120,28 +120,28 @@ function OfferView({ offer, locale, onRefresh }: { offer: PublicOffer; locale: s
         <h1 className="font-guest-display text-[34px] font-bold leading-[1.05] tracking-[-0.035em]">
           {offer.guest ? t('guestOffer.hello', { name: offer.guest }) : t('guestOffer.title')}
         </h1>
-        {free > 0 && <p className="mt-2 text-[15px] leading-snug text-[#76767F]">{t('guestOffer.hold')}</p>}
+        {free > 0 && <p className="mt-2 text-[15px] leading-snug text-[#6B6B74]">{t('guestOffer.hold')}</p>}
       </div>
 
       {/* The stay as a ticket, as the mockup: check-in, the nights, check-out. */}
       <section aria-label={dates} className="m-2 rounded-[28px] bg-white p-5">
         <div className="flex items-center justify-between gap-2">
           <div>
-            <p className="text-xs font-semibold text-[#76767F]">{t('guest.checkIn')}</p>
+            <p className="text-xs font-semibold text-[#6B6B74]">{t('guest.checkIn')}</p>
             <p className="font-guest-display text-[30px] font-bold leading-tight tracking-[-0.03em]">{from.big}</p>
-            <p className="text-[13px] text-[#76767F]">{from.small}</p>
+            <p className="text-[13px] text-[#6B6B74]">{from.small}</p>
           </div>
-          <span className="rounded-full bg-[color-mix(in_srgb,#2F5BFF_16%,white)] px-2.5 py-1 text-xs font-semibold text-[#2F5BFF]">{nights}</span>
+          <span className="rounded-full bg-[color-mix(in_srgb,#2F5BFF_8%,white)] px-2.5 py-1 text-xs font-semibold text-[#2F5BFF]">{nights}</span>
           <div className="text-end">
-            <p className="text-xs font-semibold text-[#76767F]">{t('guest.checkOut')}</p>
+            <p className="text-xs font-semibold text-[#6B6B74]">{t('guest.checkOut')}</p>
             <p className="font-guest-display text-[30px] font-bold leading-tight tracking-[-0.03em]">{to.big}</p>
-            <p className="text-[13px] text-[#76767F]">{to.small}</p>
+            <p className="text-[13px] text-[#6B6B74]">{to.small}</p>
           </div>
         </div>
         <div className="mt-3.5 flex items-center justify-between border-t border-dashed border-[#DCDCE3] pt-3 text-sm font-semibold">
           <span>{t('guestOffer.guests', { count: offer.guests })}</span>
           {offer.flats.length > 0 && (
-            <span className={free > 0 ? 'text-[#17A34A]' : 'text-[#76767F]'}>
+            <span className={free > 0 ? 'text-[#157A3A]' : 'text-[#6B6B74]'}>
               {allFree ? (offer.flats.length === 1 ? t('guestCompany.freeForDates') : t('guestOffer.freeAll')) : t('guestOffer.freeOf', { free, total: offer.flats.length })}
             </span>
           )}
@@ -184,7 +184,7 @@ function OfferView({ offer, locale, onRefresh }: { offer: PublicOffer; locale: s
         </section>
       )}
 
-      <footer className="px-6 pt-3 text-xs text-[#76767F]">{t('guest.poweredBy')}</footer>
+      <footer className="px-6 pt-3 text-xs text-[#6B6B74]">{t('guest.poweredBy')}</footer>
     </main>
   )
 }
@@ -223,9 +223,9 @@ function FlatCard({
         </span>
       </div>
       <div className="flex flex-col gap-2.5 px-3 pt-3">
-        <h2 dir="auto" className={`font-guest-display text-[22px] font-bold leading-tight tracking-[-0.025em] ${flat.free ? '' : 'text-[#76767F]'}`}>{flat.name}</h2>
+        <h2 dir="auto" className={`font-guest-display text-[22px] font-bold leading-tight tracking-[-0.025em] ${flat.free ? '' : 'text-[#6B6B74]'}`}>{flat.name}</h2>
         {(flat.complex_name || facts.length > 0) && (
-          <p className="flex flex-wrap gap-x-3.5 gap-y-1 text-sm text-[#76767F]">
+          <p className="flex flex-wrap gap-x-3.5 gap-y-1 text-sm text-[#6B6B74]">
             {flat.complex_name && <span dir="auto">{flat.complex_name}</span>}
             {facts.map(({ icon: Icon, text }) => (
               <span key={text} className="inline-flex items-center gap-1.5">
@@ -239,13 +239,13 @@ function FlatCard({
           (flat.total != null ? (
             <p className="flex flex-wrap items-baseline gap-x-1.5 rounded-[18px] bg-[#F3F3F6] px-4 py-3">
               <span className="text-[26px] font-bold tracking-[-0.03em]">{money(flat.total, locale)}</span>
-              <span className="text-sm text-[#76767F]">{t('guestOffer.forStay', { nights })}</span>
+              <span className="text-sm text-[#6B6B74]">{t('guestOffer.forStay', { nights })}</span>
               {flat.deposit != null && (
-                <span className="ms-auto text-sm text-[#76767F]">{t('guestOffer.deposit', { price: money(flat.deposit, locale) })}</span>
+                <span className="ms-auto text-sm text-[#6B6B74]">{t('guestOffer.deposit', { price: money(flat.deposit, locale) })}</span>
               )}
             </p>
           ) : (
-            <p className="text-sm text-[#76767F]">{t('guestOffer.noPrice')}</p>
+            <p className="text-sm text-[#6B6B74]">{t('guestOffer.noPrice')}</p>
           ))}
         {flat.free && (
           <div className="mt-1 grid grid-cols-2 gap-2">

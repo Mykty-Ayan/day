@@ -27,7 +27,7 @@ const RULE_ICONS: Record<RuleKind, typeof ScrollText> = { smoke: CigaretteOff, q
 // The approved guest mockup (28.10): white cards on a light grey page.
 const CARD = 'm-2 rounded-[28px] bg-white p-5'
 const H2 = 'font-guest-display text-[22px] font-bold tracking-[-0.025em]'
-const MUTE = 'text-[#76767F]'
+const MUTE = 'text-[#6B6B74]'
 // A round button over the photo, glass on whatever the photo is.
 const GLASS = 'flex h-11 w-11 items-center justify-center rounded-full border border-white/30 bg-white/20 text-white backdrop-blur-md'
 
@@ -49,7 +49,7 @@ function Stay({ code, locale }: { code: string; locale: string }) {
 
   return (
     <>
-      {stay.isPending && <p className="p-6 text-sm text-[#76767F]">{t('guest.loading')}</p>}
+      {stay.isPending && <p className="p-6 text-sm text-[#6B6B74]">{t('guest.loading')}</p>}
       {/* A refresh that fails later keeps the page the guest has. */}
       {stay.isError && !stay.data && (
         <LoadFailed error={stay.error} onRetry={() => void stay.refetch()} gone={{ 404: t('guest.notFound') }} />

@@ -115,7 +115,7 @@ export function GuestMinibar({
         {t('guestPanel.minibar.title')}
       </h2>
       {hours && (
-        <p className={`mt-1 text-[13px] ${closedNow ? 'font-semibold text-[#111114]' : 'text-[#76767F]'}`}>
+        <p className={`mt-1 text-[13px] ${closedNow ? 'font-semibold text-[#111114]' : 'text-[#6B6B74]'}`}>
           {closedNow ? t('guestPanel.minibar.closedNow', hours) : t('guestPanel.minibar.hours', hours)}
         </p>
       )}
@@ -127,7 +127,7 @@ export function GuestMinibar({
           )}
         </div>
       )}
-      {menu.length === 0 && <p className="mt-3 text-[15px] text-[#76767F]">{t('guestPanel.minibar.empty')}</p>}
+      {menu.length === 0 && <p className="mt-3 text-[15px] text-[#6B6B74]">{t('guestPanel.minibar.empty')}</p>}
       {groups.length > 1 && (
         <div className="-mx-5 mt-3 flex gap-2 overflow-x-auto px-5 pb-1">
           {groups.map(([category]) => (
@@ -139,7 +139,7 @@ export function GuestMinibar({
       )}
       {groups.map(([category, items]) => (
         <div key={category} id={`minibar-${encodeURIComponent(category)}`} className="mt-4 scroll-mt-4">
-          {category && <h3 className="mb-2 text-[13px] font-semibold uppercase tracking-wider text-[#A3A3AD]">{category}</h3>}
+          {category && <h3 className="mb-2 text-[13px] font-semibold uppercase tracking-wider text-[#6B6B74]">{category}</h3>}
           <div className="grid grid-cols-2 gap-3">
             {items.map((item) => (
               <div key={item.id} data-testid="menu-item" className="flex flex-col overflow-hidden rounded-2xl bg-[#F3F3F6]">
@@ -172,7 +172,7 @@ export function GuestMinibar({
 
       {orders.length > 0 && (
         <div className="mt-5 space-y-2 border-t border-[#E7E7ED] pt-4">
-          <h3 className="text-[13px] font-semibold uppercase tracking-wider text-[#A3A3AD]">{t('guestPanel.minibar.yourOrders')}</h3>
+          <h3 className="text-[13px] font-semibold uppercase tracking-wider text-[#6B6B74]">{t('guestPanel.minibar.yourOrders')}</h3>
           {callOff.isError && (
             <p role="alert" className="text-sm text-[#8A5A00]">
               {t('guestPanel.minibar.cancelFailed')}
@@ -182,7 +182,7 @@ export function GuestMinibar({
             <div key={o.number} data-testid="guest-order" className="flex justify-between gap-3 text-[15px]">
               <div className="min-w-0">
                 <p className="text-[#111114]">{o.lines.join(', ')}</p>
-                {o.status !== 'cancelled' && <p className="text-[13px] text-[#76767F]">{t(`guestPanel.minibar.way.${o.billing}`)}</p>}
+                {o.status !== 'cancelled' && <p className="text-[13px] text-[#6B6B74]">{t(`guestPanel.minibar.way.${o.billing}`)}</p>}
                 <span
                   className={`mt-1 inline-block rounded-full px-2 py-0.5 text-[12px] font-semibold ${
                     o.status === 'awaiting_payment' && o.invoiced ? 'bg-[var(--accent-soft)] text-[var(--accent)]' : 'bg-[#F3F3F6] text-[#2A2A30]'
@@ -195,7 +195,7 @@ export function GuestMinibar({
                     type="button"
                     onClick={() => setAsking(o.number)}
                     disabled={callOff.isPending}
-                    className="ms-3 text-[13px] font-semibold text-[#76767F] underline disabled:opacity-50"
+                    className="ms-3 text-[13px] font-semibold text-[#6B6B74] underline disabled:opacity-50"
                   >
                     {t('guestPanel.minibar.cancel')}
                   </button>
@@ -253,7 +253,7 @@ export function GuestMinibar({
               <span>{t('guestPanel.minibar.total')}</span>
               <span data-testid="cart-total">{money(cartTotal(lines), locale)}</span>
             </p>
-            <label className="block text-xs font-bold uppercase tracking-wider text-[#A3A3AD]">
+            <label className="block text-xs font-bold uppercase tracking-wider text-[#6B6B74]">
               {t('guestPanel.minibar.note')}
               <textarea value={note} maxLength={500} rows={2} onChange={(e) => setNote(e.target.value)} placeholder={t('guestPanel.minibar.noteHint')} className="mt-1.5 w-full rounded-2xl border border-[#E7E7ED] p-3 text-sm normal-case tracking-normal text-[#111114]" />
             </label>
@@ -269,13 +269,13 @@ export function GuestMinibar({
                     <input type="radio" name="minibar-billing" value={way} checked={billing === way} onChange={() => setChosen(way)} className="h-5 w-5 shrink-0 accent-[var(--accent)]" />
                     <span>
                       <span className="block text-[15px] font-semibold text-[#111114]">{t(`guestPanel.minibar.${way}`)}</span>
-                      <span className="block text-[13px] text-[#76767F]">{t(`guestPanel.minibar.${way}Hint`)}</span>
+                      <span className="block text-[13px] text-[#6B6B74]">{t(`guestPanel.minibar.${way}Hint`)}</span>
                     </span>
                   </label>
                 ))}
               </fieldset>
             ) : (
-              <p className="text-[13px] text-[#76767F]">
+              <p className="text-[13px] text-[#6B6B74]">
                 {t(billing === 'booking' ? 'guestPanel.minibar.payBooking' : 'guestPanel.minibar.payInvoice')}
               </p>
             )}

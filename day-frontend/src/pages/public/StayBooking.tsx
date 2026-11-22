@@ -45,21 +45,21 @@ export function BookBar({
           {quote ? (
             <>
               <span data-testid="bar-total" className="block whitespace-nowrap text-lg font-bold leading-tight">{money(quote.total, locale)}</span>
-              <span className="block truncate text-[13px] text-[#76767F]">
+              <span className="block truncate text-[13px] text-[#6B6B74]">
                 {dates} · {t('guest.nights', { count: quote.count })}
               </span>
             </>
           ) : stay.prices.night != null || stay.prices.hour != null ? (
             <>
               <span className="block text-lg font-bold leading-tight">{money((stay.prices.night ?? stay.prices.hour)!, locale)}</span>
-              <span className="block text-[13px] text-[#76767F]">
+              <span className="block text-[13px] text-[#6B6B74]">
                 {stay.prices.night != null ? t('guest.perNight') : t('guest.perHour')}
               </span>
             </>
           ) : stay.prices.tariffs?.length ? (
             <>
               <span className="block text-lg font-bold leading-tight">{money(stay.prices.tariffs[0].price, locale)}</span>
-              <span className="block text-[13px] text-[#76767F]">{t(`guest.tariff_${stay.prices.tariffs[0].name}`)}</span>
+              <span className="block text-[13px] text-[#6B6B74]">{t(`guest.tariff_${stay.prices.tariffs[0].name}`)}</span>
             </>
           ) : null}
         </div>
@@ -183,7 +183,7 @@ export function BookSheet({
         <div className="flex items-start justify-between gap-3">
           <div>
             <h2 id="book-title" className="text-xl font-bold">{t('guestBook.title')}</h2>
-            <p dir="auto" className="text-sm text-[#76767F]">
+            <p dir="auto" className="text-sm text-[#6B6B74]">
               {stay.name} · {day.format(parseISO(checkIn))} – {day.format(parseISO(checkOut))}
             </p>
           </div>
@@ -217,7 +217,7 @@ export function BookSheet({
             maxLength={50}
             className={`h-12 rounded-xl border px-3 text-base ${phoneWrong ? 'border-amber-600' : 'border-gray-300'}`}
           />
-          <span className={`text-xs ${phoneWrong ? 'text-amber-800' : 'text-[#76767F]'}`}>
+          <span className={`text-xs ${phoneWrong ? 'text-amber-800' : 'text-[#6B6B74]'}`}>
             {phoneWrong ? t('guestBook.phoneWrong') : t('guestBook.phoneHint')}
           </span>
         </label>
@@ -258,19 +258,19 @@ export function BookSheet({
             <span data-testid="sheet-total" className="text-base font-semibold">{money(priced ? priced.total : total, locale)}</span>
           </div>
           {priced && priced.extra_guests > 0 && (
-            <div className="flex items-baseline justify-between gap-3 text-sm text-[#76767F]">
+            <div className="flex items-baseline justify-between gap-3 text-sm text-[#6B6B74]">
               <span>{t('guestBook.extraGuests')}</span>
               <span>+{money(priced.extra_guests, locale)}</span>
             </div>
           )}
           {priced && priced.discount > 0 && (
-            <div className="flex items-baseline justify-between gap-3 text-sm text-[#76767F]">
+            <div className="flex items-baseline justify-between gap-3 text-sm text-[#6B6B74]">
               <span>{t('guestBook.discount')}</span>
               <span>−{money(priced.discount, locale)}</span>
             </div>
           )}
           {/* Until the booking's own price is in, the nights alone, and said so. */}
-          {!priced && <p className="text-xs text-[#76767F]">{t('guest.totalHint')}</p>}
+          {!priced && <p className="text-xs text-[#6B6B74]">{t('guest.totalHint')}</p>}
         </section>
 
         {error && (
@@ -286,7 +286,7 @@ export function BookSheet({
         >
           {sending ? t('guestBook.booking') : t('guestBook.book')}
         </button>
-        <p className="text-xs text-[#76767F]">{t('guestBook.holdNote')}</p>
+        <p className="text-xs text-[#6B6B74]">{t('guestBook.holdNote')}</p>
       </div>
     </div>
   )
@@ -305,7 +305,7 @@ export function BookingPageLink({ code }: { code: string | null | undefined }) {
         {t('guestBook.openPage')}
         <ArrowRight className="h-5 w-5 rtl:rotate-180" aria-hidden />
       </a>
-      <p className="text-sm leading-snug text-[#76767F]">{t('guestBook.openPageHint')}</p>
+      <p className="text-sm leading-snug text-[#6B6B74]">{t('guestBook.openPageHint')}</p>
     </div>
   )
 }

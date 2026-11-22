@@ -146,7 +146,7 @@ export function GuestFrame({
           </button>
         </header>
         <div {...(personal ? MASK : {})}>
-          {shown === null ? <p className="p-6 text-sm text-[#76767F]">…</p> : children(locale)}
+          {shown === null ? <p className="p-6 text-sm text-[#6B6B74]">…</p> : children(locale)}
         </div>
       </div>
       {picking && (

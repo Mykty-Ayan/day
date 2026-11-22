@@ -166,7 +166,7 @@ function DigitsSheet({
               aria-invalid={error != null}
               className="h-14 rounded-xl border border-gray-300 px-3 text-center text-2xl tracking-[0.5em]"
             />
-            <span className="text-xs text-[#76767F]">{t('stayHere.digitsHint')}</span>
+            <span className="text-xs text-[#6B6B74]">{t('stayHere.digitsHint')}</span>
           </label>
           {error && (
             <p role="alert" className="text-sm font-semibold text-amber-800">

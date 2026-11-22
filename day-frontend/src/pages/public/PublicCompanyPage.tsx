@@ -34,7 +34,7 @@ function Company({ slug, locale }: { slug: string; locale: string }) {
   })
   return (
     <>
-      {company.isPending && <p className="p-6 text-sm text-[#76767F]">{t('guest.loading')}</p>}
+      {company.isPending && <p className="p-6 text-sm text-[#6B6B74]">{t('guest.loading')}</p>}
       {company.isError && !company.data && (
         <LoadFailed error={company.error} onRetry={() => void company.refetch()} gone={{ 404: t('guestCompany.notFound') }} />
       )}
@@ -91,7 +91,7 @@ function CompanyView({ company, locale }: { company: PublicCompany; locale: stri
 
       <div className="px-5 pb-4 pt-2.5">
         <h1 dir="auto" className="font-guest-display text-[40px] font-bold leading-[1.02] tracking-[-0.035em]">{company.tagline || company.title}</h1>
-        {company.about && <p dir="auto" className="mt-3 whitespace-pre-line text-base leading-relaxed text-[#76767F]">{company.about}</p>}
+        {company.about && <p dir="auto" className="mt-3 whitespace-pre-line text-base leading-relaxed text-[#6B6B74]">{company.about}</p>}
       </div>
 
       {company.flats.length > 0 && <SearchCard today={today} most={most} stay={stay} onSearch={setStay} />}
@@ -114,7 +114,7 @@ function CompanyView({ company, locale }: { company: PublicCompany; locale: stri
               ? t('guestCompany.freeOn', { dates: dateRange(range, parseISO(stay.checkIn), parseISO(stay.checkOut)) })
               : t('guestCompany.ourFlats')}
           </h2>
-          {(!stay || answered) && <span aria-live="polite" className="text-sm text-[#76767F]">{shown.length}</span>}
+          {(!stay || answered) && <span aria-live="polite" className="text-sm text-[#6B6B74]">{shown.length}</span>}
         </div>
         {filters.length > 0 && (
           <div role="radiogroup" aria-label={t('guestCompany.byRooms')} className="flex gap-1.5 overflow-x-auto px-3 pb-1 pt-1 [scrollbar-width:none]">
@@ -132,12 +132,12 @@ function CompanyView({ company, locale }: { company: PublicCompany; locale: stri
             ))}
           </div>
         )}
-        {company.flats.length === 0 && <p className="m-2 rounded-[28px] bg-white p-5 text-base text-[#76767F]">{t('guestCompany.noFlats')}</p>}
+        {company.flats.length === 0 && <p className="m-2 rounded-[28px] bg-white p-5 text-base text-[#6B6B74]">{t('guestCompany.noFlats')}</p>}
         {stay && searched.isError && !answered && (
           <LoadFailed error={searched.error} onRetry={() => void searched.refetch()} gone={{ 404: t('guestCompany.notFound') }} />
         )}
         {answered && shown.length === 0 && (
-          <div className="m-2 rounded-[28px] bg-white p-5 text-base text-[#76767F]">
+          <div className="m-2 rounded-[28px] bg-white p-5 text-base text-[#6B6B74]">
             <p>{t('guestCompany.noneFree')}</p>
             <button type="button" onClick={() => setStay(null)} className="mt-2 h-11 font-semibold text-[var(--accent)]">
               {t('guest.resetDates')}
@@ -148,7 +148,7 @@ function CompanyView({ company, locale }: { company: PublicCompany; locale: stri
           shown.map((flat, n) => (
             <FlatTile key={flat.code} flat={flat} locale={locale} first={n === 0} today={today} stay={stay} />
           ))}
-        {stay && !answered && !searched.isError && <p className="p-6 text-sm text-[#76767F]">{t('guest.loading')}</p>}
+        {stay && !answered && !searched.isError && <p className="p-6 text-sm text-[#6B6B74]">{t('guest.loading')}</p>}
       </section>
 
       {company.flats.length > 0 && (
@@ -164,7 +164,7 @@ function CompanyView({ company, locale }: { company: PublicCompany; locale: stri
                 <span className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-full bg-[#111114] text-sm font-bold text-white">{k + 1}</span>
                 <span className="flex flex-col gap-0.5 pt-0.5">
                   <b className="text-[15px]">{title}</b>
-                  <span className="text-sm leading-snug text-[#76767F]">{hint}</span>
+                  <span className="text-sm leading-snug text-[#6B6B74]">{hint}</span>
                 </span>
               </li>
             ))}
@@ -175,7 +175,7 @@ function CompanyView({ company, locale }: { company: PublicCompany; locale: stri
       {(company.whatsapp || company.instagram) && (
         <section className="m-2 rounded-[28px] bg-white p-5">
           <h2 className="font-guest-display text-[22px] font-bold tracking-[-0.025em]">{t('guestCompany.askTitle')}</h2>
-          <p className="mb-4 mt-2 text-[15px] text-[#76767F]">{t('guestCompany.askHint')}</p>
+          <p className="mb-4 mt-2 text-[15px] text-[#6B6B74]">{t('guestCompany.askHint')}</p>
           <div className="flex gap-2">
             {company.whatsapp && (
               <a
@@ -205,7 +205,7 @@ function CompanyView({ company, locale }: { company: PublicCompany; locale: stri
         </section>
       )}
 
-      <footer className="px-6 pt-4 text-xs text-[#76767F]">{t('guest.poweredBy')}</footer>
+      <footer className="px-6 pt-4 text-xs text-[#6B6B74]">{t('guest.poweredBy')}</footer>
     </main>
   )
 }
@@ -251,7 +251,7 @@ function FlatTile({ flat, locale, first, today, stay }: { flat: PublicCompanyFla
       </div>
       <div className="flex flex-col gap-3 px-3 pt-3">
         {(flat.complex_name || facts.length > 0) && (
-          <p className="flex flex-wrap gap-x-3.5 gap-y-1 text-sm text-[#76767F]">
+          <p className="flex flex-wrap gap-x-3.5 gap-y-1 text-sm text-[#6B6B74]">
             {flat.complex_name && <span dir="auto">{flat.complex_name}</span>}
             {facts.map(({ icon: Icon, text }) => (
               <span key={text} className="inline-flex items-center gap-1.5">
@@ -265,12 +265,12 @@ function FlatTile({ flat, locale, first, today, stay }: { flat: PublicCompanyFla
           {stay && flat.stay_total != null ? (
             <p className="flex items-baseline gap-1.5">
               <b className="text-[22px] tracking-[-0.02em]">{money(flat.stay_total, locale)}</b>
-              <span className="text-sm text-[#76767F]">{t('guestCompany.forNights', { count: nights })}</span>
+              <span className="text-sm text-[#6B6B74]">{t('guestCompany.forNights', { count: nights })}</span>
             </p>
           ) : price != null ? (
             <p className="flex items-baseline gap-1.5">
               <b className="text-[22px] tracking-[-0.02em]">{money(price, locale)}</b>
-              <span className="text-sm text-[#76767F]">{flat.night_price != null ? t('guest.perNight') : t('guest.perHour')}</span>
+              <span className="text-sm text-[#6B6B74]">{flat.night_price != null ? t('guest.perNight') : t('guest.perHour')}</span>
             </p>
           ) : (
             <span />
@@ -331,7 +331,7 @@ function SearchCard({ today, most, stay, onSearch }: { today: string; most: numb
         ] as const
       ).map(([ref, label, value, set, min, max]) => (
         <label key={label} className={field} onClick={() => open(ref.current)}>
-          <span className="text-xs font-semibold text-[#76767F]">{label}</span>
+          <span className="text-xs font-semibold text-[#6B6B74]">{label}</span>
           <b className="text-base">{value ? day.format(parseISO(value)) : t('guestCompany.pick')}</b>
           <input
             ref={ref}
@@ -346,7 +346,7 @@ function SearchCard({ today, most, stay, onSearch }: { today: string; most: numb
       ))}
       <div className={`${field} col-span-2 flex-row items-center justify-between`}>
         <div className="flex flex-col gap-0.5">
-          <span className="text-xs font-semibold text-[#76767F]">{t('guestCompany.guests')}</span>
+          <span className="text-xs font-semibold text-[#6B6B74]">{t('guestCompany.guests')}</span>
           <b aria-live="polite" className="text-base">{t('guestCompany.guestsCount', { count: guests })}</b>
         </div>
         <div className="flex gap-1.5">

@@ -50,7 +50,7 @@ const DURING: PanelButton[] = ['extend', 'lateCheckOut', 'cleaning', 'broken']
 
 const CARD = 'm-2 rounded-[28px] bg-white p-5'
 const H2 = 'font-guest-display mb-3 text-[22px] font-bold tracking-[-0.025em]'
-const MUTE = 'text-[#76767F]'
+const MUTE = 'text-[#6B6B74]'
 
 type Tab = 'in' | 'stay' | 'out'
 
@@ -67,7 +67,7 @@ export default function GuestPanelPage({ code }: { code: string }) {
 function Panel({ code, locale }: { code: string; locale: string }) {
   const { t } = useTranslation()
   const panel = useQuery({ queryKey: ['guest-panel', code], queryFn: () => getGuestPanel(code), retry: retryNetwork })
-  if (panel.isPending) return <p className="p-6 pt-20 text-sm text-[#76767F]">{t('guest.loading')}</p>
+  if (panel.isPending) return <p className="p-6 pt-20 text-sm text-[#6B6B74]">{t('guest.loading')}</p>
   if (!panel.data) {
     return (
       <div className="pt-16">
@@ -314,7 +314,7 @@ function PanelView({ code, panel, locale, receivedAt }: { code: string; panel: G
                 <section aria-label={t('guestPanel.deposit.title')} className={CARD}>
                   <h2 className={H2}>{t('guestPanel.deposit.title')}</h2>
                   <p className="text-[30px] font-bold tracking-[-0.03em]">{money(panel.deposit.amount, locale)}</p>
-                  <p className={`text-sm ${panel.deposit.status === 'returned' ? 'text-[#17A34A]' : MUTE}`}>
+                  <p className={`text-sm ${panel.deposit.status === 'returned' ? 'text-[#157A3A]' : MUTE}`}>
                     {t(`guestPanel.deposit.${panel.deposit.status}`, {
                       back: money(panel.deposit.amount - panel.deposit.held, locale),
                       held: money(panel.deposit.held, locale),
@@ -491,7 +491,8 @@ function PanelView({ code, panel, locale, receivedAt }: { code: string; panel: G
                   aria-selected={tab === key}
                   onClick={() => setTab(key)}
                   className={`flex h-10 items-center justify-center gap-1.5 rounded-xl text-sm font-semibold ${
-                    tab === key ? 'bg-white text-[#111114] shadow-[0_1px_4px_rgba(17,17,20,0.12)]' : MUTE
+                    // A tab not picked sits on the tab bar's grey: a shade darker than the page's grey text.
+                    tab === key ? 'bg-white text-[#111114] shadow-[0_1px_4px_rgba(17,17,20,0.12)]' : 'text-[#5C5C66]'
                   }`}
                 >
                   <Icon className="h-4 w-4 shrink-0" aria-hidden />
@@ -708,7 +709,7 @@ function PanelView({ code, panel, locale, receivedAt }: { code: string; panel: G
                 {minibarDue > 0 && <p className={`py-1.5 text-[15px] ${MUTE}`}>{t('guestPanel.ordersDue', { amount: money(minibarDue, locale) })}</p>}
                 <p className="flex justify-between py-1.5 text-[15px]">
                   <span>{b.remaining > 0 ? t('guestPanel.left') : t('guestPanel.statusPaid')}</span>
-                  <b className={`font-semibold ${b.remaining > 0 ? 'text-[#8A5A00]' : 'text-[#17A34A]'}`}>{money(b.remaining > 0 ? b.remaining : b.paid, locale)}</b>
+                  <b className={`font-semibold ${b.remaining > 0 ? 'text-[#8A5A00]' : 'text-[#157A3A]'}`}>{money(b.remaining > 0 ? b.remaining : b.paid, locale)}</b>
                 </p>
               </section>
 
