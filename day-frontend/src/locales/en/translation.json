@@ -1836,7 +1836,8 @@
       "debts": "Guests owe · {{amount}}",
       "noDebts": "Every guest has paid",
       "paid": "Paid · {{amount}}",
-      "spent": "Spent · {{amount}}"
+      "spent": "Spent · {{amount}}",
+      "withCommission": "of which platform commission {{amount}}"
     },
     "orders": {
       "number": "Order #{{number}}",

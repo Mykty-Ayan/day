@@ -1829,7 +1829,8 @@
       "debts": "Қонақтардың қарызы · {{amount}}",
       "noDebts": "Барлық қонақ төледі",
       "paid": "Төлемдер · {{amount}}",
-      "spent": "Шығындар · {{amount}}"
+      "spent": "Шығындар · {{amount}}",
+      "withCommission": "оның ішінде алаңдар комиссиясы {{amount}}"
     },
     "orders": {
       "number": "№{{number}} тапсырыс",
