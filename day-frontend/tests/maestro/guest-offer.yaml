@@ -1,0 +1,16 @@
+# A personal offer: the dates, the flats with their price, what comes next.
+url: ${BASE_URL}/o/${OFFER}
+---
+- launchApp
+- extendedWaitUntil:
+    visible: ".*"
+    timeout: 20000
+- runFlow: _ru.yaml
+- scrollUntilVisible:
+    element: "Выбрать"
+    direction: DOWN
+- scrollUntilVisible:
+    element: "Что дальше"
+    direction: DOWN
+- takeScreenshot: shots/guest-offer
+- assertNotVisible: "Не получилось.*"
