@@ -14,6 +14,7 @@ import { createDeposit, depositAction, listDeposits } from '../../api/bookings'
 import type { BookingDeposit } from '../../types/booking'
 import { confirmAction, resultFeedback } from '../../lib/telegram'
 import { cardRead, readyToAct } from './card-state'
+import { errorText } from './errors'
 import { formatMoney } from './format'
 import { ActionButton, Field } from './miniapp-ui'
 
@@ -108,6 +109,18 @@ export default function DepositRow({
     },
     onError,
   })
+
+  // A failed read says so: an empty "Take" field would hide a deposit already taken.
+  if (deposits.isError && !deposits.data) {
+    return (
+      <div className="space-y-2">
+        <p role="alert" className="tg-surface rounded-xl px-3 py-2 text-sm">
+          {errorText(deposits.error, t('miniapp.deposit.loadFailed'), t)}
+        </p>
+        <ActionButton onClick={() => deposits.refetch()}>{t('miniapp.retry')}</ActionButton>
+      </div>
+    )
+  }
 
   const open = (deposits.data ?? []).filter((deposit) => deposit.status !== 'returned')
 

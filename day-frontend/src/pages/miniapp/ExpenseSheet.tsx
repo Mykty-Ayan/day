@@ -103,6 +103,11 @@ export default function ExpenseSheet({ onClose }: { onClose: () => void }) {
                 </option>
               ))}
           </select>
+          {flats.isError && (
+            <p role="alert" className="mt-1 text-sm">
+              {errorText(flats.error, t('miniapp.flatsFailed'), t)}
+            </p>
+          )}
         </label>
         <Field label={t('expenses.payee')} value={form.payee} onChange={change('payee')} />
         <Field label={t('expenses.note')} value={form.note} onChange={change('note')} />

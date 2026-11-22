@@ -1609,7 +1609,8 @@
       "cleaner": "Cleaner",
       "noCleaners": "No cleaners yet",
       "schedule": "Schedule cleaning",
-      "failed": "Could not schedule cleaning"
+      "failed": "Could not schedule cleaning",
+      "cleanersFailed": "Could not load the cleaners. You can schedule the cleaning without one"
     },
     "money": {
       "owed": "Outstanding",
@@ -1634,7 +1635,8 @@
       "reason": "Reason",
       "reasonPlaceholder": "Broken mirror",
       "cancel": "Cancel",
-      "alreadyTaken": "A deposit is already taken; the list is updated"
+      "alreadyTaken": "A deposit is already taken; the list is updated",
+      "loadFailed": "Could not load the deposit. Check the connection and try again"
     },
     "ask": {
       "intro": "Ask in words — I answer and act.",
@@ -1833,7 +1835,8 @@
       "delivered": "Delivered",
       "deliverAsk": "Order #{{number}} delivered?",
       "cancelPaidAsk": "Order #{{number}} is paid. You return the money to the guest yourself. Cancel it?"
-    }
+    },
+    "flatsFailed": "Could not load the properties. You can save the expense without one"
   },
   "auth": {
     "login": {
