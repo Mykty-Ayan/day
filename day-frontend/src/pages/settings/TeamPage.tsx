@@ -6,6 +6,7 @@ import Button from '../../components/ui/Button'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import Spinner from '../../components/ui/Spinner'
 import { showToast } from '../../components/ui/Toast'
+import { errorText } from '../miniapp/errors'
 import {
   Select,
   SelectContent,
@@ -350,9 +351,13 @@ export default function TeamPage() {
                     <button
                       type="button"
                       onClick={() =>
-                        updateMember.mutate({ userId: member.id, data: { is_active: true } })
+                        updateMember.mutate(
+                          { userId: member.id, data: { is_active: true } },
+                          { onError: (error) => showToast('error', errorText(error, t('team.reactivateFailed'), t)) },
+                        )
                       }
-                      className="min-h-[44px] rounded-lg px-3 text-xs font-bold text-ink-muted transition-colors hover:bg-surface-page"
+                      disabled={updateMember.isPending}
+                      className="min-h-[44px] rounded-lg px-3 text-xs font-bold text-ink-muted transition-colors hover:bg-surface-page disabled:opacity-40"
                     >
                       {t('team.reactivate')}
                     </button>
@@ -629,11 +634,16 @@ export default function TeamPage() {
         confirmLabel={t('team.deactivate')}
         onConfirm={async () => {
           if (!memberToDeactivate) return
-          await deactivateMember.mutateAsync(memberToDeactivate.id)
-          setMemberToDeactivate(null)
-          showToast('success', t('team.memberDeactivated'))
+          try {
+            await deactivateMember.mutateAsync(memberToDeactivate.id)
+            setMemberToDeactivate(null)
+            showToast('success', t('team.memberDeactivated'))
+          } catch (error) {
+            showToast('error', errorText(error, t('team.deactivateFailed'), t))
+          }
         }}
         onCancel={() => setMemberToDeactivate(null)}
+        loading={deactivateMember.isPending}
       />
 
       <ConfirmDialog
@@ -643,11 +653,16 @@ export default function TeamPage() {
         confirmLabel={t('team.revoke')}
         onConfirm={async () => {
           if (!keyToRevoke) return
-          await revokeKey.mutateAsync(keyToRevoke.id)
-          setKeyToRevoke(null)
-          showToast('success', t('team.keyRevoked'))
+          try {
+            await revokeKey.mutateAsync(keyToRevoke.id)
+            setKeyToRevoke(null)
+            showToast('success', t('team.keyRevoked'))
+          } catch (error) {
+            showToast('error', errorText(error, t('team.revokeFailed'), t))
+          }
         }}
         onCancel={() => setKeyToRevoke(null)}
+        loading={revokeKey.isPending}
       />
     </div>
   )

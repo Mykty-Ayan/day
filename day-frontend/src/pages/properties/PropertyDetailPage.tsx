@@ -50,6 +50,8 @@ import { getCalendarLink, getPricing } from '../../api/properties'
 import { useCurrentUser } from '../../hooks/useAuth'
 import { useCurrency } from '../../hooks/useCurrency'
 import { formatMoneyExact } from '../miniapp/format'
+import { errorText } from '../miniapp/errors'
+import { isNotFound } from '../../lib/utils'
 import type { PricingConfig, PricingInput, PropertyPhoto, PropertyStatus, SeasonalPrice } from '../../types/property'
 import type { RentalMode } from '../../types/booking'
 import PricingForm, { type SeasonalSuggestion } from '../../components/property/PricingForm'
@@ -65,6 +67,7 @@ import CalendarFeedsCard from '../../components/property/CalendarFeedsCard'
 import CopyLink from '../../components/property/CopyLink'
 import PropertyHistory from '../../components/property/PropertyHistory'
 import Spinner from '../../components/ui/Spinner'
+import LoadError from '../../components/ui/LoadError'
 import Button from '../../components/ui/Button'
 import { Badge } from '../../components/ui/badge'
 import { Popover, PopoverContent, PopoverTrigger } from '../../components/ui/popover'
@@ -96,13 +99,14 @@ export default function PropertyDetailPage() {
   const { t } = useTranslation()
   const { propertyId } = useParams({ strict: false }) as { propertyId: string }
   const navigate = useNavigate()
-  const { data: property, isLoading } = useProperty(propertyId)
+  const { data: property, isLoading, isError, error, refetch } = useProperty(propertyId)
   const { data: currentUser } = useCurrentUser()
 
   const { data: allProperties } = useAllProperties()
   const changeStatus = useChangePropertyStatus(propertyId)
   const updatePropertyMut = useUpdateProperty(propertyId)
-  const { data: pricing } = usePropertyPricing(propertyId)
+  const pricingQuery = usePropertyPricing(propertyId)
+  const pricing = pricingQuery.data
   const savePricing = useCreateOrUpdatePricing(propertyId)
   const addSeasonal = useAddSeasonalPrice(propertyId)
   const deleteSeasonal = useDeleteSeasonalPrice(propertyId)
@@ -201,7 +205,7 @@ export default function PropertyDetailPage() {
     return savePricing.mutateAsync(pricingInput).then(
       () => showToast('success', t('properties.pricingSaved')),
       (err: Error) => {
-        showToast('error', err.message || t('properties.failedSavePricing'))
+        showToast('error', errorText(err, t('properties.failedSavePricing'), t))
         throw err
       },
     )
@@ -209,6 +213,15 @@ export default function PropertyDetailPage() {
 
   if (isLoading) {
     return <Spinner />
+  }
+
+  // Only an answer that the object is not there is «not found»: any other failure says so.
+  if (!property && isError && !isNotFound(error)) {
+    return (
+      <div className="mx-auto w-full max-w-6xl px-4 py-4 sm:px-6 sm:py-6">
+        <LoadError message={t('properties.loadFailed')} onRetry={() => refetch()} />
+      </div>
+    )
   }
 
   if (!property) {
@@ -289,7 +302,11 @@ export default function PropertyDetailPage() {
                   status={property.status}
                   actions={statusActions}
                   busy={changeStatus.isPending}
-                  onChange={(target) => changeStatus.mutate(target)}
+                  onChange={(target) =>
+                    changeStatus.mutate(target, {
+                      onError: (err) => showToast('error', errorText(err, t('properties.statusFailed'), t)),
+                    })
+                  }
                 />
               </div>
               {property.internal_name && property.name !== property.internal_name && (
@@ -420,62 +437,69 @@ export default function PropertyDetailPage() {
         <TabPanel name="prices" current={tab}>
           <div role="region" aria-labelledby="property-pricing">
             <h2 id="property-pricing" className="sr-only">{t('properties.pricing.title')}</h2>
-            <PricingForm
-              pricing={pricing ?? null}
-              rentalMode={property.rental_mode}
-              seasonalSuggestions={seasonalSuggestions}
-              onSaveBase={handleSavePricing}
-              onChangeMode={(mode) =>
-                updatePropertyMut.mutate(
-                  { rental_mode: mode },
-                  {
-                    onSuccess: () => showToast('success', t('properties.pricing.modeSaved')),
-                    onError: (err: Error) => showToast('error', err.message || t('properties.failedSavePricing')),
-                  },
-                )
-              }
-              modeSaving={updatePropertyMut.isPending}
-              onAddSeasonal={(data) =>
-                addSeasonal.mutateAsync(data).then(
-                  () => showToast('success', t('properties.seasonalPriceAdded')),
-                  (err: Error) => {
-                    showToast('error', err.message || t('properties.failedAddSeasonal'))
-                    throw err
-                  },
-                )
-              }
-              onUpdateSeasonal={(id, data) =>
-                updateSeasonal.mutateAsync({ id, ...data }).then(
-                  () => showToast('success', t('properties.seasonalPriceUpdated')),
-                  (err: Error) => {
-                    showToast('error', err.message || t('properties.failedUpdateSeasonal'))
-                    throw err
-                  },
-                )
-              }
-              onDeleteSeasonal={(id) =>
-                deleteSeasonal.mutateAsync(id).then(
-                  () => showToast('success', t('properties.seasonalPriceRemoved')),
-                  (err: Error) => {
-                    showToast('error', err.message || t('properties.failedRemoveSeasonal'))
-                    throw err
-                  },
-                )
-              }
-              onAddDiscount={(data) =>
-                addDiscount.mutate(data, {
-                  onSuccess: () => showToast('success', t('properties.discountRuleAdded')),
-                  onError: (err: Error) => showToast('error', err.message || t('properties.failedAddDiscount')),
-                })
-              }
-              onDeleteDiscount={(id) =>
-                deleteDiscount.mutate(id, {
-                  onSuccess: () => showToast('success', t('properties.discountRuleRemoved')),
-                  onError: (err: Error) => showToast('error', err.message || t('properties.failedRemoveDiscount')),
-                })
-              }
-              isSaving={savePricing.isPending}
-            />
+            {/* No form until the prices are read: an empty one would save zeros over them. */}
+            {pricingQuery.isPending ? (
+              <Spinner />
+            ) : pricingQuery.isError ? (
+              <LoadError message={t('properties.pricing.loadFailed')} onRetry={() => pricingQuery.refetch()} />
+            ) : (
+              <PricingForm
+                pricing={pricing ?? null}
+                rentalMode={property.rental_mode}
+                seasonalSuggestions={seasonalSuggestions}
+                onSaveBase={handleSavePricing}
+                onChangeMode={(mode) =>
+                  updatePropertyMut.mutate(
+                    { rental_mode: mode },
+                    {
+                      onSuccess: () => showToast('success', t('properties.pricing.modeSaved')),
+                      onError: (err: Error) => showToast('error', errorText(err, t('properties.failedSavePricing'), t)),
+                    },
+                  )
+                }
+                modeSaving={updatePropertyMut.isPending}
+                onAddSeasonal={(data) =>
+                  addSeasonal.mutateAsync(data).then(
+                    () => showToast('success', t('properties.seasonalPriceAdded')),
+                    (err: Error) => {
+                      showToast('error', errorText(err, t('properties.failedAddSeasonal'), t))
+                      throw err
+                    },
+                  )
+                }
+                onUpdateSeasonal={(id, data) =>
+                  updateSeasonal.mutateAsync({ id, ...data }).then(
+                    () => showToast('success', t('properties.seasonalPriceUpdated')),
+                    (err: Error) => {
+                      showToast('error', errorText(err, t('properties.failedUpdateSeasonal'), t))
+                      throw err
+                    },
+                  )
+                }
+                onDeleteSeasonal={(id) =>
+                  deleteSeasonal.mutateAsync(id).then(
+                    () => showToast('success', t('properties.seasonalPriceRemoved')),
+                    (err: Error) => {
+                      showToast('error', errorText(err, t('properties.failedRemoveSeasonal'), t))
+                      throw err
+                    },
+                  )
+                }
+                onAddDiscount={(data) =>
+                  addDiscount.mutate(data, {
+                    onSuccess: () => showToast('success', t('properties.discountRuleAdded')),
+                    onError: (err: Error) => showToast('error', errorText(err, t('properties.failedAddDiscount'), t)),
+                  })
+                }
+                onDeleteDiscount={(id) =>
+                  deleteDiscount.mutate(id, {
+                    onSuccess: () => showToast('success', t('properties.discountRuleRemoved')),
+                    onError: (err: Error) => showToast('error', errorText(err, t('properties.failedRemoveDiscount'), t)),
+                  })
+                }
+                isSaving={savePricing.isPending}
+              />
+            )}
           </div>
         </TabPanel>
 

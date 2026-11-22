@@ -8,6 +8,9 @@ import { useNavigate, useParams } from '@tanstack/react-router'
 import { useIsMutating } from '@tanstack/react-query'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import Spinner from '../../components/ui/Spinner'
+import LoadError from '../../components/ui/LoadError'
+import { showToast } from '../../components/ui/Toast'
+import { isNotFound } from '../../lib/utils'
 import { bookingMoney } from '../../lib/booking-money'
 import { depositStatusKeys } from '../../lib/booking-status'
 import { Badge, type BadgeTone } from '../../components/ui/badge'
@@ -37,7 +40,7 @@ export default function BookingDetailPage() {
 function BookingScreen({ bookingId }: { bookingId: string }) {
   const { t } = useTranslation()
   const navigate = useNavigate()
-  const { data: detail, isLoading } = useBooking(bookingId)
+  const { data: detail, isLoading, isError, error, refetch } = useBooking(bookingId)
   const { symbol } = useCurrency()
   // The refund panel opens anew each time, with the sum due back; not while a payment
   // is on its way: the new form would forget it and take it again.
@@ -61,6 +64,15 @@ function BookingScreen({ bookingId }: { bookingId: string }) {
 
   if (isLoading) {
     return <Spinner />
+  }
+
+  // Only an answer that the booking is not there is «not found»: any other failure says so.
+  if (!detail && isError && !isNotFound(error)) {
+    return (
+      <div className="mx-auto w-full max-w-6xl px-4 py-4 sm:px-6 sm:py-6">
+        <LoadError message={t('bookings.loadFailed')} onRetry={() => refetch()} />
+      </div>
+    )
   }
 
   if (!detail) {
@@ -274,7 +286,14 @@ function PaymentsTab({
         confirmLabel={t('bookings.payments.confirm')}
         loading={confirmPayment.isPending}
         onCancel={() => setToConfirm(null)}
-        onConfirm={() => toConfirm && confirmPayment.mutate(toConfirm.id, { onSettled: () => setToConfirm(null) })}
+        onConfirm={() =>
+          toConfirm &&
+          confirmPayment.mutate(toConfirm.id, {
+            onSettled: () => setToConfirm(null),
+            // The payment stays pending in the list, with its button: the toast says why.
+            onError: () => showToast('error', t('bookings.payments.confirmFailed')),
+          })
+        }
       />
     </section>
   )
