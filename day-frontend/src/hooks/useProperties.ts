@@ -32,7 +32,6 @@ import {
   createTag,
   deleteTag as deleteTagApi,
   getPropertyTags,
-  assignTags,
   listBlocks,
   createBlock,
   deleteBlock,
@@ -354,17 +353,6 @@ export function usePropertyTags(propertyId: string) {
     queryKey: [PROPERTY_TAGS_KEY, propertyId],
     queryFn: () => getPropertyTags(propertyId),
     enabled: !!propertyId,
-  })
-}
-
-export function useAssignTags(propertyId: string) {
-  const qc = useQueryClient()
-  return useMutation({
-    mutationFn: (tagIds: string[]) => assignTags(propertyId, tagIds),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: [PROPERTY_TAGS_KEY, propertyId] })
-      qc.invalidateQueries({ queryKey: [PROPERTY_KEY, propertyId] })
-    },
   })
 }
 

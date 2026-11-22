@@ -33,10 +33,6 @@ export async function confirmImport(
   return res.data
 }
 
-export async function deleteImportJob(id: string): Promise<void> {
-  await apiClient.delete(`/ai/import/${id}`)
-}
-
 export async function startBatchImport(data: BatchImportInput): Promise<ImportJob[]> {
   const res = await apiClient.post('/ai/import/batch', data)
   if (Array.isArray(res.data)) {
