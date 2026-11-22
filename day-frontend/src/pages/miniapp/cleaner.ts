@@ -2,6 +2,7 @@
 
 import type { CleaningStatus, CleaningTask } from '../../types/cleaning'
 import { toISODate } from './format'
+import { lastOf } from '../../lib/utils'
 
 /** The local day of a server time. The server writes UTC with no zone mark. */
 export function localDay(serverTime: string): string {
@@ -37,8 +38,8 @@ export function myCleaningDays(
   const days: { date: string | null; tasks: CleaningTask[] }[] = []
   for (const task of shown) {
     const date = task.scheduled_date ?? null
-    if (days.at(-1)?.date !== date) days.push({ date, tasks: [] })
-    days.at(-1)!.tasks.push(task)
+    if (lastOf(days)?.date !== date) days.push({ date, tasks: [] })
+    lastOf(days)!.tasks.push(task)
   }
   return days
 }

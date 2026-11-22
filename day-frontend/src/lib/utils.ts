@@ -15,3 +15,9 @@ export function isWebLink(value: string) {
 export function isNotFound(error: unknown) {
   return isAxiosError(error) && error.response?.status === 404
 }
+
+/** The last item, or undefined: `Array.at` is missing on Safari before 15.4, and a page
+ *  that calls it fails there. */
+export function lastOf<T>(items: readonly T[] | null | undefined): T | undefined {
+  return items && items.length > 0 ? items[items.length - 1] : undefined
+}

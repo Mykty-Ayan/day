@@ -8,6 +8,7 @@ import { useCurrentUser } from '../../hooks/useAuth'
 import { useAllProperties } from '../../hooks/useProperties'
 import { useSaveSite, useSite } from '../../hooks/useSite'
 import type { Site } from '../../api/site'
+import { lastOf } from '../../lib/utils'
 
 const field =
   'w-full rounded-xl border border-line bg-surface-page p-3 text-sm text-ink outline-none focus:border-accent'
@@ -48,7 +49,7 @@ function serverReason(error: unknown): string | null {
   const detail = (error.response?.data as { detail?: unknown } | undefined)?.detail
   if (typeof detail === 'string') return detail
   if (Array.isArray(detail)) {
-    return detail.map((d: { loc?: unknown[]; msg?: string }) => `${d.loc?.at(-1) ?? ''}: ${d.msg ?? ''}`).join('; ') || null
+    return detail.map((d: { loc?: unknown[]; msg?: string }) => `${lastOf(d.loc) ?? ''}: ${d.msg ?? ''}`).join('; ') || null
   }
   return null
 }

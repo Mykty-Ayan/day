@@ -229,3 +229,16 @@ test('the booking panel shows what the booking will cost, extra guests included'
   await expect(sheet.getByText('Доплата за гостей')).toHaveCount(0)
   await guest.close()
 })
+
+test('short house rules show one by one, as the mockup', async ({ browser, request }) => {
+  const { id } = await (await request.post(`${API_BASE}/properties`, { data: createTestProperty({ name: `Правила ${Date.now()}` }) })).json()
+  await request.post(`${API_BASE}/properties/${id}/status`, { data: { target_status: 'active' } })
+  await request.patch(`${API_BASE}/properties/${id}`, { data: { house_rules: 'Не курить. Тишина после 23:00.' } })
+  const code = (await (await request.get(`${API_BASE}/properties/${id}`)).json()).public_code
+  const guest = await browser.newContext({ locale: 'ru-RU', baseURL: test.info().project.use.baseURL })
+  const page = await guest.newPage()
+  await page.goto(`/s/${code}`)
+  const rules = page.getByRole('list', { name: 'Правила дома' })
+  await expect(rules.getByRole('listitem')).toHaveText(['Не курить', 'Тишина после 23:00'])
+  await guest.close()
+})
