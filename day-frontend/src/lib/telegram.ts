@@ -7,6 +7,7 @@
  */
 
 import { phoneDigits } from './phone'
+import { lastOf } from './utils'
 
 interface TelegramWebAppUser {
   id: number
@@ -82,7 +83,7 @@ export function showBackButton(onBack: () => void): () => void {
   const button = getWebApp()?.BackButton
   if (!button) return () => {}
   if (!backDispatcher) {
-    backDispatcher = () => backStack.at(-1)?.()
+    backDispatcher = () => lastOf(backStack)?.()
     button.onClick(backDispatcher)
   }
   backStack.push(onBack)

@@ -3,6 +3,7 @@
 import { addDays, format, parseISO } from 'date-fns'
 import { isAxiosError } from 'axios'
 import type { PublicOffer } from '../api/public'
+import { lastOf } from './utils'
 
 export interface PublicNight {
   date: string
@@ -33,7 +34,7 @@ export function fromThisWeek(cells: (string | null)[], today: string): (string |
  *  nights is among them: it may end a stay, never begin one. */
 export function takenDays(nights: PublicNight[], until: string): Set<string> {
   const set = new Set(nights.filter((n) => !n.free).map((n) => n.date))
-  const last = nights.at(-1)?.date
+  const last = lastOf(nights)?.date
   if (!last) return set
   for (let day = addDays(parseISO(last), 1); format(day, 'yyyy-MM-dd') <= until; day = addDays(day, 1)) {
     set.add(format(day, 'yyyy-MM-dd'))
@@ -87,6 +88,37 @@ export function clock(localTime: string): string {
 
 export function isHourly(offer: PublicOffer): boolean {
   return offer.rental_mode === 'hourly'
+}
+
+// What a guest looks for first: comfort (Wi-Fi, air conditioning), the kitchen, the TV;
+// a step-free entrance or a grab bar matter to fewer guests, and are found under «all».
+const AMENITY_ORDER = ['comfort', 'kitchen', 'entertainment', 'bathroom', 'outdoor', 'safety', 'other', 'accessibility']
+
+/** A flat's amenities, the ones most guests look for first; the order within a kind kept. */
+export function amenitiesFirst<T extends { category?: string | null }>(amenities: T[]): T[] {
+  const rank = (a: T) => {
+    const at = AMENITY_ORDER.indexOf(a.category ?? 'other')
+    return at < 0 ? AMENITY_ORDER.indexOf('other') : at
+  }
+  return amenities.map((a, n) => ({ a, n })).sort((x, y) => rank(x.a) - rank(y.a) || x.n - y.n).map(({ a }) => a)
+}
+
+export type RuleKind = 'smoke' | 'quiet' | 'pets' | 'party' | 'other'
+
+/** House rules as short items, one per line or sentence, each with its kind for an icon.
+ *  Prose (a long sentence, or many) stays one text: null. */
+export function ruleItems(text: string): { text: string; kind: RuleKind }[] | null {
+  // No lookbehind in a pattern: Safari before 16.4 cannot read one, and the page would fail.
+  const lines = text.split(/\n+/).map((l) => l.trim()).filter(Boolean)
+  const parts = (lines.length > 1 ? lines : text.replace(/([.!;])\s+/g, '$1\n').split('\n')).map((p) => p.trim().replace(/[.;]$/, '')).filter(Boolean)
+  if (parts.length < 2 || parts.length > 8 || parts.some((p) => p.length > 60)) return null
+  const kind = (p: string): RuleKind =>
+    /кур|сигар|темекі|smok|vap|кальян/i.test(p) ? 'smoke'
+      : /тиш|шум|тынысты|quiet|noise/i.test(p) ? 'quiet'
+        : /живот|жануар|pet|собак|кошк/i.test(p) ? 'pets'
+          : /вечерин|тусов|кеш|party/i.test(p) ? 'party'
+            : 'other'
+  return parts.map((p) => ({ text: p, kind: kind(p) }))
 }
 
 /** The most nights a guest books from a public page (SITE_MAX_NIGHTS on the server):

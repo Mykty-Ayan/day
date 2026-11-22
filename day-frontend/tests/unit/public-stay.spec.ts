@@ -4,7 +4,7 @@
  */
 
 import { expect, test } from '@playwright/test'
-import { fromThisWeek, guestLanguage, isHourly, monthCells, offerDates, onAccent, openedInFlat, stayDates, stayFromUrl, stayQuote, takenDays } from '../../src/lib/public-stay'
+import { amenitiesFirst, fromThisWeek, guestLanguage, isHourly, monthCells, offerDates, onAccent, openedInFlat, stayDates, stayFromUrl, ruleItems, stayQuote, takenDays } from '../../src/lib/public-stay'
 
 test('a month is laid out from Monday, with blanks before its first day', () => {
   // 1 October 2026 is a Thursday.
@@ -116,4 +116,27 @@ test('the calendar days past the loaded nights are taken: none of them begins a 
   expect(taken.has('2027-03-20')).toBe(false)
   // A stay over an unloaded night is not free, so the page offers no booking for it.
   expect(stayQuote(nights, '2027-03-22', '2027-03-24').free).toBe(false)
+})
+
+test('the amenities most guests look for come first, a step-free entrance last', () => {
+  const list = [
+    { name: 'Вход без ступенек', category: 'accessibility' },
+    { name: 'Фен', category: 'bathroom' },
+    { name: 'Wi-Fi', category: 'comfort' },
+    { name: 'Кухня', category: 'kitchen' },
+    { name: 'Кондиционер', category: 'comfort' },
+  ]
+  expect(amenitiesFirst(list).map((a) => a.name)).toEqual(['Wi-Fi', 'Кондиционер', 'Кухня', 'Фен', 'Вход без ступенек'])
+})
+
+test('short house rules become items with their kind; prose stays one text', () => {
+  expect(ruleItems('Не курить. Тишина после 23:00.')).toEqual([
+    { text: 'Не курить', kind: 'smoke' },
+    { text: 'Тишина после 23:00', kind: 'quiet' },
+  ])
+  expect(ruleItems('Без животных\nБез вечеринок\nОбувь у двери')?.map((r) => r.kind)).toEqual(['pets', 'party', 'other'])
+  expect(ruleItems('Без обуви! Не курить; Тишина')?.map((r) => r.text)).toEqual(['Без обуви!', 'Не курить', 'Тишина'])
+  // One rule, or a long story, is read as written.
+  expect(ruleItems('Не курить.')).toBeNull()
+  expect(ruleItems('Пожалуйста, берегите мебель и технику: за поломки, которые случились по вашей вине, придётся заплатить. Спасибо.')).toBeNull()
 })
