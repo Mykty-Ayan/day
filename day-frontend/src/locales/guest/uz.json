@@ -147,10 +147,20 @@
   },
   "guestCompany": {
     "notFound": "Bu havola kompaniya saytiga olib bormaydi.",
-    "flats": "Kvartiralar · {{count}}",
     "noFlats": "Hozir sotuvda kvartira yo‘q.",
     "write": "WhatsApp’da yozish",
-    "rules": "Mehmonlar uchun qoidalar"
+    "rules": "Mehmonlar uchun qoidalar",
+    "ourFlats": "Bizning kvartiralar",
+    "all": "Hammasi",
+    "byRooms": "Xonalar boʻyicha",
+    "view": "Koʻrish",
+    "howTitle": "Qanday bron qilinadi",
+    "how1": "Kvartira va sanalarni tanlang",
+    "how1Hint": "Barcha kechalar narxi darhol koʻrinadi",
+    "how2": "Garovni Kaspi orqali toʻlang",
+    "how3": "Eshik kodini oling",
+    "askTitle": "Savollar qoldimi?",
+    "askHint": "Yozing — javob beramiz va kvartira tanlab beramiz."
   },
   "guestStay": {
     "pickDates": "Sanalarni tanlash",

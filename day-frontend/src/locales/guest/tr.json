@@ -147,10 +147,20 @@
   },
   "guestCompany": {
     "notFound": "Bu bağlantı bir şirket sayfasına gitmiyor.",
-    "flats": "Daireler · {{count}}",
     "noFlats": "Şu anda satışta daire yok.",
     "write": "WhatsApp'tan yazın",
-    "rules": "Misafir kuralları"
+    "rules": "Misafir kuralları",
+    "ourFlats": "Dairelerimiz",
+    "all": "Tümü",
+    "byRooms": "Oda sayısına göre",
+    "view": "İncele",
+    "howTitle": "Nasıl rezervasyon yapılır",
+    "how1": "Daireyi ve tarihleri seçin",
+    "how1Hint": "Tüm gecelerin fiyatı hemen görünür",
+    "how2": "Depozitoyu Kaspi ile ödeyin",
+    "how3": "Kapı kodunu alın",
+    "askTitle": "Sorunuz mu var?",
+    "askHint": "Yazın, yanıtlayıp size daire bulalım."
   },
   "guestStay": {
     "pickDates": "Tarih seçin",

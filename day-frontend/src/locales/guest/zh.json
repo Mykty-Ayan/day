@@ -147,10 +147,20 @@
   },
   "guestCompany": {
     "notFound": "此链接未指向公司页面。",
-    "flats": "房源 · {{count}}",
     "noFlats": "目前没有可预订的房源。",
     "write": "通过 WhatsApp 联系",
-    "rules": "住客须知"
+    "rules": "住客须知",
+    "ourFlats": "我们的公寓",
+    "all": "全部",
+    "byRooms": "按房间数",
+    "view": "查看",
+    "howTitle": "如何预订",
+    "how1": "选择公寓和日期",
+    "how1Hint": "所有晚数的价格立即显示",
+    "how2": "通过 Kaspi 支付押金",
+    "how3": "获取门锁密码",
+    "askTitle": "还有问题？",
+    "askHint": "给我们留言，我们会回复并帮您挑选公寓。"
   },
   "guestStay": {
     "pickDates": "选择日期",
