@@ -1,7 +1,7 @@
 /**
- * Safari before 16.4 (iPhones not updated since early 2023) cannot read a lookbehind in a
- * regular expression: a page that has one fails to load there at all. The build does not
- * rewrite it, so none may be written.
+ * Older Safari on iPhones not updated for a while: before 16.4 it cannot read a lookbehind
+ * in a regular expression, before 15.4 it has no `Array.at`. A page using either fails to
+ * load there at all, and the build rewrites neither, so none may be written.
  */
 
 import { readdirSync, readFileSync, statSync } from 'node:fs'
@@ -18,5 +18,11 @@ function files(dir: string): string[] {
 test('no lookbehind in any pattern the app ships', () => {
   const src = new URL('../../src', import.meta.url).pathname
   const found = files(src).filter((file) => /\(\?<[=!]/.test(readFileSync(file, 'utf8')))
+  expect(found).toEqual([])
+})
+
+test('no Array.at: lastOf instead', () => {
+  const src = new URL('../../src', import.meta.url).pathname
+  const found = files(src).filter((file) => /\.at\(-?\d/.test(readFileSync(file, 'utf8')))
   expect(found).toEqual([])
 })

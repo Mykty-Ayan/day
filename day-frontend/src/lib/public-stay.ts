@@ -3,6 +3,7 @@
 import { addDays, format, parseISO } from 'date-fns'
 import { isAxiosError } from 'axios'
 import type { PublicOffer } from '../api/public'
+import { lastOf } from './utils'
 
 export interface PublicNight {
   date: string
@@ -33,7 +34,7 @@ export function fromThisWeek(cells: (string | null)[], today: string): (string |
  *  nights is among them: it may end a stay, never begin one. */
 export function takenDays(nights: PublicNight[], until: string): Set<string> {
   const set = new Set(nights.filter((n) => !n.free).map((n) => n.date))
-  const last = nights.at(-1)?.date
+  const last = lastOf(nights)?.date
   if (!last) return set
   for (let day = addDays(parseISO(last), 1); format(day, 'yyyy-MM-dd') <= until; day = addDays(day, 1)) {
     set.add(format(day, 'yyyy-MM-dd'))

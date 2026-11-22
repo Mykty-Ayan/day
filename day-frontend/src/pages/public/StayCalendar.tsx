@@ -4,6 +4,7 @@ import { addDays, format, parseISO } from 'date-fns'
 import { CalendarDays, Rows2 } from 'lucide-react'
 import { isDayBlocked } from '../../lib/booking-dates'
 import { SITE_MAX_NIGHTS, money, stayQuote, takenDays, type PublicNight } from '../../lib/public-stay'
+import { lastOf } from '../../lib/utils'
 
 type Range = { checkIn: string | null; checkOut: string | null }
 
@@ -49,13 +50,13 @@ export function StayCalendar({
   const days = useMemo(() => {
     const first = parseISO(today)
     const monday = addDays(first, -((first.getDay() + 6) % 7))
-    const last = nights.at(-1)?.date ?? today
+    const last = lastOf(nights)?.date ?? today
     const out: string[] = []
     for (let d = monday; iso(d) <= next(last) || out.length % 7 !== 0; d = addDays(d, 1)) out.push(iso(d))
     return out
   }, [today, nights])
   // A night the page has not loaded counts as taken, to the calendar's last cell.
-  const taken = useMemo(() => takenDays(nights, days.at(-1) ?? today), [nights, days, today])
+  const taken = useMemo(() => takenDays(nights, lastOf(days) ?? today), [nights, days, today])
   const byMonth = useMemo(() => {
     const groups = new Map<string, string[]>()
     for (const day of days) if (day >= today) groups.set(day.slice(0, 7), [...(groups.get(day.slice(0, 7)) ?? []), day])
@@ -84,7 +85,7 @@ export function StayCalendar({
   function onMonthsScroll() {
     const el = months.current
     if (!el) return
-    const top = [...el.querySelectorAll<HTMLElement>('[data-month]')].filter((m) => m.offsetTop - el.offsetTop <= el.scrollTop + 40).at(-1)
+    const top = lastOf([...el.querySelectorAll<HTMLElement>('[data-month]')].filter((m) => m.offsetTop - el.offsetTop <= el.scrollTop + 40))
     if (top?.dataset.month) setShownMonth(top.dataset.month)
   }
 
