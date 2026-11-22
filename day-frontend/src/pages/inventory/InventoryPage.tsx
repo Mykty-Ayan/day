@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ChevronRight, Package, Pencil, Plus } from 'lucide-react'
 import Spinner from '../../components/ui/Spinner'
+import LoadError from '../../components/ui/LoadError'
 import { useCurrentUser } from '../../hooks/useAuth'
 import { useMoney } from '../../hooks/useMoney'
 import { useProducts } from '../../hooks/useInventory'
@@ -22,7 +23,7 @@ export default function InventoryPage() {
   const { data: user } = useCurrentUser()
   // Owner and manager: both keep the stock (inventory:manage); a cleaner has no business here.
   const allowed = user?.role === 'owner' || user?.role === 'manager'
-  const { data: products = [], isLoading } = useProducts(allowed)
+  const { data: products = [], isLoading, isError, refetch } = useProducts(allowed)
   const [editing, setEditing] = useState<Product | 'new' | null>(null)
   const [stocking, setStocking] = useState<Product | null>(null)
 
@@ -35,10 +36,12 @@ export default function InventoryPage() {
   const productList = (
     <section aria-label={t('inventory.list')}>
       <h2 className="mb-2 text-sm font-semibold text-ink">
-        {t('inventory.list')} <span className="ml-1 tabular-nums text-ink-muted">{products.length}</span>
+        {t('inventory.list')} {!isError && <span className="ml-1 tabular-nums text-ink-muted">{products.length}</span>}
       </h2>
       {isLoading ? (
         <Spinner />
+      ) : isError ? (
+        <LoadError message={t('inventory.loadFailed')} onRetry={() => refetch()} />
       ) : products.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-line px-5 py-10 text-center">
           <p className="text-sm text-ink-muted">{t('inventory.empty')}</p>

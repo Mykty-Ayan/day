@@ -134,7 +134,9 @@
     "nameNeeded": "电话来自我们的聊天记录。请填写预订人的姓名。",
     "phoneWrong": "号码应为 10 到 15 位数字，含国家代码。",
     "ranOut": "时间已到——正在核实付款",
-    "hoursAtCheckIn": "使用费 {{total}}，入住时支付"
+    "hoursAtCheckIn": "使用费 {{total}}，入住时支付",
+    "openPage": "打开预订页面",
+    "openPageHint": "请保存此链接：预订页面上有地址、付款和门锁密码。"
   },
   "properties": {
     "checkInMethod": {
@@ -163,7 +165,18 @@
     "askTitle": "还有问题？",
     "askHint": "给我们留言，我们会回复并帮您挑选公寓。",
     "freeToday": "今晚可订",
-    "freeFrom": "{{day}}起可订"
+    "freeFrom": "{{day}}起可订",
+    "guests": "入住人数",
+    "pick": "选择",
+    "showFree": "显示空闲房源",
+    "freeOn": "{{dates}} 空闲",
+    "freeForDates": "您的日期可入住",
+    "noneFree": "这些日期没有空闲的公寓。请选择其他日期或联系我们。",
+    "family": "适合家庭",
+    "lessGuests": "减少客人",
+    "moreGuests": "增加客人",
+    "guestsCount": "{{count}} 位客人",
+    "forNights": "{{count}} 晚"
   },
   "guestStay": {
     "pickDates": "选择日期",

@@ -1,0 +1,26 @@
+# The company site: the search form, the flats, a flat opens from its card.
+url: ${BASE_URL}/c/${SITE}
+---
+- launchApp
+- extendedWaitUntil:
+    visible: "Show free flats|Показать свободные"
+    timeout: 20000
+- runFlow: _ru.yaml
+- assertVisible: "Наши квартиры"
+- assertVisible: "Показать свободные"
+- assertNotVisible: "Не получилось.*"
+- takeScreenshot: shots/guest-company
+- scrollUntilVisible:
+    element: "Как забронировать"
+    direction: DOWN
+- scrollUntilVisible:
+    element: "Посмотреть"
+    direction: UP
+- tapOn:
+    text: "Посмотреть"
+    index: 0
+- scrollUntilVisible:
+    element: "На 2 ночи"
+    direction: DOWN
+    timeout: 30000
+- takeScreenshot: shots/guest-flat-from-site

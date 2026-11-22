@@ -3,6 +3,7 @@ import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { listGuestOrders, type OrderStatus } from '../../api/inventory'
 import { useMoney } from '../../hooks/useMoney'
+import LoadError from '../../components/ui/LoadError'
 
 const STATUSES: OrderStatus[] = ['new', 'awaiting_payment', 'accepted', 'delivered', 'cancelled']
 const TONE: Record<OrderStatus, string> = {
@@ -18,7 +19,7 @@ export default function GuestOrdersList() {
   const { t, i18n } = useTranslation()
   const money = useMoney()
   const [status, setStatus] = useState<OrderStatus | ''>('')
-  const { data: orders = [], isLoading } = useQuery({
+  const { data: orders = [], isLoading, isError, refetch } = useQuery({
     queryKey: ['guest-orders', status],
     queryFn: () => listGuestOrders(status || undefined),
     // Another status keeps the list on screen until its own orders come: no blank flash.
@@ -46,7 +47,9 @@ export default function GuestOrdersList() {
           ))}
         </div>
       </div>
-      {isLoading ? null : orders.length === 0 ? (
+      {isLoading ? null : isError ? (
+        <LoadError message={t('inventory.orders.loadFailed')} onRetry={() => refetch()} />
+      ) : orders.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-line px-5 py-8 text-center">
           <p className="text-sm text-ink-muted">{t('inventory.orders.empty')}</p>
         </div>

@@ -134,7 +134,9 @@
     "nameNeeded": "Telefonunuz sohbetimizden alındı. Rezervasyonun kimin adına olduğunu yazın.",
     "phoneWrong": "Numara, ülke koduyla birlikte 10 ila 15 haneli olmalı.",
     "ranOut": "Süre doldu — ödemeyi kontrol ediyoruz",
-    "hoursAtCheckIn": "Saatlerin tutarı ({{total}}) girişte ödenir"
+    "hoursAtCheckIn": "Saatlerin tutarı ({{total}}) girişte ödenir",
+    "openPage": "Rezervasyon sayfasını aç",
+    "openPageHint": "Bu bağlantıyı saklayın: rezervasyon sayfanızda adres, ödeme ve kapı kodu var."
   },
   "properties": {
     "checkInMethod": {
@@ -163,7 +165,20 @@
     "askTitle": "Sorunuz mu var?",
     "askHint": "Yazın, yanıtlayıp size daire bulalım.",
     "freeToday": "Bu gece boş",
-    "freeFrom": "{{day}} itibarıyla boş"
+    "freeFrom": "{{day}} itibarıyla boş",
+    "guests": "Misafirler",
+    "pick": "Seçin",
+    "guestsCount_one": "{{count}} misafir",
+    "guestsCount_other": "{{count}} misafir",
+    "showFree": "Boş daireleri göster",
+    "freeOn": "{{dates}} boş",
+    "freeForDates": "Tarihlerinizde boş",
+    "forNights_one": "{{count}} gece için",
+    "forNights_other": "{{count}} gece için",
+    "noneFree": "Bu tarihlerde boş daire yok. Başka tarihler seçin veya bize yazın.",
+    "family": "Aileler için",
+    "lessGuests": "Daha az misafir",
+    "moreGuests": "Daha fazla misafir"
   },
   "guestStay": {
     "pickDates": "Tarih seçin",

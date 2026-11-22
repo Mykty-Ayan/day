@@ -6,6 +6,7 @@ import { format as formatDay, parseISO } from 'date-fns'
 import Button from '../../components/ui/Button'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import DatePicker from '../../components/ui/date-picker'
+import LoadError from '../../components/ui/LoadError'
 import { Sheet } from '../../components/ui/sheet'
 import { dateLocale } from '../../lib/date-locale'
 import { shiftMonth } from '../../lib/bookings-dashboard'
@@ -58,7 +59,7 @@ export default function ExpensesPage() {
   const today = localToday()
   const [month, setMonth] = useState(today.slice(0, 7))
   const period = monthPeriod(month)
-  const { data: expenses = [], isLoading } = useExpenses(period, isOwner)
+  const { data: expenses = [], isLoading, isError, refetch } = useExpenses(period, isOwner)
   const { data: allFlats } = useAllProperties()
   const createExpense = useCreateExpense()
   const voidExpense = useVoidExpense()
@@ -272,11 +273,18 @@ export default function ExpensesPage() {
       <section className="overflow-hidden rounded-2xl border border-line bg-surface-card">
         <div className="flex items-center justify-between border-b border-line px-5 py-3">
           <h2 className="text-sm font-semibold text-ink">{t('expenses.list')}</h2>
-          <span data-testid="expenses-total" className="text-sm font-bold text-ink">
-            {t('expenses.total', { amount: format(total) })}
-          </span>
+          {/* No total when the list did not load: 0 would read as a month without expenses. */}
+          {!isError && (
+            <span data-testid="expenses-total" className="text-sm font-bold text-ink">
+              {t('expenses.total', { amount: format(total) })}
+            </span>
+          )}
         </div>
-        {isLoading ? null : expenses.length === 0 ? (
+        {isLoading ? null : isError ? (
+          <div className="p-4">
+            <LoadError message={t('expenses.loadFailed')} onRetry={() => refetch()} />
+          </div>
+        ) : expenses.length === 0 ? (
           <p className="px-5 py-8 text-center text-sm text-ink-muted">{t('expenses.empty')}</p>
         ) : (
           <ul className="divide-y divide-line">

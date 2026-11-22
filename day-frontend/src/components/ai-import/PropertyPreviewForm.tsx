@@ -5,6 +5,7 @@ import { Pencil, Eye, X, ImageOff, ExternalLink, Download, GripVertical, Star } 
 import type { MappedPropertyData } from '../../types/ai-import'
 import apiClient from '../../api/client'
 import { useCurrency } from '../../hooks/useCurrency'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select'
 
 interface Props {
   data: MappedPropertyData
@@ -44,7 +45,7 @@ function FieldRow({
       >
         <span>{label}</span>
         {isEmpty && (
-          <span className="shrink-0 whitespace-nowrap text-[10px] font-normal text-amber-500">
+          <span className="shrink-0 whitespace-nowrap text-[10px] font-normal text-warning">
             {t('aiImport.notExtracted')}
           </span>
         )}
@@ -80,7 +81,7 @@ function FieldRow({
             type === 'number' ? 'tabular-nums' : ''
           } ${
             isEmpty
-              ? 'border-warning/30 bg-warning-soft/30 text-amber-400 italic'
+              ? 'border-warning/30 bg-warning-soft/30 text-warning italic'
               : 'border-line bg-surface-page text-ink'
           }`}
         >
@@ -259,26 +260,26 @@ export default function PropertyPreviewForm({ data, onChange }: Props) {
           >
             <span>{t('properties.form.type')}</span>
             {!data.type && (
-              <span className="shrink-0 whitespace-nowrap text-[10px] font-normal text-amber-500">
+              <span className="shrink-0 whitespace-nowrap text-[10px] font-normal text-warning">
                 {t('aiImport.notExtracted')}
               </span>
             )}
           </label>
           {editing ? (
-            <select
-              id="field-type"
-              value={data.type || 'apartment'}
-              onChange={(e) => handleTypeChange(e.target.value)}
-              className="w-full bg-surface-page border border-line rounded-xl p-3 outline-none focus:border-accent text-ink text-sm"
-            >
-              {propertyTypes.map((pt) => (
-                <option key={pt} value={pt}>
-                  {pt === 'apartment' ? t('common.apartment') : pt === 'house' ? t('common.house') : t('common.room')}
-                </option>
-              ))}
-            </select>
+            <Select value={data.type || 'apartment'} onValueChange={handleTypeChange}>
+              <SelectTrigger id="field-type" className="h-auto bg-surface-page p-3">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {propertyTypes.map((pt) => (
+                  <SelectItem key={pt} value={pt}>
+                    {pt === 'apartment' ? t('common.apartment') : pt === 'house' ? t('common.house') : t('common.room')}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           ) : (
-            <div className={`w-full border rounded-xl p-3 text-sm ${data.type ? 'border-line bg-surface-page text-ink' : 'border-warning/30 bg-warning-soft/30 text-amber-400 italic'}`}>
+            <div className={`w-full border rounded-xl p-3 text-sm ${data.type ? 'border-line bg-surface-page text-ink' : 'border-warning/30 bg-warning-soft/30 text-warning italic'}`}>
               {data.type ? (data.type === 'apartment' ? t('common.apartment') : data.type === 'house' ? t('common.house') : t('common.room')) : t('aiImport.empty')}
             </div>
           )}
@@ -433,12 +434,12 @@ export default function PropertyPreviewForm({ data, onChange }: Props) {
                   href={url}
                   target="_blank"
                   rel="noreferrer"
-                  title="Open full size"
+                  title={t('aiImport.photo.openFull')}
                   className="block w-full h-full"
                 >
                   <img
                     src={url}
-                    alt={`Property photo ${i + 1}`}
+                    alt={t('aiImport.photo.alt', { n: i + 1 })}
                     className="w-full h-full object-cover"
                     onError={(e) => {
                       const target = e.currentTarget
@@ -447,7 +448,10 @@ export default function PropertyPreviewForm({ data, onChange }: Props) {
                       if (parent && !parent.querySelector('.fallback-icon')) {
                         const fallback = document.createElement('div')
                         fallback.className = 'fallback-icon absolute inset-0 flex items-center justify-center'
-                        fallback.innerHTML = '<span class="text-xs text-ink-muted">Failed to load</span>'
+                        const note = document.createElement('span')
+                        note.className = 'text-xs text-ink-muted'
+                        note.textContent = t('aiImport.photo.failed')
+                        fallback.appendChild(note)
                         parent.appendChild(fallback)
                       }
                     }}
@@ -464,8 +468,8 @@ export default function PropertyPreviewForm({ data, onChange }: Props) {
                     target="_blank"
                     rel="noreferrer"
                     className="bg-white/90 hover:bg-surface-page border border-line rounded-lg p-1"
-                    aria-label={`Open photo ${i + 1}`}
-                    title="Open full size"
+                    aria-label={t('aiImport.photo.open', { n: i + 1 })}
+                    title={t('aiImport.photo.openFull')}
                   >
                     <ExternalLink className="w-3 h-3 text-ink-muted" />
                   </a>
@@ -477,8 +481,8 @@ export default function PropertyPreviewForm({ data, onChange }: Props) {
                       void handleDownloadPhoto(url, i)
                     }}
                     className="bg-white/90 hover:bg-surface-page border border-line rounded-lg p-1"
-                    aria-label={`Download photo ${i + 1}`}
-                    title={`Download ${buildDownloadName(url, i)}`}
+                    aria-label={t('aiImport.photo.download', { n: i + 1 })}
+                    title={t('aiImport.photo.downloadName', { name: buildDownloadName(url, i) })}
                   >
                     <Download className="w-3 h-3 text-ink-muted" />
                   </button>
@@ -495,11 +499,11 @@ export default function PropertyPreviewForm({ data, onChange }: Props) {
                       onClick={() => handleSetMainPhoto(i)}
                       className={`border rounded-lg p-1 ${
                         i === 0
-                          ? 'bg-warning border-amber-400 text-white'
+                          ? 'bg-warning border-warning text-white'
                           : 'bg-white/90 hover:bg-warning-soft border-line text-ink-muted hover:text-warning'
                       }`}
-                      aria-label={`Set photo ${i + 1} as main`}
-                      title="Set as main photo"
+                      aria-label={t('aiImport.photo.setMain', { n: i + 1 })}
+                      title={t('aiImport.photo.setMainTitle')}
                     >
                       <Star className="w-3 h-3" />
                     </button>
@@ -507,7 +511,7 @@ export default function PropertyPreviewForm({ data, onChange }: Props) {
                       type="button"
                       onClick={() => handleRemovePhoto(i)}
                       className="bg-white/90 hover:bg-danger/10 border border-line rounded-lg p-1"
-                      aria-label={`Remove photo ${i + 1}`}
+                      aria-label={t('aiImport.photo.remove', { n: i + 1 })}
                     >
                       <X className="w-3 h-3 text-ink-muted hover:text-danger" />
                     </button>

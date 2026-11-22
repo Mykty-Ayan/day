@@ -6,6 +6,13 @@ from app.domain.property.entities import PropertyTag
 from app.domain.property.repositories import PropertyRepository, PropertyTagRepository
 
 
+class TagNameTakenError(ValueError):
+    """The company has a tag of this name already. The HTTP layer answers 409."""
+
+    def __init__(self, name: str) -> None:
+        super().__init__(f"Tag '{name}' already exists")
+
+
 class ManageTagsService:
     def __init__(
         self,
@@ -17,7 +24,7 @@ class ManageTagsService:
 
     async def create_tag(self, company_id: uuid.UUID, name: str, color: str = "#3B82F6") -> PropertyTag:
         if await self._tag_repo.exists_name(company_id, name):
-            raise ValueError(f"Tag '{name}' already exists")
+            raise TagNameTakenError(name)
         tag = PropertyTag(
             id=uuid.uuid4(),
             company_id=company_id,
@@ -42,7 +49,7 @@ class ManageTagsService:
             raise ValueError("Tag not found")
         if name is not None:
             if await self._tag_repo.exists_name(company_id, name, exclude_id=tag_id):
-                raise ValueError(f"Tag '{name}' already exists")
+                raise TagNameTakenError(name)
             tag.name = name
         if color is not None:
             tag.color = color
