@@ -96,6 +96,18 @@ function OfferView({ offer, locale, onRefresh }: { offer: PublicOffer; locale: s
 
   return (
     <main className="min-h-screen pb-10 text-[#111114]">
+      {/* Who sent the link, by its logo and name, under the language bar. */}
+      <div className={`flex items-center gap-2.5 px-4 ${offer.company ? 'pb-3' : ''}`}>
+        {offer.company &&
+          (offer.company.logo_url ? (
+            <img src={offer.company.logo_url} alt="" className="h-11 w-11 shrink-0 rounded-full bg-white object-cover" />
+          ) : (
+            <span aria-hidden className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#111114] text-lg font-bold text-white">
+              {offer.company.title.trim().charAt(0).toUpperCase()}
+            </span>
+          ))}
+        {offer.company && <span dir="auto" className="truncate text-[15px] font-semibold">{offer.company.title}</span>}
+      </div>
       <div className="px-5 pb-3.5 pt-1">
         <h1 className="font-guest-display text-[34px] font-bold leading-[1.05] tracking-[-0.035em]">
           {offer.guest ? t('guestOffer.hello', { name: offer.guest }) : t('guestOffer.title')}
@@ -216,9 +228,12 @@ function FlatCard({
         )}
         {flat.free &&
           (flat.total != null ? (
-            <p className="flex items-baseline gap-1.5 rounded-[18px] bg-[#F3F3F6] px-4 py-3">
+            <p className="flex flex-wrap items-baseline gap-x-1.5 rounded-[18px] bg-[#F3F3F6] px-4 py-3">
               <span className="text-[26px] font-bold tracking-[-0.03em]">{money(flat.total, locale)}</span>
               <span className="text-sm text-[#76767F]">{t('guestOffer.forStay', { nights })}</span>
+              {flat.deposit != null && (
+                <span className="ms-auto text-sm text-[#76767F]">{t('guestOffer.deposit', { price: money(flat.deposit, locale) })}</span>
+              )}
             </p>
           ) : (
             <p className="text-sm text-[#76767F]">{t('guestOffer.noPrice')}</p>

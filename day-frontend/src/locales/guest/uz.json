@@ -95,7 +95,8 @@
     "hold": "Birini tanlang — 30 daqiqa siz uchun ushlab turamiz.",
     "lapsed": "Bron vaqti tugadi, to‘lov kelmadi. Kvartirani qayta tanlang.",
     "next": "Keyin nima",
-    "freeOf": "{{total}} tadan {{free}} tasi boʻsh"
+    "freeOf": "{{total}} tadan {{free}} tasi boʻsh",
+    "deposit": "garov {{price}}"
   },
   "guestBook": {
     "back": "Barcha kvartiralar",
