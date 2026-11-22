@@ -117,3 +117,55 @@ async def test_an_address_another_company_holds_is_refused(flat):  # noqa: F811 
     assert taken.status_code == 409
     # The refused save leaves the session fit for the next one.
     assert (await client.put("/api/v1/site", json={"slug": slug + "x", "title": "Моя"})).status_code == 200
+
+
+@pytest.mark.integration
+async def test_a_guest_searches_the_site_by_dates(flat):  # noqa: F811  (the imported fixture)
+    client, prop, use = flat
+    slug = f"t-{uuid.uuid4().hex[:8]}"
+    use(Permission.SETTINGS_READ, Permission.SETTINGS_WRITE, Permission.PROPERTIES_READ, Permission.PROPERTIES_WRITE,
+        Permission.BOOKINGS_READ, Permission.BOOKINGS_WRITE)
+    assert (await client.put("/api/v1/site", json={"slug": slug, "title": "Munar"})).status_code == 200
+    today = date.fromisoformat((await client.get(f"/api/v1/public/companies/{slug}")).json()["today"])
+    # Taken from the third night to the fifth.
+    booked = await client.post("/api/v1/bookings", json={
+        "property_id": str(prop), "guest_name": "Ерлан", "guest_phone": "+77010001233",
+        "check_in": f"{today + timedelta(days=3)}T14:00:00", "check_out": f"{today + timedelta(days=5)}T12:00:00",
+    })
+    assert booked.status_code == 201, booked.text
+    use()
+
+    async def search(first: int, last: int):
+        return await client.get(f"/api/v1/public/companies/{slug}", params={
+            "check_in": str(today + timedelta(days=first)), "check_out": str(today + timedelta(days=last))})
+
+    # Two free nights: free, and all the nights cost as the flat's page counts them.
+    free = (await search(1, 3)).json()["flats"][0]
+    stay = (await client.get(f"/api/v1/public/stays/{free['code']}", params={
+        "date_from": str(today + timedelta(days=1)), "date_to": str(today + timedelta(days=3))})).json()
+    assert (free["stay_free"], free["stay_total"]) == (True, sum(n["price"] for n in stay["nights"][:2]))
+    # A night taken in the dates: not free, no price.
+    taken = (await search(2, 4)).json()["flats"][0]
+    assert (taken["stay_free"], taken["stay_total"]) == (False, None)
+    # No dates: nothing said either way.
+    plain = (await client.get(f"/api/v1/public/companies/{slug}")).json()["flats"][0]
+    assert (plain["stay_free"], plain["stay_total"]) == (None, None)
+
+    # Fewer nights than the flat takes: not free for them.
+    use(Permission.PROPERTIES_READ, Permission.PROPERTIES_WRITE)
+    assert (await client.patch(f"/api/v1/properties/{prop}", json={"min_nights": 3})).status_code == 200
+    use()
+    assert (await search(5, 7)).json()["flats"][0]["stay_free"] is False
+    assert (await search(5, 8)).json()["flats"][0]["stay_free"] is True
+    # More nights than it takes: the same.
+    use(Permission.PROPERTIES_READ, Permission.PROPERTIES_WRITE)
+    assert (await client.patch(f"/api/v1/properties/{prop}", json={"max_nights": 3})).status_code == 200
+    use()
+    assert (await search(5, 9)).json()["flats"][0]["stay_free"] is False
+
+    # Dates a guest cannot pick are refused.
+    # The last night the flat's page shows is the 118th: check-out on the 119th day at most.
+    assert (await search(117, 119)).status_code == 200
+    for first, last in ((-1, 1), (3, 3), (4, 2), (0, 31), (118, 120)):
+        assert (await search(first, last)).status_code == 422, (first, last)
+    assert (await client.get(f"/api/v1/public/companies/{slug}", params={"check_in": str(today)})).status_code == 422

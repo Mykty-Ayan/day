@@ -93,6 +93,26 @@ export function money(value: number, locale: string): string {
   return `${Math.round(value).toLocaleString(locale)}\u00a0₸`
 }
 
+/** The guest's dates and guests from the company's search (?in=&out=&guests=): the flat's page
+ *  opens with them picked. Dates a guest cannot pick here (past, reversed, past the nights
+ *  loaded up to `until`) are dropped. */
+export function stayFromUrl(search: string, today: string, until: string) {
+  const params = new URLSearchParams(search)
+  const day = (key: string) => {
+    const value = params.get(key) ?? ''
+    return /^\d{4}-\d{2}-\d{2}$/.test(value) && !Number.isNaN(Date.parse(value)) ? value : null
+  }
+  const checkIn = day('in')
+  const checkOut = day('out')
+  const dates = checkIn && checkOut && checkIn >= today && checkOut > checkIn && checkOut <= until
+  const guests = Number(params.get('guests'))
+  return {
+    checkIn: dates ? checkIn : null,
+    checkOut: dates ? checkOut : null,
+    guests: Number.isInteger(guests) && guests >= 1 && guests <= 50 ? guests : null,
+  }
+}
+
 /** A link that leads nowhere stays so: only a failed network is tried again. */
 /** The flat's page opened from an NFC tag (?nfc) or a QR code (?qr) in the flat. */
 export function openedInFlat(search: string): boolean {

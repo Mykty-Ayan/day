@@ -106,6 +106,7 @@ export function BookSheet({
   checkIn,
   checkOut,
   total,
+  guests: searched = null,
   onClose,
   onBooked,
 }: {
@@ -114,6 +115,8 @@ export function BookSheet({
   checkIn: string
   checkOut: string
   total: number
+  /** The guests the company's search asked for. */
+  guests?: number | null
   onClose: () => void
   onBooked: (booking: PublicOfferBooking) => void
 }) {
@@ -121,7 +124,7 @@ export function BookSheet({
   const most = stay.max_guests ?? 50
   const [name, setName] = useState('')
   const [phone, setPhone] = useState('')
-  const [guests, setGuests] = useState(Math.min(2, most))
+  const [guests, setGuests] = useState(Math.min(searched ?? 2, most))
   const [sending, setSending] = useState(false)
   // Two taps in one moment both see `sending` false; this does not wait for a render.
   const inFlight = useRef(false)

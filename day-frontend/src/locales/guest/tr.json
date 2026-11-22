@@ -163,7 +163,20 @@
     "askTitle": "Sorunuz mu var?",
     "askHint": "Yazın, yanıtlayıp size daire bulalım.",
     "freeToday": "Bu gece boş",
-    "freeFrom": "{{day}} itibarıyla boş"
+    "freeFrom": "{{day}} itibarıyla boş",
+    "guests": "Misafirler",
+    "pick": "Seçin",
+    "guestsCount_one": "{{count}} misafir",
+    "guestsCount_other": "{{count}} misafir",
+    "showFree": "Boş daireleri göster",
+    "freeOn": "{{dates}} boş",
+    "freeForDates": "Tarihlerinizde boş",
+    "forNights_one": "{{count}} gece için",
+    "forNights_other": "{{count}} gece için",
+    "noneFree": "Bu tarihlerde boş daire yok. Başka tarihler seçin veya bize yazın.",
+    "family": "Aileler için",
+    "lessGuests": "Daha az misafir",
+    "moreGuests": "Daha fazla misafir"
   },
   "guestStay": {
     "pickDates": "Tarih seçin",

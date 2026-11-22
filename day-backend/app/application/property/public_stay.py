@@ -110,12 +110,29 @@ class GetPublicStayService:
     async def _nights(
         self, prop: Property, pricing: PricingConfig, date_from: date, date_to: date, weekend: tuple[int, ...]
     ) -> list[PublicNight]:
-        count = (date_to - date_from).days
-        seasonals = await self._seasonal.list_by_pricing_config(pricing.id)
-        calendar = {p.date: p.price for p in await self._day_prices.list_for_property(prop.id, date_from, date_to)}
-        rates: list[NightRate] = nightly_rates(pricing, seasonals, calendar, date_from, count, weekend)
-        taken = await taken_nights(self._bookings, prop, date_from, date_to)
-        return [PublicNight(rate.date, rate.price, rate.date not in taken) for rate in rates]
+        return await public_nights(
+            prop, pricing, self._seasonal, self._day_prices, self._bookings, date_from, date_to, weekend
+        )
+
+
+async def public_nights(
+    prop: Property,
+    pricing: PricingConfig,
+    seasonal_repo: SeasonalPriceRepository,
+    day_price_repo: DayPriceRepository,
+    bookings: BookingRepository,
+    date_from: date,
+    date_to: date,
+    weekend: tuple[int, ...],
+) -> list[PublicNight]:
+    """Each night in [date_from, date_to) with its price and whether it is free: the flat's
+    page and the company's search by dates show the same prices and the same free nights."""
+    count = (date_to - date_from).days
+    seasonals = await seasonal_repo.list_by_pricing_config(pricing.id)
+    calendar = {p.date: p.price for p in await day_price_repo.list_for_property(prop.id, date_from, date_to)}
+    rates: list[NightRate] = nightly_rates(pricing, seasonals, calendar, date_from, count, weekend)
+    taken = await taken_nights(bookings, prop, date_from, date_to)
+    return [PublicNight(rate.date, rate.price, rate.date not in taken) for rate in rates]
 
 
 async def taken_nights(bookings: BookingRepository, prop: Property, date_from: date, date_to: date) -> set[date]:

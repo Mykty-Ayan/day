@@ -163,7 +163,18 @@
     "askTitle": "궁금한 점이 있으신가요?",
     "askHint": "메시지를 보내 주시면 답변하고 숙소를 찾아 드립니다.",
     "freeToday": "오늘 예약 가능",
-    "freeFrom": "{{day}}부터 예약 가능"
+    "freeFrom": "{{day}}부터 예약 가능",
+    "guests": "인원",
+    "pick": "선택",
+    "showFree": "예약 가능한 숙소 보기",
+    "freeOn": "{{dates}} 예약 가능",
+    "freeForDates": "선택한 날짜에 예약 가능",
+    "noneFree": "이 날짜에는 예약 가능한 숙소가 없습니다. 다른 날짜를 선택하거나 문의해 주세요.",
+    "family": "가족용",
+    "lessGuests": "인원 줄이기",
+    "moreGuests": "인원 늘리기",
+    "guestsCount": "게스트 {{count}}명",
+    "forNights": "{{count}}박"
   },
   "guestStay": {
     "pickDates": "날짜 선택",

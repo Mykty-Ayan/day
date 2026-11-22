@@ -105,6 +105,10 @@ class PublicCompanyFlat(BaseModel):
     free_from: date | None = None
     # How many listing photos the flat's page has.
     photos: int = 0
+    # Only when the guest asked for dates: free for all those nights (and as many as the flat
+    # takes at least), and what they cost together, as the flat's page counts them.
+    stay_free: bool | None = None
+    stay_total: float | None = None
 
 
 class PublicCompanyResponse(BaseModel):
