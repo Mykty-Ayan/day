@@ -99,7 +99,7 @@ export default function TodayPage() {
                     {t('common.checkedOut')}
                   </Badge>
                 ) : (
-                  <BookingStatusBadge status={booking.status} />
+                  <BookingStatusBadge status={booking.status} expiresAt={booking.expires_at} />
                 )
               }
             />

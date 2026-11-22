@@ -309,7 +309,7 @@ function BookingRow({ booking }: { booking: Booking }) {
       </span>
       {/* On a phone the status sits by the name, the flat and dates under them. */}
       <span className="justify-self-end lg:hidden">
-        <BookingStatusBadge status={booking.status} />
+        <BookingStatusBadge status={booking.status} expiresAt={booking.expires_at} />
       </span>
       <span className="col-span-2 min-w-0 text-sm text-ink lg:col-span-1">
         <span className="block truncate">{flat}</span>
@@ -324,7 +324,7 @@ function BookingRow({ booking }: { booking: Booking }) {
         <span className="block text-xs text-ink-muted">{stay.detail}</span>
       </span>
       <span className="hidden lg:block">
-        <BookingStatusBadge status={booking.status} />
+        <BookingStatusBadge status={booking.status} expiresAt={booking.expires_at} />
       </span>
       <span className="col-span-2 flex items-baseline justify-between gap-3 lg:col-span-1 lg:block lg:text-right">
         <span className={`block text-sm font-semibold tabular-nums ${booking.status === 'cancelled' ? 'text-ink-muted line-through' : 'text-ink'}`}>
