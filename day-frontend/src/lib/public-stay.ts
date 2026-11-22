@@ -62,7 +62,10 @@ export function stayQuote(nights: PublicNight[], checkIn: string, checkOut: stri
 /** Two dates as one range, «4–6 нояб.». Safari before 14.1 and some in-app browsers have no
  *  formatRange, and a page calling it fails: there the dates are joined by a dash. */
 export function dateRange(format: Intl.DateTimeFormat, from: Date, to: Date): string {
-  return typeof format.formatRange === 'function' ? format.formatRange(from, to) : `${format.format(from)} – ${format.format(to)}`
+  // Safari writes «4—6 дек.» with an em dash, Chrome «4–6 дек.»: a range takes the en dash.
+  return typeof format.formatRange === 'function'
+    ? format.formatRange(from, to).replace(/—/g, '–')
+    : `${format.format(from)} – ${format.format(to)}`
 }
 
 /** "20–22 октября": a stay's dates as the guest's language says them. */

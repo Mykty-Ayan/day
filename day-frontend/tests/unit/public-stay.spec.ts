@@ -125,6 +125,9 @@ test('a range of dates without formatRange is joined by a dash, not a crash', ()
   const [from, to] = [new Date(2026, 11, 4), new Date(2026, 11, 6)]
   expect(dateRange(format, from, to)).toBe(format.formatRange(from, to))
   expect(dateRange(bare, from, to)).toBe(`${format.format(from)} – ${format.format(to)}`)
+  // Safari's em dash becomes the en dash a range takes.
+  const safari = { formatRange: () => '4—6 дек.' } as unknown as Intl.DateTimeFormat
+  expect(dateRange(safari, from, to)).toBe('4–6 дек.')
 })
 
 test('the amenities most guests look for come first, a step-free entrance last', () => {
