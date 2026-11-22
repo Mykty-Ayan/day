@@ -15,8 +15,13 @@ from decimal import Decimal
 from zoneinfo import ZoneInfo
 
 from app.application.inventory.guest_orders import billings, minibar_open
-from app.domain.booking.entities import Booking
-from app.domain.booking.repositories import BookingPaymentRepository, BookingRepository, GuestRepository
+from app.domain.booking.entities import Booking, BookingDeposit
+from app.domain.booking.repositories import (
+    BookingDepositRepository,
+    BookingPaymentRepository,
+    BookingRepository,
+    GuestRepository,
+)
 from app.domain.booking.value_objects import BookingStatus, RentalMode
 from app.domain.inventory.entities import GuestOrder, OrderBilling, Product
 from app.domain.inventory.repositories import GuestOrderRepository, ProductRepository
@@ -32,6 +37,8 @@ from app.domain.site.repositories import CompanySiteRepository
 # messages to the host (documents for the books), and keeps the rest back.
 _CLOSED = {BookingStatus.CANCELLED, BookingStatus.CHECKED_OUT, BookingStatus.COMPLETED}
 _LIVE = {BookingStatus.CONFIRMED, BookingStatus.CHECKED_IN}
+# How far past check-out the page looks for the next guest: "free until" beyond it says nothing useful.
+_FREE_AHEAD_DAYS = 60
 
 
 @dataclass
@@ -42,6 +49,12 @@ class GuestAccess:
     wifi_name: str | None
     wifi_password: str | None
     facts: list[str] = field(default_factory=list)
+    # The path to the door: the flat's check-in photos (url, the owner's words), in order.
+    photos: list[tuple[str, str | None]] = field(default_factory=list)
+    # Where exactly: the entrance, the block and the flat's number come with the code.
+    entrance: str | None = None
+    block: str | None = None
+    apartment_number: str | None = None
 
 
 @dataclass
@@ -62,6 +75,8 @@ class GuestPanel:
     # The company's own day: which buttons fit (arrival, the stay, departure).
     today: date
     closed: bool
+    # The company's wall clock now: the page counts down by it, not by the phone's zone.
+    now: datetime | None = None
     guest_name: str | None = None
     flat: Property | None = None
     paid: Decimal = Decimal("0")
@@ -78,6 +93,11 @@ class GuestPanel:
     orders: list[GuestOrder] = field(default_factory=list)
     # The flat's cover for the page's header: a listing photo, never a check-in one.
     photo_url: str | None = None
+    # The day the next guest arrives (or the flat closes) after this stay, within
+    # _FREE_AHEAD_DAYS: how long the stay may be extended. None: nobody in sight.
+    free_until: date | None = None
+    # The stay's deposit, its latest record: the amount and what became of it.
+    deposit: BookingDeposit | None = None
 
     @property
     def remaining(self) -> Decimal:
@@ -97,6 +117,7 @@ class GuestPanelService:
         products: ProductRepository | None = None,
         orders: GuestOrderRepository | None = None,
         photos: PropertyPhotoRepository | None = None,
+        deposits: BookingDepositRepository | None = None,
     ) -> None:
         self._bookings = bookings
         self._payments = payments
@@ -108,6 +129,7 @@ class GuestPanelService:
         self._products = products
         self._orders = orders
         self._photos = photos
+        self._deposits = deposits
 
     async def execute(self, code: str, now: datetime | None = None) -> GuestPanel:
         """The guest's page; ValueError for a code that names no booking."""
@@ -134,6 +156,7 @@ class GuestPanelService:
             booking=booking,
             site=site,
             today=today,
+            now=local_now.replace(microsecond=0),
             closed=booking.status in _CLOSED,
             # The name of this booking's guest only: never a phone, never anyone else.
             guest_name=guest.name if guest and guest.company_id == booking.company_id else None,
@@ -146,12 +169,20 @@ class GuestPanelService:
             panel.orders_due = due.get(booking.id, Decimal("0"))
             if not panel.closed:
                 panel.orders = list(await self._orders.list_for_booking(booking.company_id, booking.id))
-        if panel.flat is not None and not panel.closed and self._photos is not None:
-            listing = sorted(
-                (p for p in await self._photos.list_by_property(panel.flat.id) if p.audience == FactAudience.PUBLIC),
-                key=lambda p: (not p.is_cover, p.sort_order),
-            )
-            panel.photo_url = listing[0].url if listing else None
+        pictures = (
+            await self._photos.list_by_property(panel.flat.id)
+            if panel.flat is not None and not panel.closed and self._photos is not None
+            else []
+        )
+        listing = sorted(
+            (p for p in pictures if p.audience == FactAudience.PUBLIC), key=lambda p: (not p.is_cover, p.sort_order)
+        )
+        panel.photo_url = listing[0].url if listing else None
+        if panel.flat is not None and not panel.closed:
+            panel.free_until = await self._free_until(booking)
+        if self._deposits is not None:
+            records = await self._deposits.get_by_booking(booking.id)
+            panel.deposit = records[0] if records else None
         opens = booking.check_in - timedelta(hours=lead_hours)
         if (
             panel.flat is not None
@@ -165,6 +196,14 @@ class GuestPanelService:
                 wifi_name=panel.flat.wifi_name,
                 wifi_password=panel.flat.wifi_password,
                 facts=[f.text for f in facts if f.audience == FactAudience.GUEST],
+                photos=[
+                    (p.url, p.caption)
+                    for p in sorted(pictures, key=lambda p: p.sort_order)
+                    if p.audience == FactAudience.GUEST
+                ],
+                entrance=panel.flat.entrance,
+                block=panel.flat.block,
+                apartment_number=panel.flat.apartment_number,
             )
         if self._products is not None and minibar_open(booking, today):
             stock = await self._products.list(booking.company_id)
@@ -177,3 +216,14 @@ class GuestPanelService:
                 open_now=rules.minibar_takes_orders(local_now.time()),
             )
         return panel
+
+    async def _free_until(self, booking: Booking) -> date | None:
+        """The first day after this stay that the flat is taken: another booking or a block."""
+        start = booking.check_out.date()
+        end = start + timedelta(days=_FREE_AHEAD_DAYS)
+        later = await self._bookings.get_by_property_and_dates(booking.property_id, start, end, exclude_id=booking.id)
+        blocks = await self._bookings.list_blocks(booking.property_id, start, end)
+        # Only stays after this one: an hourly stay earlier the same day ends before it.
+        days = [b.check_in.date() for b in later if b.check_out > booking.check_out] + [b.start_date for b in blocks]
+        # A stay or block already running at check-out leaves no room: the stay ends as booked.
+        return min((max(day, start) for day in days), default=None)

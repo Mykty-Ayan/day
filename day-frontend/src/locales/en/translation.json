@@ -1995,7 +1995,10 @@
     "expired": "The dates of this link have passed. Write to us and we will find new ones.",
     "choose": "Choose",
     "hold": "Pick one and we hold it for you for 30 minutes.",
-    "lapsed": "We held the dates for you, but the deposit did not arrive in time. Choose a flat again."
+    "lapsed": "We held the dates for you, but the deposit did not arrive in time. Choose a flat again.",
+    "next": "What happens next",
+    "freeOf": "{{free}} of {{total}} free",
+    "deposit": "deposit {{price}}"
   },
   "guestBook": {
     "back": "All flats",
@@ -2469,7 +2472,31 @@
     "needHelp": "Need help?",
     "inWhatsApp": "on WhatsApp",
     "writeHost": "Write to the host",
-    "doorAfterPay": "Door code once paid"
+    "doorAfterPay": "Door code once paid",
+    "entrance": "entrance {{n}}",
+    "block": "block {{n}}",
+    "floor": "floor {{n}}",
+    "apartment": "flat {{n}}",
+    "taxi": "Call a taxi here",
+    "path": "The way to the door",
+    "pathStep": "Step {{n}}",
+    "freeUntil": "free until {{day}}",
+    "deposit": {
+      "title": "Deposit",
+      "pending": "The deposit is not paid yet",
+      "paid": "Back within a day of check-out",
+      "returned": "The deposit is back with you",
+      "held": "The deposit was kept. If you disagree, write to the host.",
+      "partially_held": "{{back}} comes back, {{held}} was kept. If you disagree, write to the host.",
+      "step1": "You check out by {{time}}",
+      "step2": "The host checks the flat",
+      "step3": "We send the deposit back"
+    },
+    "again": {
+      "title": "Enjoyed your stay?",
+      "text": "Next time book directly with the host — the link to the flat is always here.",
+      "open": "Open the flat's page"
+    }
   },
   "stayHere": {
     "title": "Staying here?",
