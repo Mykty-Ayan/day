@@ -91,6 +91,11 @@ export default function MoneyScreen({
             <div key={key} className="px-3 py-2.5">
               <p className="tg-hint text-xs font-bold uppercase tracking-wide">{t(`miniapp.moneyTab.${key}`)}</p>
               <p className="mt-0.5 text-lg font-bold tabular-nums">{value}</p>
+              {/* The costs hold the platforms' commission too, which the journal below has not:
+                  said here, the two sums are not taken for a mistake. */}
+              {key === 'expenses' && Number(summary.total_commission) > 0 && (
+                <p className="tg-hint text-xs">{t('miniapp.moneyTab.withCommission', { amount: money(Number(summary.total_commission)) })}</p>
+              )}
             </div>
           ))}
         </div>

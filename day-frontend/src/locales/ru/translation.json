@@ -1902,7 +1902,8 @@
       "debts": "Долги гостей · {{amount}}",
       "noDebts": "Все гости заплатили",
       "paid": "Оплаты · {{amount}}",
-      "spent": "Расходы · {{amount}}"
+      "spent": "Расходы · {{amount}}",
+      "withCommission": "из них комиссии площадок {{amount}}"
     },
     "orders": {
       "number": "Заказ №{{number}}",
