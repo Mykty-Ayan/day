@@ -42,7 +42,7 @@ The new interface: every cabinet screen, the guest pages after the approved mock
 - A guest hold from a flat's page is up to 30 nights; the photo download checks every redirect; a cleaning cannot name another company's booking (#334)
 - «Not found» is 404 (#335)
 - A hold that ran out shows no unpaid deposit; a page books no more than 30 nights (#346)
-- Pages no longer fail on older Safari and in-app browsers: no lookbehind, no Array.at, a fallback for date ranges (#349, #350)
+- Pages no longer fail on older Safari and in-app browsers: no lookbehind, no Array.at, a fallback for date ranges (#349, #350); a date range takes the en dash in Safari too (#356)
 - Guest text meets WCAG AA contrast; the cabinet's filters have names for screen readers (#352, #353)
 - Frontend calls to API routes that do not exist are gone (#347)
 
