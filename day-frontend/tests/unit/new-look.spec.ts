@@ -14,10 +14,45 @@ import { expect, test } from '@playwright/test'
 const STILL_OLD = new Set<string>([])
 
 const OWN_LOOK = /^\/(s|o|g|c)\/|^\/tma/
-// Grey and black of the old look, on any side of a border; the tokens are text-ink, bg-surface-*, border-line
-// and the like. Only a see-through black up to 60% (bg-black/55 over a photo, /35 behind a panel) is a shade.
-const OLD =
-  /\b(?:bg|text|border(?:-[trblxy])?|ring|divide|placeholder|from|via|to|fill|stroke|outline|decoration|shadow)-(?:gray|slate|zinc|neutral)-\d{2,3}\b|\b(?:text|border(?:-[trblxy])?|ring|fill|stroke|outline)-black\b|\bbg-black\b(?!\/(?:[1-5]?\d|60)\b)/g
+const SIDES = '(?:bg|text|border(?:-[trblxy])?|ring|divide|placeholder|from|via|to|fill|stroke|outline|decoration|shadow)'
+// The old look, on any side of a border; the tokens are text-ink, bg-surface-*, border-line, danger, warning,
+// success, accent and the like. Grey and black; Tailwind's own colours (red-600 for an error, emerald for
+// success: the tokens say it); a solid white card (bg-surface-card). Only a see-through black up to 60%
+// (bg-black/55 over a photo, /35 behind a panel) is a shade, and a see-through white (bg-white/90) a glass.
+const OLD = new RegExp(
+  [
+    `\\b${SIDES}-(?:gray|slate|zinc|neutral|stone)-\\d{2,3}\\b`,
+    `\\b${SIDES}-(?:red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose)-\\d{2,3}\\b`,
+    '\\b(?:text|border(?:-[trblxy])?|ring|fill|stroke|outline)-black\\b',
+    '\\bbg-black\\b(?!\\/(?:[1-5]?\\d|60)\\b)',
+    '\\bbg-white\\b(?!\\/)',
+  ].join('|'),
+  'g',
+)
+// The browser's own parts, which the new look replaces: its list (ui/select, ui/time-chips) and its
+// question boxes (ConfirmDialog, a field on the screen).
+const NATIVE = /<select\b|\bwindow\.(?:confirm|prompt|alert)\(/g
+
+/** Left as they are on purpose, as "file: match". Each says why; take one off when its reason goes. */
+const LEFT = new Set<string>([
+  // A round button over a photo: white is the glass on the picture, not a card.
+  'pages/properties/PropertyDetailPage.tsx: bg-white',
+  // The maid's room type under each photo, on her phone: the phone's own wheel is the easier one there.
+  'pages/cleaner/CleanerTaskDetailPage.tsx: <select',
+  // Another branch is redoing the expenses screen; its three lists go with that work.
+  'pages/expenses/ExpensesPage.tsx: <select',
+  // Another branch is changing the cleaning card; its done mark goes with that work.
+  'pages/cleaning/CleaningDetailPage.tsx: border-green-500',
+  // The Mini App asks through Telegram's own box; the browser's is only its fallback outside Telegram.
+  'lib/telegram.ts: window.confirm(',
+])
+
+/** Every place a file uses the old look or the browser's own parts, less the ones left on purpose. */
+function found(file: string, pattern: RegExp): string[] {
+  return [...readFileSync(file, 'utf8').matchAll(pattern)]
+    .map((match) => `${file.replace(/^src\//, '')}: ${match[0]}`)
+    .filter((line) => !LEFT.has(line))
+}
 
 function files(dir: string): string[] {
   return readdirSync(dir, { withFileTypes: true }).flatMap((entry) =>
@@ -55,9 +90,7 @@ const screens = routes.flatMap(({ address, page }) =>
 )
 
 function oldClasses(page: string): string[] {
-  return [...screenFiles(page)].flatMap((file) =>
-    [...readFileSync(file, 'utf8').matchAll(OLD)].map((match) => `${file.replace(/^src\//, '')}: ${match[0]}`),
-  )
+  return [...screenFiles(page)].flatMap((file) => [...found(file, OLD), ...found(file, NATIVE)])
 }
 
 test('every route file is understood: a screen, a redirect, or the root', () => {
@@ -87,8 +120,23 @@ test('the shared parts every screen is built from are in the new look', () => {
   // The cabinet's shell lives in the root route; the guest pages and the Mini App routes keep their own look.
   const shell = files('src/routes').filter((file) => !/routes\/(s|o|g|c)\/|routes\/tma/.test(file))
   const shared = [...files('src/components/ui'), ...files('src/components/layout'), ...shell]
-  const old = shared.flatMap((file) =>
-    [...readFileSync(file, 'utf8').matchAll(OLD)].map((match) => `${file.replace(/^src\//, '')}: ${match[0]}`),
-  )
+  const old = shared.flatMap((file) => [...found(file, OLD), ...found(file, NATIVE)])
   expect(old).toEqual([])
+})
+
+test('no screen asks through the browser’s own box, the guest pages and the Mini App too', () => {
+  // window.confirm looks like a system warning, cannot be styled or translated, and a phone may block it.
+  const code = (readdirSync('src', { recursive: true }) as string[])
+    .filter((path) => /\.tsx?$/.test(path))
+    .map((path) => join('src', path))
+  const asked = code.flatMap((file) => found(file, /\bwindow\.(?:confirm|prompt|alert)\(/g))
+  expect(asked).toEqual([])
+})
+
+test('each thing left on purpose is still there', () => {
+  // A reason that has gone leaves its line behind: take it off LEFT.
+  for (const line of LEFT) {
+    const [file, match] = line.split(': ')
+    expect(readFileSync(`src/${file}`, 'utf8'), line).toContain(match)
+  }
 })

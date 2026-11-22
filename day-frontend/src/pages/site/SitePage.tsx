@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { isAxiosError } from 'axios'
 import { useTranslation } from 'react-i18next'
 import { Copy, ExternalLink, Save } from 'lucide-react'
+import Button from '../../components/ui/Button'
 import { showToast } from '../../components/ui/Toast'
 import { useCurrentUser } from '../../hooks/useAuth'
 import { useAllProperties } from '../../hooks/useProperties'
@@ -56,13 +57,40 @@ function origin(): string {
   return typeof window === 'undefined' ? '' : window.location.origin
 }
 
-async function copy(text: string, done: string) {
+/** False when the browser refused the clipboard: the link is then shown to copy by hand. */
+async function copy(text: string, done: string): Promise<boolean> {
   try {
     await navigator.clipboard.writeText(text)
     showToast('success', done)
+    return true
   } catch {
-    window.prompt('', text)
+    return false
   }
+}
+
+/** The link selected in a field, for a browser that keeps the clipboard closed. */
+function CopyByHand({ link, onClose }: { link: string; onClose: () => void }) {
+  const { t } = useTranslation()
+  return (
+    <div role="alert" className="basis-full space-y-1.5 rounded-xl bg-warning-soft p-3">
+      <label htmlFor="copy-by-hand" className="block text-xs font-semibold text-warning">
+        {t('site.copyByHand')}
+      </label>
+      <div className="flex gap-2">
+        <input
+          id="copy-by-hand"
+          readOnly
+          autoFocus
+          value={link}
+          onFocus={(e) => e.currentTarget.select()}
+          className="min-w-0 flex-1 rounded-lg border border-line bg-surface-card px-3 py-2 text-sm text-ink outline-none focus:border-accent"
+        />
+        <Button variant="secondary" onClick={onClose} className="px-4">
+          {t('common.close')}
+        </Button>
+      </div>
+    </div>
+  )
 }
 
 /** The owner sets up the company's public site and finds each flat's page link. */
@@ -116,6 +144,9 @@ function SiteForm({ saved }: { saved: Site | null }) {
   }
 
   const siteLink = saved ? `${origin()}/c/${saved.slug}` : null
+  // The link the clipboard refused, shown where its button is.
+  const [byHand, setByHand] = useState<string | null>(null)
+  const copyLink = async (link: string) => setByHand((await copy(link, t('site.copied'))) ? null : link)
 
   return (
     <div className="mx-auto max-w-4xl space-y-6 p-4 sm:p-6">
@@ -129,7 +160,7 @@ function SiteForm({ saved }: { saved: Site | null }) {
           <code className="min-w-0 flex-1 truncate text-sm text-ink">{siteLink}</code>
           <button
             type="button"
-            onClick={() => copy(siteLink, t('site.copied'))}
+            onClick={() => copyLink(siteLink)}
             className="inline-flex min-h-11 items-center gap-1.5 rounded-lg px-3 text-sm font-semibold text-ink hover:bg-surface-page"
           >
             <Copy className="h-4 w-4" />
@@ -144,6 +175,7 @@ function SiteForm({ saved }: { saved: Site | null }) {
             <ExternalLink className="h-4 w-4" />
             {t('site.open')}
           </a>
+          {byHand === siteLink && <CopyByHand link={siteLink} onClose={() => setByHand(null)} />}
         </section>
       )}
 
@@ -227,15 +259,10 @@ function SiteForm({ saved }: { saved: Site | null }) {
             {error}
           </p>
         )}
-        <button
-          type="button"
-          onClick={submit}
-          disabled={save.isPending}
-          className="inline-flex items-center gap-2 rounded-xl bg-accent px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
-        >
+        <Button onClick={submit} disabled={save.isPending} nowrap className="px-4">
           <Save className="h-4 w-4" />
           {t('site.save')}
-        </button>
+        </Button>
       </section>
 
       <section className="rounded-xl border border-line bg-surface-card">
@@ -250,19 +277,20 @@ function SiteForm({ saved }: { saved: Site | null }) {
             {onSale.map((p) => {
               const link = `${origin()}/s/${p.public_code}`
               return (
-                <li key={p.id} className="flex items-center gap-3 px-4 py-2 text-sm">
+                <li key={p.id} className="flex flex-wrap items-center gap-3 px-4 py-2 text-sm">
                   <span className="min-w-0 flex-1">
                     <span className="block font-medium text-ink">{p.internal_name || p.name}</span>
                     <code className="block truncate text-xs text-ink-muted">{link}</code>
                   </span>
                   <button
                     type="button"
-                    onClick={() => copy(link, t('site.copied'))}
+                    onClick={() => copyLink(link)}
                     aria-label={`${t('site.copy')}: ${p.internal_name || p.name}`}
                     className="flex min-h-11 min-w-11 items-center justify-center rounded-lg text-ink-muted hover:bg-surface-page"
                   >
                     <Copy className="h-4 w-4" />
                   </button>
+                  {byHand === link && <CopyByHand link={link} onClose={() => setByHand(null)} />}
                 </li>
               )
             })}

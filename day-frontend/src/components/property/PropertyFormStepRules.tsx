@@ -1,7 +1,10 @@
 import { useTranslation } from 'react-i18next'
 import type { CheckInMethod } from '../../types/property'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select'
+import TimeChips, { CHECK_IN_TIMES, CHECK_OUT_TIMES } from '../ui/time-chips'
 
 const CHECK_IN_METHODS: CheckInMethod[] = ['lockbox', 'keypad', 'smart_lock', 'building_staff', 'host_greets', 'other']
+const NOT_SET = 'not_set'
 
 interface RulesData {
   check_in_hour: string
@@ -40,56 +43,67 @@ export default function PropertyFormStepRules({ data, onChange, errors = {} }: P
     onChange({ ...data, [key]: value })
   }
 
-  const hours = Array.from({ length: 24 }, (_, hour) => hour)
   const select =
     'w-full bg-surface-card border border-line rounded-xl p-3 outline-none focus:border-accent text-ink text-sm'
+  // The usual hours by one press, any other typed; the flat keeps whole hours, so "07:00" is
+  // saved as 7 and "16:30" stays as typed for the form to refuse. Empty is the company's hour.
+  const hourField = (key: 'check_in_hour' | 'check_out_hour', label: string, options: string[], company: string) => {
+    const id = key === 'check_in_hour' ? 'check-in-hour' : 'check-out-hour'
+    const value = /^\d{1,2}$/.test(data[key]) ? `${data[key].padStart(2, '0')}:00` : data[key]
+    return (
+      <div>
+        <span id={`${id}-label`} className="block text-xs font-semibold text-ink-muted">{label}</span>
+        <div className="mt-1.5 flex flex-wrap gap-1.5">
+          <button
+            type="button"
+            aria-pressed={data[key] === ''}
+            onClick={() => update(key, '')}
+            className={`h-9 rounded-lg px-2 text-sm font-semibold transition-colors ${
+              data[key] === '' ? 'bg-accent text-white' : 'border border-line text-ink hover:bg-surface-page'
+            }`}
+          >
+            {t('properties.form.defaultHour', { hour: company })}
+          </button>
+          <TimeChips
+            id={id}
+            labelledBy={`${id}-label`}
+            options={options}
+            value={value}
+            allowMidnight
+            onChange={(time) => update(key, /^([01]\d|2[0-3]):00$/.test(time) ? String(Number(time.slice(0, 2))) : time)}
+          />
+        </div>
+        {errors[key] && <p className="mt-1 text-xs text-danger">{errors[key]}</p>}
+      </div>
+    )
+  }
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <label className="block text-xs font-semibold text-ink-muted">
-          {t('properties.form.checkInFrom')}
-          <select
-            id="check-in-hour"
-            value={data.check_in_hour}
-            onChange={(e) => update('check_in_hour', e.target.value)}
-            className={`mt-1.5 ${select}`}
+        {hourField('check_in_hour', t('properties.form.checkInFrom'), CHECK_IN_TIMES, '14:00')}
+        {hourField('check_out_hour', t('properties.form.checkOutUntil'), CHECK_OUT_TIMES, '12:00')}
+        <div className="sm:col-span-2">
+          <label htmlFor="check-in-method" className="block text-xs font-semibold text-ink-muted">
+            {t('properties.form.checkInMethod')}
+          </label>
+          {/* The list cannot hold an empty value: "not set" goes in it as NOT_SET. */}
+          <Select
+            value={data.check_in_method || NOT_SET}
+            onValueChange={(method) => update('check_in_method', method === NOT_SET ? '' : method)}
           >
-            <option value="">{t('properties.form.defaultHour', { hour: '14:00' })}</option>
-            {hours.map((hour) => (
-              <option key={hour} value={hour}>{`${String(hour).padStart(2, '0')}:00`}</option>
-            ))}
-          </select>
-        </label>
-        <label className="block text-xs font-semibold text-ink-muted">
-          {t('properties.form.checkOutUntil')}
-          <select
-            id="check-out-hour"
-            value={data.check_out_hour}
-            onChange={(e) => update('check_out_hour', e.target.value)}
-            className={`mt-1.5 ${select}`}
-          >
-            <option value="">{t('properties.form.defaultHour', { hour: '12:00' })}</option>
-            {hours.map((hour) => (
-              <option key={hour} value={hour}>{`${String(hour).padStart(2, '0')}:00`}</option>
-            ))}
-          </select>
-        </label>
-        <label className="block sm:col-span-2 text-xs font-semibold text-ink-muted">
-          {t('properties.form.checkInMethod')}
-          <select
-            id="check-in-method"
-            value={data.check_in_method}
-            onChange={(e) => update('check_in_method', e.target.value)}
-            className={`mt-1.5 ${select}`}
-          >
-            <option value="">{t('properties.form.notSet')}</option>
-            {CHECK_IN_METHODS.map((method) => (
-              <option key={method} value={method}>
-                {t(`properties.checkInMethod.${method}`)}
-              </option>
-            ))}
-          </select>
-        </label>
+            <SelectTrigger id="check-in-method" className="mt-1.5">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={NOT_SET}>{t('properties.form.notSet')}</SelectItem>
+              {CHECK_IN_METHODS.map((method) => (
+                <SelectItem key={method} value={method}>
+                  {t(`properties.checkInMethod.${method}`)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
       <fieldset className="space-y-2">
         <legend className="text-xs font-bold uppercase tracking-wider text-ink-muted">{t('properties.form.stayRules')}</legend>
