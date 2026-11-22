@@ -2022,7 +2022,6 @@
     "title": "Flats for your dates",
     "guests_one": "{{count}} guest",
     "guests_other": "{{count}} guests",
-    "freeOne": "Free right now",
     "freeAll": "All free right now",
     "none": "The flats of this link are not on sale now. Write to us and we will find others.",
     "taken": "Taken for these dates",

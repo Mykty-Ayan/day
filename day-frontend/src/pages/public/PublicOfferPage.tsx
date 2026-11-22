@@ -142,7 +142,7 @@ function OfferView({ offer, locale, onRefresh }: { offer: PublicOffer; locale: s
           <span>{t('guestOffer.guests', { count: offer.guests })}</span>
           {offer.flats.length > 0 && (
             <span className={free > 0 ? 'text-[#17A34A]' : 'text-[#76767F]'}>
-              {allFree ? (offer.flats.length === 1 ? t('guestOffer.freeOne') : t('guestOffer.freeAll')) : t('guestOffer.freeOf', { free, total: offer.flats.length })}
+              {allFree ? (offer.flats.length === 1 ? t('guestCompany.freeForDates') : t('guestOffer.freeAll')) : t('guestOffer.freeOf', { free, total: offer.flats.length })}
             </span>
           )}
         </div>
@@ -218,7 +218,8 @@ function FlatCard({
           <img src={flat.photo} alt="" loading={first ? 'eager' : 'lazy'} decoding="async" className={`h-full w-full object-cover ${flat.free ? '' : 'grayscale'}`} />
         )}
         <span className={`absolute start-2.5 top-2.5 inline-flex h-8 items-center rounded-full bg-white/90 px-3 text-xs font-semibold ${flat.free ? 'text-[#17663A]' : 'text-[#111114]'}`}>
-          {flat.free ? t('guestOffer.freeOne') : t('guestOffer.taken')}
+          {/* Free for the link's dates, not «now»: the offer is for those days. */}
+          {flat.free ? t('guestCompany.freeForDates') : t('guestOffer.taken')}
         </span>
       </div>
       <div className="flex flex-col gap-2.5 px-3 pt-3">
