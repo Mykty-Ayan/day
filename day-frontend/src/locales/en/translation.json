@@ -941,7 +941,27 @@
     "ordersApart": "Minibar {{amount}} {{symbol}} is paid separately, in orders.",
     "assignCleaner": "Assign a cleaner",
     "pickCleaner": "Choose a cleaner",
-    "assignFailed": "Could not assign. Try again."
+    "assignFailed": "Could not assign. Try again.",
+    "failedNotices": {
+      "title": "Telegram notices not delivered: {{n}}",
+      "hint": "The bot could not send them. Check that the bot is not blocked and the chat is linked (Settings → Team), then send them again.",
+      "again": "Send again",
+      "queued": "Will be sent again within a minute",
+      "queueFailed": "Could not queue it. Try again",
+      "events": {
+        "booking_created": "New booking",
+        "booking_cancelled": "Booking cancelled",
+        "guest_inquiry": "A guest's question",
+        "guest_handoff": "A guest asks for a person",
+        "calendar_clash": "Double sale",
+        "guest_hold": "Booking from the site",
+        "guest_checked_out": "The guest left",
+        "guest_order": "Minibar order",
+        "guest_order_cancelled": "Minibar order cancelled",
+        "cleaning_assigned": "Cleaning for a maid",
+        "cleaning_moved": "Cleaning moved"
+      }
+    }
   },
   "gantt": {
     "title": "Gantt Chart",
