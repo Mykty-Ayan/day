@@ -26,7 +26,7 @@ import {
 } from 'lucide-react'
 import { getGuestPanel, markGuestLeft, type GuestPanel } from '../../api/public'
 import { accessOpensAt, accessTimeReached, canReportLeaving, mapLinks, nightsOf, panelButtons, stageOf, waLink, type PanelButton } from '../../lib/guest-panel'
-import { money, onAccent, retryNetwork } from '../../lib/public-stay'
+import { dateRange, money, onAccent, retryNetwork } from '../../lib/public-stay'
 import { GuestFrame, LoadFailed } from './GuestFrame'
 import { GuestMinibar } from './GuestMinibar'
 
@@ -201,6 +201,10 @@ function PanelView({ code, panel, locale, receivedAt }: { code: string; panel: G
   const shortDay = (iso: string) => wallClock(iso).toLocaleDateString(locale, { weekday: 'short', day: 'numeric', month: 'short' })
   const fullDay = (iso: string) => wallClock(iso).toLocaleDateString(locale, { weekday: 'long', day: 'numeric', month: 'long' })
   const dates = b ? `${longDay(b.check_in)} — ${longDay(b.check_out)}` : ''
+  // «4–6 нояб.» under the hello, the dates in short as the mockup.
+  const stayRange = b
+    ? dateRange(new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'short' }), wallClock(b.check_in), wallClock(b.check_out))
+    : ''
   const checkIn = b?.check_in.slice(11, 16) ?? ''
   const checkOut = b?.check_out.slice(11, 16) ?? ''
   const buttons = panelButtons(panel)
@@ -374,8 +378,12 @@ function PanelView({ code, panel, locale, receivedAt }: { code: string; panel: G
           {(panel.guest_name ?? flat?.name ?? '·').trim().charAt(0).toUpperCase()}
         </span>
         <div className="min-w-0">
-          {panel.guest_name && <p className="truncate text-lg font-bold tracking-[-0.02em]">{t('guestPanel.hello', { name: panel.guest_name })}</p>}
-          <h1 dir="auto" className={`truncate text-[13px] ${MUTE}`}>{flat?.name}</h1>
+          {/* By the first name, as a host greets: «Дана К.» is said «Дана». */}
+          {panel.guest_name && <p className="truncate text-lg font-bold tracking-[-0.02em]">{t('guestPanel.hello', { name: panel.guest_name.trim().split(/\s+/)[0] })}</p>}
+          <div className={`flex min-w-0 gap-1 text-[13px] ${MUTE}`}>
+            <h1 dir="auto" className="truncate">{flat?.name}</h1>
+            {b && <span className="shrink-0">· {stayRange}</span>}
+          </div>
         </div>
       </div>
 

@@ -160,6 +160,12 @@ test('a hold that ran out shows no deposit «not paid yet»', async ({ page }) =
   await expect(page.getByRole('region', { name: 'Залог' })).toHaveCount(0)
 })
 
+test('the hello says the first name alone, and the stay\'s dates sit by the flat', async ({ page }) => {
+  await open(page, answer({ guest_name: 'Дана Каримова' }, { check_in: '2026-12-04T14:00:00', check_out: '2026-12-06T12:00:00' }))
+  await expect(page.getByText('Здравствуйте, Дана!')).toBeVisible()
+  await expect(page.getByText(/^· 4–6 дек/)).toBeVisible()
+})
+
 test('a closed booking says so and keeps only the contact', async ({ page }) => {
   await open(page, answer({ closed: true, flat: { name: 'Т13 у Байтерека' } }, { status: 'checked_out' }))
   await expect(page.getByText('Бронь закрыта. Если остались вопросы, напишите хозяину.')).toBeVisible()

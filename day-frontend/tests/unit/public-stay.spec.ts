@@ -4,7 +4,7 @@
  */
 
 import { expect, test } from '@playwright/test'
-import { amenitiesFirst, fromThisWeek, guestLanguage, isHourly, monthCells, offerDates, onAccent, openedInFlat, stayDates, stayFromUrl, ruleItems, stayQuote, takenDays } from '../../src/lib/public-stay'
+import { amenitiesFirst, dateRange, fromThisWeek, guestLanguage, isHourly, monthCells, offerDates, onAccent, openedInFlat, ruleItems, stayDates, stayFromUrl, stayQuote, takenDays } from '../../src/lib/public-stay'
 
 test('a month is laid out from Monday, with blanks before its first day', () => {
   // 1 October 2026 is a Thursday.
@@ -116,6 +116,15 @@ test('the calendar days past the loaded nights are taken: none of them begins a 
   expect(taken.has('2027-03-20')).toBe(false)
   // A stay over an unloaded night is not free, so the page offers no booking for it.
   expect(stayQuote(nights, '2027-03-22', '2027-03-24').free).toBe(false)
+})
+
+test('a range of dates without formatRange is joined by a dash, not a crash', () => {
+  const format = new Intl.DateTimeFormat('ru', { day: 'numeric', month: 'short' })
+  // An in-app browser without formatRange: only format.
+  const bare = { format: (d: Date) => format.format(d) } as unknown as Intl.DateTimeFormat
+  const [from, to] = [new Date(2026, 11, 4), new Date(2026, 11, 6)]
+  expect(dateRange(format, from, to)).toBe(format.formatRange(from, to))
+  expect(dateRange(bare, from, to)).toBe(`${format.format(from)} – ${format.format(to)}`)
 })
 
 test('the amenities most guests look for come first, a step-free entrance last', () => {
