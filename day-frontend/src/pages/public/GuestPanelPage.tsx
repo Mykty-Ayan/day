@@ -26,7 +26,7 @@ import {
 } from 'lucide-react'
 import { getGuestPanel, markGuestLeft, type GuestPanel } from '../../api/public'
 import { accessOpensAt, accessTimeReached, canReportLeaving, mapLinks, nightsOf, panelButtons, stageOf, waLink, type PanelButton } from '../../lib/guest-panel'
-import { money, onAccent, retryNetwork } from '../../lib/public-stay'
+import { dateRange, money, onAccent, retryNetwork } from '../../lib/public-stay'
 import { GuestFrame, LoadFailed } from './GuestFrame'
 import { GuestMinibar } from './GuestMinibar'
 
@@ -203,7 +203,7 @@ function PanelView({ code, panel, locale, receivedAt }: { code: string; panel: G
   const dates = b ? `${longDay(b.check_in)} — ${longDay(b.check_out)}` : ''
   // «4–6 нояб.» under the hello, the dates in short as the mockup.
   const stayRange = b
-    ? new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'short' }).formatRange(wallClock(b.check_in), wallClock(b.check_out))
+    ? dateRange(new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'short' }), wallClock(b.check_in), wallClock(b.check_out))
     : ''
   const checkIn = b?.check_in.slice(11, 16) ?? ''
   const checkOut = b?.check_out.slice(11, 16) ?? ''

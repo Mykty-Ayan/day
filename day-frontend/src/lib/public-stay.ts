@@ -58,12 +58,15 @@ export function stayQuote(nights: PublicNight[], checkIn: string, checkOut: stri
   return { count, total, free }
 }
 
-/** "20–22 октября": a stay's dates as the guest's language says them. Safari before
- *  14.1 has no formatRange: there the two dates are joined by a dash. */
+/** Two dates as one range, «4–6 нояб.». Safari before 14.1 and some in-app browsers have no
+ *  formatRange, and a page calling it fails: there the dates are joined by a dash. */
+export function dateRange(format: Intl.DateTimeFormat, from: Date, to: Date): string {
+  return typeof format.formatRange === 'function' ? format.formatRange(from, to) : `${format.format(from)} – ${format.format(to)}`
+}
+
+/** "20–22 октября": a stay's dates as the guest's language says them. */
 export function stayDates(locale: string, checkIn: string, checkOut: string): string {
-  const day = new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'long' })
-  const [from, to] = [parseISO(checkIn), parseISO(checkOut)]
-  return typeof day.formatRange === 'function' ? day.formatRange(from, to) : `${day.format(from)} – ${day.format(to)}`
+  return dateRange(new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'long' }), parseISO(checkIn), parseISO(checkOut))
 }
 
 /** The link's stay as words: "20 октября, 15:00–18:00" by the hour, the dates by the night. */

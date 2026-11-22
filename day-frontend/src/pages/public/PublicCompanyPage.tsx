@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { addDays, differenceInCalendarDays, format, parseISO } from 'date-fns'
 import { Calendar, CircleCheck, Images, Instagram, LayoutGrid, MessageCircle, Minus, Plus, Ruler, Search, ShieldCheck, Users } from 'lucide-react'
 import { getPublicCompany, type PublicCompany, type PublicCompanyFlat } from '../../api/public'
-import { money, onAccent, retryNetwork } from '../../lib/public-stay'
+import { dateRange, money, onAccent, retryNetwork } from '../../lib/public-stay'
 import { GuestFrame, LoadFailed } from './GuestFrame'
 
 // The mockup's blue when the company has no color of its own.
@@ -111,7 +111,7 @@ function CompanyView({ company, locale }: { company: PublicCompany; locale: stri
         <div className="flex items-baseline justify-between px-5 pb-2 pt-5">
           <h2 id="company-flats" className="font-guest-display text-[22px] font-bold tracking-[-0.025em]">
             {stay
-              ? t('guestCompany.freeOn', { dates: range.formatRange(parseISO(stay.checkIn), parseISO(stay.checkOut)) })
+              ? t('guestCompany.freeOn', { dates: dateRange(range, parseISO(stay.checkIn), parseISO(stay.checkOut)) })
               : t('guestCompany.ourFlats')}
           </h2>
           {(!stay || answered) && <span aria-live="polite" className="text-sm text-[#76767F]">{shown.length}</span>}
