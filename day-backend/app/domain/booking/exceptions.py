@@ -32,6 +32,11 @@ class DepositAlreadyOpenError(ValueError):
         super().__init__("Booking already has an open deposit")
 
 
+class DepositNotFoundError(ValueError):
+    """The booking or its deposit is not the caller's: absent, another company's, or
+    another booking's. The HTTP layer answers 404 alike, so it tells no one which ids exist."""
+
+
 class IdempotencyKeyVoidedError(ValueError):
     """The client gave up on an Idempotency-Key it got no answer for; a late request with it makes nothing."""
 
