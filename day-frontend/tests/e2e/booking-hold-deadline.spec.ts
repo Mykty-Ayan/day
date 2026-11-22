@@ -24,9 +24,13 @@ test('a hold from the site shows until when it is held', async ({ page, request 
   })
   expect(held.ok(), await held.text()).toBeTruthy()
 
+  await page.clock.install()
   await page.goto('/bookings')
   await page.getByPlaceholder(SEARCH).fill(name)
   const row = page.getByRole('button', { name: new RegExp(name) }).first()
   await expect(row).toContainText(/Held until \d{2}:\d{2}/)
   await expect(row).not.toContainText('Pending')
+  // Left open past the 30 minutes, the list says the time ran out without a reload.
+  await page.clock.fastForward('31:00')
+  await expect(row).toContainText('Hold ran out')
 })
