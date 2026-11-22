@@ -161,7 +161,9 @@
     "how2": "Depozitoyu Kaspi ile ödeyin",
     "how3": "Kapı kodunu alın",
     "askTitle": "Sorunuz mu var?",
-    "askHint": "Yazın, yanıtlayıp size daire bulalım."
+    "askHint": "Yazın, yanıtlayıp size daire bulalım.",
+    "freeToday": "Bu gece boş",
+    "freeFrom": "{{day}} itibarıyla boş"
   },
   "guestStay": {
     "pickDates": "Tarih seçin",

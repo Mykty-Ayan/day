@@ -3,23 +3,29 @@
 from __future__ import annotations
 
 import uuid
+from datetime import date, datetime, timedelta
+from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.application.booking.price_calculator import has_tariffs
+from app.application.property.public_stay import taken_nights
 from app.domain.auth.permissions import Permission
 from app.domain.booking.value_objects import RentalMode
 from app.domain.property.value_objects import FactAudience, PropertyStatus
+from app.domain.settings.entities import DEFAULT_TIME_ZONE, CompanySettings
 from app.domain.site.entities import CompanySite
 from app.domain.site.repositories import SlugTakenError
 from app.infrastructure.database import get_session
+from app.infrastructure.repositories.booking import SqlBookingRepository
 from app.infrastructure.repositories.property import (
     SqlCompanyFactRepository,
     SqlPricingConfigRepository,
     SqlPropertyPhotoRepository,
     SqlPropertyRepository,
 )
+from app.infrastructure.repositories.settings import SqlCompanySettingsRepository
 from app.infrastructure.repositories.site import SqlCompanySiteRepository
 from app.presentation.api.deps import get_company_id, require
 from app.presentation.schemas.site import PublicCompanyFlat, PublicCompanyResponse, SiteResponse, SiteUpdate
@@ -57,6 +63,19 @@ async def save_site(
     return SiteResponse.model_validate(site, from_attributes=True)
 
 
+# How far ahead «free from» looks: a flat taken longer says nothing.
+FREE_AHEAD_DAYS = 60
+
+
+def company_today(company: CompanySettings | None) -> date:
+    zone = ZoneInfo(company.time_zone if company and company.time_zone else DEFAULT_TIME_ZONE)
+    return datetime.now(tz=zone).date()
+
+
+def _days(first: date, count: int) -> list[date]:
+    return [first + timedelta(days=n) for n in range(count)]
+
+
 @public_company_router.get("/{slug}", response_model=PublicCompanyResponse)
 async def public_company(slug: str, session: AsyncSession = Depends(get_session)):
     """The company's page for guests, with no sign-in: the slug is the key."""
@@ -65,6 +84,10 @@ async def public_company(slug: str, session: AsyncSession = Depends(get_session)
         raise HTTPException(status_code=404, detail="Not found")
     properties, photos = SqlPropertyRepository(session), SqlPropertyPhotoRepository(session)
     pricing = SqlPricingConfigRepository(session)
+    bookings = SqlBookingRepository(session)
+    # «Free tonight» is the company's night: its own day, whatever the server's zone.
+    company = await SqlCompanySettingsRepository(session).get_by_company(site.company_id)
+    today = company_today(company)
     flats = []
     # A few queries a flat; a company has a handful of them.
     for prop in await properties.list_by_company(site.company_id, status=PropertyStatus.ACTIVE, limit=MAX_FLATS):
@@ -73,6 +96,10 @@ async def public_company(slug: str, session: AsyncSession = Depends(get_session)
             key=lambda p: (not p.is_cover, p.sort_order),
         )
         price = await pricing.get_by_property(prop.id)
+        free_from = None
+        if prop.rental_mode != RentalMode.HOURLY:
+            taken = await taken_nights(bookings, prop, today, today + timedelta(days=FREE_AHEAD_DAYS))
+            free_from = next((d for d in _days(today, FREE_AHEAD_DAYS) if d not in taken), None)
         flats.append(
             PublicCompanyFlat(
                 code=prop.public_code,
@@ -82,6 +109,8 @@ async def public_company(slug: str, session: AsyncSession = Depends(get_session)
                 max_guests=prop.max_guests,
                 area_total=prop.area_total,
                 photo=shown[0].url if shown else None,
+                photos=len(shown),
+                free_from=free_from,
                 night_price=float(price.base_price)
                 if price and prop.rental_mode != RentalMode.HOURLY and price.base_price > 0
                 else None,
@@ -100,4 +129,5 @@ async def public_company(slug: str, session: AsyncSession = Depends(get_session)
         **SiteResponse.model_validate(site, from_attributes=True).model_dump(exclude={"updated_at"}),
         rules=rules,
         flats=flats,
+        today=today,
     )

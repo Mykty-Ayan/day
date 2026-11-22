@@ -130,6 +130,10 @@ export interface PublicCompanyFlat {
   photo: string | null
   night_price: number | null
   hour_price: number | null
+  /** The first free night from today (60 days at most); null when taken all that time or let by the hour. */
+  free_from?: string | null
+  /** How many photos the flat's page has. */
+  photos?: number
 }
 
 export interface PublicCompany {
@@ -144,6 +148,8 @@ export interface PublicCompany {
   instagram: string | null
   rules: string[]
   flats: PublicCompanyFlat[]
+  /** The company's own day: a flat free from it is free tonight. */
+  today?: string | null
 }
 
 export async function getPublicCompany(slug: string): Promise<PublicCompany> {

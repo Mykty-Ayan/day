@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import re
-from datetime import datetime
+from datetime import date, datetime
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
@@ -100,6 +100,11 @@ class PublicCompanyFlat(BaseModel):
     # By the kind of stay the flat takes; none when not let that way or not priced.
     night_price: float | None = None
     hour_price: float | None = None
+    # The first free night from today within FREE_AHEAD_DAYS, for a flat let by the night;
+    # None when it is taken all that time or let only by the hour.
+    free_from: date | None = None
+    # How many listing photos the flat's page has.
+    photos: int = 0
 
 
 class PublicCompanyResponse(BaseModel):
@@ -116,5 +121,7 @@ class PublicCompanyResponse(BaseModel):
     # The company's rules for anyone (pets, smoking, documents); never a rule for staying guests.
     rules: list[str] = []
     flats: list[PublicCompanyFlat] = []
+    # The company's own day: a flat free from it is free tonight.
+    today: date | None = None
 
 

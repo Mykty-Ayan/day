@@ -1,7 +1,8 @@
 import { useState, type CSSProperties } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
-import { Instagram, LayoutGrid, MessageCircle, Ruler, ShieldCheck, Users } from 'lucide-react'
+import { format, parseISO } from 'date-fns'
+import { Calendar, CircleCheck, Images, Instagram, LayoutGrid, MessageCircle, Ruler, ShieldCheck, Users } from 'lucide-react'
 import { getPublicCompany, type PublicCompany, type PublicCompanyFlat } from '../../api/public'
 import { money, onAccent, retryNetwork } from '../../lib/public-stay'
 import { GuestFrame, LoadFailed } from './GuestFrame'
@@ -95,7 +96,7 @@ function CompanyView({ company, locale }: { company: PublicCompany; locale: stri
         )}
         {company.flats.length === 0 && <p className="m-2 rounded-[28px] bg-white p-5 text-base text-[#76767F]">{t('guestCompany.noFlats')}</p>}
         {shown.map((flat, n) => (
-          <FlatTile key={flat.code} flat={flat} locale={locale} first={n === 0} />
+          <FlatTile key={flat.code} flat={flat} locale={locale} first={n === 0} today={company.today ?? null} />
         ))}
       </section>
 
@@ -159,7 +160,7 @@ function CompanyView({ company, locale }: { company: PublicCompany; locale: stri
 }
 
 // A flat as the mockup: its photo with the name over it, the facts, the price and one step.
-function FlatTile({ flat, locale, first }: { flat: PublicCompanyFlat; locale: string; first: boolean }) {
+function FlatTile({ flat, locale, first, today: companyToday }: { flat: PublicCompanyFlat; locale: string; first: boolean; today: string | null }) {
   const { t } = useTranslation()
   const facts = [
     flat.max_guests ? { icon: Users, text: t('guest.guests', { count: flat.max_guests }) } : null,
@@ -167,12 +168,27 @@ function FlatTile({ flat, locale, first }: { flat: PublicCompanyFlat; locale: st
     flat.area_total ? { icon: Ruler, text: t('guest.area', { area: flat.area_total.toLocaleString(locale) }) } : null,
   ].filter(Boolean) as { icon: typeof Users; text: string }[]
   const price = flat.night_price ?? flat.hour_price
+  // «Free tonight» by the company's day, the server's answer; the phone's only for an old answer without it.
+  const today = companyToday ?? format(new Date(), 'yyyy-MM-dd')
+  const dayLabel = new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'long' })
 
   return (
     <a href={`/s/${flat.code}`} className="m-2 block rounded-[28px] bg-white p-2 pb-4">
       <div className="relative h-[280px] overflow-hidden rounded-[22px] bg-[#111114]">
         {flat.photo && <img src={flat.photo} alt="" loading={first ? 'eager' : 'lazy'} decoding="async" className="h-full w-full object-cover" />}
         <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(0,0,0,0)_45%,rgba(0,0,0,.6))]" aria-hidden />
+        {flat.free_from && (
+          <span className={`absolute start-2.5 top-2.5 inline-flex h-8 items-center gap-1.5 rounded-full px-3 text-xs font-semibold ${flat.free_from === today ? 'bg-[#E8F7EE] text-[#17663A]' : 'bg-[#FFF3DC] text-[#8A5A00]'}`}>
+            {flat.free_from === today ? <CircleCheck className="h-[15px] w-[15px]" aria-hidden /> : <Calendar className="h-[15px] w-[15px]" aria-hidden />}
+            {flat.free_from === today ? t('guestCompany.freeToday') : t('guestCompany.freeFrom', { day: dayLabel.format(parseISO(flat.free_from)) })}
+          </span>
+        )}
+        {(flat.photos ?? 0) > 1 && (
+          <span className="absolute end-2.5 top-2.5 inline-flex h-8 items-center gap-1.5 rounded-full border border-white/30 bg-white/20 px-3 text-xs font-semibold text-white backdrop-blur-md">
+            <Images className="h-[15px] w-[15px]" aria-hidden />
+            {flat.photos}
+          </span>
+        )}
         <h3 dir="auto" className="font-guest-display absolute inset-x-4 bottom-4 text-[26px] font-bold leading-[1.05] tracking-[-0.03em] text-white">{flat.name}</h3>
       </div>
       <div className="flex flex-col gap-3 px-3 pt-3">
