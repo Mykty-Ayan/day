@@ -159,9 +159,27 @@ export interface PublicCompany {
   today?: string | null
 }
 
-export async function getPublicCompany(slug: string, dates?: { checkIn: string; checkOut: string }): Promise<PublicCompany> {
+export async function getPublicCompany(
+  slug: string,
+  dates?: { checkIn: string; checkOut: string; guests: number },
+): Promise<PublicCompany> {
   const res = await publicClient.get(`/public/companies/${encodeURIComponent(slug)}`, {
-    params: dates ? { check_in: dates.checkIn, check_out: dates.checkOut } : undefined,
+    params: dates ? { check_in: dates.checkIn, check_out: dates.checkOut, guests: dates.guests } : undefined,
+  })
+  return res.data
+}
+
+/** What a stay by the night costs for these guests, as the booking will count it. */
+export interface StayQuote {
+  nights: number
+  total: number
+  extra_guests: number
+  discount: number
+}
+
+export async function getStayQuote(code: string, checkIn: string, checkOut: string, guests: number): Promise<StayQuote> {
+  const res = await publicClient.get(`/public/stays/${encodeURIComponent(code)}/quote`, {
+    params: { check_in: checkIn, check_out: checkOut, guests },
   })
   return res.data
 }

@@ -137,7 +137,9 @@
     "ranOut": "时间已到——正在核实付款",
     "hoursAtCheckIn": "使用费 {{total}}，入住时支付",
     "openPage": "打开预订页面",
-    "openPageHint": "请保存此链接：预订页面上有地址、付款和门锁密码。"
+    "openPageHint": "请保存此链接：预订页面上有地址、付款和门锁密码。",
+    "extraGuests": "额外客人费用",
+    "discount": "折扣"
   },
   "properties": {
     "checkInMethod": {

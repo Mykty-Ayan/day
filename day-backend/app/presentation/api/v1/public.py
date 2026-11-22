@@ -26,6 +26,7 @@ from app.application.property.public_stay import GetPublicStayService
 from app.domain.booking.exceptions import BookingOverlapError, PropertyBlockedError, StayRulesError
 from app.domain.booking.value_objects import RentalMode
 from app.domain.messaging.value_objects import NotificationEvent
+from app.domain.property.value_objects import PropertyStatus
 from app.infrastructure.database import get_session
 from app.infrastructure.login_throttle import StayKeyThrottle, get_stay_key_throttle
 from app.infrastructure.messaging.booking_notice import notify_guest_hold
@@ -68,6 +69,7 @@ from app.presentation.schemas.public import (
     PublicOfferResponse,
     PublicStayBook,
     PublicStayCompany,
+    PublicStayQuote,
     PublicStayResponse,
     StayHereResponse,
     StayKeyBody,
@@ -141,17 +143,22 @@ async def public_offer(code: str, session: AsyncSession = Depends(get_session)):
     return page
 
 
-def _holds(session: AsyncSession) -> GuestHoldService:
-    bookings, guests = SqlBookingRepository(session), SqlGuestRepository(session)
-    properties, pricing = SqlPropertyRepository(session), SqlPricingConfigRepository(session)
-    prices = PriceCalculatorService(
-        pricing,
+def public_prices(session: AsyncSession) -> PriceCalculatorService:
+    """The price a booking from a public page is made at: the guest is shown the same."""
+    return PriceCalculatorService(
+        SqlPricingConfigRepository(session),
         SqlSeasonalPriceRepository(session),
         SqlDiscountRuleRepository(session),
         SqlDayPriceRepository(session),
         SqlPropertyRepository(session),
         SqlCompanySettingsRepository(session),
     )
+
+
+def _holds(session: AsyncSession) -> GuestHoldService:
+    bookings, guests = SqlBookingRepository(session), SqlGuestRepository(session)
+    properties, pricing = SqlPropertyRepository(session), SqlPricingConfigRepository(session)
+    prices = public_prices(session)
     audit, settings_repo = SqlBookingAuditLogRepository(session), SqlCompanySettingsRepository(session)
     return GuestHoldService(
         SqlGuestOfferRepository(session),
@@ -239,6 +246,33 @@ def _stay_key(session: AsyncSession) -> StayKeyService:
         SqlBookingRepository(session),
         SqlGuestRepository(session),
         SqlCompanySettingsRepository(session),
+    )
+
+
+@public_router.get("/stays/{code}/quote", response_model=PublicStayQuote)
+async def stay_quote(
+    code: str,
+    check_in: date = Query(),
+    check_out: date = Query(),
+    guests: int = Query(ge=1, le=50),
+    session: AsyncSession = Depends(get_session),
+):
+    """What a stay by the night costs for this many guests, counted as the booking will be:
+    extra guests and discounts included. The flat's page shows it before the guest books."""
+    prop = await SqlPropertyRepository(session).get_by_public_code(code)
+    if prop is None or prop.status != PropertyStatus.ACTIVE or prop.rental_mode == RentalMode.HOURLY:
+        raise HTTPException(status_code=404, detail="Not found")
+    if not (check_in < check_out <= check_in + timedelta(days=_MAX_NIGHTS)):
+        raise HTTPException(status_code=422, detail=f"check_out must be after check_in, at most {_MAX_NIGHTS} nights")
+    try:
+        price = await public_prices(session).calculate(prop.id, check_in, check_out, guests, 0, RentalMode.DAILY)
+    except ValueError:
+        raise HTTPException(status_code=404, detail="Not found")
+    return PublicStayQuote(
+        nights=price.nights,
+        total=float(price.total),
+        extra_guests=float(price.extra_guest_surcharge),
+        discount=float(price.discount_amount),
     )
 
 

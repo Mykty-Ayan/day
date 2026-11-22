@@ -876,6 +876,8 @@
       "otherCompany": "You signed in to another company in another window. Reload the page to export its bookings.",
       "tooMany": "More than 10,000 bookings. Pick a property, source or status and export in parts."
     },
+    "holdUntil": "Held until {{time}}",
+    "holdRanOut": "Hold ran out",
     "loadFailed": "Could not load the booking. Check the connection and try again"
   },
   "today": {
@@ -2074,7 +2076,9 @@
     "ranOut": "Time is up — checking the payment",
     "hoursAtCheckIn": "The hours, {{total}}, are paid at check-in",
     "openPage": "Open your booking page",
-    "openPageHint": "Keep this link: your booking page has the address, payment and the door code."
+    "openPageHint": "Keep this link: your booking page has the address, payment and the door code.",
+    "extraGuests": "Extra guests",
+    "discount": "Discount"
   },
   "expenses": {
     "title": "Expenses",
