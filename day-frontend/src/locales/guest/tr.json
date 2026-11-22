@@ -136,7 +136,9 @@
     "ranOut": "Süre doldu — ödemeyi kontrol ediyoruz",
     "hoursAtCheckIn": "Saatlerin tutarı ({{total}}) girişte ödenir",
     "openPage": "Rezervasyon sayfasını aç",
-    "openPageHint": "Bu bağlantıyı saklayın: rezervasyon sayfanızda adres, ödeme ve kapı kodu var."
+    "openPageHint": "Bu bağlantıyı saklayın: rezervasyon sayfanızda adres, ödeme ve kapı kodu var.",
+    "extraGuests": "Ek misafir ücreti",
+    "discount": "İndirim"
   },
   "properties": {
     "checkInMethod": {

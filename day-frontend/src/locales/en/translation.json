@@ -2074,7 +2074,9 @@
     "ranOut": "Time is up — checking the payment",
     "hoursAtCheckIn": "The hours, {{total}}, are paid at check-in",
     "openPage": "Open your booking page",
-    "openPageHint": "Keep this link: your booking page has the address, payment and the door code."
+    "openPageHint": "Keep this link: your booking page has the address, payment and the door code.",
+    "extraGuests": "Extra guests",
+    "discount": "Discount"
   },
   "expenses": {
     "title": "Expenses",

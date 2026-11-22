@@ -144,6 +144,30 @@ async def test_a_guest_searches_the_site_by_dates(flat):  # noqa: F811  (the imp
     stay = (await client.get(f"/api/v1/public/stays/{free['code']}", params={
         "date_from": str(today + timedelta(days=1)), "date_to": str(today + timedelta(days=3))})).json()
     assert (free["stay_free"], free["stay_total"]) == (True, sum(n["price"] for n in stay["nights"][:2]))
+    # The total is the booking's: two guests over the base pay their extra, as the flat's
+    # quote and the booking count it, not the nights alone.
+    use(Permission.PROPERTIES_READ, Permission.PROPERTIES_WRITE)
+    priced = await client.put(f"/api/v1/properties/{prop}/pricing", json={
+        "base_price": 20000, "weekend_markup": 0, "default_deposit": 0, "extra_adult_price": 3000,
+        "extra_child_price": 0, "base_guests": 2})
+    assert priced.status_code == 200, priced.text
+    assert (await client.patch(f"/api/v1/properties/{prop}", json={"max_guests": 4})).status_code == 200
+    use()
+    dates = {"check_in": str(today + timedelta(days=1)), "check_out": str(today + timedelta(days=3))}
+    four = (await client.get(f"/api/v1/public/companies/{slug}", params={**dates, "guests": 4})).json()["flats"][0]
+    quote = (await client.get(f"/api/v1/public/stays/{four['code']}/quote", params={
+        "check_in": str(today + timedelta(days=1)), "check_out": str(today + timedelta(days=3)), "guests": 4})).json()
+    assert quote["extra_guests"] == 2 * 3000 * 2
+    assert four["stay_total"] == quote["total"] == sum(n["price"] for n in stay["nights"][:2]) + 12000
+    # A quote needs a real flat and real dates.
+    q = {"check_in": str(today + timedelta(days=3)), "check_out": str(today + timedelta(days=1)), "guests": 1}
+    assert (await client.get(f"/api/v1/public/stays/{four['code']}/quote", params=q)).status_code == 422
+    q = {**q, "check_out": str(today + timedelta(days=4))}
+    assert (await client.get("/api/v1/public/stays/nosuch1/quote", params=q)).status_code == 404
+    # More guests than the flat takes: not free for them.
+    five = (await client.get(f"/api/v1/public/companies/{slug}", params={
+        "check_in": str(today + timedelta(days=1)), "check_out": str(today + timedelta(days=3)), "guests": 5})).json()
+    assert five["flats"][0]["stay_free"] is False
     # A night taken in the dates: not free, no price.
     taken = (await search(2, 4)).json()["flats"][0]
     assert (taken["stay_free"], taken["stay_total"]) == (False, None)
