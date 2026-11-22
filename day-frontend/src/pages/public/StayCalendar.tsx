@@ -195,7 +195,7 @@ export function StayCalendar({
         >
           {Number(day.slice(8))}
         </span>
-        <span className={`mt-0.5 h-[13px] text-[10px] leading-[13px] ${edge || inside ? 'font-semibold text-[var(--accent)]' : 'text-[#76767F]'}`}>{label}</span>
+        <span className={`mt-0.5 h-[13px] text-[10px] leading-[13px] ${edge || inside ? 'font-semibold text-[var(--accent)]' : 'text-[#6B6B74]'}`}>{label}</span>
       </button>
     )
   }
@@ -210,7 +210,7 @@ export function StayCalendar({
       <div className="flex items-center justify-between gap-2">
         <p aria-hidden className="flex items-baseline gap-1.5 whitespace-nowrap">
           <span className="font-guest-display text-2xl font-bold capitalize tracking-[-0.03em]">{monthName.format(new Date(year, month - 1, 1))}</span>
-          <span className="text-sm font-semibold text-[#76767F]">{year}</span>
+          <span className="text-sm font-semibold text-[#6B6B74]">{year}</span>
         </p>
         <div className="flex items-center gap-1">
           <div role="radiogroup" aria-label={t('guest.calendarView')} className="flex rounded-xl bg-[#F3F3F6] p-[3px]">
@@ -224,7 +224,7 @@ export function StayCalendar({
                   aria-checked={view === v}
                   aria-label={t(v === 'week' ? 'guest.viewWeek' : 'guest.viewMonth')}
                   onClick={() => setView(v)}
-                  className={`flex h-8 w-9 items-center justify-center rounded-[9px] ${view === v ? 'bg-white text-[var(--accent)] shadow-[0_1px_3px_rgba(17,17,20,0.12)]' : 'text-[#76767F]'}`}
+                  className={`flex h-8 w-9 items-center justify-center rounded-[9px] ${view === v ? 'bg-white text-[var(--accent)] shadow-[0_1px_3px_rgba(17,17,20,0.12)]' : 'text-[#6B6B74]'}`}
                 >
                   <Icon className="h-[22px] w-[22px]" strokeWidth={1.8} aria-hidden />
                 </button>
@@ -261,7 +261,7 @@ export function StayCalendar({
         </div>
       )}
 
-      <div aria-hidden className="mt-3.5 grid grid-cols-7 text-center text-xs font-semibold text-[#76767F]">
+      <div aria-hidden className="mt-3.5 grid grid-cols-7 text-center text-xs font-semibold text-[#6B6B74]">
         {weekdays.map((d, n) => (
           <span key={d} className={n >= 5 ? 'text-[#A0A0AA]' : ''}>{d}</span>
         ))}
@@ -301,12 +301,12 @@ export function StayCalendar({
         ) : !checkOut ? (
           <>
             <span className="first-letter:uppercase">{t('guest.checkInOn', { day: weekdayLong.format(parseISO(checkIn)) })}</span>{' '}
-            <span className="font-medium text-[#76767F]">{t('guest.pickCheckOut')}</span>
+            <span className="font-medium text-[#6B6B74]">{t('guest.pickCheckOut')}</span>
           </>
         ) : (
           <>
             {dayLong.format(parseISO(checkIn))} → {dayLong.format(parseISO(checkOut))}{' '}
-            <span className="font-medium text-[#76767F]">
+            <span className="font-medium text-[#6B6B74]">
               · <span>{t('guest.nights', { count })}</span>
             </span>
             {short != null && <span className="mt-1 block text-sm text-[#8A5A00]">{t('guest.minNights', { count: short })}</span>}
@@ -323,14 +323,14 @@ export function StayCalendar({
       {checkIn && checkOut && (
         <div className="mt-3 flex justify-between gap-3 border-t border-[#EEEEF2] pt-3 text-[13px]">
           <div className="flex flex-col">
-            <span className="text-[#76767F]">{t('guest.checkIn')}</span>
+            <span className="text-[#6B6B74]">{t('guest.checkIn')}</span>
             <b className="text-[15px]">
               {dayShort.format(parseISO(checkIn))}
               {checkInHour != null && `, ${t('guest.from', { hour: checkInHour })}`}
             </b>
           </div>
           <div className="flex flex-col text-end">
-            <span className="text-[#76767F]">{t('guest.checkOut')}</span>
+            <span className="text-[#6B6B74]">{t('guest.checkOut')}</span>
             <b className="text-[15px]">
               {dayShort.format(parseISO(checkOut))}
               {checkOutHour != null && `, ${t('guest.until', { hour: checkOutHour })}`}
@@ -339,7 +339,7 @@ export function StayCalendar({
         </div>
       )}
 
-      <div aria-hidden className="mt-3 flex flex-wrap gap-4 text-[13px] text-[#76767F]">
+      <div aria-hidden className="mt-3 flex flex-wrap gap-4 text-[13px] text-[#6B6B74]">
         <span className="inline-flex items-center gap-1.5"><i className="h-3.5 w-3.5 rounded-full bg-[#F3F3F6]" />{t('guest.legendFree')}</span>
         <span className="inline-flex items-center gap-1.5"><i className="h-3.5 w-3.5 rounded-full border border-[#C3C3CB]" />{t('guest.taken')}</span>
         <span className="inline-flex items-center gap-1.5"><i className="h-3.5 w-3.5 rounded-full bg-[var(--accent)]" />{t('guest.legendMine')}</span>
@@ -352,12 +352,12 @@ export function StayCalendar({
             <span data-testid="stay-total">{money(total, locale)}</span>
           </div>
           {deposit != null && (
-            <div className="flex justify-between gap-3 py-1 text-[15px] text-[#76767F]">
+            <div className="flex justify-between gap-3 py-1 text-[15px] text-[#6B6B74]">
               <span>{t('guest.depositLine')}</span>
               <span className="whitespace-nowrap">{money(deposit, locale)}</span>
             </div>
           )}
-          <p className="mt-1.5 text-[13px] text-[#76767F]">{t('guest.totalHint')}</p>
+          <p className="mt-1.5 text-[13px] text-[#6B6B74]">{t('guest.totalHint')}</p>
         </div>
       )}
     </section>

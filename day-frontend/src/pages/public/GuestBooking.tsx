@@ -126,12 +126,12 @@ export function BookForm({
         <h1 ref={heading} tabIndex={-1} className="font-guest-display text-[34px] font-bold leading-[1.05] tracking-[-0.035em] outline-none">
           {t('guestBook.title')}
         </h1>
-        <p dir="auto" className="text-[15px] text-[#76767F]">{flat.name}</p>
+        <p dir="auto" className="text-[15px] text-[#6B6B74]">{flat.name}</p>
       </section>
 
       <div className="m-2 grid grid-cols-2 gap-2 rounded-[28px] bg-white p-2">
         <div className="flex flex-col gap-1 rounded-[20px] bg-[#F3F3F6] p-3.5">
-          <span className="text-xs font-semibold text-[#76767F]">{t('guest.checkIn')}</span>
+          <span className="text-xs font-semibold text-[#6B6B74]">{t('guest.checkIn')}</span>
           <span className="text-base font-bold">
             {hourly && offer.starts_at
               ? `${day.format(parseISO(offer.starts_at))}, ${clock(offer.starts_at)}`
@@ -140,7 +140,7 @@ export function BookForm({
           </span>
         </div>
         <div className="flex flex-col gap-1 rounded-[20px] bg-[#F3F3F6] p-3.5">
-          <span className="text-xs font-semibold text-[#76767F]">{t('guest.checkOut')}</span>
+          <span className="text-xs font-semibold text-[#6B6B74]">{t('guest.checkOut')}</span>
           <span className="text-base font-bold">
             {hourly && offer.ends_at
               ? `${day.format(parseISO(offer.ends_at))}, ${clock(offer.ends_at)}`
@@ -155,7 +155,7 @@ export function BookForm({
       )}
 
       <section className="m-2 flex flex-col gap-4 rounded-[28px] bg-white p-5">
-        <p className="text-sm text-[#76767F]">{offer.guest !== null ? t('guestBook.fromChat') : t('guestBook.nameNeeded')}</p>
+        <p className="text-sm text-[#6B6B74]">{offer.guest !== null ? t('guestBook.fromChat') : t('guestBook.nameNeeded')}</p>
 
         <label className="flex flex-col gap-1.5">
           <span className="text-sm font-semibold">{t('guestBook.name')}</span>
@@ -195,7 +195,7 @@ export function BookForm({
               className={`${FIELD} ${phoneWrong ? 'border-[#8A5A00]' : ''}`}
             />
           )}
-          <span id="phone-hint" className={`text-xs ${phoneWrong ? 'text-[#8A5A00]' : 'text-[#76767F]'}`}>
+          <span id="phone-hint" className={`text-xs ${phoneWrong ? 'text-[#8A5A00]' : 'text-[#6B6B74]'}`}>
             {otherPhone === null ? t('guestBook.phoneHidden') : phoneWrong ? t('guestBook.phoneWrong') : t('guestBook.phoneHint')}
           </span>
         </div>
@@ -233,14 +233,14 @@ export function BookForm({
               <span className="text-base font-semibold">{t('guestBook.depositNow')}</span>
               <span data-testid="deposit" className="text-2xl font-bold tracking-[-0.03em]">{money(deposit, locale)}</span>
             </div>
-            <p className="border-b border-[#E7E7ED] pb-3 text-sm text-[#76767F]">{t('guestBook.depositWhy')}</p>
+            <p className="border-b border-[#E7E7ED] pb-3 text-sm text-[#6B6B74]">{t('guestBook.depositWhy')}</p>
           </>
         )}
         <div className="flex items-baseline justify-between gap-3">
           <span className="text-sm text-[#2A2A30]">{t('guestBook.nightsLater', { nights: length })}</span>
           {flat.total != null && guests === offer.guests && <span className="text-base font-semibold">{money(flat.total, locale)}</span>}
         </div>
-        {guests !== offer.guests && <p className="text-xs text-[#76767F]">{t('guestBook.totalAfter')}</p>}
+        {guests !== offer.guests && <p className="text-xs text-[#6B6B74]">{t('guestBook.totalAfter')}</p>}
       </section>
 
       {rules && (
@@ -279,7 +279,7 @@ export function BookForm({
           </span>
         </button>
       )}
-      <p className="px-6 pt-1 text-xs leading-relaxed text-[#76767F]">{t('guestBook.holdNote')}</p>
+      <p className="px-6 pt-1 text-xs leading-relaxed text-[#6B6B74]">{t('guestBook.holdNote')}</p>
     </form>
   )
 }
@@ -341,7 +341,7 @@ export function Waiting({ offer, booking, locale }: { offer: PublicOffer; bookin
 
       <section className="flex flex-col gap-1 rounded-[28px] bg-white p-5">
         {flat && <h2 dir="auto" className="text-base font-bold">{flat.name}</h2>}
-        <p className="text-sm text-[#76767F]">
+        <p className="text-sm text-[#6B6B74]">
           {dates} · {hourly ? t('guest.hours', { count: offer.hours ?? 0 }) : t('guest.nights', { count: offer.nights })} ·{' '}
           {t('guestOffer.guests', { count: booking.guests })}
         </p>
