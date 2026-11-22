@@ -76,7 +76,8 @@
     "depositLine": "Depozito, çıkıştan sonraki bir gün içinde iade",
     "map2gis": "2GIS",
     "mapYandex": "Yandex",
-    "mapGoogle": "Google"
+    "mapGoogle": "Google",
+    "maxSiteNights": "Çevrimiçi en fazla {{n}} gece. Daha uzun konaklama için ev sahibine yazın"
   },
   "guestOffer": {
     "hello": "{{name}}, tarihleriniz için daireler",

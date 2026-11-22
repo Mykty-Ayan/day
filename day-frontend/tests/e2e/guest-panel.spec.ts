@@ -151,6 +151,15 @@ test('with no WhatsApp for the company «I have left» still tells Day, and says
   expect(left).toEqual(['POST', 'POST'])
 })
 
+test('a hold that ran out shows no deposit «not paid yet»', async ({ page }) => {
+  await open(page, answer(
+    { closed: true, deposit: { amount: 10000, status: 'pending', held: 0 } },
+    { status: 'cancelled' },
+  ))
+  await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+  await expect(page.getByRole('region', { name: 'Залог' })).toHaveCount(0)
+})
+
 test('a closed booking says so and keeps only the contact', async ({ page }) => {
   await open(page, answer({ closed: true, flat: { name: 'Т13 у Байтерека' } }, { status: 'checked_out' }))
   await expect(page.getByText('Бронь закрыта. Если остались вопросы, напишите хозяину.')).toBeVisible()

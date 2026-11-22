@@ -184,3 +184,20 @@ test('on a narrow phone the booking bar keeps the whole total clear of its butto
   expect(totalBox.x + totalBox.width).toBeLessThanOrEqual(askBox.x)
   await guest.close()
 })
+
+test('more nights than a page books asks the guest to write to the host', async ({ browser, request }) => {
+  const slug = `site-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`
+  expect((await request.put(`${API_BASE}/site`, { data: { slug, title: 'Long stay' } })).ok()).toBeTruthy()
+  const { id } = await (await request.post(`${API_BASE}/properties`, { data: createTestProperty({ name: `Долго ${Date.now()}` }) })).json()
+  await request.post(`${API_BASE}/properties/${id}/status`, { data: { target_status: 'active' } })
+  await request.put(`${API_BASE}/properties/${id}/pricing`, {
+    data: { base_price: 10000, weekend_markup: 0, default_deposit: 0, extra_adult_price: 0, extra_child_price: 0, base_guests: 2 },
+  })
+  const code = (await (await request.get(`${API_BASE}/properties/${id}`)).json()).public_code
+  const guest = await browser.newContext({ locale: 'ru-RU', baseURL: test.info().project.use.baseURL })
+  const page = await guest.newPage()
+  await page.goto(`/s/${code}?in=${day(5)}&out=${day(40)}`)
+  await expect(page.getByText('На сайте — до 30 ночей. Для долгого проживания напишите хозяину')).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Забронировать' })).toHaveCount(0)
+  await guest.close()
+})

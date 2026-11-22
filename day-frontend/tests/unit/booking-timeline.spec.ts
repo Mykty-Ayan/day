@@ -46,3 +46,7 @@ test('a comment joins the history with its author', () => {
   const [event] = timelineEvents([], [], [comment as BookingComment])
   expect(event).toMatchObject({ kind: 'comment', text: 'Late arrival', by: 'u1' })
 })
+
+test('the guest marking leaving on their page is an event of its own', () => {
+  expect(timelineEvents([log({ field_name: 'guest_left', new_value: '2026-11-22' })], []).map((event) => event.kind)).toEqual(['guestLeft'])
+})

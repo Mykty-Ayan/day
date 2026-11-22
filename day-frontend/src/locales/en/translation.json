@@ -589,7 +589,8 @@
       "price": "Total changed: {{from}} → {{to}}",
       "payment": "Payment {{amount}}",
       "refund": "Refund {{amount}}",
-      "changed": "Booking changed"
+      "changed": "Booking changed",
+      "guestLeft": "The guest marked leaving on their page"
     },
     "card": {
       "paid": "Paid",
@@ -2011,7 +2012,8 @@
     "depositLine": "Deposit, back within a day of check-out",
     "map2gis": "2GIS",
     "mapYandex": "Yandex",
-    "mapGoogle": "Google"
+    "mapGoogle": "Google",
+    "maxSiteNights": "Up to {{n}} nights online. For a longer stay, write to the host"
   },
   "guestOffer": {
     "hello": "Hello, {{name}}. Here are flats for your dates",

@@ -6,7 +6,7 @@ import { BedDouble, Building2, ChevronLeft, Images, KeyRound, LayoutGrid, LogIn,
 import { getPublicStay, type PublicOfferBooking, type PublicStay } from '../../api/public'
 import { amenityIcon } from '../../lib/amenity-icons'
 import { MASK } from '../../lib/clarity'
-import { money, onAccent, openedInFlat, retryNetwork, stayFromUrl, stayQuote } from '../../lib/public-stay'
+import { SITE_MAX_NIGHTS, money, onAccent, openedInFlat, retryNetwork, stayFromUrl, stayQuote } from '../../lib/public-stay'
 import { GuestFrame, LoadFailed } from './GuestFrame'
 import { BookBar, BookSheet, HeldView } from './StayBooking'
 import { StayCalendar } from './StayCalendar'
@@ -101,7 +101,9 @@ function StayView({ stay, locale, today, until }: { stay: PublicStay; locale: st
   const accent = { '--accent': color, '--on-accent': onAccent(color) } as CSSProperties
   const datesText = checkIn && checkOut ? `${shortDay.format(parseISO(checkIn))} – ${shortDay.format(parseISO(checkOut))}` : null
   // Every night free as loaded: a stay over a night the page has not seen is not offered.
-  const bookable = quote && quote.free && short == null ? quote : null
+  // Longer than a page books: the host agrees it in a chat.
+  const long = quote != null && quote.count > SITE_MAX_NIGHTS
+  const bookable = quote && quote.free && short == null && !long ? quote : null
 
   if (held) {
     return (

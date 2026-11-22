@@ -76,7 +76,8 @@
     "depositLine": "押金，退房后一天内退还",
     "map2gis": "2GIS",
     "mapYandex": "Yandex",
-    "mapGoogle": "Google"
+    "mapGoogle": "Google",
+    "maxSiteNights": "在线最多预订 {{n}} 晚。更长的入住请联系房东"
   },
   "guestOffer": {
     "hello": "{{name}}，这些是适合您日期的房源",

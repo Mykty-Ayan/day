@@ -526,6 +526,9 @@ async def test_the_owner_sets_the_hours_and_the_guest_marks_leaving(flat):  # no
     first = await client.post(path)
     assert (first.status_code, first.json()) == (200, {"cleaning_created": True})
     assert (await client.post(path)).json() == {"cleaning_created": False}
+    # The booking's history keeps it once, however often the guest taps.
+    logs = (await client.get(f"/api/v1/bookings/{booking}")).json()["audit_logs"]
+    assert [log["field_name"] for log in logs].count("guest_left") == 1
     tasks = (await client.get("/api/v1/cleaning", params={"property_id": str(prop)})).json()
     items = tasks["items"] if isinstance(tasks, dict) else tasks
     assert [t["booking_id"] for t in items] == [booking]
