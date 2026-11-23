@@ -80,9 +80,11 @@ function ExtendForm({ booking, onDone }: { booking: Booking; onDone: () => void 
   const handPriceReady = !handPriced || (total !== null && !quote.isFetching)
   const stepLabel = t(hourly ? 'bookings.hours' : 'bookings.nights', { count: steps })
   const breaches = update.isError ? stayRuleBreaches(update.error) : null
-  // A refusal belongs to the length it was given for: a new length clears it.
+  // A refusal belongs to the length it was given for: a new length clears it. While a save
+  // is on its way the length is locked: a second save could land first and be overwritten.
   const setSteps = (next: number) => {
-    update.reset()
+    if (update.isPending) return
+    if (update.isError) update.reset()
     setStepsRaw(next)
   }
   // The sums on screen are an older length's while the new ones load: they dim, they do not jump.
@@ -99,7 +101,7 @@ function ExtendForm({ booking, onDone }: { booking: Booking; onDone: () => void 
         <button
           type="button"
           aria-label={t('today.fewer')}
-          disabled={steps === 1}
+          disabled={steps === 1 || update.isPending}
           onClick={() => setSteps(steps - 1)}
           className="flex h-11 w-11 items-center justify-center rounded-lg text-ink transition-colors hover:bg-surface-page disabled:opacity-40"
         >
@@ -109,7 +111,7 @@ function ExtendForm({ booking, onDone }: { booking: Booking; onDone: () => void 
         <button
           type="button"
           aria-label={t('today.more')}
-          disabled={steps === MAX_STEPS}
+          disabled={steps === MAX_STEPS || update.isPending}
           onClick={() => setSteps(steps + 1)}
           className="flex h-11 w-11 items-center justify-center rounded-lg text-ink transition-colors hover:bg-surface-page disabled:opacity-40"
         >

@@ -261,6 +261,9 @@ test.describe('Booking Today View - E2E', () => {
     await extend.click()
     await expect(extend).toHaveAttribute('aria-disabled', 'true')
     expect(await extend.evaluate((el) => getComputedStyle(el).backgroundColor)).toBe(colour)
+    // The length is locked while the save is on its way: a second save could overwrite the first.
+    await expect(sheet.getByRole('button', { name: 'More' })).toBeDisabled()
+    await expect(sheet.getByRole('button', { name: 'Fewer' })).toBeDisabled()
     await expect(sheet.getByRole('alert')).toHaveText('The property is taken after that. Extend by less')
 
     // One night less: the refusal was for two, it goes.
