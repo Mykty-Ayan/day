@@ -491,6 +491,45 @@ class TestUpdatePropertyService:
         assert result.internal_name == prop.internal_name  # unchanged
 
     @pytest.mark.asyncio
+    async def test_a_flat_on_sale_keeps_its_number_of_guests(self):
+        prop_repo, _, svc, prop = await self._setup()
+        prop.max_guests = 4
+        await prop_repo.update(prop)
+        with pytest.raises(ValueError, match="how many guests"):
+            await svc.execute(UpdatePropertyInput(property_id=prop.id, company_id=COMPANY_ID, max_guests=None))
+        assert (await prop_repo.get_by_id(prop.id)).max_guests == 4
+
+    @pytest.mark.asyncio
+    async def test_a_draft_may_drop_its_number_and_an_old_flat_still_edits(self):
+        prop_repo, _, svc, prop = await self._setup()
+        # A flat on sale from before the rule, with no number: its other fields still save.
+        prop.max_guests = None
+        await prop_repo.update(prop)
+        result = await svc.execute(UpdatePropertyInput(property_id=prop.id, company_id=COMPANY_ID, name="Renamed"))
+        assert result.name == "Renamed"
+        # A draft is not offered to anyone: its number may go.
+        prop.status, prop.max_guests = PropertyStatus.NEW, 3
+        await prop_repo.update(prop)
+        result = await svc.execute(UpdatePropertyInput(property_id=prop.id, company_id=COMPANY_ID, max_guests=None))
+        assert result.max_guests is None
+
+    @pytest.mark.asyncio
+    async def test_an_archived_flat_without_its_number_can_come_back(self):
+        prop_repo, audit_repo, svc, prop = await self._setup()
+        prop.status, prop.max_guests = PropertyStatus.ARCHIVED, None
+        await prop_repo.update(prop)
+        # Anything else stays closed on an archived flat.
+        with pytest.raises(ValueError, match="archived"):
+            await svc.execute(UpdatePropertyInput(property_id=prop.id, company_id=COMPANY_ID, name="X", max_guests=3))
+        with pytest.raises(ValueError, match="archived"):
+            await svc.execute(UpdatePropertyInput(property_id=prop.id, company_id=COMPANY_ID, max_guests=None))
+        # Its number alone may be added, and then it goes on sale.
+        await svc.execute(UpdatePropertyInput(property_id=prop.id, company_id=COMPANY_ID, max_guests=3))
+        status = ChangePropertyStatusService(prop_repo, audit_repo)
+        result = await status.execute(prop.id, COMPANY_ID, PropertyStatus.ACTIVE)
+        assert (result.status, result.max_guests) == (PropertyStatus.ACTIVE, 3)
+
+    @pytest.mark.asyncio
     async def test_update_wifi_credentials(self):
         prop_repo, _, svc, prop = await self._setup()
 
@@ -947,10 +986,10 @@ class TestListPropertiesService:
 
 
 class TestChangePropertyStatusService:
-    async def _setup(self, initial_status=PropertyStatus.NEW):
+    async def _setup(self, initial_status=PropertyStatus.NEW, max_guests: int | None = 4):
         prop_repo = FakePropertyRepository()
         audit_repo = FakePropertyAuditLogRepository()
-        prop = _make_property(status=initial_status)
+        prop = _make_property(status=initial_status, max_guests=max_guests)
         await prop_repo.save(prop)
         svc = ChangePropertyStatusService(prop_repo, audit_repo)
         return prop_repo, audit_repo, svc, prop
@@ -960,6 +999,15 @@ class TestChangePropertyStatusService:
         _, _, svc, prop = await self._setup(PropertyStatus.NEW)
         result = await svc.execute(prop.id, COMPANY_ID, PropertyStatus.ACTIVE)
         assert result.status == PropertyStatus.ACTIVE
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("initial", [PropertyStatus.NEW, PropertyStatus.PAUSED, PropertyStatus.ARCHIVED])
+    async def test_no_sale_without_the_number_of_guests(self, initial):
+        # An unknown size is offered to any party: 17 guests got a two-room flat.
+        repo, _, svc, prop = await self._setup(initial, max_guests=None)
+        with pytest.raises(ValueError, match="how many guests"):
+            await svc.execute(prop.id, COMPANY_ID, PropertyStatus.ACTIVE)
+        assert (await repo.get_by_id(prop.id)).status == initial
 
     @pytest.mark.asyncio
     async def test_active_to_paused(self):

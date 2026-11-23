@@ -1,11 +1,13 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { errorText } from '../../pages/miniapp/errors'
 import { Loader2 } from 'lucide-react'
 import { useSetAmenities, useUpdateProperty } from '../../hooks/useProperties'
 import { isWebLink } from '../../lib/utils'
 import {
   bufferMinutesValid,
   changedFields,
+  clearsGuestsOnSale,
   listingInBoth,
   listingLinksValid,
   propertyToForm,
@@ -83,6 +85,10 @@ function BlockForm({ property, block, onDone }: { property: Property; block: Pro
     if (block === 'rules' && !bufferMinutesValid(form.rules.buffer_minutes)) {
       found.buffer_minutes = t('properties.validation.bufferMinutes')
     }
+    // A flat on sale keeps its number of guests: without it any party is offered the flat.
+    if (block === 'details' && clearsGuestsOnSale(property.status, form, opened)) {
+      found.max_guests = t('properties.guestsRequired')
+    }
     for (const key of ['check_in_hour', 'check_out_hour'] as const) {
       // A typed time that is not a whole hour: the flat keeps hours only.
       if (block === 'rules' && !/^\d{0,2}$/.test(form.rules[key])) found[key] = t('properties.validation.wholeHour')
@@ -101,8 +107,8 @@ function BlockForm({ property, block, onDone }: { property: Property; block: Pro
       }
       showToast('success', t('properties.propertyUpdated'))
       onDone()
-    } catch {
-      showToast('error', t('properties.failedUpdate'))
+    } catch (err) {
+      showToast('error', errorText(err, t('properties.failedUpdate'), t))
     }
   }
 
@@ -122,7 +128,7 @@ function BlockForm({ property, block, onDone }: { property: Property; block: Pro
         <PropertyFormStepAddress data={form.address} onChange={(address) => setForm((f) => ({ ...f, address }))} />
       )}
       {block === 'details' && (
-        <PropertyFormStepDetails data={form.details} onChange={(details) => setForm((f) => ({ ...f, details }))} />
+        <PropertyFormStepDetails data={form.details} onChange={(details) => setForm((f) => ({ ...f, details }))} errors={errors} />
       )}
       {block === 'rules' && (
         <PropertyFormStepRules data={form.rules} onChange={(rules) => setForm((f) => ({ ...f, rules }))} errors={errors} />

@@ -302,11 +302,17 @@ export default function PropertyDetailPage() {
                   status={property.status}
                   actions={statusActions}
                   busy={changeStatus.isPending}
-                  onChange={(target) =>
+                  onChange={(target) => {
+                    // On sale a flat is offered by the size of the party: its number comes first.
+                    if (target === 'active' && property.max_guests == null) {
+                      showToast('error', t('properties.guestsRequired'))
+                      setEditing('details')
+                      return
+                    }
                     changeStatus.mutate(target, {
                       onError: (err) => showToast('error', errorText(err, t('properties.statusFailed'), t)),
                     })
-                  }
+                  }}
                 />
               </div>
               {property.internal_name && property.name !== property.internal_name && (

@@ -5,7 +5,7 @@ import uuid
 from dataclasses import dataclass
 
 from app.application.property.create_property import check_listing_kinds, check_stay_nights, check_turnover_hours
-from app.domain.property.entities import Property, PropertyAuditLog
+from app.domain.property.entities import GUESTS_REQUIRED, Property, PropertyAuditLog
 from app.domain.property.repositories import PropertyAuditLogRepository, PropertyRepository
 from app.domain.property.value_objects import AuditAction, PropertyStatus
 
@@ -93,7 +93,10 @@ class UpdatePropertyService:
         if prop.company_id != inp.company_id:
             raise ValueError("Property not found")
         if prop.status == PropertyStatus.ARCHIVED:
-            raise ValueError("Cannot update an archived property")
+            # Only its number of guests may be added: without it the flat could never go on sale again.
+            given = {name for name in _UPDATABLE_FIELDS if getattr(inp, name, _UNSET) is not _UNSET}
+            if given != {"max_guests"} or inp.max_guests is None:
+                raise ValueError("Cannot update an archived property")
 
         # One hour in a PATCH is checked against the other as saved.
         check_turnover_hours(
@@ -108,6 +111,10 @@ class UpdatePropertyService:
             prop.listing_urls if inp.listing_urls is _UNSET else inp.listing_urls,  # type: ignore[arg-type]
             prop.hourly_listing_urls if inp.hourly_listing_urls is _UNSET else inp.hourly_listing_urls,  # type: ignore[arg-type]
         )
+
+        # A flat on sale keeps its number of guests: without it any party is offered the flat.
+        if prop.status == PropertyStatus.ACTIVE and inp.max_guests is None:
+            raise ValueError(GUESTS_REQUIRED)
 
         # Check unique internal_name if changed
         new_internal = getattr(inp, "internal_name", _UNSET)
