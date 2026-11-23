@@ -934,6 +934,7 @@
     "extra": "Extra to pay",
     "newTotal": "New total",
     "extendBy": "Extend by {{value}}",
+    "extendTaken": "The property is taken after that. Extend by less",
     "handPriced": "This booking has a hand-set price. The extra is at the usual prices; change it in the booking if needed.",
     "quoteFailed": "Could not work out the amount. The total shows in the booking after extending.",
     "takeAmount": "Add {{amount}} {{symbol}}",
