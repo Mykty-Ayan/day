@@ -77,6 +77,12 @@ export default function PropertyFormStepAddress({ data, onChange, errors = {}, o
   }, [lookup, onLooking])
 
   function update<K extends keyof AddressData>(key: K, value: string) {
+    // A new 2GIS link takes the old point away at once: if its own point is not found,
+    // the link must not be saved with the point of another place.
+    if (key === 'map_url' && value.trim() !== data.map_url.trim() && is2gisLink(value)) {
+      onChange({ ...data, map_url: value, latitude: '', longitude: '' })
+      return
+    }
     onChange({ ...data, [key]: value })
   }
 

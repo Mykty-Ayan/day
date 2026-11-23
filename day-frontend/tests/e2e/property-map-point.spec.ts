@@ -95,4 +95,38 @@ test.describe('Map point from a 2GIS link', () => {
     await expect(page.getByPlaceholder('43.2381')).toHaveValue('43.2')
     await expect(page.getByPlaceholder('76.9454')).toHaveValue('76.9')
   })
+
+  test('a new link whose point is not found takes the old point away, not keeps it', async ({ page, request }) => {
+    await page.route('**/properties/map-point', (route) =>
+      route.fulfill({ status: 422, json: { detail: 'No point found in the link' } }),
+    )
+    const res = await request.post(`${API_BASE}/properties`, {
+      data: { ...createTestProperty(), map_url: 'https://go.2gis.com/old', latitude: 51.12, longitude: 71.43 },
+    })
+    const prop = await res.json()
+    created.push(prop.id)
+    await page.goto(`/properties/${prop.id}`)
+    await page.getByRole('button', { name: 'Edit: Address' }).click()
+    await expect(page.getByPlaceholder('43.2381')).toHaveValue('51.12')
+
+    await page.getByLabel('Map link').fill('https://go.2gis.com/new')
+    await expect(page.getByText('No point found in this link. Type latitude and longitude yourself')).toBeVisible()
+    await expect(page.getByPlaceholder('43.2381')).toHaveValue('')
+    await page.getByRole('button', { name: 'Save', exact: true }).click()
+    await expect(page.getByRole('button', { name: 'Save', exact: true })).toBeHidden()
+    const saved = await (await request.get(`${API_BASE}/properties/${prop.id}`)).json()
+    expect([saved.map_url, saved.latitude, saved.longitude]).toEqual(['https://go.2gis.com/new', null, null])
+  })
+
+  test('on a new flat, back and next before the answer still looks the link up', async ({ page }) => {
+    await page.route('**/properties/map-point', (route) => route.fulfill({ json: { latitude: 43.2, longitude: 76.9 } }))
+    await page.goto('/properties/new')
+    await page.getByPlaceholder('Cozy Downtown Studio').fill('Map point flat')
+    await page.getByPlaceholder('APT-001-Downtown').fill(`MAP-${Date.now()}`)
+    await page.getByRole('button', { name: 'Next', exact: true }).click()
+    await page.getByLabel('Map link').fill('https://go.2gis.com/abcd')
+    await page.getByRole('button', { name: 'Back', exact: true }).click()
+    await page.getByRole('button', { name: 'Next', exact: true }).click()
+    await expect(page.getByPlaceholder('43.2381')).toHaveValue('43.2')
+  })
 })
