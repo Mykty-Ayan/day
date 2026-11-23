@@ -71,9 +71,12 @@ function BlockForm({ property, block, onDone }: { property: Property; block: Pro
     if (block === 'basic') {
       if (!form.basic.name.trim()) found.name = t('properties.validation.nameRequired')
       if (!form.basic.internal_name.trim()) found.internal_name = t('properties.validation.internalNameRequired')
-      for (const key of ['map_url', 'whatsapp_product_url', 'video_url'] as const) {
+      for (const key of ['whatsapp_product_url', 'video_url'] as const) {
         if (form.basic[key].trim() && !isWebLink(form.basic[key])) found[key] = t('properties.validation.webLink')
       }
+    }
+    if (block === 'address' && form.address.map_url.trim() && !isWebLink(form.address.map_url)) {
+      found.map_url = t('properties.validation.webLink')
     }
     if (block === 'listings') {
       if (!listingLinksValid(form.basic.listing_urls)) found.listing_urls = t('properties.validation.listingLinks')
@@ -125,7 +128,11 @@ function BlockForm({ property, block, onDone }: { property: Property; block: Pro
         <ListingLinksFields data={form.basic} onChange={(basic) => setForm((f) => ({ ...f, basic }))} errors={errors} />
       )}
       {block === 'address' && (
-        <PropertyFormStepAddress data={form.address} onChange={(address) => setForm((f) => ({ ...f, address }))} />
+        <PropertyFormStepAddress
+          data={form.address}
+          onChange={(address) => setForm((f) => ({ ...f, address }))}
+          errors={errors}
+        />
       )}
       {block === 'details' && (
         <PropertyFormStepDetails data={form.details} onChange={(details) => setForm((f) => ({ ...f, details }))} errors={errors} />

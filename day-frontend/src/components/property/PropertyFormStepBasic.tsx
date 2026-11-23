@@ -7,7 +7,6 @@ interface BasicData {
   type: PropertyType
   description: string
   source_url: string
-  map_url: string
   whatsapp_product_url: string
   video_url: string
   listing_urls: string
@@ -32,7 +31,6 @@ const listingFields = [
 
 // The links the CRM hands to guests, with their translation keys.
 const linkFields = [
-  ['map_url', 'mapUrl'],
   ['whatsapp_product_url', 'whatsappProductUrl'],
   ['video_url', 'videoUrl'],
 ] as const
