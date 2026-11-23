@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { differenceInCalendarDays, format } from 'date-fns'
-import { Pencil, Users } from 'lucide-react'
+import { Pencil, StickyNote, Users } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { useProperty } from '../../hooks/useProperties'
 import { editableBlocks } from '../../lib/booking-edit'
@@ -22,7 +22,7 @@ export default function StayCard({
   deposits: BookingDeposit[]
 }) {
   const { t } = useTranslation()
-  const [editingDates, setEditingDates] = useState(false)
+  const [editing, setEditing] = useState<'dates' | 'notes' | null>(null)
   const { data: property } = useProperty(booking.property_id)
   const photos = property?.photos ?? []
   const cover = photos.find((photo) => photo.is_cover) ?? photos[0]
@@ -52,6 +52,19 @@ export default function StayCard({
           <span aria-hidden="true">·</span>
           <span>{t(`bookings.sources.${booking.source}`)}</span>
         </p>
+        {/* The note is what the next person must know ("arrives after midnight"): it is read
+            here, not two screens down in the details. */}
+        {booking.notes?.trim() && (
+          <button
+            type="button"
+            onClick={() => setEditing('notes')}
+            aria-label={`${t('common.edit')}: ${t('bookings.editBlock.notes')}`}
+            className="mt-3 flex w-full items-start gap-2 rounded-lg bg-surface-page px-3 py-2 text-left text-sm text-ink transition-colors hover:bg-accent-soft"
+          >
+            <StickyNote className="mt-0.5 h-3.5 w-3.5 shrink-0 text-ink-muted" aria-hidden="true" />
+            <span data-testid="stay-note" className="line-clamp-3 min-w-0 whitespace-pre-line">{booking.notes.trim()}</span>
+          </button>
+        )}
         {booking.overbooking && (
           <p role="alert" className="mt-3 rounded-lg bg-danger-soft px-3 py-2 text-xs font-semibold text-danger">
             {t('bookings.overbooking.detail')}
@@ -61,7 +74,7 @@ export default function StayCard({
         {editableBlocks(booking.status).includes('dates') ? (
           <button
             type="button"
-            onClick={() => setEditingDates(true)}
+            onClick={() => setEditing('dates')}
             // A short name: the dates inside read "Check-in", which the check-in step also is.
             aria-label={`${t('common.edit')}: ${t('bookings.editBlock.dates')}`}
             className="group -mx-3 block w-[calc(100%+1.5rem)] rounded-xl px-3 text-left transition-colors hover:bg-surface-page"
@@ -71,7 +84,7 @@ export default function StayCard({
         ) : (
           <StayRoute booking={booking} />
         )}
-        <BookingEditSheet booking={booking} block={editingDates ? 'dates' : null} onClose={() => setEditingDates(false)} />
+        <BookingEditSheet booking={booking} block={editing} onClose={() => setEditing(null)} />
         <BookingActions booking={booking} money={money} deposits={deposits} />
       </div>
     </section>
