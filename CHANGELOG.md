@@ -27,6 +27,7 @@ The new interface: every cabinet screen, the guest pages after the approved mock
 - A guest sees the price the booking will be made at, extra guests and discounts included (#345)
 - Today shows the Telegram notices the bot gave up on (a double sale, a guest's booking), with «Send again» (#355)
 - Maestro flows for the guest pages (#342); a check of every screen for stray scrolls, sideways pages and English (#348)
+- Ready sums under a booking's money: first night, 50% and the balance for a payment, half or all of a deposit to hold — on the web and in the Mini App (#361)
 
 ### Changed
 - The owner's screens say «объект», a guest's «квартира» (#297)
@@ -47,6 +48,7 @@ The new interface: every cabinet screen, the guest pages after the approved mock
 - Guest text meets WCAG AA contrast; the cabinet's filters have names for screen readers (#352, #353)
 - Frontend calls to API routes that do not exist are gone (#347)
 - The flat page's «Забронировать» stays on a narrow phone once dates are picked; a big total moves the buttons to a second line (#359)
+- The extend panel no longer flickers while it waits; the length is locked during a save (#360)
 
 ## 0.9.1 — 2026-10-31
 
