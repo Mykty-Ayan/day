@@ -514,6 +514,22 @@ class TestUpdatePropertyService:
         assert result.max_guests is None
 
     @pytest.mark.asyncio
+    async def test_an_archived_flat_without_its_number_can_come_back(self):
+        prop_repo, audit_repo, svc, prop = await self._setup()
+        prop.status, prop.max_guests = PropertyStatus.ARCHIVED, None
+        await prop_repo.update(prop)
+        # Anything else stays closed on an archived flat.
+        with pytest.raises(ValueError, match="archived"):
+            await svc.execute(UpdatePropertyInput(property_id=prop.id, company_id=COMPANY_ID, name="X", max_guests=3))
+        with pytest.raises(ValueError, match="archived"):
+            await svc.execute(UpdatePropertyInput(property_id=prop.id, company_id=COMPANY_ID, max_guests=None))
+        # Its number alone may be added, and then it goes on sale.
+        await svc.execute(UpdatePropertyInput(property_id=prop.id, company_id=COMPANY_ID, max_guests=3))
+        status = ChangePropertyStatusService(prop_repo, audit_repo)
+        result = await status.execute(prop.id, COMPANY_ID, PropertyStatus.ACTIVE)
+        assert (result.status, result.max_guests) == (PropertyStatus.ACTIVE, 3)
+
+    @pytest.mark.asyncio
     async def test_update_wifi_credentials(self):
         prop_repo, _, svc, prop = await self._setup()
 

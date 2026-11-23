@@ -93,7 +93,10 @@ class UpdatePropertyService:
         if prop.company_id != inp.company_id:
             raise ValueError("Property not found")
         if prop.status == PropertyStatus.ARCHIVED:
-            raise ValueError("Cannot update an archived property")
+            # Only its number of guests may be added: without it the flat could never go on sale again.
+            given = {name for name in _UPDATABLE_FIELDS if getattr(inp, name, _UNSET) is not _UNSET}
+            if given != {"max_guests"} or inp.max_guests is None:
+                raise ValueError("Cannot update an archived property")
 
         # One hour in a PATCH is checked against the other as saved.
         check_turnover_hours(
