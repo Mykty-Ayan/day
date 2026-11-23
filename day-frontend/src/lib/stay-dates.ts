@@ -17,3 +17,9 @@ export function nextDay(checkIn: string): string {
   // UTC maths only to step the calendar; the result stays a local wall-clock time.
   return new Date(Date.UTC(year, month - 1, date + 1, hour, minute, second)).toISOString().slice(0, 19)
 }
+
+/** A hand price's share for one night, to the tiyn: 10 000 over three nights is 3 333.33. */
+export function nightShare(total: number, nights: number): number {
+  // Tiyn first, so a float's 2 000 000.9999 does not lose a tiyn.
+  return Math.round(Math.round(total * 100) / nights) / 100
+}

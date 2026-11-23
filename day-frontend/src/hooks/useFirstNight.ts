@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { calculatePrice } from '../api/bookings'
-import { nextDay, nightsOf } from '../lib/stay-dates'
+import { nextDay, nightShare, nightsOf } from '../lib/stay-dates'
 import type { Booking } from '../types/booking'
 
 type Stay = Pick<
@@ -15,7 +15,16 @@ export function useFirstNight(booking: Stay | null): number | null {
   const byNight = !!booking && booking.rental_mode !== 'hourly' && nights > 1
   const handPriced = !!booking && Number(booking.total_price) !== Number(booking.calculated_price)
   const quote = useQuery({
-    queryKey: ['first-night', booking?.id, booking?.property_id, booking?.check_in],
+    // Everything the price depends on: a guest added on an open card reprices the night.
+    queryKey: [
+      'first-night',
+      booking?.id,
+      booking?.property_id,
+      booking?.check_in,
+      booking?.rental_mode,
+      booking?.adults_count,
+      booking?.children_count,
+    ],
     enabled: byNight && !handPriced,
     staleTime: 60_000,
     queryFn: () =>
@@ -29,6 +38,6 @@ export function useFirstNight(booking: Stay | null): number | null {
       }),
   })
   if (!byNight) return null
-  if (handPriced) return Math.round(Number(booking!.total_price) / nights)
+  if (handPriced) return nightShare(Number(booking!.total_price), nights)
   return quote.data ? Number(quote.data.total) : null
 }
