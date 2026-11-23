@@ -535,6 +535,7 @@
       "asCompany": "as the company has it"
     },
     "loadFailed": "Could not load the property. Check the connection and try again",
+    "guestsRequired": "Set how many guests the property takes. Without it, it is offered to any number of guests",
     "statusFailed": "Could not change the property's status. Try again"
   },
   "bookings": {
@@ -674,6 +675,8 @@
       "pickDatesFirst": "Pick the dates: the free properties will show here with their prices.",
       "freeFailed": "The free properties did not load. Check the connection and pick the dates again.",
       "noneFree": "No property is free on these dates.",
+      "noneFreeFor_one": "No property is free on these dates for {{count}} guest",
+      "noneFreeFor_other": "No property is free on these dates for {{count}} guests",
       "noPrice": "No price",
       "taken": "{{name}} is taken on these dates. Pick another property or other dates.",
       "otherObject": "Choose another property"

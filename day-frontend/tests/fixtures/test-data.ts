@@ -20,6 +20,8 @@ export interface TestPropertyInput {
   floor?: number | null
   rooms?: number
   beds?: number
+  /** Required to put a flat on sale: an unknown size would take any party. */
+  max_guests?: number | null
   area_living?: number | null
   area_total?: number | null
   check_in_instructions?: string
@@ -39,6 +41,7 @@ export function createTestProperty(
     address_full: '123 Test Street, Test City',
     rooms: 2,
     beds: 3,
+    max_guests: 4,
     floor: 5,
     area_living: 45.0,
     area_total: 60.0,

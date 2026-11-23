@@ -36,6 +36,10 @@ def whatsapp_product_id(url: str | None) -> str | None:
     return found.group(1) if found else None
 
 
+# The refusal a flat without its number of guests gets when it goes on sale or loses the number.
+GUESTS_REQUIRED = "Set how many guests the property takes"
+
+
 @dataclass
 class Property:
     """Aggregate root for the Property domain."""
@@ -117,6 +121,9 @@ class Property:
     def change_status(self, new_status: PropertyStatus) -> None:
         if not self.status.can_transition_to(new_status):
             raise ValueError(f"Cannot transition from {self.status.value} to {new_status.value}")
+        # On sale, a flat is offered by the size of the party: an unknown size takes any party.
+        if new_status == PropertyStatus.ACTIVE and self.max_guests is None:
+            raise ValueError(GUESTS_REQUIRED)
         self.status = new_status
 
 
