@@ -162,7 +162,25 @@ test.describe('Booking Edit - E2E', () => {
     await panel.locator('textarea').fill(note)
     await panel.getByRole('button', { name: /save/i }).click()
     await expect(panel).toBeHidden({ timeout: 10000 })
-    await expect(page.getByText(note)).toBeVisible()
+    await expect(page.getByTestId('stay-note')).toHaveText(note)
+  })
+
+  test('a note is on the first screen, under the guest, and opens for editing there', async ({ page, request }) => {
+    const prop = await setupActiveProperty(request)
+    const note = `Arrives after midnight ${Date.now()}`
+    const booking = await createBookingViaApi(request, prop.id, { notes: note })
+    // A laptop: the details card falls under payments, deposits and files, two screens down.
+    await page.setViewportSize({ width: 1000, height: 800 })
+    await page.goto(`/bookings/${booking.id}`)
+    await page.waitForLoadState('networkidle')
+
+    const shown = page.getByTestId('stay-note')
+    await expect(shown).toHaveText(note)
+    const box = (await shown.boundingBox())!
+    expect(box.y + box.height).toBeLessThanOrEqual(800)
+
+    await page.getByRole('button', { name: 'Edit: Notes' }).click()
+    await expect(page.getByRole('dialog', { name: 'Notes' }).locator('textarea')).toHaveValue(note)
   })
 
   test('the Dates panel moves the stay to another flat, a taken one is marked', async ({ page, request }) => {
