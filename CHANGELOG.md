@@ -46,6 +46,7 @@ The new interface: every cabinet screen, the guest pages after the approved mock
 - Pages no longer fail on older Safari and in-app browsers: no lookbehind, no Array.at, a fallback for date ranges (#349, #350); a date range takes the en dash in Safari too (#356)
 - Guest text meets WCAG AA contrast; the cabinet's filters have names for screen readers (#352, #353)
 - Frontend calls to API routes that do not exist are gone (#347)
+- The flat page's «Забронировать» stays on a narrow phone once dates are picked; a big total moves the buttons to a second line (#359)
 
 ## 0.9.1 — 2026-10-31
 
