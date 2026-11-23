@@ -6,7 +6,7 @@ import { useTranslation } from 'react-i18next'
 import { calculatePrice } from '../../api/bookings'
 import { useUpdateBooking } from '../../hooks/useBookings'
 import { useCurrency } from '../../hooks/useCurrency'
-import { getBookingApiErrorMessage, stayRuleBreaches, stayRuleText } from '../../lib/booking-errors'
+import { getBookingApiErrorMessage, isDatesTakenError, stayRuleBreaches, stayRuleText } from '../../lib/booking-errors'
 import { dateLocale } from '../../lib/date-locale'
 import { extendedCheckOut } from '../../pages/miniapp/booking-card'
 import { formatMoney } from '../../pages/miniapp/format'
@@ -37,7 +37,7 @@ export default function ExtendStayButton({ booking, className }: { booking: Book
 function ExtendForm({ booking, onDone }: { booking: Booking; onDone: () => void }) {
   const { t, i18n } = useTranslation()
   const update = useUpdateBooking(booking.id)
-  const [steps, setSteps] = useState(1)
+  const [steps, setStepsRaw] = useState(1)
   const hourly = booking.rental_mode === 'hourly'
   // The server keeps a price set by hand when the dates move, so the added stay is
   // priced here and sent with them: otherwise the extra nights would be free.
@@ -80,6 +80,16 @@ function ExtendForm({ booking, onDone }: { booking: Booking; onDone: () => void 
   const handPriceReady = !handPriced || (total !== null && !quote.isFetching)
   const stepLabel = t(hourly ? 'bookings.hours' : 'bookings.nights', { count: steps })
   const breaches = update.isError ? stayRuleBreaches(update.error) : null
+  // A refusal belongs to the length it was given for: a new length clears it. While a save
+  // is on its way the length is locked: a second save could land first and be overwritten.
+  const setSteps = (next: number) => {
+    if (update.isPending) return
+    if (update.isError) update.reset()
+    setStepsRaw(next)
+  }
+  // The sums on screen are an older length's while the new ones load: they dim, they do not jump.
+  const stale = quote.isPlaceholderData || (quote.isFetching && total === null) || (handPriced && current.isFetching)
+  const value = (amount: number | null) => (amount === null ? '—' : money(amount))
 
   return (
     <div className="flex flex-col gap-5">
@@ -91,7 +101,7 @@ function ExtendForm({ booking, onDone }: { booking: Booking; onDone: () => void 
         <button
           type="button"
           aria-label={t('today.fewer')}
-          disabled={steps === 1}
+          disabled={steps === 1 || update.isPending}
           onClick={() => setSteps(steps - 1)}
           className="flex h-11 w-11 items-center justify-center rounded-lg text-ink transition-colors hover:bg-surface-page disabled:opacity-40"
         >
@@ -101,7 +111,7 @@ function ExtendForm({ booking, onDone }: { booking: Booking; onDone: () => void 
         <button
           type="button"
           aria-label={t('today.more')}
-          disabled={steps === MAX_STEPS}
+          disabled={steps === MAX_STEPS || update.isPending}
           onClick={() => setSteps(steps + 1)}
           className="flex h-11 w-11 items-center justify-center rounded-lg text-ink transition-colors hover:bg-surface-page disabled:opacity-40"
         >
@@ -109,35 +119,31 @@ function ExtendForm({ booking, onDone }: { booking: Booking; onDone: () => void 
         </button>
       </div>
 
-      <dl className="flex flex-col gap-2 text-sm tabular-nums">
+      <dl aria-busy={stale} className={`flex flex-col gap-2 text-sm tabular-nums transition-opacity ${stale ? 'opacity-50' : ''}`}>
         <div className="flex justify-between gap-3">
           <dt className="text-ink-muted">{t('today.newCheckOut')}</dt>
           <dd className="font-semibold text-ink">
             {format(new Date(checkOut), 'd MMMM, HH:mm', { locale: dateLocale(i18n.language) })}
           </dd>
         </div>
-        {total !== null && (
-          <>
-            <div className="flex justify-between gap-3">
-              <dt className="text-ink-muted">{t('today.extra')}</dt>
-              <dd className="font-semibold text-ink">+{money(Math.max(0, total - saved))}</dd>
-            </div>
-            <div className="flex justify-between gap-3">
-              <dt className="text-ink-muted">{t('today.newTotal')}</dt>
-              <dd className="font-semibold text-ink">{money(total)}</dd>
-            </div>
-            <div className="flex justify-between gap-3">
-              <dt className="text-ink-muted">{t('today.alreadyPaid')}</dt>
-              <dd className="font-semibold text-ink">{money(paid)}</dd>
-            </div>
-            <div className="flex justify-between gap-3">
-              <dt className={paid > total ? 'text-warning' : 'text-ink-muted'}>
-                {t(paid > total ? 'today.overpaid' : 'today.toPay')}
-              </dt>
-              <dd className={`font-bold ${paid > total ? 'text-warning' : 'text-ink'}`}>{money(Math.abs(total - paid))}</dd>
-            </div>
-          </>
-        )}
+        <div className="flex justify-between gap-3">
+          <dt className="text-ink-muted">{t('today.extra')}</dt>
+          <dd className="font-semibold text-ink">{total === null ? '—' : `+${money(Math.max(0, total - saved))}`}</dd>
+        </div>
+        <div className="flex justify-between gap-3">
+          <dt className="text-ink-muted">{t('today.newTotal')}</dt>
+          <dd className="font-semibold text-ink">{value(total)}</dd>
+        </div>
+        <div className="flex justify-between gap-3">
+          <dt className="text-ink-muted">{t('today.alreadyPaid')}</dt>
+          <dd className="font-semibold text-ink">{money(paid)}</dd>
+        </div>
+        <div className="flex justify-between gap-3">
+          <dt className={total !== null && paid > total ? 'text-warning' : 'text-ink-muted'}>
+            {t(total !== null && paid > total ? 'today.overpaid' : 'today.toPay')}
+          </dt>
+          <dd className={`font-bold ${total !== null && paid > total ? 'text-warning' : 'text-ink'}`}>{value(total === null ? null : Math.abs(total - paid))}</dd>
+        </div>
       </dl>
       {handPriced && <p className="text-sm text-warning">{t('today.handPriced')}</p>}
       {(quote.isError || current.isError) && (
@@ -147,21 +153,25 @@ function ExtendForm({ booking, onDone }: { booking: Booking; onDone: () => void 
         <p role="alert" className="text-sm text-danger">
           {breaches
             ? breaches.map((breach) => stayRuleText(breach, t)).join('. ')
-            : (getBookingApiErrorMessage(update.error, t) ?? t('bookings.failedUpdate'))}
+            : isDatesTakenError(update.error)
+              ? t('today.extendTaken')
+              : (getBookingApiErrorMessage(update.error, t) ?? t('bookings.failedUpdate'))}
         </p>
       )}
 
+      {/* Stays blue and keeps its words while it works: a grey flash or «…» reads as a glitch. */}
       <Button
-        disabled={update.isPending || !handPriceReady}
-        onClick={() =>
+        aria-disabled={update.isPending || !handPriceReady}
+        onClick={() => {
+          if (update.isPending || !handPriceReady) return
           update.mutate(
             handPriced && total !== null ? { check_out: checkOut, total_price: total } : { check_out: checkOut },
             { onSuccess: onDone },
           )
-        }
+        }}
       >
         <CalendarPlus className="h-4 w-4" aria-hidden="true" />
-        {update.isPending ? '…' : t('today.extendBy', { value: stepLabel })}
+        {t('today.extendBy', { value: stepLabel })}
       </Button>
     </div>
   )

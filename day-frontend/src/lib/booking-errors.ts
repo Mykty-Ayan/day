@@ -56,6 +56,14 @@ export function getBookingApiErrorMessage(error: unknown, t: Translate): string 
   return raw
 }
 
+/** The stay cannot grow: another booking or a closure starts right after it. */
+export function isDatesTakenError(error: unknown): boolean {
+  const raw = extractApiErrorMessage(error)
+  if (!raw) return false
+  const normalized = normalizeMessage(raw)
+  return normalized.includes('date range overlaps with existing booking') || normalized.includes('dates are blocked')
+}
+
 export function getBookingFieldError(error: unknown, t: Translate): BookingFieldError {
   const raw = extractApiErrorMessage(error)
   if (!raw) return null
