@@ -17,7 +17,7 @@ from __future__ import annotations
 import asyncio
 import re
 from dataclasses import dataclass
-from urllib.parse import parse_qs, unquote, urljoin, urlsplit
+from urllib.parse import unquote, urljoin, urlsplit
 
 import httpx
 
@@ -67,16 +67,6 @@ def point_in_url(url: str) -> MapPoint | None:
     """The object's point when the link carries it in its path."""
     found = _POINT_IN_PATH.search(unquote(urlsplit(url).path))
     return _point(*found.groups()) if found else None
-
-
-def centre_in_url(url: str) -> MapPoint | None:
-    """Where the map was looking (?m=76.94,43.23/17): the last resort, as it may be
-    off the object if the map was moved before sharing."""
-    for value in parse_qs(urlsplit(url).query).get("m", []):
-        found = re.fullmatch(rf"({_NUMBER}),({_NUMBER})(?:/[\d.]+)?", value)
-        if found:
-            return _point(*found.groups())
-    return None
 
 
 def object_id(url: str) -> str | None:
@@ -135,7 +125,8 @@ async def find_point(url: str) -> MapPoint:
     oid = object_id(final) or object_id(url)
     if point is None and oid:
         point = point_in_page(page, oid)
-    point = point or centre_in_url(final) or centre_in_url(url)
+    # Where the map was looking (?m=…) is not taken: the map may have been moved off the
+    # object before sharing, and a wrong point sends guests to the wrong house.
     if point is None:
         raise MapLinkError(NOT_FOUND)
     return point

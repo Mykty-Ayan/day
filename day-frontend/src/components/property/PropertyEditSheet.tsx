@@ -64,6 +64,8 @@ function BlockForm({ property, block, onDone }: { property: Property; block: Pro
   const savedAmenities = property.amenities.map((a) => a.id)
   const [amenities, setAmenityIds] = useState<string[]>(savedAmenities)
   const [errors, setErrors] = useState<Record<string, string>>({})
+  // A 2GIS link whose point is still on its way: saving now would keep the old point.
+  const [locating, setLocating] = useState(false)
   const busy = update.isPending || setAmenities.isPending
 
   function validate(): boolean {
@@ -132,6 +134,7 @@ function BlockForm({ property, block, onDone }: { property: Property; block: Pro
           data={form.address}
           onChange={(address) => setForm((f) => ({ ...f, address }))}
           errors={errors}
+          onLooking={setLocating}
         />
       )}
       {block === 'details' && (
@@ -144,7 +147,7 @@ function BlockForm({ property, block, onDone }: { property: Property; block: Pro
 
       {/* Stuck to the bottom of the panel: a long block keeps its save at hand. */}
       <div className="sticky bottom-0 -mx-5 -mb-5 flex gap-2 border-t border-line bg-surface-card px-5 py-3">
-        <Button onClick={save} disabled={busy}>
+        <Button onClick={save} disabled={busy || locating}>
           {busy && <Loader2 className="h-4 w-4 animate-spin" />}
           {t('common.save')}
         </Button>

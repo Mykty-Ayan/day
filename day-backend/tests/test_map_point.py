@@ -109,11 +109,13 @@ async def test_a_page_without_the_point_is_reported(monkeypatch):
         await find_point(url)
 
 
-async def test_the_map_centre_is_the_last_resort(monkeypatch):
+async def test_where_the_map_was_looking_is_not_the_objects_point(monkeypatch):
+    # An Almaty firm shared with the map moved to Moscow: Moscow is not the firm.
     seen: list[str] = []
-    url = "https://2gis.kz/almaty/firm/70000001028054811?m=76.95%2C43.24%2F17"
-    monkeypatch.setattr(map_point, "_client", _serve({url: httpx.Response(200, text="")}, seen))
-    assert await find_point(url) == MapPoint(43.24, 76.95)
+    url = "https://2gis.kz/almaty/firm/70000001028054811?m=37.62%2C55.75%2F17"
+    monkeypatch.setattr(map_point, "_client", _serve({url: httpx.Response(200, text='"point":null')}, seen))
+    with pytest.raises(MapLinkError, match="No point"):
+        await find_point(url)
 
 
 @pytest.mark.integration

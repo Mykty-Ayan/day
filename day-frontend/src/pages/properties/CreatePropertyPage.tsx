@@ -76,6 +76,8 @@ export default function CreatePropertyPage() {
   const [form, setForm] = useState<FormData>(initialForm)
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [direction, setDirection] = useState(1)
+  // A 2GIS link whose point is still on its way: creating now would leave the point out.
+  const [locating, setLocating] = useState(false)
   const current = STEPS[step]
   const isLast = step === STEPS.length - 1
 
@@ -204,6 +206,7 @@ export default function CreatePropertyPage() {
                 <PropertyFormStepAddress
                   data={form.address}
                   onChange={(address) => setForm((f) => ({ ...f, address }))}
+                  onLooking={setLocating}
                 />
               )}
             </motion.div>
@@ -216,7 +219,7 @@ export default function CreatePropertyPage() {
             <ArrowLeft className="h-4 w-4" />
             {step === 0 ? t('common.cancel') : t('common.previous')}
           </Button>
-          <Button onClick={isLast ? handleSubmit : goNext} disabled={createProperty.isPending}>
+          <Button onClick={isLast ? handleSubmit : goNext} disabled={createProperty.isPending || (isLast && locating)}>
             {createProperty.isPending ? (
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : isLast ? (

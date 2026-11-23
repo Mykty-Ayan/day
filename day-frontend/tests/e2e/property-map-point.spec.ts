@@ -61,4 +61,38 @@ test.describe('Map point from a 2GIS link', () => {
     await page.waitForTimeout(600)
     expect(asked).toEqual(['https://2gis.kz/almaty/firm/70000001028054811'])
   })
+
+  test('Save waits for the point of a new link, so the link is not saved with the old point', async ({ page, request }) => {
+    let answer: () => void = () => {}
+    const answered = new Promise<void>((resolve) => (answer = resolve))
+    await page.route('**/properties/map-point', async (route) => {
+      await answered
+      await route.fulfill({ json: { latitude: 43.238286, longitude: 76.945623 } })
+    })
+    const id = await openAddress(page, request)
+    const save = page.getByRole('button', { name: 'Save', exact: true })
+
+    await page.getByLabel('Map link').fill('https://go.2gis.com/abcd')
+    await expect(save).toBeDisabled()
+    await expect(page.getByText('Looking for the point in 2GIS…')).toBeVisible()
+    answer()
+    await expect(save).toBeEnabled()
+    await save.click()
+    await expect(save).toBeHidden()
+    const saved = await (await request.get(`${API_BASE}/properties/${id}`)).json()
+    expect([saved.latitude, saved.longitude]).toEqual([43.238286, 76.945623])
+  })
+
+  test('a link saved without its point is looked up when the address opens', async ({ page, request }) => {
+    await page.route('**/properties/map-point', (route) => route.fulfill({ json: { latitude: 43.2, longitude: 76.9 } }))
+    const res = await request.post(`${API_BASE}/properties`, {
+      data: { ...createTestProperty(), map_url: 'https://go.2gis.com/abcd', latitude: null, longitude: null },
+    })
+    const prop = await res.json()
+    created.push(prop.id)
+    await page.goto(`/properties/${prop.id}`)
+    await page.getByRole('button', { name: 'Edit: Address' }).click()
+    await expect(page.getByPlaceholder('43.2381')).toHaveValue('43.2')
+    await expect(page.getByPlaceholder('76.9454')).toHaveValue('76.9')
+  })
 })

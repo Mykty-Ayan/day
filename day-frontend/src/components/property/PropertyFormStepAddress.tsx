@@ -20,44 +20,61 @@ interface Props {
   data: AddressData
   onChange: (data: AddressData) => void
   errors?: Partial<Record<keyof AddressData, string>>
+  /** True from a new 2GIS link until its point is in: saving then would keep the old point. */
+  onLooking?: (looking: boolean) => void
 }
 
 type Lookup = 'idle' | 'looking' | 'found' | 'missing'
 
-export default function PropertyFormStepAddress({ data, onChange, errors = {} }: Props) {
+export default function PropertyFormStepAddress({ data, onChange, errors = {}, onLooking }: Props) {
   const { t } = useTranslation()
   // The newest form: a point that comes back late must not undo what was typed meanwhile.
   const latest = useRef(data)
   latest.current = data
-  // The link the form opened with is not looked up again: its point is already there.
-  const looked = useRef(data.map_url.trim())
+  // The form as it opened: a link with its point already in, nothing to look up.
+  // A link without its point is looked up at once, so it gets one.
+  const opened = useRef(data)
   const [lookup, setLookup] = useState<Lookup>('idle')
 
   useEffect(() => {
     const url = data.map_url.trim()
-    if (url === looked.current) return
-    if (!is2gisLink(url)) {
+    const now = latest.current
+    const asOpened =
+      url === opened.current.map_url.trim() &&
+      opened.current.latitude.trim() !== '' &&
+      opened.current.longitude.trim() !== '' &&
+      now.latitude === opened.current.latitude &&
+      now.longitude === opened.current.longitude
+    if (asOpened || !is2gisLink(url)) {
       setLookup('idle')
       return
     }
-    // Once the typing stops: a pasted link is one change and goes at once after the pause.
+    // Looking from the first moment, the pause too: Save waits for the point.
+    setLookup('looking')
+    let gone = false
+    // Once the typing stops: a pasted link is one change and goes after the pause.
     const timer = setTimeout(() => {
-      looked.current = url
-      setLookup('looking')
       findMapPoint(url)
         .then((point) => {
-          if (latest.current.map_url.trim() !== url) return
+          if (gone) return
           onChange({ ...latest.current, latitude: String(point.latitude), longitude: String(point.longitude) })
           setLookup('found')
         })
         .catch(() => {
-          if (latest.current.map_url.trim() === url) setLookup('missing')
+          if (!gone) setLookup('missing')
         })
     }, 400)
-    return () => clearTimeout(timer)
+    return () => {
+      gone = true
+      clearTimeout(timer)
+    }
     // onChange is a new function on each render of the parent; the link alone starts a lookup.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data.map_url])
+
+  useEffect(() => {
+    onLooking?.(lookup === 'looking')
+  }, [lookup, onLooking])
 
   function update<K extends keyof AddressData>(key: K, value: string) {
     onChange({ ...data, [key]: value })
