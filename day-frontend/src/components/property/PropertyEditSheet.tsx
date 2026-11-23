@@ -7,6 +7,7 @@ import { isWebLink } from '../../lib/utils'
 import {
   bufferMinutesValid,
   changedFields,
+  clearsGuestsOnSale,
   listingInBoth,
   listingLinksValid,
   propertyToForm,
@@ -85,7 +86,7 @@ function BlockForm({ property, block, onDone }: { property: Property; block: Pro
       found.buffer_minutes = t('properties.validation.bufferMinutes')
     }
     // A flat on sale keeps its number of guests: without it any party is offered the flat.
-    if (block === 'details' && property.status === 'active' && !form.details.max_guests.trim()) {
+    if (block === 'details' && clearsGuestsOnSale(property.status, form, opened)) {
       found.max_guests = t('properties.guestsRequired')
     }
     for (const key of ['check_in_hour', 'check_out_hour'] as const) {

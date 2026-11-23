@@ -7,6 +7,7 @@ import { expect, test } from '@playwright/test'
 import {
   bufferMinutesValid,
   changedFields,
+  clearsGuestsOnSale,
   formToUpdate,
   listingInBoth,
   listingLines,
@@ -185,4 +186,15 @@ test('a panel sends only what changed in it, a cleared field as null', () => {
   form.address.floor = '7'
   form.basic.description = ''
   expect(changedFields(form, opened)).toEqual({ floor: 7, description: null })
+})
+
+test('a flat on sale may not lose its number of guests, and one without it still saves the rest', () => {
+  const opened = propertyToForm(flat)
+  const cleared = { ...opened, details: { ...opened.details, max_guests: ' ' } }
+  expect(clearsGuestsOnSale('active', cleared, opened)).toBe(true)
+  // A draft may drop it: it is offered to nobody.
+  expect(clearsGuestsOnSale('new', cleared, opened)).toBe(false)
+  // On sale from before the rule with no number: changing the rooms is not clearing.
+  const old = propertyToForm({ ...flat, max_guests: null } as Property)
+  expect(clearsGuestsOnSale('active', { ...old, details: { ...old.details, rooms: '3' } }, old)).toBe(false)
 })
