@@ -11,6 +11,7 @@ import Button from '../ui/Button'
 import NumberInput from '../ui/number-input'
 import { Sheet } from '../ui/sheet'
 import { ToggleGroup, ToggleGroupItem } from '../ui/toggle-group'
+import QuickAmounts from './QuickAmounts'
 import UnsureAttempt from './UnsureAttempt'
 
 /** Money given back to the guest: what was paid over the total, or part of what came in. */
@@ -81,7 +82,7 @@ function RefundForm({
     ...(money.toReturn > 0 ? [{ label: t('bookings.payments.overpaid'), value: money.toReturn }] : []),
     { label: t('bookings.refund.all'), value: paid },
     { label: '50%', value: halfOf(paid) },
-  ].filter((option, i, all) => option.value > 0 && all.findIndex((o) => o.value === option.value) === i)
+  ]
 
   if (unsure && !paying) {
     return <UnsureAttempt
@@ -105,21 +106,7 @@ function RefundForm({
           {t('common.amount')}
         </label>
         <NumberInput id="refund-amount" value={amount} onChange={setAmount} min={0} step={1000} ariaLabel={t('common.amount')} />
-        {quick.length > 0 && (
-          <div className="mt-1 flex flex-wrap gap-2">
-            {quick.map((option) => (
-              <button
-                key={option.label}
-                type="button"
-                onClick={() => setAmount(String(option.value))}
-                aria-pressed={value === option.value}
-                className="rounded-full border border-line px-3 py-1.5 text-xs font-semibold text-ink transition-colors hover:bg-surface-page aria-pressed:border-accent aria-pressed:bg-accent-soft aria-pressed:text-accent-ink"
-              >
-                {option.label} · {sum(option.value)}
-              </button>
-            ))}
-          </div>
-        )}
+        <QuickAmounts options={quick} value={value} onPick={(next) => setAmount(String(next))} />
       </div>
 
       <div className="flex flex-col gap-1.5">
