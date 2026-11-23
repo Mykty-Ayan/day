@@ -212,6 +212,65 @@ test.describe('Booking Today View - E2E', () => {
       .toBe(longer)
   })
 
+  test('extend keeps its lines and its button steady while it waits, and a refusal goes with a new length', async ({ page, request }) => {
+    const prop = await setupActiveProperty(request)
+    const booking = await createBookingViaApi(request, prop.id, {
+      check_in: await browserDate(page, -1),
+      check_out: await browserDate(page, 2),
+      guest_name: 'Steady Extend Guest',
+    })
+    await transitionViaApi(request, booking.id, 'confirmed')
+    await transitionViaApi(request, booking.id, 'checked_in')
+    // The next guest arrives a night after: two more nights run into them.
+    await createBookingViaApi(request, prop.id, {
+      check_in: await browserDate(page, 3),
+      check_out: await browserDate(page, 5),
+      guest_name: 'Next Guest',
+    })
+
+    // Slow answers: what the panel shows while it waits is what flickered.
+    const slow = async (route: import('@playwright/test').Route) => {
+      await new Promise((r) => setTimeout(r, 700))
+      await route.continue()
+    }
+    await page.route('**/bookings/calculate-price', slow)
+    await page.route(`**/bookings/${booking.id}`, (route) => (route.request().method() === 'GET' ? route.continue() : slow(route)))
+
+    await page.goto('/bookings/today')
+    await page.waitForLoadState('networkidle')
+    await page.getByRole('button', { name: 'Extend', exact: true }).click()
+    const sheet = page.getByRole('dialog')
+    const sums = sheet.locator('dl')
+
+    // The lines are there before the first price comes: the panel does not grow under the cursor.
+    await expect(sheet.getByText('Extra to pay')).toBeVisible({ timeout: 300 })
+    await expect(sums).toHaveAttribute('aria-busy', 'true')
+    await expect(sums).toHaveAttribute('aria-busy', 'false')
+
+    // A new length dims the old sums instead of showing them as its own.
+    await sheet.getByRole('button', { name: 'More' }).click()
+    await expect(sums).toHaveAttribute('aria-busy', 'true')
+    await expect(sums).toHaveAttribute('aria-busy', 'false')
+
+    // Pressed, the button keeps its words and its colour; the refusal says what to do.
+    const extend = sheet.getByRole('button', { name: /^Extend by 2/ })
+    // Measured under the cursor, as it is when pressed: hover has its own shade.
+    await extend.hover()
+    await page.waitForTimeout(400)
+    const colour = await extend.evaluate((el) => getComputedStyle(el).backgroundColor)
+    await extend.click()
+    await expect(extend).toHaveAttribute('aria-disabled', 'true')
+    expect(await extend.evaluate((el) => getComputedStyle(el).backgroundColor)).toBe(colour)
+    // The length is locked while the save is on its way: a second save could overwrite the first.
+    await expect(sheet.getByRole('button', { name: 'More' })).toBeDisabled()
+    await expect(sheet.getByRole('button', { name: 'Fewer' })).toBeDisabled()
+    await expect(sheet.getByRole('alert')).toHaveText('The property is taken after that. Extend by less')
+
+    // One night less: the refusal was for two, it goes.
+    await sheet.getByRole('button', { name: 'Fewer' }).click()
+    await expect(sheet.getByRole('alert')).toHaveCount(0)
+  })
+
   test('a debt is paid from a panel, without leaving Today', async ({ page, request }) => {
     const prop = await setupActiveProperty(request)
     const booking = await createBookingViaApi(request, prop.id, {
@@ -229,6 +288,58 @@ test.describe('Booking Today View - E2E', () => {
 
     await expect(page.getByText('Nothing needs attention')).toBeVisible()
     await expect(page).toHaveURL(/\/bookings\/today$/)
+  })
+
+  test('a payment offers the first night, half and all that is left in one tap', async ({ page, request }) => {
+    const prop = await setupActiveProperty(request)
+    const checkIn = await browserDate(page)
+    const booking = await createBookingViaApi(request, prop.id, {
+      check_in: checkIn,
+      check_out: await browserDate(page, 3),
+      guest_name: 'Quick Sums Guest',
+    })
+    await transitionViaApi(request, booking.id, 'confirmed')
+    const total = Number(booking.total_price)
+    const night = await request.post(`${API_BASE}/bookings/calculate-price`, {
+      data: { property_id: prop.id, check_in: checkIn, check_out: await browserDate(page, 1), adults_count: 2, children_count: 0 },
+    })
+    expect(night.ok(), await night.text()).toBeTruthy()
+    const firstNight = Number((await night.json()).total)
+
+    await page.goto('/bookings/today')
+    await page.waitForLoadState('networkidle')
+    await page.getByRole('button', { name: /Guest owes/ }).filter({ hasText: 'Quick Sums Guest' }).click()
+    const sheet = page.getByRole('dialog')
+    const amount = sheet.getByRole('spinbutton', { name: 'Amount' })
+
+    await sheet.getByRole('button', { name: /^First night ·/ }).click()
+    await expect(amount).toHaveValue(String(firstNight))
+    await sheet.getByRole('button', { name: /^50% ·/ }).click()
+    await expect(amount).toHaveValue(String(total / 2))
+    await sheet.getByRole('button', { name: /^Balance ·/ }).click()
+    await expect(amount).toHaveValue(String(total))
+    await expect(sheet.getByRole('button', { name: /^Balance ·/ })).toHaveAttribute('aria-pressed', 'true')
+  })
+
+  test('prices changed since the booking: the first night is the booked price shared, not today\'s', async ({ page, request }) => {
+    const prop = await setupActiveProperty(request)
+    const booking = await createBookingViaApi(request, prop.id, {
+      check_in: await browserDate(page),
+      check_out: await browserDate(page, 3),
+      guest_name: 'Repriced Guest',
+    })
+    await transitionViaApi(request, booking.id, 'confirmed')
+    const total = Number(booking.total_price)
+    // The flat costs five times more now; the guest booked at the old price.
+    const raised = await request.put(`${API_BASE}/properties/${prop.id}/pricing`, { data: createTestPricing({ base_price: 500 }) })
+    expect(raised.ok(), await raised.text()).toBeTruthy()
+
+    await page.goto('/bookings/today')
+    await page.waitForLoadState('networkidle')
+    await page.getByRole('button', { name: /Guest owes/ }).filter({ hasText: 'Repriced Guest' }).click()
+    const sheet = page.getByRole('dialog')
+    await sheet.getByRole('button', { name: /^First night ·/ }).click()
+    await expect(sheet.getByRole('spinbutton', { name: 'Amount' })).toHaveValue(String(Math.round(Math.round(total * 100) / 3) / 100))
   })
 
   test('a cleaner is assigned only once the choice is confirmed', async ({ page, request }) => {
