@@ -40,13 +40,14 @@ export function BookBar({
   return (
     // A floating bar, as the approved mockup: the price on the start, the step on a dark pill with the accent arrow.
     <div className="fixed inset-x-0 bottom-0 z-sticky px-2.5 pb-[max(10px,env(safe-area-inset-bottom))] pt-2.5">
-      <div className="mx-auto flex max-w-[460px] items-center justify-between gap-2.5 rounded-full bg-white/90 py-2 pe-2 ps-[22px] shadow-[0_10px_30px_rgba(17,17,20,0.12)] backdrop-blur-xl">
-        {/* Shrinks so a long dates line truncates instead of pushing the button off a narrow phone. */}
-        <div className="min-w-0 flex-1">
+      {/* Wraps the buttons onto a second line when the total and the buttons do not fit one: neither is cut. */}
+      <div className="mx-auto flex max-w-[460px] flex-wrap items-center justify-between gap-2.5 rounded-[36px] bg-white/90 py-2 pe-2 ps-[22px] shadow-[0_10px_30px_rgba(17,17,20,0.12)] backdrop-blur-xl">
+        {/* As narrow as the total: the dates line below it truncates instead of widening the block. */}
+        <div className="flex-1">
           {quote ? (
             <>
               <span data-testid="bar-total" className="block whitespace-nowrap text-lg font-bold leading-tight">{money(quote.total, locale)}</span>
-              <span className="block truncate text-[13px] text-[#6B6B74]">
+              <span className="block w-0 min-w-full truncate text-[13px] text-[#6B6B74]">
                 {dates} · {t('guest.nights', { count: quote.count })}
               </span>
             </>
@@ -64,7 +65,7 @@ export function BookBar({
             </>
           ) : null}
         </div>
-        <div className="flex shrink-0 items-center gap-2">
+        <div className="ms-auto flex shrink-0 items-center gap-2">
           {ask && (
             <a
               href={ask}
