@@ -40,7 +40,7 @@ import {
   type MoneyAttempt,
 } from './booking-card'
 import { cardRead, readyToAct, secretsFresh } from './card-state'
-import { formatDay, formatMoney, formatTime } from './format'
+import { formatDay, formatMoney, formatMoneyExact, formatTime } from './format'
 import DepositRow from './DepositRow'
 import EditBookingSheet from './EditBookingSheet'
 import GuestSheet from './GuestSheet'
@@ -274,6 +274,8 @@ export default function BookingSheet({
   const secretsOk = secretsFresh(fresh, openedAt, Date.now()) && readyToAct(property, openedAt)
   const checkInText = buildCheckInMessage(booking, property.data, lang, t, secretsOk)
   const money = (value: number) => `${formatMoney(value, lang)} ₸`
+  // What a payment sends, to the tiyn: a confirmation must name the sum that goes.
+  const exact = (value: number) => `${formatMoneyExact(value, lang)} ₸`
   const when = (value: string) => `${formatDay(value, lang)} ${formatTime(value, lang)}`
 
   async function askExtend() {
@@ -347,7 +349,7 @@ export default function BookingSheet({
 
   async function askPay() {
     const methodLabel = t(`miniapp.methods.${method}`)
-    if (await confirmAction(t('miniapp.booking.payAsk', { amount: money(amountValue), method: methodLabel }))) {
+    if (await confirmAction(t('miniapp.booking.payAsk', { amount: exact(amountValue), method: methodLabel }))) {
       if (!alive.current) return
       send({ kind: 'payment', amount: amountValue, method, key: newKey() } satisfies PaymentAttempt)
     }
@@ -553,7 +555,7 @@ export default function BookingSheet({
                   .map((option) => (
                     <Chip
                       key={option.label}
-                      label={`${option.label} · ${money(option.value)}`}
+                      label={`${option.label} · ${exact(option.value)}`}
                       active={amountValue === option.value}
                       onClick={() => {
                         if (!moneyBusy) setAmount(String(option.value))
@@ -568,7 +570,7 @@ export default function BookingSheet({
               >
                 <Wallet className="h-4 w-4" />
                 {amountValue > 0
-                  ? t('miniapp.booking.recordAmount', { amount: money(amountValue) })
+                  ? t('miniapp.booking.recordAmount', { amount: exact(amountValue) })
                   : t('miniapp.booking.record')}
               </ActionButton>
             </>

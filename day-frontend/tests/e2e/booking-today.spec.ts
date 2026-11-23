@@ -321,6 +321,27 @@ test.describe('Booking Today View - E2E', () => {
     await expect(sheet.getByRole('button', { name: /^Balance ·/ })).toHaveAttribute('aria-pressed', 'true')
   })
 
+  test('prices changed since the booking: the first night is the booked price shared, not today\'s', async ({ page, request }) => {
+    const prop = await setupActiveProperty(request)
+    const booking = await createBookingViaApi(request, prop.id, {
+      check_in: await browserDate(page),
+      check_out: await browserDate(page, 3),
+      guest_name: 'Repriced Guest',
+    })
+    await transitionViaApi(request, booking.id, 'confirmed')
+    const total = Number(booking.total_price)
+    // The flat costs five times more now; the guest booked at the old price.
+    const raised = await request.put(`${API_BASE}/properties/${prop.id}/pricing`, { data: createTestPricing({ base_price: 500 }) })
+    expect(raised.ok(), await raised.text()).toBeTruthy()
+
+    await page.goto('/bookings/today')
+    await page.waitForLoadState('networkidle')
+    await page.getByRole('button', { name: /Guest owes/ }).filter({ hasText: 'Repriced Guest' }).click()
+    const sheet = page.getByRole('dialog')
+    await sheet.getByRole('button', { name: /^First night ·/ }).click()
+    await expect(sheet.getByRole('spinbutton', { name: 'Amount' })).toHaveValue(String(Math.round(Math.round(total * 100) / 3) / 100))
+  })
+
   test('a cleaner is assigned only once the choice is confirmed', async ({ page, request }) => {
     const prop = await setupActiveProperty(request)
     const cleaner = await request.post(`${API_BASE}/users`, {
