@@ -556,7 +556,7 @@ export default function CreateBookingPage() {
         </p>
       ) : free.data && free.data.items.length === 0 ? (
         <p className="text-sm text-ink-muted">
-          {t('bookings.form.noneFree')}
+          {t('bookings.form.noneFreeFor', { count: form.adults_count + form.children_count })}
         </p>
       ) : (
         <div role="radiogroup" aria-label={t('miniapp.freeProperties')} className="flex flex-col gap-2">

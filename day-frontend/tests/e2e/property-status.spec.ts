@@ -50,6 +50,35 @@ test.describe('Property Status Transitions - E2E', () => {
     await expect(page.getByText(/active/i).first()).toBeVisible({ timeout: 5000 })
   })
 
+  test('a flat without its number of guests is not put on sale: the number is asked for first', async ({ page, request }) => {
+    const prop = await createPropertyViaApi(request, { max_guests: null })
+    // The server refuses too, whoever asks.
+    const refused = await request.post(`${API_BASE}/properties/${prop.id}/status`, { data: { target_status: 'active' } })
+    expect(refused.status()).toBe(400)
+
+    await page.goto(`/properties/${prop.id}`)
+    await page.waitForLoadState('networkidle')
+    await page.getByRole('button', { name: /^Status:/ }).click()
+    await page.getByRole('button', { name: /^activate/i }).click()
+
+    // The details panel opens on the number; the flat stays a draft.
+    const details = page.getByRole('dialog')
+    await expect(details.getByLabel('Max guests')).toBeVisible()
+    await expect.poll(async () => (await (await request.get(`${API_BASE}/properties/${prop.id}`)).json()).status).toBe('new')
+
+    // Given the number, it goes on sale.
+    await details.getByLabel('Max guests').fill('3')
+    await details.getByRole('button', { name: /save/i }).click()
+    await expect(details).toBeHidden()
+    await page.getByRole('button', { name: /^Status:/ }).click()
+    await page.getByRole('button', { name: /^activate/i }).click()
+    await expect.poll(async () => (await (await request.get(`${API_BASE}/properties/${prop.id}`)).json()).status).toBe('active')
+
+    // On sale, the number cannot be cleared.
+    const cleared = await request.patch(`${API_BASE}/properties/${prop.id}`, { data: { max_guests: null } })
+    expect(cleared.status()).toBe(400)
+  })
+
   test('pause property (active -> paused)', async ({ page, request }) => {
     const prop = await createPropertyViaApi(request)
 

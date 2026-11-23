@@ -246,6 +246,15 @@ test.describe('Booking CRUD - E2E', () => {
     await expect(option).toHaveCount(0)
   })
 
+  test('with nothing free for the party, the form says for how many guests', async ({ page }) => {
+    // Nothing free is the server's answer here: the company's other objects do not matter.
+    await page.route('**/bookings/availability**', (route) => route.fulfill({ json: { items: [] } }))
+    await page.goto(`/bookings/new?check_in=${futureDate(60)}&check_out=${futureDate(62)}`)
+    await page.getByLabel('Adults', { exact: true }).fill('9')
+    await page.getByLabel('Children', { exact: true }).fill('8')
+    await expect(page.getByText('No property is free on these dates for 17 guests')).toBeVisible()
+  })
+
   test('an object asked for can be let go, and the rest of the form stays', async ({ page, request }) => {
     const prop = await setupActiveProperty(request)
 

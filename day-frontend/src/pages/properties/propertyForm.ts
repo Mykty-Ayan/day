@@ -198,6 +198,12 @@ export function formToUpdate(form: PropertyEditForm, opened: PropertyEditForm): 
 /** Only the fields changed since the panel opened: a panel of one block must not
  *  send back the other blocks, or it would undo what was saved there meanwhile
  *  (another panel, the CRM). A cleared field goes out as null. */
+/** A flat on sale may not lose its number of guests. One on sale from before the rule,
+ *  saved with none, still saves its other details: only clearing a number is refused. */
+export function clearsGuestsOnSale(status: Property['status'], form: PropertyEditForm, opened: PropertyEditForm): boolean {
+  return status === 'active' && opened.details.max_guests.trim() !== '' && form.details.max_guests.trim() === ''
+}
+
 export function changedFields(form: PropertyEditForm, opened: PropertyEditForm): PropertyUpdateInput {
   const before = formToUpdate(opened, opened) as Record<string, unknown>
   return Object.fromEntries(
