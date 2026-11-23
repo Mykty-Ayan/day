@@ -6,7 +6,7 @@ The new interface: every cabinet screen, the guest pages after the approved mock
 
 **Database:** migrations 060 (flat order), 061 (company weekend nights), 062 (site headline). Take the dump first.
 
-**API changes for the CRM:** «not found» answers 404 instead of 400 on property routes and deposit actions; `POST /cleaning` refuses another company's booking; a guest hold from a flat's page is up to 30 nights; `guest_code` comes back after a public booking; new `GET /public/stays/{code}/quote`.
+**API changes for the CRM:** a property goes on sale only with `max_guests`, and a property on sale cannot clear it (400); «not found» answers 404 instead of 400 on property routes and deposit actions; `POST /cleaning` refuses another company's booking; a guest hold from a flat's page is up to 30 nights; `guest_code` comes back after a public booking; new `GET /public/stays/{code}/quote`.
 
 ### Added
 - A side menu of seven sections with tabs, a Create button and search in the top bar (#270, #272)
@@ -30,6 +30,7 @@ The new interface: every cabinet screen, the guest pages after the approved mock
 - Ready sums under a booking's money: first night, 50% and the balance for a payment, half or all of a deposit to hold — on the web and in the Mini App (#361)
 
 ### Changed
+- A property goes on sale only with its number of guests: an unknown size was offered to any party; the new booking form says for how many guests nothing is free (#363)
 - The owner's screens say «объект», a guest's «квартира» (#297)
 - Amounts are written «432 980 ₸» everywhere (#317, #338)
 - No browser lists or question boxes left in the cabinet (#339); dates follow the app's language, Kazakh included (#341)
@@ -49,6 +50,7 @@ The new interface: every cabinet screen, the guest pages after the approved mock
 - Frontend calls to API routes that do not exist are gone (#347)
 - The flat page's «Забронировать» stays on a narrow phone once dates are picked; a big total moves the buttons to a second line (#359)
 - The extend panel no longer flickers while it waits; the length is locked during a save (#360)
+- A booking's note is on its first screen, under the guest (#362)
 
 ## 0.9.1 — 2026-10-31
 
