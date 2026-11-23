@@ -4,13 +4,16 @@ import { Link } from '@tanstack/react-router'
 import { ArrowLeftRight, Banknote, CreditCard, Plus } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { useCurrency } from '../../hooks/useCurrency'
+import { useFirstNight } from '../../hooks/useFirstNight'
 import { useSendPayment, type PaymentAttempt, type SendOutcome } from '../../hooks/usePaymentAttempt'
+import { halfOf, paymentSuggestions } from '../../lib/booking-money'
 import { formatMoneyExact as formatMoney } from '../../pages/miniapp/format'
 import type { Booking, PaymentMethod } from '../../types/booking'
 import Button from '../ui/Button'
 import NumberInput from '../ui/number-input'
 import { Sheet } from '../ui/sheet'
 import { ToggleGroup, ToggleGroupItem } from '../ui/toggle-group'
+import QuickAmounts from './QuickAmounts'
 import UnsureAttempt from './UnsureAttempt'
 
 /** The stay's debt only: minibar orders are settled in their own screen. */
@@ -80,6 +83,7 @@ function PaymentForm({
   // screen: each has its own idempotency key, and both would be recorded.
   const paying = useIsMutating({ mutationKey: ['add-payment', booking.id] }) > 0
   const sum = (value: number) => `${money(value)} ${symbol}`
+  const suggested = paymentSuggestions(stayDebt, useFirstNight(booking))
 
   if (unsure && !paying) {
     return <UnsureAttempt
@@ -107,6 +111,15 @@ function PaymentForm({
           ariaLabel={t('common.amount')}
         />
       </label>
+      <QuickAmounts
+        value={value}
+        onPick={(next) => setAmount(String(next))}
+        options={[
+          ...(suggested.firstNight !== null ? [{ label: t('today.quickFirstNight'), value: suggested.firstNight }] : []),
+          { label: '50%', value: halfOf(suggested.all) },
+          { label: t('today.quickRest'), value: suggested.all },
+        ]}
+      />
 
       <div className="flex flex-col gap-1.5">
         <span className="text-sm font-semibold text-ink">{t('common.method')}</span>

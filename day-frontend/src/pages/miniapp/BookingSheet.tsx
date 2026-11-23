@@ -48,6 +48,8 @@ import { errorText } from './errors'
 import { buildCheckInMessage } from './messages'
 import { ActionButton, Chip, Field, Sheet } from './miniapp-ui'
 import { stepAskKeys } from '../../lib/booking-status'
+import { halfOf, paymentSuggestions } from '../../lib/booking-money'
+import { useFirstNight } from '../../hooks/useFirstNight'
 import { useClosingConfirmation } from './useClosingConfirmation'
 
 /** The single legal step forward from each status.
@@ -157,6 +159,7 @@ export default function BookingSheet({
   // Minibar orders on the guest's tab: owed on top of the stay, paid on the order itself.
   const ordersDue = fresh.data?.booking.orders_due ?? booking?.orders_due ?? 0
   const received = payments.filter((payment) => payment.status === 'completed')
+  const suggested = paymentSuggestions(due, useFirstNight(booking))
 
   function refresh() {
     queryClient.invalidateQueries({ queryKey: ['miniapp'] })
@@ -531,23 +534,32 @@ export default function BookingSheet({
                   />
                 ))}
               </div>
-              <div className="grid grid-cols-[1fr_auto] items-end gap-2">
-                <Field
-                  label={t('miniapp.booking.payment')}
-                  value={amount}
-                  onChange={setAmount}
-                  type="number"
-                  inputMode="numeric"
-                  placeholder={String(due)}
-                />
-                <button
-                  type="button"
-                  disabled={moneyBusy}
-                  onClick={() => setAmount(String(due))}
-                  className="tg-root min-h-[44px] rounded-xl px-3 text-xs font-bold"
-                >
-                  {t('miniapp.booking.rest')}
-                </button>
+              <Field
+                label={t('miniapp.booking.payment')}
+                value={amount}
+                onChange={setAmount}
+                type="number"
+                inputMode="numeric"
+                placeholder={String(due)}
+              />
+              {/* Ready sums: the first night, half of what is left, all of it. */}
+              <div className="flex flex-wrap gap-1">
+                {[
+                  ...(suggested.firstNight !== null ? [{ label: t('miniapp.flat.firstNight'), value: suggested.firstNight }] : []),
+                  { label: '50%', value: halfOf(suggested.all) },
+                  { label: t('miniapp.booking.rest'), value: suggested.all },
+                ]
+                  .filter((option, i, all) => option.value > 0 && all.findIndex((o) => o.value === option.value) === i)
+                  .map((option) => (
+                    <Chip
+                      key={option.label}
+                      label={`${option.label} · ${money(option.value)}`}
+                      active={amountValue === option.value}
+                      onClick={() => {
+                        if (!moneyBusy) setAmount(String(option.value))
+                      }}
+                    />
+                  ))}
               </div>
               <ActionButton
                 tone="primary"

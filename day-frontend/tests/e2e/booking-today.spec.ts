@@ -231,6 +231,37 @@ test.describe('Booking Today View - E2E', () => {
     await expect(page).toHaveURL(/\/bookings\/today$/)
   })
 
+  test('a payment offers the first night, half and all that is left in one tap', async ({ page, request }) => {
+    const prop = await setupActiveProperty(request)
+    const checkIn = await browserDate(page)
+    const booking = await createBookingViaApi(request, prop.id, {
+      check_in: checkIn,
+      check_out: await browserDate(page, 3),
+      guest_name: 'Quick Sums Guest',
+    })
+    await transitionViaApi(request, booking.id, 'confirmed')
+    const total = Number(booking.total_price)
+    const night = await request.post(`${API_BASE}/bookings/calculate-price`, {
+      data: { property_id: prop.id, check_in: checkIn, check_out: await browserDate(page, 1), adults_count: 2, children_count: 0 },
+    })
+    expect(night.ok(), await night.text()).toBeTruthy()
+    const firstNight = Number((await night.json()).total)
+
+    await page.goto('/bookings/today')
+    await page.waitForLoadState('networkidle')
+    await page.getByRole('button', { name: /Guest owes/ }).filter({ hasText: 'Quick Sums Guest' }).click()
+    const sheet = page.getByRole('dialog')
+    const amount = sheet.getByRole('spinbutton', { name: 'Amount' })
+
+    await sheet.getByRole('button', { name: /^First night ·/ }).click()
+    await expect(amount).toHaveValue(String(firstNight))
+    await sheet.getByRole('button', { name: /^50% ·/ }).click()
+    await expect(amount).toHaveValue(String(total / 2))
+    await sheet.getByRole('button', { name: /^Balance ·/ }).click()
+    await expect(amount).toHaveValue(String(total))
+    await expect(sheet.getByRole('button', { name: /^Balance ·/ })).toHaveAttribute('aria-pressed', 'true')
+  })
+
   test('a cleaner is assigned only once the choice is confirmed', async ({ page, request }) => {
     const prop = await setupActiveProperty(request)
     const cleaner = await request.post(`${API_BASE}/users`, {

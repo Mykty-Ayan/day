@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next'
 import { useCreateDeposit, useDepositAction } from '../../hooks/useBookings'
 import { usePropertyPricing } from '../../hooks/useProperties'
 import { useCurrency } from '../../hooks/useCurrency'
+import { halfOf } from '../../lib/booking-money'
 import { depositStatusKeys } from '../../lib/booking-status'
 import { dateLocale } from '../../lib/date-locale'
 import { formatMoneyExact as formatMoney } from '../../pages/miniapp/format'
@@ -15,6 +16,7 @@ import Button from '../ui/Button'
 import ConfirmDialog from '../ui/ConfirmDialog'
 import NumberInput from '../ui/number-input'
 import { showToast } from '../ui/Toast'
+import QuickAmounts from './QuickAmounts'
 
 const QUICK_AMOUNTS = [5000, 10000, 20000]
 
@@ -266,6 +268,14 @@ function HoldForm({
         {t('bookings.deposits.amountToHold')}
         <NumberInput value={amount} onChange={setAmount} min={0} max={total} step={1000} ariaLabel={t('bookings.deposits.amountToHold')} />
       </label>
+      <QuickAmounts
+        value={held}
+        onPick={(next) => setAmount(String(next))}
+        options={[
+          { label: '50%', value: halfOf(total) },
+          { label: t('bookings.deposits.wholeDeposit'), value: total },
+        ]}
+      />
       <input
         type="text"
         value={reason}
