@@ -182,6 +182,44 @@ test('on a narrow phone the booking bar keeps the whole total clear of its butto
   const totalBox = (await total.boundingBox())!
   const askBox = (await page.getByRole('link', { name: /Спросить|Написать/ }).boundingBox())!
   expect(totalBox.x + totalBox.width).toBeLessThanOrEqual(askBox.x)
+  // The dates line must not push the button off the screen: the guest could not book.
+  const bookBox = (await page.getByRole('button', { name: 'Забронировать' }).boundingBox())!
+  expect(bookBox.x + bookBox.width).toBeLessThanOrEqual(360)
+  await guest.close()
+})
+
+test('on the narrowest phone a seven-digit total stays readable and the button stays on screen', async ({ browser, request }) => {
+  const slug = `bar-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`
+  const site = await request.put(`${API_BASE}/site`, {
+    data: { slug, title: 'Бар', about: null, logo_url: null, cover_url: null, accent_color: null, whatsapp: '+77010000000', instagram: null },
+  })
+  expect(site.ok(), await site.text()).toBeTruthy()
+  const { id } = await (await request.post(`${API_BASE}/properties`, { data: createTestProperty({ name: `Дорогая ${Date.now()}` }) })).json()
+  await request.post(`${API_BASE}/properties/${id}/status`, { data: { target_status: 'active' } })
+  await request.put(`${API_BASE}/properties/${id}/pricing`, {
+    data: { base_price: 50000, weekend_markup: 0, default_deposit: 0, extra_adult_price: 0, extra_child_price: 0, base_guests: 2 },
+  })
+  const code = (await (await request.get(`${API_BASE}/properties/${id}`)).json()).public_code as string
+
+  const guest = await browser.newContext({ locale: 'ru-RU', viewport: { width: 320, height: 640 }, baseURL: test.info().project.use.baseURL })
+  const page = await guest.newPage()
+  // Thirty nights, the most a page books: 1 500 000 ₸.
+  await page.goto(`/s/${code}?in=${day(1)}&out=${day(31)}`)
+  const total = page.getByTestId('bar-total')
+  await expect(total).toHaveText('1 500 000 ₸')
+  // The text itself, not its box: a box squeezed narrower than its text lets the text run under the buttons.
+  const text = await total.evaluate((el) => {
+    const range = document.createRange()
+    range.selectNodeContents(el)
+    const r = range.getBoundingClientRect()
+    return { left: r.left, right: r.right, top: r.top, bottom: r.bottom }
+  })
+  for (const control of [page.getByRole('link', { name: /Спросить|Написать/ }), page.getByRole('button', { name: 'Забронировать' })]) {
+    const box = (await control.boundingBox())!
+    const apart = text.right <= box.x || text.bottom <= box.y || box.y + box.height <= text.top
+    expect(apart, `the total overlaps ${await control.textContent()}`).toBeTruthy()
+    expect(box.x + box.width).toBeLessThanOrEqual(320)
+  }
   await guest.close()
 })
 
