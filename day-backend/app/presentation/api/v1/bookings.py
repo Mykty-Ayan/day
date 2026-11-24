@@ -1202,7 +1202,10 @@ async def upload_deposit_hold_photo(
     session: AsyncSession = Depends(get_session),
     company_id: uuid.UUID = Depends(get_company_id),
 ):
-    """A photo of what a hold is for (a broken glass), before the hold that links to it."""
+    """A photo of what a hold is for (a broken glass), before the hold that links to it.
+
+    Known limit: a photo whose line was dropped, or whose hold was refused, stays stored
+    (private, unread). A sweep of deposits/ against the holds' lines would clear them."""
     repos = _repos(session)
     booking = await repos["booking"].get_by_id(booking_id)
     deposit = await repos["deposit"].get_by_id(deposit_id)
@@ -1269,9 +1272,10 @@ async def deposit_action(
 ):
     # A line links only to this booking's own uploads: another company's stored file would
     # be signed and handed to this guest.
-    own = deposit_photo_prefix(booking_id)
+    # Exactly a name the upload gives (<uuid>.<ext>): no "../" walking out of the prefix.
+    own = re.compile(re.escape(deposit_photo_prefix(booking_id)) + r"[0-9a-f-]{36}\.(?:jpg|png|webp)")
     for line in body.deductions or []:
-        if any(not url.startswith(own) for url in line.photos):
+        if any(not own.fullmatch(url) for url in line.photos):
             raise HTTPException(status_code=400, detail="A deduction's photo is uploaded for this deposit")
     repos = _repos(session)
     svc = ManageDepositsService(repos["booking"], repos["deposit"])

@@ -271,7 +271,8 @@ function HoldForm({
   const [uploading, setUploading] = useState<number | null>(null)
   const [note, setNote] = useState('')
   const sum = (value: number) => `${formatMoney(value, i18n.language)} ${symbol}`
-  const held = lines.reduce((all, line) => all + toNumber(line.amount), 0)
+  // In tiyn: 1000.1 + 2000.2 is 3000.3, not 3000.3000000000002.
+  const held = lines.reduce((all, line) => all + Math.round(toNumber(line.amount) * 100), 0) / 100
   const valid = held > 0 && held <= total && lines.every((line) => line.reason.trim() && toNumber(line.amount) > 0)
   const change = (n: number, patch: Partial<Line>) => setLines((all) => all.map((line, i) => (i === n ? { ...line, ...patch } : line)))
 
@@ -303,7 +304,8 @@ function HoldForm({
     }))
     const own = note.trim() ? { reason: note.trim() } : {}
     action.mutate(
-      held === total ? { action: 'hold', deductions, ...own } : { action: 'partial_hold', held_amount: held, deductions, ...own },
+      // The server sums the lines itself: what is held is theirs, never a float of ours.
+      { action: held === total ? 'hold' : 'partial_hold', deductions, ...own },
       {
         onSuccess: onDone,
         onError: () => showToast('error', t('bookings.deposits.actionFailed')),
@@ -340,6 +342,8 @@ function HoldForm({
               {lines.length > 1 && (
                 <button
                   type="button"
+                  // A photo on its way lands on its line by number: no line goes while one is.
+                  disabled={uploading !== null}
                   onClick={() => setLines((all) => all.filter((_, i) => i !== n))}
                   aria-label={t('common.delete')}
                   className="shrink-0 rounded-lg p-2.5 text-ink-muted hover:bg-danger/10 hover:text-danger"

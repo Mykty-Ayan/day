@@ -33,7 +33,7 @@ async def test_the_owner_keeps_part_of_a_deposit_with_a_photo_and_reads_it_back(
     assert (await client.post(f"{base}/action", json={"action": "pay"})).status_code == 200
 
     async def fake_upload(**kwargs):
-        return s3.build_public_url(f"deposits/{kwargs['booking_id']}/glass.jpg")
+        return s3.build_public_url(f"deposits/{kwargs['booking_id']}/{uuid.uuid4()}.jpg")
 
     monkeypatch.setattr(bookings, "upload_deposit_photo", fake_upload)
     # Not a photo: refused before anything is stored.

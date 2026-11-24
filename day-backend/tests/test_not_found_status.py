@@ -142,11 +142,14 @@ async def test_a_deposit_action_the_deposit_cannot_take_is_still_400(call):
 async def test_a_hold_links_only_to_photos_uploaded_for_this_booking(call):
     repos = {"booking": _Repo(_Obj(company_id=COMPANY_ID)), "deposit": _Repo(_deposit())}
     # Another booking's stored photo: signed and handed to this guest, it would leak.
-    foreign = s3.build_public_url(f"deposits/{uuid.uuid4()}/glass.jpg")
-    line = {"amount": "3000", "reason": "Разбит бокал", "photos": [foreign]}
+    foreign = s3.build_public_url(f"deposits/{uuid.uuid4()}/{uuid.uuid4()}.jpg")
+    # Or one walking out of this booking's prefix to another file.
+    walking = s3.build_public_url(f"deposits/{BOOKING}/../../bookings/{uuid.uuid4()}/{uuid.uuid4()}.jpg")
+    for url in (foreign, walking):
+        line = {"amount": "3000", "reason": "Разбит бокал", "photos": [url]}
 
-    response = await call(repos, "POST", ACTION, {"action": "partial_hold", "deductions": [line]})
+        response = await call(repos, "POST", ACTION, {"action": "partial_hold", "deductions": [line]})
 
-    assert response.status_code == 400
-    assert "uploaded for this deposit" in response.json()["detail"]
+        assert response.status_code == 400
+        assert "uploaded for this deposit" in response.json()["detail"]
 
