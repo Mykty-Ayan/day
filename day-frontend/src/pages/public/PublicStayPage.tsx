@@ -155,8 +155,10 @@ function StayView({ stay, locale, today, until }: { stay: PublicStay; locale: st
                 {stay.complex_name}
               </span>
             )}
-            <div className="mt-3 flex items-end justify-between gap-2.5">
-              <h1 dir="auto" className="font-guest-display min-w-0 flex-1 text-[36px] font-bold leading-[1.02] tracking-[-0.035em]">{stay.name}</h1>
+            {/* The name keeps its longest word whole: where that word and the button do not
+                fit side by side, the button goes to the line below instead of over the word. */}
+            <div className="mt-3 flex flex-wrap items-end justify-between gap-2.5">
+              <h1 dir="auto" className="font-guest-display max-w-full flex-1 break-words text-[36px] font-bold leading-[1.02] tracking-[-0.035em]">{stay.name}</h1>
               {stay.photos.length > 1 && (
                 <button type="button" onClick={() => setGallery(true)} className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full bg-white px-3.5 text-sm font-semibold text-[#111114]">
                   <Images className="h-4 w-4" aria-hidden />

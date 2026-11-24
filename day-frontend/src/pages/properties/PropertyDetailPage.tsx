@@ -407,7 +407,22 @@ export default function PropertyDetailPage() {
       {/* What the guest page and the CRM still lack, each a step to where it is filled in. */}
       <ReadinessCard
         items={readiness(property, pricing)}
-        onOpen={(place) => (place === 'prices' || place === 'photos' ? setTab(place) : setEditing(place))}
+        onOpen={(place) => {
+          if (place !== 'prices' && place !== 'photos') return setEditing(place)
+          setTab(place)
+          // The tabs are below the card and often below the screen: bring them up, or the
+          // tap seems to do nothing. On a phone the app's bar stays on top: the tabs go below it.
+          requestAnimationFrame(() => {
+            const tabRow = document.getElementById(`tab-${place}`)
+            if (!tabRow) return
+            const bar = document.querySelector('[data-app-bar]')
+            const covered = bar ? Math.max(0, bar.getBoundingClientRect().bottom) : 0
+            window.scrollTo({
+              top: tabRow.getBoundingClientRect().top + window.scrollY - covered - 8,
+              behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
+            })
+          })
+        }}
       />
 
       {/* One part of the flat at a time, as a host's listing is kept on Airbnb. The grey line

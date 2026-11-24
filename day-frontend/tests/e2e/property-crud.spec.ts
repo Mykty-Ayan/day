@@ -219,6 +219,36 @@ test.describe('Property CRUD - E2E', () => {
     await expect(page.getByRole('dialog', { name: 'Amenities', exact: true })).toBeVisible()
   })
 
+  for (const screen of [
+    { name: 'a laptop', width: 1280, height: 500 },
+    { name: 'a phone, under the app bar', width: 390, height: 600 },
+  ]) {
+    test(`a missing photo or price brings its tab into view on ${screen.name}`, async ({ page, request }) => {
+      const prop = await (await request.post(`${API_BASE}/properties`, { data: createTestProperty() })).json()
+      propertyIdsToCleanup.push(prop.id)
+      await request.post(`${API_BASE}/properties/${prop.id}/status`, { data: { status: 'active' } })
+
+      await page.setViewportSize({ width: screen.width, height: screen.height })
+      // No smooth scroll: where the tab ends up, not where it passes by.
+      await page.emulateMedia({ reducedMotion: 'reduce' })
+      await page.goto(`/properties/${prop.id}?tab=prices`)
+      const ready = page.getByRole('region', { name: /^Property readiness/ })
+      const add = ready.getByRole('button', { name: /^\+ 3\+ photos/i })
+      const photosTab = page.getByRole('tab', { name: /^Photos/ })
+      // The button at the bottom of the screen, the tabs just below it: what the owner sees.
+      await add.evaluate((button) => button.scrollIntoView({ block: 'end' }))
+      await expect(photosTab).not.toBeInViewport()
+
+      await add.click()
+      await expect(photosTab).toHaveAttribute('aria-selected', 'true')
+      await expect(photosTab).toBeInViewport({ ratio: 1 })
+      // Not under the app's bar that stays on top of a phone's screen.
+      const bar = page.locator('header.sticky')
+      const covered = (await bar.count()) ? (await bar.boundingBox())!.y + (await bar.boundingBox())!.height : 0
+      expect((await photosTab.boundingBox())!.y).toBeGreaterThanOrEqual(covered)
+    })
+  }
+
   test('a guest kept past yesterday\'s checkout still lives in the flat', async ({ page, request }) => {
     const prop = await (await request.post(`${API_BASE}/properties`, { data: createTestProperty() })).json()
     propertyIdsToCleanup.push(prop.id)
