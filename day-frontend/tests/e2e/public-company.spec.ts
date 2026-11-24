@@ -109,6 +109,8 @@ test('a guest searches the site by dates and guests, and the flat opens with the
   await page.getByTestId('search-in').click()
   await page.locator(`[data-day="${day(3)}"] button`).click()
   await expect(page.getByText('Теперь день выезда')).toBeVisible()
+  // The picked day in the company's colour: the calendar opens outside the page's own styles.
+  await expect(page.locator(`[data-day="${day(3)}"] button`)).not.toHaveCSS('background-color', 'rgba(0, 0, 0, 0)')
   await page.keyboard.press('Escape')
   await expect(show).toBeEnabled()
   // Tapping the check-out picks only it: the check-in stays.

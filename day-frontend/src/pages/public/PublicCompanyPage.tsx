@@ -97,7 +97,7 @@ function CompanyView({ company, locale }: { company: PublicCompany; locale: stri
         {company.about && <p dir="auto" className="mt-3 whitespace-pre-line text-base leading-relaxed text-[#6B6B74]">{company.about}</p>}
       </div>
 
-      {company.flats.length > 0 && <SearchCard today={today} most={most} stay={stay} onSearch={setStay} />}
+      {company.flats.length > 0 && <SearchCard today={today} most={most} stay={stay} onSearch={setStay} palette={style} />}
 
       {company.rules.length > 0 && (
         <ul aria-label={t('guestCompany.rules')} className="flex flex-wrap gap-2 px-3 pb-2">
@@ -287,7 +287,20 @@ function FlatTile({ flat, locale, first, today, stay }: { flat: PublicCompanyFla
 
 // The search as the mockup: check-in and check-out in one calendar, the guests by a stepper,
 // then «Show free flats». The dates go to the server only on that tap.
-function SearchCard({ today, most, stay, onSearch }: { today: string; most: number; stay: Stay | null; onSearch: (stay: Stay) => void }) {
+function SearchCard({
+  today,
+  most,
+  stay,
+  onSearch,
+  palette,
+}: {
+  today: string
+  most: number
+  stay: Stay | null
+  onSearch: (stay: Stay) => void
+  /** The company's colours: the calendar opens outside the page and would not have them. */
+  palette: CSSProperties
+}) {
   const { t, i18n } = useTranslation()
   const [checkIn, setCheckIn] = useState(stay?.checkIn ?? '')
   const [checkOut, setCheckOut] = useState(stay?.checkOut ?? '')
@@ -358,6 +371,7 @@ function SearchCard({ today, most, stay, onSearch }: { today: string; most: numb
           align="center"
           sideOffset={8}
           onOpenAutoFocus={(e) => e.preventDefault()}
+          style={palette}
           className="w-auto rounded-[24px] border-[#EEEEF2] bg-white p-2 text-[#111114]"
         >
           <DayCalendar
