@@ -1,9 +1,10 @@
 import { useId, useState } from 'react'
+import { format as formatDate, parseISO } from 'date-fns'
 import { ArrowDownRight, ArrowUpRight } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import type { TimeSeriesPoint } from '../../types/analytics'
 import { dateLocale } from '../../lib/date-locale'
-import { changeOf, niceTop } from '../../pages/analytics/period'
+import { changeOf, niceTop, type PreviousPoint } from '../../pages/analytics/period'
 import { periodLabel } from './period-label'
 
 const TICKS = 6
@@ -18,9 +19,9 @@ function tickIndices(length: number): number[] {
 type Props = {
   title: string
   data: TimeSeriesPoint[]
-  /** The period just before, as long: drawn dashed under this one, day by day. */
-  previous?: TimeSeriesPoint[]
-  value: (point: TimeSeriesPoint) => number
+  /** The period just before, as long, laid out on this period's points (alignPrevious): dashed under it. */
+  previous?: (PreviousPoint | null)[]
+  value: (point: Pick<TimeSeriesPoint, 'revenue' | 'occupancy_rate'>) => number
   /** The value in full, for the tooltip. */
   format: (value: number) => string
   /** The value short, for the grid: «100 тыс. ₸». */
@@ -42,7 +43,18 @@ export default function TrendChart({ title, data, previous = [], value, format, 
   const [active, setActive] = useState<number | null>(null)
 
   const now = data.map((point) => Math.max(0, value(point) || 0))
-  const before = data.map((_, i) => (previous[i] ? Math.max(0, value(previous[i]) || 0) : null))
+  const before = data.map((_, i) => {
+    const was = previous[i]
+    return was ? Math.max(0, value(was) || 0) : null
+  })
+  // The days of the period before a point stands for: one day, or the first and the last.
+  const day = (iso: string) => formatDate(parseISO(iso), 'd MMM', { locale })
+  const previousLabel = (i: number) => {
+    const was = previous[i]
+    if (!hasPrevious || !was || before[i] === null) return null
+    const when = was.first === was.last ? day(was.first) : `${day(was.first)}–${day(was.last)}`
+    return `${when}: ${format(before[i]!)}`
+  }
   const hasPrevious = before.some((v) => v !== null && v > 0)
   const largest = Math.max(...now, ...before.map((v) => v ?? 0), 0)
   const top = cap ? Math.min(niceTop(largest), cap) : niceTop(largest)
@@ -124,6 +136,24 @@ export default function TrendChart({ title, data, previous = [], value, format, 
                 />
               </svg>
 
+              {/* One point draws no line: its marks stay on, this period's and the one before. */}
+              {data.length === 1 && shown === null && (
+                <>
+                  {hasPrevious && before[0] !== null && (
+                    <span
+                      className="pointer-events-none absolute h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-dashed border-ink-muted/60 bg-surface-card"
+                      style={{ left: '50%', top: `${y(before[0])}%` }}
+                      aria-hidden="true"
+                    />
+                  )}
+                  <span
+                    className="pointer-events-none absolute h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-accent ring-2 ring-surface-card"
+                    style={{ left: '50%', top: `${y(now[0])}%` }}
+                    data-testid="trend-single"
+                    aria-hidden="true"
+                  />
+                </>
+              )}
               {shown !== null && (
                 <>
                   <div className="pointer-events-none absolute inset-y-0 w-px bg-ink/20" style={{ left: `${x(shown)}%` }} aria-hidden="true" />
@@ -138,11 +168,7 @@ export default function TrendChart({ title, data, previous = [], value, format, 
                     change={before[shown] !== null ? changeOf(now[shown], before[shown]!) : null}
                     detail={detail?.(data[shown])}
                     when={periodLabel(data[shown], locale)}
-                    was={
-                      hasPrevious && previous[shown] && before[shown] !== null
-                        ? `${periodLabel(previous[shown], locale)}: ${format(before[shown]!)}`
-                        : null
-                    }
+                    was={previousLabel(shown)}
                   />
                 </>
               )}
@@ -157,7 +183,7 @@ export default function TrendChart({ title, data, previous = [], value, format, 
                   style={{ left: `${data.length === 1 ? 0 : x(i) - 50 / last}%`, width: `${data.length === 1 ? 100 : 100 / last}%` }}
                   aria-label={[
                     `${periodLabel(point, locale)}: ${format(now[i])}`,
-                    hasPrevious && previous[i] && before[i] !== null ? `${periodLabel(previous[i], locale)}: ${format(before[i]!)}` : null,
+                    previousLabel(i),
                   ]
                     .filter(Boolean)
                     .join(', ')}

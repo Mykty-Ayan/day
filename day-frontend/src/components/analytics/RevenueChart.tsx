@@ -1,10 +1,11 @@
 import { useTranslation } from 'react-i18next'
 import type { TimeSeriesPoint } from '../../types/analytics'
 import { useCurrency } from '../../hooks/useCurrency'
+import type { PreviousPoint } from '../../pages/analytics/period'
 import TrendChart from './TrendChart'
 
 /** The period's revenue day by day (or week, month), against the period before. */
-export default function RevenueChart({ data, previous }: { data: TimeSeriesPoint[]; previous?: TimeSeriesPoint[] }) {
+export default function RevenueChart({ data, previous }: { data: TimeSeriesPoint[]; previous?: (PreviousPoint | null)[] }) {
   const { t } = useTranslation()
   const { format: money, formatCompact } = useCurrency()
 

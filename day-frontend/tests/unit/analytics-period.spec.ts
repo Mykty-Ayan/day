@@ -4,7 +4,8 @@
  */
 
 import { expect, test } from '@playwright/test'
-import { changeOf, customRange, monthsWindow, niceTop, previousRange } from '../../src/pages/analytics/period'
+import { addDays, format, parseISO } from 'date-fns'
+import { alignPrevious, changeOf, customRange, monthsWindow, niceTop, previousRange } from '../../src/pages/analytics/period'
 import { pickStayDay } from '../../src/lib/booking-dates'
 
 test('the last picked day is in the report', () => {
@@ -61,4 +62,46 @@ test('the scale of a chart tops at a round sum just above the largest value', ()
   // A value on a round sum is its own top: the grid does not leave an empty band.
   expect(niceTop(50)).toBe(50)
   expect(niceTop(100)).toBe(100)
+})
+
+test('a month of this period is set against the same days of the period before, not by index', () => {
+  // March 2026 by month: one bar of 31 days. The period before is 29 January – 28 February:
+  // by month the API gives two bars (3 and 28 days); by day, 31 days that line up with March's.
+  const days = Array.from({ length: 31 }, (_, i) => ({
+    period_start: format(addDays(parseISO('2026-01-29'), i), 'yyyy-MM-dd'),
+    revenue: 100,
+    bookings_count: i === 0 ? 1 : 0,
+    booked_nights: 1,
+    occupancy_rate: i < 10 ? 100 : 0,
+  }))
+  const [march] = alignPrevious([{ period_start: '2026-03-01' }], '2026-03-01', '2026-04-01', '2026-01-29', days)
+  expect(march).toEqual({
+    first: '2026-01-29',
+    last: '2026-02-28',
+    revenue: 3100,
+    bookings_count: 1,
+    booked_nights: 31,
+    occupancy_rate: (10 * 100) / 31,
+  })
+})
+
+test('weeks that start mid-period take the days at the same distance from its start', () => {
+  const days = Array.from({ length: 10 }, (_, i) => ({
+    period_start: format(addDays(parseISO('2026-10-22'), i), 'yyyy-MM-dd'),
+    revenue: i + 1,
+    bookings_count: 0,
+    booked_nights: 0,
+    occupancy_rate: 0,
+  }))
+  // This period: 1–10 November, a bar of 2 days then one of 7 and one of 1.
+  const bars = [{ period_start: '2026-11-01' }, { period_start: '2026-11-03' }, { period_start: '2026-11-10' }]
+  const aligned = alignPrevious(bars, '2026-11-01', '2026-11-11', '2026-10-22', days)
+  expect(aligned.map((bar) => bar?.revenue)).toEqual([1 + 2, 3 + 4 + 5 + 6 + 7 + 8 + 9, 10])
+  expect(aligned.map((bar) => [bar?.first, bar?.last])).toEqual([
+    ['2026-10-22', '2026-10-23'],
+    ['2026-10-24', '2026-10-30'],
+    ['2026-10-31', '2026-10-31'],
+  ])
+  // A day the period before did not have: nothing to compare with.
+  expect(alignPrevious([{ period_start: '2026-11-01' }], '2026-11-01', '2026-11-02', '2026-10-31', [])).toEqual([null])
 })
