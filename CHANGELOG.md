@@ -6,7 +6,7 @@ The new interface: every cabinet screen, the guest pages after the approved mock
 
 **Database:** migrations 060 (flat order), 061 (company weekend nights), 062 (site headline). Take the dump first.
 
-**API changes for the CRM:** a property goes on sale only with `max_guests`, and a property on sale cannot clear it (400); «not found» answers 404 instead of 400 on property routes and deposit actions; `POST /cleaning` refuses another company's booking; a guest hold from a flat's page is up to 30 nights; `guest_code` comes back after a public booking; new `GET /public/stays/{code}/quote`; new `POST /properties/map-point` (a 2GIS link's point, nothing saved).
+**API changes for the CRM:** a property goes on sale only with `max_guests`, and a property on sale cannot clear it (400); «not found» answers 404 instead of 400 on property routes and deposit actions; `POST /cleaning` refuses another company's booking; a guest hold from a flat's page is up to 30 nights; `guest_code` comes back after a public booking; new `GET /public/stays/{code}/quote`; new `POST /properties/map-point` (a 2GIS link's point, nothing saved); `GET /analytics/metrics` adds `summary.by_source` and `summary.expenses_by_category` (existing fields unchanged); new `GET /analytics/payments` (payments by method, what guests owe, deposits on hand).
 
 ### Added
 - A side menu of seven sections with tabs, a Create button and search in the top bar (#270, #272)
@@ -29,6 +29,7 @@ The new interface: every cabinet screen, the guest pages after the approved mock
 - Maestro flows for the guest pages (#342); a check of every screen for stray scrolls, sideways pages and English (#348)
 - Ready sums under a booking's money: first night, 50% and the balance for a payment, half or all of a deposit to hold — on the web and in the Mini App (#361)
 - The map point fills in from a 2GIS link pasted in the object's address; the map link moved from the basics to the address (#364)
+- Money: each number shows its change since the period before, as long (#368); revenue by month with what is already booked ahead (#369); where the money went — revenue less the platforms' cut and each kind of expense — and revenue by source (#370); payments by method, what guests owe for their stays and the deposits on hand (#371)
 
 ### Changed
 - A property goes on sale only with its number of guests: an unknown size was offered to any party; the new booking form says for how many guests nothing is free (#363)
@@ -39,6 +40,7 @@ The new interface: every cabinet screen, the guest pages after the approved mock
 - The flat's page leads with the amenities guests look for and lists short house rules one by one (#349); the guest's page greets by the first name (#350); an offer says «free on your dates» (#351)
 - «Email» is «Почта» on Russian screens (#348)
 - The Mini App's costs tile says how much of it is the platforms' commission (#357)
+- A payment's 50% is half of the booking's whole price, offered only while less than what is owed; the first night's sum reads «Первые сутки» (#365)
 
 ### Fixed
 - A failed load or save says so instead of an empty screen or a silent close; prices and settings are never saved over values that did not load (#336, #337)
@@ -52,6 +54,8 @@ The new interface: every cabinet screen, the guest pages after the approved mock
 - The flat page's «Забронировать» stays on a narrow phone once dates are picked; a big total moves the buttons to a second line (#359)
 - The extend panel no longer flickers while it waits; the length is locked during a save (#360)
 - A booking's note is on its first screen, under the guest (#362)
+- «+ Prices» and «+ Photos» in an object's readiness bring their tab into view, below a phone's top bar (#366)
+- An empty minibar is not shown to the guest; a long flat name on a 320 px phone keeps clear of the photos button (#367)
 
 ## 0.9.1 — 2026-10-31
 
