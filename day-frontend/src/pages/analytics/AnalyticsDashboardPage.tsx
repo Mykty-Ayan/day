@@ -14,6 +14,7 @@ import RevenueChart from '../../components/analytics/RevenueChart'
 import OccupancyChart from '../../components/analytics/OccupancyChart'
 import MonthsChart from '../../components/analytics/MonthsChart'
 import { MoneyFlow, SourcesTable } from '../../components/analytics/MoneyFlow'
+import PaymentsCard from '../../components/analytics/PaymentsCard'
 import AnalyticsFilterBar from '../../components/analytics/AnalyticsFilters'
 import { showToast } from '../../components/ui/Toast'
 import Spinner from '../../components/ui/Spinner'
@@ -155,9 +156,10 @@ export default function AnalyticsDashboardPage() {
             <MonthsChart propertyIds={filters.property_ids} source={filters.source} />
 
             {metricsData && (
-              <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+              <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 xl:grid-cols-3">
                 <MoneyFlow summary={metricsData.summary} />
                 <SourcesTable summary={metricsData.summary} />
+                <PaymentsCard filters={{ ...filters, granularity: undefined }} />
               </div>
             )}
 

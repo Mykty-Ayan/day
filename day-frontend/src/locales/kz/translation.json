@@ -1292,6 +1292,15 @@
     "bySource": "Көздер бойынша кіріс",
     "source": "Көзі",
     "net": "Комиссиядан кейін",
+    "payments": {
+      "title": "Төлемдер",
+      "received": "Алынды",
+      "owed": "Қонақтардың тұру үшін қарызы",
+      "deposits": "Қазір қолдағы кепілдер",
+      "depositsCount_one": "{{count}} кепіл",
+      "depositsCount_other": "{{count}} кепіл",
+      "nothing": "Осы кезеңдегі брондар бойынша төлем жоқ"
+    },
     "sourceShare_one": "кірістің {{share}}% · {{count}} бронь",
     "sourceShare_other": "кірістің {{share}}% · {{count}} бронь"
   },

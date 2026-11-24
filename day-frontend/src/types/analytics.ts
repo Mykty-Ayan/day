@@ -68,3 +68,14 @@ export interface AnalyticsFilters {
   property_ids?: string[]
   source?: string
 }
+
+/** The money of the period's bookings: received by method, owed for the stays; the deposits held now. */
+export interface PaymentsSummary {
+  received: { method: string; amount: number }[]
+  owed: number
+  owing_bookings: number
+  deposits_on_hand: number
+  deposits_count: number
+  date_from: string
+  date_to: string
+}

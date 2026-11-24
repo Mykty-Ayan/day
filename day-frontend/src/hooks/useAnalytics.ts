@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import type { AnalyticsFilters } from '../types/analytics'
 import {
   getAnalyticsMetrics,
+  getAnalyticsPayments,
   getAnalyticsTimeSeries,
 } from '../api/analytics'
 
@@ -20,6 +21,14 @@ export function useAnalyticsTimeSeries(filters: AnalyticsFilters = {}, enabled =
   return useQuery({
     queryKey: [ANALYTICS_TIME_SERIES_KEY, filters],
     queryFn: () => getAnalyticsTimeSeries(filters),
+    enabled,
+  })
+}
+
+export function useAnalyticsPayments(filters: AnalyticsFilters = {}, enabled = true) {
+  return useQuery({
+    queryKey: ['analytics-payments', filters],
+    queryFn: () => getAnalyticsPayments(filters),
     enabled,
   })
 }

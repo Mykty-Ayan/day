@@ -1294,6 +1294,15 @@
     "bySource": "Revenue by source",
     "source": "Source",
     "net": "After commission",
+    "payments": {
+      "title": "Payments",
+      "received": "Received",
+      "owed": "Guests owe for their stays",
+      "deposits": "Deposits on hand now",
+      "depositsCount_one": "{{count}} deposit",
+      "depositsCount_other": "{{count}} deposits",
+      "nothing": "No payments for this period's bookings"
+    },
     "sourceShare_one": "{{share}}% of revenue · {{count}} booking",
     "sourceShare_other": "{{share}}% of revenue · {{count}} bookings"
   },

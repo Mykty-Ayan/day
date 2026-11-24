@@ -54,6 +54,9 @@ class FakeAnalytics(AnalyticsRepository):
     async def get_time_series(self, *args, **kwargs):
         return []
 
+    async def get_payments_summary(self, *args, **kwargs):
+        raise NotImplementedError("pricing reads no payments")
+
 
 def metrics(revpar="12000", nights="30"):
     return PropertyMetrics(

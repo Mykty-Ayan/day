@@ -134,3 +134,21 @@ class ExportResponse(BaseModel):
 
     filename: str
     content_type: str = "text/csv"
+
+
+class MethodTotalResponse(BaseModel):
+    method: str
+    amount: Decimal
+
+
+class PaymentsSummaryResponse(BaseModel):
+    """The money of the period's bookings: received by method, owed by the guests for
+    their stays; and the deposits held now, whatever the period."""
+
+    received: list[MethodTotalResponse]
+    owed: Decimal
+    owing_bookings: int
+    deposits_on_hand: Decimal
+    deposits_count: int
+    date_from: date
+    date_to: date

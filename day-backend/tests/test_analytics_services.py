@@ -79,6 +79,9 @@ class FakeAnalyticsRepository(AnalyticsRepository):
     ) -> list[TimeSeriesPoint]:
         return self._time_series
 
+    async def get_payments_summary(self, *args, **kwargs):
+        raise NotImplementedError("the services under test read no payments")
+
 
 COMPANY_ID = uuid.UUID("00000000-0000-0000-0000-000000000001")
 PROPERTY_ID = uuid.UUID("00000000-0000-0000-0000-0000000000aa")

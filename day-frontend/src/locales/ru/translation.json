@@ -1343,6 +1343,17 @@
     "bySource": "Доход по источникам",
     "source": "Источник",
     "net": "После комиссии",
+    "payments": {
+      "title": "Оплаты",
+      "received": "Получено",
+      "owed": "Гости должны за проживание",
+      "deposits": "Залоги на руках сейчас",
+      "depositsCount_one": "{{count}} залог",
+      "depositsCount_few": "{{count}} залога",
+      "depositsCount_many": "{{count}} залогов",
+      "depositsCount_other": "{{count}} залога",
+      "nothing": "Оплат по броням этого периода нет"
+    },
     "sourceShare_one": "{{share}}% дохода · {{count}} бронь",
     "sourceShare_few": "{{share}}% дохода · {{count}} брони",
     "sourceShare_many": "{{share}}% дохода · {{count}} броней",
