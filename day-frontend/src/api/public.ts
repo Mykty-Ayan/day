@@ -223,7 +223,13 @@ export interface GuestPanel {
     free_until?: string | null
   } | null
   /** The stay's deposit: the amount and what became of it, never the owner's reason. */
-  deposit?: { amount: number; status: 'pending' | 'paid' | 'returned' | 'held' | 'partially_held'; held: number } | null
+  deposit?: {
+    amount: number
+    status: 'pending' | 'paid' | 'returned' | 'held' | 'partially_held'
+    held: number
+    /** What was kept, line by line, with the photos of it (links that expire). */
+    deductions?: { amount: number; reason: string; photos: string[] }[]
+  } | null
   flat: {
     name: string
     /** The flat's own page: /s/<code>. */

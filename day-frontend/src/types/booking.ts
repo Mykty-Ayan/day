@@ -84,9 +84,18 @@ export interface BookingDeposit {
   amount: number
   status: DepositStatus
   held_amount: number
+  /** The owner's own note on a hold; the guest never reads it. */
   reason: string
+  /** What was kept, line by line, as the guest reads it; photos are links that expire. */
+  deductions?: DepositDeduction[]
   created_at: string
   updated_at: string
+}
+
+export interface DepositDeduction {
+  amount: number
+  reason: string
+  photos: string[]
 }
 
 export interface BookingFile {
@@ -282,6 +291,8 @@ export interface DepositActionInput {
   action: DepositAction
   held_amount?: number
   reason?: string
+  /** With a hold: the lines the guest reads; photos are the stored urls from uploadDepositPhoto. */
+  deductions?: DepositDeduction[]
 }
 
 export interface CommentInput {

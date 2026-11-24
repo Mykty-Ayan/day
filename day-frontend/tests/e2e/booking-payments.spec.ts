@@ -513,7 +513,8 @@ test.describe('Booking Payments - E2E', () => {
     await openBookingTab(page, booking.id, /deposit/i)
     await page.getByRole('button', { name: 'Hold', exact: true }).click()
 
-    const reason = page.getByLabel('Reason')
+    await page.getByLabel('What happened').fill('Towels')
+    const reason = page.getByLabel('A note for yourself (the guest does not see it)')
     await reason.fill('Damaged towels')
     await page.getByRole('button', { name: /^Hold 100/ }).click()
 

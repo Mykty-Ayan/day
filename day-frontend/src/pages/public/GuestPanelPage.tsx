@@ -334,6 +334,28 @@ function PanelView({ code, panel, locale, receivedAt }: { code: string; panel: G
                       held: money(panel.deposit.held, locale),
                     })}
                   </p>
+                  {/* What was kept, line by line as the host wrote it, with the photos of it. */}
+                  {!!panel.deposit.deductions?.length && (
+                    <ul className="mt-3.5 flex flex-col gap-3" data-testid="deposit-deductions">
+                      {panel.deposit.deductions.map((line, n) => (
+                        <li key={n} className="flex flex-col gap-2 border-t border-[#F0F0F3] pt-3 first:border-0 first:pt-0">
+                          <div className="flex items-baseline justify-between gap-3 text-[15px]">
+                            <span dir="auto" className="min-w-0 font-semibold">{line.reason}</span>
+                            <span className="shrink-0 font-semibold tabular-nums">{money(line.amount, locale)}</span>
+                          </div>
+                          {line.photos.length > 0 && (
+                            <div className="flex gap-2">
+                              {line.photos.map((url, k) => (
+                                <a key={url} href={url} target="_blank" rel="noopener noreferrer" className="block h-[76px] w-[76px] overflow-hidden rounded-[18px] bg-[#F3F3F6]">
+                                  <img src={url} alt={t('guestPanel.deposit.photoOf', { reason: line.reason, n: k + 1 })} loading="lazy" className="h-full w-full object-cover" />
+                                </a>
+                              ))}
+                            </div>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
                   {/* Paid and waiting for the stay's end: how it comes back, as the mockup. */}
                   {panel.deposit.status === 'paid' && (
                     <ol className="mt-3.5 flex flex-col gap-3">
