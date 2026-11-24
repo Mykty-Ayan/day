@@ -223,6 +223,34 @@ test('on the narrowest phone a seven-digit total stays readable and the button s
   await guest.close()
 })
 
+test('on the narrowest phone a long name stays clear of the photos button', async ({ browser, request }) => {
+  const { id } = await (await request.post(`${API_BASE}/properties`, { data: createTestProperty({ name: 'Panoramic Penthouse Apartments' }) })).json()
+  await request.post(`${API_BASE}/properties/${id}/status`, { data: { target_status: 'active' } })
+  const code = (await (await request.get(`${API_BASE}/properties/${id}`)).json()).public_code as string
+
+  const guest = await browser.newContext({ locale: 'ru-RU', viewport: { width: 320, height: 640 }, baseURL: test.info().project.use.baseURL })
+  const page = await guest.newPage()
+  // Two photos, so the page shows the button that opens them.
+  await page.route(new RegExp(`/api/v1/public/stays/${code}(\\?|$)`), async (route) => {
+    const stay = await (await route.fetch()).json()
+    await route.fulfill({ json: { ...stay, photos: ['/favicon.svg', '/favicon.svg'] } })
+  })
+  await page.goto(`/s/${code}`)
+  const name = page.getByRole('heading', { level: 1 })
+  await expect(name).toHaveText('Panoramic Penthouse Apartments')
+  // The text itself, not its box: a word wider than its box runs out of it, under the button.
+  const text = await name.evaluate((el) => {
+    const range = document.createRange()
+    range.selectNodeContents(el)
+    const r = range.getBoundingClientRect()
+    return { right: r.right, top: r.top, bottom: r.bottom }
+  })
+  const button = (await page.getByRole('button', { name: '2 фото' }).boundingBox())!
+  const apart = text.right <= button.x || text.bottom <= button.y || button.y + button.height <= text.top
+  expect(apart, 'the name runs under the photos button').toBeTruthy()
+  await guest.close()
+})
+
 test('more nights than a page books asks the guest to write to the host', async ({ browser, request }) => {
   const slug = `site-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`
   expect((await request.put(`${API_BASE}/site`, { data: { slug, title: 'Long stay' } })).ok()).toBeTruthy()
