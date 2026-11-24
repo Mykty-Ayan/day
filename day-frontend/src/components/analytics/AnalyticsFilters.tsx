@@ -141,6 +141,7 @@ export default function AnalyticsFilterBar({
           options={SOURCE_OPTIONS}
           picked={sources}
           onChange={onSourcesChange}
+          fullIsAll
           className="sm:w-52"
         />
 
@@ -169,6 +170,7 @@ function ChecksPopover({
   picked,
   onChange,
   className,
+  fullIsAll = false,
 }: {
   name: string
   all: string
@@ -179,11 +181,16 @@ function ChecksPopover({
   picked: string[]
   onChange: (values: string[]) => void
   className?: string
+  /** Every option ticked is «all»: for sources, where «all» also counts expenses and bookings
+   *  with no source. Not for objects: «all» there takes in the archived ones too. */
+  fullIsAll?: boolean
 }) {
   const chosen = options.filter((o) => picked.includes(o.value))
   const label = chosen.length === 0 ? all : chosen.length === 1 ? chosen[0].label : many(chosen.length)
-  const toggle = (value: string) =>
-    onChange(picked.includes(value) ? picked.filter((v) => v !== value) : [...picked, value])
+  const toggle = (value: string) => {
+    const next = picked.includes(value) ? picked.filter((v) => v !== value) : [...picked, value]
+    onChange(fullIsAll && next.length === options.length ? [] : next)
+  }
   const row = cn('flex w-full cursor-pointer items-center gap-2 rounded-lg px-2 py-2 text-sm text-ink', 'hover:bg-surface-page')
 
   return (

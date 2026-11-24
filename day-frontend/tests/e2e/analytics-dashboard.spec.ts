@@ -190,6 +190,16 @@ test.describe('Analytics Dashboard - Filters', () => {
     await page.getByRole('checkbox', { name: 'All Sources' }).click()
     await expect(filter).toHaveText('All Sources')
     await expect(page.getByRole('checkbox', { name: 'Airbnb' })).not.toBeChecked()
+
+    // Every source ticked one by one is «all»: expenses and bookings with no source count again.
+    // The first tick is «all», then each source.
+    const ticks = page.locator('[data-radix-popper-content-wrapper]').getByRole('checkbox')
+    const count = await ticks.count()
+    for (let n = 2; n < count; n++) await ticks.nth(n).click()
+    await expect(page.getByRole('checkbox', { name: 'All Sources' })).not.toBeChecked()
+    await ticks.nth(1).click()
+    await expect(page.getByRole('checkbox', { name: 'All Sources' })).toBeChecked()
+    await expect(filter).toHaveText('All Sources')
   })
 
   test('property filter dropdown is visible', async ({ page }) => {
