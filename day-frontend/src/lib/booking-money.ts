@@ -16,10 +16,17 @@ export function bookingMoney(status: BookingStatus, total: number, payments: Boo
   return { total: status === 'cancelled' ? 0 : total, paid, owes, toReturn }
 }
 
-/** The sums offered for a payment: all that is left, half of it, the first night
- *  of a stay by the night. Never the booking's full price: it may be paid already. */
-export function paymentSuggestions(owes: number, firstNight: number | null) {
-  return { all: owes, half: owes / 2, firstNight: firstNight !== null && firstNight < owes ? firstNight : null }
+/** The sums offered for a payment: all that is left, half of the booking's price, the
+ *  first night of a stay by the night. Half and the first night are of the whole price
+ *  (the owner's word, 24 Nov 2026), so each is offered only while less than what is left:
+ *  never more than the guest owes. */
+export function paymentSuggestions(owes: number, total: number, firstNight: number | null) {
+  const half = halfOf(total)
+  return {
+    all: owes,
+    half: half < owes ? half : null,
+    firstNight: firstNight !== null && firstNight < owes ? firstNight : null,
+  }
 }
 
 export type PriceLine = { kind: 'weekend' | 'season' | 'guests' | 'discount'; amount: number }
