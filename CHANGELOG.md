@@ -1,12 +1,14 @@
 # Changelog
 
-## 0.10.0 — 2026-11-23
+## 0.10.0 — 2026-11-25
 
 The new interface: every cabinet screen, the guest pages after the approved mockups, and a full check of the release.
 
-**Database:** migrations 060 (flat order), 061 (company weekend nights), 062 (site headline). Take the dump first.
+**Database:** migrations 060 (flat order), 061 (company weekend nights), 062 (site headline), 063 (check-in videos), 064 (places nearby), 065 (late check-out), 066 (deposit hold lines). Take the dump first.
 
-**API changes for the CRM:** a property goes on sale only with `max_guests`, and a property on sale cannot clear it (400); «not found» answers 404 instead of 400 on property routes and deposit actions; `POST /cleaning` refuses another company's booking; a guest hold from a flat's page is up to 30 nights; `guest_code` comes back after a public booking; new `GET /public/stays/{code}/quote`; new `POST /properties/map-point` (a 2GIS link's point, nothing saved); `GET /analytics/metrics` adds `summary.by_source` and `summary.expenses_by_category` (existing fields unchanged); new `GET /analytics/payments` (payments by method, what guests owe, deposits on hand).
+**Changes the numbers:** revenue, ADR, RevPAR, commission and profit count a stay night by night inside the period, not by its payments; an hourly stay by its hours. Payments are in «Оплаты» (#373).
+
+**API changes for the CRM:** a property goes on sale only with `max_guests`, and a property on sale cannot clear it (400); «not found» answers 404 instead of 400 on property routes and deposit actions; `POST /cleaning` refuses another company's booking; a guest hold from a flat's page is up to 30 nights; a public booking returns no `guest_code`, for any number: the host sends the guest the link from the booking card (#375); new `GET /public/stays/{code}/quote`; new `POST /properties/map-point` (a 2GIS link's point, nothing saved); `GET /analytics/metrics` adds `summary.by_source` and `summary.expenses_by_category` (existing fields unchanged); new `GET /analytics/payments` (payments by method, what guests owe, deposits on hand); `source` in the analytics routes repeats for several sources (#384); a property's photos carry `kind` (photo or video) and `section` (path, door, howto) (#376); a property has `nearby` (#378), `late_check_out_hour` and `late_check_out_price` (#379); new `POST /properties/{id}/nearby/copy` (#383); a deposit hold takes `deductions` lines, and `POST /bookings/{id}/deposits/{deposit_id}/photos` uploads their photos; a hold without lines works as before (#380).
 
 ### Added
 - A side menu of seven sections with tabs, a Create button and search in the top bar (#270, #272)
@@ -22,7 +24,7 @@ The new interface: every cabinet screen, the guest pages after the approved mock
 - Guest pages after the approved mockups: the flat's page with a week strip and quick picks, the guest's booking page by stage (check-in, in the flat, departure), the personal offer and the company site (#320, #323–#326)
 - The guest's booking page: the way to the door with photos, entrance and flat number once paid, a taxi to the door, the deposit and its return, «free until» for extending (#327, #328)
 - The company site: search by dates and guests, «free tonight / from …», photo count, a headline (#329, #331, #332)
-- After booking from a public page the guest gets the link to their booking page (#333)
+- After booking from a public page the guest is told the host will send the link to their booking page (#333, #375)
 - The owner sees until when a hold from the site is held (#343)
 - A guest sees the price the booking will be made at, extra guests and discounts included (#345)
 - Today shows the Telegram notices the bot gave up on (a double sale, a guest's booking), with «Send again» (#355)
@@ -30,6 +32,11 @@ The new interface: every cabinet screen, the guest pages after the approved mock
 - Ready sums under a booking's money: first night, 50% and the balance for a payment, half or all of a deposit to hold — on the web and in the Mini App (#361)
 - The map point fills in from a 2GIS link pasted in the object's address; the map link moved from the basics to the address (#364)
 - Money: each number shows its change since the period before, as long (#368); revenue by month with what is already booked ahead (#369); where the money went — revenue less the platforms' cut and each kind of expense — and revenue by source (#370); payments by method, what guests owe for their stays and the deposits on hand (#371)
+- Money: revenue and occupancy as lines against the period before (#372); the cards read at a glance, the period's charts under them (#374); several sources at once, ticked like the objects (#384)
+- Check-in videos: the way, the door and how the lock works, on the object's card and the guest's page (#376, #377)
+- «Рядом»: shops, a park, the airport and how far, on the flat's page and the guest's page (#378); copied to other objects in place of their lists (#383)
+- A late check-out an object sells until a set hour, for a price or free, offered while the day is free (#379)
+- A deposit's hold line by line — what happened, the sum, up to three photos — and the guest sees each line (#380)
 
 ### Changed
 - A property goes on sale only with its number of guests: an unknown size was offered to any party; the new booking form says for how many guests nothing is free (#363)
@@ -56,6 +63,10 @@ The new interface: every cabinet screen, the guest pages after the approved mock
 - A booking's note is on its first screen, under the guest (#362)
 - «+ Prices» and «+ Photos» in an object's readiness bring their tab into view, below a phone's top bar (#366)
 - An empty minibar is not shown to the guest; a long flat name on a 320 px phone keeps clear of the photos button (#367)
+- A stay earns its revenue night by night, an hourly stay by its hours (#373)
+- Guest pages no longer tell which numbers a company knows; a personal link opens only for its own number, foreign numbers included (#375)
+- The picked nights read as one band in the week strip; «На неделю» opens the months (#381)
+- The company site picks its dates in one calendar in the company's colours, not the browser's date field (#382)
 
 ## 0.9.1 — 2026-10-31
 
