@@ -320,6 +320,16 @@ test('outside the stay there is no minibar', async ({ page }) => {
   await expect(page.getByRole('region', { name: 'Мини-бар' })).toHaveCount(0)
 })
 
+test('an empty minibar is not shown; with the guest\'s orders it stays', async ({ page }) => {
+  await openStay(page, answer({ menu: [] }))
+  await expect(page.getByRole('tab', { name: 'В квартире' })).toHaveAttribute('aria-selected', 'true')
+  await expect(page.getByRole('region', { name: 'Мини-бар' })).toHaveCount(0)
+
+  const orders = [{ number: 3, status: 'delivered', billing: 'invoice', payment_status: 'paid', invoiced: true, total: 600, lines: ['Арахис'] }]
+  await openStay(page, answer({ menu: [], orders }))
+  await expect(page.getByRole('region', { name: 'Мини-бар' }).getByTestId('guest-order')).toHaveCount(1)
+})
+
 test('before the stay the page opens on getting in: the days to wait and when the door code comes', async ({ page }) => {
   const now = today()
   await open(page, answer({}, { check_in: `${addDays(now, 3)}T14:00:00`, check_out: `${addDays(now, 5)}T12:00:00` }))
