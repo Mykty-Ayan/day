@@ -1,11 +1,13 @@
 import { useState } from 'react'
+import { addDays, format, parseISO } from 'date-fns'
 import { motion } from 'framer-motion'
 import { useTranslation } from 'react-i18next'
 import { useAnalyticsMetrics, useAnalyticsTimeSeries } from '../../hooks/useAnalytics'
 import { useProperties } from '../../hooks/useProperties'
 import { exportAnalyticsCsv } from '../../api/analytics'
 import type { PeriodPreset, Granularity } from '../../types/analytics'
-import { customRange } from './period'
+import { customRange, previousRange } from './period'
+import { useDates } from '../../hooks/useDates'
 import SummaryCards from '../../components/analytics/SummaryCards'
 import MetricsTable from '../../components/analytics/MetricsTable'
 import RevenueChart from '../../components/analytics/RevenueChart'
@@ -46,6 +48,10 @@ export default function AnalyticsDashboardPage() {
     isError: timeSeriesError,
     refetch: refetchTimeSeries,
   } = useAnalyticsTimeSeries(filters, !waiting)
+  // The same numbers for the period just before, as long: how each one changed.
+  const before = metricsData ? previousRange(metricsData.date_from, metricsData.date_to) : null
+  const { data: previousData } = useAnalyticsMetrics({ ...filters, period: undefined, ...before }, !waiting && before !== null)
+  const { range: dayRange } = useDates()
   const { data: propertiesData } = useProperties({ per_page: 100, status: 'active' })
   const properties = propertiesData?.items ?? []
 
@@ -133,7 +139,16 @@ export default function AnalyticsDashboardPage() {
         ) : (
           <div className="flex flex-col gap-6">
             {/* Summary Cards */}
-            {metricsData && <SummaryCards summary={metricsData.summary} />}
+            {metricsData && (
+              <div className="flex flex-col gap-2">
+                <SummaryCards summary={metricsData.summary} previous={previousData?.summary} />
+                {before && previousData && (
+                  <p className="text-xs text-ink-muted">
+                    {t('analytics.comparedWith', { range: dayRange(before.date_from, format(addDays(parseISO(before.date_to), -1), 'yyyy-MM-dd')) })}
+                  </p>
+                )}
+              </div>
+            )}
 
             {/* Charts */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

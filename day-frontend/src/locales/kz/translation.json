@@ -1276,7 +1276,9 @@
     "revenueOverTime": "Кезең бойынша кіріс",
     "occupancyOverTime": "Кезең бойынша толымдылық",
     "propertiesCount": "{{count}} нысан",
-    "nightsTaken": "Бос емес түндер: {{nights}}"
+    "nightsTaken": "Бос емес түндер: {{nights}}",
+    "comparedWith": "{{range}} кезеңімен салыстыру",
+    "wasBefore": "бұрын {{value}}"
   },
   "cleaner": {
     "todaysTasks": "Бүгінгі тазалаулар",

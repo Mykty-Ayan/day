@@ -1278,7 +1278,9 @@
     "revenueOverTime": "Revenue Over Time",
     "occupancyOverTime": "Occupancy Over Time",
     "propertiesCount": "{{count}} properties",
-    "nightsTaken": "Nights taken: {{nights}}"
+    "nightsTaken": "Nights taken: {{nights}}",
+    "comparedWith": "Compared with {{range}}",
+    "wasBefore": "was {{value}}"
   },
   "cleaner": {
     "todaysTasks": "Today's cleanings",
