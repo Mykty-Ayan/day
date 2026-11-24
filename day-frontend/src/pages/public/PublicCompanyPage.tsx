@@ -1,4 +1,4 @@
-import { useRef, useState, type CSSProperties } from 'react'
+import { useState, type CSSProperties } from 'react'
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { addDays, differenceInCalendarDays, format, parseISO } from 'date-fns'
@@ -6,6 +6,9 @@ import { Calendar, CircleCheck, Images, Instagram, LayoutGrid, MessageCircle, Mi
 import { getPublicCompany, type PublicCompany, type PublicCompanyFlat } from '../../api/public'
 import { dateRange, money, onAccent, retryNetwork } from '../../lib/public-stay'
 import { GuestFrame, LoadFailed } from './GuestFrame'
+import { Calendar as DayCalendar } from '../../components/ui/calendar'
+import { Popover, PopoverAnchor, PopoverContent } from '../../components/ui/popover'
+import { dateLocale } from '../../lib/date-locale'
 
 // The mockup's blue when the company has no color of its own.
 const DEFAULT_ACCENT = '#2F5BFF'
@@ -282,40 +285,44 @@ function FlatTile({ flat, locale, first, today, stay }: { flat: PublicCompanyFla
   )
 }
 
-// The search as the mockup: check-in and check-out by the phone's own date picker, the guests by
-// a stepper, then «Show free flats». The dates go to the server only on that tap.
+// The search as the mockup: check-in and check-out in one calendar, the guests by a stepper,
+// then «Show free flats». The dates go to the server only on that tap.
 function SearchCard({ today, most, stay, onSearch }: { today: string; most: number; stay: Stay | null; onSearch: (stay: Stay) => void }) {
   const { t, i18n } = useTranslation()
   const [checkIn, setCheckIn] = useState(stay?.checkIn ?? '')
   const [checkOut, setCheckOut] = useState(stay?.checkOut ?? '')
   const [guests, setGuests] = useState(stay?.guests ?? Math.min(2, most))
-  const inRef = useRef<HTMLInputElement>(null)
-  const outRef = useRef<HTMLInputElement>(null)
+  // Which end the next tap on a day sets; null while the calendar is closed.
+  const [picking, setPicking] = useState<'in' | 'out' | null>(null)
   const day = new Intl.DateTimeFormat(i18n.language, { weekday: 'short', day: 'numeric', month: 'short' })
   const iso = (d: Date) => format(d, 'yyyy-MM-dd')
   const horizon = iso(addDays(parseISO(today), MAX_SEARCH_AHEAD_DAYS))
   const lastIn = iso(addDays(parseISO(horizon), -1))
-  const firstOut = checkIn ? iso(addDays(parseISO(checkIn), 1)) : iso(addDays(parseISO(today), 1))
-  const lastOut = checkIn ? [iso(addDays(parseISO(checkIn), MAX_SEARCH_NIGHTS)), horizon].sort()[0] : horizon
-  const ready = Boolean(checkIn && checkOut && checkIn >= today && checkIn <= lastIn && checkOut > checkIn && checkOut <= lastOut)
+  const lastOut = (from: string) => [iso(addDays(parseISO(from), MAX_SEARCH_NIGHTS)), horizon].sort()[0]
+  const ready = Boolean(checkIn && checkOut && checkIn >= today && checkIn <= lastIn && checkOut > checkIn && checkOut <= lastOut(checkIn))
 
-  function pickIn(value: string) {
-    setCheckIn(value)
-    // A check-out no longer after the check-in, or too far from it, moves to the next day.
-    if (value && (!checkOut || checkOut <= value || checkOut > iso(addDays(parseISO(value), MAX_SEARCH_NIGHTS)) || checkOut > horizon)) {
-      setCheckOut(iso(addDays(parseISO(value), 1)))
+  function pick(date: Date) {
+    const value = iso(date)
+    if (picking === 'out' && checkIn && value > checkIn && value <= lastOut(checkIn)) {
+      setCheckOut(value)
+      setPicking(null)
+    } else if (value <= lastIn) {
+      setCheckIn(value)
+      setCheckOut('')
+      setPicking('out')
     }
   }
-  // The whole field opens the picker, not only its small icon.
-  const open = (input: HTMLInputElement | null) => {
-    try {
-      input?.showPicker()
-    } catch {
-      input?.focus()
-    }
+  function openAt(end: 'in' | 'out') {
+    setPicking(end === 'out' && checkIn ? 'out' : 'in')
+  }
+  // Closed with the check-in alone: the stay is one night, as the old picker did.
+  function close() {
+    if (checkIn && !checkOut) setCheckOut(iso(addDays(parseISO(checkIn), 1)))
+    setPicking(null)
   }
 
   const field = 'relative flex flex-col gap-0.5 rounded-[20px] bg-[#F3F3F6] px-3.5 py-3 text-start'
+  const accent = '[&>button]:bg-[var(--accent)] [&>button]:text-[var(--on-accent)] [&>button]:hover:bg-[var(--accent)]'
   return (
     <form
       onSubmit={(e) => {
@@ -324,26 +331,69 @@ function SearchCard({ today, most, stay, onSearch }: { today: string; most: numb
       }}
       className="mx-2 mt-4 grid grid-cols-2 gap-2 rounded-[28px] bg-white p-2"
     >
-      {(
-        [
-          [inRef, t('guest.checkIn'), checkIn, pickIn, today, lastIn],
-          [outRef, t('guest.checkOut'), checkOut, setCheckOut, firstOut, lastOut],
-        ] as const
-      ).map(([ref, label, value, set, min, max]) => (
-        <label key={label} className={field} onClick={() => open(ref.current)}>
-          <span className="text-xs font-semibold text-[#6B6B74]">{label}</span>
-          <b className="text-base">{value ? day.format(parseISO(value)) : t('guestCompany.pick')}</b>
-          <input
-            ref={ref}
-            type="date"
-            value={value}
-            min={min}
-            max={max}
-            onChange={(e) => set(e.target.value)}
-            className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+      <Popover open={picking !== null} onOpenChange={(open) => !open && close()}>
+        <PopoverAnchor asChild>
+          <div className="col-span-2 grid grid-cols-2 gap-2">
+            {(
+              [
+                ['in', t('guest.checkIn'), checkIn],
+                ['out', t('guest.checkOut'), checkOut],
+              ] as const
+            ).map(([end, label, value]) => (
+              <button
+                key={end}
+                type="button"
+                data-testid={`search-${end}`}
+                aria-expanded={picking !== null}
+                onClick={() => openAt(end)}
+                className={`${field} ${picking === end ? 'ring-2 ring-[var(--accent)]' : ''}`}
+              >
+                <span className="text-xs font-semibold text-[#6B6B74]">{label}</span>
+                <b className="text-base">{value ? day.format(parseISO(value)) : t('guestCompany.pick')}</b>
+              </button>
+            ))}
+          </div>
+        </PopoverAnchor>
+        <PopoverContent
+          align="center"
+          sideOffset={8}
+          onOpenAutoFocus={(e) => e.preventDefault()}
+          className="w-auto rounded-[24px] border-[#EEEEF2] bg-white p-2 text-[#111114]"
+        >
+          <DayCalendar
+            mode="range"
+            locale={dateLocale(i18n.language)}
+            dir={document.documentElement.dir === 'rtl' ? 'rtl' : 'ltr'}
+            selected={checkIn ? { from: parseISO(checkIn), to: checkOut ? parseISO(checkOut) : undefined } : undefined}
+            onDayClick={pick}
+            defaultMonth={parseISO(checkIn || today)}
+            startMonth={parseISO(today)}
+            endMonth={parseISO(horizon)}
+            showOutsideDays={false}
+            disabled={[
+              { before: parseISO(today) },
+              { after: parseISO(picking === 'out' && checkIn ? lastOut(checkIn) : lastIn) },
+            ]}
+            classNames={{
+              // Ends styled as range ends only once both are picked: the check-in alone is one day.
+              selected: checkOut ? '' : accent,
+              range_start: accent,
+              range_end: accent,
+              range_middle:
+                'bg-[color-mix(in_srgb,var(--accent)_16%,white)] [&>button]:rounded-none [&>button]:text-[var(--accent)] [&>button]:hover:bg-transparent',
+              today: '[&>button]:font-bold [&>button]:text-[var(--accent)]',
+              disabled: '[&>button]:cursor-not-allowed [&>button]:text-[#C7C7CC] [&>button]:hover:bg-transparent',
+              day_button:
+                'flex h-11 w-full min-w-10 items-center justify-center rounded-full text-[15px] font-medium transition-colors hover:bg-[#F3F3F6] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]',
+              caption_label: 'text-[15px] font-bold capitalize',
+              weekday: 'h-8 text-center text-xs font-semibold text-[#6B6B74]',
+            }}
           />
-        </label>
-      ))}
+          <p aria-live="polite" className="px-2 pb-1 text-center text-sm font-semibold text-[#6B6B74]">
+            {picking === 'out' ? t('guest.pickCheckOut') : t('guest.pickCheckIn')}
+          </p>
+        </PopoverContent>
+      </Popover>
       <div className={`${field} col-span-2 flex-row items-center justify-between`}>
         <div className="flex flex-col gap-0.5">
           <span className="text-xs font-semibold text-[#6B6B74]">{t('guestCompany.guests')}</span>
