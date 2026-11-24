@@ -132,16 +132,25 @@ async def test_the_list_goes_to_the_chosen_flats_in_place_of_theirs():
 
 async def test_a_flat_of_another_company_is_refused():
     svc, props, _, source, other, _ = await _three_flats()
-    foreign = _make_property(company_id=uuid.uuid4(), internal_name="f")
+    foreign = _make_property(company_id=uuid.uuid4(), internal_name="f", nearby=[dict(PLACES[0])])
     await props.save(foreign)
     with pytest.raises(ValueError, match="not found"):
         await svc.copy_nearby(source.id, [foreign.id], COMPANY_ID, None)
-    assert foreign.nearby == []
+    assert foreign.nearby == [PLACES[0]]
     # Nor is the list of another company's flat copied in.
     with pytest.raises(ValueError, match="not found"):
         await svc.copy_nearby(foreign.id, [other.id], foreign.company_id, None)
     with pytest.raises(ValueError, match="not found"):
         await svc.copy_nearby(source.id, [other.id], uuid.uuid4(), None)
+
+
+async def test_an_empty_list_is_not_copied_over_theirs():
+    svc, props, _, source, other, _ = await _three_flats()
+    source.nearby = []
+    await props.save(source)
+    with pytest.raises(ValueError, match="Nothing to copy"):
+        await svc.copy_nearby(source.id, [other.id], COMPANY_ID, None)
+    assert (await props.get_by_id(other.id)).nearby[0]["name"] == "Старое"
 
 
 async def test_an_archived_flat_takes_no_list():

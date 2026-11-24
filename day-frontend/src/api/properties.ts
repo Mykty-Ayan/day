@@ -171,13 +171,13 @@ export async function createOrUpdatePricing(
   }
 }
 
-/** Copies this flat's saved tariffs and late hours to the company's other priced flats. */
 /** This flat's list «Рядом» to the chosen flats, in place of theirs: all of them or none. */
 export async function copyNearby(propertyId: string, propertyIds: string[]): Promise<number> {
   const res = await apiClient.post(`/properties/${propertyId}/nearby/copy`, { property_ids: propertyIds })
   return (res.data as { updated: number }).updated
 }
 
+/** Copies this flat's saved tariffs and late hours to the company's other priced flats. */
 export async function copyTariffsToAll(propertyId: string): Promise<number> {
   const res = await apiClient.post(`/properties/${propertyId}/pricing/tariffs/copy-to-all`)
   return (res.data as { updated: number }).updated

@@ -190,6 +190,9 @@ class UpdatePropertyService:
         source = await self._property_repo.get_by_id(source_id)
         if source is None or source.company_id != company_id:
             raise ValueError("Property not found")
+        # An empty list would wipe theirs: that is an edit of each flat, not a copy.
+        if not source.nearby:
+            raise ValueError("Nothing to copy: the list «Рядом» is empty")
         changed = 0
         for target_id in dict.fromkeys(target_ids):
             if target_id == source_id:
