@@ -1280,7 +1280,10 @@
     "propertiesCount": "{{count}} properties",
     "nightsTaken": "Nights taken: {{nights}}",
     "comparedWith": "Compared with {{range}}",
-    "wasBefore": "was {{value}}"
+    "wasBefore": "was {{value}}",
+    "byMonth": "Revenue by month",
+    "monthsDone": "This and past months",
+    "monthsBooked": "Booked ahead"
   },
   "cleaner": {
     "todaysTasks": "Today's cleanings",

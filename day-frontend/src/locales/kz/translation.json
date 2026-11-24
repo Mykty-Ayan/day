@@ -1278,7 +1278,10 @@
     "propertiesCount": "{{count}} нысан",
     "nightsTaken": "Бос емес түндер: {{nights}}",
     "comparedWith": "{{range}} кезеңімен салыстыру",
-    "wasBefore": "бұрын {{value}}"
+    "wasBefore": "бұрын {{value}}",
+    "byMonth": "Айлар бойынша табыс",
+    "monthsDone": "Осы және өткен айлар",
+    "monthsBooked": "Алдағы брондар"
   },
   "cleaner": {
     "todaysTasks": "Бүгінгі тазалаулар",

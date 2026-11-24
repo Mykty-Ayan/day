@@ -1329,7 +1329,10 @@
     "propertiesCount_other": "{{count}} объекта",
     "nightsTaken": "Занято ночей: {{nights}}",
     "comparedWith": "Сравнение с {{range}}",
-    "wasBefore": "было {{value}}"
+    "wasBefore": "было {{value}}",
+    "byMonth": "Доход по месяцам",
+    "monthsDone": "Этот и прошлые месяцы",
+    "monthsBooked": "Забронировано вперёд"
   },
   "cleaner": {
     "todaysTasks": "Уборки на сегодня",

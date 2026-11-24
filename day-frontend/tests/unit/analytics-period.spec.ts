@@ -4,7 +4,7 @@
  */
 
 import { expect, test } from '@playwright/test'
-import { changeOf, customRange, previousRange } from '../../src/pages/analytics/period'
+import { changeOf, customRange, monthsWindow, previousRange } from '../../src/pages/analytics/period'
 import { pickStayDay } from '../../src/lib/booking-dates'
 
 test('the last picked day is in the report', () => {
@@ -42,4 +42,10 @@ test('a change is in percent of what was; from nothing there is none', () => {
   expect(changeOf(100, 0)).toBeNull()
   // A loss of 100 turned into a profit of 50: up, not down.
   expect(changeOf(50, -100)).toBeCloseTo(150)
+})
+
+test('revenue by month: five months before this one, this one, three ahead', () => {
+  expect(monthsWindow('2026-11-24')).toEqual({ date_from: '2026-06-01', date_to: '2027-03-01', current: '2026-11-01' })
+  // Across the new year, on the first day of a month.
+  expect(monthsWindow('2027-01-01')).toEqual({ date_from: '2026-08-01', date_to: '2027-05-01', current: '2027-01-01' })
 })
