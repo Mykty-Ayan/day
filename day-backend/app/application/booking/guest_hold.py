@@ -143,10 +143,10 @@ class GuestHoldService:
             # The guest found by phone keeps its own name: who booked is told here.
             notes += f". С формы: {name or offer.guest_name}, {phone or offer.guest_phone}"
         name, phone = name or offer.guest_name, phone or offer.guest_phone
-        # The link's own number is the guest the company sent it to; another number given on
-        # the form is anyone's until the company knows nobody by it.
-        own_number = bool(offer.guest_phone) and _same_number(phone, offer.guest_phone)
-        page_for_booker = own_number or not await self._guests.list_by_phone(offer.company_id, phone)
+        # The link's own number is the guest the company sent it to: the page is theirs. Another
+        # number given on the form gets no page, known or not: given to a new number only, it
+        # would tell whoever holds the link which numbers the company knows.
+        page_for_booker = bool(offer.guest_phone) and _same_number(phone, offer.guest_phone)
         booking = await self._create.execute(
             CreateBookingInput(
                 company_id=offer.company_id,

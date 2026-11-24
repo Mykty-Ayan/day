@@ -170,7 +170,14 @@ async def test_a_foreign_number_on_the_form_is_not_the_links_own_foreign_number(
     held = await h.service.book(offer.code, flat=studio.public_code, guests=1, name="Кто-то", phone="+491701234567")
     assert held.page_for_booker is False
 
+    # A number nobody knows gets no page either: the answer tells nothing of who is known.
+    held.booking.status = BookingStatus.CANCELLED
+    await h.bookings.update(held.booking)
+    unknown = await h.service.book(offer.code, flat=studio.public_code, guests=1, phone="+33612345678")
+    assert unknown.page_for_booker is False
+
     # The link's own number, typed another way, is still the link's guest.
+    held = unknown
     held.booking.status = BookingStatus.CANCELLED
     await h.bookings.update(held.booking)
     again = await h.service.book(offer.code, flat=studio.public_code, guests=1, phone="+447700900123")
