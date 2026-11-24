@@ -497,6 +497,64 @@ async def test_a_stay_earns_its_price_night_by_night():
 
 @pytestmark_integration
 @pytest.mark.asyncio
+async def test_an_hourly_stay_across_midnight_is_split_by_its_hours():
+    """22:00 to 02:00 for 400: two hours in each day, 200 in each, in the cards and the chart."""
+    company_id = uuid.uuid4()
+    async with _fresh_session() as session:
+        guest = _guest(company_id)
+        prop = _property(company_id, f"late-{uuid.uuid4().hex[:8]}", "hourly")
+        late = _booking(
+            company_id, prop.id, guest.id, datetime(2025, 6, 30, 22), datetime(2025, 7, 1, 2), "400", "hourly"
+        )
+        session.add_all([guest, prop, late])
+        await session.flush()
+        repo = SqlAnalyticsRepository(session)
+
+        [june] = await repo.get_property_metrics(company_id, date(2025, 6, 1), date(2025, 7, 1), property_ids=[prop.id])
+        [july] = await repo.get_property_metrics(company_id, date(2025, 7, 1), date(2025, 8, 1), property_ids=[prop.id])
+        assert (june.revenue, july.revenue) == (Decimal("200"), Decimal("200"))
+        assert abs(june.booked_nights - Decimal(2) / Decimal(24)) < Decimal("0.0001")
+
+        days = await repo.get_time_series(
+            company_id, date(2025, 6, 30), date(2025, 7, 2), Granularity.DAY, property_ids=[prop.id]
+        )
+        assert [point.revenue for point in days] == [Decimal("200.00"), Decimal("200.00")]
+
+        await session.rollback()
+
+
+@pytestmark_integration
+@pytest.mark.asyncio
+async def test_money_kept_from_a_source_counts_with_that_source_alone():
+    """A flat whose only booking from Booking.com was cancelled with money kept: under that
+    source the cards count the money, as the chart does."""
+    company_id = uuid.uuid4()
+    async with _fresh_session() as session:
+        guest = _guest(company_id)
+        prop = _property(company_id, f"src-{uuid.uuid4().hex[:8]}", "daily")
+        kept = _cancelled(_booking(
+            company_id, prop.id, guest.id, datetime(2025, 6, 10), datetime(2025, 6, 12), "200", "daily"
+        ))
+        kept.source = "booking"
+        stay = _booking(company_id, prop.id, guest.id, datetime(2025, 6, 1), datetime(2025, 6, 3), "300", "daily")
+        session.add_all([guest, prop, kept, stay, _payment(kept.id, "100")])
+        await session.flush()
+        repo = SqlAnalyticsRepository(session)
+
+        [pm] = await repo.get_property_metrics(company_id, DATE_FROM, DATE_TO, source="booking")
+        series = await repo.get_time_series(company_id, DATE_FROM, DATE_TO, Granularity.MONTH, source="booking")
+
+        assert pm.revenue == Decimal("100")
+        assert pm.retained_prepayments == Decimal("100")
+        assert pm.total_bookings == 0
+        assert pm.commission == Decimal("15.00")
+        assert sum(point.revenue for point in series) == pm.revenue
+
+        await session.rollback()
+
+
+@pytestmark_integration
+@pytest.mark.asyncio
 async def test_metrics_empty_property_has_zero_occupancy():
     """Regression: a property with NO bookings in the period must report 0 booked
     days / 0% occupancy. The LEFT JOIN yields a NULL-booking row and Postgres
