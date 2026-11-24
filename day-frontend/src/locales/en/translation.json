@@ -1284,7 +1284,18 @@
     "byMonth": "Revenue by month",
     "monthsDone": "This and past months",
     "monthsBooked": "Booked ahead",
-    "noMonthsData": "No revenue in these months and nothing booked ahead"
+    "noMonthsData": "No revenue in these months and nothing booked ahead",
+    "flow": {
+      "title": "Where the money went",
+      "revenue": "Revenue",
+      "commission": "Platform commission",
+      "profit": "Profit"
+    },
+    "bySource": "Revenue by source",
+    "source": "Source",
+    "net": "After commission",
+    "sourceShare_one": "{{share}}% of revenue · {{count}} booking",
+    "sourceShare_other": "{{share}}% of revenue · {{count}} bookings"
   },
   "cleaner": {
     "todaysTasks": "Today's cleanings",

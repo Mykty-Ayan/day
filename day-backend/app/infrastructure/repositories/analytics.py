@@ -9,7 +9,7 @@ from decimal import Decimal
 from sqlalchemy import Integer, Numeric, and_, case, cast, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.domain.analytics.entities import PropertyMetrics, TimeSeriesPoint
+from app.domain.analytics.entities import PropertyMetrics, SourceTotals, TimeSeriesPoint
 from app.domain.analytics.repositories import AnalyticsRepository
 from app.domain.analytics.value_objects import Granularity
 from app.infrastructure.models.booking import BookingModel, BookingPaymentModel
@@ -155,6 +155,11 @@ class SqlAnalyticsRepository(AnalyticsRepository):
             # Commission
             rate = _COMMISSION_RATES.get(booking_source or "", Decimal("0"))
             pm.commission += revenue * rate
+            if total_bookings or revenue:
+                by = pm.by_source.setdefault(booking_source or "direct", SourceTotals())
+                by.revenue += revenue
+                by.commission += revenue * rate
+                by.bookings += total_bookings
 
         # A cancelled stay is no stay, but a prepayment the host kept is income.
         # Only money still held counts: a refund takes it back to nothing.
@@ -188,7 +193,11 @@ class SqlAnalyticsRepository(AnalyticsRepository):
             kept = Decimal(str(row.kept))
             pm.revenue += kept
             pm.retained_prepayments += kept
-            pm.commission += kept * _COMMISSION_RATES.get(row.booking_source or "", Decimal("0"))
+            kept_commission = kept * _COMMISSION_RATES.get(row.booking_source or "", Decimal("0"))
+            pm.commission += kept_commission
+            by = pm.by_source.setdefault(row.booking_source or "direct", SourceTotals())
+            by.revenue += kept
+            by.commission += kept_commission
 
         # Compute derived metrics
         for pm in props_map.values():
