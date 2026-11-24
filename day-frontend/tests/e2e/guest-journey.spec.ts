@@ -6,6 +6,7 @@
 
 import { test, expect } from '../fixtures/e2e-auth'
 import { API_BASE, createTestProperty } from '../fixtures/test-data'
+import { pickSearchDates } from '../fixtures/company-search'
 
 const day = (n: number) => {
   const d = new Date()
@@ -32,8 +33,7 @@ test('a guest finds a flat on the site, books it at the price shown, and is told
   const g = await guest.newPage()
   await g.goto(`/c/${slug}`)
   await expect(g.getByRole('heading', { level: 1 })).toHaveText('Квартиры у парка')
-  await g.locator('input[type="date"]').nth(0).fill(day(30))
-  await g.locator('input[type="date"]').nth(1).fill(day(32))
+  await pickSearchDates(g, day(30), day(32))
   await g.getByRole('button', { name: 'Больше гостей' }).click()
   await g.getByRole('button', { name: 'Больше гостей' }).click()
   await expect(g.getByText('4 гостя')).toBeVisible()
