@@ -9,10 +9,12 @@ export async function pickSearchDates(page: Page, checkIn: string, checkOut: str
   await expect(page.locator('[data-day]').first()).toBeHidden()
 }
 
-async function pickDay(page: Page, day: string) {
+/** One day in the open calendar, the months turned to it. */
+export async function pickDay(page: Page, day: string) {
   const cell = page.locator(`[data-day="${day}"] button`)
   for (let turn = 0; turn < 5 && !(await cell.isVisible()); turn++) {
-    await page.getByRole('button', { name: /next month/i }).click()
+    // The calendar's navigation: the previous month, then the next.
+    await page.locator('[data-radix-popper-content-wrapper] nav button').last().click()
   }
   await cell.click()
 }

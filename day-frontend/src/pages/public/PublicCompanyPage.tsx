@@ -8,13 +8,15 @@ import { dateRange, money, onAccent, retryNetwork } from '../../lib/public-stay'
 import { GuestFrame, LoadFailed } from './GuestFrame'
 import { Calendar as DayCalendar } from '../../components/ui/calendar'
 import { Popover, PopoverAnchor, PopoverContent } from '../../components/ui/popover'
-import { dateLocale } from '../../lib/date-locale'
+import { ar, de, enUS, kk, ko, ru, tr, uz, zhCN, type DayPickerLocale } from 'react-day-picker/locale'
 
 // The mockup's blue when the company has no color of its own.
 const DEFAULT_ACCENT = '#2F5BFF'
 // A search by dates holds as many nights as the server takes (MAX_SEARCH_NIGHTS), and checks
 // out no later than the flat's page shows nights (MAX_SEARCH_AHEAD_DAYS, WINDOW_NIGHTS).
 const MAX_SEARCH_NIGHTS = 30
+// The calendar in the guest's language, its arrows' names too.
+const CALENDAR_LOCALES: Record<string, DayPickerLocale> = { ru, kz: kk, en: enUS, ar, de, ko, tr, uz, zh: zhCN }
 const MAX_SEARCH_AHEAD_DAYS = 119
 // «For a family»: a flat that takes four guests or more.
 const FAMILY_GUESTS = 4
@@ -364,6 +366,7 @@ function SearchCard({
                 key={end}
                 type="button"
                 data-testid={`search-${end}`}
+                aria-haspopup="dialog"
                 aria-expanded={picking !== null}
                 onClick={() => openAt(end)}
                 className={`${field} ${picking === end ? 'ring-2 ring-[var(--accent)]' : ''}`}
@@ -377,16 +380,25 @@ function SearchCard({
         <PopoverContent
           align="center"
           sideOffset={8}
-          onOpenAutoFocus={(e) => e.preventDefault()}
+          // Into the calendar on the picked day, or today: from the keyboard too, the days are reached.
+          onOpenAutoFocus={(e) => {
+            e.preventDefault()
+            const panel = e.currentTarget as HTMLElement
+            panel.querySelector<HTMLButtonElement>('[data-selected] button, [data-today] button, [data-day] button:not([disabled])')?.focus()
+          }}
           style={palette}
           className="w-auto rounded-[24px] border-[#EEEEF2] bg-white p-2 text-[#111114]"
         >
           <DayCalendar
             mode="range"
-            locale={dateLocale(i18n.language)}
+            locale={CALENDAR_LOCALES[i18n.language] ?? enUS}
             dir={document.documentElement.dir === 'rtl' ? 'rtl' : 'ltr'}
             selected={checkIn ? { from: parseISO(checkIn), to: checkOut ? parseISO(checkOut) : undefined } : undefined}
+            // An onSelect makes `selected` the form's own: without it the calendar keeps a range of its own.
+            onSelect={() => {}}
             onDayClick={pick}
+            // The company's today, not the browser's: the first day open is the one marked.
+            today={parseISO(today)}
             defaultMonth={parseISO(checkIn || today)}
             startMonth={parseISO(today)}
             endMonth={parseISO(horizon)}

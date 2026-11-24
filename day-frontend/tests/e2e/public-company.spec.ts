@@ -5,7 +5,7 @@
 
 import { test, expect } from '../fixtures/e2e-auth'
 import { createTestBooking, createTestProperty, API_BASE } from '../fixtures/test-data'
-import { pickSearchDates } from '../fixtures/company-search'
+import { pickDay, pickSearchDates } from '../fixtures/company-search'
 
 test('a guest reads the company site, narrows the flats by rooms and opens one', async ({ browser, request }) => {
   const slug = `site-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`
@@ -105,17 +105,23 @@ test('a guest searches the site by dates and guests, and the flat opens with the
 
   const show = page.getByRole('button', { name: 'Показать свободные' })
   await expect(show).toBeDisabled()
-  // Check-in alone, the calendar closed: the stay is one night, the button ready.
-  await page.getByTestId('search-in').click()
-  await page.locator(`[data-day="${day(3)}"] button`).click()
+  // From the keyboard the calendar opens on a day, ready for the arrows.
+  await page.getByTestId('search-in').focus()
+  await page.keyboard.press('Enter')
+  await expect(page.locator('[data-day] button:focus')).toHaveCount(1)
+  // A day before the check-in starts the stay again: the calendar marks that day alone.
+  await pickDay(page, day(4))
+  await pickDay(page, day(3))
+  await expect(page.locator('[data-day][data-selected]')).toHaveCount(1)
   await expect(page.getByText('Теперь день выезда')).toBeVisible()
+  // Check-in alone, the calendar closed: the stay is one night, the button ready.
   // The picked day in the company's colour: the calendar opens outside the page's own styles.
   await expect(page.locator(`[data-day="${day(3)}"] button`)).not.toHaveCSS('background-color', 'rgba(0, 0, 0, 0)')
   await page.keyboard.press('Escape')
   await expect(show).toBeEnabled()
   // Tapping the check-out picks only it: the check-in stays.
   await page.getByTestId('search-out').click()
-  await page.locator(`[data-day="${day(5)}"] button`).click()
+  await pickDay(page, day(5))
   await expect(page.getByText('Теперь день выезда')).toBeHidden()
   await show.click()
 
