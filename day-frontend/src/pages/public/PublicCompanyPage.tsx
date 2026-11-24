@@ -1,4 +1,4 @@
-import { useState, type CSSProperties } from 'react'
+import { useRef, useState, type CSSProperties } from 'react'
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { addDays, differenceInCalendarDays, format, parseISO } from 'date-fns'
@@ -309,6 +309,9 @@ function SearchCard({
   const [guests, setGuests] = useState(stay?.guests ?? Math.min(2, most))
   // Which end the next tap on a day sets; null while the calendar is closed.
   const [picking, setPicking] = useState<'in' | 'out' | null>(null)
+  // The field the calendar opened from: the focus goes back to it when the calendar closes.
+  const fields = useRef<Record<'in' | 'out', HTMLButtonElement | null>>({ in: null, out: null })
+  const opener = useRef<'in' | 'out'>('in')
   const day = new Intl.DateTimeFormat(i18n.language, { weekday: 'short', day: 'numeric', month: 'short' })
   const iso = (d: Date) => format(d, 'yyyy-MM-dd')
   const horizon = iso(addDays(parseISO(today), MAX_SEARCH_AHEAD_DAYS))
@@ -328,6 +331,7 @@ function SearchCard({
     }
   }
   function openAt(end: 'in' | 'out') {
+    opener.current = end
     setPicking(end === 'out' && checkIn ? 'out' : 'in')
   }
   // Closed with the check-in alone: the stay is one night, as the old picker did.
@@ -364,6 +368,9 @@ function SearchCard({
             ).map(([end, label, value]) => (
               <button
                 key={end}
+                ref={(el) => {
+                  fields.current[end] = el
+                }}
                 type="button"
                 data-testid={`search-${end}`}
                 aria-haspopup="dialog"
@@ -384,7 +391,12 @@ function SearchCard({
           onOpenAutoFocus={(e) => {
             e.preventDefault()
             const panel = e.currentTarget as HTMLElement
-            panel.querySelector<HTMLButtonElement>('[data-selected] button, [data-today] button, [data-day] button:not([disabled])')?.focus()
+            // The calendar gives one day the tab stop: the picked one, else today, else the first open.
+            panel.querySelector<HTMLButtonElement>('[data-day] button[tabindex="0"]')?.focus()
+          }}
+          onCloseAutoFocus={(e) => {
+            e.preventDefault()
+            fields.current[opener.current]?.focus()
           }}
           style={palette}
           className="w-auto rounded-[24px] border-[#EEEEF2] bg-white p-2 text-[#111114]"
