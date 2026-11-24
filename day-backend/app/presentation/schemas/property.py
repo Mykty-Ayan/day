@@ -120,6 +120,8 @@ class PropertyCreate(_TurnoverHours):
     bathrooms: int | None = Field(default=None, ge=1, le=50)
     check_in_hour: int | None = Field(default=None, ge=0, le=23)
     check_out_hour: int | None = Field(default=None, ge=0, le=23)
+    late_check_out_hour: int | None = Field(default=None, ge=1, le=23)
+    late_check_out_price: Decimal | None = Field(default=None, ge=0, le=10_000_000, decimal_places=2)
     check_in_method: CheckInMethod | None = None
     area_living: float | None = None
     area_total: float | None = None
@@ -163,6 +165,8 @@ class PropertyUpdate(_TurnoverHours):
     bathrooms: int | None = Field(default=None, ge=1, le=50)
     check_in_hour: int | None = Field(default=None, ge=0, le=23)
     check_out_hour: int | None = Field(default=None, ge=0, le=23)
+    late_check_out_hour: int | None = Field(default=None, ge=1, le=23)
+    late_check_out_price: Decimal | None = Field(default=None, ge=0, le=10_000_000, decimal_places=2)
     check_in_method: CheckInMethod | None = None
     area_living: float | None = None
     area_total: float | None = None
@@ -214,6 +218,8 @@ class PropertyResponse(BaseModel):
     bathrooms: int | None = None
     check_in_hour: int | None = None
     check_out_hour: int | None = None
+    late_check_out_hour: int | None = None
+    late_check_out_price: float | None = None
     check_in_method: CheckInMethod | None = None
     area_living: float | None = None
     area_total: float | None = None

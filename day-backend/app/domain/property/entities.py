@@ -103,6 +103,10 @@ class Property:
     # The flat's own hours; empty means the company default (14:00 / 12:00).
     check_in_hour: int | None = None
     check_out_hour: int | None = None
+    # A later check-out the guest may ask for: until this hour, for this price (None: free).
+    # No hour: the guest's button only asks.
+    late_check_out_hour: int | None = None
+    late_check_out_price: Decimal | None = None
     check_in_method: CheckInMethod | None = None
     area_living: float | None = None
     area_total: float | None = None

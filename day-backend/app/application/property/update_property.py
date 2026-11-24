@@ -3,8 +3,14 @@ from __future__ import annotations
 import enum
 import uuid
 from dataclasses import dataclass
+from decimal import Decimal
 
-from app.application.property.create_property import check_listing_kinds, check_stay_nights, check_turnover_hours
+from app.application.property.create_property import (
+    check_late_check_out,
+    check_listing_kinds,
+    check_stay_nights,
+    check_turnover_hours,
+)
 from app.domain.property.entities import GUESTS_REQUIRED, Property, PropertyAuditLog
 from app.domain.property.repositories import PropertyAuditLogRepository, PropertyRepository
 from app.domain.property.value_objects import AuditAction, PropertyStatus
@@ -53,6 +59,8 @@ class UpdatePropertyInput:
     check_in_instructions: object = _UNSET
     check_out_instructions: object = _UNSET
     nearby: object = _UNSET
+    late_check_out_hour: object = _UNSET
+    late_check_out_price: object = _UNSET
     house_rules: object = _UNSET
     wifi_name: object = _UNSET
     wifi_password: object = _UNSET
@@ -68,7 +76,7 @@ _UPDATABLE_FIELDS = {
     "complex_name", "floors_total", "map_url", "whatsapp_product_url", "video_url",
     "listing_urls", "hourly_listing_urls",
     "min_nights", "max_nights", "buffer_minutes", "min_lead_hours",
-    "check_in_hour", "check_out_hour", "check_in_method",
+    "check_in_hour", "check_out_hour", "check_in_method", "late_check_out_hour", "late_check_out_price",
     "area_living", "area_total",
     "check_in_instructions", "check_out_instructions", "house_rules", "nearby",
     "wifi_name", "wifi_password",
@@ -104,6 +112,11 @@ class UpdatePropertyService:
             prop.check_in_hour if inp.check_in_hour is _UNSET else inp.check_in_hour,  # type: ignore[arg-type]
             prop.check_out_hour if inp.check_out_hour is _UNSET else inp.check_out_hour,  # type: ignore[arg-type]
         )
+        check_late_check_out(
+            prop.check_out_hour if inp.check_out_hour is _UNSET else inp.check_out_hour,  # type: ignore[arg-type]
+            prop.late_check_out_hour if inp.late_check_out_hour is _UNSET else inp.late_check_out_hour,  # type: ignore[arg-type]
+            prop.late_check_out_price if inp.late_check_out_price is _UNSET else inp.late_check_out_price,  # type: ignore[arg-type]
+        )
         check_stay_nights(
             prop.min_nights if inp.min_nights is _UNSET else inp.min_nights,  # type: ignore[arg-type]
             prop.max_nights if inp.max_nights is _UNSET else inp.max_nights,  # type: ignore[arg-type]
@@ -133,6 +146,9 @@ class UpdatePropertyService:
             if new_val is _UNSET:
                 continue
             old_val = getattr(prop, field_name)
+            # A price sent back as typed (5000) is the one stored (5000.00): no change to record.
+            if isinstance(new_val, Decimal) and isinstance(old_val, Decimal) and new_val == old_val:
+                continue
             # Any enum compares and audits by its value ("lockbox", not "CheckInMethod.LOCKBOX").
             if isinstance(new_val, enum.Enum):
                 new_val_str = new_val.value

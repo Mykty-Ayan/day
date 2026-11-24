@@ -96,6 +96,8 @@ class ClonePropertyService:
             check_in_instructions=source.check_in_instructions,
             check_out_instructions=source.check_out_instructions,
             nearby=[dict(place) for place in source.nearby],
+            late_check_out_hour=source.late_check_out_hour,
+            late_check_out_price=source.late_check_out_price,
             house_rules=source.house_rules,
             wifi_name=source.wifi_name,
             wifi_password=source.wifi_password,

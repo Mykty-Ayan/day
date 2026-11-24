@@ -228,6 +228,35 @@ async def test_the_page_says_until_when_the_flat_is_free_after_the_stay():
     assert GuestPanelResponse.from_panel(await _setup().execute(CODE, NOW)).booking.free_until is None
 
 
+async def test_a_late_check_out_is_offered_while_nobody_comes_that_day():
+    def arriving(day):
+        def stay(b):
+            return Booking(
+                company_id=COMPANY_ID, property_id=b.property_id, guest_id=uuid.uuid4(),
+                status=BookingStatus.CONFIRMED,
+                check_in=datetime(2026, 10, day, 14), check_out=datetime(2026, 10, 30, 12),
+            )
+
+        return stay
+
+    def selling(svc, hour=15, price=Decimal("5000")):
+        flat_ = next(iter(svc._properties.rows.values()))
+        flat_.late_check_out_hour, flat_.late_check_out_price = hour, price
+        return svc
+
+    # Check-out on the 27th; the next guest on the 28th: the 27th afternoon is free to sell.
+    page = GuestPanelResponse.from_panel(await selling(_setup(others=[arriving(28)])).execute(CODE, NOW))
+    assert (page.late_check_out.until_hour, page.late_check_out.price) == (15, 5000.0)
+    # The next guest arrives on the day of check-out: the button only asks, as before.
+    taken = GuestPanelResponse.from_panel(await selling(_setup(others=[arriving(27)])).execute(CODE, NOW))
+    assert taken.late_check_out is None
+    # A later hour for free: no price to tell.
+    free = GuestPanelResponse.from_panel(await selling(_setup(), price=None).execute(CODE, NOW))
+    assert (free.late_check_out.until_hour, free.late_check_out.price) == (15, None)
+    # The flat sells none: nothing offered.
+    assert GuestPanelResponse.from_panel(await _setup().execute(CODE, NOW)).late_check_out is None
+
+
 async def test_an_earlier_stay_the_same_day_does_not_cut_the_extension_short():
     def morning(b):
         # By the hour on the same day, before this stay: it ends before this one does.

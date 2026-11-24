@@ -38,6 +38,12 @@ class GuestPanelBooking(BaseModel):
     free_until: date | None = None
 
 
+class GuestPanelLateCheckOut(BaseModel):
+    # Until this hour on the day of check-out; the price the flat asks, or None when free.
+    until_hour: int
+    price: float | None = None
+
+
 class GuestPanelDeposit(BaseModel):
     amount: float
     # pending, paid, returned, held, partially_held. Never the owner's reason.
@@ -134,6 +140,8 @@ class GuestPanelResponse(BaseModel):
     access: GuestPanelAccess | None = None
     lead_hours: int = 24
     deposit: GuestPanelDeposit | None = None
+    # A later check-out the guest may ask for in WhatsApp; None when the day is someone else's.
+    late_check_out: GuestPanelLateCheckOut | None = None
     # The minibar during the stay; None outside it.
     menu: list[GuestPanelProduct] | None = None
     minibar: GuestPanelMinibar | None = None
@@ -169,6 +177,11 @@ class GuestPanelResponse(BaseModel):
             remaining=float(panel.remaining),
             free_until=panel.free_until,
         )
+        if panel.late_check_out is not None:
+            hour, price = panel.late_check_out
+            page.late_check_out = GuestPanelLateCheckOut(
+                until_hour=hour, price=float(price) if price is not None else None
+            )
         if (d := panel.deposit) is not None:
             page.deposit = GuestPanelDeposit(amount=float(d.amount), status=d.status.value, held=float(d.held_amount))
         if (p := panel.flat) is not None and panel.closed:
