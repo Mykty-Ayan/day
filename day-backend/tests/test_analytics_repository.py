@@ -418,6 +418,33 @@ async def test_money_received_today_stays_inside_the_company_and_the_day():
 
 @pytestmark_integration
 @pytest.mark.asyncio
+async def test_several_sources_count_together_and_the_others_stay_out():
+    company_id = uuid.uuid4()
+    async with _fresh_session() as session:
+        guest = _guest(company_id)
+        prop = _property(company_id, f"src-{uuid.uuid4().hex[:8]}", "daily")
+        direct = _booking(company_id, prop.id, guest.id, datetime(2025, 6, 1), datetime(2025, 6, 3), "100", "daily")
+        airbnb = _booking(company_id, prop.id, guest.id, datetime(2025, 6, 5), datetime(2025, 6, 7), "200", "daily")
+        booking = _booking(company_id, prop.id, guest.id, datetime(2025, 6, 9), datetime(2025, 6, 11), "400", "daily")
+        airbnb.source, booking.source = "airbnb", "booking"
+        session.add_all([guest, prop, direct, airbnb, booking])
+        await session.flush()
+        repo = SqlAnalyticsRepository(session)
+
+        [both] = await repo.get_property_metrics(company_id, DATE_FROM, DATE_TO, source=["direct", "airbnb"])
+        [alone] = await repo.get_property_metrics(company_id, DATE_FROM, DATE_TO, source=["booking"])
+        series = await repo.get_time_series(
+            company_id, DATE_FROM, DATE_TO, Granularity.MONTH, source=["direct", "airbnb"]
+        )
+
+        assert both.revenue == Decimal("300")
+        assert alone.revenue == Decimal("400")
+        assert sum(point.revenue for point in series) == Decimal("300")
+        await session.rollback()
+
+
+@pytestmark_integration
+@pytest.mark.asyncio
 async def test_a_kept_prepayment_stays_inside_its_company_and_source():
     company_id = uuid.uuid4()
     async with _fresh_session() as session:
@@ -438,8 +465,8 @@ async def test_a_kept_prepayment_stays_inside_its_company_and_source():
         repo = SqlAnalyticsRepository(session)
 
         [pm] = await repo.get_property_metrics(company_id, DATE_FROM, DATE_TO)
-        by_source = await repo.get_property_metrics(company_id, DATE_FROM, DATE_TO, source="direct")
-        no_source = await repo.get_property_metrics(company_id, DATE_FROM, DATE_TO, source="airbnb")
+        by_source = await repo.get_property_metrics(company_id, DATE_FROM, DATE_TO, source=["direct"])
+        no_source = await repo.get_property_metrics(company_id, DATE_FROM, DATE_TO, source=["airbnb"])
 
         # The stay's price (paid or not: the guests' debt is in the payments) and the money kept.
         assert pm.revenue == Decimal("250")
@@ -541,8 +568,8 @@ async def test_money_kept_from_a_source_counts_with_that_source_alone():
         await session.flush()
         repo = SqlAnalyticsRepository(session)
 
-        [pm] = await repo.get_property_metrics(company_id, DATE_FROM, DATE_TO, source="booking")
-        series = await repo.get_time_series(company_id, DATE_FROM, DATE_TO, Granularity.MONTH, source="booking")
+        [pm] = await repo.get_property_metrics(company_id, DATE_FROM, DATE_TO, source=["booking"])
+        series = await repo.get_time_series(company_id, DATE_FROM, DATE_TO, Granularity.MONTH, source=["booking"])
 
         assert pm.revenue == Decimal("100")
         assert pm.retained_prepayments == Decimal("100")

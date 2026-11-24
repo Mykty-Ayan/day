@@ -18,7 +18,7 @@ class GetTimeSeriesInput:
     date_to: date
     granularity: Granularity = Granularity.DAY
     property_ids: list[uuid.UUID] | None = None
-    source: str | None = None
+    source: list[str] | None = None
 
 
 class GetTimeSeriesService:

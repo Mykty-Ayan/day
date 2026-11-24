@@ -9,7 +9,7 @@ import { changeOf, monthsWindow, niceTop } from '../../pages/analytics/period'
 /** Revenue by month, as Airbnb's earnings: the months gone, this one, and what is already
  *  booked for the months ahead. Its own months, whatever period the page shows; the same
  *  objects and source. A booking's price falls on the months of its nights. */
-export default function MonthsChart({ propertyIds, source }: { propertyIds?: string[]; source?: string }) {
+export default function MonthsChart({ propertyIds, source }: { propertyIds?: string[]; source?: string[] }) {
   const { t, i18n } = useTranslation()
   const locale = dateLocale(i18n.language)
   const { format: money, formatCompact } = useCurrency()

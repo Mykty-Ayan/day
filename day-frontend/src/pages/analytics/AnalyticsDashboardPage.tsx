@@ -24,7 +24,7 @@ export default function AnalyticsDashboardPage() {
   const [period, setPeriod] = useState<PeriodPreset>('month')
   const [granularity, setGranularity] = useState<Granularity>('day')
   const [propertyIds, setPropertyIds] = useState<string[]>([])
-  const [source, setSource] = useState('all')
+  const [sources, setSources] = useState<string[]>([])
   const [range, setRange] = useState({ from: '', to: '' })
 
   // The owner's own period asks nothing until both days are picked: the API
@@ -36,7 +36,7 @@ export default function AnalyticsDashboardPage() {
     ...custom,
     granularity,
     property_ids: propertyIds.length > 0 ? propertyIds : undefined,
-    source: source === 'all' ? undefined : source,
+    source: sources.length > 0 ? sources : undefined,
   }
 
   const {
@@ -117,8 +117,8 @@ export default function AnalyticsDashboardPage() {
             onGranularityChange={setGranularity}
             propertyIds={propertyIds}
             onPropertyChange={setPropertyIds}
-            source={source}
-            onSourceChange={setSource}
+            sources={sources}
+            onSourcesChange={setSources}
             range={range}
             onRangeChange={setRange}
             properties={properties}

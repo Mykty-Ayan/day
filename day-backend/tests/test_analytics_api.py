@@ -158,6 +158,10 @@ async def test_get_metrics_summary_fields(client):
 async def test_get_metrics_filter_by_source(client):
     response = await client.get("/api/v1/analytics/metrics?source=direct")
     assert response.status_code == 200
+    # Several sources at once, each one a parameter of its own.
+    for path in ("metrics", "time-series", "payments", "export"):
+        response = await client.get(f"/api/v1/analytics/{path}?period=month&source=direct&source=airbnb")
+        assert response.status_code == 200, (path, response.text)
 
 
 @pytest.mark.asyncio

@@ -88,7 +88,7 @@ async def get_metrics(
     date_to: date | None = Query(default=None),
     period: PeriodPreset | None = Query(default=None),
     property_id: list[uuid.UUID] | None = Query(default=None),
-    source: str | None = Query(default=None),
+    source: list[str] | None = Query(default=None),
     session: AsyncSession = Depends(get_session),
     company_id: uuid.UUID = Depends(get_company_id),
 ):
@@ -179,7 +179,7 @@ async def get_payments(
     date_to: date | None = Query(default=None),
     period: PeriodPreset | None = Query(default=None),
     property_id: list[uuid.UUID] | None = Query(default=None),
-    source: str | None = Query(default=None),
+    source: list[str] | None = Query(default=None),
     session: AsyncSession = Depends(get_session),
     company_id: uuid.UUID = Depends(get_company_id),
 ):
@@ -214,7 +214,7 @@ async def get_time_series(
     period: PeriodPreset | None = Query(default=None),
     granularity: Granularity = Query(default=Granularity.DAY),
     property_id: list[uuid.UUID] | None = Query(default=None),
-    source: str | None = Query(default=None),
+    source: list[str] | None = Query(default=None),
     session: AsyncSession = Depends(get_session),
     company_id: uuid.UUID = Depends(get_company_id),
 ):
@@ -261,7 +261,7 @@ async def export_csv(
     date_to: date | None = Query(default=None),
     period: PeriodPreset | None = Query(default=None),
     property_id: list[uuid.UUID] | None = Query(default=None),
-    source: str | None = Query(default=None),
+    source: list[str] | None = Query(default=None),
     session: AsyncSession = Depends(get_session),
     company_id: uuid.UUID = Depends(get_company_id),
 ):

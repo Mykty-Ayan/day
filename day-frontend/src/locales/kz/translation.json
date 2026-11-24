@@ -1355,7 +1355,8 @@
     },
     "sourceShare": "кірістің {{share}}% · {{count}} бронь",
     "sourceShare_one": "кірістің {{share}}% · {{count}} бронь",
-    "sourceShare_other": "кірістің {{share}}% · {{count}} бронь"
+    "sourceShare_other": "кірістің {{share}}% · {{count}} бронь",
+    "sourcesCount": "{{count}} көз"
   },
   "cleaner": {
     "todaysTasks": "Бүгінгі тазалаулар",

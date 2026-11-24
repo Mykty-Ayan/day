@@ -1356,7 +1356,9 @@
       "nothing": "No payments for this period's bookings"
     },
     "sourceShare_one": "{{share}}% of revenue · {{count}} booking",
-    "sourceShare_other": "{{share}}% of revenue · {{count}} bookings"
+    "sourceShare_other": "{{share}}% of revenue · {{count}} bookings",
+    "sourcesCount_one": "{{count}} source",
+    "sourcesCount_other": "{{count}} sources"
   },
   "cleaner": {
     "todaysTasks": "Today's cleanings",
