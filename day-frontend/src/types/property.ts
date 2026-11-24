@@ -12,6 +12,8 @@ export type AmenityCategory =
 
 /** guest: a check-in photo (the entrance, the lock): never in the listing. */
 export type PhotoAudience = 'public' | 'guest'
+/** Where a check-in photo or video stands on the guest's booking page. */
+export type MediaSection = 'door' | 'path' | 'howto'
 
 export interface PropertyPhoto {
   id: string
@@ -21,6 +23,9 @@ export interface PropertyPhoto {
   sort_order: number
   caption: string | null
   audience: PhotoAudience
+  /** A check-in one may be a video. */
+  kind?: 'photo' | 'video'
+  section?: MediaSection
   created_at: string
 }
 

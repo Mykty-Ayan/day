@@ -44,7 +44,7 @@ import {
   syncCalendarFeed,
   removeCalendarFeed,
 } from '../api/properties'
-import type { SeasonalPriceInput, DiscountRuleInput, PhotoAudience } from '../types/property'
+import type { SeasonalPriceInput, DiscountRuleInput, PhotoAudience, MediaSection } from '../types/property'
 
 const PROPERTIES_KEY = 'properties'
 const PROPERTY_KEY = 'property'
@@ -208,12 +208,23 @@ export function useAmenities() {
 export function useUploadPhotos(propertyId: string) {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: ({ files, startAt, audience }: { files: File[]; startAt: number; audience?: PhotoAudience }) =>
+    mutationFn: ({
+      files,
+      startAt,
+      audience,
+      section,
+    }: {
+      files: File[]
+      startAt: number
+      audience?: PhotoAudience
+      section?: MediaSection
+    }) =>
       uploadPhotos(
         propertyId,
         files.map((file) => ({ file })),
         startAt,
         audience,
+        section,
       ),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: [PROPERTY_KEY, propertyId] })

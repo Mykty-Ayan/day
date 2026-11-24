@@ -14,6 +14,7 @@ import {
   LogOut,
   MessageCircle,
   Navigation,
+  Play,
   ScrollText,
   SearchCheck,
   Sofa,
@@ -24,7 +25,7 @@ import {
   Wrench,
   X,
 } from 'lucide-react'
-import { getGuestPanel, markGuestLeft, type GuestPanel } from '../../api/public'
+import { getGuestPanel, markGuestLeft, type GuestMedia, type GuestPanel } from '../../api/public'
 import { accessOpensAt, accessTimeReached, canReportLeaving, mapLinks, nightsOf, panelButtons, stageOf, waLink, type PanelButton } from '../../lib/guest-panel'
 import { dateRange, money, onAccent, retryNetwork } from '../../lib/public-stay'
 import { GuestFrame, LoadFailed } from './GuestFrame'
@@ -569,6 +570,8 @@ function PanelView({ code, panel, locale, receivedAt }: { code: string; panel: G
                 )}
               </section>
 
+              {!!access?.door?.length && <MediaGrid title={t('guestPanel.door')} items={access.door} testId="door-media" />}
+
               {flat && (flat.address || maps.length > 0 || where.length > 0) && (
                 <section aria-label={t('guestPanel.address')} className={CARD}>
                   <h2 className={H2}>{t('guestPanel.address')}</h2>
@@ -602,9 +605,7 @@ function PanelView({ code, panel, locale, receivedAt }: { code: string; panel: G
                       <li key={photo.url} className="relative grid grid-cols-[28px_76px_1fr] items-start gap-3 pb-4 last:pb-0">
                         {n < access.photos!.length - 1 && <span aria-hidden className="absolute bottom-0 start-[13px] top-7 w-0.5 bg-[#E4E4EA]" />}
                         <span className="relative flex h-7 w-7 items-center justify-center rounded-full bg-[#111114] text-[13px] font-bold text-white">{n + 1}</span>
-                        <a href={photo.url} target="_blank" rel="noopener noreferrer" className="block h-[76px] w-[76px] overflow-hidden rounded-[18px] bg-[#F3F3F6]">
-                          <img src={photo.url} alt={photo.caption ?? t('guestPanel.pathStep', { n: n + 1 })} loading="lazy" className="h-full w-full object-cover" />
-                        </a>
+                        <MediaThumb item={photo} label={photo.caption ?? t('guestPanel.pathStep', { n: n + 1 })} className="h-[76px] w-[76px] rounded-[18px]" />
                         {photo.caption && <p dir="auto" className="pt-1 text-[15px] font-semibold leading-snug">{photo.caption}</p>}
                       </li>
                     ))}
@@ -617,6 +618,9 @@ function PanelView({ code, panel, locale, receivedAt }: { code: string; panel: G
           {/* Kept mounted while another stage is open: the minibar's cart and note stay as the guest left them. */}
           <div role="tabpanel" hidden={tab !== 'stay'}>
               {tab === 'stay' && wifi && <div className="m-2 grid grid-cols-2 gap-2">{wifi}</div>}
+              {tab === 'stay' && !!access?.howto?.length && (
+                <MediaGrid title={t('guestPanel.howto')} items={access.howto} testId="howto-media" />
+              )}
               {/* An empty minibar is not shown: nothing to order, nothing ordered. */}
               {panel.menu && (panel.menu.length > 0 || (panel.orders?.length ?? 0) > 0) && (
                 <div id="minibar" className="m-2 scroll-mt-16">
@@ -727,5 +731,50 @@ function PanelView({ code, panel, locale, receivedAt }: { code: string; panel: G
         </Sheet>
       )}
     </div>
+  )
+}
+
+/** A check-in photo or video, small: a tap opens it whole, a video in the phone's own player. */
+function MediaThumb({ item, label, className }: { item: GuestMedia; label: string; className: string }) {
+  const video = item.kind === 'video'
+  return (
+    <a
+      href={item.url}
+      target="_blank"
+      rel="noopener noreferrer"
+      aria-label={video ? label : undefined}
+      className={`relative block overflow-hidden bg-[#F3F3F6] ${className}`}
+    >
+      {video ? (
+        <>
+          {/* The first frame as the picture: the phone loads only the start of the file. */}
+          <video src={`${item.url}#t=0.1`} muted playsInline preload="metadata" className="h-full w-full object-cover" aria-hidden />
+          <span className="absolute inset-0 flex items-center justify-center" aria-hidden>
+            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-black/55 text-white">
+              <Play className="h-4 w-4 fill-current" />
+            </span>
+          </span>
+        </>
+      ) : (
+        <img src={item.url} alt={label} loading="lazy" className="h-full w-full object-cover" />
+      )}
+    </a>
+  )
+}
+
+/** The lock's video, or how to use the things in the flat: a tile each, the owner's words under it. */
+function MediaGrid({ title, items, testId }: { title: string; items: GuestMedia[]; testId: string }) {
+  return (
+    <section aria-label={title} data-testid={testId} className={CARD}>
+      <h2 className={H2}>{title}</h2>
+      <ul className="grid grid-cols-2 gap-2">
+        {items.map((item) => (
+          <li key={item.url} className="flex min-w-0 flex-col gap-1.5">
+            <MediaThumb item={item} label={item.caption ?? title} className="aspect-[3/4] w-full rounded-[20px]" />
+            {item.caption && <p dir="auto" className="whitespace-pre-line text-sm font-semibold leading-snug">{item.caption}</p>}
+          </li>
+        ))}
+      </ul>
+    </section>
   )
 }

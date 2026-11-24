@@ -206,14 +206,31 @@
     "floor": "Floor {{number}}",
     "floorOf": "Floor {{number}} of {{total}}",
     "checkInPhotos": {
-      "title": "Check-in photos",
-      "hint": "The entrance, the lock, the parking. Never in the listing; only the owner, managers and integrations with access to secrets see them, like the door code.",
-      "add": "Add a check-in photo",
-      "captionPlaceholder": "What it shows: \"entrance from the yard\"",
-      "deleteTitle": "Delete the photo?",
-      "deleteMessage": "The photo leaves the guest's check-in instructions.",
-      "deleteFailed": "Could not delete the photo",
-      "captionFailed": "Could not save the caption"
+      "title": "Check-in photos and videos",
+      "hint": "Never in the listing. The owner, managers and integrations with access to secrets see them, and the guest on the booking page once paid in full, like the door code.",
+      "add": "Add a photo or video",
+      "deleteTitle": "Delete the photo or video?",
+      "deleteMessage": "It leaves the guest's booking page.",
+      "deleteFailed": "Could not delete it",
+      "captionFailed": "Could not save the caption",
+      "videoHint": "A video up to 50 MB, about a minute. On an iPhone set the camera format to \"Most Compatible\": otherwise the video may not open on Android.",
+      "sections": {
+        "door": {
+          "title": "How to open the door",
+          "hint": "A video of the lock. The guest sees it beside the door code.",
+          "caption": "Caption: \"Enter the code and press #\""
+        },
+        "path": {
+          "title": "The way to the door",
+          "hint": "A photo or video for each step: the building, the gate, the entrance, the door.",
+          "caption": "What it shows: \"entrance from the yard\""
+        },
+        "howto": {
+          "title": "How to use",
+          "hint": "The air conditioner, the stove, the washing machine, the TV: a video for each.",
+          "caption": "What it is: \"Air conditioner, the remote is in the nightstand\""
+        }
+      }
     },
     "links": "Links",
     "pricingSaved": "Pricing saved",
@@ -2613,7 +2630,9 @@
       "open": "Open the flat's page"
     },
     "leftSent": "The host knows you have left. Thank you.",
-    "leftFailed": "Could not send it. Check the connection and try again."
+    "leftFailed": "Could not send it. Check the connection and try again.",
+    "door": "How to open the door",
+    "howto": "How to use"
   },
   "stayHere": {
     "title": "Staying here?",

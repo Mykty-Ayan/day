@@ -383,6 +383,42 @@ test('paid in full, the guest sees the way to the door step by step, the entranc
   await expect(address.getByRole('link', { name: 'Вызвать такси сюда' })).toHaveAttribute('href', /end-lat=51\.12&end-lon=71\.43/)
 })
 
+test('paid in full, the lock video stands by the way in and «how to use» in the flat', async ({ page }) => {
+  await open(
+    page,
+    answer(
+      {
+        access: {
+          instructions: 'Код двери 4821', wifi_name: null, wifi_password: null, facts: [],
+          photos: [{ url: 'https://example.com/yard.mp4?sig=1', caption: 'Калитка во двор', kind: 'video' }],
+          door: [{ url: 'https://example.com/lock.mp4?sig=1', caption: 'Наберите код и нажмите #', kind: 'video' }],
+          howto: [
+            { url: 'https://example.com/ac.mp4?sig=1', caption: 'Кондиционер', kind: 'video' },
+            { url: 'https://example.com/stove.jpg?sig=1', caption: 'Плита', kind: 'photo' },
+          ],
+        },
+      },
+      { paid: 40000, remaining: 0 },
+    ),
+  )
+  const door = page.getByRole('region', { name: 'Как открыть дверь' })
+  await expect(door).toContainText('Наберите код и нажмите #')
+  // A video opens whole in the phone's own player; the tile shows its first frame.
+  await expect(door.getByRole('link', { name: 'Наберите код и нажмите #' })).toHaveAttribute('href', 'https://example.com/lock.mp4?sig=1')
+  await expect(door.locator('video')).toHaveAttribute('src', 'https://example.com/lock.mp4?sig=1#t=0.1')
+  // A step of the way in may be a video too: never a broken picture.
+  const path = page.getByRole('region', { name: 'Путь до двери' })
+  await expect(path.locator('video')).toHaveCount(1)
+  await expect(path.locator('img')).toHaveCount(0)
+  // «How to use» waits for the stay's tab.
+  await expect(page.getByRole('region', { name: 'Как пользоваться' })).toHaveCount(0)
+  await page.getByRole('tab', { name: 'В квартире' }).click()
+  const howto = page.getByRole('region', { name: 'Как пользоваться' })
+  await expect(howto.getByRole('listitem')).toHaveCount(2)
+  await expect(howto.locator('video')).toHaveCount(1)
+  await expect(howto.getByRole('img', { name: 'Плита' })).toBeVisible()
+})
+
 test('before payment the address keeps the entrance and the flat number back', async ({ page }) => {
   await open(page, answer({ flat: { ...answer().flat, complex_name: 'Auezov City', floor: 10 } }))
   const address = page.getByRole('region', { name: 'Адрес' })

@@ -158,7 +158,8 @@ test.describe('Property Photos - E2E', () => {
 
     // Only a check-in photo can be deleted on this page: the gallery has no delete button
     await page
-      .locator('label', { hasText: 'Add a check-in photo' })
+      .getByTestId('check-in-path')
+      .locator('label', { hasText: 'Add a photo or video' })
       .locator('input[type="file"]')
       .setInputFiles(TEST_IMAGE_PATH)
     await expect(page.getByText('Photos added: 1')).toBeVisible()
@@ -169,12 +170,30 @@ test.describe('Property Photos - E2E', () => {
     // The trash button asks for confirmation
     await page.getByRole('button', { name: 'Delete', exact: true }).click()
     const dialog = page
-      .getByRole('heading', { name: 'Delete the photo?' })
+      .getByRole('heading', { name: 'Delete the photo or video?' })
       .locator('xpath=ancestor::div[contains(@class, "rounded-2xl")][1]')
     await dialog.getByRole('button', { name: 'Delete', exact: true }).click()
 
     await expect(photoImage(page, photo)).toHaveCount(0)
     expect(await photosOf(request, prop.id)).toHaveLength(0)
+  })
+
+  test('a lock video goes beside the door code, private like the check-in photos', async ({ page, request }) => {
+    const prop = await createPropertyViaApi(request)
+    await page.goto(`/properties/${prop.id}?tab=photos`)
+
+    // The smallest MP4 the server takes: the "ftyp" box with an MP4 brand.
+    const mp4 = Buffer.concat([Buffer.from([0, 0, 0, 0x18]), Buffer.from('ftypisom'), Buffer.alloc(32)])
+    await page
+      .getByTestId('check-in-door')
+      .locator('input[type="file"]')
+      .setInputFiles({ name: 'lock.mp4', mimeType: 'video/mp4', buffer: mp4 })
+    await expect(page.getByText('Photos added: 1')).toBeVisible()
+    const [video] = (await photosOf(request, prop.id)) as (Photo & { kind: string; section: string })[]
+    expect([video.audience, video.kind, video.section]).toEqual(['guest', 'video', 'door'])
+    expect(video.url).toContain('X-Amz-Signature')
+    await expect(page.getByTestId('check-in-door').locator('video')).toHaveCount(1)
+    await expect(page.getByTestId('check-in-path').locator('video')).toHaveCount(0)
   })
 
   test('photo gallery displays on detail page', async ({ page, request, playwright, authTokens }) => {

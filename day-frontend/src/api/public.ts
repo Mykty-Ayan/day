@@ -194,6 +194,9 @@ export async function bookStay(
 }
 
 /** A guest's own page for their booking (/g/<code>). */
+/** A check-in photo or video on the guest's booking page. */
+export type GuestMedia = { url: string; caption: string | null; kind?: 'photo' | 'video' }
+
 export interface GuestPanel {
   closed: boolean
   /** The company's own day, YYYY-MM-DD: which buttons fit the stay. */
@@ -241,8 +244,12 @@ export interface GuestPanel {
     wifi_name: string | null
     wifi_password: string | null
     facts: string[]
-    /** The path to the door: the flat's check-in photos with the owner's words, in order. */
-    photos?: { url: string; caption: string | null }[]
+    /** The path to the door: the flat's check-in photos and videos with the owner's words, in order. */
+    photos?: GuestMedia[]
+    /** Beside the door code: how the lock opens. */
+    door?: GuestMedia[]
+    /** How to use the things in the flat: the air conditioner, the stove. */
+    howto?: GuestMedia[]
     entrance?: string | null
     block?: string | null
     apartment_number?: string | null
