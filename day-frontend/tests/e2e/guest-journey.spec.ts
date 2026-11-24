@@ -1,7 +1,7 @@
 /**
  * The guest's whole way, end to end, as one story across tonight's work: the owner's site,
  * a search by dates and guests, the flat's page with those dates, the price the booking is
- * made at, the hold, the guest's own booking page, and the owner seeing until when it holds.
+ * made at, the hold, the word that the host sends the booking page, and the owner seeing until when it holds.
  */
 
 import { test, expect } from '../fixtures/e2e-auth'
@@ -13,7 +13,7 @@ const day = (n: number) => {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
-test('a guest finds a flat on the site, books it at the price shown, and gets their page', async ({ page, browser, request }) => {
+test('a guest finds a flat on the site, books it at the price shown, and is told the host sends their page', async ({ page, browser, request }) => {
   test.setTimeout(120_000)
   // The owner: a site and a flat for four, 20 000 a night for two, 3 000 for each guest more, a 10 000 deposit.
   const slug = `site-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`
@@ -53,12 +53,11 @@ test('a guest finds a flat on the site, books it at the price shown, and gets th
   await sheet.getByLabel('Номер Kaspi для счёта').fill(phone)
   await sheet.getByRole('button', { name: 'Забронировать' }).click()
 
-  // Held: the deposit to pay, and the guest's own page to keep.
+  // Held: the deposit to pay. No page link from an anonymous form (it would tell a stranger
+  // which numbers the company knows): the host sends it, and the guest is told so.
   await expect(g.getByText(/счёт на залог 10\s000\s₸/)).toBeVisible()
-  const own = g.getByRole('link', { name: 'Открыть страницу брони' })
-  await expect(own).toHaveAttribute('href', /^\/g\/[a-z0-9]{16}$/)
-  await own.click()
-  await expect(g.getByText('Здравствуйте, Айгерим!')).toBeVisible()
+  await expect(g.getByRole('link', { name: 'Открыть страницу брони' })).toHaveCount(0)
+  await expect(g.getByTestId('page-from-host')).toHaveText('Ссылку на страницу брони пришлёт хозяин.')
   await guest.close()
 
   // The owner sees the hold with its deadline.

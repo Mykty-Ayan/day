@@ -144,6 +144,7 @@
     "hoursAtCheckIn": "Die Stunden, {{total}}, zahlen Sie bei Anreise",
     "openPage": "Buchungsseite öffnen",
     "openPageHint": "Speichern Sie diesen Link: Auf Ihrer Buchungsseite finden Sie Adresse, Zahlung und Türcode.",
+    "pageFromHost": "Den Link zu Ihrer Buchungsseite schickt Ihnen der Gastgeber.",
     "extraGuests": "Aufpreis für weitere Gäste",
     "discount": "Rabatt"
   },

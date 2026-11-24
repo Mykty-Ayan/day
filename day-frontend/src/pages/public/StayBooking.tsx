@@ -340,7 +340,14 @@ export function HeldView({ booking, locale }: { booking: PublicOfferBooking; loc
       {booking.total != null && (
         <p className="text-sm text-[#2A2A30]">{t('guestBook.nightsAtCheckIn', { total: money(booking.total, locale) })}</p>
       )}
-      <BookingPageLink code={booking.guest_code} />
+      {booking.guest_code ? (
+        <BookingPageLink code={booking.guest_code} />
+      ) : (
+        // An anonymous form gets no page link (it would tell who the company knows): the host sends it.
+        <p className="text-sm leading-snug text-[#6B6B74]" data-testid="page-from-host">
+          {t('guestBook.pageFromHost')}
+        </p>
+      )}
     </section>
   )
 }
