@@ -58,6 +58,12 @@ test('the numbers show how they changed since the period before', async ({ page 
   await expect(card('ADR').getByTestId('analytics-change')).toHaveCount(0)
   await expect(card('ADR')).toContainText('was 0')
   await expect(page.getByText('Compared with September 23 – October 23')).toBeVisible()
+  // Up is a green pill, down a red one: the sign and the arrow say it besides the colour.
+  await expect(card('Revenue').getByTestId('analytics-change')).toHaveClass(/bg-success-soft/)
+  await expect(card('Bookings').getByTestId('analytics-change')).toHaveClass(/bg-danger-soft/)
+  // The period day by day comes right under the cards, before the months.
+  const top = async (where: string) => (await page.locator(where).boundingBox())!.y
+  expect(await top('[data-testid="revenue-chart"]')).toBeLessThan(await top('#months-chart'))
 
   // The period before is the 31 days before the page's, with the same filters and no preset.
   expect(asked).toContainEqual({ from: '2026-09-23', to: '2026-10-24', period: null })

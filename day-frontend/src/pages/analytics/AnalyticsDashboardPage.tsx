@@ -163,6 +163,12 @@ export default function AnalyticsDashboardPage() {
               </div>
             )}
 
+            {/* The period day by day first: it answers the cards above. */}
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+              <RevenueChart data={timeSeriesData?.data ?? []} previous={previousSeries} />
+              <OccupancyChart data={timeSeriesData?.data ?? []} previous={previousSeries} />
+            </div>
+
             <MonthsChart propertyIds={filters.property_ids} source={filters.source} />
 
             {metricsData && (
@@ -175,12 +181,6 @@ export default function AnalyticsDashboardPage() {
                 </div>
               </div>
             )}
-
-            {/* Charts */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <RevenueChart data={timeSeriesData?.data ?? []} previous={previousSeries} />
-              <OccupancyChart data={timeSeriesData?.data ?? []} previous={previousSeries} />
-            </div>
 
             {/* Property Table */}
             {metricsData && (
