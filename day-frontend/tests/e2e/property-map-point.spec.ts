@@ -119,13 +119,21 @@ test.describe('Map point from a 2GIS link', () => {
   })
 
   test('on a new flat, back and next before the answer still looks the link up', async ({ page }) => {
-    await page.route('**/properties/map-point', (route) => route.fulfill({ json: { latitude: 43.2, longitude: 76.9 } }))
+    let answer: () => void = () => {}
+    const answered = new Promise<void>((resolve) => (answer = resolve))
+    await page.route('**/properties/map-point', async (route) => {
+      await answered
+      await route.fulfill({ json: { latitude: 43.2, longitude: 76.9 } })
+    })
     await page.goto('/properties/new')
     await page.getByPlaceholder('Cozy Downtown Studio').fill('Map point flat')
     await page.getByPlaceholder('APT-001-Downtown').fill(`MAP-${Date.now()}`)
     await page.getByRole('button', { name: 'Next', exact: true }).click()
     await page.getByLabel('Map link').fill('https://go.2gis.com/abcd')
-    await page.getByRole('button', { name: 'Back', exact: true }).click()
+    await expect(page.getByText('Looking for the point in 2GIS…')).toBeVisible()
+    // Away from the address while the point is on its way, and back after it came.
+    await page.getByRole('button', { name: 'Previous', exact: true }).click()
+    answer()
     await page.getByRole('button', { name: 'Next', exact: true }).click()
     await expect(page.getByPlaceholder('43.2381')).toHaveValue('43.2')
   })
