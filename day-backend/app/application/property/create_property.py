@@ -70,6 +70,7 @@ class CreatePropertyInput:
     area_total: float | None = None
     check_in_instructions: str | None = None
     check_out_instructions: str | None = None
+    nearby: list[dict] = field(default_factory=list)
     house_rules: str | None = None
     wifi_name: str | None = None
     wifi_password: str | None = None
@@ -137,6 +138,7 @@ class CreatePropertyService:
             area_total=inp.area_total,
             check_in_instructions=inp.check_in_instructions,
             check_out_instructions=inp.check_out_instructions,
+            nearby=list(inp.nearby),
             house_rules=inp.house_rules,
             wifi_name=inp.wifi_name,
             wifi_password=inp.wifi_password,

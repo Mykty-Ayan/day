@@ -83,7 +83,9 @@
     "map2gis": "2GIS",
     "mapYandex": "Yandex",
     "mapGoogle": "Google",
-    "maxSiteNights": "Online bis zu {{n}} Nächte. Für einen längeren Aufenthalt schreiben Sie dem Gastgeber"
+    "maxSiteNights": "Online bis zu {{n}} Nächte. Für einen längeren Aufenthalt schreiben Sie dem Gastgeber",
+    "onFoot": "{{minutes}} Min. zu Fuß",
+    "byCar": "{{minutes}} Min. mit dem Auto"
   },
   "guestOffer": {
     "hello": "{{name}}, hier sind Wohnungen für Ihre Reisedaten",

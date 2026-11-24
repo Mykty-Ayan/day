@@ -77,7 +77,9 @@
     "map2gis": "2GIS",
     "mapYandex": "Yandex",
     "mapGoogle": "Google",
-    "maxSiteNights": "Çevrimiçi en fazla {{n}} gece. Daha uzun konaklama için ev sahibine yazın"
+    "maxSiteNights": "Çevrimiçi en fazla {{n}} gece. Daha uzun konaklama için ev sahibine yazın",
+    "onFoot": "yürüyerek {{minutes}} dk",
+    "byCar": "arabayla {{minutes}} dk"
   },
   "guestOffer": {
     "hello": "{{name}}, tarihleriniz için daireler",

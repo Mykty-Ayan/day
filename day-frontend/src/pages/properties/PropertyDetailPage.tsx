@@ -59,6 +59,7 @@ import StatusBadge from '../../components/property/StatusBadge'
 import { showToast } from '../../components/ui/Toast'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import CheckInPhotosCard from '../../components/property/CheckInPhotosCard'
+import NearbyCard from '../../components/property/NearbyCard'
 import ListingPhotosCard from '../../components/property/ListingPhotosCard'
 import { listingOrder } from '../../lib/property-photos'
 import PropertyEditSheet, { type PropertyBlock } from '../../components/property/PropertyEditSheet'
@@ -579,6 +580,8 @@ export default function PropertyDetailPage() {
             )}
             {!hasRules && <p className="text-sm text-ink-muted">{t('properties.nothingYet')}</p>}
           </section>
+          {/* Keyed by the saved list: after a save elsewhere the rows start from what is stored. */}
+          <NearbyCard key={JSON.stringify(property.nearby ?? [])} propertyId={propertyId} places={property.nearby ?? []} />
         </TabPanel>
 
         <TabPanel name="amenities" current={tab}>

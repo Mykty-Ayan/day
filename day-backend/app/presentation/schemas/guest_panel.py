@@ -11,6 +11,7 @@ from pydantic import BaseModel
 
 from app.application.booking.guest_panel import GuestPanel
 from app.domain.property.value_objects import MediaKind
+from app.presentation.schemas.property import NearbyPlace
 
 
 class GuestPanelCompany(BaseModel):
@@ -61,6 +62,7 @@ class GuestPanelFlat(BaseModel):
     check_out_hour: int | None = None
     house_rules: str | None = None
     check_out_instructions: str | None = None
+    nearby: list[NearbyPlace] = []
 
 
 class GuestPanelPhoto(BaseModel):
@@ -187,6 +189,7 @@ class GuestPanelResponse(BaseModel):
                 check_out_hour=p.check_out_hour,
                 house_rules=p.house_rules,
                 check_out_instructions=p.check_out_instructions,
+                nearby=p.nearby,
             )
         if panel.menu is not None:
             page.menu = [

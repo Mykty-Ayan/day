@@ -52,6 +52,7 @@ class UpdatePropertyInput:
     area_total: object = _UNSET
     check_in_instructions: object = _UNSET
     check_out_instructions: object = _UNSET
+    nearby: object = _UNSET
     house_rules: object = _UNSET
     wifi_name: object = _UNSET
     wifi_password: object = _UNSET
@@ -69,7 +70,7 @@ _UPDATABLE_FIELDS = {
     "min_nights", "max_nights", "buffer_minutes", "min_lead_hours",
     "check_in_hour", "check_out_hour", "check_in_method",
     "area_living", "area_total",
-    "check_in_instructions", "check_out_instructions", "house_rules",
+    "check_in_instructions", "check_out_instructions", "house_rules", "nearby",
     "wifi_name", "wifi_password",
 }
 

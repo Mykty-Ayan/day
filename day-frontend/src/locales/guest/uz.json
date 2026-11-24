@@ -77,7 +77,9 @@
     "map2gis": "2GIS",
     "mapYandex": "Yandex",
     "mapGoogle": "Google",
-    "maxSiteNights": "Saytda — {{n}} kechagacha. Uzoq turish uchun uy egasiga yozing"
+    "maxSiteNights": "Saytda — {{n}} kechagacha. Uzoq turish uchun uy egasiga yozing",
+    "onFoot": "piyoda {{minutes}} daq",
+    "byCar": "mashinada {{minutes}} daq"
   },
   "guestOffer": {
     "hello": "{{name}}, sanalaringiz uchun kvartiralar",

@@ -77,7 +77,9 @@
     "map2gis": "2GIS",
     "mapYandex": "Yandex",
     "mapGoogle": "Google",
-    "maxSiteNights": "온라인 예약은 최대 {{n}}박입니다. 더 오래 머물려면 호스트에게 문의하세요"
+    "maxSiteNights": "온라인 예약은 최대 {{n}}박입니다. 더 오래 머물려면 호스트에게 문의하세요",
+    "onFoot": "도보 {{minutes}}분",
+    "byCar": "차로 {{minutes}}분"
   },
   "guestOffer": {
     "hello": "{{name}}님, 원하시는 날짜의 숙소입니다",
