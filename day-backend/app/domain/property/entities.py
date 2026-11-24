@@ -111,6 +111,8 @@ class Property:
     check_in_instructions: str | None = None
     check_out_instructions: str | None = None
     house_rules: str | None = None
+    # Near the flat, for the guest: {"name": "Magnum, продукты 24/7", "minutes": 3, "by": "walk" | "car"}.
+    nearby: list[dict] = field(default_factory=list)
 
     # Access. The guest asks for the Wi-Fi password more often than anything
     # else, so it lives on the unit rather than buried in the check-in text.

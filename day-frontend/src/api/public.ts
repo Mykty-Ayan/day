@@ -4,6 +4,7 @@
 import axios from 'axios'
 import apiClient from './client'
 import type { PublicNight } from '../lib/public-stay'
+import type { NearbyPlace } from '../types/property'
 
 const publicClient = axios.create({ baseURL: apiClient.defaults.baseURL, timeout: 20_000 })
 
@@ -25,6 +26,8 @@ export interface PublicStay {
   check_out_hour: number | null
   check_in_method: string | null
   house_rules: string | null
+  /** Shops, a park, the airport and how far: the place without the address. */
+  nearby?: NearbyPlace[]
   min_nights: number | null
   photos: string[]
   amenities: { name: string; category: string }[]
@@ -237,6 +240,7 @@ export interface GuestPanel {
     check_out_hour: number | null
     house_rules: string | null
     check_out_instructions: string | null
+    nearby?: NearbyPlace[]
   } | null
   /** Only for a confirmed or checked-in stay paid in full: the server decides. */
   access: {

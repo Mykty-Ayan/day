@@ -12,6 +12,12 @@ export type AmenityCategory =
 
 /** guest: a check-in photo (the entrance, the lock): never in the listing. */
 export type PhotoAudience = 'public' | 'guest'
+/** A place near the flat for the guest: a shop, a park, the airport, and how far. */
+export interface NearbyPlace {
+  name: string
+  minutes: number
+  by: 'walk' | 'car'
+}
 /** Where a check-in photo or video stands on the guest's booking page. */
 export type MediaSection = 'door' | 'path' | 'howto'
 
@@ -144,6 +150,7 @@ export interface Property {
   check_in_instructions: string
   check_out_instructions: string
   house_rules: string
+  nearby?: NearbyPlace[]
   wifi_name: string | null
   wifi_password: string | null
   photos: PropertyPhoto[]
@@ -192,6 +199,7 @@ export interface PropertyCreateInput {
   check_in_instructions?: string
   check_out_instructions?: string
   house_rules?: string
+  nearby?: NearbyPlace[]
   wifi_name?: string
   wifi_password?: string
 }

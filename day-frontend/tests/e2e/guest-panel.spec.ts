@@ -419,6 +419,19 @@ test('paid in full, the lock video stands by the way in and «how to use» in th
   await expect(howto.getByRole('img', { name: 'Плита' })).toBeVisible()
 })
 
+test('during the stay the guest sees what is near and how far', async ({ page }) => {
+  await openStay(page, answer({
+    flat: { ...answer().flat, nearby: [
+      { name: 'Аптека у калитки', minutes: 1, by: 'walk' },
+      { name: 'Аэропорт', minutes: 35, by: 'car' },
+    ] },
+  }))
+  const near = page.getByRole('region', { name: 'Рядом' })
+  await expect(near.getByRole('listitem')).toHaveCount(2)
+  await expect(near.getByRole('listitem').first()).toContainText('1 мин пешком')
+  await expect(near.getByRole('listitem').last()).toContainText('35 мин на машине')
+})
+
 test('before payment the address keeps the entrance and the flat number back', async ({ page }) => {
   await open(page, answer({ flat: { ...answer().flat, complex_name: 'Auezov City', floor: 10 } }))
   const address = page.getByRole('region', { name: 'Адрес' })

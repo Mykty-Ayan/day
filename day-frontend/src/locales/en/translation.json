@@ -557,7 +557,24 @@
     },
     "loadFailed": "Could not load the property. Check the connection and try again",
     "guestsRequired": "Set how many guests the property takes. Without it, it is offered to any number of guests",
-    "statusFailed": "Could not change the property's status. Try again"
+    "statusFailed": "Could not change the property's status. Try again",
+    "nearby": {
+      "title": "Nearby",
+      "hint": "Shops, a park, a pharmacy, the airport and how many minutes away. The guest sees the list on the property's page even before booking: leave the address out.",
+      "name": "Place",
+      "namePlaceholder": "Magnum, groceries 24/7",
+      "minutes": "Minutes",
+      "minutesPlaceholder": "min",
+      "by": "How to get there",
+      "walk": "On foot",
+      "car": "By car",
+      "add": "Add a place",
+      "saved": "The nearby list is saved",
+      "failed": "Could not save the list",
+      "invalid": "Each place needs a name and a time from 1 to 240 minutes",
+      "most_one": "At most {{count}} place",
+      "most_other": "At most {{count}} places"
+    }
   },
   "bookings": {
     "title": "Bookings",
@@ -2094,7 +2111,9 @@
     "map2gis": "2GIS",
     "mapYandex": "Yandex",
     "mapGoogle": "Google",
-    "maxSiteNights": "Up to {{n}} nights online. For a longer stay, write to the host"
+    "maxSiteNights": "Up to {{n}} nights online. For a longer stay, write to the host",
+    "onFoot": "{{minutes}} min on foot",
+    "byCar": "{{minutes}} min by car"
   },
   "guestOffer": {
     "hello": "Hello, {{name}}. Here are flats for your dates",
@@ -2632,7 +2651,8 @@
     "leftSent": "The host knows you have left. Thank you.",
     "leftFailed": "Could not send it. Check the connection and try again.",
     "door": "How to open the door",
-    "howto": "How to use"
+    "howto": "How to use",
+    "nearby": "Nearby"
   },
   "stayHere": {
     "title": "Staying here?",

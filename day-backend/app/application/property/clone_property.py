@@ -95,6 +95,7 @@ class ClonePropertyService:
             area_total=source.area_total,
             check_in_instructions=source.check_in_instructions,
             check_out_instructions=source.check_out_instructions,
+            nearby=[dict(place) for place in source.nearby],
             house_rules=source.house_rules,
             wifi_name=source.wifi_name,
             wifi_password=source.wifi_password,

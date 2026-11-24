@@ -71,6 +71,7 @@ class PropertyModel(Base):
     # Rules
     check_in_instructions: Mapped[str | None] = mapped_column(Text, nullable=True)
     check_out_instructions: Mapped[str | None] = mapped_column(Text, nullable=True)
+    nearby: Mapped[list] = mapped_column(JSON, nullable=False, default=list, server_default="[]")
     house_rules: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # Access

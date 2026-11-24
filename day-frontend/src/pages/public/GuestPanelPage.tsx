@@ -30,6 +30,7 @@ import { accessOpensAt, accessTimeReached, canReportLeaving, mapLinks, nightsOf,
 import { dateRange, money, onAccent, retryNetwork } from '../../lib/public-stay'
 import { GuestFrame, LoadFailed } from './GuestFrame'
 import { GuestMinibar } from './GuestMinibar'
+import { NearbyList } from './NearbyList'
 
 // The mockup's blue when the company has no color of its own, as on the flat's page.
 const DEFAULT_ACCENT = '#2F5BFF'
@@ -642,6 +643,12 @@ function PanelView({ code, panel, locale, receivedAt }: { code: string; panel: G
                       )
                     })}
                   </div>
+                </section>
+              )}
+              {tab === 'stay' && !!flat?.nearby?.length && (
+                <section aria-label={t('guestPanel.nearby')} className={CARD}>
+                  <h2 className={H2}>{t('guestPanel.nearby')}</h2>
+                  <NearbyList places={flat.nearby} />
                 </section>
               )}
               {tab === 'stay' && flat?.house_rules && (

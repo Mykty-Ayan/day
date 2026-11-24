@@ -205,6 +205,10 @@ async def test_the_flat_number_and_entrance_come_with_the_way_in_the_complex_and
     page = GuestPanelResponse.from_panel(await svc.execute(CODE, NOW))
     assert (page.flat.complex_name, page.flat.floor) == ("Auezov City", 10)
     assert page.access is None and '"54"' not in page.model_dump_json()
+    # What is near the flat is no secret: the guest reads it before paying too.
+    flat_.nearby = [{"name": "Аптека у калитки", "minutes": 1, "by": "walk"}]
+    near = GuestPanelResponse.from_panel(await svc.execute(CODE, NOW))
+    assert [(p.name, p.minutes, p.by) for p in near.flat.nearby] == [("Аптека у калитки", 1, "walk")]
     svc._payments.amount = Decimal("40000")
     paid = GuestPanelResponse.from_panel(await svc.execute(CODE, NOW))
     assert (paid.access.entrance, paid.access.block, paid.access.apartment_number) == ("2", "Б", "54")
