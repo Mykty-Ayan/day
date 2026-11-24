@@ -321,6 +321,41 @@ test.describe('Booking Today View - E2E', () => {
     await expect(sheet.getByRole('button', { name: /^Balance ·/ })).toHaveAttribute('aria-pressed', 'true')
   })
 
+  test('50% is half of the whole price, and is not offered once less than that is owed', async ({ page, request }) => {
+    const prop = await setupActiveProperty(request)
+    const booking = await createBookingViaApi(request, prop.id, {
+      check_in: await browserDate(page),
+      check_out: await browserDate(page, 3),
+      guest_name: 'Half Price Guest',
+    })
+    await transitionViaApi(request, booking.id, 'confirmed')
+    const total = Number(booking.total_price)
+    const pay = async (amount: number) => {
+      const paid = await request.post(`${API_BASE}/bookings/${booking.id}/payments`, {
+        data: { amount, type: 'payment', method: 'cash' },
+      })
+      expect(paid.ok(), `POST payment: ${paid.status()}`).toBeTruthy()
+    }
+    const openSheet = async () => {
+      await page.goto('/bookings/today')
+      await page.waitForLoadState('networkidle')
+      await page.getByRole('button', { name: /Guest owes/ }).filter({ hasText: 'Half Price Guest' }).click()
+      return page.getByRole('dialog')
+    }
+
+    // A tenth paid: half is of the price, not of the nine tenths left.
+    await pay(total / 10)
+    let sheet = await openSheet()
+    await sheet.getByRole('button', { name: /^50% ·/ }).click()
+    await expect(sheet.getByRole('spinbutton', { name: 'Amount' })).toHaveValue(String(total / 2))
+
+    // Six tenths paid: half the price would be more than the four tenths owed.
+    await pay(total / 2)
+    sheet = await openSheet()
+    await expect(sheet.getByRole('button', { name: /^Balance ·/ })).toBeVisible()
+    await expect(sheet.getByRole('button', { name: /^50% ·/ })).toHaveCount(0)
+  })
+
   test('prices changed since the booking: the first night is the booked price shared, not today\'s', async ({ page, request }) => {
     const prop = await setupActiveProperty(request)
     const booking = await createBookingViaApi(request, prop.id, {

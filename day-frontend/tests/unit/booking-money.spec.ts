@@ -24,13 +24,21 @@ test('a cancelled stay owes nothing, and what came in goes back', () => {
 })
 
 test('a paid booking is offered nothing to pay', () => {
-  expect(paymentSuggestions(0, 50)).toEqual({ all: 0, half: 0, firstNight: null })
+  expect(paymentSuggestions(0, 100, 50)).toEqual({ all: 0, half: null, firstNight: null })
 })
 
 test('the first night is offered only when it is less than what is left', () => {
-  expect(paymentSuggestions(100, 50).firstNight).toBe(50)
-  expect(paymentSuggestions(40, 50).firstNight).toBeNull()
-  expect(paymentSuggestions(100, null).firstNight).toBeNull()
+  expect(paymentSuggestions(100, 100, 50).firstNight).toBe(50)
+  expect(paymentSuggestions(40, 100, 50).firstNight).toBeNull()
+  expect(paymentSuggestions(100, 100, null).firstNight).toBeNull()
+})
+
+test('half is of the whole price, not of what is left, and never more than is owed', () => {
+  // 30 of 100 paid: half is 50, not 35.
+  expect(paymentSuggestions(70, 100, null).half).toBe(50)
+  // 60 of 100 paid: half of the price would be more than the 40 owed.
+  expect(paymentSuggestions(40, 100, null).half).toBeNull()
+  expect(paymentSuggestions(327.03, 327.03, null).half).toBe(163.52)
 })
 
 const reckoning = (over: Partial<PriceCalculation>) =>

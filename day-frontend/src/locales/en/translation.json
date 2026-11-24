@@ -1646,6 +1646,7 @@
       "cancelAsk": "Cancel this booking? The dates become free; this can't be undone.",
       "payAsk": "Record a payment of {{amount}} ({{method}})?",
       "recordAmount": "Record {{amount}}",
+      "firstDay": "First night",
       "rest": "Balance",
       "waiting": "Waiting for",
       "received": "Received",

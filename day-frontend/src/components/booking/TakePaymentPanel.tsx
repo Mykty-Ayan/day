@@ -6,7 +6,7 @@ import { useTranslation } from 'react-i18next'
 import { useCurrency } from '../../hooks/useCurrency'
 import { useFirstNight } from '../../hooks/useFirstNight'
 import { useSendPayment, type PaymentAttempt, type SendOutcome } from '../../hooks/usePaymentAttempt'
-import { halfOf, paymentSuggestions } from '../../lib/booking-money'
+import { paymentSuggestions } from '../../lib/booking-money'
 import { formatMoneyExact as formatMoney } from '../../pages/miniapp/format'
 import type { Booking, PaymentMethod } from '../../types/booking'
 import Button from '../ui/Button'
@@ -83,7 +83,7 @@ function PaymentForm({
   // screen: each has its own idempotency key, and both would be recorded.
   const paying = useIsMutating({ mutationKey: ['add-payment', booking.id] }) > 0
   const sum = (value: number) => `${money(value)} ${symbol}`
-  const suggested = paymentSuggestions(stayDebt, useFirstNight(booking))
+  const suggested = paymentSuggestions(stayDebt, Number(booking.total_price), useFirstNight(booking))
 
   if (unsure && !paying) {
     return <UnsureAttempt
@@ -116,7 +116,7 @@ function PaymentForm({
         onPick={(next) => setAmount(String(next))}
         options={[
           ...(suggested.firstNight !== null ? [{ label: t('today.quickFirstNight'), value: suggested.firstNight }] : []),
-          { label: '50%', value: halfOf(suggested.all) },
+          ...(suggested.half !== null ? [{ label: '50%', value: suggested.half }] : []),
           { label: t('today.quickRest'), value: suggested.all },
         ]}
       />
