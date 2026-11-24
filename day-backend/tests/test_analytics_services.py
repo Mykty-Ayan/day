@@ -472,7 +472,7 @@ class TestRecordedExpenses:
         flats = [PropertyMetrics(property_id=PROPERTY_ID, revenue=Decimal("100000"), commission=Decimal("3000"))]
         svc = CalculateMetricsService(FakeAnalyticsRepository(metrics=flats), FakePropertyCostsRepository(), journal)
         result = await svc.execute(CalculateMetricsInput(
-            company_id=COMPANY_ID, date_from=date(2025, 1, 1), date_to=date(2025, 2, 1), source="airbnb"))
+            company_id=COMPANY_ID, date_from=date(2025, 1, 1), date_to=date(2025, 2, 1), source=["airbnb"]))
         assert result.summary.total_recorded_expenses == Decimal("0")
         assert result.summary.total_profit == Decimal("97000")
 

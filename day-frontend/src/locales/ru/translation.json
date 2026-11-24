@@ -1427,7 +1427,11 @@
     "sourceShare_one": "{{share}}% дохода · {{count}} бронь",
     "sourceShare_few": "{{share}}% дохода · {{count}} брони",
     "sourceShare_many": "{{share}}% дохода · {{count}} броней",
-    "sourceShare_other": "{{share}}% дохода · {{count}} брони"
+    "sourceShare_other": "{{share}}% дохода · {{count}} брони",
+    "sourcesCount_one": "{{count}} источник",
+    "sourcesCount_few": "{{count}} источника",
+    "sourcesCount_many": "{{count}} источников",
+    "sourcesCount_other": "{{count}} источника"
   },
   "cleaner": {
     "todaysTasks": "Уборки на сегодня",

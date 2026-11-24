@@ -21,7 +21,7 @@ class CalculateMetricsInput:
     date_from: date
     date_to: date
     property_ids: list[uuid.UUID] | None = None
-    source: str | None = None
+    source: list[str] | None = None
 
 
 @dataclass

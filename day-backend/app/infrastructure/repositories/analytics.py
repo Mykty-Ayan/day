@@ -33,7 +33,7 @@ class SqlAnalyticsRepository(AnalyticsRepository):
         date_to: date,
         *,
         property_ids: list[uuid.UUID] | None = None,
-        source: str | None = None,
+        source: list[str] | None = None,
     ) -> list[PropertyMetrics]:
         total_period_days = (date_to - date_from).days
         if total_period_days <= 0:
@@ -148,7 +148,7 @@ class SqlAnalyticsRepository(AnalyticsRepository):
         if property_ids is not None:
             stmt = stmt.where(PropertyModel.id.in_(property_ids))
         if source is not None:
-            stmt = stmt.where(BookingModel.source == source)
+            stmt = stmt.where(BookingModel.source.in_(source))
 
         stmt = stmt.group_by(
             PropertyModel.id,
@@ -216,7 +216,7 @@ class SqlAnalyticsRepository(AnalyticsRepository):
         if property_ids is not None:
             kept_stmt = kept_stmt.where(PropertyModel.id.in_(property_ids))
         if source is not None:
-            kept_stmt = kept_stmt.where(BookingModel.source == source)
+            kept_stmt = kept_stmt.where(BookingModel.source.in_(source))
 
         for row in (await self._session.execute(kept_stmt)).all():
             # A source filter leaves a flat out when none of its stays came that way: its money
@@ -275,7 +275,7 @@ class SqlAnalyticsRepository(AnalyticsRepository):
         date_to: date,
         *,
         property_ids: list[uuid.UUID] | None = None,
-        source: str | None = None,
+        source: list[str] | None = None,
     ) -> PaymentsSummary:
         """The bookings of the period as the revenue takes them (their nights touch it):
         the payments by method, what their guests still owe; and the deposits on hand."""
@@ -294,7 +294,7 @@ class SqlAnalyticsRepository(AnalyticsRepository):
         if property_ids is not None:
             in_period.append(BookingModel.property_id.in_(property_ids))
         if source is not None:
-            in_period.append(BookingModel.source == source)
+            in_period.append(BookingModel.source.in_(source))
 
         by_method = (
             select(BookingPaymentModel.method, func.sum(signed).label("net"))
@@ -333,7 +333,7 @@ class SqlAnalyticsRepository(AnalyticsRepository):
         if property_ids is not None:
             on_hand = on_hand.where(BookingModel.property_id.in_(property_ids))
         if source is not None:
-            on_hand = on_hand.where(BookingModel.source == source)
+            on_hand = on_hand.where(BookingModel.source.in_(source))
         count, held = (await self._session.execute(on_hand)).one()
         summary.deposits_count, summary.deposits_on_hand = int(count), Decimal(str(held))
         return summary
@@ -346,7 +346,7 @@ class SqlAnalyticsRepository(AnalyticsRepository):
         granularity: Granularity,
         *,
         property_ids: list[uuid.UUID] | None = None,
-        source: str | None = None,
+        source: list[str] | None = None,
     ) -> list[TimeSeriesPoint]:
         # Generate period buckets
         buckets = _generate_buckets(date_from, date_to, granularity)
@@ -395,7 +395,7 @@ class SqlAnalyticsRepository(AnalyticsRepository):
         if property_ids is not None:
             stmt = stmt.where(BookingModel.property_id.in_(property_ids))
         if source is not None:
-            stmt = stmt.where(BookingModel.source == source)
+            stmt = stmt.where(BookingModel.source.in_(source))
 
         rows = (await self._session.execute(stmt)).all()
 
