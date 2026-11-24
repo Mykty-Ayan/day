@@ -13,6 +13,7 @@ from sqlalchemy.pool import NullPool
 from app.config import settings
 from app.domain.analytics.value_objects import Granularity
 from app.infrastructure.models.booking import (
+    BookingDepositModel,
     BookingModel,
     BookingPaymentModel,
     GuestModel,
@@ -601,5 +602,61 @@ async def test_the_revenue_is_split_by_where_the_bookings_came_from():
         assert pm.by_source["booking"].commission == Decimal("15")
         assert pm.by_source["booking"].bookings == 0
         assert sum(part.revenue for part in pm.by_source.values()) == pm.revenue
+
+        await session.rollback()
+
+
+
+def _deposit(booking_id: uuid.UUID, amount: str, status: str) -> BookingDepositModel:
+    return BookingDepositModel(id=uuid.uuid4(), booking_id=booking_id, amount=Decimal(amount), status=status)
+
+
+@pytestmark_integration
+@pytest.mark.asyncio
+async def test_payments_by_method_what_guests_owe_and_deposits_on_hand():
+    company_id = uuid.uuid4()
+    async with _fresh_session() as session:
+        guest, stranger = _guest(company_id), _guest(uuid.uuid4())
+        prop = _property(company_id, f"pay-{uuid.uuid4().hex[:8]}", "daily")
+        other = _property(stranger.company_id, f"pay-{uuid.uuid4().hex[:8]}", "daily")
+        # Paid 300 of 500 in cash and by card; a refund of 50 by card.
+        owing = _booking(company_id, prop.id, guest.id, datetime(2025, 6, 1), datetime(2025, 6, 3), "500", "daily")
+        card = _payment(owing.id, "100")
+        card.method = "card"
+        card_back = _refund(owing.id, "50")
+        card_back.method = "card"
+        # Paid in full by transfer; a payment still pending does not count.
+        settled = _booking(company_id, prop.id, guest.id, datetime(2025, 6, 5), datetime(2025, 6, 7), "400", "daily")
+        transfer = _payment(settled.id, "400")
+        transfer.method = "transfer"
+        # A cancelled stay owes nothing; one outside the period is not in it.
+        gone = _cancelled(
+            _booking(company_id, prop.id, guest.id, datetime(2025, 6, 10), datetime(2025, 6, 12), "700", "daily")
+        )
+        later = _booking(company_id, prop.id, guest.id, datetime(2025, 8, 1), datetime(2025, 8, 3), "900", "daily")
+        foreign = _booking(
+            stranger.company_id, other.id, stranger.id, datetime(2025, 6, 1), datetime(2025, 6, 3), "900", "daily"
+        )
+        session.add_all([
+            guest, stranger, prop, other, owing, settled, gone, later, foreign,
+            _payment(owing.id, "200"), card, card_back, transfer, _pending(settled.id, "100"),
+            _payment(foreign.id, "900"),
+            # Deposits: on hand now (also for the later stay), returned, kept, a stranger's.
+            _deposit(owing.id, "10000", "paid"), _deposit(later.id, "5000", "paid"),
+            _deposit(settled.id, "10000", "returned"), _deposit(gone.id, "10000", "held"),
+            _deposit(foreign.id, "7000", "paid"),
+        ])
+        await session.flush()
+
+        repo = SqlAnalyticsRepository(session)
+        summary = await repo.get_payments_summary(company_id, DATE_FROM, DATE_TO)
+
+        assert summary.received_by_method == {"cash": Decimal("200"), "card": Decimal("50"), "transfer": Decimal("400")}
+        assert (summary.owing_bookings, summary.owed) == (1, Decimal("250"))
+        assert (summary.deposits_count, summary.deposits_on_hand) == (2, Decimal("15000"))
+
+        # Another flat chosen: nothing of this one.
+        empty = await repo.get_payments_summary(company_id, DATE_FROM, DATE_TO, property_ids=[uuid.uuid4()])
+        assert (empty.received_by_method, empty.owed, empty.deposits_on_hand) == ({}, 0, 0)
 
         await session.rollback()

@@ -91,3 +91,17 @@ class AnalyticsSummary:
     by_source: dict[str, SourceTotals] = field(default_factory=dict)
     #: The journal's expenses in the total by category, for «where the money went».
     expenses_by_category: dict[str, Decimal] = field(default_factory=dict)
+
+
+@dataclass
+class PaymentsSummary:
+    """The money of the period's bookings: what came in by way of paying, what the
+    guests still owe for their stays, and the deposits held now."""
+
+    #: Payments less refunds, by method ("cash", "card", "transfer").
+    received_by_method: dict[str, Decimal] = field(default_factory=dict)
+    owed: Decimal = Decimal("0")
+    owing_bookings: int = 0
+    #: Deposits taken and not yet returned or kept: a state now, not of the period.
+    deposits_on_hand: Decimal = Decimal("0")
+    deposits_count: int = 0
