@@ -125,7 +125,7 @@ function CheckInPhoto({
   return (
     <div className="rounded-xl border border-line overflow-hidden">
       {photo.kind === 'video' ? (
-        <video src={photo.url} controls playsInline preload="metadata" className="w-full h-36 bg-black object-contain" />
+        <video src={photo.url} controls playsInline preload="metadata" className="w-full h-36 bg-surface-page object-contain" />
       ) : (
         <img src={photo.url} alt={photo.caption ?? ''} className="w-full h-36 object-cover" />
       )}
