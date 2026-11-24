@@ -1281,7 +1281,8 @@
     "wasBefore": "бұрын {{value}}",
     "byMonth": "Айлар бойынша табыс",
     "monthsDone": "Осы және өткен айлар",
-    "monthsBooked": "Алдағы брондар"
+    "monthsBooked": "Алдағы брондар",
+    "noMonthsData": "Осы айларда кіріс жоқ, алдағы брондар да жоқ"
   },
   "cleaner": {
     "todaysTasks": "Бүгінгі тазалаулар",

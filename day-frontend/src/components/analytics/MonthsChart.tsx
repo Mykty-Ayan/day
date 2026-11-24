@@ -47,7 +47,7 @@ export default function MonthsChart({ propertyIds, source }: { propertyIds?: str
       {isLoading ? (
         <div className="h-40" />
       ) : max === 0 ? (
-        <div className="flex h-40 items-center justify-center text-sm text-ink-muted">{t('analytics.noRevenueData')}</div>
+        <div className="flex h-40 items-center justify-center text-sm text-ink-muted">{t('analytics.noMonthsData')}</div>
       ) : (
         <ul className="flex h-40 items-end gap-2">
           {months.map((point, i) => {

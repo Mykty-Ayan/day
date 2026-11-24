@@ -1332,7 +1332,8 @@
     "wasBefore": "было {{value}}",
     "byMonth": "Доход по месяцам",
     "monthsDone": "Этот и прошлые месяцы",
-    "monthsBooked": "Забронировано вперёд"
+    "monthsBooked": "Забронировано вперёд",
+    "noMonthsData": "Нет дохода за эти месяцы и броней вперёд"
   },
   "cleaner": {
     "todaysTasks": "Уборки на сегодня",
