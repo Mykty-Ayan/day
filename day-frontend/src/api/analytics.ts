@@ -2,6 +2,7 @@ import apiClient from './client'
 import type {
   AnalyticsFilters,
   AnalyticsMetricsResponse,
+  PaymentsSummary,
   TimeSeriesResponse,
 } from '../types/analytics'
 
@@ -41,6 +42,13 @@ export async function getAnalyticsTimeSeries(
   const res = await apiClient.get('/analytics/time-series', {
     params: buildAnalyticsParams(filters),
   })
+  return res.data
+}
+
+// --- Payments ---
+
+export async function getAnalyticsPayments(filters: AnalyticsFilters = {}): Promise<PaymentsSummary> {
+  const res = await apiClient.get('/analytics/payments', { params: buildAnalyticsParams(filters) })
   return res.data
 }
 

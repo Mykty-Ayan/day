@@ -31,7 +31,11 @@ from app.presentation.api.deps import get_company_id, require
 from app.presentation.schemas.analytics import (
     AnalyticsMetricsResponse,
     AnalyticsSummaryResponse,
+    ExpenseCategoryTotalResponse,
+    MethodTotalResponse,
+    PaymentsSummaryResponse,
     PropertyMetricsResponse,
+    SourceTotalsResponse,
     TimeSeriesPointResponse,
     TimeSeriesResponse,
 )
@@ -123,6 +127,20 @@ async def get_metrics(
             total_booked_nights=result.summary.total_booked_nights,
             total_vacancy_days=result.summary.total_vacancy_days,
             properties_count=result.summary.properties_count,
+            by_source=[
+                SourceTotalsResponse(
+                    source=name, revenue=part.revenue, commission=part.commission, bookings=part.bookings
+                )
+                for name, part in sorted(
+                    result.summary.by_source.items(), key=lambda item: item[1].revenue, reverse=True
+                )
+            ],
+            expenses_by_category=[
+                ExpenseCategoryTotalResponse(category=category, amount=amount)
+                for category, amount in sorted(
+                    result.summary.expenses_by_category.items(), key=lambda item: item[1], reverse=True
+                )
+            ],
         ),
         properties=[
             PropertyMetricsResponse(
@@ -146,6 +164,40 @@ async def get_metrics(
             )
             for pm in result.properties
         ],
+        date_from=resolved_from,
+        date_to=resolved_to,
+    )
+
+
+@analytics_router.get(
+    "/payments",
+    response_model=PaymentsSummaryResponse,
+    dependencies=[Depends(require(Permission.ANALYTICS_READ))],
+)
+async def get_payments(
+    date_from: date | None = Query(default=None),
+    date_to: date | None = Query(default=None),
+    period: PeriodPreset | None = Query(default=None),
+    property_id: list[uuid.UUID] | None = Query(default=None),
+    source: str | None = Query(default=None),
+    session: AsyncSession = Depends(get_session),
+    company_id: uuid.UUID = Depends(get_company_id),
+):
+    resolved_from, resolved_to = _resolve_dates(date_from, date_to, period, await _today(session, company_id))
+    if resolved_to <= resolved_from:
+        raise HTTPException(status_code=400, detail="date_to must be after date_from")
+    result = await SqlAnalyticsRepository(session).get_payments_summary(
+        company_id, resolved_from, resolved_to, property_ids=property_id, source=source
+    )
+    return PaymentsSummaryResponse(
+        received=[
+            MethodTotalResponse(method=method, amount=amount)
+            for method, amount in sorted(result.received_by_method.items(), key=lambda item: item[1], reverse=True)
+        ],
+        owed=result.owed,
+        owing_bookings=result.owing_bookings,
+        deposits_on_hand=result.deposits_on_hand,
+        deposits_count=result.deposits_count,
         date_from=resolved_from,
         date_to=resolved_to,
     )

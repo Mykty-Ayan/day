@@ -48,7 +48,7 @@ import { errorText } from './errors'
 import { buildCheckInMessage } from './messages'
 import { ActionButton, Chip, Field, Sheet } from './miniapp-ui'
 import { stepAskKeys } from '../../lib/booking-status'
-import { halfOf, paymentSuggestions } from '../../lib/booking-money'
+import { paymentSuggestions } from '../../lib/booking-money'
 import { useFirstNight } from '../../hooks/useFirstNight'
 import { useClosingConfirmation } from './useClosingConfirmation'
 
@@ -159,7 +159,7 @@ export default function BookingSheet({
   // Minibar orders on the guest's tab: owed on top of the stay, paid on the order itself.
   const ordersDue = fresh.data?.booking.orders_due ?? booking?.orders_due ?? 0
   const received = payments.filter((payment) => payment.status === 'completed')
-  const suggested = paymentSuggestions(due, useFirstNight(booking))
+  const suggested = paymentSuggestions(due, booking?.total_price ?? 0, useFirstNight(booking))
 
   function refresh() {
     queryClient.invalidateQueries({ queryKey: ['miniapp'] })
@@ -544,11 +544,11 @@ export default function BookingSheet({
                 inputMode="numeric"
                 placeholder={String(due)}
               />
-              {/* Ready sums: the first night, half of what is left, all of it. */}
+              {/* Ready sums: the first night, half of the price, all that is left. */}
               <div className="flex flex-wrap gap-1">
                 {[
-                  ...(suggested.firstNight !== null ? [{ label: t('miniapp.flat.firstNight'), value: suggested.firstNight }] : []),
-                  { label: '50%', value: halfOf(suggested.all) },
+                  ...(suggested.firstNight !== null ? [{ label: t('miniapp.booking.firstDay'), value: suggested.firstNight }] : []),
+                  ...(suggested.half !== null ? [{ label: '50%', value: suggested.half }] : []),
                   { label: t('miniapp.booking.rest'), value: suggested.all },
                 ]
                   .filter((option, i, all) => option.value > 0 && all.findIndex((o) => o.value === option.value) === i)

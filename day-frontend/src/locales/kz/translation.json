@@ -924,7 +924,7 @@
     "from": "{{time}} бастап",
     "until": "{{time}} дейін",
     "extend": "Ұзарту",
-    "quickFirstNight": "Бірінші түн",
+    "quickFirstNight": "Бірінші тәулік",
     "quickRest": "Қалдық",
     "summaryOccupied": "Түнге бос емес: {{total}} ішінен {{busy}}",
     "summaryHourly": "бүгін сағаттық {{stays}}",
@@ -1276,7 +1276,35 @@
     "revenueOverTime": "Кезең бойынша кіріс",
     "occupancyOverTime": "Кезең бойынша толымдылық",
     "propertiesCount": "{{count}} нысан",
-    "nightsTaken": "Бос емес түндер: {{nights}}"
+    "nightsTaken": "Бос емес түндер: {{nights}}",
+    "comparedWith": "{{range}} кезеңімен салыстыру",
+    "wasBefore": "бұрын {{value}}",
+    "byMonth": "Айлар бойынша табыс",
+    "monthsDone": "Осы және өткен айлар",
+    "monthsBooked": "Алдағы брондар",
+    "noMonthsData": "Осы айларда кіріс жоқ, алдағы брондар да жоқ",
+    "flow": {
+      "title": "Ақша қайда кетті",
+      "revenue": "Кіріс",
+      "commission": "Алаңдар комиссиясы",
+      "profit": "Пайда"
+    },
+    "bySource": "Көздер бойынша кіріс",
+    "source": "Көзі",
+    "net": "Комиссиядан кейін",
+    "payments": {
+      "title": "Төлемдер",
+      "received": "Алынды",
+      "owed": "Қонақтардың тұру үшін қарызы",
+      "deposits": "Қазір қолдағы кепілдер",
+      "depositsCount": "{{count}} кепіл",
+      "depositsCount_one": "{{count}} кепіл",
+      "depositsCount_other": "{{count}} кепіл",
+      "nothing": "Осы кезеңдегі брондар бойынша төлем жоқ"
+    },
+    "sourceShare": "кірістің {{share}}% · {{count}} бронь",
+    "sourceShare_one": "кірістің {{share}}% · {{count}} бронь",
+    "sourceShare_other": "кірістің {{share}}% · {{count}} бронь"
   },
   "cleaner": {
     "todaysTasks": "Бүгінгі тазалаулар",
@@ -1642,6 +1670,7 @@
       "cancelAsk": "Бұл броньды болдырмау керек пе? Күндер босайды, кері қайтару мүмкін емес.",
       "payAsk": "{{amount}} төлемін ({{method}}) жазу керек пе?",
       "recordAmount": "{{amount}} енгізу",
+      "firstDay": "Бірінші тәулік",
       "rest": "Қалдық",
       "waiting": "Түсуін күтеміз",
       "received": "Түсті",

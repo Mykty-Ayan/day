@@ -617,7 +617,8 @@ function PanelView({ code, panel, locale, receivedAt }: { code: string; panel: G
           {/* Kept mounted while another stage is open: the minibar's cart and note stay as the guest left them. */}
           <div role="tabpanel" hidden={tab !== 'stay'}>
               {tab === 'stay' && wifi && <div className="m-2 grid grid-cols-2 gap-2">{wifi}</div>}
-              {panel.menu && (
+              {/* An empty minibar is not shown: nothing to order, nothing ordered. */}
+              {panel.menu && (panel.menu.length > 0 || (panel.orders?.length ?? 0) > 0) && (
                 <div id="minibar" className="m-2 scroll-mt-16">
                   <GuestMinibar code={code} menu={panel.menu} minibar={panel.minibar} orders={panel.orders} locale={locale} />
                 </div>

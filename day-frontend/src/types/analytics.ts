@@ -31,6 +31,10 @@ export interface AnalyticsSummary {
   total_booked_nights: number
   total_vacancy_days: number
   properties_count: number
+  /** What each booking source brought, the largest first. */
+  by_source?: { source: string; revenue: number; commission: number; bookings: number }[]
+  /** The journal's expenses by category, the largest first. */
+  expenses_by_category?: { category: string; amount: number }[]
 }
 
 export interface AnalyticsMetricsResponse {
@@ -63,4 +67,15 @@ export interface AnalyticsFilters {
   granularity?: Granularity
   property_ids?: string[]
   source?: string
+}
+
+/** The money of the period's bookings: received by method, owed for the stays; the deposits held now. */
+export interface PaymentsSummary {
+  received: { method: string; amount: number }[]
+  owed: number
+  owing_bookings: number
+  deposits_on_hand: number
+  deposits_count: number
+  date_from: string
+  date_to: string
 }

@@ -9,10 +9,10 @@ from decimal import Decimal
 from sqlalchemy import Integer, Numeric, and_, case, cast, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.domain.analytics.entities import PropertyMetrics, TimeSeriesPoint
+from app.domain.analytics.entities import PaymentsSummary, PropertyMetrics, SourceTotals, TimeSeriesPoint
 from app.domain.analytics.repositories import AnalyticsRepository
 from app.domain.analytics.value_objects import Granularity
-from app.infrastructure.models.booking import BookingModel, BookingPaymentModel
+from app.infrastructure.models.booking import BookingDepositModel, BookingModel, BookingPaymentModel
 from app.infrastructure.models.property import PropertyModel
 
 # Commission rate for platform bookings (Booking.com / Airbnb)
@@ -155,6 +155,11 @@ class SqlAnalyticsRepository(AnalyticsRepository):
             # Commission
             rate = _COMMISSION_RATES.get(booking_source or "", Decimal("0"))
             pm.commission += revenue * rate
+            if total_bookings or revenue:
+                by = pm.by_source.setdefault(booking_source or "direct", SourceTotals())
+                by.revenue += revenue
+                by.commission += revenue * rate
+                by.bookings += total_bookings
 
         # A cancelled stay is no stay, but a prepayment the host kept is income.
         # Only money still held counts: a refund takes it back to nothing.
@@ -188,7 +193,11 @@ class SqlAnalyticsRepository(AnalyticsRepository):
             kept = Decimal(str(row.kept))
             pm.revenue += kept
             pm.retained_prepayments += kept
-            pm.commission += kept * _COMMISSION_RATES.get(row.booking_source or "", Decimal("0"))
+            kept_commission = kept * _COMMISSION_RATES.get(row.booking_source or "", Decimal("0"))
+            pm.commission += kept_commission
+            by = pm.by_source.setdefault(row.booking_source or "direct", SourceTotals())
+            by.revenue += kept
+            by.commission += kept_commission
 
         # Compute derived metrics
         for pm in props_map.values():
@@ -219,6 +228,76 @@ class SqlAnalyticsRepository(AnalyticsRepository):
                 pm.avg_stay_duration = pm.booked_nights / pm.total_bookings
 
         return sorted(props_map.values(), key=lambda p: p.revenue, reverse=True)
+
+    async def get_payments_summary(
+        self,
+        company_id: uuid.UUID,
+        date_from: date,
+        date_to: date,
+        *,
+        property_ids: list[uuid.UUID] | None = None,
+        source: str | None = None,
+    ) -> PaymentsSummary:
+        """The bookings of the period as the revenue takes them (their nights touch it):
+        the payments by method, what their guests still owe; and the deposits on hand."""
+        summary = PaymentsSummary()
+        if property_ids is not None and len(property_ids) == 0:
+            return summary
+        signed = case(
+            (BookingPaymentModel.type == "payment", cast(BookingPaymentModel.amount, Numeric(12, 2))),
+            else_=cast(-BookingPaymentModel.amount, Numeric(12, 2)),
+        )
+        in_period = [
+            BookingModel.company_id == company_id,
+            BookingModel.check_in < date_to,
+            BookingModel.check_out > date_from,
+        ]
+        if property_ids is not None:
+            in_period.append(BookingModel.property_id.in_(property_ids))
+        if source is not None:
+            in_period.append(BookingModel.source == source)
+
+        by_method = (
+            select(BookingPaymentModel.method, func.sum(signed).label("net"))
+            .join(BookingModel, BookingModel.id == BookingPaymentModel.booking_id)
+            .where(*in_period, BookingPaymentModel.status == "completed")
+            .group_by(BookingPaymentModel.method)
+        )
+        for row in (await self._session.execute(by_method)).all():
+            net = Decimal(str(row.net or 0))
+            if net:
+                summary.received_by_method[row.method] = net
+
+        # What each live stay still owes: its price less what came in for it.
+        paid = (
+            select(BookingPaymentModel.booking_id, func.sum(signed).label("net"))
+            .where(BookingPaymentModel.status == "completed")
+            .group_by(BookingPaymentModel.booking_id)
+            .subquery("paid")
+        )
+        debt = cast(BookingModel.total_price, Numeric(12, 2)) - func.coalesce(paid.c.net, 0)
+        owing = (
+            select(func.count(), func.coalesce(func.sum(debt), 0))
+            .select_from(BookingModel)
+            .outerjoin(paid, paid.c.booking_id == BookingModel.id)
+            .where(*in_period, BookingModel.status.notin_(["cancelled"]), debt > 0)
+        )
+        count, owed = (await self._session.execute(owing)).one()
+        summary.owing_bookings, summary.owed = int(count), Decimal(str(owed))
+
+        # Deposits taken and still held for the guest, whenever the stay is.
+        on_hand = (
+            select(func.count(), func.coalesce(func.sum(cast(BookingDepositModel.amount, Numeric(12, 2))), 0))
+            .join(BookingModel, BookingModel.id == BookingDepositModel.booking_id)
+            .where(BookingModel.company_id == company_id, BookingDepositModel.status == "paid")
+        )
+        if property_ids is not None:
+            on_hand = on_hand.where(BookingModel.property_id.in_(property_ids))
+        if source is not None:
+            on_hand = on_hand.where(BookingModel.source == source)
+        count, held = (await self._session.execute(on_hand)).one()
+        summary.deposits_count, summary.deposits_on_hand = int(count), Decimal(str(held))
+        return summary
 
     async def get_time_series(
         self,

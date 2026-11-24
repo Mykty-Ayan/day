@@ -9,6 +9,15 @@ from decimal import Decimal
 
 
 @dataclass
+class SourceTotals:
+    """What one booking source brought: the money in, the platform's cut, the bookings."""
+
+    revenue: Decimal = Decimal("0")
+    commission: Decimal = Decimal("0")
+    bookings: int = 0
+
+
+@dataclass
 class PropertyMetrics:
     """Aggregated metrics for a single property over a period."""
 
@@ -40,6 +49,8 @@ class PropertyMetrics:
     avg_stay_duration: Decimal = Decimal("0")
     total_bookings: int = 0
     booked_nights: Decimal = Decimal("0")
+    #: The revenue above by where the bookings came from ("direct", "airbnb", ...).
+    by_source: dict[str, SourceTotals] = field(default_factory=dict)
 
 
 @dataclass
@@ -76,3 +87,21 @@ class AnalyticsSummary:
     total_booked_nights: Decimal = Decimal("0")
     total_vacancy_days: Decimal = Decimal("0")
     properties_count: int = 0
+    #: The revenue and commission by booking source, for «where the money came from».
+    by_source: dict[str, SourceTotals] = field(default_factory=dict)
+    #: The journal's expenses in the total by category, for «where the money went».
+    expenses_by_category: dict[str, Decimal] = field(default_factory=dict)
+
+
+@dataclass
+class PaymentsSummary:
+    """The money of the period's bookings: what came in by way of paying, what the
+    guests still owe for their stays, and the deposits held now."""
+
+    #: Payments less refunds, by method ("cash", "card", "transfer").
+    received_by_method: dict[str, Decimal] = field(default_factory=dict)
+    owed: Decimal = Decimal("0")
+    owing_bookings: int = 0
+    #: Deposits taken and not yet returned or kept: a state now, not of the period.
+    deposits_on_hand: Decimal = Decimal("0")
+    deposits_count: int = 0
