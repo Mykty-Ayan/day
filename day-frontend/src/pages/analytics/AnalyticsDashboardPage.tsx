@@ -156,10 +156,13 @@ export default function AnalyticsDashboardPage() {
             <MonthsChart propertyIds={filters.property_ids} source={filters.source} />
 
             {metricsData && (
-              <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 xl:grid-cols-3">
+              <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
                 <MoneyFlow summary={metricsData.summary} />
-                <SourcesTable summary={metricsData.summary} />
                 <PaymentsCard filters={{ ...filters, granularity: undefined }} />
+                {/* Full width: four columns of sums need the room. */}
+                <div className="lg:col-span-2">
+                  <SourcesTable summary={metricsData.summary} />
+                </div>
               </div>
             )}
 
