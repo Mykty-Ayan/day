@@ -4,7 +4,7 @@
  */
 
 import { expect, test } from '@playwright/test'
-import { changeOf, customRange, monthsWindow, previousRange } from '../../src/pages/analytics/period'
+import { changeOf, customRange, monthsWindow, niceTop, previousRange } from '../../src/pages/analytics/period'
 import { pickStayDay } from '../../src/lib/booking-dates'
 
 test('the last picked day is in the report', () => {
@@ -48,4 +48,17 @@ test('revenue by month: five months before this one, this one, three ahead', () 
   expect(monthsWindow('2026-11-24')).toEqual({ date_from: '2026-06-01', date_to: '2027-03-01', current: '2026-11-01' })
   // Across the new year, on the first day of a month.
   expect(monthsWindow('2027-01-01')).toEqual({ date_from: '2026-08-01', date_to: '2027-05-01', current: '2027-01-01' })
+})
+
+test('the scale of a chart tops at a round sum just above the largest value', () => {
+  expect(niceTop(0)).toBe(0)
+  expect(niceTop(83_400)).toBe(100_000)
+  expect(niceTop(180_000)).toBe(200_000)
+  expect(niceTop(210_000)).toBe(250_000)
+  expect(niceTop(380_000)).toBe(400_000)
+  // A month of 1.1 million fills most of the height, not half of a 2 million scale.
+  expect(niceTop(1_100_000)).toBe(1_500_000)
+  // A value on a round sum is its own top: the grid does not leave an empty band.
+  expect(niceTop(50)).toBe(50)
+  expect(niceTop(100)).toBe(100)
 })

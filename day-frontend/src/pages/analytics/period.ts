@@ -32,3 +32,12 @@ export function monthsWindow(today: string): { date_from: string; date_to: strin
     current: format(first, 'yyyy-MM-dd'),
   }
 }
+
+/** The top of a chart's scale: the first round figure (1, 1.5, 2, 2.5, 3, 4, 5, 6 or 8 of a power
+ *  of ten) at or above the largest value, so the grid lines read as round sums and the bars fill
+ *  most of the height. Zero for an empty chart. */
+export function niceTop(max: number): number {
+  if (!(max > 0)) return 0
+  const power = 10 ** Math.floor(Math.log10(max))
+  return [1, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10].map((step) => step * power).find((top) => top >= max * (1 - 1e-9))!
+}

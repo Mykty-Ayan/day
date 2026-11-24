@@ -54,6 +54,7 @@ export default function AnalyticsDashboardPage() {
   // The same numbers for the period just before, as long: how each one changed.
   const before = metricsData ? previousRange(metricsData.date_from, metricsData.date_to) : null
   const { data: previousData } = useAnalyticsMetrics({ ...filters, period: undefined, ...before }, !waiting && before !== null)
+  const { data: previousSeries } = useAnalyticsTimeSeries({ ...filters, period: undefined, ...before }, !waiting && before !== null)
   const { range: dayRange } = useDates()
   const { data: propertiesData } = useProperties({ per_page: 100, status: 'active' })
   const properties = propertiesData?.items ?? []
@@ -168,8 +169,8 @@ export default function AnalyticsDashboardPage() {
 
             {/* Charts */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <RevenueChart data={timeSeriesData?.data ?? []} />
-              <OccupancyChart data={timeSeriesData?.data ?? []} />
+              <RevenueChart data={timeSeriesData?.data ?? []} previous={previousSeries?.data} />
+              <OccupancyChart data={timeSeriesData?.data ?? []} previous={previousSeries?.data} />
             </div>
 
             {/* Property Table */}
