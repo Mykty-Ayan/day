@@ -56,6 +56,20 @@ class PropertyMetricsResponse(BaseModel):
     booked_nights: Decimal
 
 
+class SourceTotalsResponse(BaseModel):
+    """What one booking source brought in the period."""
+
+    source: str
+    revenue: Decimal
+    commission: Decimal
+    bookings: int
+
+
+class ExpenseCategoryTotalResponse(BaseModel):
+    category: str
+    amount: Decimal
+
+
 class AnalyticsSummaryResponse(BaseModel):
     model_config = ConfigDict(
         from_attributes=True,
@@ -78,6 +92,9 @@ class AnalyticsSummaryResponse(BaseModel):
     total_booked_nights: Decimal
     total_vacancy_days: Decimal
     properties_count: int
+    # Where the money came from and where it went, the largest first.
+    by_source: list[SourceTotalsResponse] = []
+    expenses_by_category: list[ExpenseCategoryTotalResponse] = []
 
 
 class AnalyticsMetricsResponse(BaseModel):

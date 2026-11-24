@@ -559,3 +559,47 @@ async def test_time_series_attributes_sub_day_revenue_to_its_bucket():
         assert by_day[date(2025, 6, 10)].booked_nights == Decimal("1.0000")
 
         await session.rollback()
+
+
+@pytestmark_integration
+@pytest.mark.asyncio
+async def test_the_revenue_is_split_by_where_the_bookings_came_from():
+    """Each source's money and the platform's cut; a kept prepayment counts to its
+    source, and another company's bookings to none."""
+    company_id = uuid.uuid4()
+    async with _fresh_session() as session:
+        guest, stranger = _guest(company_id), _guest(uuid.uuid4())
+        prop = _property(company_id, f"src-{uuid.uuid4().hex[:8]}", "daily")
+        other = _property(stranger.company_id, f"src-{uuid.uuid4().hex[:8]}", "daily")
+        direct = _booking(company_id, prop.id, guest.id, datetime(2025, 6, 1), datetime(2025, 6, 3), "200", "daily")
+        airbnb = _booking(company_id, prop.id, guest.id, datetime(2025, 6, 5), datetime(2025, 6, 7), "300", "daily")
+        airbnb.source = "airbnb"
+        kept = _cancelled(
+            _booking(company_id, prop.id, guest.id, datetime(2025, 6, 10), datetime(2025, 6, 12), "400", "daily")
+        )
+        kept.source = "booking"
+        foreign = _booking(
+            stranger.company_id, other.id, stranger.id, datetime(2025, 6, 1), datetime(2025, 6, 3), "900", "daily"
+        )
+        foreign.source = "airbnb"
+        session.add_all([
+            guest, stranger, prop, other, direct, airbnb, kept, foreign,
+            _payment(direct.id, "200"), _payment(airbnb.id, "300"), _payment(kept.id, "100"),
+            _payment(foreign.id, "900"),
+        ])
+        await session.flush()
+
+        [pm] = await SqlAnalyticsRepository(session).get_property_metrics(company_id, DATE_FROM, DATE_TO)
+
+        assert set(pm.by_source) == {"direct", "airbnb", "booking"}
+        assert (pm.by_source["direct"].revenue, pm.by_source["direct"].commission) == (Decimal("200"), 0)
+        assert pm.by_source["airbnb"].revenue == Decimal("300")
+        assert pm.by_source["airbnb"].commission == Decimal("9")  # 3%
+        assert pm.by_source["airbnb"].bookings == 1
+        # The kept prepayment: money of Booking.com's guest, no stay.
+        assert pm.by_source["booking"].revenue == Decimal("100")
+        assert pm.by_source["booking"].commission == Decimal("15")
+        assert pm.by_source["booking"].bookings == 0
+        assert sum(part.revenue for part in pm.by_source.values()) == pm.revenue
+
+        await session.rollback()

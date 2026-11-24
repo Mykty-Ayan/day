@@ -294,3 +294,20 @@ async def test_the_expense_journal_comes_off_the_profit_until_voided(client):
     summary = (await client.get(period)).json()["summary"]
     assert float(summary["total_recorded_expenses"]) == 0
     assert float(summary["total_profit"]) == 0
+
+
+async def test_the_summary_says_where_the_money_went_by_category(client):
+    period = "/api/v1/analytics/metrics?date_from=2026-10-01&date_to=2026-11-01"
+    for category, amount in [("internet", "9000"), ("cleaning", "12000"), ("internet", "1000")]:
+        created = await client.post(
+            "/api/v1/expenses", json={"category": category, "amount": amount, "spent_on": "2026-10-15"}
+        )
+        assert created.status_code == 201, created.text
+
+    summary = (await client.get(period)).json()["summary"]
+    # The largest first; no bookings, so no sources.
+    assert [(row["category"], float(row["amount"])) for row in summary["expenses_by_category"]] == [
+        ("cleaning", 12000),
+        ("internet", 10000),
+    ]
+    assert summary["by_source"] == []

@@ -1283,7 +1283,18 @@
     "wasBefore": "was {{value}}",
     "byMonth": "Revenue by month",
     "monthsDone": "This and past months",
-    "monthsBooked": "Booked ahead"
+    "monthsBooked": "Booked ahead",
+    "flow": {
+      "title": "Where the money went",
+      "revenue": "Revenue",
+      "commission": "Platform commission",
+      "profit": "Profit"
+    },
+    "bySource": "Revenue by source",
+    "source": "Source",
+    "net": "After commission",
+    "sourceShare_one": "{{share}}% of revenue · {{count}} booking",
+    "sourceShare_other": "{{share}}% of revenue · {{count}} bookings"
   },
   "cleaner": {
     "todaysTasks": "Today's cleanings",

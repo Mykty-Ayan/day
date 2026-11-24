@@ -1332,7 +1332,20 @@
     "wasBefore": "было {{value}}",
     "byMonth": "Доход по месяцам",
     "monthsDone": "Этот и прошлые месяцы",
-    "monthsBooked": "Забронировано вперёд"
+    "monthsBooked": "Забронировано вперёд",
+    "flow": {
+      "title": "Куда ушли деньги",
+      "revenue": "Доход",
+      "commission": "Комиссия площадок",
+      "profit": "Прибыль"
+    },
+    "bySource": "Доход по источникам",
+    "source": "Источник",
+    "net": "После комиссии",
+    "sourceShare_one": "{{share}}% дохода · {{count}} бронь",
+    "sourceShare_few": "{{share}}% дохода · {{count}} брони",
+    "sourceShare_many": "{{share}}% дохода · {{count}} броней",
+    "sourceShare_other": "{{share}}% дохода · {{count}} брони"
   },
   "cleaner": {
     "todaysTasks": "Уборки на сегодня",

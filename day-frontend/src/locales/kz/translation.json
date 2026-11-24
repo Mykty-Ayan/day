@@ -1281,7 +1281,18 @@
     "wasBefore": "бұрын {{value}}",
     "byMonth": "Айлар бойынша табыс",
     "monthsDone": "Осы және өткен айлар",
-    "monthsBooked": "Алдағы брондар"
+    "monthsBooked": "Алдағы брондар",
+    "flow": {
+      "title": "Ақша қайда кетті",
+      "revenue": "Кіріс",
+      "commission": "Алаңдар комиссиясы",
+      "profit": "Пайда"
+    },
+    "bySource": "Көздер бойынша кіріс",
+    "source": "Көзі",
+    "net": "Комиссиядан кейін",
+    "sourceShare_one": "кірістің {{share}}% · {{count}} бронь",
+    "sourceShare_other": "кірістің {{share}}% · {{count}} бронь"
   },
   "cleaner": {
     "todaysTasks": "Бүгінгі тазалаулар",

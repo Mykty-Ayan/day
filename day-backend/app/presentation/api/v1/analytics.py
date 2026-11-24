@@ -31,7 +31,9 @@ from app.presentation.api.deps import get_company_id, require
 from app.presentation.schemas.analytics import (
     AnalyticsMetricsResponse,
     AnalyticsSummaryResponse,
+    ExpenseCategoryTotalResponse,
     PropertyMetricsResponse,
+    SourceTotalsResponse,
     TimeSeriesPointResponse,
     TimeSeriesResponse,
 )
@@ -123,6 +125,20 @@ async def get_metrics(
             total_booked_nights=result.summary.total_booked_nights,
             total_vacancy_days=result.summary.total_vacancy_days,
             properties_count=result.summary.properties_count,
+            by_source=[
+                SourceTotalsResponse(
+                    source=name, revenue=part.revenue, commission=part.commission, bookings=part.bookings
+                )
+                for name, part in sorted(
+                    result.summary.by_source.items(), key=lambda item: item[1].revenue, reverse=True
+                )
+            ],
+            expenses_by_category=[
+                ExpenseCategoryTotalResponse(category=category, amount=amount)
+                for category, amount in sorted(
+                    result.summary.expenses_by_category.items(), key=lambda item: item[1], reverse=True
+                )
+            ],
         ),
         properties=[
             PropertyMetricsResponse(
