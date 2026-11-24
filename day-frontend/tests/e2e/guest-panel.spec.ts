@@ -483,6 +483,22 @@ test('a late check-out the flat sells says until when and for how much, and asks
   expect(decodeURIComponent((await ask.getAttribute('href'))!.split('text=')[1])).toContain('Можно выехать позже 12:00?')
 })
 
+test('a deposit kept line by line shows each sum, why and its photo', async ({ page }) => {
+  await open(page, answer({
+    deposit: {
+      amount: 10000, status: 'partially_held', held: 4500, deductions: [
+        { amount: 3000, reason: 'Разбит бокал', photos: ['https://example.com/glass.jpg?sig=1'] },
+        { amount: 1500, reason: 'Пятно на диване', photos: [] },
+      ],
+    },
+  }, { status: 'checked_out', paid: 40000, remaining: 0 }))
+  await page.getByRole('tab', { name: 'Выезд' }).click()
+  const lines = page.getByTestId('deposit-deductions')
+  await expect(lines.getByRole('listitem')).toHaveCount(2)
+  await expect(lines.getByRole('listitem').first()).toContainText(/Разбит бокал\s*3\s000\s₸/)
+  await expect(lines.getByRole('img', { name: 'Разбит бокал, фото 1' })).toHaveAttribute('src', 'https://example.com/glass.jpg?sig=1')
+})
+
 test('a deposit kept in part says what comes back and what was kept', async ({ page }) => {
   const now = today()
   await open(page, answer({ deposit: { amount: 10000, status: 'partially_held', held: 3000 } }, {

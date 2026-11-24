@@ -2258,6 +2258,51 @@ class TestManageDepositsService:
         assert result.reason == "Minor damage"
 
     @pytest.mark.asyncio
+    async def test_a_hold_line_by_line_keeps_their_sum_for_the_guest(self):
+        _, _, svc, booking = await self._setup()
+        deposit = await svc.create_deposit(booking.id, COMPANY_ID, Decimal("10000"))
+        await svc.perform_action(booking.id, deposit.id, COMPANY_ID, "pay")
+        lines = [
+            {"amount": Decimal("3000"), "reason": "Разбит бокал", "photos": ["https://s3/deposits/b/glass.jpg"]},
+            {"amount": Decimal("1500.5"), "reason": "Пятно на диване", "photos": []},
+        ]
+
+        result = await svc.perform_action(
+            booking.id, deposit.id, COMPANY_ID, "partial_hold", reason="для себя", deductions=lines
+        )
+
+        assert (result.status, result.held_amount, result.reason) == (
+            DepositStatus.PARTIALLY_HELD, Decimal("4500.50"), "для себя"
+        )
+        assert result.deductions == [
+            {"amount": "3000.00", "reason": "Разбит бокал", "photos": ["https://s3/deposits/b/glass.jpg"]},
+            {"amount": "1500.50", "reason": "Пятно на диване", "photos": []},
+        ]
+
+    @pytest.mark.asyncio
+    async def test_hold_lines_must_add_up_and_come_with_a_hold(self):
+        _, _, svc, booking = await self._setup()
+        deposit = await svc.create_deposit(booking.id, COMPANY_ID, Decimal("10000"))
+        line = [{"amount": Decimal("3000"), "reason": "Разбит бокал", "photos": []}]
+        with pytest.raises(ValueError, match="come with a hold"):
+            await svc.perform_action(booking.id, deposit.id, COMPANY_ID, "pay", deductions=line)
+        await svc.perform_action(booking.id, deposit.id, COMPANY_ID, "pay")
+        # A whole hold is the whole deposit, line by line.
+        with pytest.raises(ValueError, match="add up to the deposit"):
+            await svc.perform_action(booking.id, deposit.id, COMPANY_ID, "hold", deductions=line)
+        with pytest.raises(ValueError, match="sum of the deductions"):
+            await svc.perform_action(
+                booking.id, deposit.id, COMPANY_ID, "partial_hold", held_amount=Decimal("5000"), deductions=line
+            )
+        with pytest.raises(ValueError, match="cannot exceed"):
+            await svc.perform_action(
+                booking.id, deposit.id, COMPANY_ID, "partial_hold",
+                deductions=[{"amount": Decimal("12000"), "reason": "Сломан замок", "photos": []}],
+            )
+        # Nothing refused was kept.
+        assert (deposit.status, deposit.deductions) == (DepositStatus.PAID, [])
+
+    @pytest.mark.asyncio
     async def test_partial_hold_requires_amount(self):
         _, _, svc, booking = await self._setup()
         deposit = await svc.create_deposit(booking.id, COMPANY_ID, Decimal("500"))

@@ -741,12 +741,10 @@
       "returnFailed": "Could not return the deposit. Check your connection and try again.",
       "hold": "Hold",
       "holdPart": "Hold part",
-      "amountToHold": "Amount to hold",
-      "wholeDeposit": "The whole deposit",
       "createdOn": "Created {{date}}",
       "heldAll": "Held {{amount}}",
       "heldPart": "Held {{held}}, {{rest}} to the guest",
-      "reasonIs": "Reason: {{reason}}",
+      "reasonIs": "Note: {{reason}}",
       "holdAllHint": "Nothing goes back to the guest. You cannot undo this.",
       "holdPartHint": "{{rest}} goes back to the guest. You cannot undo this.",
       "holdConfirm": "Hold {{amount}}",
@@ -757,7 +755,16 @@
         "returned": "Returned",
         "held": "Held",
         "partiallyHeld": "Partially Held"
-      }
+      },
+      "linesHint": "The guest sees each line on the booking page: what happened, the sum and the photos. What is kept is the sum of the lines.",
+      "lineReason": "What happened",
+      "lineReasonPlaceholder": "A broken glass",
+      "lineAmount": "Sum",
+      "addPhoto": "Photo",
+      "addLine": "Add a line",
+      "ownNote": "A note for yourself (the guest does not see it)",
+      "overDeposit": "The lines are more than the deposit of {{amount}}",
+      "photoFailed": "Could not upload the photo. Check the connection and try again."
     },
     "files": {
       "files": "Files",
@@ -2651,7 +2658,8 @@
       "partially_held": "{{back}} comes back, {{held}} was kept. If you disagree, write to the host.",
       "step1": "You check out by {{time}}",
       "step2": "The host checks the flat",
-      "step3": "We send the deposit back"
+      "step3": "We send the deposit back",
+      "photoOf": "{{reason}}, photo {{n}}"
     },
     "again": {
       "title": "Enjoyed your stay?",

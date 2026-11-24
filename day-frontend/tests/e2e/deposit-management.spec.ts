@@ -159,12 +159,15 @@ test.describe('Deposit Management - E2E', () => {
     }
 
     await page.getByRole('button', { name: 'Hold', exact: true }).click()
-    await page.getByLabel('Reason').fill('Broken window')
+    // The whole deposit on one line, as the guest will read it; the note stays the owner's.
+    await page.getByLabel('What happened').fill('Broken window')
+    await page.getByLabel('A note for yourself (the guest does not see it)').fill('Called the guest')
     await page.getByRole('button', { name: /^Hold 100/ }).click()
 
     const deposits = page.locator('#deposits')
     await expect(deposits.getByText('Held', { exact: true })).toBeVisible({ timeout: 5000 })
-    await expect(deposits.getByText('Reason: Broken window')).toBeVisible()
+    await expect(deposits.getByTestId('deposit-lines')).toContainText('Broken window')
+    await expect(deposits.getByText('Note: Called the guest')).toBeVisible()
     await expect(deposits.getByRole('button', { name: 'Return' })).toBeHidden()
   })
 
@@ -183,14 +186,57 @@ test.describe('Deposit Management - E2E', () => {
     }
 
     await page.getByRole('button', { name: 'Hold part' }).click()
-    await page.getByRole('spinbutton', { name: 'Amount to hold' }).fill('50')
-    await page.getByLabel('Reason').fill('Minor stain on carpet')
+    await page.getByLabel('What happened').fill('Minor stain on carpet')
+    await page.getByRole('spinbutton', { name: 'Sum' }).fill('50')
     await expect(page.getByText(/150 \S+ goes back to the guest/)).toBeVisible()
     await page.getByRole('button', { name: /^Hold 50/ }).click()
 
     const deposits = page.locator('#deposits')
     await expect(deposits.getByText('Partially Held', { exact: true })).toBeVisible({ timeout: 5000 })
     await expect(deposits.getByText(/Held 50 \S+, 150 \S+ to the guest/)).toBeVisible()
+  })
+
+  test('a hold line by line, one with a photo: the guest will read each', async ({ page, request }) => {
+    const prop = await setupActiveProperty(request)
+    const booking = await createBookingViaApi(request, prop.id)
+    const deposit = await createDepositViaApi(request, booking.id, 10000)
+    await payDepositViaApi(request, booking.id, deposit.id)
+
+    await page.goto(`/bookings/${booking.id}`)
+    await page.waitForLoadState('networkidle')
+    const depositsTab = page.getByRole('tab', { name: /deposit/i })
+    if (await depositsTab.isVisible({ timeout: 3000 }).catch(() => false)) {
+      await depositsTab.click()
+    }
+
+    await page.getByRole('button', { name: 'Hold part' }).click()
+    const form = page.getByTestId('hold-form')
+    await form.getByLabel('What happened').fill('A broken glass')
+    await form.getByRole('spinbutton', { name: 'Sum' }).fill('3000')
+    // A 1×1 PNG: the server takes the bytes, not the name.
+    const png = Buffer.from(
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+      'base64',
+    )
+    await form.locator('input[type="file"]').first().setInputFiles({ name: 'glass.png', mimeType: 'image/png', buffer: png })
+    await expect(form.locator('img')).toHaveCount(1)
+    await form.getByRole('button', { name: 'Add a line' }).click()
+    await form.getByLabel('What happened').nth(1).fill('A stain on the sofa')
+    await form.getByRole('spinbutton', { name: 'Sum' }).nth(1).fill('1500')
+    await expect(form.getByText(/5[\s,]?500 \S+ goes back to the guest/)).toBeVisible()
+    await form.getByRole('button', { name: /^Hold 4[\s,]?500/ }).click()
+
+    const lines = page.locator('#deposits').getByTestId('deposit-lines')
+    await expect(lines.getByRole('listitem')).toHaveCount(2)
+    await expect(lines.getByRole('img', { name: 'A broken glass' })).toBeVisible()
+    const [saved] = await (await request.get(`${API_BASE}/bookings/${booking.id}/deposits`)).json()
+    expect([saved.status, Number(saved.held_amount)]).toEqual(['partially_held', 4500])
+    expect(saved.deductions.map((d: { reason: string; photos: string[] }) => [d.reason, d.photos.length])).toEqual([
+      ['A broken glass', 1],
+      ['A stain on the sofa', 0],
+    ])
+    // A stored photo is private: handed out as a link that expires.
+    expect(saved.deductions[0].photos[0]).toContain('X-Amz-Signature')
   })
 
   test('multiple deposits on one booking', async ({ page, request }) => {

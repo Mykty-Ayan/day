@@ -298,6 +298,25 @@ async def test_the_deposit_shows_its_amount_and_state_never_the_owner_s_reason()
     page = GuestPanelResponse.from_panel(await _setup(deposits=[deposit]).execute(CODE, NOW))
     assert (page.deposit.amount, page.deposit.status, page.deposit.held) == (10000, "partially_held", 3000)
     assert "ваза" not in page.model_dump_json()
+
+
+async def test_the_guest_reads_what_was_kept_line_by_line_with_photos_and_never_the_note():
+    def deposit(b):
+        return BookingDeposit(
+            booking_id=b.id, amount=Decimal("10000"), status=DepositStatus.PARTIALLY_HELD, held_amount=Decimal("4500"),
+            reason="Гость грубил", deductions=[
+                {"amount": "3000.00", "reason": "Разбит бокал", "photos": ["https://s3/deposits/b/glass.jpg"]},
+                {"amount": "1500.00", "reason": "Пятно на диване", "photos": []},
+            ],
+        )
+
+    panel = await _setup(deposits=[deposit]).execute(CODE, NOW)
+    page = GuestPanelResponse.from_panel(panel, sign=lambda url: f"{url}?expires=1")
+    assert [(d.amount, d.reason, d.photos) for d in page.deposit.deductions] == [
+        (3000.0, "Разбит бокал", ["https://s3/deposits/b/glass.jpg?expires=1"]),
+        (1500.0, "Пятно на диване", []),
+    ]
+    assert "грубил" not in page.model_dump_json()
     assert GuestPanelResponse.from_panel(await _setup().execute(CODE, NOW)).deposit is None
 
 

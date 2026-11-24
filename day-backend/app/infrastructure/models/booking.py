@@ -179,6 +179,7 @@ class BookingDepositModel(Base):
     status: Mapped[str] = mapped_column(String(50), default="pending")
     held_amount: Mapped[float] = mapped_column(Numeric(12, 2), default=0)
     reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    deductions: Mapped[list] = mapped_column(JSON, nullable=False, default=list, server_default="[]")
     created_at: Mapped[datetime] = mapped_column(default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(
         default=datetime.utcnow, onupdate=datetime.utcnow
