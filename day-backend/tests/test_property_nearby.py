@@ -5,10 +5,21 @@ from datetime import date
 import pytest
 from pydantic import ValidationError
 
+from app.application.property.clone_property import ClonePropertyService
 from app.domain.auth.permissions import Permission
 from app.presentation.schemas.property import NearbyPlace, PropertyUpdate
 from app.presentation.schemas.public import PublicStayResponse
 from tests.test_property_facts import flat  # noqa: F401  (a fixture)
+from tests.test_property_services import (
+    FakeAmenityRepository,
+    FakeDiscountRuleRepository,
+    FakePricingConfigRepository,
+    FakePropertyAuditLogRepository,
+    FakePropertyPhotoRepository,
+    FakePropertyRepository,
+    FakeSeasonalPriceRepository,
+    _make_property,
+)
 from tests.test_public_stay import Stay
 
 PLACES = [
@@ -51,6 +62,25 @@ async def test_the_flat_page_shows_what_is_near():
     ]
 
 
+async def test_a_copied_flat_keeps_what_is_near_as_its_own_list():
+    props = FakePropertyRepository()
+    source = _make_property(nearby=[dict(p) for p in PLACES])
+    await props.save(source)
+    svc = ClonePropertyService(
+        props,
+        FakePropertyPhotoRepository(),
+        FakeAmenityRepository(),
+        FakePricingConfigRepository(),
+        FakeSeasonalPriceRepository(),
+        FakeDiscountRuleRepository(),
+        FakePropertyAuditLogRepository(),
+    )
+    copy = await svc.execute(source.id, source.company_id)
+    assert copy.nearby == PLACES
+    copy.nearby[0]["minutes"] = 99
+    assert source.nearby[0]["minutes"] == 3
+
+
 @pytest.mark.integration
 async def test_the_owner_keeps_the_list_and_clears_it(flat):  # noqa: F811  (the imported fixture)
     client, prop, use = flat
@@ -64,5 +94,8 @@ async def test_the_owner_keeps_the_list_and_clears_it(flat):  # noqa: F811  (the
     assert (await client.patch(path, json={"house_rules": "Не курить"})).status_code == 200
     assert (await client.get(path)).json()["nearby"] == PLACES
     assert (await client.patch(path, json={"nearby": [{"name": "", "minutes": 3}]})).status_code == 422
+    # null is no list: refused, not taken for «clear» (an empty list clears).
+    assert (await client.patch(path, json={"nearby": None})).status_code == 422
+    assert (await client.get(path)).json()["nearby"] == PLACES
     assert (await client.patch(path, json={"nearby": []})).status_code == 200
     assert (await client.get(path)).json()["nearby"] == []

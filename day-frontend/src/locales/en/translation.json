@@ -560,7 +560,7 @@
     "statusFailed": "Could not change the property's status. Try again",
     "nearby": {
       "title": "Nearby",
-      "hint": "Shops, a park, a pharmacy, the airport and how many minutes away. The guest sees the list on the property's page and on the booking page.",
+      "hint": "Shops, a park, a pharmacy, the airport and how many minutes away. The guest sees the list on the property's page even before booking: leave the address out.",
       "name": "Place",
       "namePlaceholder": "Magnum, groceries 24/7",
       "minutes": "Minutes",
