@@ -1292,6 +1292,7 @@
     "bySource": "Көздер бойынша кіріс",
     "source": "Көзі",
     "net": "Комиссиядан кейін",
+    "sourceShare": "кірістің {{share}}% · {{count}} бронь",
     "sourceShare_one": "кірістің {{share}}% · {{count}} бронь",
     "sourceShare_other": "кірістің {{share}}% · {{count}} бронь"
   },
