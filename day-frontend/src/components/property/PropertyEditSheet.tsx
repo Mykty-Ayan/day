@@ -94,7 +94,12 @@ function BlockForm({ property, block, onDone }: { property: Property; block: Pro
     if (block === 'details' && clearsGuestsOnSale(property.status, form, opened)) {
       found.max_guests = t('properties.guestsRequired')
     }
-    for (const key of ['check_in_hour', 'check_out_hour'] as const) {
+    // A later check-out is later than check-out, the flat's or the company's 12:00.
+    const late = form.rules.late_check_out_hour
+    if (block === 'rules' && /^\d{1,2}$/.test(late) && Number(late) <= Number(form.rules.check_out_hour || 12)) {
+      found.late_check_out_hour = t('properties.validation.lateCheckOut')
+    }
+    for (const key of ['check_in_hour', 'check_out_hour', 'late_check_out_hour'] as const) {
       // A typed time that is not a whole hour: the flat keeps hours only.
       if (block === 'rules' && !/^\d{0,2}$/.test(form.rules[key])) found[key] = t('properties.validation.wholeHour')
     }

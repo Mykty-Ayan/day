@@ -144,6 +144,9 @@ export interface Property {
   bathrooms: number | null
   check_in_hour: number | null
   check_out_hour: number | null
+  /** A later check-out the guest may ask for: until this hour, for this price (null: free). */
+  late_check_out_hour?: number | null
+  late_check_out_price?: number | null
   check_in_method: CheckInMethod | null
   area_living: number | null
   area_total: number | null
@@ -193,6 +196,8 @@ export interface PropertyCreateInput {
   bathrooms?: number | null
   check_in_hour?: number | null
   check_out_hour?: number | null
+  late_check_out_hour?: number | null
+  late_check_out_price?: number | null
   check_in_method?: CheckInMethod | null
   area_living?: number | null
   area_total?: number | null

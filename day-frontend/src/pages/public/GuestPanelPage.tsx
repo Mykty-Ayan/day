@@ -228,7 +228,13 @@ function PanelView({ code, panel, locale, receivedAt }: { code: string; panel: G
       : null
   // Extending: until the next guest arrives, when there is a free night after this stay.
   const freeUntil = b?.free_until && b.free_until > b.check_out.slice(0, 10) ? t('guestPanel.freeUntil', { day: longDay(`${b.free_until}T00:00`) }) : null
-  const hint = (key: PanelButton) => (key === 'extend' ? freeUntil : null)
+  // A later check-out the flat sells: until when, and for how much.
+  const late = panel.late_check_out
+  const lateUntil = late ? `${String(late.until_hour).padStart(2, '0')}:00` : null
+  const lateHint = late
+    ? [t('guestPanel.untilTime', { time: lateUntil }), late.price ? money(late.price, locale) : null].filter(Boolean).join(' · ')
+    : null
+  const hint = (key: PanelButton) => (key === 'extend' ? freeUntil : key === 'lateCheckOut' ? lateHint : null)
   const opensAt = accessOpensAt(panel)
   const paidInFull = b ? b.paid >= b.total : false
   // What is owed for the minibar is the server's figure, part of remaining: one rule
@@ -240,6 +246,12 @@ function PanelView({ code, panel, locale, receivedAt }: { code: string; panel: G
   function message(key: PanelButton): string {
     const intro = t('guestPanel.wa.intro', { name: panel.guest_name ?? '', dates, flat: flat?.name ?? '' })
     if (key === 'question') return intro
+    if (key === 'lateCheckOut' && late) {
+      const ask = late.price
+        ? t('guestPanel.wa.lateCheckOutPaid', { until: lateUntil, price: money(late.price, locale) })
+        : t('guestPanel.wa.lateCheckOutFree', { until: lateUntil })
+      return `${intro} ${ask}`
+    }
     return `${intro} ${t(`guestPanel.wa.${key}`, { amount: money(b?.remaining ?? 0, locale), checkIn, checkOut })}`
   }
   const href = (key: PanelButton) => waLink(company!.whatsapp!, message(key))

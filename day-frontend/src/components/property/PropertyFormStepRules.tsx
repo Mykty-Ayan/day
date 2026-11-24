@@ -3,12 +3,16 @@ import type { CheckInMethod } from '../../types/property'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select'
 import TimeChips, { CHECK_IN_TIMES, CHECK_OUT_TIMES } from '../ui/time-chips'
 
+/** A later check-out: the afternoon hours a flat usually sells. */
+const LATE_TIMES = ['13:00', '14:00', '15:00', '16:00', '18:00']
 const CHECK_IN_METHODS: CheckInMethod[] = ['lockbox', 'keypad', 'smart_lock', 'building_staff', 'host_greets', 'other']
 const NOT_SET = 'not_set'
 
 interface RulesData {
   check_in_hour: string
   check_out_hour: string
+  late_check_out_hour: string
+  late_check_out_price: string
   check_in_method: string
   check_in_instructions: string
   check_out_instructions: string
@@ -82,6 +86,50 @@ export default function PropertyFormStepRules({ data, onChange, errors = {} }: P
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         {hourField('check_in_hour', t('properties.form.checkInFrom'), CHECK_IN_TIMES, '14:00')}
         {hourField('check_out_hour', t('properties.form.checkOutUntil'), CHECK_OUT_TIMES, '12:00')}
+        <div className="sm:col-span-2" data-testid="late-check-out">
+          <span id="late-check-out-label" className="block text-xs font-semibold text-ink-muted">
+            {t('properties.form.lateCheckOut')}
+          </span>
+          <div className="mt-1.5 flex flex-wrap gap-1.5">
+            <button
+              type="button"
+              aria-pressed={data.late_check_out_hour === ''}
+              onClick={() => onChange({ ...data, late_check_out_hour: '', late_check_out_price: '' })}
+              className={`h-9 rounded-lg px-2 text-sm font-semibold transition-colors ${
+                data.late_check_out_hour === '' ? 'bg-accent text-white' : 'border border-line text-ink hover:bg-surface-page'
+              }`}
+            >
+              {t('properties.form.lateCheckOutNone')}
+            </button>
+            <TimeChips
+              id="late-check-out"
+              labelledBy="late-check-out-label"
+              options={LATE_TIMES}
+              value={/^\d{1,2}$/.test(data.late_check_out_hour) ? `${data.late_check_out_hour.padStart(2, '0')}:00` : data.late_check_out_hour}
+              onChange={(time) =>
+                update('late_check_out_hour', /^([01]\d|2[0-3]):00$/.test(time) ? String(Number(time.slice(0, 2))) : time)
+              }
+            />
+          </div>
+          {errors.late_check_out_hour && <p className="mt-1 text-xs text-danger">{errors.late_check_out_hour}</p>}
+          {data.late_check_out_hour !== '' && (
+            <label className="mt-3 block text-xs font-semibold text-ink-muted">
+              {t('properties.form.lateCheckOutPrice')}
+              <input
+                id="late-check-out-price"
+                type="number"
+                inputMode="numeric"
+                min={0}
+                step={500}
+                value={data.late_check_out_price}
+                onChange={(e) => update('late_check_out_price', e.target.value)}
+                placeholder={t('properties.form.lateCheckOutFree')}
+                className={`mt-1.5 ${select}`}
+              />
+            </label>
+          )}
+          <p className="mt-1 text-xs text-ink-muted">{t('properties.form.lateCheckOutHint')}</p>
+        </div>
         <div className="sm:col-span-2">
           <label htmlFor="check-in-method" className="block text-xs font-semibold text-ink-muted">
             {t('properties.form.checkInMethod')}
