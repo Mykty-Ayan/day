@@ -119,10 +119,11 @@ test('the picked nights read as one band, and a week opens the month view', asyn
   expect(Math.abs(tue.width - tueCell.width)).toBeLessThan(1)
   expect(Math.abs(tue.x + tue.width - wed.x)).toBeLessThan(1)
 
-  // Seven nights never fit one row: the months open, the check-out on screen.
+  // Seven nights never fit one row: the months open on the check-in.
   await expect(page.getByRole('radio', { name: 'Неделя' })).toHaveAttribute('aria-checked', 'true')
   await page.getByRole('button', { name: 'На неделю' }).click()
   await expect(page.getByRole('radio', { name: 'Месяц' })).toHaveAttribute('aria-checked', 'true')
+  await expect(page.locator(`[data-night="${day(0)}"]`)).toBeInViewport()
   await expect(page.getByTestId('stay-total')).toHaveText('70 000 ₸')
   await guest.close()
 })
