@@ -1284,6 +1284,9 @@
     "byMonth": "Revenue by month",
     "monthsDone": "This and past months",
     "monthsBooked": "Booked ahead",
+    "thisPeriod": "This period",
+    "previousPeriod": "Previous period",
+    "vsLastMonth": "{{change}} vs last month",
     "noMonthsData": "No revenue in these months and nothing booked ahead",
     "flow": {
       "title": "Where the money went",

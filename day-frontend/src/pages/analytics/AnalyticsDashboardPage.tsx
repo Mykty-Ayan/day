@@ -6,7 +6,7 @@ import { useAnalyticsMetrics, useAnalyticsTimeSeries } from '../../hooks/useAnal
 import { useProperties } from '../../hooks/useProperties'
 import { exportAnalyticsCsv } from '../../api/analytics'
 import type { PeriodPreset, Granularity } from '../../types/analytics'
-import { customRange, previousRange } from './period'
+import { alignPrevious, customRange, previousRange } from './period'
 import { useDates } from '../../hooks/useDates'
 import SummaryCards from '../../components/analytics/SummaryCards'
 import MetricsTable from '../../components/analytics/MetricsTable'
@@ -54,6 +54,16 @@ export default function AnalyticsDashboardPage() {
   // The same numbers for the period just before, as long: how each one changed.
   const before = metricsData ? previousRange(metricsData.date_from, metricsData.date_to) : null
   const { data: previousData } = useAnalyticsMetrics({ ...filters, period: undefined, ...before }, !waiting && before !== null)
+  // The period before by day, laid out on this period's bars: by week or month the bars of the
+  // two periods fall on different calendar edges and would not match by index.
+  const { data: previousDays } = useAnalyticsTimeSeries(
+    { ...filters, period: undefined, granularity: 'day', ...before },
+    !waiting && before !== null,
+  )
+  const previousSeries =
+    before && timeSeriesData && previousDays
+      ? alignPrevious(timeSeriesData.data, timeSeriesData.date_from, timeSeriesData.date_to, before.date_from, previousDays.data)
+      : undefined
   const { range: dayRange } = useDates()
   const { data: propertiesData } = useProperties({ per_page: 100, status: 'active' })
   const properties = propertiesData?.items ?? []
@@ -168,8 +178,8 @@ export default function AnalyticsDashboardPage() {
 
             {/* Charts */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <RevenueChart data={timeSeriesData?.data ?? []} />
-              <OccupancyChart data={timeSeriesData?.data ?? []} />
+              <RevenueChart data={timeSeriesData?.data ?? []} previous={previousSeries} />
+              <OccupancyChart data={timeSeriesData?.data ?? []} previous={previousSeries} />
             </div>
 
             {/* Property Table */}
