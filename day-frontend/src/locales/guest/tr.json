@@ -137,6 +137,7 @@
     "hoursAtCheckIn": "Saatlerin tutarı ({{total}}) girişte ödenir",
     "openPage": "Rezervasyon sayfasını aç",
     "openPageHint": "Bu bağlantıyı saklayın: rezervasyon sayfanızda adres, ödeme ve kapı kodu var.",
+    "pageFromHost": "Rezervasyon sayfanızın bağlantısını ev sahibi gönderecek.",
     "extraGuests": "Ek misafir ücreti",
     "discount": "İndirim"
   },

@@ -134,6 +134,9 @@ def render(event: NotificationEvent, payload: dict) -> str:
             ]
         else:
             lines += ["", f"Залог у объекта не задан: подтвердите бронь в карточке до {until}, иначе она снимется."]
+        if payload.get("source") == "site":
+            # The flat's page gives the guest no link to the booking page: the host sends it.
+            lines.append("Отправьте гостю ссылку на страницу брони из карточки брони.")
         return "\n".join(lines)
 
     if event == NotificationEvent.GUEST_CHECKED_OUT:

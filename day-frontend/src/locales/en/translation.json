@@ -2138,6 +2138,7 @@
     "hoursAtCheckIn": "The hours, {{total}}, are paid at check-in",
     "openPage": "Open your booking page",
     "openPageHint": "Keep this link: your booking page has the address, payment and the door code.",
+    "pageFromHost": "The host will send you the link to your booking page.",
     "extraGuests": "Extra guests",
     "discount": "Discount"
   },

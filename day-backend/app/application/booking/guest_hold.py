@@ -9,6 +9,7 @@ the guest pays now.
 
 from __future__ import annotations
 
+import re
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta, timezone
@@ -142,10 +143,10 @@ class GuestHoldService:
             # The guest found by phone keeps its own name: who booked is told here.
             notes += f". С формы: {name or offer.guest_name}, {phone or offer.guest_phone}"
         name, phone = name or offer.guest_name, phone or offer.guest_phone
-        # The link's own number is the guest the company sent it to; another number given on
-        # the form is anyone's until the company knows nobody by it.
-        own_number = bool(offer.guest_phone) and normalise_phone(phone) == normalise_phone(offer.guest_phone)
-        page_for_booker = own_number or not await self._guests.list_by_phone(offer.company_id, phone)
+        # The link's own number is the guest the company sent it to: the page is theirs. Another
+        # number given on the form gets no page, known or not: given to a new number only, it
+        # would tell whoever holds the link which numbers the company knows.
+        page_for_booker = bool(offer.guest_phone) and _same_number(phone, offer.guest_phone)
         booking = await self._create.execute(
             CreateBookingInput(
                 company_id=offer.company_id,
@@ -257,10 +258,10 @@ class GuestHoldService:
         )
         if deposit is not None:
             await self._deposits.create(BookingDeposit(booking_id=booking.id, amount=deposit))
-        return OfferBooking(
-            booking=booking, flat=prop.public_code, deposit=deposit, phone=phone, name=name,
-            page_for_booker=not same_phone,
-        )
+        # No booking page for anyone from an anonymous form: given to a new number only, its
+        # absence would tell a stranger that the company knows the number typed. The host
+        # sends the link with the invoice, from the booking card.
+        return OfferBooking(booking=booking, flat=prop.public_code, deposit=deposit, phone=phone, name=name)
 
     async def current(self, offer: GuestOffer) -> OfferBooking | None:
         """The link's booking while it holds its dates: waiting for payment or confirmed."""
@@ -292,3 +293,11 @@ class GuestHoldService:
         if booking is None or booking.status == BookingStatus.CANCELLED or booking.company_id != offer.company_id:
             return None
         return booking
+
+
+def _same_number(a: str, b: str) -> bool:
+    """One number typed two ways. A Kazakh number in any form; any other one by its digits:
+    normalise_phone gives "" for every foreign number, and two of them are not one."""
+    key_a = normalise_phone(a) or re.sub(r"\D", "", a or "")
+    key_b = normalise_phone(b) or re.sub(r"\D", "", b or "")
+    return bool(key_a) and key_a == key_b

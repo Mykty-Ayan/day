@@ -137,6 +137,7 @@
     "hoursAtCheckIn": "Soatlar uchun {{total}} — kirishda to‘lanadi",
     "openPage": "Bron sahifasini ochish",
     "openPageHint": "Bu havolani saqlang: bron sahifasida manzil, toʻlov va eshik kodi bor.",
+    "pageFromHost": "Bron sahifasi havolasini uy egasi yuboradi.",
     "extraGuests": "Qoʻshimcha mehmonlar uchun",
     "discount": "Chegirma"
   },
