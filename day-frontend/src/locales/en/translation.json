@@ -332,7 +332,7 @@
       "stayRulesHint": "Empty means no limit. The rules apply to bookings made in Day; bookings from Booking and Airbnb are not refused. A rule can be broken by confirming it when booking.",
       "lateCheckOut": "Late check-out until",
       "lateCheckOutNone": "None",
-      "lateCheckOutPrice": "Late check-out price, ₸",
+      "lateCheckOutPrice": "Late check-out price",
       "lateCheckOutFree": "Free",
       "lateCheckOutHint": "The guest sees the time and price on the booking page and asks for a late check-out in WhatsApp. If the next guest arrives that day, no price is shown."
     },

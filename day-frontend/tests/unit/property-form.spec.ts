@@ -69,6 +69,21 @@ test('a cleared field goes out as null, so the server clears it', () => {
   expect(body.wifi_name).toBeNull()
 })
 
+test('a late check-out price goes out only with its hour', () => {
+  const form = propertyToForm({ ...flat, late_check_out_hour: 15, late_check_out_price: 5000 } as Property)
+  expect(form.rules.late_check_out_hour).toBe('15')
+  expect(form.rules.late_check_out_price).toBe('5000')
+  const opened = propertyToForm(flat)
+  expect(formToUpdate(form, opened)).toMatchObject({ late_check_out_hour: 15, late_check_out_price: 5000 })
+  // Free until 15:00: no price.
+  form.rules.late_check_out_price = ''
+  expect(formToUpdate(form, opened)).toMatchObject({ late_check_out_hour: 15, late_check_out_price: null })
+  // No later hour: a price left in the field has nothing to sell.
+  form.rules.late_check_out_hour = ''
+  form.rules.late_check_out_price = '5000'
+  expect(formToUpdate(form, opened)).toMatchObject({ late_check_out_hour: null, late_check_out_price: null })
+})
+
 test('floor 0 is a floor, not an empty field', () => {
   const form = propertyToForm(flat)
   expect(form.address.floor).toBe('0')

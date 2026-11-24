@@ -253,6 +253,8 @@ async def test_a_late_check_out_is_offered_while_nobody_comes_that_day():
     # A later hour for free: no price to tell.
     free = GuestPanelResponse.from_panel(await selling(_setup(), price=None).execute(CODE, NOW))
     assert (free.late_check_out.until_hour, free.late_check_out.price) == (15, None)
+    # This stay already ends at 12:00: a late check-out until noon sells nothing.
+    assert GuestPanelResponse.from_panel(await selling(_setup(), hour=12).execute(CODE, NOW)).late_check_out is None
     # The flat sells none: nothing offered.
     assert GuestPanelResponse.from_panel(await _setup().execute(CODE, NOW)).late_check_out is None
 

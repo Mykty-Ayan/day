@@ -20,7 +20,7 @@ test('the owner sells a late check-out until 15:00 for 5 000, and sees it in the
     await expect(panel.getByText('A late check-out must be later than the check-out time')).toBeVisible()
 
     await late.getByRole('button', { name: '15:00' }).click()
-    await late.getByRole('spinbutton', { name: 'Late check-out price, ₸' }).fill('5000')
+    await late.getByRole('spinbutton', { name: 'Late check-out price' }).fill('5000')
     await panel.getByRole('button', { name: 'Save' }).click()
     await expect(panel).toHaveCount(0)
     const saved = await (await request.get(`${API_BASE}/properties/${prop.id}`)).json()

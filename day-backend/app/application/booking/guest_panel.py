@@ -196,9 +196,11 @@ class GuestPanelService:
         if panel.flat is not None and not panel.closed:
             panel.free_until = await self._free_until(booking)
             flat_ = panel.flat
-            # Only by the night, and only while the day of check-out is nobody else's.
+            # Only by the night, later than this stay already ends, and only while the day of
+            # check-out is nobody else's.
             if (
                 flat_.late_check_out_hour is not None
+                and flat_.late_check_out_hour > booking.check_out.hour
                 and booking.rental_mode != RentalMode.HOURLY
                 and (panel.free_until is None or panel.free_until > booking.check_out.date())
             ):
