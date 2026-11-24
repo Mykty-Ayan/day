@@ -1,11 +1,11 @@
 import { useState } from 'react'
 import { format } from 'date-fns'
-import { Loader2, Plus } from 'lucide-react'
+import { Camera, Loader2, Plus, Trash2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
+import { uploadDepositPhoto } from '../../api/bookings'
 import { useCreateDeposit, useDepositAction } from '../../hooks/useBookings'
 import { usePropertyPricing } from '../../hooks/useProperties'
 import { useCurrency } from '../../hooks/useCurrency'
-import { halfOf } from '../../lib/booking-money'
 import { depositStatusKeys } from '../../lib/booking-status'
 import { dateLocale } from '../../lib/date-locale'
 import { formatMoneyExact as formatMoney } from '../../pages/miniapp/format'
@@ -16,7 +16,6 @@ import Button from '../ui/Button'
 import ConfirmDialog from '../ui/ConfirmDialog'
 import NumberInput from '../ui/number-input'
 import { showToast } from '../ui/Toast'
-import QuickAmounts from './QuickAmounts'
 
 const QUICK_AMOUNTS = [5000, 10000, 20000]
 
@@ -178,6 +177,21 @@ function DepositRow({ bookingId, deposit }: { bookingId: string; deposit: Bookin
             <Badge tone={TONES[deposit.status]}>{t(depositStatusKeys[deposit.status])}</Badge>
           </p>
           <p className="mt-1 text-xs text-ink-muted">{note}</p>
+          {!!deposit.deductions?.length && (
+            <ul className="mt-2 flex flex-col gap-2" data-testid="deposit-lines">
+              {deposit.deductions.map((line, n) => (
+                <li key={n} className="flex flex-wrap items-center gap-2 text-xs text-ink">
+                  <span className="font-semibold">{sum(Number(line.amount))}</span>
+                  <span className="min-w-0">{line.reason}</span>
+                  {line.photos.map((url) => (
+                    <a key={url} href={url} target="_blank" rel="noopener noreferrer" className="block h-10 w-10 overflow-hidden rounded-md bg-surface-page">
+                      <img src={url} alt={line.reason} className="h-full w-full object-cover" />
+                    </a>
+                  ))}
+                </li>
+              ))}
+            </ul>
+          )}
           {deposit.reason && (
             <p className="mt-1 text-xs text-ink-muted">{t('bookings.deposits.reasonIs', { reason: deposit.reason })}</p>
           )}
@@ -231,8 +245,13 @@ function DepositRow({ bookingId, deposit }: { bookingId: string; deposit: Bookin
   )
 }
 
-/** One form for holding all of a deposit or a part of it: the sum says which. The
- *  button names the sum, and a hold is final. */
+type Line = { reason: string; amount: string; photos: { url: string; preview: string }[] }
+
+const MOST_PHOTOS = 3
+
+/** One form for holding all of a deposit or a part of it, line by line as the guest will
+ *  read it: what happened, how much, the photos. The sum of the lines is what is kept;
+ *  the button names it, and a hold is final. */
 function HoldForm({
   bookingId,
   deposit,
@@ -248,50 +267,140 @@ function HoldForm({
   const { symbol } = useCurrency()
   const action = useDepositAction(bookingId, deposit.id)
   const total = Number(deposit.amount)
-  const [amount, setAmount] = useState(whole ? String(total) : '')
-  const [reason, setReason] = useState('')
+  const [lines, setLines] = useState<Line[]>([{ reason: '', amount: whole ? String(total) : '', photos: [] }])
+  const [uploading, setUploading] = useState<number | null>(null)
+  const [note, setNote] = useState('')
   const sum = (value: number) => `${formatMoney(value, i18n.language)} ${symbol}`
-  const held = toNumber(amount)
-  const valid = held > 0 && held <= total
+  // In tiyn: 1000.1 + 2000.2 is 3000.3, not 3000.3000000000002.
+  const held = lines.reduce((all, line) => all + Math.round(toNumber(line.amount) * 100), 0) / 100
+  const valid = held > 0 && held <= total && lines.every((line) => line.reason.trim() && toNumber(line.amount) > 0)
+  const change = (n: number, patch: Partial<Line>) => setLines((all) => all.map((line, i) => (i === n ? { ...line, ...patch } : line)))
+
+  async function addPhotos(n: number, event: React.ChangeEvent<HTMLInputElement>) {
+    const room = MOST_PHOTOS - lines[n].photos.length
+    const files = Array.from(event.target.files ?? []).slice(0, room)
+    event.target.value = ''
+    if (files.length === 0) return
+    setUploading(n)
+    const added: Line['photos'] = []
+    try {
+      for (const file of files) {
+        const { url, preview_url } = await uploadDepositPhoto(bookingId, deposit.id, file)
+        added.push({ url, preview: preview_url })
+      }
+    } catch {
+      showToast('error', t('bookings.deposits.photoFailed'))
+    } finally {
+      setLines((all) => all.map((line, i) => (i === n ? { ...line, photos: [...line.photos, ...added] } : line)))
+      setUploading(null)
+    }
+  }
 
   function hold() {
-    const note = reason.trim() ? { reason: reason.trim() } : {}
-    action.mutate(held === total ? { action: 'hold', ...note } : { action: 'partial_hold', held_amount: held, ...note }, {
-      onSuccess: onDone,
-      onError: () => showToast('error', t('bookings.deposits.actionFailed')),
-    })
+    const deductions = lines.map((line) => ({
+      reason: line.reason.trim(),
+      amount: toNumber(line.amount),
+      photos: line.photos.map((photo) => photo.url),
+    }))
+    const own = note.trim() ? { reason: note.trim() } : {}
+    action.mutate(
+      // The server sums the lines itself: what is held is theirs, never a float of ours.
+      { action: held === total ? 'hold' : 'partial_hold', deductions, ...own },
+      {
+        onSuccess: onDone,
+        onError: () => showToast('error', t('bookings.deposits.actionFailed')),
+      },
+    )
   }
 
   return (
-    <div className="flex flex-col gap-3 rounded-xl bg-surface-page p-4">
-      <label className="flex flex-col gap-1 text-xs font-semibold text-ink-muted">
-        {t('bookings.deposits.amountToHold')}
-        <NumberInput value={amount} onChange={setAmount} min={0} max={total} step={1000} ariaLabel={t('bookings.deposits.amountToHold')} />
-      </label>
-      <QuickAmounts
-        value={held}
-        onPick={(next) => setAmount(String(next))}
-        options={[
-          { label: '50%', value: halfOf(total) },
-          { label: t('bookings.deposits.wholeDeposit'), value: total },
-        ]}
-      />
+    <div className="flex flex-col gap-3 rounded-xl bg-surface-page p-4" data-testid="hold-form">
+      <p className="text-xs text-ink-muted">{t('bookings.deposits.linesHint')}</p>
+      <ul className="flex flex-col gap-3">
+        {lines.map((line, n) => (
+          <li key={n} className="flex flex-col gap-2 rounded-xl border border-line bg-surface-card p-3">
+            <div className="flex flex-wrap items-center gap-2 sm:flex-nowrap">
+              <input
+                type="text"
+                value={line.reason}
+                maxLength={200}
+                onChange={(event) => change(n, { reason: event.target.value })}
+                placeholder={t('bookings.deposits.lineReasonPlaceholder')}
+                aria-label={t('bookings.deposits.lineReason')}
+                className="min-h-[44px] min-w-0 flex-1 basis-full rounded-xl border border-line bg-surface-card px-3 text-sm text-ink outline-none focus:ring-2 focus:ring-accent/30 sm:basis-auto"
+              />
+              <div className="w-36">
+                <NumberInput
+                  value={line.amount}
+                  onChange={(amount) => change(n, { amount })}
+                  min={0}
+                  max={total}
+                  step={1000}
+                  ariaLabel={t('bookings.deposits.lineAmount')}
+                />
+              </div>
+              {lines.length > 1 && (
+                <button
+                  type="button"
+                  // A photo on its way lands on its line by number: no line goes while one is.
+                  disabled={uploading !== null}
+                  onClick={() => setLines((all) => all.filter((_, i) => i !== n))}
+                  aria-label={t('common.delete')}
+                  className="shrink-0 rounded-lg p-2.5 text-ink-muted hover:bg-danger/10 hover:text-danger"
+                >
+                  <Trash2 className="h-4 w-4" aria-hidden="true" />
+                </button>
+              )}
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              {line.photos.map((photo) => (
+                <a key={photo.url} href={photo.preview} target="_blank" rel="noopener noreferrer" className="block h-14 w-14 overflow-hidden rounded-lg bg-surface-page">
+                  <img src={photo.preview} alt="" className="h-full w-full object-cover" />
+                </a>
+              ))}
+              {line.photos.length < MOST_PHOTOS && (
+                <label className="inline-flex min-h-[44px] cursor-pointer items-center gap-1.5 rounded-lg border border-dashed border-line px-3 text-xs font-semibold text-ink-muted hover:bg-surface-page">
+                  {uploading === n ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <Camera className="h-4 w-4" aria-hidden="true" />}
+                  {t('bookings.deposits.addPhoto')}
+                  <input
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    multiple
+                    className="hidden"
+                    disabled={uploading !== null}
+                    onChange={(event) => void addPhotos(n, event)}
+                  />
+                </label>
+              )}
+            </div>
+          </li>
+        ))}
+      </ul>
+      <button
+        type="button"
+        onClick={() => setLines((all) => [...all, { reason: '', amount: '', photos: [] }])}
+        className="inline-flex w-fit items-center gap-1.5 rounded-xl px-2 py-2 text-sm font-semibold text-accent-ink hover:bg-surface-card"
+      >
+        <Plus className="h-4 w-4" aria-hidden="true" />
+        {t('bookings.deposits.addLine')}
+      </button>
       <input
         type="text"
-        value={reason}
-        onChange={(event) => setReason(event.target.value)}
-        placeholder={t('common.reason')}
-        aria-label={t('common.reason')}
+        value={note}
+        onChange={(event) => setNote(event.target.value)}
+        placeholder={t('bookings.deposits.ownNote')}
+        aria-label={t('bookings.deposits.ownNote')}
         className="min-h-[44px] w-full rounded-xl border border-line bg-surface-card px-3 text-sm text-ink outline-none focus:ring-2 focus:ring-accent/30"
       />
+      {held > total && <p role="alert" className="text-xs text-danger">{t('bookings.deposits.overDeposit', { amount: sum(total) })}</p>}
       {valid && (
         <p className="text-xs text-ink-muted">
           {held === total ? t('bookings.deposits.holdAllHint') : t('bookings.deposits.holdPartHint', { rest: sum(total - held) })}
         </p>
       )}
       <div className="flex flex-wrap gap-2">
-        <Button onClick={hold} disabled={!valid || action.isPending} nowrap>
-          {action.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : t('bookings.deposits.holdConfirm', { amount: sum(valid ? held : total) })}
+        <Button onClick={hold} disabled={!valid || action.isPending || uploading !== null} nowrap>
+          {action.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : t('bookings.deposits.holdConfirm', { amount: sum(valid ? held : 0) })}
         </Button>
         <Button variant="secondary" onClick={onDone}>
           {t('common.cancel')}

@@ -206,14 +206,31 @@
     "floor": "Floor {{number}}",
     "floorOf": "Floor {{number}} of {{total}}",
     "checkInPhotos": {
-      "title": "Check-in photos",
-      "hint": "The entrance, the lock, the parking. Never in the listing; only the owner, managers and integrations with access to secrets see them, like the door code.",
-      "add": "Add a check-in photo",
-      "captionPlaceholder": "What it shows: \"entrance from the yard\"",
-      "deleteTitle": "Delete the photo?",
-      "deleteMessage": "The photo leaves the guest's check-in instructions.",
-      "deleteFailed": "Could not delete the photo",
-      "captionFailed": "Could not save the caption"
+      "title": "Check-in photos and videos",
+      "hint": "Never in the listing. The owner, managers and integrations with access to secrets see them, and the guest on the booking page once paid in full, like the door code.",
+      "add": "Add a photo or video",
+      "deleteTitle": "Delete the photo or video?",
+      "deleteMessage": "It leaves the guest's booking page.",
+      "deleteFailed": "Could not delete it",
+      "captionFailed": "Could not save the caption",
+      "videoHint": "A video up to 50 MB, about a minute. On an iPhone set the camera format to \"Most Compatible\": otherwise the video may not open on Android.",
+      "sections": {
+        "door": {
+          "title": "How to open the door",
+          "hint": "A video of the lock. The guest sees it beside the door code.",
+          "caption": "Caption: \"Enter the code and press #\""
+        },
+        "path": {
+          "title": "The way to the door",
+          "hint": "A photo or video for each step: the building, the gate, the entrance, the door.",
+          "caption": "What it shows: \"entrance from the yard\""
+        },
+        "howto": {
+          "title": "How to use",
+          "hint": "The air conditioner, the stove, the washing machine, the TV: a video for each.",
+          "caption": "What it is: \"Air conditioner, the remote is in the nightstand\""
+        }
+      }
     },
     "links": "Links",
     "pricingSaved": "Pricing saved",
@@ -312,7 +329,12 @@
       "buffer_minutes": "Cleaning between hourly bookings, min",
       "min_lead_hours": "Book at least, h before check-in",
       "noRule": "No limit",
-      "stayRulesHint": "Empty means no limit. The rules apply to bookings made in Day; bookings from Booking and Airbnb are not refused. A rule can be broken by confirming it when booking."
+      "stayRulesHint": "Empty means no limit. The rules apply to bookings made in Day; bookings from Booking and Airbnb are not refused. A rule can be broken by confirming it when booking.",
+      "lateCheckOut": "Late check-out until",
+      "lateCheckOutNone": "None",
+      "lateCheckOutPrice": "Late check-out price",
+      "lateCheckOutFree": "Free",
+      "lateCheckOutHint": "The guest sees the time and price on the booking page and asks for a late check-out in WhatsApp. If the next guest arrives that day, no price is shown."
     },
     "validation": {
       "nameRequired": "Name is required",
@@ -321,7 +343,8 @@
       "listingLinks": "One link per line, each starting with http:// or https://, no spaces, up to 500 characters; at most 20",
       "listingInBoth": "One link cannot be both a nightly and an hourly listing",
       "bufferMinutes": "15 to 1440 minutes, in steps of 15",
-      "wholeHour": "Whole hours only, such as 07:00 or 15:00"
+      "wholeHour": "Whole hours only, such as 07:00 or 15:00",
+      "lateCheckOut": "A late check-out must be later than the check-out time"
     },
     "amenityCategories": {
       "accessibility": "Accessibility",
@@ -540,7 +563,36 @@
     },
     "loadFailed": "Could not load the property. Check the connection and try again",
     "guestsRequired": "Set how many guests the property takes. Without it, it is offered to any number of guests",
-    "statusFailed": "Could not change the property's status. Try again"
+    "statusFailed": "Could not change the property's status. Try again",
+    "nearby": {
+      "title": "Nearby",
+      "hint": "Shops, a park, a pharmacy, the airport and how many minutes away. The guest sees the list on the property's page even before booking: leave the address out.",
+      "name": "Place",
+      "namePlaceholder": "Magnum, groceries 24/7",
+      "minutes": "Minutes",
+      "minutesPlaceholder": "min",
+      "by": "How to get there",
+      "walk": "On foot",
+      "car": "By car",
+      "add": "Add a place",
+      "saved": "The nearby list is saved",
+      "failed": "Could not save the list",
+      "invalid": "Each place needs a name and a time from 1 to 240 minutes",
+      "most_one": "At most {{count}} place",
+      "most_other": "At most {{count}} places",
+      "copy": "Copy to other properties",
+      "copyTitle": "Copy the nearby list",
+      "copyHint": "This list replaces the nearby list of the properties you pick.",
+      "replaces_one": "Replaces {{count}} place",
+      "replaces_other": "Replaces {{count}} places",
+      "copySubmit_one": "Copy to {{count}} property",
+      "copySubmit_other": "Copy to {{count}} properties",
+      "copied_one": "The list is copied to {{count}} property",
+      "copied_other": "The list is copied to {{count}} properties",
+      "copyFailed": "Could not copy. No property changed, try again"
+    },
+    "lateCheckOutPaid": "late check-out until {{time}} · {{price}}",
+    "lateCheckOutFree": "late check-out until {{time}} free"
   },
   "bookings": {
     "title": "Bookings",
@@ -699,12 +751,10 @@
       "returnFailed": "Could not return the deposit. Check your connection and try again.",
       "hold": "Hold",
       "holdPart": "Hold part",
-      "amountToHold": "Amount to hold",
-      "wholeDeposit": "The whole deposit",
       "createdOn": "Created {{date}}",
       "heldAll": "Held {{amount}}",
       "heldPart": "Held {{held}}, {{rest}} to the guest",
-      "reasonIs": "Reason: {{reason}}",
+      "reasonIs": "Note: {{reason}}",
       "holdAllHint": "Nothing goes back to the guest. You cannot undo this.",
       "holdPartHint": "{{rest}} goes back to the guest. You cannot undo this.",
       "holdConfirm": "Hold {{amount}}",
@@ -715,7 +765,16 @@
         "returned": "Returned",
         "held": "Held",
         "partiallyHeld": "Partially Held"
-      }
+      },
+      "linesHint": "The guest sees each line on the booking page: what happened, the sum and the photos. What is kept is the sum of the lines.",
+      "lineReason": "What happened",
+      "lineReasonPlaceholder": "A broken glass",
+      "lineAmount": "Sum",
+      "addPhoto": "Photo",
+      "addLine": "Add a line",
+      "ownNote": "A note for yourself (the guest does not see it)",
+      "overDeposit": "The lines are more than the deposit of {{amount}}",
+      "photoFailed": "Could not upload the photo. Check the connection and try again."
     },
     "files": {
       "files": "Files",
@@ -1284,6 +1343,9 @@
     "byMonth": "Revenue by month",
     "monthsDone": "This and past months",
     "monthsBooked": "Booked ahead",
+    "thisPeriod": "This period",
+    "previousPeriod": "Previous period",
+    "vsLastMonth": "{{change}} vs last month",
     "noMonthsData": "No revenue in these months and nothing booked ahead",
     "flow": {
       "title": "Where the money went",
@@ -1304,7 +1366,9 @@
       "nothing": "No payments for this period's bookings"
     },
     "sourceShare_one": "{{share}}% of revenue · {{count}} booking",
-    "sourceShare_other": "{{share}}% of revenue · {{count}} bookings"
+    "sourceShare_other": "{{share}}% of revenue · {{count}} bookings",
+    "sourcesCount_one": "{{count}} source",
+    "sourcesCount_other": "{{count}} sources"
   },
   "cleaner": {
     "todaysTasks": "Today's cleanings",
@@ -2074,7 +2138,9 @@
     "map2gis": "2GIS",
     "mapYandex": "Yandex",
     "mapGoogle": "Google",
-    "maxSiteNights": "Up to {{n}} nights online. For a longer stay, write to the host"
+    "maxSiteNights": "Up to {{n}} nights online. For a longer stay, write to the host",
+    "onFoot": "{{minutes}} min on foot",
+    "byCar": "{{minutes}} min by car"
   },
   "guestOffer": {
     "hello": "Hello, {{name}}. Here are flats for your dates",
@@ -2135,6 +2201,7 @@
     "hoursAtCheckIn": "The hours, {{total}}, are paid at check-in",
     "openPage": "Open your booking page",
     "openPageHint": "Keep this link: your booking page has the address, payment and the door code.",
+    "pageFromHost": "The host will send you the link to your booking page.",
     "extraGuests": "Extra guests",
     "discount": "Discount"
   },
@@ -2486,7 +2553,9 @@
       "cleaning": "I need cleaning / fresh linen.",
       "broken": "Something isn't working: ",
       "documents": "I need documents for my records (receipt, statement) for the stay.",
-      "checkedOut": "We have checked out. Keys: "
+      "checkedOut": "We have checked out. Keys: ",
+      "lateCheckOutPaid": "I would like to check out later, until {{until}}, for {{price}}. Is that possible?",
+      "lateCheckOutFree": "I would like to check out later, until {{until}}. Is that possible?"
     },
     "minibar": {
       "title": "Minibar",
@@ -2601,7 +2670,8 @@
       "partially_held": "{{back}} comes back, {{held}} was kept. If you disagree, write to the host.",
       "step1": "You check out by {{time}}",
       "step2": "The host checks the flat",
-      "step3": "We send the deposit back"
+      "step3": "We send the deposit back",
+      "photoOf": "{{reason}}, photo {{n}}"
     },
     "again": {
       "title": "Enjoyed your stay?",
@@ -2609,7 +2679,10 @@
       "open": "Open the flat's page"
     },
     "leftSent": "The host knows you have left. Thank you.",
-    "leftFailed": "Could not send it. Check the connection and try again."
+    "leftFailed": "Could not send it. Check the connection and try again.",
+    "door": "How to open the door",
+    "howto": "How to use",
+    "nearby": "Nearby"
   },
   "stayHere": {
     "title": "Staying here?",

@@ -383,6 +383,55 @@ test('paid in full, the guest sees the way to the door step by step, the entranc
   await expect(address.getByRole('link', { name: 'Вызвать такси сюда' })).toHaveAttribute('href', /end-lat=51\.12&end-lon=71\.43/)
 })
 
+test('paid in full, the lock video stands by the way in and «how to use» in the flat', async ({ page }) => {
+  await open(
+    page,
+    answer(
+      {
+        access: {
+          instructions: 'Код двери 4821', wifi_name: null, wifi_password: null, facts: [],
+          photos: [{ url: 'https://example.com/yard.mp4?sig=1', caption: 'Калитка во двор', kind: 'video' }],
+          door: [{ url: 'https://example.com/lock.mp4?sig=1', caption: 'Наберите код и нажмите #', kind: 'video' }],
+          howto: [
+            { url: 'https://example.com/ac.mp4?sig=1', caption: 'Кондиционер', kind: 'video' },
+            { url: 'https://example.com/stove.jpg?sig=1', caption: 'Плита', kind: 'photo' },
+          ],
+        },
+      },
+      { paid: 40000, remaining: 0 },
+    ),
+  )
+  const door = page.getByRole('region', { name: 'Как открыть дверь' })
+  await expect(door).toContainText('Наберите код и нажмите #')
+  // A video opens whole in the phone's own player; the tile shows its first frame.
+  await expect(door.getByRole('link', { name: 'Наберите код и нажмите #' })).toHaveAttribute('href', 'https://example.com/lock.mp4?sig=1')
+  await expect(door.locator('video')).toHaveAttribute('src', 'https://example.com/lock.mp4?sig=1#t=0.1')
+  // A step of the way in may be a video too: never a broken picture.
+  const path = page.getByRole('region', { name: 'Путь до двери' })
+  await expect(path.locator('video')).toHaveCount(1)
+  await expect(path.locator('img')).toHaveCount(0)
+  // «How to use» waits for the stay's tab.
+  await expect(page.getByRole('region', { name: 'Как пользоваться' })).toHaveCount(0)
+  await page.getByRole('tab', { name: 'В квартире' }).click()
+  const howto = page.getByRole('region', { name: 'Как пользоваться' })
+  await expect(howto.getByRole('listitem')).toHaveCount(2)
+  await expect(howto.locator('video')).toHaveCount(1)
+  await expect(howto.getByRole('img', { name: 'Плита' })).toBeVisible()
+})
+
+test('during the stay the guest sees what is near and how far', async ({ page }) => {
+  await openStay(page, answer({
+    flat: { ...answer().flat, nearby: [
+      { name: 'Аптека у калитки', minutes: 1, by: 'walk' },
+      { name: 'Аэропорт', minutes: 35, by: 'car' },
+    ] },
+  }))
+  const near = page.getByRole('region', { name: 'Рядом' })
+  await expect(near.getByRole('listitem')).toHaveCount(2)
+  await expect(near.getByRole('listitem').first()).toContainText('1 мин пешком')
+  await expect(near.getByRole('listitem').last()).toContainText('35 мин на машине')
+})
+
 test('before payment the address keeps the entrance and the flat number back', async ({ page }) => {
   await open(page, answer({ flat: { ...answer().flat, complex_name: 'Auezov City', floor: 10 } }))
   const address = page.getByRole('region', { name: 'Адрес' })
@@ -416,6 +465,38 @@ test('during the stay «extend» says until when the flat is free', async ({ pag
   await expect(page.getByRole('tab', { name: 'В квартире' })).toHaveAttribute('aria-selected', 'true')
   // A real date, as the guest reads it: never «Invalid Date».
   await expect(page.getByRole('link', { name: /Продлить проживание/ })).toContainText(/свободно до \d{1,2} [а-я]+$/)
+})
+
+test('a late check-out the flat sells says until when and for how much, and asks for it in WhatsApp', async ({ page }) => {
+  const now = today()
+  const stay = { check_in: `${addDays(now, -1)}T14:00:00`, check_out: `${addDays(now, 2)}T12:00:00`, paid: 40000, remaining: 0 }
+  await open(page, answer({ late_check_out: { until_hour: 15, price: 5000 } }, stay))
+  const late = page.getByRole('link', { name: /Поздний выезд/ })
+  await expect(late).toContainText(/до 15:00 · 5\s000\s₸/)
+  const text = decodeURIComponent((await late.getAttribute('href'))!.split('text=')[1])
+  expect(text).toMatch(/Хочу выехать позже, до 15:00, за 5\s000\s₸\. Можно\?/)
+  // The day is someone else's: the server offers nothing, and the button only asks.
+  await page.unrouteAll()
+  await open(page, answer({}, stay))
+  const ask = page.getByRole('link', { name: /Поздний выезд/ })
+  await expect(ask).not.toContainText('15:00')
+  expect(decodeURIComponent((await ask.getAttribute('href'))!.split('text=')[1])).toContain('Можно выехать позже 12:00?')
+})
+
+test('a deposit kept line by line shows each sum, why and its photo', async ({ page }) => {
+  await open(page, answer({
+    deposit: {
+      amount: 10000, status: 'partially_held', held: 4500, deductions: [
+        { amount: 3000, reason: 'Разбит бокал', photos: ['https://example.com/glass.jpg?sig=1'] },
+        { amount: 1500, reason: 'Пятно на диване', photos: [] },
+      ],
+    },
+  }, { status: 'checked_out', paid: 40000, remaining: 0 }))
+  await page.getByRole('tab', { name: 'Выезд' }).click()
+  const lines = page.getByTestId('deposit-deductions')
+  await expect(lines.getByRole('listitem')).toHaveCount(2)
+  await expect(lines.getByRole('listitem').first()).toContainText(/Разбит бокал\s*3\s000\s₸/)
+  await expect(lines.getByRole('img', { name: 'Разбит бокал, фото 1' })).toHaveAttribute('src', 'https://example.com/glass.jpg?sig=1')
 })
 
 test('a deposit kept in part says what comes back and what was kept', async ({ page }) => {

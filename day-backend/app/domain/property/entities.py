@@ -14,6 +14,8 @@ from app.domain.property.value_objects import (
     CheckInMethod,
     FactAudience,
     FactSource,
+    GuestMediaSection,
+    MediaKind,
     PropertyStatus,
     PropertyType,
 )
@@ -101,6 +103,10 @@ class Property:
     # The flat's own hours; empty means the company default (14:00 / 12:00).
     check_in_hour: int | None = None
     check_out_hour: int | None = None
+    # A later check-out the guest may ask for: until this hour, for this price (None: free).
+    # No hour: the guest's button only asks.
+    late_check_out_hour: int | None = None
+    late_check_out_price: Decimal | None = None
     check_in_method: CheckInMethod | None = None
     area_living: float | None = None
     area_total: float | None = None
@@ -109,6 +115,8 @@ class Property:
     check_in_instructions: str | None = None
     check_out_instructions: str | None = None
     house_rules: str | None = None
+    # Near the flat, for the guest: {"name": "Magnum, продукты 24/7", "minutes": 3, "by": "walk" | "car"}.
+    nearby: list[dict] = field(default_factory=list)
 
     # Access. The guest asks for the Wi-Fi password more often than anything
     # else, so it lives on the unit rather than buried in the check-in text.
@@ -139,6 +147,9 @@ class PropertyPhoto:
     # guest: a check-in instruction (the entrance, the lock): never in the
     # listing, only for those who hand codes to guests.
     audience: FactAudience = FactAudience.PUBLIC
+    # A check-in photo may be a video, and stands in one of the guest page's places.
+    kind: MediaKind = MediaKind.PHOTO
+    section: GuestMediaSection = GuestMediaSection.PATH
     created_at: datetime | None = None
 
 

@@ -181,6 +181,20 @@ export async function createDeposit(
   return res.data
 }
 
+/** A photo of what a hold is for: `url` goes back in the deduction, `preview_url` is shown now. */
+export async function uploadDepositPhoto(
+  bookingId: string,
+  depositId: string,
+  file: File,
+): Promise<{ url: string; preview_url: string }> {
+  const formData = new FormData()
+  formData.append('file', file)
+  const res = await apiClient.post(`/bookings/${bookingId}/deposits/${depositId}/photos`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  })
+  return res.data
+}
+
 export async function depositAction(
   bookingId: string,
   depositId: string,

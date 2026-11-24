@@ -4,6 +4,7 @@
 import axios from 'axios'
 import apiClient from './client'
 import type { PublicNight } from '../lib/public-stay'
+import type { NearbyPlace } from '../types/property'
 
 const publicClient = axios.create({ baseURL: apiClient.defaults.baseURL, timeout: 20_000 })
 
@@ -25,6 +26,8 @@ export interface PublicStay {
   check_out_hour: number | null
   check_in_method: string | null
   house_rules: string | null
+  /** Shops, a park, the airport and how far: the place without the address. */
+  nearby?: NearbyPlace[]
   min_nights: number | null
   photos: string[]
   amenities: { name: string; category: string }[]
@@ -194,6 +197,9 @@ export async function bookStay(
 }
 
 /** A guest's own page for their booking (/g/<code>). */
+/** A check-in photo or video on the guest's booking page. */
+export type GuestMedia = { url: string; caption: string | null; kind?: 'photo' | 'video' }
+
 export interface GuestPanel {
   closed: boolean
   /** The company's own day, YYYY-MM-DD: which buttons fit the stay. */
@@ -217,7 +223,13 @@ export interface GuestPanel {
     free_until?: string | null
   } | null
   /** The stay's deposit: the amount and what became of it, never the owner's reason. */
-  deposit?: { amount: number; status: 'pending' | 'paid' | 'returned' | 'held' | 'partially_held'; held: number } | null
+  deposit?: {
+    amount: number
+    status: 'pending' | 'paid' | 'returned' | 'held' | 'partially_held'
+    held: number
+    /** What was kept, line by line, with the photos of it (links that expire). */
+    deductions?: { amount: number; reason: string; photos: string[] }[]
+  } | null
   flat: {
     name: string
     /** The flat's own page: /s/<code>. */
@@ -234,6 +246,7 @@ export interface GuestPanel {
     check_out_hour: number | null
     house_rules: string | null
     check_out_instructions: string | null
+    nearby?: NearbyPlace[]
   } | null
   /** Only for a confirmed or checked-in stay paid in full: the server decides. */
   access: {
@@ -241,12 +254,18 @@ export interface GuestPanel {
     wifi_name: string | null
     wifi_password: string | null
     facts: string[]
-    /** The path to the door: the flat's check-in photos with the owner's words, in order. */
-    photos?: { url: string; caption: string | null }[]
+    /** The path to the door: the flat's check-in photos and videos with the owner's words, in order. */
+    photos?: GuestMedia[]
+    /** Beside the door code: how the lock opens. */
+    door?: GuestMedia[]
+    /** How to use the things in the flat: the air conditioner, the stove. */
+    howto?: GuestMedia[]
     entrance?: string | null
     block?: string | null
     apartment_number?: string | null
   } | null
+  /** A later check-out the flat sells, while nobody comes that day; the button only asks without it. */
+  late_check_out?: { until_hour: number; price: number | null } | null
   /** Hours before check-in the way in opens, once the stay is paid. */
   lead_hours: number
   /** The minibar during the stay; null outside it. */

@@ -14,6 +14,7 @@ import {
   getPricing,
   createOrUpdatePricing,
   copyTariffsToAll,
+  copyNearby,
   listAmenities,
   getPropertyAuditLog,
   uploadPhotos,
@@ -44,7 +45,7 @@ import {
   syncCalendarFeed,
   removeCalendarFeed,
 } from '../api/properties'
-import type { SeasonalPriceInput, DiscountRuleInput, PhotoAudience } from '../types/property'
+import type { SeasonalPriceInput, DiscountRuleInput, PhotoAudience, MediaSection } from '../types/property'
 
 const PROPERTIES_KEY = 'properties'
 const PROPERTY_KEY = 'property'
@@ -138,6 +139,17 @@ export function useCreateOrUpdatePricing(propertyId: string) {
   })
 }
 
+export function useCopyNearby(propertyId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (propertyIds: string[]) => copyNearby(propertyId, propertyIds),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: [PROPERTIES_KEY] })
+      qc.invalidateQueries({ queryKey: [PROPERTY_KEY] })
+    },
+  })
+}
+
 export function useCopyTariffsToAll(propertyId: string) {
   const qc = useQueryClient()
   return useMutation({
@@ -208,12 +220,23 @@ export function useAmenities() {
 export function useUploadPhotos(propertyId: string) {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: ({ files, startAt, audience }: { files: File[]; startAt: number; audience?: PhotoAudience }) =>
+    mutationFn: ({
+      files,
+      startAt,
+      audience,
+      section,
+    }: {
+      files: File[]
+      startAt: number
+      audience?: PhotoAudience
+      section?: MediaSection
+    }) =>
       uploadPhotos(
         propertyId,
         files.map((file) => ({ file })),
         startAt,
         audience,
+        section,
       ),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: [PROPERTY_KEY, propertyId] })

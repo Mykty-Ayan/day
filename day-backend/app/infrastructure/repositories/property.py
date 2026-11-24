@@ -43,6 +43,8 @@ from app.domain.property.value_objects import (
     CheckInMethod,
     FactAudience,
     FactSource,
+    GuestMediaSection,
+    MediaKind,
     PropertyStatus,
     PropertyType,
 )
@@ -108,6 +110,9 @@ def _model_to_property(m: PropertyModel) -> Property:
         area_total=m.area_total,
         check_in_instructions=m.check_in_instructions,
         check_out_instructions=m.check_out_instructions,
+        nearby=list(m.nearby or []),
+        late_check_out_hour=m.late_check_out_hour,
+        late_check_out_price=m.late_check_out_price,
         house_rules=m.house_rules,
         wifi_name=m.wifi_name,
         wifi_password=m.wifi_password,
@@ -156,6 +161,9 @@ def _property_to_dict(p: Property) -> dict:
         "area_total": p.area_total,
         "check_in_instructions": p.check_in_instructions,
         "check_out_instructions": p.check_out_instructions,
+        "nearby": list(p.nearby),
+        "late_check_out_hour": p.late_check_out_hour,
+        "late_check_out_price": p.late_check_out_price,
         "house_rules": p.house_rules,
         "wifi_name": p.wifi_name,
         "wifi_password": p.wifi_password,
@@ -171,6 +179,8 @@ def _model_to_photo(m: PropertyPhotoModel) -> PropertyPhoto:
         is_cover=m.is_cover,
         caption=m.caption,
         audience=FactAudience(m.audience),
+        kind=MediaKind(m.kind),
+        section=GuestMediaSection(m.section),
         created_at=m.created_at,
     )
 
@@ -409,6 +419,8 @@ class SqlPropertyPhotoRepository(PropertyPhotoRepository):
             is_cover=photo.is_cover,
             caption=photo.caption,
             audience=photo.audience.value,
+            kind=photo.kind.value,
+            section=photo.section.value,
         )
         self._session.add(model)
         await self._session.flush()

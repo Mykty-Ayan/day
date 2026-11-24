@@ -66,7 +66,8 @@ export interface AnalyticsFilters {
   period?: PeriodPreset
   granularity?: Granularity
   property_ids?: string[]
-  source?: string
+  /** The booking sources; none is all. */
+  source?: string[]
 }
 
 /** The money of the period's bookings: received by method, owed for the stays; the deposits held now. */

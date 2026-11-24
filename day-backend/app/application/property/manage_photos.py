@@ -4,7 +4,7 @@ import uuid
 
 from app.domain.property.entities import PropertyPhoto
 from app.domain.property.repositories import PropertyPhotoRepository, PropertyRepository
-from app.domain.property.value_objects import FactAudience
+from app.domain.property.value_objects import FactAudience, GuestMediaSection, MediaKind
 
 
 class ManagePhotosService:
@@ -26,6 +26,8 @@ class ManagePhotosService:
         is_cover: bool = False,
         caption: str | None = None,
         audience: FactAudience = FactAudience.PUBLIC,
+        kind: MediaKind = MediaKind.PHOTO,
+        section: GuestMediaSection = GuestMediaSection.PATH,
     ) -> PropertyPhoto:
         prop = await self._property_repo.get_by_id(property_id)
         if prop is None or prop.company_id != company_id:
@@ -33,6 +35,9 @@ class ManagePhotosService:
         # The cover opens the listing; a check-in photo never reaches the listing.
         if is_cover and audience == FactAudience.GUEST:
             raise ValueError("A check-in photo cannot be the cover")
+        # The listing and the OTAs show pictures; a video and a place on the guest's page are check-in only.
+        if audience != FactAudience.GUEST and (kind != MediaKind.PHOTO or section != GuestMediaSection.PATH):
+            raise ValueError("Only a check-in photo can be a video or stand elsewhere on the guest's page")
 
         photo = PropertyPhoto(
             property_id=property_id,
@@ -41,6 +46,8 @@ class ManagePhotosService:
             is_cover=is_cover,
             caption=caption,
             audience=audience,
+            kind=kind,
+            section=section,
         )
         return await self._photo_repo.save(photo)
 

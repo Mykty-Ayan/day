@@ -152,6 +152,7 @@ def _model_to_deposit(m: BookingDepositModel) -> BookingDeposit:
         status=DepositStatus(m.status),
         held_amount=Decimal(str(m.held_amount)),
         reason=m.reason,
+        deductions=list(m.deductions or []),
         created_at=m.created_at,
         updated_at=m.updated_at,
     )
@@ -1024,6 +1025,7 @@ class SqlBookingDepositRepository(BookingDepositRepository):
             status=deposit.status.value,
             held_amount=float(deposit.held_amount),
             reason=deposit.reason,
+            deductions=list(deposit.deductions),
         )
         self._session.add(model)
         await self._session.flush()
@@ -1051,6 +1053,7 @@ class SqlBookingDepositRepository(BookingDepositRepository):
                 status=deposit.status.value,
                 held_amount=float(deposit.held_amount),
                 reason=deposit.reason,
+                deductions=list(deposit.deductions),
                 updated_at=datetime.utcnow(),
             )
         )

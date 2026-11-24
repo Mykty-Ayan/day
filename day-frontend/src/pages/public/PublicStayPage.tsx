@@ -11,6 +11,7 @@ import { GuestFrame, LoadFailed } from './GuestFrame'
 import { BookBar, BookSheet, HeldView } from './StayBooking'
 import { StayCalendar } from './StayCalendar'
 import { StayHereBanner } from './StayHere'
+import { NearbyList } from './NearbyList'
 
 // The mockup's blue when the company has no color of its own.
 const DEFAULT_ACCENT = '#2F5BFF'
@@ -303,6 +304,7 @@ function StayView({ stay, locale, today, until }: { stay: PublicStay; locale: st
               ))}
             </div>
           )}
+          {!!stay.nearby?.length && <NearbyList places={stay.nearby} />}
         </section>
 
         {(stay.rental_mode !== 'hourly' || stay.check_in_method || stay.house_rules) && (

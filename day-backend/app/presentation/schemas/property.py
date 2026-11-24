@@ -3,9 +3,18 @@ from __future__ import annotations
 import uuid
 from datetime import date, datetime, time
 from decimal import Decimal
-from typing import Annotated
+from typing import Annotated, Literal
 
-from pydantic import AliasChoices, BaseModel, ConfigDict, Field, StringConstraints, computed_field, model_validator
+from pydantic import (
+    AliasChoices,
+    BaseModel,
+    ConfigDict,
+    Field,
+    StringConstraints,
+    computed_field,
+    field_validator,
+    model_validator,
+)
 
 from app.domain.booking.value_objects import RentalMode
 from app.domain.property.value_objects import (
@@ -14,6 +23,8 @@ from app.domain.property.value_objects import (
     CheckInMethod,
     FactAudience,
     FactSource,
+    GuestMediaSection,
+    MediaKind,
     PropertyStatus,
     PropertyType,
 )
@@ -24,6 +35,27 @@ from app.domain.property.value_objects import (
 WebLink = Annotated[str, StringConstraints(strip_whitespace=True, max_length=1024, pattern=r"^https?://\S+$")]
 # A listing of the flat on Krisha, Booking, Airbnb, OLX; the CRM matches a guest's link against them.
 ListingLink = Annotated[str, StringConstraints(strip_whitespace=True, max_length=500, pattern=r"^https?://\S+$")]
+
+
+class NearbyPlace(BaseModel):
+    """A place near the flat for the guest: a shop, a park, the airport, and how far."""
+
+    name: str = Field(min_length=1, max_length=80)
+    minutes: int = Field(ge=1, le=240)
+    by: Literal["walk", "car"] = "walk"
+
+    @field_validator("name")
+    @classmethod
+    def _trimmed(cls, value: str) -> str:
+        if not value.strip():
+            raise ValueError("A place needs a name")
+        return value.strip()
+
+
+class NearbyCopy(BaseModel):
+    """The flats that take this flat's list «Рядом» in place of their own."""
+
+    property_ids: list[uuid.UUID] = Field(min_length=1, max_length=1000)
 
 
 class _TurnoverHours(BaseModel):
@@ -94,12 +126,15 @@ class PropertyCreate(_TurnoverHours):
     bathrooms: int | None = Field(default=None, ge=1, le=50)
     check_in_hour: int | None = Field(default=None, ge=0, le=23)
     check_out_hour: int | None = Field(default=None, ge=0, le=23)
+    late_check_out_hour: int | None = Field(default=None, ge=1, le=23)
+    late_check_out_price: Decimal | None = Field(default=None, ge=0, le=10_000_000, decimal_places=2)
     check_in_method: CheckInMethod | None = None
     area_living: float | None = None
     area_total: float | None = None
     check_in_instructions: str | None = None
     check_out_instructions: str | None = None
     house_rules: str | None = None
+    nearby: list[NearbyPlace] = Field(default_factory=list, max_length=12)
     wifi_name: str | None = Field(default=None, max_length=255)
     wifi_password: str | None = Field(default=None, max_length=255)
 
@@ -136,12 +171,15 @@ class PropertyUpdate(_TurnoverHours):
     bathrooms: int | None = Field(default=None, ge=1, le=50)
     check_in_hour: int | None = Field(default=None, ge=0, le=23)
     check_out_hour: int | None = Field(default=None, ge=0, le=23)
+    late_check_out_hour: int | None = Field(default=None, ge=1, le=23)
+    late_check_out_price: Decimal | None = Field(default=None, ge=0, le=10_000_000, decimal_places=2)
     check_in_method: CheckInMethod | None = None
     area_living: float | None = None
     area_total: float | None = None
     check_in_instructions: str | None = None
     check_out_instructions: str | None = None
     house_rules: str | None = None
+    nearby: list[NearbyPlace] = Field(default_factory=list, max_length=12)
     wifi_name: str | None = Field(default=None, max_length=255)
     wifi_password: str | None = Field(default=None, max_length=255)
 
@@ -186,12 +224,15 @@ class PropertyResponse(BaseModel):
     bathrooms: int | None = None
     check_in_hour: int | None = None
     check_out_hour: int | None = None
+    late_check_out_hour: int | None = None
+    late_check_out_price: float | None = None
     check_in_method: CheckInMethod | None = None
     area_living: float | None = None
     area_total: float | None = None
     check_in_instructions: str | None = None
     check_out_instructions: str | None = None
     house_rules: str | None = None
+    nearby: list[NearbyPlace] = []
     wifi_name: str | None = None
     wifi_password: str | None = None
     photos: list["PropertyPhotoResponse"] = Field(default_factory=list)
@@ -242,6 +283,9 @@ class PropertyPhotoResponse(BaseModel):
     is_cover: bool
     caption: str | None = None
     audience: FactAudience = FactAudience.PUBLIC
+    # A check-in photo may be a video; where it stands on the guest's booking page.
+    kind: MediaKind = MediaKind.PHOTO
+    section: GuestMediaSection = GuestMediaSection.PATH
     created_at: datetime | None = None
 
 

@@ -173,6 +173,35 @@ test.describe('Analytics Dashboard - Filters', () => {
     await expect(sourceFilter).toBeVisible({ timeout: 5000 })
   })
 
+  test('sources are picked by ticks, several at once, and «all» clears them', async ({ page }) => {
+    await page.goto('/analytics')
+    const filter = page.getByRole('combobox', { name: 'Source' })
+    await filter.click()
+    await expect(page.getByRole('checkbox', { name: 'All Sources' })).toBeChecked()
+    const asked = page.waitForRequest(
+      (r) => r.url().includes('/analytics/metrics') && new URL(r.url()).searchParams.getAll('source').length === 2,
+    )
+    await page.getByRole('checkbox', { name: 'Airbnb' }).click()
+    await page.getByRole('checkbox', { name: 'Booking.com' }).click()
+    expect(new URL((await asked).url()).searchParams.getAll('source').sort()).toEqual(['airbnb', 'booking'])
+    await expect(page.getByRole('checkbox', { name: 'All Sources' })).not.toBeChecked()
+    await expect(filter).toHaveText('2 sources')
+
+    await page.getByRole('checkbox', { name: 'All Sources' }).click()
+    await expect(filter).toHaveText('All Sources')
+    await expect(page.getByRole('checkbox', { name: 'Airbnb' })).not.toBeChecked()
+
+    // Every source ticked one by one is «all»: expenses and bookings with no source count again.
+    // The first tick is «all», then each source.
+    const ticks = page.locator('[data-radix-popper-content-wrapper]').getByRole('checkbox')
+    const count = await ticks.count()
+    for (let n = 2; n < count; n++) await ticks.nth(n).click()
+    await expect(page.getByRole('checkbox', { name: 'All Sources' })).not.toBeChecked()
+    await ticks.nth(1).click()
+    await expect(page.getByRole('checkbox', { name: 'All Sources' })).toBeChecked()
+    await expect(filter).toHaveText('All Sources')
+  })
+
   test('property filter dropdown is visible', async ({ page }) => {
     await page.goto('/analytics')
     await page.waitForLoadState('networkidle')

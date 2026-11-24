@@ -86,10 +86,14 @@ from app.infrastructure.repositories.settings import SqlCompanySettingsRepositor
 from app.infrastructure.storage.s3 import (
     FileTooLargeError,
     delete_booking_file,
+    deposit_photo_prefix,
     download_booking_file,
+    signed_photo_url,
     upload_booking_file,
+    upload_deposit_photo,
 )
 from app.presentation.api.deps import Principal, get_company_id, get_principal, get_user_id, require
+from app.presentation.api.v1.properties import _sniff_photo
 from app.presentation.schemas.booking import (
     AvailabilityResponse,
     AvailablePhotoResponse,
@@ -110,6 +114,7 @@ from app.presentation.schemas.booking import (
     BookingUpdate,
     DepositAction,
     DepositCreate,
+    DepositPhotoResponse,
     DepositResponse,
     GanttBlockResponse,
     GanttBookingResponse,
@@ -786,7 +791,7 @@ async def get_booking(
         ),
         guest=GuestResponse.model_validate(detail.guest, from_attributes=True) if detail.guest else None,
         payments=[PaymentResponse.model_validate(p, from_attributes=True) for p in detail.payments],
-        deposits=[DepositResponse.model_validate(d, from_attributes=True) for d in detail.deposits],
+        deposits=[_deposit_response(d) for d in detail.deposits],
         files=[_to_file_response(f) for f in detail.files],
         comments=[BookingCommentResponse.model_validate(c, from_attributes=True) for c in detail.comments],
         audit_logs=[BookingAuditLogResponse.model_validate(a, from_attributes=True) for a in detail.audit_logs],
@@ -1176,6 +1181,57 @@ async def list_payments(
 # ---------- Deposits ----------
 
 
+def _deposit_response(deposit) -> DepositResponse:
+    """A deposit as the owner reads it: the photos of what was kept as links that expire."""
+    response = DepositResponse.model_validate(deposit, from_attributes=True)
+    for line in response.deductions:
+        line.photos = [signed_photo_url(url) for url in line.photos]
+    return response
+
+
+@booking_router.post(
+    "/{booking_id:uuid}/deposits/{deposit_id}/photos",
+    response_model=DepositPhotoResponse,
+    status_code=201,
+    dependencies=[Depends(require(Permission.BOOKINGS_WRITE))],
+)
+async def upload_deposit_hold_photo(
+    booking_id: uuid.UUID,
+    deposit_id: uuid.UUID,
+    file: UploadFile = File(...),
+    session: AsyncSession = Depends(get_session),
+    company_id: uuid.UUID = Depends(get_company_id),
+):
+    """A photo of what a hold is for (a broken glass), before the hold that links to it.
+
+    Known limit: a photo whose line was dropped, or whose hold was refused, stays stored
+    (private, unread). A sweep of deposits/ against the holds' lines would clear them."""
+    repos = _repos(session)
+    booking = await repos["booking"].get_by_id(booking_id)
+    deposit = await repos["deposit"].get_by_id(deposit_id)
+    if booking is None or booking.company_id != company_id or deposit is None or deposit.booking_id != booking_id:
+        raise HTTPException(status_code=404, detail="Not found")
+    head = file.file.read(16)
+    file.file.seek(0)
+    content_type = _sniff_photo(head)
+    if content_type is None:
+        raise HTTPException(status_code=415, detail="Only JPEG, PNG or WebP photos")
+    size = file.size
+    if size is None:
+        file.file.seek(0, 2)
+        size = file.file.tell()
+        file.file.seek(0)
+    if size > settings.S3_MAX_UPLOAD_BYTES:
+        raise HTTPException(
+            status_code=413, detail=f"Photo too large (max {settings.S3_MAX_UPLOAD_BYTES // (1024 * 1024)} MB)"
+        )
+    try:
+        url = await upload_deposit_photo(booking_id=booking_id, file_obj=file.file, content_type=content_type)
+    except Exception:
+        raise HTTPException(status_code=500, detail="Failed to upload photo")
+    return DepositPhotoResponse(url=url, preview_url=signed_photo_url(url))
+
+
 @booking_router.post(
     "/{booking_id:uuid}/deposits",
     response_model=DepositResponse,
@@ -1193,7 +1249,7 @@ async def create_deposit(
     try:
         result = await svc.create_deposit(booking_id, company_id, body.amount, unless_open=body.unless_open)
         await session.commit()
-        return DepositResponse.model_validate(result, from_attributes=True)
+        return _deposit_response(result)
     except DepositAlreadyOpenError as e:
         await session.rollback()
         raise HTTPException(status_code=409, detail=str(e))
@@ -1214,6 +1270,13 @@ async def deposit_action(
     session: AsyncSession = Depends(get_session),
     company_id: uuid.UUID = Depends(get_company_id),
 ):
+    # A line links only to this booking's own uploads: another company's stored file would
+    # be signed and handed to this guest.
+    # Exactly a name the upload gives (<uuid>.<ext>): no "../" walking out of the prefix.
+    own = re.compile(re.escape(deposit_photo_prefix(booking_id)) + r"[0-9a-f-]{36}\.(?:jpg|png|webp)")
+    for line in body.deductions or []:
+        if any(not own.fullmatch(url) for url in line.photos):
+            raise HTTPException(status_code=400, detail="A deduction's photo is uploaded for this deposit")
     repos = _repos(session)
     svc = ManageDepositsService(repos["booking"], repos["deposit"])
     try:
@@ -1224,9 +1287,10 @@ async def deposit_action(
             body.action,
             body.held_amount,
             body.reason,
+            [line.model_dump() for line in body.deductions] if body.deductions else None,
         )
         await session.commit()
-        return DepositResponse.model_validate(result, from_attributes=True)
+        return _deposit_response(result)
     except DepositNotFoundError:
         await session.rollback()
         raise HTTPException(status_code=404, detail="Not found")
@@ -1249,7 +1313,7 @@ async def list_deposits(
     svc = ManageDepositsService(repos["booking"], repos["deposit"])
     try:
         result = await svc.list_deposits(booking_id, company_id)
-        return [DepositResponse.model_validate(d, from_attributes=True) for d in result]
+        return [_deposit_response(d) for d in result]
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
 

@@ -15,6 +15,7 @@ from app.application.property.public_stay import PublicStay
 from app.config import settings
 from app.domain.booking.value_objects import RentalMode
 from app.presentation.schemas.offers import full_phone
+from app.presentation.schemas.property import NearbyPlace
 
 
 class PublicAmenity(BaseModel):
@@ -84,6 +85,8 @@ class PublicStayResponse(BaseModel):
     check_out_hour: int | None = None
     check_in_method: str | None = None
     house_rules: str | None = None
+    # Shops, a park, the airport and how far: the place without the address.
+    nearby: list[NearbyPlace] = []
     min_nights: int | None = None
     # No map link and no video: the map pins the building (as Airbnb, the place is
     # told after booking), and an owner's video may be the one of the lock.
@@ -133,6 +136,7 @@ class PublicStayResponse(BaseModel):
             check_out_hour=settings.DEFAULT_CHECK_OUT_HOUR if p.check_out_hour is None else p.check_out_hour,
             check_in_method=p.check_in_method.value if p.check_in_method else None,
             house_rules=p.house_rules,
+            nearby=p.nearby,
             min_nights=p.min_nights,
             photos=stay.photos,
             amenities=[PublicAmenity(name=a.name, category=a.category.value) for a in stay.amenities],

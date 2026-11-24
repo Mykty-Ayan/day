@@ -59,6 +59,7 @@ import StatusBadge from '../../components/property/StatusBadge'
 import { showToast } from '../../components/ui/Toast'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import CheckInPhotosCard from '../../components/property/CheckInPhotosCard'
+import NearbyCard from '../../components/property/NearbyCard'
 import ListingPhotosCard from '../../components/property/ListingPhotosCard'
 import { listingOrder } from '../../lib/property-photos'
 import PropertyEditSheet, { type PropertyBlock } from '../../components/property/PropertyEditSheet'
@@ -96,7 +97,8 @@ function seasonalKey(seasonal: Pick<SeasonalPrice, 'name' | 'start_date' | 'end_
 }
 
 export default function PropertyDetailPage() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
+  const { symbol } = useCurrency()
   const { propertyId } = useParams({ strict: false }) as { propertyId: string }
   const navigate = useNavigate()
   const { data: property, isLoading, isError, error, refetch } = useProperty(propertyId)
@@ -550,13 +552,18 @@ export default function PropertyDetailPage() {
               <h2 id="property-rules" className="text-sm font-bold text-ink">{t('properties.edit.rules')}</h2>
               <EditPencil label={t('properties.edit.rules')} onClick={() => setEditing('rules')} />
             </div>
-            {(property.check_in_hour != null || property.check_out_hour != null || property.check_in_method) && (
+            {(property.check_in_hour != null || property.check_out_hour != null || property.check_in_method || property.late_check_out_hour != null) && (
               <p className="text-sm text-ink">
                 {[
                   property.check_in_hour != null &&
                     `${t('properties.form.checkInFrom')} ${String(property.check_in_hour).padStart(2, '0')}:00`,
                   property.check_out_hour != null &&
                     `${t('properties.form.checkOutUntil')} ${String(property.check_out_hour).padStart(2, '0')}:00`,
+                  property.late_check_out_hour != null &&
+                    t(property.late_check_out_price ? 'properties.lateCheckOutPaid' : 'properties.lateCheckOutFree', {
+                      time: `${String(property.late_check_out_hour).padStart(2, '0')}:00`,
+                      price: `${formatMoneyExact(Number(property.late_check_out_price ?? 0), i18n.language)} ${symbol}`,
+                    }),
                   property.check_in_method && t(`properties.checkInMethod.${property.check_in_method}`),
                 ]
                   .filter(Boolean)
@@ -579,6 +586,8 @@ export default function PropertyDetailPage() {
             )}
             {!hasRules && <p className="text-sm text-ink-muted">{t('properties.nothingYet')}</p>}
           </section>
+          {/* Keyed by the saved list: after a save elsewhere the rows start from what is stored. */}
+          <NearbyCard key={JSON.stringify(property.nearby ?? [])} propertyId={propertyId} places={property.nearby ?? []} />
         </TabPanel>
 
         <TabPanel name="amenities" current={tab}>

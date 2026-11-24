@@ -170,13 +170,15 @@ export function StayCalendar({
         onClick={() => pick(day)}
         aria-pressed={edge || inside}
         aria-label={`${dayLong.format(parseISO(day))}${taken.has(day) && !past ? `, ${t('guest.taken')}` : ''}`}
-        className="relative flex flex-col items-center pb-0.5 pt-1"
+        // The whole cell: a button is only as wide as its number otherwise, and the band breaks.
+        className="relative flex w-full flex-col items-center pb-0.5 pt-1"
       >
         {band && (
           <span
             aria-hidden
+            data-band
             className={`absolute top-1 h-10 bg-[color-mix(in_srgb,var(--accent)_16%,white)] ${
-              day === checkIn ? 'inset-x-0 start-1/2' : day === checkOut ? 'inset-x-0 end-1/2' : 'inset-x-0'
+              day === checkIn ? 'start-1/2 end-0' : day === checkOut ? 'start-0 end-1/2' : 'start-0 end-0'
             }`}
           />
         )}
@@ -250,7 +252,10 @@ export function StayCalendar({
                 onClick={() => {
                   if (!r) return
                   onRange(r)
-                  reveal(r.checkIn!)
+                  // A stay the week strip cannot show whole, a week always, opens the months.
+                  const week = (day: string) => Math.floor(days.indexOf(day) / 7)
+                  if (view === 'week' && week(r.checkOut!) !== week(r.checkIn!)) setView('month')
+                  else reveal(r.checkIn!)
                 }}
                 className={`h-9 whitespace-nowrap rounded-full px-0.5 text-[13.5px] font-semibold disabled:text-[#B4B4BD] ${on ? 'bg-[#111114] text-white' : 'bg-[#F3F3F6] text-[#111114]'}`}
               >

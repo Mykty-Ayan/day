@@ -1,6 +1,6 @@
 import apiClient from './client'
 import type { GanttDayPrice } from '../types/booking'
-import type { Property, PropertyCreateInput, PropertyUpdateInput, PropertyFilters, PaginatedResponse, PricingConfig, PricingInput, SeasonalPrice, SeasonalPriceInput, DiscountRule, DiscountRuleInput, Amenity, PropertyAuditLog, PropertyStatus, PhotoAudience, Tag, TagCreateInput, PropertyBlock, CalendarFeed, PricingBase, PropertySetup } from '../types/property'
+import type { Property, PropertyCreateInput, PropertyUpdateInput, PropertyFilters, PaginatedResponse, PricingConfig, PricingInput, SeasonalPrice, SeasonalPriceInput, DiscountRule, DiscountRuleInput, Amenity, PropertyAuditLog, PropertyStatus, PhotoAudience, MediaSection, Tag, TagCreateInput, PropertyBlock, CalendarFeed, PricingBase, PropertySetup } from '../types/property'
 
 // --- Properties ---
 
@@ -81,13 +81,14 @@ export async function findMapPoint(url: string): Promise<{ latitude: number; lon
 export async function uploadPhoto(
   propertyId: string,
   file: File,
-  options: { sortOrder?: number; isCover?: boolean; audience?: PhotoAudience } = {},
+  options: { sortOrder?: number; isCover?: boolean; audience?: PhotoAudience; section?: MediaSection } = {},
 ): Promise<void> {
   const formData = new FormData()
   formData.append('file', file)
   formData.append('sort_order', String(options.sortOrder ?? 0))
   formData.append('is_cover', String(options.isCover ?? false))
   formData.append('audience', options.audience ?? 'public')
+  if (options.section) formData.append('section', options.section)
   await apiClient.post(`/properties/${propertyId}/photos/upload`, formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
   })
@@ -100,11 +101,12 @@ export async function uploadPhotos(
   photos: { file: File; isCover?: boolean }[],
   startAt = 0,
   audience: PhotoAudience = 'public',
+  section?: MediaSection,
 ): Promise<number> {
   let failed = 0
   for (const [index, photo] of photos.entries()) {
     try {
-      await uploadPhoto(propertyId, photo.file, { sortOrder: startAt + index, isCover: photo.isCover, audience })
+      await uploadPhoto(propertyId, photo.file, { sortOrder: startAt + index, isCover: photo.isCover, audience, section })
     } catch {
       failed += 1
     }
@@ -167,6 +169,12 @@ export async function createOrUpdatePricing(
     seasonal_prices: [],
     discount_rules: [],
   }
+}
+
+/** This flat's list «Рядом» to the chosen flats, in place of theirs: all of them or none. */
+export async function copyNearby(propertyId: string, propertyIds: string[]): Promise<number> {
+  const res = await apiClient.post(`/properties/${propertyId}/nearby/copy`, { property_ids: propertyIds })
+  return (res.data as { updated: number }).updated
 }
 
 /** Copies this flat's saved tariffs and late hours to the company's other priced flats. */

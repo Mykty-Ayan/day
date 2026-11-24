@@ -6,7 +6,7 @@ import { useAnalyticsMetrics, useAnalyticsTimeSeries } from '../../hooks/useAnal
 import { useProperties } from '../../hooks/useProperties'
 import { exportAnalyticsCsv } from '../../api/analytics'
 import type { PeriodPreset, Granularity } from '../../types/analytics'
-import { customRange, previousRange } from './period'
+import { alignPrevious, customRange, previousRange } from './period'
 import { useDates } from '../../hooks/useDates'
 import SummaryCards from '../../components/analytics/SummaryCards'
 import MetricsTable from '../../components/analytics/MetricsTable'
@@ -24,7 +24,7 @@ export default function AnalyticsDashboardPage() {
   const [period, setPeriod] = useState<PeriodPreset>('month')
   const [granularity, setGranularity] = useState<Granularity>('day')
   const [propertyIds, setPropertyIds] = useState<string[]>([])
-  const [source, setSource] = useState('all')
+  const [sources, setSources] = useState<string[]>([])
   const [range, setRange] = useState({ from: '', to: '' })
 
   // The owner's own period asks nothing until both days are picked: the API
@@ -36,7 +36,7 @@ export default function AnalyticsDashboardPage() {
     ...custom,
     granularity,
     property_ids: propertyIds.length > 0 ? propertyIds : undefined,
-    source: source === 'all' ? undefined : source,
+    source: sources.length > 0 ? sources : undefined,
   }
 
   const {
@@ -54,6 +54,16 @@ export default function AnalyticsDashboardPage() {
   // The same numbers for the period just before, as long: how each one changed.
   const before = metricsData ? previousRange(metricsData.date_from, metricsData.date_to) : null
   const { data: previousData } = useAnalyticsMetrics({ ...filters, period: undefined, ...before }, !waiting && before !== null)
+  // The period before by day, laid out on this period's bars: by week or month the bars of the
+  // two periods fall on different calendar edges and would not match by index.
+  const { data: previousDays } = useAnalyticsTimeSeries(
+    { ...filters, period: undefined, granularity: 'day', ...before },
+    !waiting && before !== null,
+  )
+  const previousSeries =
+    before && timeSeriesData && previousDays
+      ? alignPrevious(timeSeriesData.data, timeSeriesData.date_from, timeSeriesData.date_to, before.date_from, previousDays.data)
+      : undefined
   const { range: dayRange } = useDates()
   const { data: propertiesData } = useProperties({ per_page: 100, status: 'active' })
   const properties = propertiesData?.items ?? []
@@ -107,8 +117,8 @@ export default function AnalyticsDashboardPage() {
             onGranularityChange={setGranularity}
             propertyIds={propertyIds}
             onPropertyChange={setPropertyIds}
-            source={source}
-            onSourceChange={setSource}
+            sources={sources}
+            onSourcesChange={setSources}
             range={range}
             onRangeChange={setRange}
             properties={properties}
@@ -153,6 +163,12 @@ export default function AnalyticsDashboardPage() {
               </div>
             )}
 
+            {/* The period day by day first: it answers the cards above. */}
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+              <RevenueChart data={timeSeriesData?.data ?? []} previous={previousSeries} />
+              <OccupancyChart data={timeSeriesData?.data ?? []} previous={previousSeries} />
+            </div>
+
             <MonthsChart propertyIds={filters.property_ids} source={filters.source} />
 
             {metricsData && (
@@ -165,12 +181,6 @@ export default function AnalyticsDashboardPage() {
                 </div>
               </div>
             )}
-
-            {/* Charts */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <RevenueChart data={timeSeriesData?.data ?? []} />
-              <OccupancyChart data={timeSeriesData?.data ?? []} />
-            </div>
 
             {/* Property Table */}
             {metricsData && (

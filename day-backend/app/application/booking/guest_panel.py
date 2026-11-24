@@ -27,7 +27,7 @@ from app.domain.inventory.entities import GuestOrder, OrderBilling, Product
 from app.domain.inventory.repositories import GuestOrderRepository, ProductRepository
 from app.domain.property.entities import Property
 from app.domain.property.repositories import PropertyFactRepository, PropertyPhotoRepository, PropertyRepository
-from app.domain.property.value_objects import FactAudience
+from app.domain.property.value_objects import FactAudience, GuestMediaSection, MediaKind
 from app.domain.settings.entities import DEFAULT_TIME_ZONE, CompanySettings
 from app.domain.settings.repositories import CompanySettingsRepository
 from app.domain.site.entities import CompanySite
@@ -42,6 +42,15 @@ _FREE_AHEAD_DAYS = 60
 
 
 @dataclass
+class GuestMedia:
+    """A check-in photo or video: the owner's words with it."""
+
+    url: str
+    caption: str | None
+    kind: MediaKind = MediaKind.PHOTO
+
+
+@dataclass
 class GuestAccess:
     """How to get in: only for a live stay paid in full."""
 
@@ -49,8 +58,12 @@ class GuestAccess:
     wifi_name: str | None
     wifi_password: str | None
     facts: list[str] = field(default_factory=list)
-    # The path to the door: the flat's check-in photos (url, the owner's words), in order.
-    photos: list[tuple[str, str | None]] = field(default_factory=list)
+    # The path to the door: the flat's check-in photos and videos, in order.
+    photos: list[GuestMedia] = field(default_factory=list)
+    # Beside the door code: how the lock opens.
+    door: list[GuestMedia] = field(default_factory=list)
+    # How to use the things in the flat: the air conditioner, the stove.
+    howto: list[GuestMedia] = field(default_factory=list)
     # Where exactly: the entrance, the block and the flat's number come with the code.
     entrance: str | None = None
     block: str | None = None
@@ -98,6 +111,8 @@ class GuestPanel:
     free_until: date | None = None
     # The stay's deposit, its latest record: the amount and what became of it.
     deposit: BookingDeposit | None = None
+    # A later check-out the flat sells, offered while nobody comes that day: (until hour, price or None).
+    late_check_out: tuple[int, Decimal | None] | None = None
 
     @property
     def remaining(self) -> Decimal:
@@ -180,6 +195,16 @@ class GuestPanelService:
         panel.photo_url = listing[0].url if listing else None
         if panel.flat is not None and not panel.closed:
             panel.free_until = await self._free_until(booking)
+            flat_ = panel.flat
+            # Only by the night, later than this stay already ends, and only while the day of
+            # check-out is nobody else's.
+            if (
+                flat_.late_check_out_hour is not None
+                and flat_.late_check_out_hour > booking.check_out.hour
+                and booking.rental_mode != RentalMode.HOURLY
+                and (panel.free_until is None or panel.free_until > booking.check_out.date())
+            ):
+                panel.late_check_out = (flat_.late_check_out_hour, flat_.late_check_out_price)
         if self._deposits is not None:
             records = await self._deposits.get_by_booking(booking.id)
             panel.deposit = records[0] if records else None
@@ -191,16 +216,19 @@ class GuestPanelService:
             and opens <= local_now < booking.check_out
         ):
             facts = await self._facts.list_by_property(panel.flat.id)
+            check_in = [p for p in sorted(pictures, key=lambda p: p.sort_order) if p.audience == FactAudience.GUEST]
+
+            def placed(section: GuestMediaSection) -> list[GuestMedia]:
+                return [GuestMedia(p.url, p.caption, p.kind) for p in check_in if p.section == section]
+
             panel.access = GuestAccess(
                 instructions=panel.flat.check_in_instructions,
                 wifi_name=panel.flat.wifi_name,
                 wifi_password=panel.flat.wifi_password,
                 facts=[f.text for f in facts if f.audience == FactAudience.GUEST],
-                photos=[
-                    (p.url, p.caption)
-                    for p in sorted(pictures, key=lambda p: p.sort_order)
-                    if p.audience == FactAudience.GUEST
-                ],
+                photos=placed(GuestMediaSection.PATH),
+                door=placed(GuestMediaSection.DOOR),
+                howto=placed(GuestMediaSection.HOWTO),
                 entrance=panel.flat.entrance,
                 block=panel.flat.block,
                 apartment_number=panel.flat.apartment_number,

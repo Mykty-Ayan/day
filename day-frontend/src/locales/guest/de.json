@@ -83,7 +83,9 @@
     "map2gis": "2GIS",
     "mapYandex": "Yandex",
     "mapGoogle": "Google",
-    "maxSiteNights": "Online bis zu {{n}} Nächte. Für einen längeren Aufenthalt schreiben Sie dem Gastgeber"
+    "maxSiteNights": "Online bis zu {{n}} Nächte. Für einen längeren Aufenthalt schreiben Sie dem Gastgeber",
+    "onFoot": "{{minutes}} Min. zu Fuß",
+    "byCar": "{{minutes}} Min. mit dem Auto"
   },
   "guestOffer": {
     "hello": "{{name}}, hier sind Wohnungen für Ihre Reisedaten",
@@ -144,6 +146,7 @@
     "hoursAtCheckIn": "Die Stunden, {{total}}, zahlen Sie bei Anreise",
     "openPage": "Buchungsseite öffnen",
     "openPageHint": "Speichern Sie diesen Link: Auf Ihrer Buchungsseite finden Sie Adresse, Zahlung und Türcode.",
+    "pageFromHost": "Den Link zu Ihrer Buchungsseite schickt Ihnen der Gastgeber.",
     "extraGuests": "Aufpreis für weitere Gäste",
     "discount": "Rabatt"
   },

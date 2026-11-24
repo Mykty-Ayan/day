@@ -77,7 +77,9 @@
     "map2gis": "2GIS",
     "mapYandex": "Yandex",
     "mapGoogle": "Google",
-    "maxSiteNights": "عبر الموقع حتى {{n}} ليلة. للإقامة الأطول راسل المضيف"
+    "maxSiteNights": "عبر الموقع حتى {{n}} ليلة. للإقامة الأطول راسل المضيف",
+    "onFoot": "{{minutes}} دقيقة سيرًا",
+    "byCar": "{{minutes}} دقيقة بالسيارة"
   },
   "guestOffer": {
     "hello": "{{name}}، إليك شققًا لتواريخك",
@@ -137,6 +139,7 @@
     "hoursAtCheckIn": "سعر الساعات {{total}} يُدفع عند الوصول",
     "openPage": "افتح صفحة الحجز",
     "openPageHint": "احفظ هذا الرابط: في صفحة الحجز العنوان والدفع ورمز الباب.",
+    "pageFromHost": "سيرسل لك المضيف رابط صفحة حجزك.",
     "extraGuests": "رسوم الضيوف الإضافيين",
     "discount": "خصم"
   },

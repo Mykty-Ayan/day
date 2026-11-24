@@ -418,6 +418,33 @@ async def test_money_received_today_stays_inside_the_company_and_the_day():
 
 @pytestmark_integration
 @pytest.mark.asyncio
+async def test_several_sources_count_together_and_the_others_stay_out():
+    company_id = uuid.uuid4()
+    async with _fresh_session() as session:
+        guest = _guest(company_id)
+        prop = _property(company_id, f"src-{uuid.uuid4().hex[:8]}", "daily")
+        direct = _booking(company_id, prop.id, guest.id, datetime(2025, 6, 1), datetime(2025, 6, 3), "100", "daily")
+        airbnb = _booking(company_id, prop.id, guest.id, datetime(2025, 6, 5), datetime(2025, 6, 7), "200", "daily")
+        booking = _booking(company_id, prop.id, guest.id, datetime(2025, 6, 9), datetime(2025, 6, 11), "400", "daily")
+        airbnb.source, booking.source = "airbnb", "booking"
+        session.add_all([guest, prop, direct, airbnb, booking])
+        await session.flush()
+        repo = SqlAnalyticsRepository(session)
+
+        [both] = await repo.get_property_metrics(company_id, DATE_FROM, DATE_TO, source=["direct", "airbnb"])
+        [alone] = await repo.get_property_metrics(company_id, DATE_FROM, DATE_TO, source=["booking"])
+        series = await repo.get_time_series(
+            company_id, DATE_FROM, DATE_TO, Granularity.MONTH, source=["direct", "airbnb"]
+        )
+
+        assert both.revenue == Decimal("300")
+        assert alone.revenue == Decimal("400")
+        assert sum(point.revenue for point in series) == Decimal("300")
+        await session.rollback()
+
+
+@pytestmark_integration
+@pytest.mark.asyncio
 async def test_a_kept_prepayment_stays_inside_its_company_and_source():
     company_id = uuid.uuid4()
     async with _fresh_session() as session:
@@ -438,12 +465,117 @@ async def test_a_kept_prepayment_stays_inside_its_company_and_source():
         repo = SqlAnalyticsRepository(session)
 
         [pm] = await repo.get_property_metrics(company_id, DATE_FROM, DATE_TO)
-        by_source = await repo.get_property_metrics(company_id, DATE_FROM, DATE_TO, source="direct")
-        no_source = await repo.get_property_metrics(company_id, DATE_FROM, DATE_TO, source="airbnb")
+        by_source = await repo.get_property_metrics(company_id, DATE_FROM, DATE_TO, source=["direct"])
+        no_source = await repo.get_property_metrics(company_id, DATE_FROM, DATE_TO, source=["airbnb"])
 
-        assert pm.revenue == Decimal("50")
-        assert [m.revenue for m in by_source] == [Decimal("50")]
+        # The stay's price (paid or not: the guests' debt is in the payments) and the money kept.
+        assert pm.revenue == Decimal("250")
+        assert [m.revenue for m in by_source] == [Decimal("250")]
         assert no_source == []  # a source with no stays lists no flat, kept money or not
+
+        await session.rollback()
+
+
+@pytestmark_integration
+@pytest.mark.asyncio
+async def test_a_stay_earns_its_price_night_by_night():
+    """A stay across the period's edge counts its nights in the period, not its whole price;
+    an unpaid stay counts its price as a paid one does. Two periods side by side add up to
+    the price, and the metrics agree with the time series."""
+    company_id = uuid.uuid4()
+    async with _fresh_session() as session:
+        guest = _guest(company_id)
+        prop = _property(company_id, f"nights-{uuid.uuid4().hex[:8]}", "daily")
+        # 4 nights, 28 June – 2 July: 3 in June (28, 29, 30), 1 in July. Paid in full.
+        across = _booking(
+            company_id, prop.id, guest.id, datetime(2025, 6, 28, 14), datetime(2025, 7, 2, 12), "400", "daily"
+        )
+        # 2 nights in June, nothing paid yet.
+        unpaid = _booking(
+            company_id, prop.id, guest.id, datetime(2025, 6, 10, 14), datetime(2025, 6, 12, 12), "300", "daily"
+        )
+        # Cancelled, 30 June – 2 July, 80 kept: 40 for June's night.
+        kept = _cancelled(_booking(
+            company_id, prop.id, guest.id, datetime(2025, 6, 30), datetime(2025, 7, 2), "200", "daily"
+        ))
+        session.add_all([guest, prop, across, unpaid, kept, _payment(across.id, "400"), _payment(kept.id, "80")])
+        await session.flush()
+        repo = SqlAnalyticsRepository(session)
+        june, july = (date(2025, 6, 1), date(2025, 7, 1)), (date(2025, 7, 1), date(2025, 8, 1))
+
+        [in_june] = await repo.get_property_metrics(company_id, *june, property_ids=[prop.id])
+        [in_july] = await repo.get_property_metrics(company_id, *july, property_ids=[prop.id])
+
+        assert in_june.revenue == Decimal("640")  # 300 of the stay across + 300 unpaid + 40 kept
+        assert in_july.revenue == Decimal("140")  # 100 + 40
+        assert in_june.revenue + in_july.revenue == Decimal("780")  # 400 + 300 + 80: nothing twice
+        assert in_june.retained_prepayments == Decimal("40")
+        # The price of a night is the stays' own: 600 for 5 nights, the kept money left out.
+        assert in_june.booked_nights == Decimal("5")
+        assert in_june.adr == Decimal("120")
+
+        series = await repo.get_time_series(company_id, *june, Granularity.MONTH, property_ids=[prop.id])
+        assert sum(point.revenue for point in series) == in_june.revenue
+        assert series[0].bookings_count == 2  # the cancelled booking is no stay
+        assert series[0].booked_nights == Decimal("5")
+
+        await session.rollback()
+
+
+@pytestmark_integration
+@pytest.mark.asyncio
+async def test_an_hourly_stay_across_midnight_is_split_by_its_hours():
+    """22:00 to 02:00 for 400: two hours in each day, 200 in each, in the cards and the chart."""
+    company_id = uuid.uuid4()
+    async with _fresh_session() as session:
+        guest = _guest(company_id)
+        prop = _property(company_id, f"late-{uuid.uuid4().hex[:8]}", "hourly")
+        late = _booking(
+            company_id, prop.id, guest.id, datetime(2025, 6, 30, 22), datetime(2025, 7, 1, 2), "400", "hourly"
+        )
+        session.add_all([guest, prop, late])
+        await session.flush()
+        repo = SqlAnalyticsRepository(session)
+
+        [june] = await repo.get_property_metrics(company_id, date(2025, 6, 1), date(2025, 7, 1), property_ids=[prop.id])
+        [july] = await repo.get_property_metrics(company_id, date(2025, 7, 1), date(2025, 8, 1), property_ids=[prop.id])
+        assert (june.revenue, july.revenue) == (Decimal("200"), Decimal("200"))
+        assert abs(june.booked_nights - Decimal(2) / Decimal(24)) < Decimal("0.0001")
+
+        days = await repo.get_time_series(
+            company_id, date(2025, 6, 30), date(2025, 7, 2), Granularity.DAY, property_ids=[prop.id]
+        )
+        assert [point.revenue for point in days] == [Decimal("200.00"), Decimal("200.00")]
+
+        await session.rollback()
+
+
+@pytestmark_integration
+@pytest.mark.asyncio
+async def test_money_kept_from_a_source_counts_with_that_source_alone():
+    """A flat whose only booking from Booking.com was cancelled with money kept: under that
+    source the cards count the money, as the chart does."""
+    company_id = uuid.uuid4()
+    async with _fresh_session() as session:
+        guest = _guest(company_id)
+        prop = _property(company_id, f"src-{uuid.uuid4().hex[:8]}", "daily")
+        kept = _cancelled(_booking(
+            company_id, prop.id, guest.id, datetime(2025, 6, 10), datetime(2025, 6, 12), "200", "daily"
+        ))
+        kept.source = "booking"
+        stay = _booking(company_id, prop.id, guest.id, datetime(2025, 6, 1), datetime(2025, 6, 3), "300", "daily")
+        session.add_all([guest, prop, kept, stay, _payment(kept.id, "100")])
+        await session.flush()
+        repo = SqlAnalyticsRepository(session)
+
+        [pm] = await repo.get_property_metrics(company_id, DATE_FROM, DATE_TO, source=["booking"])
+        series = await repo.get_time_series(company_id, DATE_FROM, DATE_TO, Granularity.MONTH, source=["booking"])
+
+        assert pm.revenue == Decimal("100")
+        assert pm.retained_prepayments == Decimal("100")
+        assert pm.total_bookings == 0
+        assert pm.commission == Decimal("15.00")
+        assert sum(point.revenue for point in series) == pm.revenue
 
         await session.rollback()
 

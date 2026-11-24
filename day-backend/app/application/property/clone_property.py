@@ -95,6 +95,9 @@ class ClonePropertyService:
             area_total=source.area_total,
             check_in_instructions=source.check_in_instructions,
             check_out_instructions=source.check_out_instructions,
+            nearby=[dict(place) for place in source.nearby],
+            late_check_out_hour=source.late_check_out_hour,
+            late_check_out_price=source.late_check_out_price,
             house_rules=source.house_rules,
             wifi_name=source.wifi_name,
             wifi_password=source.wifi_password,
@@ -113,6 +116,8 @@ class ClonePropertyService:
                     is_cover=photo.is_cover,
                     caption=photo.caption,
                     audience=photo.audience,
+                    kind=photo.kind,
+                    section=photo.section,
                 )
             )
 
