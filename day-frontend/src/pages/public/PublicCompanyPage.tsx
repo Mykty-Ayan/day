@@ -336,6 +336,13 @@ function SearchCard({
 
   const field = 'relative flex flex-col gap-0.5 rounded-[20px] bg-[#F3F3F6] px-3.5 py-3 text-start'
   const accent = '[&>button]:bg-[var(--accent)] [&>button]:text-[var(--on-accent)] [&>button]:hover:bg-[var(--accent)]'
+  const tint = 'bg-[color-mix(in_srgb,var(--accent)_16%,white)]'
+  // Half a band behind each end, to the nights inside: the stay reads as one band. Whole class
+  // names, so that Tailwind finds them.
+  const halfBand = `relative before:absolute before:inset-y-0 before:bg-[color-mix(in_srgb,var(--accent)_16%,white)] [&>button]:relative [&>button]:z-[1] ${accent}`
+  const startEnd = `${halfBand} before:start-1/2 before:end-0`
+  const endEnd = `${halfBand} before:start-0 before:end-1/2`
+
   return (
     <form
       onSubmit={(e) => {
@@ -391,10 +398,9 @@ function SearchCard({
             classNames={{
               // Ends styled as range ends only once both are picked: the check-in alone is one day.
               selected: checkOut ? '' : accent,
-              range_start: accent,
-              range_end: accent,
-              range_middle:
-                'bg-[color-mix(in_srgb,var(--accent)_16%,white)] [&>button]:rounded-none [&>button]:text-[var(--accent)] [&>button]:hover:bg-transparent',
+              range_start: checkOut ? startEnd : accent,
+              range_end: checkOut ? endEnd : accent,
+              range_middle: `${tint} [&>button]:rounded-none [&>button]:text-[var(--accent)] [&>button]:hover:bg-transparent`,
               today: '[&>button]:font-bold [&>button]:text-[var(--accent)]',
               disabled: '[&>button]:cursor-not-allowed [&>button]:text-[#C7C7CC] [&>button]:hover:bg-transparent',
               day_button:
