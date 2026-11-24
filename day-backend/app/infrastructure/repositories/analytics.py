@@ -81,12 +81,41 @@ class SqlAnalyticsRepository(AnalyticsRepository):
         # 0 when there is no booking.
         clamped_nights = case(
             (BookingModel.id.is_(None), 0.0),
+            # An hourly stay across midnight is its hours, not a night: as the time series has it.
+            (
+                BookingModel.rental_mode == "hourly",
+                func.greatest(func.extract("epoch", eff_check_out - eff_check_in) / 86400.0, 0.0),
+            ),
             else_=func.greatest(
                 cast(func.date(eff_check_out) - func.date(eff_check_in), Integer),
                 func.extract("epoch", eff_check_out - eff_check_in) / 86400.0,
                 0.0,
             ),
         )
+
+        # The share of a stay that falls in the period, as the time series takes it: whole
+        # calendar nights for a stay of a night or more, seconds for an hourly stay or one inside a day.
+        # A stay's price is earned night by night: a week across a month end puts each month's
+        # nights in its own month, and the two months add up to the price, not to twice it.
+        stay_nights = cast(func.date(BookingModel.check_out) - func.date(BookingModel.check_in), Integer)
+        stay_seconds = func.extract("epoch", BookingModel.check_out - BookingModel.check_in)
+        # An hourly stay is sold by the hour: one from 22:00 to 02:00 is half in each day,
+        # though its dates make it look like a night.
+        hourly = BookingModel.rental_mode == "hourly"
+        share = case(
+            (
+                ~hourly & (stay_nights > 0),
+                cast(cast(func.date(eff_check_out) - func.date(eff_check_in), Integer), Numeric(20, 10))
+                / cast(stay_nights, Numeric(20, 10)),
+            ),
+            (
+                stay_seconds > 0,
+                cast(func.greatest(func.extract("epoch", eff_check_out - eff_check_in), 0), Numeric(20, 10))
+                / cast(stay_seconds, Numeric(20, 10)),
+            ),
+            else_=0,
+        )
+        earned = cast(BookingModel.total_price, Numeric(12, 2)) * share
 
         # Main query: aggregate per property
         stmt = (
@@ -99,7 +128,7 @@ class SqlAnalyticsRepository(AnalyticsRepository):
                 func.coalesce(
                     func.sum(cast(BookingModel.total_price, Numeric(12, 2))), 0
                 ).label("total_price_sum"),
-                func.coalesce(func.sum(payment_sub.c.net_revenue), 0).label("revenue"),
+                func.coalesce(func.sum(earned), 0).label("revenue"),
                 BookingModel.source.label("booking_source"),
             )
             .select_from(PropertyModel)
@@ -112,7 +141,6 @@ class SqlAnalyticsRepository(AnalyticsRepository):
                     BookingModel.check_out > date_from,
                 ),
             )
-            .outerjoin(payment_sub, payment_sub.c.booking_id == BookingModel.id)
             .where(PropertyModel.company_id == company_id)
             .where(PropertyModel.status.notin_(["archived"]))
         )
@@ -143,7 +171,7 @@ class SqlAnalyticsRepository(AnalyticsRepository):
                 )
             pm = props_map[pid]
 
-            revenue = Decimal(str(row.revenue or 0))
+            revenue = Decimal(str(row.revenue or 0)).quantize(Decimal("0.01"))
             booked_nights = Decimal(str(row.booked_nights or 0))
             total_bookings = int(row.total_bookings or 0)
             booking_source = row.booking_source
@@ -166,20 +194,24 @@ class SqlAnalyticsRepository(AnalyticsRepository):
         kept_stmt = (
             select(
                 PropertyModel.id.label("property_id"),
+                PropertyModel.name.label("property_name"),
+                PropertyModel.internal_name.label("property_internal_name"),
                 BookingModel.source.label("booking_source"),
-                func.sum(payment_sub.c.net_revenue).label("kept"),
+                # Its nights in the period carry their share of the money kept, as a stay's would.
+                func.sum(payment_sub.c.net_revenue * share).label("kept"),
             )
             .select_from(BookingModel)
             .join(PropertyModel, PropertyModel.id == BookingModel.property_id)
             .join(payment_sub, payment_sub.c.booking_id == BookingModel.id)
             .where(
                 PropertyModel.company_id == company_id,
+                PropertyModel.status.notin_(["archived"]),
                 BookingModel.status == "cancelled",
                 BookingModel.check_in < date_to,
                 BookingModel.check_out > date_from,
                 payment_sub.c.net_revenue > 0,
             )
-            .group_by(PropertyModel.id, BookingModel.source)
+            .group_by(PropertyModel.id, PropertyModel.name, PropertyModel.internal_name, BookingModel.source)
         )
         if property_ids is not None:
             kept_stmt = kept_stmt.where(PropertyModel.id.in_(property_ids))
@@ -187,10 +219,17 @@ class SqlAnalyticsRepository(AnalyticsRepository):
             kept_stmt = kept_stmt.where(BookingModel.source == source)
 
         for row in (await self._session.execute(kept_stmt)).all():
-            pm = props_map.get(row.property_id)
-            if pm is None:  # a flat the report leaves out, as it does its stays
-                continue
-            kept = Decimal(str(row.kept))
+            # A source filter leaves a flat out when none of its stays came that way: its money
+            # kept from that source is still the report's, as the time series counts it.
+            pm = props_map.setdefault(
+                row.property_id,
+                PropertyMetrics(
+                    property_id=row.property_id,
+                    property_name=row.property_name,
+                    property_internal_name=row.property_internal_name,
+                ),
+            )
+            kept = Decimal(str(row.kept)).quantize(Decimal("0.01"))
             pm.revenue += kept
             pm.retained_prepayments += kept
             kept_commission = kept * _COMMISSION_RATES.get(row.booking_source or "", Decimal("0"))
@@ -316,17 +355,39 @@ class SqlAnalyticsRepository(AnalyticsRepository):
         if property_ids is not None and len(property_ids) == 0:
             return []
 
-        # Fetch relevant bookings
+        # The stays, and the cancelled bookings whose prepayment the host kept: that money is
+        # income on their nights, as the metrics count it, though no night was spent. The flats
+        # are the metrics' flats: an archived one's stays are in neither.
+        kept = (
+            select(
+                BookingPaymentModel.booking_id,
+                func.sum(
+                    case(
+                        (BookingPaymentModel.type == "payment", cast(BookingPaymentModel.amount, Numeric(12, 2))),
+                        else_=cast(-BookingPaymentModel.amount, Numeric(12, 2)),
+                    )
+                ).label("net"),
+            )
+            .where(BookingPaymentModel.status == "completed")
+            .group_by(BookingPaymentModel.booking_id)
+            .subquery("kept")
+        )
+        cancelled = BookingModel.status == "cancelled"
         stmt = (
             select(
                 BookingModel.check_in,
                 BookingModel.check_out,
-                BookingModel.total_price,
+                case((cancelled, kept.c.net), else_=BookingModel.total_price).label("total_price"),
+                cancelled.label("cancelled"),
+                BookingModel.rental_mode,
                 BookingModel.property_id,
             )
+            .join(PropertyModel, PropertyModel.id == BookingModel.property_id)
+            .outerjoin(kept, kept.c.booking_id == BookingModel.id)
             .where(
                 BookingModel.company_id == company_id,
-                BookingModel.status.notin_(["cancelled"]),
+                PropertyModel.status.notin_(["archived"]),
+                ~cancelled | (func.coalesce(kept.c.net, 0) > 0),
                 BookingModel.check_in < date_to,
                 BookingModel.check_out > date_from,
             )
@@ -375,7 +436,7 @@ class SqlAnalyticsRepository(AnalyticsRepository):
                 co_d = co_dt.date() if isinstance(co_dt, datetime) else co_dt
 
                 total_days = (co_d - ci_d).days
-                if total_days > 0:
+                if total_days > 0 and row.rental_mode != "hourly":
                     # Daily / multi-day: whole-calendar-night proration.
                     eff_start = max(ci_d, bucket_start)
                     eff_end = min(co_d, bucket_end)
@@ -384,6 +445,8 @@ class SqlAnalyticsRepository(AnalyticsRepository):
                         continue
                     price = Decimal(str(row.total_price or 0))
                     revenue += price * nights_in_bucket / total_days
+                    if row.cancelled:
+                        continue  # kept money, no stay
                     if bucket_start <= ci_d < bucket_end:
                         bookings_count += 1
                     booked_nights += Decimal(nights_in_bucket)
@@ -405,6 +468,8 @@ class SqlAnalyticsRepository(AnalyticsRepository):
                     revenue += (
                         price * Decimal(bucket_seconds) / Decimal(total_seconds)
                     )
+                    if row.cancelled:
+                        continue  # kept money, no stay
                     if bucket_start_dt <= ci_dt < bucket_end_dt:
                         bookings_count += 1
                     booked_nights += Decimal(bucket_seconds) / Decimal(86400)
