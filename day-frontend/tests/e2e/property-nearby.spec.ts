@@ -41,3 +41,30 @@ test('the owner lists what is near, and the guest sees it on the flat page', asy
   await expect(near.getByRole('listitem').last()).toContainText('35 мин на машине')
   await guest.close()
 })
+
+test('the owner copies the list to other objects, in place of theirs', async ({ page, request }) => {
+  const make = async (name: string, nearby: { name: string; minutes: number; by: string }[]) => {
+    const { id, internal_name } = await (await request.post(`${API_BASE}/properties`, { data: createTestProperty({ name }) })).json()
+    await request.patch(`${API_BASE}/properties/${id}`, { data: { nearby } })
+    return { id: id as string, label: internal_name as string }
+  }
+  const places = [{ name: 'Magnum', minutes: 3, by: 'walk' }, { name: 'Airport', minutes: 35, by: 'car' }]
+  const source = await make('Дом у парка, 1', places)
+  const other = await make('Дом у парка, 2', [{ name: 'Old shop', minutes: 7, by: 'walk' }])
+  const blank = await make('Дом у парка, 3', [])
+
+  await page.goto(`/properties/${source.id}?tab=about`)
+  await page.getByTestId('nearby-card').getByRole('button', { name: 'Copy to other properties' }).click()
+  const list = page.getByTestId('nearby-copy-list')
+  // What each one loses is said before the copy.
+  await expect(list.locator('label', { hasText: other.label })).toContainText('Replaces 1 place')
+  await expect(list.locator('label', { hasText: blank.label })).not.toContainText('Replaces')
+  await expect(list.getByText(source.label, { exact: true })).toHaveCount(0)
+  await list.locator('label', { hasText: other.label }).getByRole('checkbox').click()
+  await list.locator('label', { hasText: blank.label }).getByRole('checkbox').click()
+  await page.getByRole('button', { name: 'Copy to 2 properties' }).click()
+  await expect(page.getByText('The list is copied to 2 properties')).toBeVisible()
+  for (const { id } of [other, blank]) {
+    expect((await (await request.get(`${API_BASE}/properties/${id}`)).json()).nearby).toEqual(places)
+  }
+})

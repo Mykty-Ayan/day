@@ -14,6 +14,7 @@ import {
   getPricing,
   createOrUpdatePricing,
   copyTariffsToAll,
+  copyNearby,
   listAmenities,
   getPropertyAuditLog,
   uploadPhotos,
@@ -134,6 +135,17 @@ export function useCreateOrUpdatePricing(propertyId: string) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: [PRICING_KEY, propertyId] })
       qc.invalidateQueries({ queryKey: [PROPERTY_KEY, propertyId] })
+    },
+  })
+}
+
+export function useCopyNearby(propertyId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (propertyIds: string[]) => copyNearby(propertyId, propertyIds),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: [PROPERTIES_KEY] })
+      qc.invalidateQueries({ queryKey: [PROPERTY_KEY] })
     },
   })
 }

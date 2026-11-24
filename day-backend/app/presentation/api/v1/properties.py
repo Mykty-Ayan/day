@@ -73,6 +73,7 @@ from app.presentation.schemas.property import (
     DiscountRuleResponse,
     MapLink,
     MapPointResponse,
+    NearbyCopy,
     PhotoCaption,
     PhotoCreate,
     PhotoReorder,
@@ -632,6 +633,29 @@ async def update_property(
     except IntegrityError as e:
         await session.rollback()
         raise _name_taken(e, provided.get("internal_name", ""))
+
+
+@router.post(
+    "/{property_id}/nearby/copy",
+    dependencies=[Depends(require(Permission.PROPERTIES_WRITE))],
+)
+async def copy_nearby(
+    property_id: uuid.UUID,
+    body: NearbyCopy,
+    session: AsyncSession = Depends(get_session),
+    company_id: uuid.UUID = Depends(get_company_id),
+    user_id: uuid.UUID | None = Depends(get_user_id),
+) -> dict[str, int]:
+    """This flat's list «Рядом» to the chosen flats of the company, in place of theirs."""
+    repos = _repos(session)
+    svc = UpdatePropertyService(repos["property"], repos["audit"])
+    try:
+        changed = await svc.copy_nearby(property_id, body.property_ids, company_id, user_id)
+    except ValueError as e:
+        await session.rollback()
+        raise HTTPException(status_code=404 if "not found" in str(e).lower() else 400, detail=str(e))
+    await session.commit()
+    return {"updated": changed}
 
 
 @router.post(

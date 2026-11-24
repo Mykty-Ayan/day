@@ -52,6 +52,12 @@ class NearbyPlace(BaseModel):
         return value.strip()
 
 
+class NearbyCopy(BaseModel):
+    """The flats that take this flat's list «Рядом» in place of their own."""
+
+    property_ids: list[uuid.UUID] = Field(min_length=1, max_length=1000)
+
+
 class _TurnoverHours(BaseModel):
     @model_validator(mode="after")
     def _check_out_before_check_in(self):

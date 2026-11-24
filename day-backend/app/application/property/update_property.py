@@ -176,3 +176,27 @@ class UpdatePropertyService:
                 )
 
         return await self._property_repo.update(prop)
+
+    async def copy_nearby(
+        self,
+        source_id: uuid.UUID,
+        target_ids: list[uuid.UUID],
+        company_id: uuid.UUID,
+        changed_by: uuid.UUID | None,
+    ) -> int:
+        """Give the chosen flats this flat's list «Рядом» in place of theirs, each change in
+        its own history. All or none: a flat of another company, or an archived one, refuses
+        the whole copy. Returns how many flats took the list."""
+        source = await self._property_repo.get_by_id(source_id)
+        if source is None or source.company_id != company_id:
+            raise ValueError("Property not found")
+        changed = 0
+        for target_id in dict.fromkeys(target_ids):
+            if target_id == source_id:
+                continue
+            inp = UpdatePropertyInput(property_id=target_id, company_id=company_id, changed_by=changed_by)
+            # Each flat its own list: an edit of one later leaves the others as they are.
+            inp.nearby = [dict(place) for place in source.nearby]
+            await self.execute(inp)
+            changed += 1
+        return changed
