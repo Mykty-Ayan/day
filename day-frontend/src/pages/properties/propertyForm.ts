@@ -39,6 +39,8 @@ export interface PropertyEditForm {
   rules: {
     check_in_hour: string
     check_out_hour: string
+    late_check_out_hour: string
+    late_check_out_price: string
     check_in_method: string
     check_in_instructions: string
     check_out_instructions: string
@@ -91,6 +93,8 @@ export function propertyToForm(property: Property): PropertyEditForm {
     rules: {
       check_in_hour: asNumberText(property.check_in_hour),
       check_out_hour: asNumberText(property.check_out_hour),
+      late_check_out_hour: asNumberText(property.late_check_out_hour),
+      late_check_out_price: asNumberText(property.late_check_out_price),
       check_in_method: asText(property.check_in_method),
       check_in_instructions: asText(property.check_in_instructions),
       check_out_instructions: asText(property.check_out_instructions),
@@ -183,6 +187,9 @@ export function formToUpdate(form: PropertyEditForm, opened: PropertyEditForm): 
     area_total: float(form.details.area_total),
     check_in_hour: int(form.rules.check_in_hour),
     check_out_hour: int(form.rules.check_out_hour),
+    late_check_out_hour: int(form.rules.late_check_out_hour),
+    // No later hour: no price to sell either.
+    late_check_out_price: form.rules.late_check_out_hour ? float(form.rules.late_check_out_price) : null,
     check_in_method: form.rules.check_in_method ? (form.rules.check_in_method as CheckInMethod) : null,
     check_in_instructions: text(form.rules.check_in_instructions),
     check_out_instructions: text(form.rules.check_out_instructions),

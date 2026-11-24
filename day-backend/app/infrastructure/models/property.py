@@ -1,5 +1,6 @@
 import uuid
 from datetime import date, datetime, time
+from decimal import Decimal
 
 from sqlalchemy import (
     JSON,
@@ -72,6 +73,8 @@ class PropertyModel(Base):
     check_in_instructions: Mapped[str | None] = mapped_column(Text, nullable=True)
     check_out_instructions: Mapped[str | None] = mapped_column(Text, nullable=True)
     nearby: Mapped[list] = mapped_column(JSON, nullable=False, default=list, server_default="[]")
+    late_check_out_hour: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    late_check_out_price: Mapped[Decimal | None] = mapped_column(Numeric(12, 2), nullable=True)
     house_rules: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # Access

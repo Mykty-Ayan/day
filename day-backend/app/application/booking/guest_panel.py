@@ -111,6 +111,8 @@ class GuestPanel:
     free_until: date | None = None
     # The stay's deposit, its latest record: the amount and what became of it.
     deposit: BookingDeposit | None = None
+    # A later check-out the flat sells, offered while nobody comes that day: (until hour, price or None).
+    late_check_out: tuple[int, Decimal | None] | None = None
 
     @property
     def remaining(self) -> Decimal:
@@ -193,6 +195,16 @@ class GuestPanelService:
         panel.photo_url = listing[0].url if listing else None
         if panel.flat is not None and not panel.closed:
             panel.free_until = await self._free_until(booking)
+            flat_ = panel.flat
+            # Only by the night, later than this stay already ends, and only while the day of
+            # check-out is nobody else's.
+            if (
+                flat_.late_check_out_hour is not None
+                and flat_.late_check_out_hour > booking.check_out.hour
+                and booking.rental_mode != RentalMode.HOURLY
+                and (panel.free_until is None or panel.free_until > booking.check_out.date())
+            ):
+                panel.late_check_out = (flat_.late_check_out_hour, flat_.late_check_out_price)
         if self._deposits is not None:
             records = await self._deposits.get_by_booking(booking.id)
             panel.deposit = records[0] if records else None

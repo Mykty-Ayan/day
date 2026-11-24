@@ -329,7 +329,12 @@
       "buffer_minutes": "Cleaning between hourly bookings, min",
       "min_lead_hours": "Book at least, h before check-in",
       "noRule": "No limit",
-      "stayRulesHint": "Empty means no limit. The rules apply to bookings made in Day; bookings from Booking and Airbnb are not refused. A rule can be broken by confirming it when booking."
+      "stayRulesHint": "Empty means no limit. The rules apply to bookings made in Day; bookings from Booking and Airbnb are not refused. A rule can be broken by confirming it when booking.",
+      "lateCheckOut": "Late check-out until",
+      "lateCheckOutNone": "None",
+      "lateCheckOutPrice": "Late check-out price",
+      "lateCheckOutFree": "Free",
+      "lateCheckOutHint": "The guest sees the time and price on the booking page and asks for a late check-out in WhatsApp. If the next guest arrives that day, no price is shown."
     },
     "validation": {
       "nameRequired": "Name is required",
@@ -338,7 +343,8 @@
       "listingLinks": "One link per line, each starting with http:// or https://, no spaces, up to 500 characters; at most 20",
       "listingInBoth": "One link cannot be both a nightly and an hourly listing",
       "bufferMinutes": "15 to 1440 minutes, in steps of 15",
-      "wholeHour": "Whole hours only, such as 07:00 or 15:00"
+      "wholeHour": "Whole hours only, such as 07:00 or 15:00",
+      "lateCheckOut": "A late check-out must be later than the check-out time"
     },
     "amenityCategories": {
       "accessibility": "Accessibility",
@@ -574,7 +580,9 @@
       "invalid": "Each place needs a name and a time from 1 to 240 minutes",
       "most_one": "At most {{count}} place",
       "most_other": "At most {{count}} places"
-    }
+    },
+    "lateCheckOutPaid": "late check-out until {{time}} · {{price}}",
+    "lateCheckOutFree": "late check-out until {{time}} free"
   },
   "bookings": {
     "title": "Bookings",
@@ -2526,7 +2534,9 @@
       "cleaning": "I need cleaning / fresh linen.",
       "broken": "Something isn't working: ",
       "documents": "I need documents for my records (receipt, statement) for the stay.",
-      "checkedOut": "We have checked out. Keys: "
+      "checkedOut": "We have checked out. Keys: ",
+      "lateCheckOutPaid": "I would like to check out later, until {{until}}, for {{price}}. Is that possible?",
+      "lateCheckOutFree": "I would like to check out later, until {{until}}. Is that possible?"
     },
     "minibar": {
       "title": "Minibar",

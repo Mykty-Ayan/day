@@ -467,6 +467,22 @@ test('during the stay «extend» says until when the flat is free', async ({ pag
   await expect(page.getByRole('link', { name: /Продлить проживание/ })).toContainText(/свободно до \d{1,2} [а-я]+$/)
 })
 
+test('a late check-out the flat sells says until when and for how much, and asks for it in WhatsApp', async ({ page }) => {
+  const now = today()
+  const stay = { check_in: `${addDays(now, -1)}T14:00:00`, check_out: `${addDays(now, 2)}T12:00:00`, paid: 40000, remaining: 0 }
+  await open(page, answer({ late_check_out: { until_hour: 15, price: 5000 } }, stay))
+  const late = page.getByRole('link', { name: /Поздний выезд/ })
+  await expect(late).toContainText(/до 15:00 · 5\s000\s₸/)
+  const text = decodeURIComponent((await late.getAttribute('href'))!.split('text=')[1])
+  expect(text).toMatch(/Хочу выехать позже, до 15:00, за 5\s000\s₸\. Можно\?/)
+  // The day is someone else's: the server offers nothing, and the button only asks.
+  await page.unrouteAll()
+  await open(page, answer({}, stay))
+  const ask = page.getByRole('link', { name: /Поздний выезд/ })
+  await expect(ask).not.toContainText('15:00')
+  expect(decodeURIComponent((await ask.getAttribute('href'))!.split('text=')[1])).toContain('Можно выехать позже 12:00?')
+})
+
 test('a deposit kept in part says what comes back and what was kept', async ({ page }) => {
   const now = today()
   await open(page, answer({ deposit: { amount: 10000, status: 'partially_held', held: 3000 } }, {

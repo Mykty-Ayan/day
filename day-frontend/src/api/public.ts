@@ -258,6 +258,8 @@ export interface GuestPanel {
     block?: string | null
     apartment_number?: string | null
   } | null
+  /** A later check-out the flat sells, while nobody comes that day; the button only asks without it. */
+  late_check_out?: { until_hour: number; price: number | null } | null
   /** Hours before check-in the way in opens, once the stay is paid. */
   lead_hours: number
   /** The minibar during the stay; null outside it. */
