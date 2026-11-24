@@ -97,6 +97,36 @@ test('a quick pick takes the nearest free nights, and the month view shows the s
   await guest.close()
 })
 
+test('the picked nights read as one band, and a week opens the month view', async ({ browser, request }) => {
+  const { id } = await (await request.post(`${API_BASE}/properties`, { data: createTestProperty({ name: 'Ровная полоса' }) })).json()
+  await request.post(`${API_BASE}/properties/${id}/status`, { data: { target_status: 'active' } })
+  await request.put(`${API_BASE}/properties/${id}/pricing`, {
+    data: { base_price: 10000, weekend_markup: 0, default_deposit: 5000, extra_adult_price: 0, extra_child_price: 0, base_guests: 2 },
+  })
+  const code = (await (await request.get(`${API_BASE}/properties/${id}`)).json()).public_code as string
+  const guest = await browser.newContext({ locale: 'ru-RU', baseURL: test.info().project.use.baseURL })
+  const page = await guest.newPage()
+  await page.goto(`/s/${code}`)
+
+  // Next week, Monday to Thursday: all four days in one row of the strip.
+  const monday = 7 - ((new Date().getDay() + 6) % 7)
+  await page.locator(`[data-night="${day(monday)}"]`).click()
+  await page.locator(`[data-night="${day(monday + 3)}"]`).click()
+  const band = async (offset: number) => (await page.locator(`[data-night="${day(offset)}"] [data-band]`).boundingBox())!
+  const cell = async (offset: number) => (await page.locator(`[data-night="${day(offset)}"]`).locator('..').boundingBox())!
+  // A night inside the stay fills its whole cell, and the next one starts where it ends.
+  const [tue, wed, tueCell] = [await band(monday + 1), await band(monday + 2), await cell(monday + 1)]
+  expect(Math.abs(tue.width - tueCell.width)).toBeLessThan(1)
+  expect(Math.abs(tue.x + tue.width - wed.x)).toBeLessThan(1)
+
+  // Seven nights never fit one row: the months open, the check-out on screen.
+  await expect(page.getByRole('radio', { name: 'Неделя' })).toHaveAttribute('aria-checked', 'true')
+  await page.getByRole('button', { name: 'На неделю' }).click()
+  await expect(page.getByRole('radio', { name: 'Месяц' })).toHaveAttribute('aria-checked', 'true')
+  await expect(page.getByTestId('stay-total')).toHaveText('70 000 ₸')
+  await guest.close()
+})
+
 test('a guest whose phone speaks Chinese reads the page in Chinese, and can pick German', async ({ browser, request }) => {
   const { id } = await (await request.post(`${API_BASE}/properties`, { data: createTestProperty({ name: 'Студия для туриста' }) })).json()
   await request.post(`${API_BASE}/properties/${id}/status`, { data: { target_status: 'active' } })
