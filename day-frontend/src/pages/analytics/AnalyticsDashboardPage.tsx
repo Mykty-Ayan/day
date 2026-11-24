@@ -12,6 +12,7 @@ import SummaryCards from '../../components/analytics/SummaryCards'
 import MetricsTable from '../../components/analytics/MetricsTable'
 import RevenueChart from '../../components/analytics/RevenueChart'
 import OccupancyChart from '../../components/analytics/OccupancyChart'
+import MonthsChart from '../../components/analytics/MonthsChart'
 import AnalyticsFilterBar from '../../components/analytics/AnalyticsFilters'
 import { showToast } from '../../components/ui/Toast'
 import Spinner from '../../components/ui/Spinner'
@@ -149,6 +150,8 @@ export default function AnalyticsDashboardPage() {
                 )}
               </div>
             )}
+
+            <MonthsChart propertyIds={filters.property_ids} source={filters.source} />
 
             {/* Charts */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

@@ -1,4 +1,4 @@
-import { addDays, differenceInCalendarDays, format, parseISO } from 'date-fns'
+import { addDays, addMonths, differenceInCalendarDays, format, parseISO, startOfMonth } from 'date-fns'
 
 /** The owner's own period as the API takes it. The API counts [date_from, date_to),
  *  and the last day picked belongs in the report, so date_to is the day after it.
@@ -20,4 +20,15 @@ export function previousRange(from: string, to: string): { date_from: string; da
 export function changeOf(now: number, before: number): number | null {
   if (!before) return null
   return ((now - before) / Math.abs(before)) * 100
+}
+
+/** The months the revenue by month shows: five before this one, this one and three ahead,
+ *  calendar months as the API counts them, [date_from, date_to). Ahead is what is booked. */
+export function monthsWindow(today: string): { date_from: string; date_to: string; current: string } {
+  const first = startOfMonth(parseISO(today))
+  return {
+    date_from: format(addMonths(first, -5), 'yyyy-MM-dd'),
+    date_to: format(addMonths(first, 4), 'yyyy-MM-dd'),
+    current: format(first, 'yyyy-MM-dd'),
+  }
 }
