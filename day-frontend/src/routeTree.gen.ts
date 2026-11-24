@@ -40,6 +40,7 @@ import { Route as CleaningTaskIdRouteImport } from './routes/cleaning/$taskId'
 import { Route as CleanerTaskIdRouteImport } from './routes/cleaner/$taskId'
 import { Route as CSlugRouteImport } from './routes/c/$slug'
 import { Route as BookingsTodayRouteImport } from './routes/bookings/today'
+import { Route as BookingsOverviewRouteImport } from './routes/bookings/overview'
 import { Route as BookingsNewRouteImport } from './routes/bookings/new'
 import { Route as BookingsBookingIdRouteImport } from './routes/bookings/$bookingId'
 import { Route as AiImportJobIdRouteImport } from './routes/ai-import/$jobId'
@@ -203,6 +204,11 @@ const BookingsTodayRoute = BookingsTodayRouteImport.update({
   path: '/bookings/today',
   getParentRoute: () => rootRouteImport,
 } as any)
+const BookingsOverviewRoute = BookingsOverviewRouteImport.update({
+  id: '/bookings/overview',
+  path: '/bookings/overview',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const BookingsNewRoute = BookingsNewRouteImport.update({
   id: '/bookings/new',
   path: '/bookings/new',
@@ -250,6 +256,7 @@ export interface FileRoutesByFullPath {
   '/ai-import/$jobId': typeof AiImportJobIdRoute
   '/bookings/$bookingId': typeof BookingsBookingIdRouteWithChildren
   '/bookings/new': typeof BookingsNewRoute
+  '/bookings/overview': typeof BookingsOverviewRoute
   '/bookings/today': typeof BookingsTodayRoute
   '/c/$slug': typeof CSlugRoute
   '/cleaner/$taskId': typeof CleanerTaskIdRoute
@@ -289,6 +296,7 @@ export interface FileRoutesByTo {
   '/tma': typeof TmaRoute
   '/ai-import/$jobId': typeof AiImportJobIdRoute
   '/bookings/new': typeof BookingsNewRoute
+  '/bookings/overview': typeof BookingsOverviewRoute
   '/bookings/today': typeof BookingsTodayRoute
   '/c/$slug': typeof CSlugRoute
   '/cleaner/$taskId': typeof CleanerTaskIdRoute
@@ -329,6 +337,7 @@ export interface FileRoutesById {
   '/ai-import/$jobId': typeof AiImportJobIdRoute
   '/bookings/$bookingId': typeof BookingsBookingIdRouteWithChildren
   '/bookings/new': typeof BookingsNewRoute
+  '/bookings/overview': typeof BookingsOverviewRoute
   '/bookings/today': typeof BookingsTodayRoute
   '/c/$slug': typeof CSlugRoute
   '/cleaner/$taskId': typeof CleanerTaskIdRoute
@@ -371,6 +380,7 @@ export interface FileRouteTypes {
     | '/ai-import/$jobId'
     | '/bookings/$bookingId'
     | '/bookings/new'
+    | '/bookings/overview'
     | '/bookings/today'
     | '/c/$slug'
     | '/cleaner/$taskId'
@@ -410,6 +420,7 @@ export interface FileRouteTypes {
     | '/tma'
     | '/ai-import/$jobId'
     | '/bookings/new'
+    | '/bookings/overview'
     | '/bookings/today'
     | '/c/$slug'
     | '/cleaner/$taskId'
@@ -449,6 +460,7 @@ export interface FileRouteTypes {
     | '/ai-import/$jobId'
     | '/bookings/$bookingId'
     | '/bookings/new'
+    | '/bookings/overview'
     | '/bookings/today'
     | '/c/$slug'
     | '/cleaner/$taskId'
@@ -490,6 +502,7 @@ export interface RootRouteChildren {
   AiImportJobIdRoute: typeof AiImportJobIdRoute
   BookingsBookingIdRoute: typeof BookingsBookingIdRouteWithChildren
   BookingsNewRoute: typeof BookingsNewRoute
+  BookingsOverviewRoute: typeof BookingsOverviewRoute
   BookingsTodayRoute: typeof BookingsTodayRoute
   CSlugRoute: typeof CSlugRoute
   CleanerTaskIdRoute: typeof CleanerTaskIdRoute
@@ -737,6 +750,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof BookingsTodayRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/bookings/overview': {
+      id: '/bookings/overview'
+      path: '/bookings/overview'
+      fullPath: '/bookings/overview'
+      preLoaderRoute: typeof BookingsOverviewRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/bookings/new': {
       id: '/bookings/new'
       path: '/bookings/new'
@@ -824,6 +844,7 @@ const rootRouteChildren: RootRouteChildren = {
   AiImportJobIdRoute: AiImportJobIdRoute,
   BookingsBookingIdRoute: BookingsBookingIdRouteWithChildren,
   BookingsNewRoute: BookingsNewRoute,
+  BookingsOverviewRoute: BookingsOverviewRoute,
   BookingsTodayRoute: BookingsTodayRoute,
   CSlugRoute: CSlugRoute,
   CleanerTaskIdRoute: CleanerTaskIdRoute,

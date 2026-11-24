@@ -11,7 +11,7 @@ from decimal import Decimal
 
 from app.domain.auth.permissions import Permission
 from app.domain.booking.entities import Booking, Guest
-from app.domain.booking.value_objects import BookingStatus
+from app.domain.booking.value_objects import BookingStatus, RentalMode
 from app.domain.property.entities import Property
 from app.main import app
 from tests.test_booking_feed import COMPANY_ID, NOW, _ById, _get, _NoTab, _Payments, _principal, _Session
@@ -23,19 +23,25 @@ def _booking(check_in, check_out, status=BookingStatus.CONFIRMED, **kw):
 
 
 class _Range:
-    def __init__(self, rows):
-        self._rows = rows
+    def __init__(self, rows, ended=(), unclosed=()):
+        self._rows, self._ended, self._unclosed = rows, list(ended), list(unclosed)
 
     async def list_by_company_date_range(self, company_id, start, end):
         return [b for b in self._rows if b.company_id == company_id]
 
+    async def list_ended_owing(self, company_id, before, with_orders_due):
+        return self._ended
 
-async def _today(monkeypatch, rows, guests, props, paid):
+    async def list_unclosed(self, company_id, before):
+        return self._unclosed
+
+
+async def _today(monkeypatch, rows, guests, props, paid, ended=(), unclosed=()):
     from app.presentation.api import deps
     from app.presentation.api.v1 import bookings
 
-    repos = {"booking": _Range(rows), "guest": _ById(guests), "property": _ById(props), "payment": _Payments(paid),
-             "orders": _NoTab()}
+    repos = {"booking": _Range(rows, ended, unclosed), "guest": _ById(guests), "property": _ById(props),
+             "payment": _Payments(paid), "orders": _NoTab()}
     monkeypatch.setattr(bookings, "_repos", lambda session: repos)
     app.dependency_overrides[deps.get_session] = lambda: _Session()
     try:
@@ -75,3 +81,29 @@ async def test_a_guest_who_already_left_today_stays_under_departures(monkeypatch
 
     # Its "Cleaning" button is needed exactly after the guest has gone.
     assert sorted(i["status"] for i in body["check_outs"]) == ["checked_in", "checked_out"]
+
+
+async def test_a_stay_from_before_today_comes_back_with_its_money(monkeypatch):
+    guest = Guest(company_id=COMPANY_ID, name="Айгерим", phone="+77011112233")
+    flat = Property(company_id=COMPANY_ID, name="Т13", internal_name="t13")
+    stay = {"guest_id": guest.id, "property_id": flat.id, "total_price": Decimal("40000")}
+    owes = _booking(datetime(2026, 10, 30, 14), datetime(2026, 11, 1, 12), BookingStatus.CHECKED_OUT, **stay)
+    forgotten = _booking(datetime(2026, 10, 30, 14), datetime(2026, 11, 1, 12), BookingStatus.CHECKED_IN, **stay)
+
+    body = await _today(monkeypatch, [], [guest], [flat], {owes.id: Decimal("10000")}, [owes], [forgotten])
+
+    assert [item["id"] for item in body["past_debts"]] == [str(owes.id)]
+    assert Decimal(body["past_debts"][0]["paid_amount"]) == Decimal("10000")
+    assert [item["id"] for item in body["unclosed"]] == [str(forgotten.id)]
+
+
+async def test_an_hourly_guest_is_in_the_house_until_their_hour(monkeypatch):
+    guest = Guest(company_id=COMPANY_ID, name="Айгерим", phone="+77011112233")
+    flat = Property(company_id=COMPANY_ID, name="Т13", internal_name="t13")
+    stay = {"guest_id": guest.id, "property_id": flat.id, "status": BookingStatus.CHECKED_IN}
+    hours = _booking(datetime(2026, 11, 3, 10), datetime(2026, 11, 3, 13), rental_mode=RentalMode.HOURLY, **stay)
+    leaving = _booking(datetime(2026, 11, 1, 14), datetime(2026, 11, 3, 12), **stay)
+
+    body = await _today(monkeypatch, [hours, leaving], [guest], [flat], {})
+
+    assert [item["id"] for item in body["in_house"]] == [str(hours.id)]

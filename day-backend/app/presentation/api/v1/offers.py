@@ -40,8 +40,11 @@ def offers_service(session: AsyncSession) -> GuestOffersService:
             SqlSeasonalPriceRepository(session),
             SqlDiscountRuleRepository(session),
             SqlDayPriceRepository(session),
+            SqlPropertyRepository(session),
+            SqlCompanySettingsRepository(session),
         ),
         SqlCompanySettingsRepository(session),
+        pricing=SqlPricingConfigRepository(session),
     )
 
 

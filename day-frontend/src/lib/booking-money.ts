@@ -1,0 +1,46 @@
+/** A booking's money at a glance: what it costs, what came in, and which way the
+ *  rest goes. A cancelled stay owes nothing: whatever came in is to give back. */
+
+import { settlement } from '../pages/miniapp/booking-card'
+import type { BookingPayment, BookingStatus, PriceCalculation } from '../types/booking'
+
+/** Half of a sum, to the tiyn: tiyn first, so 327.03 halves to 163.52, not a float's 163.51. */
+export function halfOf(sum: number): number {
+  return Math.round(Math.round(sum * 100) / 2) / 100
+}
+
+export function bookingMoney(status: BookingStatus, total: number, payments: BookingPayment[]) {
+  const { paid } = settlement(total, payments)
+  const owes = status === 'cancelled' ? 0 : Math.max(0, total - paid)
+  const toReturn = status === 'cancelled' ? Math.max(0, paid) : Math.max(0, paid - total)
+  return { total: status === 'cancelled' ? 0 : total, paid, owes, toReturn }
+}
+
+/** The sums offered for a payment: all that is left, half of the booking's price, the
+ *  first night of a stay by the night. Half and the first night are of the whole price
+ *  (the owner's word, 24 Nov 2026), so each is offered only while less than what is left:
+ *  never more than the guest owes. */
+export function paymentSuggestions(owes: number, total: number, firstNight: number | null) {
+  const half = halfOf(total)
+  return {
+    all: owes,
+    half: half < owes ? half : null,
+    firstNight: firstNight !== null && firstNight < owes ? firstNight : null,
+  }
+}
+
+export type PriceLine = { kind: 'weekend' | 'season' | 'guests' | 'discount'; amount: number }
+
+/** What was added to the base price, for a price worked out again today. The sum
+ *  is not kept at booking time, so a different total means the flat's prices have
+ *  changed since then, and null says this reckoning explains nothing. */
+export function priceLines(calculation: PriceCalculation, bookedPrice: number): PriceLine[] | null {
+  if (Math.abs(Number(calculation.total) - bookedPrice) >= 1) return null
+  const lines: PriceLine[] = [
+    { kind: 'weekend', amount: Number(calculation.weekend_surcharge) },
+    { kind: 'season', amount: Number(calculation.seasonal_adjustment) },
+    { kind: 'guests', amount: Number(calculation.extra_guest_surcharge) },
+    { kind: 'discount', amount: -Number(calculation.discount_amount) },
+  ]
+  return lines.filter((line) => line.amount !== 0)
+}

@@ -18,31 +18,29 @@ test.describe('Mobile navigation', () => {
     await page.goto('/properties')
     await page.waitForLoadState('networkidle')
 
-    await expect(page.locator('header nav')).toHaveCount(0)
-    await expect(page.getByRole('link', { name: /^Properties$/i }).first()).toBeVisible()
-    await expect(page.getByRole('link', { name: /^Bookings$/i }).first()).toBeVisible()
-    await expect(page.getByRole('link', { name: /^Cleaning$/i }).first()).toBeVisible()
-    await expect(page.getByRole('link', { name: /^Analytics$/i }).first()).toBeVisible()
+    await expect(page.getByRole('link', { name: /^Today$/i })).toBeVisible()
+    await expect(page.getByRole('link', { name: /^Gantt Chart$/i })).toBeVisible()
+    await expect(page.getByRole('link', { name: /^Bookings$/i })).toBeVisible()
+    await expect(page.getByRole('link', { name: /^Properties$/i })).toBeVisible()
     await expect(page.locator('nav').getByRole('button', { name: /^More$/i })).toBeVisible()
 
     await page.getByRole('link', { name: /^Bookings$/i }).first().click()
     await page.waitForURL(/\/bookings/)
     await expectNoHorizontalOverflow(page)
 
-    await page.getByRole('link', { name: /^Cleaning$/i }).first().click()
-    await page.waitForURL(/\/cleaning/)
+    await page.getByRole('link', { name: /^Today$/i }).click()
+    await page.waitForURL(/\/bookings\/today/)
     await expectNoHorizontalOverflow(page)
 
-    await page.getByRole('link', { name: /^Analytics$/i }).first().click()
-    await page.waitForURL(/\/analytics/)
+    await page.getByRole('link', { name: /^Gantt Chart$/i }).click()
+    await page.waitForURL(/\/properties\/gantt/)
     await expectNoHorizontalOverflow(page)
   })
 
   test('more sheet links navigate to secondary routes', async ({ page }) => {
     const targets = [
-      { name: /^Gantt Chart$/i, url: /\/properties\/gantt/ },
-      { name: /^Today$/i, url: /\/bookings\/today/ },
-      { name: /^Checklists$/i, url: /\/cleaning\/checklists/ },
+      { name: /^Cleaning$/i, url: /\/cleaning/ },
+      { name: /^Money$/i, url: /\/analytics/ },
       // Only in a build that has the ai-service: the dev server reads the same env.
       ...(process.env.VITE_AI_IMPORT === 'on' ? [{ name: /^AI Import$/i, url: /\/ai-import/ }] : []),
       { name: /^Settings$/i, url: /\/settings/ },
@@ -61,11 +59,17 @@ test.describe('Mobile navigation', () => {
     }
   })
 
+  test('tabs open the other pages of a section', async ({ page }) => {
+    await page.goto('/cleaning')
+    await page.getByRole('link', { name: /^Checklists$/i }).click()
+    await page.waitForURL(/\/cleaning\/checklists/)
+    await expectNoHorizontalOverflow(page)
+  })
+
   test('AI import stays out of the menu until the build turns it on', async ({ page }) => {
     test.skip(process.env.VITE_AI_IMPORT === 'on', 'this build has the ai-service')
-    await page.goto('/properties')
-    await page.locator('nav').getByRole('button', { name: /^More$/i }).click()
-    await expect(page.getByRole('link', { name: /^Settings$/i }).first()).toBeVisible()
+    await page.goto('/settings')
+    await expect(page.getByRole('link', { name: /^Company$/i })).toBeVisible()
     await expect(page.getByRole('link', { name: /^AI Import$/i })).toHaveCount(0)
   })
 })

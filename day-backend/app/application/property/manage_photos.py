@@ -4,7 +4,7 @@ import uuid
 
 from app.domain.property.entities import PropertyPhoto
 from app.domain.property.repositories import PropertyPhotoRepository, PropertyRepository
-from app.domain.property.value_objects import FactAudience
+from app.domain.property.value_objects import FactAudience, GuestMediaSection, MediaKind
 
 
 class ManagePhotosService:
@@ -26,6 +26,8 @@ class ManagePhotosService:
         is_cover: bool = False,
         caption: str | None = None,
         audience: FactAudience = FactAudience.PUBLIC,
+        kind: MediaKind = MediaKind.PHOTO,
+        section: GuestMediaSection = GuestMediaSection.PATH,
     ) -> PropertyPhoto:
         prop = await self._property_repo.get_by_id(property_id)
         if prop is None or prop.company_id != company_id:
@@ -33,6 +35,9 @@ class ManagePhotosService:
         # The cover opens the listing; a check-in photo never reaches the listing.
         if is_cover and audience == FactAudience.GUEST:
             raise ValueError("A check-in photo cannot be the cover")
+        # The listing and the OTAs show pictures; a video and a place on the guest's page are check-in only.
+        if audience != FactAudience.GUEST and (kind != MediaKind.PHOTO or section != GuestMediaSection.PATH):
+            raise ValueError("Only a check-in photo can be a video or stand elsewhere on the guest's page")
 
         photo = PropertyPhoto(
             property_id=property_id,
@@ -41,6 +46,8 @@ class ManagePhotosService:
             is_cover=is_cover,
             caption=caption,
             audience=audience,
+            kind=kind,
+            section=section,
         )
         return await self._photo_repo.save(photo)
 
@@ -56,6 +63,21 @@ class ManagePhotosService:
         await self._photo_repo.set_caption(photo_id, caption)
         photo.caption = caption
         return photo
+
+    async def set_cover(
+        self, photo_id: uuid.UUID, property_id: uuid.UUID, company_id: uuid.UUID
+    ) -> list[PropertyPhoto]:
+        """The photo that opens the listing; the others stop being the cover."""
+        prop = await self._property_repo.get_by_id(property_id)
+        if prop is None or prop.company_id != company_id:
+            raise ValueError("Property not found")
+        photo = next((p for p in await self._photo_repo.list_by_property(property_id) if p.id == photo_id), None)
+        if photo is None:
+            raise ValueError("Photo not found")
+        if photo.audience == FactAudience.GUEST:
+            raise ValueError("A check-in photo cannot be the cover")
+        await self._photo_repo.set_cover(property_id, photo_id)
+        return await self._photo_repo.list_by_property(property_id)
 
     async def delete_photo(
         self,

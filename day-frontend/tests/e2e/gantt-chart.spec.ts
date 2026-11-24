@@ -1,10 +1,6 @@
 import { test, expect } from '../fixtures/e2e-auth'
 import { createTestProperty, API_BASE } from '../fixtures/test-data'
 
-const MONTHS = [
-  'January', 'February', 'March', 'April', 'May', 'June',
-  'July', 'August', 'September', 'October', 'November', 'December',
-]
 const SHORT_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
@@ -24,7 +20,8 @@ test.describe('Gantt/Chess Chart - E2E', () => {
   test('chart page loads', async ({ page }) => {
     await page.goto('/properties/gantt')
 
-    await expect(page.getByRole('heading', { name: 'Gantt Chart' })).toBeVisible()
+    // A phone's top bar names the screen; the tools are on every width.
+    await expect(page.getByRole('group', { name: 'Tools' })).toBeVisible()
     await expect(page.locator('body')).not.toContainText('Not Found')
   })
 
@@ -54,20 +51,25 @@ test.describe('Gantt/Chess Chart - E2E', () => {
   test('the arrows turn the month and Today brings it back', async ({ page }) => {
     const now = new Date()
     const next = new Date(now.getFullYear(), now.getMonth() + 1, 1)
-    const label = (d: Date) => `${MONTHS[d.getMonth()]} ${d.getFullYear()}`
+    // The grid shows the month before, the month and the one after: "Oct – Dec 2026".
+    const label = (d: Date) => {
+      const first = new Date(d.getFullYear(), d.getMonth() - 1, 1)
+      const last = new Date(d.getFullYear(), d.getMonth() + 1, 1)
+      const year = first.getFullYear() !== last.getFullYear() ? ` ${first.getFullYear()}` : ''
+      return `${SHORT_MONTHS[first.getMonth()]}${year} – ${SHORT_MONTHS[last.getMonth()]} ${last.getFullYear()}`
+    }
 
     await page.goto('/properties/gantt')
     await expect(page.getByText(label(now), { exact: true })).toBeVisible()
 
-    // The arrows are icons without a name: the toolbar's right one turns the month on
-    await page.locator('button:has(svg.lucide-chevron-right)').first().click()
+    await page.getByRole('button', { name: 'Next month' }).click()
     await expect(page.getByText(label(next), { exact: true })).toBeVisible()
     await expect(page.getByText(label(now), { exact: true })).toHaveCount(0)
 
-    await page.locator('button:has(svg.lucide-chevron-left)').first().click()
+    await page.getByRole('button', { name: 'Previous month' }).click()
     await expect(page.getByText(label(now), { exact: true })).toBeVisible()
 
-    await page.locator('button:has(svg.lucide-chevron-right)').first().click()
+    await page.getByRole('button', { name: 'Next month' }).click()
     await page.getByRole('button', { name: 'Today' }).click()
     await expect(page.getByText(label(now), { exact: true })).toBeVisible()
   })
@@ -82,11 +84,13 @@ test.describe('Gantt/Chess Chart - E2E', () => {
       page.getByRole('button', {
         name: `${flat.internalName}, ${WEEKDAYS[day.getDay()]} ${day.getDate()} ${SHORT_MONTHS[day.getMonth()]}`,
       })
-    await expect(cell(now)).toHaveClass(/bg-blue-50/)
+    // The today's tint, not the hover one every cell has.
+    const todayTint = /(^|\s)bg-accent-soft\/40(\s|$)/
+    await expect(cell(now)).toHaveClass(todayTint)
 
     // Another day of the month is not
     const other = new Date(now.getFullYear(), now.getMonth(), now.getDate() === 1 ? 2 : 1)
-    await expect(cell(other)).not.toHaveClass(/bg-blue-50/)
+    await expect(cell(other)).not.toHaveClass(todayTint)
   })
 
   test('weekend columns highlighted', { tag: '@desktop' }, async ({ page, request }) => {
@@ -94,15 +98,16 @@ test.describe('Gantt/Chess Chart - E2E', () => {
 
     await page.goto('/properties/gantt')
 
-    const weekendCells = page.getByRole('button', { name: new RegExp(`^${flat.internalName}, (Sat|Sun) `) })
-    // The chart shows three months, each with 8 to 10 Saturdays and Sundays
+    // The weekend is the nights the weekend markup goes on: Friday's and Saturday's.
+    const weekendCells = page.getByRole('button', { name: new RegExp(`^${flat.internalName}, (Fri|Sat) `) })
+    // The chart shows three months, each with 8 to 10 Fridays and Saturdays
     await expect(weekendCells.first()).toBeVisible()
     expect(await weekendCells.count()).toBeGreaterThanOrEqual(24)
 
-    // Each is shaded (blue when it is today), and a weekday is not shaded grey
-    for (const cell of await weekendCells.all()) await expect(cell).toHaveClass(/bg-(gray|blue)-50/)
+    // Each is shaded (the accent when it is today), and a weekday is not shaded grey
+    for (const cell of await weekendCells.all()) await expect(cell).toHaveClass(/(^|\s)bg-(surface-page|accent-soft\/40)(\s|$)/)
     await expect(page.getByRole('button', { name: new RegExp(`^${flat.internalName}, Wed `) }).first()).not.toHaveClass(
-      /bg-gray-50/,
+      /(^|\s)bg-surface-page(\s|$)/,
     )
   })
 

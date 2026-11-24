@@ -6,6 +6,7 @@ hours before check-in (the company's setting) until check-out. A closed booking
 shows only that it is closed, and whom to write to.
 """
 
+import asyncio
 import uuid
 from datetime import datetime, timezone
 from decimal import Decimal
@@ -14,10 +15,10 @@ from types import SimpleNamespace
 import pytest
 
 from app.application.booking.guest_panel import GuestPanelService
-from app.domain.booking.entities import Booking, Guest, new_guest_code
-from app.domain.booking.value_objects import BookingStatus
+from app.domain.booking.entities import Booking, BookingDeposit, Guest, new_guest_code
+from app.domain.booking.value_objects import BookingStatus, DepositStatus
 from app.domain.property.entities import PropertyFact, PropertyPhoto
-from app.domain.property.value_objects import FactAudience
+from app.domain.property.value_objects import FactAudience, GuestMediaSection, MediaKind
 from app.domain.site.entities import CompanySite
 from app.presentation.schemas.guest_panel import GuestPanelResponse
 from tests.test_property_facts import flat  # noqa: F401  (a fixture)
@@ -35,6 +36,29 @@ class _Repo:
 
     async def get_by_guest_code(self, code):
         return next((b for b in self.rows.values() if b.guest_code == code), None)
+
+    async def get_for_update(self, row_id):
+        return self.rows.get(row_id)
+
+    async def get_by_property_and_dates(self, property_id, check_in, check_out, *, exclude_id=None, **_):
+        return [
+            b for b in self.rows.values()
+            if getattr(b, "property_id", None) == property_id and b.id != exclude_id
+            # As SQL compares a stay's times with a day: from its midnight.
+            and b.check_in < datetime.combine(check_out, datetime.min.time())
+            and b.check_out > datetime.combine(check_in, datetime.min.time())
+        ]
+
+    async def list_blocks(self, property_id, date_from, date_to):
+        return []
+
+
+class _Deposits:
+    def __init__(self, *deposits):
+        self.deposits = list(deposits)
+
+    async def get_by_booking(self, booking_id):
+        return [d for d in self.deposits if d.booking_id == booking_id]
 
 
 class _Paid:
@@ -71,7 +95,10 @@ class _Settings:
         return SimpleNamespace(time_zone="Asia/Almaty", secrets_lead_hours_daily=24, secrets_lead_hours_hourly=1)
 
 
-def _setup(status=BookingStatus.CONFIRMED, paid=Decimal("40000"), total=Decimal("40000"), photos=None, **stay):
+def _setup(
+    status=BookingStatus.CONFIRMED, paid=Decimal("40000"), total=Decimal("40000"), photos=None, others=(), deposits=(),
+    **stay,
+):
     flat_ = _make_property(
         name="Т13 у Байтерека", check_in_instructions="Подъезд 2, сейф у двери", wifi_name="T13",
         wifi_password="secret-wifi", house_rules="Не курить", address_full="Астана, Кабанбай батыра 11",
@@ -88,8 +115,10 @@ def _setup(status=BookingStatus.CONFIRMED, paid=Decimal("40000"), total=Decimal(
         PropertyFact(company_id=COMPANY_ID, property_id=flat_.id, text="Рядом парк", audience=FactAudience.PUBLIC),
     )
     pictures = _Photos(*(photos(flat_.id) if photos else ()))
+    later = [o(booking) for o in others]
     return GuestPanelService(
-        _Repo(booking), _Paid(paid), _Repo(guest), _Repo(flat_), facts, _Site(), _Settings(), photos=pictures
+        _Repo(booking, *later), _Paid(paid), _Repo(guest), _Repo(flat_), facts, _Site(), _Settings(), photos=pictures,
+        deposits=_Deposits(*(d(booking) for d in deposits)),
     )
 
 
@@ -119,6 +148,183 @@ async def test_the_page_opens_on_the_flat_s_cover_never_on_a_check_in_photo():
     assert GuestPanelResponse.from_panel(panel).flat.photo_url == "https://s3/living.jpg"
     # No public photo: no picture, and the page falls back to a plain header.
     assert (await _setup().execute(CODE, NOW)).photo_url is None
+
+
+async def test_the_way_in_shows_the_check_in_photos_in_order_with_their_words_once_paid():
+    def photos(flat_id):
+        return [
+            PropertyPhoto(property_id=flat_id, url="https://s3/door.jpg", audience=FactAudience.GUEST, sort_order=3,
+                          caption="Дверь и замок"),
+            PropertyPhoto(property_id=flat_id, url="https://s3/yard.jpg", audience=FactAudience.GUEST, sort_order=1,
+                          caption="Калитка во двор, код 1590"),
+            PropertyPhoto(property_id=flat_id, url="https://s3/kitchen.jpg", sort_order=0, caption="Кухня"),
+        ]
+
+    panel = await _setup(photos=photos).execute(CODE, NOW)
+    page = GuestPanelResponse.from_panel(panel)
+    # The path to the door: the check-in photos only, by the owner's order.
+    assert [(p.url, p.caption) for p in page.access.photos] == [
+        ("https://s3/yard.jpg", "Калитка во двор, код 1590"),
+        ("https://s3/door.jpg", "Дверь и замок"),
+    ]
+    # The bucket keeps check-in photos private: the page hands out links that expire.
+    signed = GuestPanelResponse.from_panel(panel, sign=lambda url: f"{url}?expires=1")
+    assert [p.url for p in signed.access.photos] == ["https://s3/yard.jpg?expires=1", "https://s3/door.jpg?expires=1"]
+    # Unpaid, the way in keeps them back like the code.
+    unpaid = GuestPanelResponse.from_panel(await _setup(paid=Decimal("0"), photos=photos).execute(CODE, NOW))
+    assert "yard.jpg" not in unpaid.model_dump_json() and "1590" not in unpaid.model_dump_json()
+
+
+async def test_the_lock_video_and_how_to_use_stand_in_their_own_places_once_paid():
+    def photos(flat_id):
+        def guest(url, section, sort_order, kind=MediaKind.VIDEO, caption=None):
+            return PropertyPhoto(property_id=flat_id, url=url, audience=FactAudience.GUEST, sort_order=sort_order,
+                                 kind=kind, section=section, caption=caption)
+
+        return [
+            guest("https://s3/stove.mp4", GuestMediaSection.HOWTO, 4, caption="Плита\nиндукционная"),
+            guest("https://s3/lock.mp4", GuestMediaSection.DOOR, 2),
+            guest("https://s3/yard.jpg", GuestMediaSection.PATH, 1, kind=MediaKind.PHOTO),
+            guest("https://s3/ac.mp4", GuestMediaSection.HOWTO, 3, caption="Кондиционер\nпульт в тумбочке"),
+        ]
+
+    page = GuestPanelResponse.from_panel(await _setup(photos=photos).execute(CODE, NOW), sign=lambda u: f"{u}?s=1")
+    assert [(p.url, p.kind) for p in page.access.door] == [("https://s3/lock.mp4?s=1", MediaKind.VIDEO)]
+    assert [(p.url, p.kind) for p in page.access.photos] == [("https://s3/yard.jpg?s=1", MediaKind.PHOTO)]
+    assert [p.caption for p in page.access.howto] == ["Кондиционер\nпульт в тумбочке", "Плита\nиндукционная"]
+    # Unpaid, the videos wait with the code.
+    unpaid = GuestPanelResponse.from_panel(await _setup(paid=Decimal("0"), photos=photos).execute(CODE, NOW))
+    assert ".mp4" not in unpaid.model_dump_json()
+
+
+async def test_the_flat_number_and_entrance_come_with_the_way_in_the_complex_and_floor_before():
+    svc = _setup(paid=Decimal("0"))
+    flat_ = next(iter(svc._properties.rows.values()))
+    flat_.complex_name, flat_.floor = "Auezov City", 10
+    flat_.entrance, flat_.block, flat_.apartment_number = "2", "Б", "54"
+    page = GuestPanelResponse.from_panel(await svc.execute(CODE, NOW))
+    assert (page.flat.complex_name, page.flat.floor) == ("Auezov City", 10)
+    assert page.access is None and '"54"' not in page.model_dump_json()
+    # What is near the flat is no secret: the guest reads it before paying too.
+    flat_.nearby = [{"name": "Аптека у калитки", "minutes": 1, "by": "walk"}]
+    near = GuestPanelResponse.from_panel(await svc.execute(CODE, NOW))
+    assert [(p.name, p.minutes, p.by) for p in near.flat.nearby] == [("Аптека у калитки", 1, "walk")]
+    svc._payments.amount = Decimal("40000")
+    paid = GuestPanelResponse.from_panel(await svc.execute(CODE, NOW))
+    assert (paid.access.entrance, paid.access.block, paid.access.apartment_number) == ("2", "Б", "54")
+
+
+async def test_the_page_says_until_when_the_flat_is_free_after_the_stay():
+    def next_guest(b):
+        return Booking(
+            company_id=COMPANY_ID, property_id=b.property_id, guest_id=uuid.uuid4(), status=BookingStatus.CONFIRMED,
+            check_in=datetime(2026, 10, 30, 14), check_out=datetime(2026, 11, 1, 12),
+        )
+
+    page = GuestPanelResponse.from_panel(await _setup(others=[next_guest]).execute(CODE, NOW))
+    # The next guest arrives on the 30th: the stay may run until then.
+    assert page.booking.free_until.isoformat() == "2026-10-30"
+    # Nobody after: no date to tell, and the page says nothing it cannot.
+    assert GuestPanelResponse.from_panel(await _setup().execute(CODE, NOW)).booking.free_until is None
+
+
+async def test_a_late_check_out_is_offered_while_nobody_comes_that_day():
+    def arriving(day):
+        def stay(b):
+            return Booking(
+                company_id=COMPANY_ID, property_id=b.property_id, guest_id=uuid.uuid4(),
+                status=BookingStatus.CONFIRMED,
+                check_in=datetime(2026, 10, day, 14), check_out=datetime(2026, 10, 30, 12),
+            )
+
+        return stay
+
+    def selling(svc, hour=15, price=Decimal("5000")):
+        flat_ = next(iter(svc._properties.rows.values()))
+        flat_.late_check_out_hour, flat_.late_check_out_price = hour, price
+        return svc
+
+    # Check-out on the 27th; the next guest on the 28th: the 27th afternoon is free to sell.
+    page = GuestPanelResponse.from_panel(await selling(_setup(others=[arriving(28)])).execute(CODE, NOW))
+    assert (page.late_check_out.until_hour, page.late_check_out.price) == (15, 5000.0)
+    # The next guest arrives on the day of check-out: the button only asks, as before.
+    taken = GuestPanelResponse.from_panel(await selling(_setup(others=[arriving(27)])).execute(CODE, NOW))
+    assert taken.late_check_out is None
+    # A later hour for free: no price to tell.
+    free = GuestPanelResponse.from_panel(await selling(_setup(), price=None).execute(CODE, NOW))
+    assert (free.late_check_out.until_hour, free.late_check_out.price) == (15, None)
+    # This stay already ends at 12:00: a late check-out until noon sells nothing.
+    assert GuestPanelResponse.from_panel(await selling(_setup(), hour=12).execute(CODE, NOW)).late_check_out is None
+    # The flat sells none: nothing offered.
+    assert GuestPanelResponse.from_panel(await _setup().execute(CODE, NOW)).late_check_out is None
+
+
+async def test_an_earlier_stay_the_same_day_does_not_cut_the_extension_short():
+    def morning(b):
+        # By the hour on the same day, before this stay: it ends before this one does.
+        return Booking(
+            company_id=COMPANY_ID, property_id=b.property_id, guest_id=uuid.uuid4(), status=BookingStatus.CONFIRMED,
+            check_in=datetime(2026, 10, 27, 8), check_out=datetime(2026, 10, 27, 10),
+        )
+
+    def next_week(b):
+        return Booking(
+            company_id=COMPANY_ID, property_id=b.property_id, guest_id=uuid.uuid4(), status=BookingStatus.CONFIRMED,
+            check_in=datetime(2026, 11, 3, 14), check_out=datetime(2026, 11, 5, 12),
+        )
+
+    page = GuestPanelResponse.from_panel(await _setup(others=[morning, next_week]).execute(CODE, NOW))
+    assert page.booking.free_until.isoformat() == "2026-11-03"
+
+
+async def test_after_check_out_the_deposit_and_the_flat_s_page_stay():
+    def deposit(b):
+        return BookingDeposit(booking_id=b.id, amount=Decimal("10000"), status=DepositStatus.RETURNED)
+
+    svc = _setup(status=BookingStatus.CHECKED_OUT, deposits=[deposit])
+    flat_ = next(iter(svc._properties.rows.values()))
+    flat_.public_code = "vk7nys9"
+    page = GuestPanelResponse.from_panel(await svc.execute(CODE, NOW))
+    assert page.closed and (page.deposit.status, page.flat.code) == ("returned", "vk7nys9")
+    # Still nothing of the stay's address or way in.
+    assert page.flat.address is None and page.access is None
+
+
+async def test_the_deposit_shows_its_amount_and_state_never_the_owner_s_reason():
+    def deposit(b):
+        return BookingDeposit(booking_id=b.id, amount=Decimal("10000"), status=DepositStatus.PARTIALLY_HELD,
+                              held_amount=Decimal("3000"), reason="Разбита ваза, хозяин злой")
+
+    page = GuestPanelResponse.from_panel(await _setup(deposits=[deposit]).execute(CODE, NOW))
+    assert (page.deposit.amount, page.deposit.status, page.deposit.held) == (10000, "partially_held", 3000)
+    assert "ваза" not in page.model_dump_json()
+
+
+async def test_the_guest_reads_what_was_kept_line_by_line_with_photos_and_never_the_note():
+    def deposit(b):
+        return BookingDeposit(
+            booking_id=b.id, amount=Decimal("10000"), status=DepositStatus.PARTIALLY_HELD, held_amount=Decimal("4500"),
+            reason="Гость грубил", deductions=[
+                {"amount": "3000.00", "reason": "Разбит бокал", "photos": ["https://s3/deposits/b/glass.jpg"]},
+                {"amount": "1500.00", "reason": "Пятно на диване", "photos": []},
+            ],
+        )
+
+    panel = await _setup(deposits=[deposit]).execute(CODE, NOW)
+    page = GuestPanelResponse.from_panel(panel, sign=lambda url: f"{url}?expires=1")
+    assert [(d.amount, d.reason, d.photos) for d in page.deposit.deductions] == [
+        (3000.0, "Разбит бокал", ["https://s3/deposits/b/glass.jpg?expires=1"]),
+        (1500.0, "Пятно на диване", []),
+    ]
+    assert "грубил" not in page.model_dump_json()
+    assert GuestPanelResponse.from_panel(await _setup().execute(CODE, NOW)).deposit is None
+
+
+async def test_the_page_links_to_the_flat_s_own_page():
+    svc = _setup()
+    flat_ = next(iter(svc._properties.rows.values()))
+    flat_.public_code = "vk7nys9"
+    assert GuestPanelResponse.from_panel(await svc.execute(CODE, NOW)).flat.code == "vk7nys9"
 
 
 async def test_a_debt_or_a_pending_booking_keeps_the_door_code_back():
@@ -163,6 +369,12 @@ async def test_the_page_names_the_guest_but_never_a_phone():
     page = GuestPanelResponse.from_panel(await _setup().execute(CODE, NOW))
     assert page.guest_name == "Жалгас"
     assert "79011161" not in page.model_dump_json()
+
+
+async def test_the_page_tells_the_company_s_clock_for_the_countdown():
+    page = GuestPanelResponse.from_panel(await _setup().execute(CODE, NOW))
+    # 15:00 UTC is 20:00 in Almaty: the clock check-in and check-out are read on.
+    assert page.now.isoformat() == "2026-10-25T20:00:00"
 
 
 async def test_a_wrong_code_finds_nothing():
@@ -391,9 +603,13 @@ async def test_the_owner_sets_the_hours_and_the_guest_marks_leaving(flat):  # no
     path = f"/api/v1/public/guest/{code}/checked-out"
     assert (await client.post(path)).status_code == 409  # still pending
     await client.post(f"/api/v1/bookings/{booking}/status", json={"status": "confirmed"})
-    first = await client.post(path)
-    assert (first.status_code, first.json()) == (200, {"cleaning_created": True})
+    # Two taps at once (two tabs): one makes the cleaning, the other finds it.
+    first, second = await asyncio.gather(client.post(path), client.post(path))
+    assert sorted([first.json()["cleaning_created"], second.json()["cleaning_created"]]) == [False, True]
     assert (await client.post(path)).json() == {"cleaning_created": False}
+    # The booking's history keeps it once, however often the guest taps.
+    logs = (await client.get(f"/api/v1/bookings/{booking}")).json()["audit_logs"]
+    assert [log["field_name"] for log in logs].count("guest_left") == 1
     tasks = (await client.get("/api/v1/cleaning", params={"property_id": str(prop)})).json()
     items = tasks["items"] if isinstance(tasks, dict) else tasks
     assert [t["booking_id"] for t in items] == [booking]

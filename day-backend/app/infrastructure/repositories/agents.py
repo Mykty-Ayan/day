@@ -2,13 +2,15 @@ from __future__ import annotations
 
 import uuid
 from collections.abc import Sequence
+from decimal import Decimal
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.domain.agents.entities import Agent
 from app.domain.agents.repositories import AgentRepository
 from app.infrastructure.models.agents import AgentModel
+from app.infrastructure.models.booking import BookingModel
 
 
 def _to_agent(m: AgentModel) -> Agent:
@@ -53,3 +55,15 @@ class SqlAgentRepository(AgentRepository):
         model.name, model.phone, model.note, model.is_active = agent.name, agent.phone, agent.note, agent.is_active
         await self._session.flush()
         return _to_agent(model)
+
+    async def totals(self, company_id: uuid.UUID) -> dict[uuid.UUID, tuple[int, Decimal]]:
+        rows = await self._session.execute(
+            select(BookingModel.agent_id, func.count(), func.coalesce(func.sum(BookingModel.total_price), 0))
+            .where(
+                BookingModel.company_id == company_id,
+                BookingModel.agent_id.is_not(None),
+                BookingModel.status != "cancelled",
+            )
+            .group_by(BookingModel.agent_id)
+        )
+        return {agent_id: (count, Decimal(str(total))) for agent_id, count, total in rows.all()}

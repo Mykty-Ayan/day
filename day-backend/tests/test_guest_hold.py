@@ -106,9 +106,9 @@ class Holds:
                                               default_deposit=Decimal(deposit)))
         return prop
 
-    async def offer(self, *flats):
+    async def offer(self, *flats, phone="+7 701 234 56 78"):
         return await self.made.create(
-            COMPANY_ID, guest_name="Ерлан Сапаров", guest_phone="+7 701 234 56 78",
+            COMPANY_ID, guest_name="Ерлан Сапаров", guest_phone=phone,
             check_in=date(2030, 10, 20), check_out=date(2030, 10, 22), guests=2,
             property_ids=[f.id for f in flats],
         )
@@ -157,6 +157,31 @@ async def test_who_booked_is_told_even_when_the_phone_finds_an_older_guest():
     held = await h.service.book(offer.code, flat=studio.public_code, guests=1, name="Айгерим", phone="+77770001122")
     assert (await h.guests.get_by_id(held.booking.guest_id)).name == "Старое имя"
     assert held.name == "Айгерим" and "Айгерим, +77770001122" in held.booking.notes
+
+
+async def test_a_foreign_number_on_the_form_is_not_the_links_own_foreign_number():
+    """Two foreign numbers are two people: the link's own one gives the booking page, another
+    one the company knows does not, or the page would show that guest's name."""
+    h = Holds()
+    studio = await h.flat()
+    await h.guests.create(Guest(company_id=COMPANY_ID, name="Чужое Имя", phone="+491701234567"))
+
+    offer = await h.offer(studio, phone="+44 7700 900123")
+    held = await h.service.book(offer.code, flat=studio.public_code, guests=1, name="Кто-то", phone="+491701234567")
+    assert held.page_for_booker is False
+
+    # A number nobody knows gets no page either: the answer tells nothing of who is known.
+    held.booking.status = BookingStatus.CANCELLED
+    await h.bookings.update(held.booking)
+    unknown = await h.service.book(offer.code, flat=studio.public_code, guests=1, phone="+33612345678")
+    assert unknown.page_for_booker is False
+
+    # The link's own number, typed another way, is still the link's guest.
+    held = unknown
+    held.booking.status = BookingStatus.CANCELLED
+    await h.bookings.update(held.booking)
+    again = await h.service.book(offer.code, flat=studio.public_code, guests=1, phone="+447700900123")
+    assert again.page_for_booker is True
 
 
 async def test_one_link_makes_one_booking_at_a_time():
@@ -265,6 +290,8 @@ def test_the_host_is_asked_to_send_the_kaspi_invoice():
         assert part in text, part
     from_site = render(NotificationEvent.GUEST_HOLD, {**payload, "source": "site"})
     assert "по ссылке гостя" in text and "с сайта" in from_site
+    # The flat's page gives the guest no booking page link: the host is told to send it.
+    assert "ссылку на страницу брони" in from_site and "ссылку на страницу брони" not in text
     no_deposit = render(NotificationEvent.GUEST_HOLD, {**payload, "deposit": None})
     assert "Kaspi" not in no_deposit and "подтвердите" in no_deposit
 
@@ -296,6 +323,10 @@ async def test_booking_from_a_link_through_the_api(flat):  # noqa: F811  (the im
     page = (await client.get(f"/api/v1/public/offers/{code}")).json()
     assert page["booking"]["flat"] == flat_code and page["booking"]["status"] == "pending"
     assert "2345678" not in str(page)
+    # The booking page's code goes to the one who just booked, not to whoever opens the link later.
+    assert len(booked.json()["guest_code"]) == 16
+    assert page["booking"]["guest_code"] is None
+    assert (await client.get(f"/api/v1/public/guest/{booked.json()['guest_code']}")).status_code == 200
 
 
 @pytest.mark.integration
@@ -436,6 +467,17 @@ async def test_a_flat_holds_three_unpaid_bookings_from_its_page_at_most():
         await _site(h, unit, check_in=date(2030, 11, 1), check_out=date(2030, 11, 2), phone="+77015554409")
 
 
+async def test_a_flats_page_holds_thirty_nights_at_most():
+    # A pending hold is exported as taken: a longer one would close the flat on every OTA.
+    h = Holds()
+    unit = await h.flat()
+    start = date(2030, 10, 20)
+    with pytest.raises(ValueError, match="up to 30 nights"):
+        await _site(h, unit, check_in=start, check_out=start + timedelta(days=31))
+    held = await _site(h, unit, check_in=start, check_out=start + timedelta(days=30))
+    assert held.booking.property_id == unit.id
+
+
 async def test_a_blacklisted_guest_is_refused_like_any_other():
     h = Holds()
     unit = await h.flat()
@@ -486,9 +528,14 @@ async def test_booking_from_a_flats_page_through_the_api(flat):  # noqa: F811  (
     await client.put("/api/v1/site", json={"slug": f"t-{uuid.uuid4().hex[:8]}", "title": "Munar"})
     use()
     assert (await client.post(f"/api/v1/public/stays/{code}/book", json={**stay, "phone": "12"})).status_code == 422
-    booked = await client.post(f"/api/v1/public/stays/{code}/book", json=stay)
+    month = {**stay, "check_out": (day + timedelta(days=31)).isoformat()}
+    too_long = await client.post(f"/api/v1/public/stays/{code}/book", json=month)
+    assert (too_long.status_code, too_long.json()["detail"]) == (422, "A stay is up to 30 nights, within two years")
+    booked =await client.post(f"/api/v1/public/stays/{code}/book", json=stay)
     assert booked.status_code == 201, booked.text
     assert booked.json()["phone"] == "+7 701 ••• •• 31" and booked.json()["total"] == 40000.0
+    # No booking page in the answer to an anonymous form: the host sends it from the card.
+    assert booked.json()["guest_code"] is None
     # The same number written another way is the same guest.
     later = {**stay, "phone": "+7 (701) 555-44-31", "check_in": (day + timedelta(days=5)).isoformat(),
              "check_out": (day + timedelta(days=6)).isoformat()}
@@ -499,3 +546,36 @@ async def test_booking_from_a_flats_page_through_the_api(flat):  # noqa: F811  (
     use(Permission.BOOKINGS_READ)
     [made] = (await client.get("/api/v1/bookings", params={"source": "site"})).json()["items"]
     assert (made["status"], made["guest_name"]) == ("pending", "Айгерим")
+
+
+@pytest.mark.integration
+async def test_a_number_the_company_knows_gets_no_booking_page_from_an_anonymous_form(flat):  # noqa: F811
+    """The booking page greets the guest by name: a stranger who types a known guest's
+    number on the flat's page must not read that name through the page. Nor learn that the
+    number is known: a new number gets the same answer, without the page."""
+    client, prop, use = flat
+    day = date.today() + timedelta(days=40)
+    use(Permission.PROPERTIES_READ, Permission.BOOKINGS_READ, Permission.BOOKINGS_WRITE, Permission.SETTINGS_WRITE)
+    code = (await client.get(f"/api/v1/properties/{prop}")).json()["public_code"]
+    await client.put("/api/v1/site", json={"slug": f"t-{uuid.uuid4().hex[:8]}", "title": "Munar"})
+    known = "+77015557788"
+    made = await client.post("/api/v1/bookings", json={
+        "property_id": str(prop), "guest_name": "Настоящая Фамилия", "guest_phone": known,
+        "check_in": f"{day + timedelta(days=10)}T14:00:00", "check_out": f"{day + timedelta(days=11)}T12:00:00",
+    })
+    assert made.status_code == 201, made.text
+
+    use()  # a stranger with the number
+    stay = {"check_in": day.isoformat(), "check_out": (day + timedelta(days=1)).isoformat(), "guests": 1,
+            "name": "Кто угодно", "phone": known}
+    booked = await client.post(f"/api/v1/public/stays/{code}/book", json=stay)
+    assert booked.status_code == 201, booked.text
+    assert booked.json()["guest_code"] is None
+    assert "Фамилия" not in booked.text
+
+    other_day = {**stay, "check_in": (day + timedelta(days=3)).isoformat(),
+                 "check_out": (day + timedelta(days=4)).isoformat(), "phone": "+77015550000"}
+    new = await client.post(f"/api/v1/public/stays/{code}/book", json=other_day)
+    assert new.status_code == 201, new.text
+    assert new.json()["guest_code"] is None
+    assert set(new.json()) == set(booked.json())

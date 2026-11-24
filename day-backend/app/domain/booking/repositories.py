@@ -148,6 +148,9 @@ class BookingRepository(abc.ABC):
         date_from: date | None = None,
         date_to: date | None = None,
         agent_id: uuid.UUID | None = None,
+        # The days the booking was made on, both whole: what was sold in a period.
+        created_from: date | None = None,
+        created_to: date | None = None,
     ) -> list[Booking]: ...
 
     @abc.abstractmethod
@@ -162,6 +165,8 @@ class BookingRepository(abc.ABC):
         date_from: date | None = None,
         date_to: date | None = None,
         agent_id: uuid.UUID | None = None,
+        created_from: date | None = None,
+        created_to: date | None = None,
     ) -> int: ...
 
     @abc.abstractmethod
@@ -173,6 +178,18 @@ class BookingRepository(abc.ABC):
         *,
         company_id: uuid.UUID | None = None,
     ) -> list[Booking]: ...
+
+    @abc.abstractmethod
+    async def list_ended_owing(
+        self, company_id: uuid.UUID, before: date, with_orders_due: Sequence[uuid.UUID]
+    ) -> list[Booking]:
+        """Stays that ended before the day or whose guest has left, not paid in full or
+        among with_orders_due; the latest first. A pending or cancelled stay owes nothing."""
+
+    @abc.abstractmethod
+    async def list_unclosed(self, company_id: uuid.UUID, before: date) -> list[Booking]:
+        """Stays nobody closed: a guest still marked in after their last day, or one
+        never marked in after their first."""
 
     @abc.abstractmethod
     async def list_by_company_date_range(
@@ -268,6 +285,11 @@ class BookingPaymentRepository(abc.ABC):
         """
         ...
 
+    @abc.abstractmethod
+    async def sum_received_between(self, company_id: uuid.UUID, start: datetime, end: datetime) -> Decimal:
+        """Net amount the company received in [start, end): payments less refunds."""
+        ...
+
 
 class BookingDepositRepository(abc.ABC):
     @abc.abstractmethod
@@ -328,6 +350,10 @@ class BookingAuditLogRepository(abc.ABC):
         offset: int = 0,
         limit: int = 50,
     ) -> list[BookingAuditLog]: ...
+
+    async def has_field(self, booking_id: uuid.UUID, field_name: str) -> bool:
+        """Whether the booking's history holds a change of this field, however old."""
+        return any(log.field_name == field_name for log in await self.list_by_booking(booking_id, limit=100_000))
 
 
 class CalendarFeedRepository(abc.ABC):

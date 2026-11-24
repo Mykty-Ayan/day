@@ -81,7 +81,7 @@ export function pickStayDay(
 /** The days (yyyy-MM-dd) whose booked nights the calendar must know: the two
  *  months on screen from `month`, and back to the check-in while a check-out
  *  is being picked, since the stay covers every night from there.
- *  `to` is a day past the window: the filter compares a check-in time with midnight. */
+ *  `to` is a day past the window: closed days end before it, bookings take it as one more day. */
 export function nightsWindow(month: Date, checkIn: string | null): { from: string; to: string } {
   const shown = format(startOfMonth(month), 'yyyy-MM-dd')
   const from = checkIn && datePart(checkIn) < shown ? datePart(checkIn) : shown

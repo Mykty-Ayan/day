@@ -3,7 +3,7 @@ import { useMutation, useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { isAxiosError } from 'axios'
 import { parseISO } from 'date-fns'
-import { ArrowLeft, Minus, Plus } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Minus, Plus } from 'lucide-react'
 import {
   bookFromOffer,
   getPublicStay,
@@ -13,6 +13,10 @@ import {
 } from '../../api/public'
 import { clock, isHourly, money, offerDates, retryNetwork } from '../../lib/public-stay'
 import { LoadFailed } from './GuestFrame'
+import { BookingPageLink } from './StayBooking'
+
+// A field of the guest pages: grey, no frame until it has the focus.
+const FIELD = 'h-12 rounded-[14px] border border-transparent bg-[#F3F3F6] px-4 text-base outline-none focus:border-[#111114]'
 
 // As the server checks it: E.164 holds up to 15 digits, fewer than 10 is no full number.
 const fullPhone = (phone: string) => /^\d{10,15}$/.test(phone.replace(/\D/g, ''))
@@ -107,27 +111,27 @@ export function BookForm({
         e.preventDefault()
         if (ready) book.mutate()
       }}
-      className="flex flex-col gap-5 px-5 pb-10 pt-4"
+      className="flex flex-col pb-10 pt-2"
     >
       <button
         type="button"
         onClick={onBack}
         disabled={book.isPending}
-        className="flex h-11 items-center gap-2 self-start text-sm font-semibold disabled:opacity-50"
+        className="mx-4 flex h-11 items-center gap-2 self-start rounded-full bg-white px-4 text-[15px] font-semibold disabled:opacity-50"
       >
         <ArrowLeft className="h-4 w-4 rtl:rotate-180" aria-hidden />
         {t('guestBook.back')}
       </button>
-      <section className="flex flex-col gap-1">
-        <h1 ref={heading} tabIndex={-1} className="text-2xl font-bold leading-tight tracking-tight outline-none">
+      <section className="flex flex-col gap-2 px-5 pb-3.5 pt-4">
+        <h1 ref={heading} tabIndex={-1} className="font-guest-display text-[34px] font-bold leading-[1.05] tracking-[-0.035em] outline-none">
           {t('guestBook.title')}
         </h1>
-        <p dir="auto" className="text-base text-gray-700">{flat.name}</p>
+        <p dir="auto" className="text-[15px] text-[#6B6B74]">{flat.name}</p>
       </section>
 
-      <div className="grid grid-cols-2 gap-2">
-        <div className="flex flex-col gap-1 rounded-2xl bg-gray-50 p-3.5">
-          <span className="text-sm text-gray-600">{t('guest.checkIn')}</span>
+      <div className="m-2 grid grid-cols-2 gap-2 rounded-[28px] bg-white p-2">
+        <div className="flex flex-col gap-1 rounded-[20px] bg-[#F3F3F6] p-3.5">
+          <span className="text-xs font-semibold text-[#6B6B74]">{t('guest.checkIn')}</span>
           <span className="text-base font-bold">
             {hourly && offer.starts_at
               ? `${day.format(parseISO(offer.starts_at))}, ${clock(offer.starts_at)}`
@@ -135,8 +139,8 @@ export function BookForm({
             {!hourly && stay.data?.check_in_hour != null && `, ${t('guest.from', { hour: stay.data.check_in_hour })}`}
           </span>
         </div>
-        <div className="flex flex-col gap-1 rounded-2xl bg-gray-50 p-3.5">
-          <span className="text-sm text-gray-600">{t('guest.checkOut')}</span>
+        <div className="flex flex-col gap-1 rounded-[20px] bg-[#F3F3F6] p-3.5">
+          <span className="text-xs font-semibold text-[#6B6B74]">{t('guest.checkOut')}</span>
           <span className="text-base font-bold">
             {hourly && offer.ends_at
               ? `${day.format(parseISO(offer.ends_at))}, ${clock(offer.ends_at)}`
@@ -149,123 +153,133 @@ export function BookForm({
       {stay.isError && !stay.data && (
         <LoadFailed error={stay.error} onRetry={() => void stay.refetch()} gone={{}} />
       )}
-      <p className="text-sm text-gray-600">{offer.guest !== null ? t('guestBook.fromChat') : t('guestBook.nameNeeded')}</p>
 
-      <label className="flex flex-col gap-1.5">
-        <span className="text-sm font-semibold">{t('guestBook.name')}</span>
-        <input
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          autoComplete="given-name"
-          aria-required={offer.guest === null}
-          maxLength={255}
-          className="h-12 rounded-xl border border-gray-300 px-3 text-base"
-        />
-      </label>
+      <section className="m-2 flex flex-col gap-4 rounded-[28px] bg-white p-5">
+        <p className="text-sm text-[#6B6B74]">{offer.guest !== null ? t('guestBook.fromChat') : t('guestBook.nameNeeded')}</p>
 
-      <div className="flex flex-col gap-1.5">
-        <span className="text-sm font-semibold">{t('guestBook.phone')}</span>
-        {otherPhone === null ? (
-          <div className="flex items-center justify-between gap-3">
-            {/* A number reads left to right in every language, or the guest checks it backwards. */}
-            <span dir="ltr" className="text-base">{offer.phone}</span>
-            <button type="button" onClick={() => setOtherPhone('')} className="h-11 px-1 text-sm font-semibold text-emerald-800">
-              {t('guestBook.otherPhone')}
+        <label className="flex flex-col gap-1.5">
+          <span className="text-sm font-semibold">{t('guestBook.name')}</span>
+          <input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            autoComplete="given-name"
+            aria-required={offer.guest === null}
+            maxLength={255}
+            className={FIELD}
+          />
+        </label>
+
+        <div className="flex flex-col gap-1.5">
+          <span className="text-sm font-semibold">{t('guestBook.phone')}</span>
+          {otherPhone === null ? (
+            <div className="flex items-center justify-between gap-3">
+              {/* A number reads left to right in every language, or the guest checks it backwards. */}
+              <span dir="ltr" className="text-base">{offer.phone}</span>
+              <button type="button" onClick={() => setOtherPhone('')} className="h-11 rounded-full bg-[#F3F3F6] px-4 text-sm font-semibold">
+                {t('guestBook.otherPhone')}
+              </button>
+            </div>
+          ) : (
+            <input
+              value={otherPhone}
+              onChange={(e) => setOtherPhone(e.target.value)}
+              type="tel"
+              inputMode="tel"
+              autoComplete="tel"
+              autoFocus
+              aria-label={t('guestBook.phone')}
+              aria-invalid={phoneWrong}
+              aria-describedby="phone-hint"
+              placeholder="+7 7__ ___ __ __"
+              maxLength={50}
+              className={`${FIELD} ${phoneWrong ? 'border-[#8A5A00]' : ''}`}
+            />
+          )}
+          <span id="phone-hint" className={`text-xs ${phoneWrong ? 'text-[#8A5A00]' : 'text-[#6B6B74]'}`}>
+            {otherPhone === null ? t('guestBook.phoneHidden') : phoneWrong ? t('guestBook.phoneWrong') : t('guestBook.phoneHint')}
+          </span>
+        </div>
+
+        <div className="flex items-center justify-between border-t border-[#E7E7ED] pt-4">
+          <span className="text-sm font-semibold">{t('guestBook.guests')}</span>
+          <div className="flex items-center gap-1 rounded-full bg-[#F3F3F6] p-0.5">
+            <button
+              type="button"
+              onClick={() => setGuests((n) => Math.max(1, n - 1))}
+              disabled={guests <= 1}
+              aria-label={t('guestBook.fewer')}
+              className="flex h-11 w-11 items-center justify-center rounded-full bg-white shadow-sm disabled:opacity-40"
+            >
+              <Minus className="h-4 w-4" aria-hidden />
+            </button>
+            <span aria-live="polite" className="w-8 text-center text-lg font-bold tabular-nums">{guests}</span>
+            <button
+              type="button"
+              onClick={() => setGuests((n) => Math.min(most, n + 1))}
+              disabled={guests >= most}
+              aria-label={t('guestBook.more')}
+              className="flex h-11 w-11 items-center justify-center rounded-full bg-white shadow-sm disabled:opacity-40"
+            >
+              <Plus className="h-4 w-4" aria-hidden />
             </button>
           </div>
-        ) : (
-          <input
-            value={otherPhone}
-            onChange={(e) => setOtherPhone(e.target.value)}
-            type="tel"
-            inputMode="tel"
-            autoComplete="tel"
-            autoFocus
-            aria-label={t('guestBook.phone')}
-            aria-invalid={phoneWrong}
-            aria-describedby="phone-hint"
-            placeholder="+7 7__ ___ __ __"
-            maxLength={50}
-            className={`h-12 rounded-xl border px-3 text-base ${phoneWrong ? 'border-amber-600' : 'border-gray-300'}`}
-          />
-        )}
-        <span id="phone-hint" className={`text-xs ${phoneWrong ? 'text-amber-800' : 'text-gray-500'}`}>
-          {otherPhone === null ? t('guestBook.phoneHidden') : phoneWrong ? t('guestBook.phoneWrong') : t('guestBook.phoneHint')}
-        </span>
-      </div>
-
-      <div className="flex items-center justify-between">
-        <span className="text-sm font-semibold">{t('guestBook.guests')}</span>
-        <div className="flex items-center gap-3">
-          <button
-            type="button"
-            onClick={() => setGuests((n) => Math.max(1, n - 1))}
-            disabled={guests <= 1}
-            aria-label={t('guestBook.fewer')}
-            className="flex h-11 w-11 items-center justify-center rounded-full border border-gray-300 disabled:opacity-40"
-          >
-            <Minus className="h-4 w-4" aria-hidden />
-          </button>
-          <span aria-live="polite" className="w-6 text-center text-lg font-bold">{guests}</span>
-          <button
-            type="button"
-            onClick={() => setGuests((n) => Math.min(most, n + 1))}
-            disabled={guests >= most}
-            aria-label={t('guestBook.more')}
-            className="flex h-11 w-11 items-center justify-center rounded-full border border-gray-300 disabled:opacity-40"
-          >
-            <Plus className="h-4 w-4" aria-hidden />
-          </button>
         </div>
-      </div>
+      </section>
 
-      <section className="flex flex-col gap-2 rounded-2xl border border-gray-200 p-4">
+      <section className="m-2 flex flex-col gap-2 rounded-[28px] bg-white p-5">
         {deposit != null && (
           <>
             <div className="flex items-baseline justify-between gap-3">
               <span className="text-base font-semibold">{t('guestBook.depositNow')}</span>
-              <span data-testid="deposit" className="text-xl font-bold">{money(deposit, locale)}</span>
+              <span data-testid="deposit" className="text-2xl font-bold tracking-[-0.03em]">{money(deposit, locale)}</span>
             </div>
-            <p className="text-sm text-gray-600">{t('guestBook.depositWhy')}</p>
+            <p className="border-b border-[#E7E7ED] pb-3 text-sm text-[#6B6B74]">{t('guestBook.depositWhy')}</p>
           </>
         )}
         <div className="flex items-baseline justify-between gap-3">
-          <span className="text-sm text-gray-700">{t('guestBook.nightsLater', { nights: length })}</span>
+          <span className="text-sm text-[#2A2A30]">{t('guestBook.nightsLater', { nights: length })}</span>
           {flat.total != null && guests === offer.guests && <span className="text-base font-semibold">{money(flat.total, locale)}</span>}
         </div>
-        {guests !== offer.guests && <p className="text-xs text-gray-500">{t('guestBook.totalAfter')}</p>}
+        {guests !== offer.guests && <p className="text-xs text-[#6B6B74]">{t('guestBook.totalAfter')}</p>}
       </section>
 
       {rules && (
-        <details className="rounded-2xl bg-gray-50 p-4">
-          <summary className="cursor-pointer text-sm font-semibold">{t('guest.rules')}</summary>
-          <p dir="auto" className="mt-2 whitespace-pre-line text-sm leading-relaxed">{rules}</p>
-        </details>
-      )}
-      {rules && (
-        <label className="flex items-start gap-3 text-sm">
-          <input
-            type="checkbox"
-            checked={agreed}
-            onChange={(e) => setAgreed(e.target.checked)}
-            aria-required
-            className="mt-0.5 h-5 w-5"
-          />
-          {t('guestBook.agree')}
-        </label>
+        <section className="m-2 flex flex-col gap-3 rounded-[28px] bg-white p-5">
+          <details className="rounded-[18px] bg-[#F3F3F6] p-4">
+            <summary className="cursor-pointer text-sm font-semibold">{t('guest.rules')}</summary>
+            <p dir="auto" className="mt-2 whitespace-pre-line text-sm leading-relaxed">{rules}</p>
+          </details>
+          <label className="flex items-start gap-3 text-sm">
+            <input
+              type="checkbox"
+              checked={agreed}
+              onChange={(e) => setAgreed(e.target.checked)}
+              aria-required
+              className="mt-0.5 h-5 w-5 accent-[#111114]"
+            />
+            {t('guestBook.agree')}
+          </label>
+        </section>
       )}
 
       {refusal && (
-        <p role="alert" className="rounded-xl bg-amber-50 p-3 text-sm text-amber-900">
+        <p role="alert" className="m-2 rounded-[20px] bg-[#FFF3DC] p-4 text-sm text-[#8A5A00]">
           {refusal}
         </p>
       )}
       {flat.free && (
-        <button type="submit" disabled={!ready} className="h-14 rounded-2xl bg-emerald-700 text-base font-bold text-white disabled:opacity-50">
+        <button
+          type="submit"
+          disabled={!ready}
+          className="m-2 flex h-14 items-center justify-between rounded-full bg-[#111114] pe-2 ps-[22px] text-base font-semibold text-white disabled:opacity-50"
+        >
           {book.isPending ? t('guestBook.booking') : t('guestBook.book')}
+          <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[#2F5BFF]">
+            <ArrowRight className="h-5 w-5 rtl:rotate-180" aria-hidden />
+          </span>
         </button>
       )}
-      <p className="text-xs leading-relaxed text-gray-500">{t('guestBook.holdNote')}</p>
+      <p className="px-6 pt-1 text-xs leading-relaxed text-[#6B6B74]">{t('guestBook.holdNote')}</p>
     </form>
   )
 }
@@ -297,7 +311,7 @@ export function Waiting({ offer, booking, locale }: { offer: PublicOffer; bookin
           <h1 ref={heading} tabIndex={-1} className="text-2xl font-bold leading-tight tracking-tight outline-none">
             {ranOut ? t('guestBook.ranOut') : until ? t('guestBook.heldUntil', { time: until }) : t('guestBook.held')}
           </h1>
-          <p className="text-base leading-relaxed text-gray-700">
+          <p className="text-base leading-relaxed text-[#2A2A30]">
             {deposit
               ? t('guestBook.invoice', { deposit, phone: booking.phone, time: until ?? '' })
               : t('guestBook.noDeposit')}
@@ -306,7 +320,7 @@ export function Waiting({ offer, booking, locale }: { offer: PublicOffer; bookin
             <ol className="mt-2 flex flex-col gap-3">
               {[t('guestBook.step1'), t('guestBook.step2', { deposit }), t('guestBook.step3')].map((step, n) => (
                 <li key={step} className="flex items-start gap-3 text-[15px] leading-normal">
-                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-sm font-bold text-emerald-800">
+                  <span className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-full bg-[#111114] text-sm font-bold text-white">
                     {n + 1}
                   </span>
                   {step}
@@ -320,18 +334,19 @@ export function Waiting({ offer, booking, locale }: { offer: PublicOffer; bookin
           <h1 ref={heading} tabIndex={-1} className="text-2xl font-bold leading-tight tracking-tight outline-none">
             {t('guestBook.confirmed')}
           </h1>
-          <p className="text-base leading-relaxed text-gray-700">{t('guestBook.confirmedNext')}</p>
+          <p className="text-base leading-relaxed text-[#2A2A30]">{t('guestBook.confirmedNext')}</p>
         </section>
       )}
+      <BookingPageLink code={booking.guest_code} />
 
-      <section className="flex flex-col gap-1 rounded-2xl border border-gray-200 p-4">
+      <section className="flex flex-col gap-1 rounded-[28px] bg-white p-5">
         {flat && <h2 dir="auto" className="text-base font-bold">{flat.name}</h2>}
-        <p className="text-sm text-gray-600">
+        <p className="text-sm text-[#6B6B74]">
           {dates} · {hourly ? t('guest.hours', { count: offer.hours ?? 0 }) : t('guest.nights', { count: offer.nights })} ·{' '}
           {t('guestOffer.guests', { count: booking.guests })}
         </p>
         {booking.total != null && (
-          <p className="text-sm text-gray-700">{t(hourly ? 'guestBook.hoursAtCheckIn' : 'guestBook.nightsAtCheckIn', { total: money(booking.total, locale) })}</p>
+          <p className="text-sm text-[#2A2A30]">{t(hourly ? 'guestBook.hoursAtCheckIn' : 'guestBook.nightsAtCheckIn', { total: money(booking.total, locale) })}</p>
         )}
       </section>
     </main>

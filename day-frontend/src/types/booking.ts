@@ -28,6 +28,9 @@ export interface GuestUpdateInput {
 
 export interface Booking {
   id: string
+  /** A hold from the site or a personal link: it cancels itself at this instant unless
+   *  confirmed. With its zone; null for any other booking. */
+  expires_at?: string | null
   company_id: string
   property_id: string
   guest_id: string
@@ -81,9 +84,18 @@ export interface BookingDeposit {
   amount: number
   status: DepositStatus
   held_amount: number
+  /** The owner's own note on a hold; the guest never reads it. */
   reason: string
+  /** What was kept, line by line, as the guest reads it; photos are links that expire. */
+  deductions?: DepositDeduction[]
   created_at: string
   updated_at: string
+}
+
+export interface DepositDeduction {
+  amount: number
+  reason: string
+  photos: string[]
 }
 
 export interface BookingFile {
@@ -133,6 +145,10 @@ export interface BookingDetail {
   files: BookingFile[]
   comments: BookingComment[]
   contract?: BookingContract
+  /** The guest's stays with the company, this one included; cancelled ones don't count. */
+  guest_stays: number
+  /** Who changed the booking or commented on it, by user id. */
+  people: Record<string, string>
   audit_logs: BookingAuditLog[]
 }
 
@@ -140,13 +156,13 @@ export interface PriceCalculation {
   nights: number
   hours: number
   unit_label: string
-  rental_mode: RentalMode
   base_total: number
   weekend_surcharge: number
   seasonal_adjustment: number
   extra_guest_surcharge: number
   discount_amount: number
   total: number
+  tariff?: string | null
 }
 
 export interface GanttPropertySummary {
@@ -156,6 +172,11 @@ export interface GanttPropertySummary {
   type: string
   status: 'new' | 'active' | 'paused' | 'archived'
   rental_mode?: RentalMode
+  /** Its row as the company ordered the flats; null: by its name. */
+  position?: number | null
+  /** Its own check-in and check-out hours, or the defaults. */
+  check_in_hour?: number
+  check_out_hour?: number
 }
 
 export interface GanttData {
@@ -170,6 +191,9 @@ export interface GanttBlock {
   reason: string | null
   /** A platform's booking over a Day booking: the same night sold twice. */
   clash?: boolean
+  /** The exact span, from the check-out hour of its first day to that of its last. */
+  starts_at?: string | null
+  ends_at?: string | null
 }
 
 /** A night priced on the calendar, replacing the flat's usual price. */
@@ -188,6 +212,12 @@ export interface TodayChecks {
   check_ins: Booking[]
   check_outs: Booking[]
   in_house: Booking[]
+  /** Stays that ended before today with money still owed, the latest first. */
+  past_debts?: Booking[]
+  /** Still marked in after the last day, or never marked in after the first. */
+  unclosed?: Booking[]
+  /** Money received today; null for who may not read analytics. */
+  received_today?: number | string | null
 }
 
 export interface BookingCreateInput {
@@ -211,6 +241,8 @@ export interface BookingCreateInput {
 }
 
 export interface BookingUpdateInput {
+  /** Another flat: the stay moves there in the same save as any new dates. */
+  property_id?: string
   check_in?: string
   check_out?: string
   rental_mode?: RentalMode
@@ -237,6 +269,9 @@ export interface BookingFilters {
   date_to?: string
   /** The bookings this agent brought. */
   agent_id?: string
+  /** The days the booking was made on (UTC), both whole. */
+  created_from?: string
+  created_to?: string
 }
 
 export interface PaymentInput {
@@ -256,6 +291,8 @@ export interface DepositActionInput {
   action: DepositAction
   held_amount?: number
   reason?: string
+  /** With a hold: the lines the guest reads; photos are the stored urls from uploadDepositPhoto. */
+  deductions?: DepositDeduction[]
 }
 
 export interface CommentInput {
@@ -268,8 +305,6 @@ export interface PriceCalculateInput {
   check_out: string
   adults_count: number
   children_count: number
-  hours?: number
-  unit_label?: string
   rental_mode?: RentalMode
 }
 

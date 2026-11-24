@@ -106,7 +106,7 @@ test.describe('Booking Payments - E2E', () => {
   ) {
     await page.goto(`/bookings/${bookingId}`)
     await page.waitForLoadState('networkidle')
-    await page.getByRole('tab', { name: tab }).click()
+    await expect(page.getByRole('heading', { name: tab }).first()).toBeVisible()
   }
 
   test.afterEach(async ({ request }) => {
@@ -124,25 +124,313 @@ test.describe('Booking Payments - E2E', () => {
     const prop = await setupActiveProperty(request)
     const booking = await createBookingViaApi(request, prop.id)
 
-    await openBookingTab(page, booking.id, /payment/i)
+    await page.goto(`/bookings/${booking.id}`)
     await page.getByRole('button', { name: /add payment/i }).click()
 
-    await page.getByLabel(/amount/i).fill('120')
+    const panel = page.getByRole('dialog')
+    await panel.getByLabel('Amount').fill('120')
+    await panel.getByRole('radio', { name: 'Card' }).click()
+    await panel.getByRole('button', { name: /^Add 120/ }).click()
 
-    // The method is a custom select: open the list and pick an option
-    await page.getByRole('combobox').click()
-    await page.getByRole('option', { name: 'Card' }).click()
-
-    await page.getByLabel(/note/i).fill('First payment')
-    await page.getByRole('button', { name: 'Save' }).click()
-
-    // The payment is a row of its own: the amount is read inside it, not anywhere on the page
-    const row = page.getByRole('row', { name: /First payment/ })
-    await expect(row).toContainText(/120\.00/)
-    await expect(row).toContainText('Card')
+    await expect.poll(() => paymentsOf(request, booking.id)).toEqual(['payment:card:120:'])
     await expect(page.getByText(/no payments yet/i)).toBeHidden()
+  })
 
-    await expect.poll(() => paymentsOf(request, booking.id)).toEqual(['payment:card:120:First payment'])
+  test('the refund offered for an overpayment opens with the sum in place', async ({ page, request }) => {
+    const prop = await setupActiveProperty(request)
+    const booking = await createBookingViaApi(request, prop.id)
+    await addPaymentViaApi(request, booking.id, {
+      amount: Number(booking.total_price) + 500,
+      type: 'payment',
+      method: 'cash',
+    })
+
+    await page.goto(`/bookings/${booking.id}`)
+    await page.getByRole('button', { name: /^Refund 500/ }).click()
+    const panel = page.getByRole('dialog')
+    await expect(panel.getByLabel('Amount')).toHaveValue('500')
+    await panel.getByRole('button', { name: /^Refund 500/ }).click()
+
+    await expect(panel).toBeHidden()
+    await expect(page.getByRole('button', { name: /^Refund 500/ })).toBeHidden()
+    await expect(page.getByText('Overpaid', { exact: true })).toBeHidden()
+  })
+
+  test('a second refund cannot start while the first is on its way', async ({ page, request }) => {
+    const prop = await setupActiveProperty(request)
+    const booking = await createBookingViaApi(request, prop.id)
+    await addPaymentViaApi(request, booking.id, { amount: Number(booking.total_price) + 500, type: 'payment', method: 'cash' })
+
+    await page.goto(`/bookings/${booking.id}`)
+    await page.getByRole('button', { name: /^Refund 500/ }).click()
+    let release = () => {}
+    await page.route('**/payments', async (route) => {
+      if (route.request().method() !== 'POST') return route.continue()
+      await new Promise<void>((resolve) => (release = resolve))
+      await route.continue()
+    })
+    await page.getByRole('dialog').getByRole('button', { name: /^Refund 500/ }).click()
+    // The panel closed, the refund still on its way: the card's refund waits for it
+    await page.keyboard.press('Escape')
+    await expect(page.getByRole('button', { name: /^Refund 500/ })).toBeDisabled()
+    release()
+
+    await expect.poll(() => paymentsOf(request, booking.id)).toHaveLength(2)
+  })
+
+  test('the refund stays off until the new balance is read', async ({ page, request }) => {
+    const prop = await setupActiveProperty(request)
+    const booking = await createBookingViaApi(request, prop.id)
+    await addPaymentViaApi(request, booking.id, { amount: Number(booking.total_price) + 500, type: 'payment', method: 'cash' })
+
+    await page.goto(`/bookings/${booking.id}`)
+    await page.getByRole('button', { name: /^Refund 500/ }).click()
+    let release = () => {}
+    let saved = false
+    await page.route(`**/bookings/${booking.id}`, async (route) => {
+      if (!saved || route.request().method() !== 'GET') return route.continue()
+      await new Promise<void>((resolve) => (release = resolve))
+      await route.continue()
+    })
+    page.on('response', (response) => {
+      if (response.request().method() === 'POST' && response.url().endsWith('/payments')) saved = true
+    })
+    await page.getByRole('dialog').getByRole('button', { name: /^Refund 500/ }).click()
+    await expect.poll(() => saved).toBe(true)
+    // The refund is saved, the old balance is still on screen: no second refund
+    await page.keyboard.press('Escape')
+    await expect(page.getByRole('button', { name: /^Refund 500/ })).toBeDisabled()
+    release()
+    await expect(page.getByRole('button', { name: /^Refund 500/ })).toBeHidden()
+    await expect.poll(() => paymentsOf(request, booking.id)).toHaveLength(2)
+  })
+
+  test('a payment on its way from one panel holds the other', async ({ page, request }) => {
+    const prop = await setupActiveProperty(request)
+    const booking = await createBookingViaApi(request, prop.id)
+    for (const status of ['confirmed', 'checked_in', 'checked_out']) {
+      await request.post(`${API_BASE}/bookings/${booking.id}/status`, { data: { status } })
+    }
+
+    await page.goto(`/bookings/${booking.id}`)
+    let release = () => {}
+    await page.route('**/payments', async (route) => {
+      if (route.request().method() !== 'POST') return route.continue()
+      await new Promise<void>((resolve) => (release = resolve))
+      await route.continue()
+    })
+    // The guest has left owing: the stay card's first step and the money card both take it
+    const buttons = page.getByRole('button', { name: /add payment/i })
+    await expect(buttons).toHaveCount(2)
+    await buttons.first().click()
+    await page.getByRole('dialog').getByRole('button', { name: /^Add \d/ }).click()
+    await page.keyboard.press('Escape')
+    await buttons.last().click()
+    await expect(page.getByRole('dialog').getByRole('button', { name: /^Add|…/ }).last()).toBeDisabled()
+    release()
+    await expect.poll(() => paymentsOf(request, booking.id)).toHaveLength(1)
+  })
+
+  /** Holds the first new payment or refund until `release`; the rest go through. */
+  async function holdFirstPayment(page: import('@playwright/test').Page) {
+    let release = () => {}
+    let held = false
+    await page.route('**/payments', async (route) => {
+      if (route.request().method() !== 'POST' || held) return route.continue()
+      held = true
+      await new Promise<void>((resolve) => (release = resolve))
+      await route.continue()
+    })
+    return () => release()
+  }
+
+  test('a payment saved after its panel closed still leaves a new key for the next one', async ({ page, request }) => {
+    const prop = await setupActiveProperty(request)
+    const booking = await createBookingViaApi(request, prop.id)
+    const half = Number(booking.total_price) / 2
+
+    await page.goto(`/bookings/${booking.id}`)
+    const release = await holdFirstPayment(page)
+    await page.getByRole('button', { name: /add payment/i }).click()
+    await page.getByRole('dialog').getByLabel('Amount').fill(String(half))
+    await page.getByRole('dialog').getByRole('button', { name: new RegExp(`^Add ${half}\\b`) }).click()
+    // Closed before the answer: the form is gone when the payment is saved
+    await page.keyboard.press('Escape')
+    release()
+    await expect(page.locator('#payments').getByRole('listitem')).toHaveCount(1)
+
+    // The rest is the same sum the same way, offered as it is: a new payment, not a retry of the first
+    await page.getByRole('button', { name: /add payment/i }).click()
+    await expect(page.getByRole('dialog').getByLabel('Amount')).toHaveValue(String(half))
+    await page.getByRole('dialog').getByRole('button', { name: new RegExp(`^Add ${half}\\b`) }).click()
+    await expect.poll(() => paymentsOf(request, booking.id)).toEqual([`payment:cash:${half}:`, `payment:cash:${half}:`])
+  })
+
+  test('a refund saved after its panel closed still leaves a new key for the next one', async ({ page, request }) => {
+    const prop = await setupActiveProperty(request)
+    const booking = await createBookingViaApi(request, prop.id)
+    await addPaymentViaApi(request, booking.id, { amount: Number(booking.total_price) + 1000, type: 'payment', method: 'cash' })
+
+    await page.goto(`/bookings/${booking.id}`)
+    const release = await holdFirstPayment(page)
+    await page.getByRole('button', { name: /^Refund 1,000/ }).click()
+    await page.getByRole('dialog').getByLabel('Amount').fill('500')
+    await page.getByRole('dialog').getByRole('button', { name: /^Refund 500/ }).click()
+    await page.keyboard.press('Escape')
+    release()
+    await expect(page.locator('#payments').getByRole('listitem')).toHaveCount(2)
+
+    // 500 is still due back: the panel offers it as it is, and it is a new refund
+    await page.getByRole('button', { name: /^Refund 500/ }).click()
+    await expect(page.getByRole('dialog').getByLabel('Amount')).toHaveValue('500')
+    await page.getByRole('dialog').getByRole('button', { name: /^Refund 500/ }).click()
+    await expect.poll(() => paymentsOf(request, booking.id)).toEqual([
+      `payment:cash:${Number(booking.total_price) + 1000}:`,
+      'refund:cash:500:',
+      'refund:cash:500:',
+    ])
+  })
+
+  /** The first new payment or refund reaches the server and is recorded; its answer is lost. */
+  async function loseFirstAnswer(page: import('@playwright/test').Page) {
+    let lost = false
+    await page.route('**/payments', async (route) => {
+      if (route.request().method() !== 'POST' || lost) return route.continue()
+      lost = true
+      await route.fetch()
+      await route.abort('failed')
+    })
+  }
+
+  test('a payment whose answer was lost is asked of the server and found recorded, once', async ({ page, request }) => {
+    const prop = await setupActiveProperty(request)
+    const booking = await createBookingViaApi(request, prop.id)
+    const half = Number(booking.total_price) / 2
+
+    await page.goto(`/bookings/${booking.id}`)
+    await loseFirstAnswer(page)
+    await page.getByRole('button', { name: /add payment/i }).click()
+    const panel = page.getByRole('dialog')
+    await panel.getByLabel('Amount').fill(String(half))
+    await panel.getByRole('radio', { name: 'Card' }).click()
+    await panel.getByRole('button', { name: new RegExp(`^Add ${half}\\b`) }).click()
+
+    // The server says the key recorded it: the panel closes as on any payment
+    await expect(panel).toBeHidden()
+    await expect(page.locator('#payments').getByRole('listitem')).toHaveCount(1)
+    await expect.poll(() => paymentsOf(request, booking.id)).toEqual([`payment:card:${half}:`])
+  })
+
+  test('a payment that never reached the server is said so, and the next press records it', async ({ page, request }) => {
+    const prop = await setupActiveProperty(request)
+    const booking = await createBookingViaApi(request, prop.id)
+    const half = Number(booking.total_price) / 2
+    const add = new RegExp(`^Add ${half}\\b`)
+
+    await page.goto(`/bookings/${booking.id}`)
+    let dropped = false
+    await page.route('**/payments', async (route) => {
+      if (route.request().method() !== 'POST' || dropped) return route.continue()
+      dropped = true
+      await route.abort('failed')
+    })
+    await page.getByRole('button', { name: /add payment/i }).click()
+    const panel = page.getByRole('dialog')
+    await panel.getByLabel('Amount').fill(String(half))
+    await panel.getByRole('button', { name: add }).click()
+
+    // Its key is closed on the server: it never will be recorded, and the amount stays to be sent anew
+    await expect(panel.getByRole('alert')).toContainText('was not recorded and never will be')
+    await expect(panel.getByLabel('Amount')).toHaveValue(String(half))
+    await panel.getByRole('button', { name: add }).click()
+    await expect(panel).toBeHidden()
+    await expect.poll(() => paymentsOf(request, booking.id)).toEqual([`payment:cash:${half}:`])
+  })
+
+  test('when the server cannot be asked either, only a check is offered, wherever and whenever opened', async ({ page, request }) => {
+    const prop = await setupActiveProperty(request)
+    const booking = await createBookingViaApi(request, prop.id)
+    const half = Number(booking.total_price) / 2
+
+    await page.goto(`/bookings/${booking.id}`)
+    await loseFirstAnswer(page)
+    await page.route('**/idempotency-key/void', (route) => route.abort('failed'))
+    await page.getByRole('button', { name: /add payment/i }).click()
+    const panel = page.getByRole('dialog')
+    await panel.getByLabel('Amount').fill(String(half))
+    await panel.getByRole('button', { name: new RegExp(`^Add ${half}\\b`) }).click()
+
+    // Nothing can be sent for the booking until the server says what became of it
+    const check = panel.getByRole('button', { name: 'Check on the server' })
+    await expect(check).toBeVisible()
+    await expect(panel.getByText('The server did not answer.', { exact: false })).toBeVisible()
+    await expect(panel.getByLabel('Amount')).toHaveCount(0)
+    await expect(panel.getByRole('button', { name: /^(Add|Retry)/ })).toHaveCount(0)
+    // Closed and opened again, even after a reload, the panel still offers only the check
+    await page.keyboard.press('Escape')
+    await page.reload()
+    await page.getByRole('button', { name: /add payment/i }).click()
+    await expect(check).toBeVisible()
+
+    await page.unroute('**/idempotency-key/void')
+    await check.click()
+    // The server says it was recorded: the panel closes, one payment
+    await expect(panel).toBeHidden()
+    await expect.poll(() => paymentsOf(request, booking.id)).toEqual([`payment:cash:${half}:`])
+  })
+
+  test('a payment saved after its screen was left settles anyway: the next one is a new payment', async ({ page, request }) => {
+    const prop = await setupActiveProperty(request)
+    const booking = await createBookingViaApi(request, prop.id)
+    const half = Number(booking.total_price) / 2
+
+    await page.goto(`/bookings/${booking.id}`)
+    const release = await holdFirstPayment(page)
+    await page.getByRole('button', { name: /add payment/i }).click()
+    await page.getByRole('dialog').getByLabel('Amount').fill(String(half))
+    await page.getByRole('dialog').getByRole('button', { name: new RegExp(`^Add ${half}\\b`) }).click()
+    // The operator leaves the booking before the answer: the panel and its screen are gone
+    await page.keyboard.press('Escape')
+    await page.getByRole('link', { name: 'Bookings', exact: true }).first().click()
+    await expect(page).toHaveURL(/\/bookings$/)
+    release()
+    await expect.poll(() => paymentsOf(request, booking.id)).toEqual([`payment:cash:${half}:`])
+
+    // Back on the booking, the panel takes a new payment: nothing is left waiting for a check
+    await page.goto(`/bookings/${booking.id}`)
+    await page.getByRole('button', { name: /add payment/i }).click()
+    await expect(page.getByRole('dialog').getByLabel('Amount')).toBeVisible()
+    await expect(page.getByRole('dialog').getByRole('button', { name: 'Check on the server' })).toHaveCount(0)
+  })
+
+  test('a refund whose answer was lost is asked of the server and found recorded, once', async ({ page, request }) => {
+    const prop = await setupActiveProperty(request)
+    const booking = await createBookingViaApi(request, prop.id)
+    const paid = Number(booking.total_price) + 1000
+    await addPaymentViaApi(request, booking.id, { amount: paid, type: 'payment', method: 'cash' })
+
+    await page.goto(`/bookings/${booking.id}`)
+    await loseFirstAnswer(page)
+    await page.getByRole('button', { name: /^Refund 1,000/ }).click()
+    const panel = page.getByRole('dialog')
+    await panel.getByLabel('Amount').fill('50')
+    await panel.getByRole('radio', { name: 'Card' }).click()
+    await panel.getByLabel(/note/i).fill('Lost answer')
+    await panel.getByRole('button', { name: /^Refund 50\b/ }).click()
+
+    await expect(panel).toBeHidden()
+    await expect.poll(() => paymentsOf(request, booking.id)).toEqual([`payment:cash:${paid}:`, 'refund:card:50:Lost answer'])
+  })
+
+  test('a payment can be added with nothing owed', async ({ page, request }) => {
+    const prop = await setupActiveProperty(request)
+    const booking = await createBookingViaApi(request, prop.id)
+    await addPaymentViaApi(request, booking.id, { amount: Number(booking.total_price), type: 'payment', method: 'cash' })
+
+    await page.goto(`/bookings/${booking.id}`)
+    await expect(page.getByText('Paid', { exact: true }).first()).toBeVisible()
+    await page.getByRole('button', { name: /add payment/i }).click()
+    await expect(page.getByRole('dialog').getByLabel('Amount')).toBeVisible()
   })
 
   test('add refund', async ({ page, request }) => {
@@ -153,13 +441,21 @@ test.describe('Booking Payments - E2E', () => {
 
     await openBookingTab(page, booking.id, /payment/i)
     await page.getByRole('button', { name: /add refund/i }).click()
-    await page.getByLabel(/amount/i).fill('50')
-    await page.getByLabel(/note/i).fill('Early departure')
-    await page.getByRole('button', { name: 'Save' }).click()
+    const panel = page.getByRole('dialog')
+    // Nothing is due back: the owner says how much, or takes half of what came in
+    await expect(panel.getByLabel('Amount')).toHaveValue('')
+    await panel.getByRole('button', { name: /^50%/ }).click()
+    await expect(panel.getByLabel('Amount')).toHaveValue('100')
+    await panel.getByLabel('Amount').fill('50')
+    await panel.getByLabel(/note/i).fill('Early departure')
+    await panel.getByRole('button', { name: /^Refund 50\b/ }).click()
+    await expect(panel).toBeHidden()
 
-    // A refund is a row of its own with a minus sign, next to the payment it takes back from
-    await expect(page.getByRole('row', { name: /Early departure/ })).toContainText(/-\D*50\.00/)
-    await expect(page.getByRole('row', { name: /Prepayment/ })).toContainText(/200\.00/)
+    // A refund is a line of its own with a minus sign, next to the payment it takes back from
+    const payments = page.locator('#payments').getByRole('listitem')
+    await expect(payments.filter({ hasText: 'Early departure' })).toContainText(/-\D*50\b/)
+    await expect(payments.filter({ hasText: 'Early departure' })).toContainText('Refund')
+    await expect(payments.filter({ hasText: 'Prepayment' })).toContainText(/\b200\b/)
 
     await expect.poll(() => paymentsOf(request, booking.id)).toEqual([
       'payment:cash:200:Prepayment',
@@ -174,11 +470,9 @@ test.describe('Booking Payments - E2E', () => {
     await openBookingTab(page, booking.id, /deposit/i)
     await page.getByRole('button', { name: /create deposit/i }).click()
     await page.getByLabel(/amount/i).fill('75')
-    await page.getByRole('button', { name: 'Create', exact: true }).click()
+    await page.locator('main').getByRole('button', { name: 'Create', exact: true }).click()
 
-    // The deposit is a row of its own: the amount and the status are read inside it
-    const row = page.getByRole('row', { name: /75\.00/ })
-    await expect(row.getByText('Pending', { exact: true })).toBeVisible()
+    await expect(page.locator('#deposits').getByText('Pending', { exact: true })).toBeVisible()
 
     await expect.poll(() => depositsOf(request, booking.id)).toEqual(['pending:75:'])
   })
@@ -190,10 +484,11 @@ test.describe('Booking Payments - E2E', () => {
 
     await openBookingTab(page, booking.id, /deposit/i)
     await page.getByRole('button', { name: 'Mark as Paid' }).click()
+    await page.getByRole('dialog').getByRole('button', { name: 'Mark as Paid' }).click()
 
     await expect.poll(() => depositsOf(request, booking.id)).toEqual(['paid:100:'])
-    // The row shows the new status and no longer offers to pay
-    await expect(page.getByRole('row', { name: /100\.00/ }).getByText('Paid', { exact: true })).toBeVisible()
+    // The block shows the new status and no longer offers to pay
+    await expect(page.locator('#deposits').getByText('Paid', { exact: true })).toBeVisible()
     await expect(page.getByRole('button', { name: 'Mark as Paid' })).toBeHidden()
   })
 
@@ -218,16 +513,30 @@ test.describe('Booking Payments - E2E', () => {
     await openBookingTab(page, booking.id, /deposit/i)
     await page.getByRole('button', { name: 'Hold', exact: true }).click()
 
-    // The booking has a "Confirm" button of its own: press the one inside the hold form
-    const reason = page.getByLabel('Reason')
+    await page.getByLabel('What happened').fill('Towels')
+    const reason = page.getByLabel('A note for yourself (the guest does not see it)')
     await reason.fill('Damaged towels')
-    await reason.locator('..').getByRole('button', { name: 'Confirm' }).click()
+    await page.getByRole('button', { name: /^Hold 100/ }).click()
 
     await expect.poll(() => depositsOf(request, booking.id)).toEqual(['held:100:Damaged towels'])
-    // The row shows the new status and the reason, and the form is gone
-    const row = page.getByRole('row', { name: /100\.00/ })
-    await expect(row.getByText('Held', { exact: true })).toBeVisible()
-    await expect(row).toContainText('Damaged towels')
+    // The block shows the new status and the reason, and the form is gone
+    const block = page.locator('#deposits')
+    await expect(block.getByText('Held', { exact: true })).toBeVisible()
+    await expect(block).toContainText('Damaged towels')
     await expect(reason).toBeHidden()
+  })
+
+  test('shows an overpayment as an overpayment', async ({ page, request }) => {
+    const prop = await setupActiveProperty(request)
+    const booking = await createBookingViaApi(request, prop.id)
+    await addPaymentViaApi(request, booking.id, {
+      amount: Number(booking.total_price) + 500,
+      type: 'payment',
+      method: 'cash',
+    })
+
+    await page.goto(`/bookings/${booking.id}`)
+    await expect(page.getByText('Overpaid', { exact: true }).first()).toBeVisible()
+    await expect(page.getByText(/paid more than the total/)).toBeVisible()
   })
 })

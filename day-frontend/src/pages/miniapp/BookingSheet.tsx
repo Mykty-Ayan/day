@@ -40,13 +40,16 @@ import {
   type MoneyAttempt,
 } from './booking-card'
 import { cardRead, readyToAct, secretsFresh } from './card-state'
-import { formatDay, formatMoney, formatTime } from './format'
+import { formatDay, formatMoney, formatMoneyExact, formatTime } from './format'
 import DepositRow from './DepositRow'
 import EditBookingSheet from './EditBookingSheet'
 import GuestSheet from './GuestSheet'
 import { errorText } from './errors'
 import { buildCheckInMessage } from './messages'
 import { ActionButton, Chip, Field, Sheet } from './miniapp-ui'
+import { stepAskKeys } from '../../lib/booking-status'
+import { paymentSuggestions } from '../../lib/booking-money'
+import { useFirstNight } from '../../hooks/useFirstNight'
 import { useClosingConfirmation } from './useClosingConfirmation'
 
 /** The single legal step forward from each status.
@@ -156,6 +159,7 @@ export default function BookingSheet({
   // Minibar orders on the guest's tab: owed on top of the stay, paid on the order itself.
   const ordersDue = fresh.data?.booking.orders_due ?? booking?.orders_due ?? 0
   const received = payments.filter((payment) => payment.status === 'completed')
+  const suggested = paymentSuggestions(due, booking?.total_price ?? 0, useFirstNight(booking))
 
   function refresh() {
     queryClient.invalidateQueries({ queryKey: ['miniapp'] })
@@ -270,6 +274,8 @@ export default function BookingSheet({
   const secretsOk = secretsFresh(fresh, openedAt, Date.now()) && readyToAct(property, openedAt)
   const checkInText = buildCheckInMessage(booking, property.data, lang, t, secretsOk)
   const money = (value: number) => `${formatMoney(value, lang)} ₸`
+  // What a payment sends, to the tiyn: a confirmation must name the sum that goes.
+  const exact = (value: number) => `${formatMoneyExact(value, lang)} ₸`
   const when = (value: string) => `${formatDay(value, lang)} ${formatTime(value, lang)}`
 
   async function askExtend() {
@@ -296,6 +302,11 @@ export default function BookingSheet({
     // Closed while the price was asked: the question must not appear over another card.
     if (!alive.current) return
     if ((await confirmAction(message)) && alive.current) extend.mutate(target)
+  }
+
+  async function askStep(status: BookingStatus) {
+    const question = `${t(stepAskKeys[status] ?? '')} ${t(status === 'confirmed' ? 'bookings.steps.canCancel' : 'bookings.steps.noUndo')}`
+    if ((await confirmAction(question)) && alive.current) setStatus.mutate(status)
   }
 
   async function askCancel() {
@@ -338,7 +349,7 @@ export default function BookingSheet({
 
   async function askPay() {
     const methodLabel = t(`miniapp.methods.${method}`)
-    if (await confirmAction(t('miniapp.booking.payAsk', { amount: money(amountValue), method: methodLabel }))) {
+    if (await confirmAction(t('miniapp.booking.payAsk', { amount: exact(amountValue), method: methodLabel }))) {
       if (!alive.current) return
       send({ kind: 'payment', amount: amountValue, method, key: newKey() } satisfies PaymentAttempt)
     }
@@ -453,7 +464,7 @@ export default function BookingSheet({
           </ActionButton>
         )}
         {next && (
-          <ActionButton disabled={settling || setStatus.isPending} onClick={() => setStatus.mutate(next.status)}>
+          <ActionButton disabled={settling || setStatus.isPending} onClick={() => askStep(next.status)}>
             <next.Icon className="h-4 w-4" />
             {t(next.labelKey)}
           </ActionButton>
@@ -525,23 +536,32 @@ export default function BookingSheet({
                   />
                 ))}
               </div>
-              <div className="grid grid-cols-[1fr_auto] items-end gap-2">
-                <Field
-                  label={t('miniapp.booking.payment')}
-                  value={amount}
-                  onChange={setAmount}
-                  type="number"
-                  inputMode="numeric"
-                  placeholder={String(due)}
-                />
-                <button
-                  type="button"
-                  disabled={moneyBusy}
-                  onClick={() => setAmount(String(due))}
-                  className="tg-root min-h-[44px] rounded-xl px-3 text-xs font-bold"
-                >
-                  {t('miniapp.booking.rest')}
-                </button>
+              <Field
+                label={t('miniapp.booking.payment')}
+                value={amount}
+                onChange={setAmount}
+                type="number"
+                inputMode="numeric"
+                placeholder={String(due)}
+              />
+              {/* Ready sums: the first night, half of the price, all that is left. */}
+              <div className="flex flex-wrap gap-1">
+                {[
+                  ...(suggested.firstNight !== null ? [{ label: t('miniapp.booking.firstDay'), value: suggested.firstNight }] : []),
+                  ...(suggested.half !== null ? [{ label: '50%', value: suggested.half }] : []),
+                  { label: t('miniapp.booking.rest'), value: suggested.all },
+                ]
+                  .filter((option, i, all) => option.value > 0 && all.findIndex((o) => o.value === option.value) === i)
+                  .map((option) => (
+                    <Chip
+                      key={option.label}
+                      label={`${option.label} · ${exact(option.value)}`}
+                      active={amountValue === option.value}
+                      onClick={() => {
+                        if (!moneyBusy) setAmount(String(option.value))
+                      }}
+                    />
+                  ))}
               </div>
               <ActionButton
                 tone="primary"
@@ -550,7 +570,7 @@ export default function BookingSheet({
               >
                 <Wallet className="h-4 w-4" />
                 {amountValue > 0
-                  ? t('miniapp.booking.recordAmount', { amount: money(amountValue) })
+                  ? t('miniapp.booking.recordAmount', { amount: exact(amountValue) })
                   : t('miniapp.booking.record')}
               </ActionButton>
             </>

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import uuid
 from dataclasses import dataclass, field
+from decimal import Decimal
 
 from app.config import settings
 from app.domain.booking.value_objects import RentalMode
@@ -16,6 +17,17 @@ def check_turnover_hours(check_in_hour: int | None, check_out_hour: int | None) 
     out = settings.DEFAULT_CHECK_OUT_HOUR if check_out_hour is None else check_out_hour
     if out > into:
         raise ValueError("Check-out hour must not be later than the check-in hour")
+
+
+def check_late_check_out(check_out_hour: int | None, late_hour: int | None, late_price: Decimal | None) -> None:
+    """Refuse a late check-out that is not later than check-out, or a price with no hour to sell."""
+    if late_hour is None:
+        if late_price is not None:
+            raise ValueError("A late check-out price needs its hour")
+        return
+    out = settings.DEFAULT_CHECK_OUT_HOUR if check_out_hour is None else check_out_hour
+    if late_hour <= out:
+        raise ValueError("A late check-out must be later than the check-out hour")
 
 
 def check_stay_nights(min_nights: int | None, max_nights: int | None) -> None:
@@ -70,6 +82,9 @@ class CreatePropertyInput:
     area_total: float | None = None
     check_in_instructions: str | None = None
     check_out_instructions: str | None = None
+    nearby: list[dict] = field(default_factory=list)
+    late_check_out_hour: int | None = None
+    late_check_out_price: Decimal | None = None
     house_rules: str | None = None
     wifi_name: str | None = None
     wifi_password: str | None = None
@@ -89,6 +104,7 @@ class CreatePropertyService:
 
     async def execute(self, inp: CreatePropertyInput) -> Property:
         check_turnover_hours(inp.check_in_hour, inp.check_out_hour)
+        check_late_check_out(inp.check_out_hour, inp.late_check_out_hour, inp.late_check_out_price)
         check_stay_nights(inp.min_nights, inp.max_nights)
         check_listing_kinds(inp.listing_urls, inp.hourly_listing_urls)
         if await self._property_repo.exists_internal_name(
@@ -137,6 +153,9 @@ class CreatePropertyService:
             area_total=inp.area_total,
             check_in_instructions=inp.check_in_instructions,
             check_out_instructions=inp.check_out_instructions,
+            nearby=list(inp.nearby),
+            late_check_out_hour=inp.late_check_out_hour,
+            late_check_out_price=inp.late_check_out_price,
             house_rules=inp.house_rules,
             wifi_name=inp.wifi_name,
             wifi_password=inp.wifi_password,

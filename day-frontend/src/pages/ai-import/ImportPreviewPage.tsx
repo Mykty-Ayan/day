@@ -80,20 +80,20 @@ function ConfidenceBar({ value }: { value: number }) {
   const percent = Math.min(100, Math.max(0, Math.round(value * 100)))
   const color =
     percent >= 80
-      ? 'bg-emerald-500'
+      ? 'bg-success'
       : percent >= 50
-        ? 'bg-amber-500'
-        : 'bg-red-500'
+        ? 'bg-warning'
+        : 'bg-danger'
 
   return (
     <div className="flex items-center gap-3">
-      <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
+      <div className="flex-1 h-2 bg-surface-page rounded-full overflow-hidden">
         <div
           className={`h-full rounded-full transition-all duration-500 ${color}`}
           style={{ width: `${percent}%` }}
         />
       </div>
-      <span className="text-xs font-bold text-gray-700 w-10 text-right">{percent}%</span>
+      <span className="text-xs font-bold text-ink w-10 text-right">{percent}%</span>
     </div>
   )
 }
@@ -145,11 +145,11 @@ export default function ImportPreviewPage() {
   if (isLoading || (job && (job.status === 'pending' || job.status === 'processing'))) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh]">
-        <Loader2 className="w-8 h-8 text-gray-400 animate-spin mb-4" />
-        <p className="text-sm font-bold text-gray-700">
+        <Loader2 className="w-8 h-8 text-ink-muted animate-spin mb-4" />
+        <p className="text-sm font-bold text-ink">
           {job?.status === 'processing' ? t('aiImport.aiExtracting') : t('aiImport.waitingForImport')}
         </p>
-        <p className="text-xs text-gray-400 mt-1">{t('aiImport.usuallyTakes')}</p>
+        <p className="text-xs text-ink-muted mt-1">{t('aiImport.usuallyTakes')}</p>
       </div>
     )
   }
@@ -157,11 +157,11 @@ export default function ImportPreviewPage() {
   if (isError || !job) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh]">
-        <p className="text-sm text-red-600 mb-4">{t('aiImport.failedLoadJob')}</p>
+        <p className="text-sm text-danger mb-4">{t('aiImport.failedLoadJob')}</p>
         <motion.button
           whileTap={{ scale: 0.97 }}
           onClick={() => navigate({ to: '/ai-import' })}
-          className="flex items-center gap-2 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-xl px-4 py-2.5 text-xs font-bold text-gray-700 transition-colors"
+          className="flex items-center gap-2 bg-surface-page hover:bg-surface-page border border-line rounded-xl px-4 py-2.5 text-xs font-bold text-ink transition-colors"
         >
           <ArrowLeft className="w-4 h-4" />
           {t('aiImport.backToImports')}
@@ -178,17 +178,17 @@ export default function ImportPreviewPage() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4 }}
         >
-          <div className="bg-red-50 border border-red-200 rounded-xl p-6">
-            <h2 className="text-sm font-bold text-red-700 mb-2">{t('aiImport.importFailed')}</h2>
-            <p className="text-sm text-red-600">{importErrorText(job.error_message, t)}</p>
-            <p className="text-xs text-gray-500 mt-3">
+          <div className="bg-danger-soft border border-danger/30 rounded-xl p-6">
+            <h2 className="text-sm font-bold text-danger mb-2">{t('aiImport.importFailed')}</h2>
+            <p className="text-sm text-danger">{importErrorText(job.error_message, t)}</p>
+            <p className="text-xs text-ink-muted mt-3">
               URL: {job.source_url}
             </p>
           </div>
           <motion.button
             whileTap={{ scale: 0.97 }}
             onClick={() => navigate({ to: '/ai-import' })}
-            className="flex items-center gap-2 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-xl px-4 py-2.5 text-xs font-bold text-gray-700 transition-colors mt-4"
+            className="flex items-center gap-2 bg-surface-page hover:bg-surface-page border border-line rounded-xl px-4 py-2.5 text-xs font-bold text-ink transition-colors mt-4"
           >
             <ArrowLeft className="w-4 h-4" />
             {t('aiImport.backToImports')}
@@ -201,11 +201,11 @@ export default function ImportPreviewPage() {
   if (!mappedData) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh]">
-        <p className="text-sm text-gray-500">{t('aiImport.noPropertyData')}</p>
+        <p className="text-sm text-ink-muted">{t('aiImport.noPropertyData')}</p>
         <motion.button
           whileTap={{ scale: 0.97 }}
           onClick={() => navigate({ to: '/ai-import' })}
-          className="flex items-center gap-2 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-xl px-4 py-2.5 text-xs font-bold text-gray-700 transition-colors mt-4"
+          className="flex items-center gap-2 bg-surface-page hover:bg-surface-page border border-line rounded-xl px-4 py-2.5 text-xs font-bold text-ink transition-colors mt-4"
         >
           <ArrowLeft className="w-4 h-4" />
           {t('aiImport.backToImports')}
@@ -239,9 +239,9 @@ export default function ImportPreviewPage() {
       >
         {/* Header */}
         <div className="mb-6 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-          <h1 className="text-xl font-bold text-gray-900">{t('aiImport.importPreview')}</h1>
+          <h1 className="text-xl font-bold text-ink">{t('aiImport.importPreview')}</h1>
           <span
-            className="max-w-full break-all text-xs text-gray-400 sm:max-w-xs sm:truncate sm:break-normal"
+            className="max-w-full break-all text-xs text-ink-muted sm:max-w-xs sm:truncate sm:break-normal"
             title={job.source_url}
           >
             {job.source_url}
@@ -249,10 +249,10 @@ export default function ImportPreviewPage() {
         </div>
 
         {/* Confidence bar */}
-        <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm mb-4">
+        <div className="bg-surface-card border border-line rounded-xl p-4 mb-4">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-bold text-gray-700">{t('aiImport.extractionConfidence')}</span>
-            <span className="text-[10px] text-gray-400">
+            <span className="text-xs font-bold text-ink">{t('aiImport.extractionConfidence')}</span>
+            <span className="text-[10px] text-ink-muted">
               {t('aiImport.basedOnKeyFields', { count: 7 })}
             </span>
           </div>
@@ -261,17 +261,17 @@ export default function ImportPreviewPage() {
 
         {/* Warnings */}
         {warnings.length > 0 && (
-          <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-6">
+          <div className="bg-warning-soft border border-warning/30 rounded-xl p-4 mb-6">
             <div className="flex items-center gap-2 mb-2">
-              <AlertTriangle className="w-4 h-4 text-amber-600" />
-              <span className="text-xs font-bold text-amber-700">
+              <AlertTriangle className="w-4 h-4 text-warning" />
+              <span className="text-xs font-bold text-warning">
                 {t('aiImport.warningsCount', { count: warnings.length })}
               </span>
             </div>
             <ul className="space-y-1">
               {warnings.map((w, i) => (
-                <li key={i} className="text-xs text-amber-600 flex items-start gap-1.5">
-                  <span className="text-amber-400 mt-0.5">-</span>
+                <li key={i} className="text-xs text-warning flex items-start gap-1.5">
+                  <span className="text-warning mt-0.5">-</span>
                   {w}
                 </li>
               ))}
@@ -280,7 +280,7 @@ export default function ImportPreviewPage() {
         )}
 
         {/* Property form */}
-        <div className="bg-white border border-gray-200 rounded-xl p-4 sm:p-5 shadow-sm mb-6">
+        <div className="bg-surface-card border border-line rounded-xl p-4 sm:p-5 mb-6">
           <PropertyPreviewForm
             data={mappedData}
             onChange={(updated) => setEditedData(updated)}
@@ -289,8 +289,8 @@ export default function ImportPreviewPage() {
 
         {/* Error */}
         {submitError && (
-          <div className="bg-red-50 border border-red-200 rounded-xl p-3 mb-4">
-            <p className="text-sm text-red-600">{submitError}</p>
+          <div className="bg-danger-soft border border-danger/30 rounded-xl p-3 mb-4">
+            <p className="text-sm text-danger">{submitError}</p>
           </div>
         )}
 
@@ -299,7 +299,7 @@ export default function ImportPreviewPage() {
           <motion.button
             whileTap={{ scale: 0.97 }}
             onClick={() => navigate({ to: '/ai-import' })}
-            className="flex w-full items-center justify-center gap-2 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-xl px-4 py-2.5 text-xs font-bold text-gray-700 transition-colors sm:w-auto"
+            className="flex w-full items-center justify-center gap-2 bg-surface-page hover:bg-surface-page border border-line rounded-xl px-4 py-2.5 text-xs font-bold text-ink transition-colors sm:w-auto"
           >
             <ArrowLeft className="w-4 h-4" />
             {t('common.back')}
@@ -309,7 +309,7 @@ export default function ImportPreviewPage() {
             whileTap={{ scale: 0.97 }}
             onClick={handleConfirm}
             disabled={confirmImport.isPending || !mappedData.name}
-            className="flex w-full items-center justify-center gap-2 bg-black text-white hover:bg-gray-800 rounded-xl px-6 py-2.5 font-semibold shadow-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed sm:w-auto"
+            className="flex w-full items-center justify-center gap-2 bg-accent text-white hover:bg-accent-hover rounded-xl px-6 py-2.5 font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed sm:w-auto"
           >
             {confirmImport.isPending ? (
               <>

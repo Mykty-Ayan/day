@@ -30,13 +30,13 @@ test.describe('Stay rules in the booking form', () => {
     await page.goto(`/bookings/new?property_id=${propertyId}&check_in=${futureDate(20)}&check_out=${futureDate(21)}`)
     // A guest new to the company: a known one opens the suggestions list over the form.
     const stamp = Date.now().toString().slice(-7)
-    await page.getByPlaceholder(/phone/i).first().fill(`+7701${stamp}`)
+    await page.locator('main').getByPlaceholder(/phone/i).first().fill(`+7701${stamp}`)
     await page.getByPlaceholder(/name/i).first().fill(`Stay Rules ${stamp}`)
     // The flat list comes in pages: a press before the flat is in it stops at "choose a flat".
     await expect(page.locator('#create-property')).toContainText(internalName)
     await page.getByRole('button', { name: 'Create Booking' }).click()
 
-    const alert = page.getByRole('alert').filter({ hasText: 'The booking breaks the apartment rules' })
+    const alert = page.getByRole('alert').filter({ hasText: 'The booking breaks the property rules' })
     await expect(alert).toBeVisible()
     await expect(alert).toContainText('Minimum nights: 2, this booking: 1')
 
@@ -55,7 +55,7 @@ test.describe('Stay rules in the booking form', () => {
     })
     await page.goto(`/bookings/new?property_id=${propertyId}&check_in=${futureDate(30)}&check_out=${futureDate(31)}`)
     const stamp = Date.now().toString().slice(-7)
-    await page.getByPlaceholder(/phone/i).first().fill(`+7702${stamp}`)
+    await page.locator('main').getByPlaceholder(/phone/i).first().fill(`+7702${stamp}`)
     const name = page.getByPlaceholder(/name/i).first()
     await name.fill(`Stay Rules ${stamp}`)
     await expect(page.locator('#create-property')).toContainText(internalName)

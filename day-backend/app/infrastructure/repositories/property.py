@@ -5,7 +5,7 @@ from collections.abc import Sequence
 from datetime import date, datetime
 from decimal import Decimal
 
-from sqlalchemy import delete, func, select, update
+from sqlalchemy import case, delete, func, or_, select, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -43,6 +43,8 @@ from app.domain.property.value_objects import (
     CheckInMethod,
     FactAudience,
     FactSource,
+    GuestMediaSection,
+    MediaKind,
     PropertyStatus,
     PropertyType,
 )
@@ -76,6 +78,7 @@ def _model_to_property(m: PropertyModel) -> Property:
         type=PropertyType(m.type),
         status=PropertyStatus(m.status),
         rental_mode=RentalMode(m.rental_mode),
+        position=m.position,
         description=m.description,
         source_url=m.source_url,
         latitude=m.latitude,
@@ -107,6 +110,9 @@ def _model_to_property(m: PropertyModel) -> Property:
         area_total=m.area_total,
         check_in_instructions=m.check_in_instructions,
         check_out_instructions=m.check_out_instructions,
+        nearby=list(m.nearby or []),
+        late_check_out_hour=m.late_check_out_hour,
+        late_check_out_price=m.late_check_out_price,
         house_rules=m.house_rules,
         wifi_name=m.wifi_name,
         wifi_password=m.wifi_password,
@@ -155,6 +161,9 @@ def _property_to_dict(p: Property) -> dict:
         "area_total": p.area_total,
         "check_in_instructions": p.check_in_instructions,
         "check_out_instructions": p.check_out_instructions,
+        "nearby": list(p.nearby),
+        "late_check_out_hour": p.late_check_out_hour,
+        "late_check_out_price": p.late_check_out_price,
         "house_rules": p.house_rules,
         "wifi_name": p.wifi_name,
         "wifi_password": p.wifi_password,
@@ -170,6 +179,8 @@ def _model_to_photo(m: PropertyPhotoModel) -> PropertyPhoto:
         is_cover=m.is_cover,
         caption=m.caption,
         audience=FactAudience(m.audience),
+        kind=MediaKind(m.kind),
+        section=GuestMediaSection(m.section),
         created_at=m.created_at,
     )
 
@@ -259,7 +270,9 @@ def _listed(stmt, company_id: uuid.UUID, *, status, search, tag_id):
     if status is not None:
         stmt = stmt.where(PropertyModel.status == status.value)
     if search:
-        stmt = stmt.where(PropertyModel.internal_name.ilike(f"%{search}%"))
+        # The owner knows a flat by either name: "Кв. 12" or the guests' "Студия у парка".
+        pattern = f"%{search}%"
+        stmt = stmt.where(or_(PropertyModel.internal_name.ilike(pattern), PropertyModel.name.ilike(pattern)))
     if tag_id is not None:
         stmt = stmt.where(PropertyModel.id.in_(_wearing_tag(company_id, tag_id)))
     return stmt
@@ -288,7 +301,11 @@ class SqlPropertyRepository(PropertyRepository):
         tag_id: uuid.UUID | None = None,
     ) -> list[Property]:
         stmt = _listed(select(PropertyModel), company_id, status=status, search=search, tag_id=tag_id)
-        stmt = stmt.order_by(PropertyModel.created_at.desc()).offset(offset).limit(limit)
+        # The chessboard's order (get_gantt_data): the placed flats by their place, then the rest by name.
+        stmt = stmt.order_by(
+            PropertyModel.position.is_(None), PropertyModel.position, PropertyModel.internal_name, PropertyModel.id
+        )
+        stmt = stmt.offset(offset).limit(limit)
         result = await self._session.scalars(stmt)
         return [_model_to_property(m) for m in result.all()]
 
@@ -323,6 +340,15 @@ class SqlPropertyRepository(PropertyRepository):
         await self._session.flush()
         result = await self._session.get(PropertyModel, prop.id)
         return _model_to_property(result)  # type: ignore[arg-type]
+
+    async def set_positions(self, company_id: uuid.UUID, positions: dict[uuid.UUID, int]) -> None:
+        # One statement over all the company's flats: two orders saved at once leave
+        # one of them whole, never a mix, and no card is written back.
+        place = case(positions, value=PropertyModel.id, else_=None) if positions else None
+        await self._session.execute(
+            update(PropertyModel).where(PropertyModel.company_id == company_id).values(position=place)
+        )
+        await self._session.flush()
 
     async def exists_internal_name(
         self,
@@ -393,6 +419,8 @@ class SqlPropertyPhotoRepository(PropertyPhotoRepository):
             is_cover=photo.is_cover,
             caption=photo.caption,
             audience=photo.audience.value,
+            kind=photo.kind.value,
+            section=photo.section.value,
         )
         self._session.add(model)
         await self._session.flush()
@@ -407,6 +435,15 @@ class SqlPropertyPhotoRepository(PropertyPhotoRepository):
     async def set_caption(self, photo_id: uuid.UUID, caption: str | None) -> None:
         await self._session.execute(
             update(PropertyPhotoModel).where(PropertyPhotoModel.id == photo_id).values(caption=caption)
+        )
+        await self._session.flush()
+
+    async def set_cover(self, property_id: uuid.UUID, photo_id: uuid.UUID) -> None:
+        # One UPDATE: the flat never has two covers, nor none, between two writes.
+        await self._session.execute(
+            update(PropertyPhotoModel)
+            .where(PropertyPhotoModel.property_id == property_id)
+            .values(is_cover=PropertyPhotoModel.id == photo_id)
         )
         await self._session.flush()
 
@@ -653,6 +690,18 @@ class SqlSeasonalPriceRepository(SeasonalPriceRepository):
             price_per_night=float(price.price_per_night),
         )
         self._session.add(model)
+        await self._session.flush()
+        await self._session.refresh(model)
+        return _model_to_seasonal(model)
+
+    async def update(self, price: SeasonalPrice) -> SeasonalPrice:
+        model = await self._session.get(SeasonalPriceModel, price.id)
+        if model is None:
+            raise ValueError("Seasonal price not found")
+        model.name = price.name
+        model.start_date = price.start_date
+        model.end_date = price.end_date
+        model.price_per_night = float(price.price_per_night)
         await self._session.flush()
         await self._session.refresh(model)
         return _model_to_seasonal(model)

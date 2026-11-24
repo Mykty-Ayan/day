@@ -79,6 +79,9 @@ class FakeAnalyticsRepository(AnalyticsRepository):
     ) -> list[TimeSeriesPoint]:
         return self._time_series
 
+    async def get_payments_summary(self, *args, **kwargs):
+        raise NotImplementedError("the services under test read no payments")
+
 
 COMPANY_ID = uuid.UUID("00000000-0000-0000-0000-000000000001")
 PROPERTY_ID = uuid.UUID("00000000-0000-0000-0000-0000000000aa")
@@ -469,7 +472,7 @@ class TestRecordedExpenses:
         flats = [PropertyMetrics(property_id=PROPERTY_ID, revenue=Decimal("100000"), commission=Decimal("3000"))]
         svc = CalculateMetricsService(FakeAnalyticsRepository(metrics=flats), FakePropertyCostsRepository(), journal)
         result = await svc.execute(CalculateMetricsInput(
-            company_id=COMPANY_ID, date_from=date(2025, 1, 1), date_to=date(2025, 2, 1), source="airbnb"))
+            company_id=COMPANY_ID, date_from=date(2025, 1, 1), date_to=date(2025, 2, 1), source=["airbnb"]))
         assert result.summary.total_recorded_expenses == Decimal("0")
         assert result.summary.total_profit == Decimal("97000")
 
@@ -676,3 +679,61 @@ class TestCostsReachTheReport:
         assert result.summary.total_fixed_costs == result.properties[0].fixed_costs
         assert result.summary.total_variable_costs == result.properties[0].variable_costs
         assert result.summary.total_profit == result.properties[0].profit
+
+
+# ---------- Where the money came from and where it went ----------
+
+
+class TestBreakdown:
+    @pytest.mark.asyncio
+    async def test_the_sources_of_all_flats_add_up(self):
+        from app.domain.analytics.entities import SourceTotals
+
+        other = uuid.uuid4()
+        flats = [
+            PropertyMetrics(
+                property_id=PROPERTY_ID,
+                revenue=Decimal("300"),
+                by_source={
+                    "direct": SourceTotals(Decimal("100"), Decimal("0"), 1),
+                    "airbnb": SourceTotals(Decimal("200"), Decimal("6"), 2),
+                },
+            ),
+            PropertyMetrics(
+                property_id=other,
+                revenue=Decimal("50"),
+                by_source={"airbnb": SourceTotals(Decimal("50"), Decimal("1.5"), 1)},
+            ),
+        ]
+        svc = CalculateMetricsService(FakeAnalyticsRepository(metrics=flats), FakePropertyCostsRepository())
+        result = await svc.execute(
+            CalculateMetricsInput(company_id=COMPANY_ID, date_from=date(2025, 1, 1), date_to=date(2025, 2, 1))
+        )
+        assert result.summary.by_source["airbnb"] == SourceTotals(Decimal("250"), Decimal("7.5"), 3)
+        assert result.summary.by_source["direct"] == SourceTotals(Decimal("100"), Decimal("0"), 1)
+
+    @pytest.mark.asyncio
+    async def test_expenses_by_category_are_the_ones_the_total_takes(self):
+        rent = _expense("20000", date(2025, 1, 5), PROPERTY_ID)
+        rent.category = ExpenseCategory.RENT
+        internet = _expense("5000", date(2025, 1, 10))  # the whole company's
+        internet.category = ExpenseCategory.INTERNET
+        commission = _expense("3000", date(2025, 1, 5), PROPERTY_ID)
+        commission.category = ExpenseCategory.PLATFORM_COMMISSION
+        cleaning = _expense("1000", date(2025, 1, 6), PROPERTY_ID)
+        cleaning.category = ExpenseCategory.CLEANING
+        cleaning_too = _expense("500", date(2025, 1, 7), PROPERTY_ID)
+        cleaning_too.category = ExpenseCategory.CLEANING
+
+        result, _ = await _metrics_with_journal(rent, internet, commission, cleaning, cleaning_too)
+        # The platform's commission is Day's own figure: not a category of the journal's.
+        assert result.summary.expenses_by_category == {
+            "rent": Decimal("20000"),
+            "internet": Decimal("5000"),
+            "cleaning": Decimal("1500"),
+        }
+        assert sum(result.summary.expenses_by_category.values()) == result.summary.total_recorded_expenses
+
+        # Chosen flats: the company's internet is not theirs.
+        chosen, _ = await _metrics_with_journal(rent, internet, property_ids=[PROPERTY_ID])
+        assert chosen.summary.expenses_by_category == {"rent": Decimal("20000")}

@@ -9,7 +9,7 @@ import { test, expect } from '../fixtures/e2e-auth'
 import { createTestProperty, API_BASE } from '../fixtures/test-data'
 
 function pricingCard(page: Page): Locator {
-  return page.locator('div.rounded-xl', { has: page.getByRole('heading', { name: 'Pricing', exact: true }) }).last()
+  return page.getByRole('region', { name: 'Pricing', exact: true })
 }
 
 test.describe('Hourly tariffs', () => {
@@ -28,9 +28,9 @@ test.describe('Hourly tariffs', () => {
     await page.goto(`/properties/${id}`)
     const card = pricingCard(page)
     await expect(card.getByRole('heading', { name: 'Hourly tariffs' })).toBeVisible()
-    await card.getByRole('spinbutton', { name: '3 hours, Sun–Thu' }).fill('8000')
-    await card.getByRole('spinbutton', { name: '3 hours, Fri–Sat' }).fill('10000')
-    await card.getByRole('spinbutton', { name: 'Night, Sun–Thu' }).fill('15000')
+    await card.getByRole('spinbutton', { name: '3 hours, Weekdays' }).fill('8000')
+    await card.getByRole('spinbutton', { name: '3 hours, Weekend' }).fill('10000')
+    await card.getByRole('spinbutton', { name: 'Night, Weekdays' }).fill('15000')
     await card.getByRole('button', { name: 'Save Pricing' }).click()
     await expect(page.getByText('Pricing saved')).toBeVisible()
 
@@ -56,11 +56,27 @@ test.describe('Hourly tariffs', () => {
     created.push(...ids)
 
     await page.goto(`/properties/${ids[0]}`)
-    await pricingCard(page).getByRole('button', { name: 'Apply tariffs to all flats' }).click()
+    await pricingCard(page).getByRole('button', { name: 'Apply tariffs to all properties' }).click()
     await page.getByRole('button', { name: 'Apply', exact: true }).click()
-    await expect(page.getByText('Tariffs applied. Flats changed: 1')).toBeVisible()
+    await expect(page.getByText('Tariffs applied. Properties changed: 1')).toBeVisible()
 
     const other = (await (await request.get(`${API_BASE}/properties/${ids[1]}`)).json()).pricing
     expect([other.base_price, other.price_6h]).toEqual([23000, 10000])
   })
+})
+
+test('a price typed and not saved survives a look at another tab', async ({ page, request }) => {
+  const created = await request.post(`${API_BASE}/properties`, { data: createTestProperty() })
+  const { id } = await created.json()
+  try {
+    await page.goto(`/properties/${id}?tab=prices`)
+    // A flat let by the night: its base price is the field at hand.
+    const field = pricingCard(page).getByText('Base Price', { exact: true }).locator('xpath=following-sibling::div[1]//input')
+    await field.fill('8500')
+    await page.getByRole('tab', { name: 'Closed dates' }).click()
+    await page.getByRole('tab', { name: 'Pricing' }).click()
+    await expect(field).toHaveValue('8500')
+  } finally {
+    await request.delete(`${API_BASE}/properties/${id}`)
+  }
 })

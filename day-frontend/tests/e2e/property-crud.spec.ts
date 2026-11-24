@@ -1,6 +1,6 @@
 import { test, expect } from '../fixtures/e2e-auth'
-import { createTestProperty, API_BASE } from '../fixtures/test-data'
-import { wizardField as field, nextStep as next } from '../fixtures/property-ui'
+import { createTestProperty, createTestPricing, createTestBooking, futureDate, API_BASE } from '../fixtures/test-data'
+import { wizardField as field, nextStep as next, openBlock } from '../fixtures/property-ui'
 
 test.describe('Property CRUD - E2E', () => {
   let propertyIdsToCleanup: string[] = []
@@ -16,63 +16,51 @@ test.describe('Property CRUD - E2E', () => {
     propertyIdsToCleanup = []
   })
 
-  test('create property through multi-step form', async ({ page, request }) => {
+  test('a property is created in two steps, and its page opens on the prices', async ({ page, request }) => {
     const data = createTestProperty({ type: 'house' })
 
     // The wizard opens at /properties/new; /properties/create is read as a property id
     await page.goto('/properties/new')
 
-    // --- Basic Info ---
+    // --- Basics: the names and the type alone; the rest is on the property's page ---
+    await expect(page.getByText('Step 1 of 2')).toBeVisible()
     await field(page, 'Public Name').fill(data.name)
     await field(page, 'Internal Name').fill(data.internal_name)
     await page.getByRole('button', { name: 'House', exact: true }).click()
-    await field(page, 'Description').fill(data.description ?? '')
+    await expect(page.getByText('Description', { exact: true })).toHaveCount(0)
     await next(page, 'Address')
 
-    // --- Address ---
+    // --- Address, and what comes after it ---
     await field(page, 'Full Address').fill(data.address_full ?? '')
     await field(page, 'Floor').fill(String(data.floor))
-    await next(page, 'Details')
-
-    // --- Details ---
-    await field(page, 'Rooms').fill(String(data.rooms))
-    await field(page, 'Beds').fill(String(data.beds))
-    await next(page, 'Pricing')
-
-    // --- Pricing and Photos are optional ---
-    await next(page, 'Photos')
-    await next(page, 'Rules')
-
-    // --- Rules ---
-    await field(page, 'Check-in Instructions').fill(data.check_in_instructions ?? '')
-    await field(page, 'Check-out Instructions').fill(data.check_out_instructions ?? '')
-    await field(page, 'House Rules').fill(data.house_rules ?? '')
-    await next(page, 'Amenities')
-
-    // --- Last step: the button creates the property ---
+    await expect(page.getByText(/is not let until you press "Activate"/)).toBeVisible()
+    // A step passed opens again from its name, with what was typed.
+    await page.getByRole('button', { name: 'Basic Info' }).click()
+    await expect(field(page, 'Internal Name')).toHaveValue(data.internal_name)
+    await next(page, 'Address')
+    await expect(field(page, 'Full Address')).toHaveValue(data.address_full ?? '')
     await page.getByRole('button', { name: 'Create Property' }).click()
 
-    // Redirects to the page of the new property
+    // The page of the new property, on its prices, with what it still lacks
     await expect(page).toHaveURL(/\/properties\/[0-9a-f-]{36}$/)
-    await expect(page.getByRole('heading', { level: 1, name: data.name })).toBeVisible()
     const id = page.url().split('/').pop() as string
     propertyIdsToCleanup.push(id)
+    await expect(page.getByText(data.name, { exact: true }).first()).toBeVisible()
+    await expect(page.getByRole('tab', { name: 'Pricing' })).toHaveAttribute('aria-selected', 'true')
+    await expect(page.getByText(/^Property readiness: 1 of 8$/)).toBeVisible()
 
-    // Everything typed in the wizard reached the server
+    // What was typed reached the server; the property is new, not let yet
     const res = await request.get(`${API_BASE}/properties/${id}`)
     expect(res.ok()).toBeTruthy()
     expect(await res.json()).toMatchObject({
       name: data.name,
       internal_name: data.internal_name,
       type: 'house',
-      description: data.description,
+      status: 'new',
       address_full: data.address_full,
       floor: data.floor,
-      rooms: data.rooms,
-      beds: data.beds,
-      check_in_instructions: data.check_in_instructions,
-      check_out_instructions: data.check_out_instructions,
-      house_rules: data.house_rules,
+      // The usual turnover between hourly stays, set as the old wizard did; the owner may clear it.
+      buffer_minutes: 30,
     })
   })
 
@@ -102,27 +90,30 @@ test.describe('Property CRUD - E2E', () => {
     const created = await res.json()
     propertyIdsToCleanup.push(created.id)
 
-    // Navigate to property detail and open the edit wizard ("Edit" is a link)
+    // Each block opens by its pencil in a panel on the right; the page stays under it.
     await page.goto(`/properties/${created.id}`)
-    await page.getByRole('link', { name: 'Edit', exact: true }).click()
-
-    // Basic Info -> Address -> Details -> Rules: one field on each of four steps
-    await field(page, 'Public Name').fill('Updated Test Property')
-    await next(page, 'Address')
-    await field(page, 'Floor').fill('7')
-    await next(page, 'Details')
-    await field(page, 'Rooms').fill('4')
-    await next(page, 'Rules')
+    for (const [block, label, value] of [
+      ['Basics', 'Public Name', 'Updated Test Property'],
+      ['Address', 'Floor', '7'],
+      ['Details', 'Rooms', '4'],
+    ] as const) {
+      await openBlock(page, block)
+      await field(page, label).fill(value)
+      await page.getByRole('button', { name: 'Save', exact: true }).click()
+      await expect(page.getByRole('dialog')).toBeHidden()
+    }
+    await page.getByRole('tab', { name: 'About and rules' }).click()
+    await openBlock(page, 'Check-in and rules')
     await field(page, 'House Rules').fill('Quiet after 22:00')
+    await page.getByRole('button', { name: 'Save', exact: true }).click()
+    await expect(page.getByRole('dialog')).toBeHidden()
 
-    // Save
-    await page.getByRole('button', { name: 'Save Changes' }).click()
-
-    // Back on the property page with the new values
-    await expect(page).toHaveURL(new RegExp(`/properties/${created.id}$`))
-    await expect(page.getByRole('heading', { level: 1, name: 'Updated Test Property' })).toBeVisible()
+    // Still on the property page, now with the new values
+    await expect(page).toHaveURL(new RegExp(`/properties/${created.id}\\?tab=about$`))
+    // The heading is the flat's own name ("Kv. 28"); the guests' name is the line under it.
+    await expect(page.getByText('Updated Test Property', { exact: true }).first()).toBeVisible()
     await expect(page.getByText('Floor 7')).toBeVisible()
-    const rulesCard = page.locator('div.rounded-xl', { has: page.getByRole('heading', { name: 'Rules', exact: true }) }).last()
+    const rulesCard = page.getByRole('region', { name: 'Check-in and rules', exact: true })
     await expect(rulesCard.getByText('Quiet after 22:00')).toBeVisible()
 
     const saved = await (await request.get(`${API_BASE}/properties/${created.id}`)).json()
@@ -210,6 +201,83 @@ test.describe('Property CRUD - E2E', () => {
     // Validation errors appear and the wizard stays on the first step
     await expect(page.getByText('Name is required', { exact: true })).toBeVisible()
     await expect(page.getByText('Internal name is required', { exact: true })).toBeVisible()
-    await expect(page.getByText('Step 1 of 7')).toBeVisible()
+    await expect(page.getByText('Step 1 of 2')).toBeVisible()
+  })
+
+  test('the flat page says who is in now and what the flat still lacks', async ({ page, request }) => {
+    const prop = await (await request.post(`${API_BASE}/properties`, { data: createTestProperty() })).json()
+    propertyIdsToCleanup.push(prop.id)
+    await request.post(`${API_BASE}/properties/${prop.id}/status`, { data: { status: 'active' } })
+    await request.put(`${API_BASE}/properties/${prop.id}/pricing`, { data: createTestPricing() })
+
+    await page.goto(`/properties/${prop.id}`)
+    await expect(page.getByText('Free', { exact: true })).toBeVisible()
+    const ready = page.getByRole('region', { name: /^Property readiness/ })
+    await expect(ready).toBeVisible()
+    // A missing item opens the panel where it is filled in.
+    await ready.getByRole('button', { name: '+ Amenities' }).click()
+    await expect(page.getByRole('dialog', { name: 'Amenities', exact: true })).toBeVisible()
+  })
+
+  for (const screen of [
+    { name: 'a laptop', width: 1280, height: 500 },
+    { name: 'a phone, under the app bar', width: 390, height: 600 },
+  ]) {
+    test(`a missing photo or price brings its tab into view on ${screen.name}`, async ({ page, request }) => {
+      const prop = await (await request.post(`${API_BASE}/properties`, { data: createTestProperty() })).json()
+      propertyIdsToCleanup.push(prop.id)
+      await request.post(`${API_BASE}/properties/${prop.id}/status`, { data: { status: 'active' } })
+
+      await page.setViewportSize({ width: screen.width, height: screen.height })
+      // No smooth scroll: where the tab ends up, not where it passes by.
+      await page.emulateMedia({ reducedMotion: 'reduce' })
+      await page.goto(`/properties/${prop.id}?tab=prices`)
+      const ready = page.getByRole('region', { name: /^Property readiness/ })
+      const add = ready.getByRole('button', { name: /^\+ 3\+ photos/i })
+      const photosTab = page.getByRole('tab', { name: /^Photos/ })
+      // The button at the bottom of the screen, the tabs just below it: what the owner sees.
+      await add.evaluate((button) => button.scrollIntoView({ block: 'end' }))
+      await expect(photosTab).not.toBeInViewport()
+
+      await add.click()
+      await expect(photosTab).toHaveAttribute('aria-selected', 'true')
+      await expect(photosTab).toBeInViewport({ ratio: 1 })
+      // Not under the app's bar that stays on top of a phone's screen.
+      const bar = page.locator('header.sticky')
+      const covered = (await bar.count()) ? (await bar.boundingBox())!.y + (await bar.boundingBox())!.height : 0
+      expect((await photosTab.boundingBox())!.y).toBeGreaterThanOrEqual(covered)
+    })
+  }
+
+  test('a guest kept past yesterday\'s checkout still lives in the flat', async ({ page, request }) => {
+    const prop = await (await request.post(`${API_BASE}/properties`, { data: createTestProperty() })).json()
+    propertyIdsToCleanup.push(prop.id)
+    await request.post(`${API_BASE}/properties/${prop.id}/status`, { data: { status: 'active' } })
+    await request.put(`${API_BASE}/properties/${prop.id}/pricing`, { data: createTestPricing() })
+    const booking = createTestBooking(prop.id, { check_in: futureDate(-3), check_out: futureDate(-1) })
+    const created = await request.post(`${API_BASE}/bookings`, { data: booking })
+    expect(created.ok(), `create: ${created.status()}`).toBeTruthy()
+    const { id } = await created.json()
+    for (const status of ['confirmed', 'checked_in']) {
+      const res = await request.post(`${API_BASE}/bookings/${id}/status`, { data: { status } })
+      expect(res.ok(), `status ${status}: ${res.status()}`).toBeTruthy()
+    }
+
+    await page.goto(`/properties/${prop.id}`)
+    await expect(page.getByRole('link', { name: new RegExp(booking.guest_name) })).toBeVisible()
+    await expect(page.getByText('Free', { exact: true })).toHaveCount(0)
+  })
+
+  test('the next check-in is found past the month the occupancy counts', async ({ page, request }) => {
+    const prop = await (await request.post(`${API_BASE}/properties`, { data: createTestProperty() })).json()
+    propertyIdsToCleanup.push(prop.id)
+    await request.post(`${API_BASE}/properties/${prop.id}/status`, { data: { status: 'active' } })
+    await request.put(`${API_BASE}/properties/${prop.id}/pricing`, { data: createTestPricing() })
+    const booking = createTestBooking(prop.id, { check_in: futureDate(40), check_out: futureDate(42) })
+    const created = await request.post(`${API_BASE}/bookings`, { data: booking })
+    expect(created.ok()).toBeTruthy()
+
+    await page.goto(`/properties/${prop.id}`)
+    await expect(page.getByRole('link', { name: new RegExp(booking.guest_name) })).toBeVisible()
   })
 })

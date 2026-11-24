@@ -95,7 +95,7 @@ class FakeBlacklist(BlacklistRepository):
             (x for x in self.rows if x.company_id == company_id and x.phone == phone), None
         )
 
-    async def list_all(self, company_id, limit=200):
+    async def list_all(self, company_id, limit=200, search=None):
         return [x for x in self.rows if x.company_id == company_id]
 
     async def remove(self, company_id, entry_id) -> bool:

@@ -546,6 +546,28 @@ test.describe('Booking API - Gantt Data', () => {
   })
 })
 
+test.describe('Booking API - Date filter', () => {
+  test('GET /bookings - date_to keeps a stay arriving that afternoon', async ({
+    api,
+    createActivePropertyWithPricing,
+    createBooking,
+  }) => {
+    const prop = await createActivePropertyWithPricing()
+    const arrival = futureDate(40)
+    const booking = await createBooking(prop.id, { check_in: arrival, check_out: futureDate(41) })
+
+    const listed = async (dateTo: string) => {
+      const res = await api.get(`/bookings?property_id=${prop.id}&date_to=${dateTo}`)
+      expect(res.ok()).toBeTruthy()
+      const body = await res.json()
+      return body.items.map((b: { id: string }) => b.id)
+    }
+
+    expect(await listed(arrival)).toContain(booking.id)
+    expect(await listed(futureDate(39))).not.toContain(booking.id)
+  })
+})
+
 test.describe('Booking API - Today', () => {
   test('GET /bookings/today - returns check_ins and check_outs arrays', async ({
     api,

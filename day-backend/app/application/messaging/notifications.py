@@ -43,7 +43,7 @@ _BOOKING_EVENTS = {
 
 
 # Addressed to one person, a cleaner included, not to everyone who reads bookings.
-_PERSONAL_EVENTS = {NotificationEvent.CLEANING_ASSIGNED}
+_PERSONAL_EVENTS = {NotificationEvent.CLEANING_ASSIGNED, NotificationEvent.CLEANING_MOVED}
 
 _CLEANING_TYPES = {
     "post_checkout": "после выезда",
@@ -133,7 +133,10 @@ def render(event: NotificationEvent, payload: dict) -> str:
                 " иначе бронь снимется сама.",
             ]
         else:
-            lines += ["", f"Залог у квартиры не задан: подтвердите бронь в карточке до {until}, иначе она снимется."]
+            lines += ["", f"Залог у объекта не задан: подтвердите бронь в карточке до {until}, иначе она снимется."]
+        if payload.get("source") == "site":
+            # The flat's page gives the guest no link to the booking page: the host sends it.
+            lines.append("Отправьте гостю ссылку на страницу брони из карточки брони.")
         return "\n".join(lines)
 
     if event == NotificationEvent.GUEST_CHECKED_OUT:
@@ -144,7 +147,7 @@ def render(event: NotificationEvent, payload: dict) -> str:
         ]
         if payload.get("cleaning_created"):
             lines.append("Создана задача уборки.")
-        lines.append("Проверьте квартиру и отметьте выезд в карточке брони.")
+        lines.append("Проверьте объект и отметьте выезд в карточке брони.")
         return "\n".join(lines)
     if event == NotificationEvent.GUEST_ORDER_CANCELLED:
         return "\n".join(
@@ -177,10 +180,10 @@ def render(event: NotificationEvent, payload: dict) -> str:
             ]
         )
 
-    if event == NotificationEvent.CLEANING_ASSIGNED:
+    if event in _PERSONAL_EVENTS:
         when = " ".join(part for part in (payload.get("date"), payload.get("time")) if part) or "дата не указана"
         lines = [
-            "🧹 <b>Новая уборка</b>",
+            "🧹 <b>Уборка перенесена</b>" if event == NotificationEvent.CLEANING_MOVED else "🧹 <b>Новая уборка</b>",
             f"Объект: {payload.get('property_name', '—')}",
             f"Когда: {when}",
         ]
@@ -333,7 +336,7 @@ class NotificationDispatcher:
         order_id = notification.payload.get("order_id")
         if not (self._mini_app_url or "").startswith("https://") or not notification.target.isdigit():
             return None
-        if notification.event == NotificationEvent.CLEANING_ASSIGNED:
+        if notification.event in _PERSONAL_EVENTS:
             # A cleaner's Mini App opens on their cleanings.
             return [AppButton("Мои уборки", self._mini_app_url)]
         if notification.event in (NotificationEvent.GUEST_ORDER, NotificationEvent.GUEST_ORDER_CANCELLED) and order_id:

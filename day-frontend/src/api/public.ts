@@ -4,6 +4,7 @@
 import axios from 'axios'
 import apiClient from './client'
 import type { PublicNight } from '../lib/public-stay'
+import type { NearbyPlace } from '../types/property'
 
 const publicClient = axios.create({ baseURL: apiClient.defaults.baseURL, timeout: 20_000 })
 
@@ -25,6 +26,8 @@ export interface PublicStay {
   check_out_hour: number | null
   check_in_method: string | null
   house_rules: string | null
+  /** Shops, a park, the airport and how far: the place without the address. */
+  nearby?: NearbyPlace[]
   min_nights: number | null
   photos: string[]
   amenities: { name: string; category: string }[]
@@ -36,6 +39,8 @@ export interface PublicStay {
     /** Out after late_from only the night is sold, out by night_to. */
     late_from?: string | null
     night_to?: string | null
+    /** The nights the weekend prices are for, Monday 0 (Friday 4, Saturday 5, Sunday 6). */
+    weekend_nights?: number[]
     deposit: number | null
     hour_deposit: number | null
   }
@@ -64,11 +69,15 @@ export interface PublicOfferFlat {
   /** The stay for the link's dates and guests, as a booking counts it; null when the flat has no price. */
   total: number | null
   free: boolean
+  /** The deposit a booking from the link asks; null when the flat has none. */
+  deposit?: number | null
 }
 
 /** The link's booking: which flat, until when the dates are held, the deposit to
  *  pay and the masked number the Kaspi invoice goes to. */
 export interface PublicOfferBooking {
+  /** The guest's own booking page, /g/<code>: only right after booking. */
+  guest_code?: string | null
   flat: string
   /** pending: waiting for the deposit; confirmed: the dates are the guest's. */
   status: 'pending' | 'confirmed' | 'checked_in' | 'checked_out' | 'completed'
@@ -96,6 +105,8 @@ export interface PublicOffer {
   guests: number
   flats: PublicOfferFlat[]
   booking: PublicOfferBooking | null
+  /** Who sent the link, once the company has set up its site. */
+  company?: { title: string; logo_url: string | null } | null
 }
 
 export async function getPublicOffer(code: string): Promise<PublicOffer> {
@@ -124,11 +135,20 @@ export interface PublicCompanyFlat {
   photo: string | null
   night_price: number | null
   hour_price: number | null
+  /** The first free night from today (60 days at most); null when taken all that time or let by the hour. */
+  free_from?: string | null
+  /** How many photos the flat's page has. */
+  photos?: number
+  /** Only for a search by dates: free for all the nights, and what they cost together. */
+  stay_free?: boolean | null
+  stay_total?: number | null
 }
 
 export interface PublicCompany {
   slug: string
   title: string
+  /** The big line on top; the title then sits by the logo. */
+  tagline?: string | null
   about: string | null
   logo_url: string | null
   cover_url: string | null
@@ -138,10 +158,32 @@ export interface PublicCompany {
   instagram: string | null
   rules: string[]
   flats: PublicCompanyFlat[]
+  /** The company's own day: a flat free from it is free tonight. */
+  today?: string | null
 }
 
-export async function getPublicCompany(slug: string): Promise<PublicCompany> {
-  const res = await publicClient.get(`/public/companies/${encodeURIComponent(slug)}`)
+export async function getPublicCompany(
+  slug: string,
+  dates?: { checkIn: string; checkOut: string; guests: number },
+): Promise<PublicCompany> {
+  const res = await publicClient.get(`/public/companies/${encodeURIComponent(slug)}`, {
+    params: dates ? { check_in: dates.checkIn, check_out: dates.checkOut, guests: dates.guests } : undefined,
+  })
+  return res.data
+}
+
+/** What a stay by the night costs for these guests, as the booking will count it. */
+export interface StayQuote {
+  nights: number
+  total: number
+  extra_guests: number
+  discount: number
+}
+
+export async function getStayQuote(code: string, checkIn: string, checkOut: string, guests: number): Promise<StayQuote> {
+  const res = await publicClient.get(`/public/stays/${encodeURIComponent(code)}/quote`, {
+    params: { check_in: checkIn, check_out: checkOut, guests },
+  })
   return res.data
 }
 
@@ -155,10 +197,15 @@ export async function bookStay(
 }
 
 /** A guest's own page for their booking (/g/<code>). */
+/** A check-in photo or video on the guest's booking page. */
+export type GuestMedia = { url: string; caption: string | null; kind?: 'photo' | 'video' }
+
 export interface GuestPanel {
   closed: boolean
   /** The company's own day, YYYY-MM-DD: which buttons fit the stay. */
   today: string
+  /** The company's wall clock at the answer, no zone: the countdown runs on it. */
+  now?: string | null
   company: { title: string; logo_url: string | null; accent_color: string | null; whatsapp: string | null } | null
   guest_name: string | null
   booking: {
@@ -172,22 +219,53 @@ export interface GuestPanel {
     /** Minibar orders owed with the stay, by the server's one rule; part of remaining. */
     orders_due?: number
     remaining: number
+    /** The day the next guest arrives after this stay; null when nobody is in sight. */
+    free_until?: string | null
+  } | null
+  /** The stay's deposit: the amount and what became of it, never the owner's reason. */
+  deposit?: {
+    amount: number
+    status: 'pending' | 'paid' | 'returned' | 'held' | 'partially_held'
+    held: number
+    /** What was kept, line by line, with the photos of it (links that expire). */
+    deductions?: { amount: number; reason: string; photos: string[] }[]
   } | null
   flat: {
     name: string
+    /** The flat's own page: /s/<code>. */
+    code?: string | null
     /** The listing's cover; null when the flat has no public photo. */
     photo_url?: string | null
     address: string | null
     latitude: number | null
     longitude: number | null
     map_url: string | null
+    complex_name?: string | null
+    floor?: number | null
     check_in_hour: number | null
     check_out_hour: number | null
     house_rules: string | null
     check_out_instructions: string | null
+    nearby?: NearbyPlace[]
   } | null
   /** Only for a confirmed or checked-in stay paid in full: the server decides. */
-  access: { instructions: string | null; wifi_name: string | null; wifi_password: string | null; facts: string[] } | null
+  access: {
+    instructions: string | null
+    wifi_name: string | null
+    wifi_password: string | null
+    facts: string[]
+    /** The path to the door: the flat's check-in photos and videos with the owner's words, in order. */
+    photos?: GuestMedia[]
+    /** Beside the door code: how the lock opens. */
+    door?: GuestMedia[]
+    /** How to use the things in the flat: the air conditioner, the stove. */
+    howto?: GuestMedia[]
+    entrance?: string | null
+    block?: string | null
+    apartment_number?: string | null
+  } | null
+  /** A later check-out the flat sells, while nobody comes that day; the button only asks without it. */
+  late_check_out?: { until_hour: number; price: number | null } | null
   /** Hours before check-in the way in opens, once the stay is paid. */
   lead_hours: number
   /** The minibar during the stay; null outside it. */

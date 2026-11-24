@@ -110,7 +110,7 @@ test.describe('Cleaner Dashboard - E2E', () => {
     await expect(page.getByText(prop.name as string).first()).toBeVisible({ timeout: 5000 })
   })
 
-  test('task cards show property info', async ({ page, request, isMobile }) => {
+  test('task cards show property info', async ({ page, request }) => {
     const prop = await setupActiveProperty(request)
     await createAssignedTask(request, prop.id)
 
@@ -120,13 +120,10 @@ test.describe('Cleaner Dashboard - E2E', () => {
     // Should show property name
     await expect(page.getByText(prop.name as string).first()).toBeVisible({ timeout: 5000 })
 
-    // A phone shows cards, not the table.
-    if (isMobile) return
-
-    // Row should include non-empty type cell
-    const firstTypeCell = page.locator('tbody tr').first().locator('td').nth(1)
-    await expect(firstTypeCell).toBeVisible({ timeout: 5000 })
-    await expect(firstTypeCell).not.toHaveText(/^\s*$/)
+    // The task's row names its kind and status, on a phone and a wide screen alike.
+    const row = page.getByRole('button', { name: prop.internal_name as string })
+    await expect(row).toContainText(/Post Checkout|Mid Stay|On Demand/)
+    await expect(row).toContainText(/Pending|Assigned|In Progress|Done|Verified/)
   })
 
   test('open task - checklist appears', async ({ page, request }) => {

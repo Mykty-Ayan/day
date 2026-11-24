@@ -31,3 +31,14 @@ export async function updateAgent(id: string, data: AgentInput): Promise<Agent> 
   const res = await apiClient.patch<Agent>(`/agents/${id}`, data)
   return res.data
 }
+
+/** What an agent brought: the bookings naming them, cancelled ones aside, and their sum. */
+export interface AgentTotals {
+  agent_id: string
+  bookings: number
+  total: number
+}
+
+export async function listAgentTotals(): Promise<AgentTotals[]> {
+  return (await apiClient.get<AgentTotals[]>('/agents/totals')).data
+}

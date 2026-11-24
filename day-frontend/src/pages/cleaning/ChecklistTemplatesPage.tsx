@@ -1,11 +1,13 @@
 import { AnimatePresence, motion } from 'framer-motion'
-import { Check, ClipboardList, GripVertical, Pencil, Plus, Trash2, X } from 'lucide-react'
+import { Check, GripVertical, Pencil, Plus, Trash2, X } from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { intlLocale } from '../miniapp/format'
 import { parseApiDateTime } from '../../utils/date-time'
 
 import Button from '../../components/ui/Button'
 import { showToast } from '../../components/ui/Toast'
+import { errorText } from '../miniapp/errors'
 import {
   useAddChecklistItem,
   useChecklistTemplate,
@@ -20,7 +22,7 @@ import {
 import type { ChecklistItem } from '../../types/cleaning'
 
 export default function ChecklistTemplatesPage() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const { data: templates, isLoading } = useChecklistTemplates()
   const createMutation = useCreateChecklistTemplate()
   const deleteMutation = useDeleteChecklistTemplate()
@@ -41,7 +43,7 @@ export default function ChecklistTemplatesPage() {
           setNewName('')
           setShowCreate(false)
         },
-        onError: (err: Error) => showToast('error', err.message),
+        onError: (err: Error) => showToast('error', errorText(err, t('checklists.failed'), t)),
       },
     )
   }
@@ -52,7 +54,7 @@ export default function ChecklistTemplatesPage() {
         showToast('success', t('checklists.templateDeleted'))
         if (selectedId === id) setSelectedId(null)
       },
-      onError: (err: Error) => showToast('error', err.message),
+      onError: (err: Error) => showToast('error', errorText(err, t('checklists.failed'), t)),
     })
   }
 
@@ -84,7 +86,7 @@ export default function ChecklistTemplatesPage() {
           cancelTemplateEdit()
         },
         onError: (err: Error) => {
-          showToast('error', err.message)
+          showToast('error', errorText(err, t('checklists.failed'), t))
         },
       },
     )
@@ -97,27 +99,29 @@ export default function ChecklistTemplatesPage() {
       transition={{ duration: 0.4 }}
       className="w-full max-w-[1180px] mx-auto px-4 py-4 sm:px-6 sm:py-6"
     >
-      <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex min-w-0 items-center gap-3">
-          <ClipboardList className="w-6 h-6 text-gray-400" />
-          <h1 className="text-2xl font-bold text-gray-900">
-            {t('checklists.title')}
-          </h1>
-        </div>
-        <Button
+      <div className="mb-5 flex items-center justify-between gap-3">
+        <h1 className="text-xl font-bold text-ink">
+          {t('checklists.title')}
+          {templates && templates.length > 0 && (
+            <span className="ml-2 font-semibold tabular-nums text-ink-muted">{templates.length}</span>
+          )}
+        </h1>
+        <button
+          type="button"
           onClick={() => setShowCreate(!showCreate)}
-          className="inline-flex min-h-[44px] items-center gap-1 self-start whitespace-nowrap sm:self-auto"
+          aria-expanded={showCreate}
+          className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-xl border border-line bg-surface-card px-3.5 text-sm font-semibold text-ink transition-colors hover:bg-surface-page"
         >
-          <Plus className="w-4 h-4 mr-1" />
+          <Plus className="h-4 w-4" aria-hidden="true" />
           {t('checklists.newTemplate')}
-        </Button>
+        </button>
       </div>
 
       {showCreate && (
         <motion.div
           initial={{ opacity: 0, height: 0 }}
           animate={{ opacity: 1, height: 'auto' }}
-          className="bg-white rounded-2xl border border-gray-200 p-4 mb-6"
+          className="bg-surface-card rounded-2xl border border-line p-4 mb-6"
         >
           <div className="flex flex-col gap-3 sm:flex-row">
             <input
@@ -125,7 +129,7 @@ export default function ChecklistTemplatesPage() {
               placeholder={t('checklists.templateName')}
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
-              className="flex-1 bg-gray-50 border border-gray-200 rounded-xl p-3 outline-none focus:ring-2 focus:ring-black/10 text-sm"
+              className="min-h-[44px] flex-1 rounded-xl border border-line bg-surface-card px-3 text-sm outline-none focus:border-accent"
               onKeyDown={(e) => e.key === 'Enter' && handleCreate()}
             />
             <Button
@@ -143,9 +147,9 @@ export default function ChecklistTemplatesPage() {
         {/* Template List */}
         <div className="min-w-0 space-y-3 xl:w-[540px]">
           {isLoading ? (
-            <div className="text-center py-8 text-gray-400">{t('common.loading')}</div>
+            <div className="text-center py-8 text-ink-muted">{t('common.loading')}</div>
           ) : !templates?.length ? (
-            <div className="text-center py-8 text-gray-400">
+            <div className="rounded-2xl border border-dashed border-line px-5 py-10 text-center text-sm text-ink-muted">
               {t('checklists.noTemplates')}
             </div>
           ) : (
@@ -154,10 +158,10 @@ export default function ChecklistTemplatesPage() {
                 key={tmpl.id}
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                className={`bg-white rounded-xl border p-4 cursor-pointer transition-all ${
+                className={`bg-surface-card rounded-xl border p-4 cursor-pointer transition-all ${
                   selectedId === tmpl.id
-                    ? 'border-black shadow-sm'
-                    : 'border-gray-200 hover:border-gray-300'
+                    ? 'border-accent bg-accent-soft'
+                    : 'border-line hover:border-ink-muted/40'
                 }`}
                 onClick={() => setSelectedId(tmpl.id)}
               >
@@ -178,7 +182,7 @@ export default function ChecklistTemplatesPage() {
                           cancelTemplateEdit()
                         }
                       }}
-                      className="min-w-0 flex-1 rounded-lg border border-gray-300 bg-white px-2 py-1 text-sm outline-none focus:ring-2 focus:ring-black/10"
+                      className="min-w-0 flex-1 rounded-lg border border-line bg-surface-card px-2 py-1 text-sm outline-none focus:border-accent"
                     />
                   ) : (
                     <span
@@ -201,8 +205,8 @@ export default function ChecklistTemplatesPage() {
                             submitTemplateEdit(tmpl.id, tmpl.name)
                           }}
                           disabled={updateTemplateMutation.isPending}
-                          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-gray-400 transition-colors hover:bg-emerald-50 hover:text-emerald-600 disabled:opacity-50"
-                          aria-label="Save template name"
+                          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-ink-muted transition-colors hover:bg-success-soft hover:text-success disabled:opacity-50"
+                          aria-label={t('checklists.saveName')}
                         >
                           <Check className="w-4 h-4" />
                         </button>
@@ -211,8 +215,8 @@ export default function ChecklistTemplatesPage() {
                             e.stopPropagation()
                             cancelTemplateEdit()
                           }}
-                          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700"
-                          aria-label="Cancel editing template name"
+                          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-ink-muted transition-colors hover:bg-surface-page hover:text-ink"
+                          aria-label={t('checklists.cancelName')}
                         >
                           <X className="w-4 h-4" />
                         </button>
@@ -223,8 +227,8 @@ export default function ChecklistTemplatesPage() {
                           e.stopPropagation()
                           startTemplateEdit(tmpl.id, tmpl.name)
                         }}
-                        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-gray-300 transition-colors hover:bg-gray-100 hover:text-gray-700"
-                        aria-label="Edit template name"
+                        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-ink-muted/60 transition-colors hover:bg-surface-page hover:text-ink"
+                        aria-label={t('checklists.editName')}
                       >
                         <Pencil className="w-4 h-4" />
                       </button>
@@ -234,15 +238,15 @@ export default function ChecklistTemplatesPage() {
                         e.stopPropagation()
                         handleDelete(tmpl.id)
                       }}
-                      className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-gray-300 transition-colors hover:bg-red-50 hover:text-red-500"
-                      aria-label="Delete template"
+                      className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-ink-muted/60 transition-colors hover:bg-danger/10 hover:text-danger"
+                      aria-label={t('checklists.deleteTemplate')}
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
                   </div>
                 </div>
-                <p className="text-xs text-gray-400 mt-1">
-                  {t('checklists.created', { date: parseApiDateTime(tmpl.created_at).toLocaleDateString() })}
+                <p className="text-xs text-ink-muted mt-1">
+                  {t('checklists.created', { date: parseApiDateTime(tmpl.created_at).toLocaleDateString(intlLocale(i18n.language)) })}
                 </p>
               </motion.div>
             ))
@@ -289,12 +293,13 @@ function TemplateDetail({ templateId }: { templateId: string }) {
           setNewItemTitle('')
           showToast('success', t('checklists.itemAdded'))
         },
+        onError: (err: Error) => showToast('error', errorText(err, t('checklists.failed'), t)),
       },
     )
   }
 
   if (isLoading) {
-    return <div className="text-center py-8 text-gray-400">{t('common.loading')}</div>
+    return <div className="text-center py-8 text-ink-muted">{t('common.loading')}</div>
   }
 
   if (!data) return null
@@ -331,7 +336,7 @@ function TemplateDetail({ templateId }: { templateId: string }) {
     }
     reorderMutation.mutate(next.map((item) => item.id), {
       onError: (err: Error) => {
-        showToast('error', err.message)
+        showToast('error', errorText(err, t('checklists.failed'), t))
       },
     })
     setDraggingId(null)
@@ -368,15 +373,15 @@ function TemplateDetail({ templateId }: { templateId: string }) {
           cancelItemEdit()
         },
         onError: (err: Error) => {
-          showToast('error', err.message)
+          showToast('error', errorText(err, t('checklists.failed'), t))
         },
       },
     )
   }
 
   return (
-    <div className="w-full min-w-0 bg-white rounded-2xl border border-gray-200 p-4 sm:p-6">
-      <h2 className="text-lg font-semibold text-gray-900 mb-4 break-words">
+    <div className="w-full min-w-0 bg-surface-card rounded-2xl border border-line p-4 sm:p-6">
+      <h2 className="text-lg font-semibold text-ink mb-4 break-words">
         {data.template.name}
       </h2>
 
@@ -397,13 +402,13 @@ function TemplateDetail({ templateId }: { templateId: string }) {
             onDrop={() => handleDrop(item.id)}
             className={`flex max-w-full items-start gap-3 overflow-hidden rounded-lg border p-3 transition-colors sm:items-center ${
               draggingId === item.id
-                ? 'bg-gray-100 border-gray-300'
-                : 'bg-gray-50 border-transparent'
+                ? 'bg-surface-page border-line'
+                : 'bg-surface-page border-transparent'
             } ${reorderMutation.isPending ? 'cursor-progress' : 'cursor-grab'}`}
           >
             <div className="flex min-w-0 flex-1 items-center gap-3">
-              <GripVertical className="w-4 h-4 shrink-0 text-gray-300" />
-              <span className="w-6 shrink-0 text-xs text-gray-400">
+              <GripVertical className="w-4 h-4 shrink-0 text-ink-muted/60" />
+              <span className="w-6 shrink-0 text-xs text-ink-muted">
                 {index + 1}.
               </span>
               {editingItemId === item.id ? (
@@ -422,7 +427,7 @@ function TemplateDetail({ templateId }: { templateId: string }) {
                     }
                   }}
                   onClick={(e) => e.stopPropagation()}
-                  className="min-w-0 flex-1 rounded-lg border border-gray-300 bg-white px-2 py-1 text-sm outline-none focus:ring-2 focus:ring-black/10"
+                  className="min-w-0 flex-1 rounded-lg border border-line bg-surface-card px-2 py-1 text-sm outline-none focus:border-accent"
                 />
               ) : (
                 <span
@@ -446,8 +451,8 @@ function TemplateDetail({ templateId }: { templateId: string }) {
                       submitItemEdit(item)
                     }}
                     disabled={updateItemMutation.isPending}
-                    className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-gray-400 transition-colors hover:bg-emerald-50 hover:text-emerald-600 disabled:opacity-50"
-                    aria-label="Save checklist item"
+                    className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-ink-muted transition-colors hover:bg-success-soft hover:text-success disabled:opacity-50"
+                    aria-label={t('checklists.saveItem')}
                   >
                     <Check className="h-4 w-4" />
                   </button>
@@ -456,8 +461,8 @@ function TemplateDetail({ templateId }: { templateId: string }) {
                       e.stopPropagation()
                       cancelItemEdit()
                     }}
-                    className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700"
-                    aria-label="Cancel checklist item editing"
+                    className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-ink-muted transition-colors hover:bg-surface-page hover:text-ink"
+                    aria-label={t('checklists.cancelItem')}
                   >
                     <X className="h-4 w-4" />
                   </button>
@@ -468,16 +473,20 @@ function TemplateDetail({ templateId }: { templateId: string }) {
                     e.stopPropagation()
                     startItemEdit(item)
                   }}
-                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-gray-300 transition-colors hover:bg-gray-100 hover:text-gray-700"
-                  aria-label="Edit checklist item"
+                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-ink-muted/60 transition-colors hover:bg-surface-page hover:text-ink"
+                  aria-label={t('checklists.editItem')}
                 >
                   <Pencil className="h-4 w-4" />
                 </button>
               )}
               <button
-                onClick={() => deleteItemMutation.mutate(item.id)}
-                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-gray-300 transition-colors hover:bg-red-50 hover:text-red-500"
-                aria-label="Delete checklist item"
+                onClick={() =>
+                  deleteItemMutation.mutate(item.id, {
+                    onError: (err: Error) => showToast('error', errorText(err, t('checklists.failed'), t)),
+                  })
+                }
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-ink-muted/60 transition-colors hover:bg-danger/10 hover:text-danger"
+                aria-label={t('checklists.deleteItem')}
               >
                 <Trash2 className="h-4 w-4" />
               </button>
@@ -492,7 +501,7 @@ function TemplateDetail({ templateId }: { templateId: string }) {
           placeholder={t('checklists.newItem')}
           value={newItemTitle}
           onChange={(e) => setNewItemTitle(e.target.value)}
-          className="flex-1 bg-gray-50 border border-gray-200 rounded-xl p-2.5 outline-none focus:ring-2 focus:ring-black/10 text-sm"
+          className="flex-1 bg-surface-page border border-line rounded-xl p-2.5 outline-none focus:border-accent text-sm"
           onKeyDown={(e) => e.key === 'Enter' && handleAddItem()}
         />
         <Button

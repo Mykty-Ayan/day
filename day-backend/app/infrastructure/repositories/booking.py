@@ -4,10 +4,10 @@ import contextlib
 import re
 import uuid
 from collections.abc import Sequence
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from decimal import Decimal
 
-from sqlalchemy import and_, case, delete, func, select, text, tuple_, update
+from sqlalchemy import and_, case, delete, exists, func, or_, select, text, tuple_, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -152,6 +152,7 @@ def _model_to_deposit(m: BookingDepositModel) -> BookingDeposit:
         status=DepositStatus(m.status),
         held_amount=Decimal(str(m.held_amount)),
         reason=m.reason,
+        deductions=list(m.deductions or []),
         created_at=m.created_at,
         updated_at=m.updated_at,
     )
@@ -555,7 +556,14 @@ class SqlBookingRepository(BookingRepository):
         date_from=None,
         date_to=None,
         agent_id=None,
+        created_from=None,
+        created_to=None,
     ):
+        if created_from is not None:
+            stmt = stmt.where(BookingModel.created_at >= created_from)
+        if created_to is not None:
+            # A whole day, as date_to is.
+            stmt = stmt.where(BookingModel.created_at < created_to + timedelta(days=1))
         if agent_id is not None:
             stmt = stmt.where(BookingModel.agent_id == agent_id)
         if status is not None:
@@ -571,7 +579,9 @@ class SqlBookingRepository(BookingRepository):
         if date_from is not None:
             stmt = stmt.where(BookingModel.check_out >= date_from)
         if date_to is not None:
-            stmt = stmt.where(BookingModel.check_in <= date_to)
+            # date_to is a whole day: compared as a date it is midnight, and a stay
+            # arriving that afternoon was left out.
+            stmt = stmt.where(BookingModel.check_in < date_to + timedelta(days=1))
         return stmt
 
     async def list_by_company(
@@ -587,13 +597,17 @@ class SqlBookingRepository(BookingRepository):
         date_from: date | None = None,
         date_to: date | None = None,
         agent_id: uuid.UUID | None = None,
+        created_from: date | None = None,
+        created_to: date | None = None,
     ) -> list[Booking]:
         stmt = select(BookingModel).where(BookingModel.company_id == company_id)
         stmt = self._apply_filters(
             stmt, status=status, property_id=property_id,
             source=source, search=search, date_from=date_from, date_to=date_to, agent_id=agent_id,
+            created_from=created_from, created_to=created_to,
         )
-        stmt = stmt.order_by(BookingModel.check_in.desc()).offset(offset).limit(limit)
+        # The id breaks a tie of arrivals: without it two pages may share a stay and miss another.
+        stmt = stmt.order_by(BookingModel.check_in.desc(), BookingModel.id.desc()).offset(offset).limit(limit)
         result = await self._session.scalars(stmt)
         return [_model_to_booking(m) for m in result.all()]
 
@@ -608,6 +622,8 @@ class SqlBookingRepository(BookingRepository):
         date_from: date | None = None,
         date_to: date | None = None,
         agent_id: uuid.UUID | None = None,
+        created_from: date | None = None,
+        created_to: date | None = None,
     ) -> int:
         stmt = select(func.count()).select_from(BookingModel).where(
             BookingModel.company_id == company_id
@@ -615,6 +631,7 @@ class SqlBookingRepository(BookingRepository):
         stmt = self._apply_filters(
             stmt, status=status, property_id=property_id,
             source=source, search=search, date_from=date_from, date_to=date_to, agent_id=agent_id,
+            created_from=created_from, created_to=created_to,
         )
         result = await self._session.scalar(stmt)
         return result or 0
@@ -655,6 +672,53 @@ class SqlBookingRepository(BookingRepository):
                 BookingModel.status.notin_(["cancelled"]),
                 BookingModel.check_in < end_date,
                 BookingModel.check_out > start_date,
+            )
+            .order_by(BookingModel.check_in)
+        )
+        result = await self._session.scalars(stmt)
+        return [_model_to_booking(m) for m in result.all()]
+
+    async def list_ended_owing(
+        self,
+        company_id: uuid.UUID,
+        before: date,
+        with_orders_due: Sequence[uuid.UUID],
+    ) -> list[Booking]:
+        signed = case(
+            (BookingPaymentModel.type == PaymentType.REFUND.value, -BookingPaymentModel.amount),
+            else_=BookingPaymentModel.amount,
+        )
+        paid = (
+            select(func.coalesce(func.sum(signed), 0))
+            .where(
+                BookingPaymentModel.booking_id == BookingModel.id,
+                BookingPaymentModel.status == PaymentStatus.COMPLETED.value,
+            )
+            .scalar_subquery()
+        )
+        stmt = (
+            select(BookingModel)
+            .where(
+                BookingModel.company_id == company_id,
+                BookingModel.status.notin_(["cancelled", "pending"]),
+                # A guest can leave before their last day: gone is gone.
+                or_(BookingModel.check_out < before, BookingModel.status.in_(["checked_out", "completed"])),
+                or_(BookingModel.total_price > paid, BookingModel.id.in_(with_orders_due)),
+            )
+            .order_by(BookingModel.check_out.desc())
+        )
+        result = await self._session.scalars(stmt)
+        return [_model_to_booking(m) for m in result.all()]
+
+    async def list_unclosed(self, company_id: uuid.UUID, before: date) -> list[Booking]:
+        stmt = (
+            select(BookingModel)
+            .where(
+                BookingModel.company_id == company_id,
+                or_(
+                    and_(BookingModel.status == "checked_in", BookingModel.check_out < before),
+                    and_(BookingModel.status == "confirmed", BookingModel.check_in < before),
+                ),
             )
             .order_by(BookingModel.check_in)
         )
@@ -931,6 +995,23 @@ class SqlBookingPaymentRepository(BookingPaymentRepository):
         rows = await self._session.execute(stmt)
         return {booking_id: Decimal(str(total)) for booking_id, total in rows.all()}
 
+    async def sum_received_between(self, company_id: uuid.UUID, start: datetime, end: datetime) -> Decimal:
+        signed = case(
+            (BookingPaymentModel.type == PaymentType.REFUND.value, -BookingPaymentModel.amount),
+            else_=BookingPaymentModel.amount,
+        )
+        stmt = (
+            select(func.coalesce(func.sum(signed), 0))
+            .join(BookingModel, BookingModel.id == BookingPaymentModel.booking_id)
+            .where(
+                BookingModel.company_id == company_id,
+                BookingPaymentModel.status == PaymentStatus.COMPLETED.value,
+                BookingPaymentModel.paid_at >= start,
+                BookingPaymentModel.paid_at < end,
+            )
+        )
+        return Decimal(str((await self._session.execute(stmt)).scalar_one()))
+
 
 class SqlBookingDepositRepository(BookingDepositRepository):
     def __init__(self, session: AsyncSession) -> None:
@@ -944,6 +1025,7 @@ class SqlBookingDepositRepository(BookingDepositRepository):
             status=deposit.status.value,
             held_amount=float(deposit.held_amount),
             reason=deposit.reason,
+            deductions=list(deposit.deductions),
         )
         self._session.add(model)
         await self._session.flush()
@@ -971,6 +1053,7 @@ class SqlBookingDepositRepository(BookingDepositRepository):
                 status=deposit.status.value,
                 held_amount=float(deposit.held_amount),
                 reason=deposit.reason,
+                deductions=list(deposit.deductions),
                 updated_at=datetime.utcnow(),
             )
         )
@@ -1119,6 +1202,12 @@ class SqlBookingAuditLogRepository(BookingAuditLogRepository):
         )
         result = await self._session.scalars(stmt)
         return [_model_to_audit(m) for m in result.all()]
+
+    async def has_field(self, booking_id: uuid.UUID, field_name: str) -> bool:
+        stmt = select(
+            exists().where(BookingAuditLogModel.booking_id == booking_id, BookingAuditLogModel.field_name == field_name)
+        )
+        return bool(await self._session.scalar(stmt))
 
 
 def _model_to_block(m: PropertyBlockModel) -> PropertyBlock:

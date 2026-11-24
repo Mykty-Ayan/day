@@ -1,0 +1,18 @@
+# A flat's page: a quick pick of two nights shows the stay and its price; the month view.
+url: ${BASE_URL}/s/${FLAT}
+---
+- launchApp
+- extendedWaitUntil:
+    visible: ".*"
+    timeout: 20000
+- runFlow: _ru.yaml
+- scrollUntilVisible:
+    element: "На 2 ночи"
+    direction: DOWN
+- tapOn: "На 2 ночи"
+- assertVisible: ".*2 ночи.*"
+- takeScreenshot: shots/guest-flat-picked
+- tapOn:
+    id: "Месяц"
+- takeScreenshot: shots/guest-flat-month
+- assertNotVisible: "Не получилось.*"

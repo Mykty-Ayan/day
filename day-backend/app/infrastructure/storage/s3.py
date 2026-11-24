@@ -5,7 +5,6 @@ import functools
 import json
 import os
 import uuid
-from urllib.parse import unquote, urlparse
 
 import boto3
 from botocore.client import Config
@@ -47,6 +46,9 @@ PROPERTY_PHOTOS_PREFIX = "properties/"
 # Check-in photos (the entrance, the lock): outside the public prefix, handed
 # out only as signed links to those who may see door codes.
 CHECKIN_PHOTOS_PREFIX = "checkin/"
+# What a deposit's hold is for (a broken glass): private, handed out as links that expire
+# to the owner and to the guest whose deposit it is.
+DEPOSIT_PHOTOS_PREFIX = "deposits/"
 # Minibar products: shown on the guest's panel, public as listing photos are.
 PRODUCT_PHOTOS_PREFIX = "products/"
 #: Long enough for the CRM to hand a link to WhatsApp, short enough that a
@@ -103,11 +105,13 @@ def _sanitize_filename(name: str | None) -> str:
 
 
 def _extract_key(file_url: str) -> str:
+    """The key as build_public_url glued it on: nothing is encoded there, so the path
+    is not parsed as a URL. A '#', '?' or '%20' in a file's name belongs to the key."""
     if not file_url:
         raise ValueError("Empty file URL")
 
-    parsed = urlparse(file_url)
-    path = unquote(parsed.path or "").lstrip("/")
+    _, _, rest = file_url.partition("://")
+    path = (rest.partition("/")[2] if rest else file_url).lstrip("/")
     bucket_prefix = f"{settings.S3_BUCKET}/"
     if path.startswith(bucket_prefix):
         return path[len(bucket_prefix):]
@@ -148,7 +152,15 @@ async def upload_booking_file(
     return build_public_url(key)
 
 
-_PHOTO_EXTENSIONS = {"image/jpeg": ".jpg", "image/png": ".png", "image/webp": ".webp"}
+_PHOTO_EXTENSIONS = {
+    "image/jpeg": ".jpg",
+    "image/png": ".png",
+    "image/webp": ".webp",
+    # Check-in videos, kept under the private prefix like check-in photos.
+    "video/mp4": ".mp4",
+    "video/quicktime": ".mov",
+    "video/webm": ".webm",
+}
 
 
 async def upload_property_photo(*, property_id: uuid.UUID, file_obj, content_type: str, private: bool = False) -> str:
@@ -166,6 +178,23 @@ async def upload_property_photo(*, property_id: uuid.UUID, file_obj, content_typ
         client.upload_fileobj, file_obj, settings.S3_BUCKET, key, ExtraArgs={"ContentType": content_type}
     )
     return build_public_url(key)
+
+
+async def upload_deposit_photo(*, booking_id: uuid.UUID, file_obj, content_type: str) -> str:
+    """Store a photo of what a deposit's hold is for, under the booking's private prefix."""
+    client = _s3_client()
+    await asyncio.to_thread(_ensure_bucket, client)
+    await asyncio.to_thread(apply_read_policy, client)
+    key = f"{DEPOSIT_PHOTOS_PREFIX}{booking_id}/{uuid.uuid4()}{_PHOTO_EXTENSIONS.get(content_type, '')}"
+    await asyncio.to_thread(
+        client.upload_fileobj, file_obj, settings.S3_BUCKET, key, ExtraArgs={"ContentType": content_type}
+    )
+    return build_public_url(key)
+
+
+def deposit_photo_prefix(booking_id: uuid.UUID) -> str:
+    """Where a booking's deposit photos are stored: a hold links to these and no others."""
+    return build_public_url(f"{DEPOSIT_PHOTOS_PREFIX}{booking_id}/")
 
 
 async def upload_product_photo(*, company_id: uuid.UUID, file_obj, content_type: str) -> str:
@@ -199,7 +228,7 @@ def signed_photo_url(url: str) -> str:
     Signing is local (no request to storage). A link the owner pasted from
     elsewhere is not ours to protect and passes through.
     """
-    if not url.startswith(build_public_url(CHECKIN_PHOTOS_PREFIX)):
+    if not url.startswith((build_public_url(CHECKIN_PHOTOS_PREFIX), build_public_url(DEPOSIT_PHOTOS_PREFIX))):
         return url
     return _signing_client().generate_presigned_url(
         "get_object",
@@ -224,3 +253,10 @@ async def download_booking_file(*, file_url: str) -> tuple[bytes, str | None]:
         return body, obj.get("ContentType")
 
     return await asyncio.to_thread(_get)
+
+
+async def delete_booking_file(*, file_url: str) -> None:
+    """A key already gone counts as deleted: pressing delete again finishes the job."""
+    client = _s3_client()
+    key = _extract_key(file_url)
+    await asyncio.to_thread(client.delete_object, Bucket=settings.S3_BUCKET, Key=key)

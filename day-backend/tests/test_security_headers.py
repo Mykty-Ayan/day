@@ -26,3 +26,15 @@ async def test_every_response_carries_security_headers(path):
     response = await _get(path)
     for name, value in EXPECTED.items():
         assert response.headers.get(name) == value, name
+
+
+@pytest.mark.asyncio
+async def test_the_app_on_another_origin_can_read_when_the_rate_limit_ends():
+    # The web app may live on another domain than the API: unlisted headers stay hidden from it.
+    from app.config import settings
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.get("/api/v1/health", headers={"Origin": settings.CORS_ORIGINS[0]})
+    exposed = {h.strip().lower() for h in response.headers.get("access-control-expose-headers", "").split(",")}
+    assert {"x-ratelimit-limit", "x-ratelimit-remaining", "x-ratelimit-reset"} <= exposed

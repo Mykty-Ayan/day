@@ -32,7 +32,7 @@ from app.domain.property.repositories import (
     PropertyRepository,
     SeasonalPriceRepository,
 )
-from app.domain.property.value_objects import AmenityCategory, AuditAction, PropertyStatus, PropertyType
+from app.domain.property.value_objects import AmenityCategory, AuditAction, FactAudience, PropertyStatus, PropertyType
 
 # ---------- Constants ----------
 
@@ -99,6 +99,11 @@ class FakePropertyRepository(PropertyRepository):
     async def update(self, prop: Property) -> Property:
         self._properties[prop.id] = prop
         return prop
+
+    async def set_positions(self, company_id: uuid.UUID, positions: dict[uuid.UUID, int]) -> None:
+        for prop in self._properties.values():
+            if prop.company_id == company_id:
+                prop.position = positions.get(prop.id)
 
     async def exists_internal_name(
         self, company_id: uuid.UUID, internal_name: str, *, exclude_id: uuid.UUID | None = None
@@ -167,6 +172,11 @@ class FakePropertyPhotoRepository(PropertyPhotoRepository):
     async def set_caption(self, photo_id: uuid.UUID, caption: str | None) -> None:
         self._photos[photo_id].caption = caption
 
+    async def set_cover(self, property_id: uuid.UUID, photo_id: uuid.UUID) -> None:
+        for photo in self._photos.values():
+            if photo.property_id == property_id:
+                photo.is_cover = photo.id == photo_id
+
 
 class FakeAmenityRepository(AmenityRepository):
     def __init__(self) -> None:
@@ -220,6 +230,9 @@ class FakeSeasonalPriceRepository(SeasonalPriceRepository):
     async def save(self, price: SeasonalPrice) -> SeasonalPrice:
         self._prices[price.id] = price
         return price
+
+    async def update(self, price: SeasonalPrice) -> SeasonalPrice:
+        return await self.save(price)
 
     async def delete(self, price_id: uuid.UUID) -> None:
         self._prices.pop(price_id, None)
@@ -476,6 +489,45 @@ class TestUpdatePropertyService:
 
         assert result.name == "New Name"
         assert result.internal_name == prop.internal_name  # unchanged
+
+    @pytest.mark.asyncio
+    async def test_a_flat_on_sale_keeps_its_number_of_guests(self):
+        prop_repo, _, svc, prop = await self._setup()
+        prop.max_guests = 4
+        await prop_repo.update(prop)
+        with pytest.raises(ValueError, match="how many guests"):
+            await svc.execute(UpdatePropertyInput(property_id=prop.id, company_id=COMPANY_ID, max_guests=None))
+        assert (await prop_repo.get_by_id(prop.id)).max_guests == 4
+
+    @pytest.mark.asyncio
+    async def test_a_draft_may_drop_its_number_and_an_old_flat_still_edits(self):
+        prop_repo, _, svc, prop = await self._setup()
+        # A flat on sale from before the rule, with no number: its other fields still save.
+        prop.max_guests = None
+        await prop_repo.update(prop)
+        result = await svc.execute(UpdatePropertyInput(property_id=prop.id, company_id=COMPANY_ID, name="Renamed"))
+        assert result.name == "Renamed"
+        # A draft is not offered to anyone: its number may go.
+        prop.status, prop.max_guests = PropertyStatus.NEW, 3
+        await prop_repo.update(prop)
+        result = await svc.execute(UpdatePropertyInput(property_id=prop.id, company_id=COMPANY_ID, max_guests=None))
+        assert result.max_guests is None
+
+    @pytest.mark.asyncio
+    async def test_an_archived_flat_without_its_number_can_come_back(self):
+        prop_repo, audit_repo, svc, prop = await self._setup()
+        prop.status, prop.max_guests = PropertyStatus.ARCHIVED, None
+        await prop_repo.update(prop)
+        # Anything else stays closed on an archived flat.
+        with pytest.raises(ValueError, match="archived"):
+            await svc.execute(UpdatePropertyInput(property_id=prop.id, company_id=COMPANY_ID, name="X", max_guests=3))
+        with pytest.raises(ValueError, match="archived"):
+            await svc.execute(UpdatePropertyInput(property_id=prop.id, company_id=COMPANY_ID, max_guests=None))
+        # Its number alone may be added, and then it goes on sale.
+        await svc.execute(UpdatePropertyInput(property_id=prop.id, company_id=COMPANY_ID, max_guests=3))
+        status = ChangePropertyStatusService(prop_repo, audit_repo)
+        result = await status.execute(prop.id, COMPANY_ID, PropertyStatus.ACTIVE)
+        assert (result.status, result.max_guests) == (PropertyStatus.ACTIVE, 3)
 
     @pytest.mark.asyncio
     async def test_update_wifi_credentials(self):
@@ -934,10 +986,10 @@ class TestListPropertiesService:
 
 
 class TestChangePropertyStatusService:
-    async def _setup(self, initial_status=PropertyStatus.NEW):
+    async def _setup(self, initial_status=PropertyStatus.NEW, max_guests: int | None = 4):
         prop_repo = FakePropertyRepository()
         audit_repo = FakePropertyAuditLogRepository()
-        prop = _make_property(status=initial_status)
+        prop = _make_property(status=initial_status, max_guests=max_guests)
         await prop_repo.save(prop)
         svc = ChangePropertyStatusService(prop_repo, audit_repo)
         return prop_repo, audit_repo, svc, prop
@@ -947,6 +999,15 @@ class TestChangePropertyStatusService:
         _, _, svc, prop = await self._setup(PropertyStatus.NEW)
         result = await svc.execute(prop.id, COMPANY_ID, PropertyStatus.ACTIVE)
         assert result.status == PropertyStatus.ACTIVE
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("initial", [PropertyStatus.NEW, PropertyStatus.PAUSED, PropertyStatus.ARCHIVED])
+    async def test_no_sale_without_the_number_of_guests(self, initial):
+        # An unknown size is offered to any party: 17 guests got a two-room flat.
+        repo, _, svc, prop = await self._setup(initial, max_guests=None)
+        with pytest.raises(ValueError, match="how many guests"):
+            await svc.execute(prop.id, COMPANY_ID, PropertyStatus.ACTIVE)
+        assert (await repo.get_by_id(prop.id)).status == initial
 
     @pytest.mark.asyncio
     async def test_active_to_paused(self):
@@ -1094,6 +1155,35 @@ class TestManagePhotosService:
         assert reordered[2].id == p2.id
 
     @pytest.mark.asyncio
+    async def test_set_cover_leaves_one_cover(self):
+        _, _, svc, prop = await self._setup()
+        old = await svc.add_photo(prop.id, COMPANY_ID, "https://img.com/1.jpg", is_cover=True)
+        new = await svc.add_photo(prop.id, COMPANY_ID, "https://img.com/2.jpg", sort_order=1)
+
+        photos = await svc.set_cover(new.id, prop.id, COMPANY_ID)
+
+        assert [p.id for p in photos if p.is_cover] == [new.id]
+        assert old.is_cover is False
+
+    @pytest.mark.asyncio
+    async def test_set_cover_refuses_a_check_in_photo(self):
+        _, _, svc, prop = await self._setup()
+        lock = await svc.add_photo(prop.id, COMPANY_ID, "https://img.com/lock.jpg", audience=FactAudience.GUEST)
+
+        with pytest.raises(ValueError, match="check-in photo"):
+            await svc.set_cover(lock.id, prop.id, COMPANY_ID)
+
+    @pytest.mark.asyncio
+    async def test_set_cover_of_another_flat_or_company(self):
+        _, _, svc, prop = await self._setup()
+        photo = await svc.add_photo(prop.id, COMPANY_ID, "https://img.com/1.jpg")
+
+        with pytest.raises(ValueError, match="Property not found"):
+            await svc.set_cover(photo.id, prop.id, OTHER_COMPANY_ID)
+        with pytest.raises(ValueError, match="Photo not found"):
+            await svc.set_cover(uuid.uuid4(), prop.id, COMPANY_ID)
+
+    @pytest.mark.asyncio
     async def test_list_photos(self):
         _, _, svc, prop = await self._setup()
         await svc.add_photo(prop.id, COMPANY_ID, "https://img.com/a.jpg")
@@ -1216,6 +1306,41 @@ class TestManagePricingService:
         pricing = await svc.get_pricing(prop.id, COMPANY_ID)
         remaining = await seasonal_repo.list_by_pricing_config(pricing.id)
         assert len(remaining) == 0
+
+    @pytest.mark.asyncio
+    async def test_a_season_is_changed_in_place(self):
+        # One write: no second season on the same dates if anything fails midway.
+        _, _, seasonal_repo, _, svc, prop = await self._setup()
+        await svc.upsert_pricing(prop.id, COMPANY_ID, PricingConfigInput(base_price=Decimal("100")))
+        season = await svc.add_seasonal_price(
+            prop.id, COMPANY_ID, SeasonalPrice(name="Summer", price_per_night=Decimal("150"))
+        )
+
+        await svc.update_seasonal_price(
+            prop.id, COMPANY_ID, season.id, SeasonalPrice(name="High summer", price_per_night=Decimal("180"))
+        )
+
+        pricing = await svc.get_pricing(prop.id, COMPANY_ID)
+        seasons = await seasonal_repo.list_by_pricing_config(pricing.id)
+        assert [(s.id, s.name, s.price_per_night) for s in seasons] == [(season.id, "High summer", Decimal("180"))]
+
+    @pytest.mark.asyncio
+    async def test_another_companys_season_cannot_be_changed(self):
+        prop_repo, _, seasonal_repo, _, svc, theirs = await self._setup()
+        await svc.upsert_pricing(theirs.id, COMPANY_ID, PricingConfigInput(base_price=Decimal("100")))
+        season = await svc.add_seasonal_price(
+            theirs.id, COMPANY_ID, SeasonalPrice(name="Summer", price_per_night=Decimal("150"))
+        )
+        other = uuid.uuid4()
+        ours = _make_property(company_id=other, internal_name="ours")
+        await prop_repo.save(ours)
+        await svc.upsert_pricing(ours.id, other, PricingConfigInput(base_price=Decimal("90")))
+
+        with pytest.raises(ValueError, match="Seasonal price not found"):
+            await svc.update_seasonal_price(
+                ours.id, other, season.id, SeasonalPrice(name="X", price_per_night=Decimal("1"))
+            )
+        assert season.price_per_night == Decimal("150")
 
     @pytest.mark.asyncio
     async def test_another_companys_season_and_discount_cannot_be_deleted(self):

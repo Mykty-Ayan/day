@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next'
 import { useAgents } from '../../hooks/useAgents'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select'
 
 interface AgentSelectProps {
   id: string
@@ -11,6 +12,9 @@ interface AgentSelectProps {
   emptyLabel?: string
 }
 
+// The list cannot hold an empty value: "nobody" goes in it under this one.
+const NOBODY = 'nobody'
+
 /** Who brought the guest: the active agents, and the chosen one even if stopped since. */
 export default function AgentSelect({ id, value, onChange, className, emptyLabel }: AgentSelectProps) {
   const { t } = useTranslation()
@@ -20,18 +24,23 @@ export default function AgentSelect({ id, value, onChange, className, emptyLabel
   const unknown = value !== '' && !agents.some((a) => a.id === value)
 
   return (
-    <select id={id} value={value} onChange={(e) => onChange(e.target.value)} className={className}>
-      <option value="">{emptyLabel ?? t('agents.nobody')}</option>
-      {unknown && (
-        <option value={value} disabled>
-          …
-        </option>
-      )}
-      {shown.map((a) => (
-        <option key={a.id} value={a.id}>
-          {a.is_active ? a.name : t('agents.stoppedName', { name: a.name })}
-        </option>
-      ))}
-    </select>
+    <Select value={value || NOBODY} onValueChange={(next) => onChange(next === NOBODY ? '' : next)}>
+      <SelectTrigger id={id} className={className}>
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value={NOBODY}>{emptyLabel ?? t('agents.nobody')}</SelectItem>
+        {unknown && (
+          <SelectItem value={value} disabled>
+            …
+          </SelectItem>
+        )}
+        {shown.map((a) => (
+          <SelectItem key={a.id} value={a.id}>
+            {a.is_active ? a.name : t('agents.stoppedName', { name: a.name })}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
   )
 }

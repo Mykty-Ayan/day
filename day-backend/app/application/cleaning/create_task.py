@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import uuid
 from dataclasses import dataclass
-from datetime import date, time
+from datetime import date, datetime, time
 
 from app.domain.booking.entities import Booking
 from app.domain.cleaning.entities import CleaningTask
@@ -10,7 +10,8 @@ from app.domain.cleaning.repositories import CleaningTaskRepository
 from app.domain.cleaning.value_objects import CleaningStatus, CleaningType
 from app.domain.property.repositories import PropertyRepository
 
-_OPEN = {CleaningStatus.PENDING, CleaningStatus.ASSIGNED, CleaningStatus.IN_PROGRESS}
+_WAITING = {CleaningStatus.PENDING, CleaningStatus.ASSIGNED}
+_OPEN = _WAITING | {CleaningStatus.IN_PROGRESS}
 
 
 @dataclass
@@ -83,3 +84,35 @@ async def clean_after_stay(
         )
     )
     return True
+
+
+async def follow_stay(tasks: CleaningTaskRepository, booking: Booking, left_at: datetime) -> list[CleaningTask]:
+    """A stay's end moved from left_at: its cleaning moves too, so no maid comes to an
+    occupied flat and never before the guest is out. A started cleaning stays. Says
+    which moved."""
+    moved = []
+    for task in await tasks.list_by_property(booking.property_id, limit=100):
+        if (
+            task.company_id != booking.company_id
+            or task.status not in _WAITING
+            or task.type != CleaningType.POST_CHECKOUT
+        ):
+            continue
+        # Tied to no stay, it is this guest's only if set for their departure: with hours
+        # on sale, one earlier the same day was for the guest before them.
+        for_this_departure = (
+            task.booking_id is None
+            and task.scheduled_date == left_at.date()
+            and (task.scheduled_time is None or task.scheduled_time >= left_at.time())
+        )
+        if task.booking_id != booking.id and not for_this_departure:
+            continue
+        scheduled_time = task.scheduled_time
+        if scheduled_time is not None and scheduled_time < booking.check_out.time():
+            scheduled_time = booking.check_out.time()
+        if (task.scheduled_date, task.scheduled_time) == (booking.check_out.date(), scheduled_time):
+            continue
+        task.scheduled_date = booking.check_out.date()
+        task.scheduled_time = scheduled_time
+        moved.append(await tasks.update(task))
+    return moved

@@ -236,3 +236,27 @@ async def test_the_page_through_the_api(flat):  # noqa: F811  (the imported fixt
     for window in ({"date_from": "2020-01-01", "date_to": "2020-02-01"}, {"date_from": "2040-01-01"},
                    {"date_from": "9999-12-01"}):
         assert (await client.get(f"/api/v1/public/stays/{code}", params=window)).status_code == 422, window
+
+
+async def test_the_page_prices_the_company_weekend():
+    # Saturday and Sunday nights: Friday the 4th is a weekday price, Sunday the 6th not.
+    from app.domain.settings.entities import CompanySettings
+    from app.presentation.schemas.public import PublicStayResponse
+    from tests.test_company_time_zone import FakeSettingsRepository
+
+    s = Stay()
+    prop = await s.flat(weekend_markup=Decimal("2000"), price_3h=Decimal("8000"), price_3h_weekend=Decimal("10000"))
+    settings = FakeSettingsRepository()
+    await settings.save(CompanySettings(company_id=COMPANY_ID, weekend_nights=(5, 6)))
+    service = GetPublicStayService(
+        s.props, _Photos([]), _Amenities(), s.pricing, s.seasonal, s.days, s.bookings, settings
+    )
+
+    stay = await service.execute(prop.public_code, date(2030, 10, 4), date(2030, 10, 7))
+    assert [(n.date.day, int(n.price)) for n in stay.nights] == [(4, 25000), (5, 27000), (6, 27000)]
+    assert PublicStayResponse.from_stay(stay).prices.weekend_nights == [5, 6]
+
+    # No weekend at all: no weekend tariff price is promised.
+    await settings.save(CompanySettings(company_id=COMPANY_ID, weekend_nights=()))
+    page = PublicStayResponse.from_stay(await service.execute(prop.public_code, date(2030, 10, 4), date(2030, 10, 7)))
+    assert [t.weekend for t in page.prices.tariffs] == [None]

@@ -9,7 +9,6 @@ import {
 
 const guestNamePlaceholder = /guest name|имя гостя|қонақ/i
 const addBookingButtonName = /create booking|add booking|создать|бронь/i
-const BOOKING_LIST_VIEW_MODE_STORAGE_KEY = 'day:bookings:list-view-mode'
 
 test.describe('Booking CRUD - E2E', () => {
   let bookingIdsToCleanup: string[] = []
@@ -86,6 +85,9 @@ test.describe('Booking CRUD - E2E', () => {
 
     await page.locator('input[type="tel"]').first().fill(guestPhone)
     await page.getByPlaceholder(guestNamePlaceholder).first().fill(guestName)
+    // The guest said they arrive at 17:00; the flat's 14:00 was picked to start with.
+    await expect(page.locator('#create-in-time').getByRole('button', { name: '14:00', exact: true })).toHaveAttribute('aria-pressed', 'true')
+    await page.locator('#create-in-time').getByRole('button', { name: '17:00', exact: true }).click()
 
     // Submit
     await page.getByRole('button', { name: addBookingButtonName }).click()
@@ -94,7 +96,7 @@ test.describe('Booking CRUD - E2E', () => {
     await page.waitForURL(/\/bookings\/[^/]+$/, { timeout: 10000 })
 
     // Booking should be visible
-    await expect(page.getByText(guestName, { exact: true })).toBeVisible({ timeout: 5000 })
+    await expect(page.getByText(guestName, { exact: true }).first()).toBeVisible({ timeout: 5000 })
 
     // Cleanup
     const searchRes = await request.get(
@@ -105,6 +107,7 @@ test.describe('Booking CRUD - E2E', () => {
       for (const b of body.items) {
         bookingIdsToCleanup.push(b.id)
       }
+      expect(body.items[0].check_in.slice(11, 16)).toBe('17:00')
     }
   })
 
@@ -156,38 +159,137 @@ test.describe('Booking CRUD - E2E', () => {
     await expect(page.getByText(booking.guest_name, { exact: true })).toBeVisible({ timeout: 5000 })
   })
 
-  test('mobile list view toggle switches to table and persists after reload', async ({ page, request }) => {
+  test('a phone shows the list as cards with the debt, and no view switch', async ({ page, request }) => {
     const prop = await setupActiveProperty(request)
     const booking = await createBookingViaApi(request, prop.id)
 
     await page.setViewportSize({ width: 390, height: 844 })
     await page.goto('/bookings')
     await page.waitForLoadState('networkidle')
-
-    await page.evaluate((storageKey) => {
-      localStorage.removeItem(storageKey)
-    }, BOOKING_LIST_VIEW_MODE_STORAGE_KEY)
-    await page.reload({ waitUntil: 'networkidle' })
-
     await page.getByPlaceholder(/search by guest name|search/i).fill(booking.guest_name)
-    await page.waitForTimeout(500)
 
-    const cardsToggle = page.getByRole('radio', { name: /cards/i }).first()
-    const tableToggle = page.getByRole('radio', { name: /table/i }).first()
-    await expect(cardsToggle).toHaveAttribute('data-state', 'on')
+    const row = page.getByRole('button', { name: new RegExp(booking.guest_name) })
+    await expect(row).toBeVisible({ timeout: 5000 })
+    // Nothing paid yet: the whole price is owed, and the list says so.
+    await expect(row.getByText(/^Owed /)).toBeVisible()
+    await expect(page.getByRole('radio', { name: /cards|table/i })).toHaveCount(0)
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
+  })
 
-    await tableToggle.click()
-    await expect(tableToggle).toHaveAttribute('data-state', 'on')
-    await expect(page.locator('tbody tr').first()).toBeVisible({ timeout: 5000 })
-    await expect
-      .poll(async () => page.evaluate((storageKey) => localStorage.getItem(storageKey), BOOKING_LIST_VIEW_MODE_STORAGE_KEY))
-      .toBe('table')
+  test('a payment taken from the list\'s booking shows on the list at once', async ({ page, request }) => {
+    const prop = await setupActiveProperty(request)
+    const booking = await createBookingViaApi(request, prop.id)
 
-    await page.reload({ waitUntil: 'networkidle' })
+    await page.goto('/bookings')
+    await page.waitForLoadState('networkidle')
     await page.getByPlaceholder(/search by guest name|search/i).fill(booking.guest_name)
-    await page.waitForTimeout(500)
-    await expect(page.getByRole('radio', { name: /table/i }).first()).toHaveAttribute('data-state', 'on')
-    await expect(page.locator('tbody tr').first()).toBeVisible({ timeout: 5000 })
+    const row = page.getByRole('button', { name: new RegExp(booking.guest_name) })
+    await expect(row.getByText(/^Owed /)).toBeVisible({ timeout: 5000 })
+
+    await row.click()
+    await page.getByRole('button', { name: /^add payment$/i }).first().click()
+    await page.getByRole('dialog').getByRole('button', { name: /^Add / }).click()
+    await expect(page.getByRole('dialog')).toBeHidden({ timeout: 10000 })
+    // Back in the app, not a reload: the list must not show the debt it had before.
+    await page.goBack()
+    await page.getByPlaceholder(/search by guest name|search/i).fill(booking.guest_name)
+    await expect(row.getByText('Paid', { exact: true })).toBeVisible({ timeout: 5000 })
+  })
+
+  test('the dates come first: the free objects show with their price, and one is booked from the list', async ({ page, request }) => {
+    const prop = await setupActiveProperty(request)
+    const guestName = `Dates First ${Date.now()}`
+
+    await page.goto(`/bookings/new?check_in=${futureDate(40)}&check_out=${futureDate(42)}`)
+    const option = page.getByRole('radio', { name: new RegExp(prop.internal_name) })
+    await expect(option).toContainText(/\d/)
+    await option.click()
+    await expect(option).toHaveAttribute('aria-checked', 'true')
+    await expect(page.locator('#create-property')).toContainText(prop.internal_name)
+
+    await page.locator('input[type="tel"]').first().fill(`+1555${Math.floor(Math.random() * 9000000 + 1000000)}`)
+    await page.getByPlaceholder(guestNamePlaceholder).first().fill(guestName)
+    await page.getByRole('button', { name: addBookingButtonName }).click()
+    await page.waitForURL(/\/bookings\/[0-9a-f-]{36}$/, { timeout: 10000 })
+
+    const bookingId = page.url().split('/').pop() as string
+    bookingIdsToCleanup.push(bookingId)
+    const { booking } = await (await request.get(`${API_BASE}/bookings/${bookingId}`)).json()
+    expect([booking.property_id, booking.guest_name]).toEqual([prop.id, guestName])
+  })
+
+  test('an object asked for that is taken on the dates says so, and is not booked', async ({ page, request }) => {
+    const prop = await setupActiveProperty(request)
+    await createBookingViaApi(request, prop.id, { check_in: futureDate(50), check_out: futureDate(53) })
+
+    await page.goto(`/bookings/new?property_id=${prop.id}&check_in=${futureDate(51)}&check_out=${futureDate(52)}`)
+    await expect(page.getByText(`${prop.internal_name} is taken on these dates`, { exact: false })).toBeVisible()
+    await expect(page.getByRole('radio', { name: new RegExp(prop.internal_name) })).toHaveCount(0)
+
+    await page.locator('input[type="tel"]').first().fill('+15550001122')
+    await page.getByPlaceholder(guestNamePlaceholder).first().fill('Taken Flat Guest')
+    await page.getByRole('button', { name: addBookingButtonName }).click()
+    await expect(page.getByText('Property is required')).toBeVisible()
+    await expect(page).toHaveURL(/\/bookings\/new/)
+  })
+
+  test('the search counts the children: an object too small for the party is not offered', async ({ page, request }) => {
+    const prop = await setupActiveProperty(request)
+    const patch = await request.patch(`${API_BASE}/properties/${prop.id}`, { data: { max_guests: 2 } })
+    expect(patch.ok(), `PATCH property: ${patch.status()}`).toBeTruthy()
+
+    await page.goto(`/bookings/new?check_in=${futureDate(60)}&check_out=${futureDate(62)}`)
+    const option = page.getByRole('radio', { name: new RegExp(prop.internal_name) })
+    await page.getByLabel('Adults', { exact: true }).fill('2')
+    await expect(option).toBeVisible()
+    await page.getByLabel('Children', { exact: true }).fill('1')
+    await expect(option).toHaveCount(0)
+  })
+
+  test('with nothing free for the party, the form says for how many guests', async ({ page }) => {
+    // Nothing free is the server's answer here: the company's other objects do not matter.
+    await page.route('**/bookings/availability**', (route) => route.fulfill({ json: { items: [] } }))
+    await page.goto(`/bookings/new?check_in=${futureDate(60)}&check_out=${futureDate(62)}`)
+    await page.getByLabel('Adults', { exact: true }).fill('9')
+    await page.getByLabel('Children', { exact: true }).fill('8')
+    await expect(page.getByText('No property is free on these dates for 17 guests')).toBeVisible()
+  })
+
+  test('an object asked for can be let go, and the rest of the form stays', async ({ page, request }) => {
+    const prop = await setupActiveProperty(request)
+
+    await page.goto(`/bookings/new?property_id=${prop.id}`)
+    await expect(page.locator('#create-property')).toContainText(prop.internal_name)
+    await page.getByPlaceholder(guestNamePlaceholder).first().fill('Kept Guest')
+    await page.getByRole('button', { name: 'Choose another property' }).click()
+
+    await expect(page.locator('#create-property')).toHaveCount(0)
+    await expect(page.getByPlaceholder(guestNamePlaceholder).first()).toHaveValue('Kept Guest')
+  })
+
+  test('a stay from Airbnb looks for free objects as from Airbnb', async ({ page }) => {
+    await page.goto(`/bookings/new?check_in=${futureDate(64)}&check_out=${futureDate(66)}`)
+    const searched = page.waitForRequest((r) => r.url().includes('/bookings/availability') && r.url().includes('source=airbnb'))
+    await page.getByRole('radio', { name: 'Airbnb', exact: true }).click()
+    await searched
+  })
+
+  test('the search takes the hours of each object until a time is picked by hand', async ({ page, request }) => {
+    const prop = await setupActiveProperty(request)
+    // Its guests come at 16:00; the one before leaves at 15:00 on that day.
+    const patch = await request.patch(`${API_BASE}/properties/${prop.id}`, { data: { check_in_hour: 16 } })
+    expect(patch.ok(), `PATCH property: ${patch.status()}`).toBeTruthy()
+    await createBookingViaApi(request, prop.id, {
+      check_in: `${futureDate(70)}T14:00:00`,
+      check_out: `${futureDate(72)}T15:00:00`,
+    })
+
+    await page.goto(`/bookings/new?check_in=${futureDate(72)}&check_out=${futureDate(74)}`)
+    // The 14:00 on screen is not asked of each object: this one is free from its own 16:00.
+    await expect(page.getByRole('radio', { name: new RegExp(prop.internal_name) })).toBeVisible()
+    // Picked by hand, 14:00 is asked as it is, and the one before is still there then.
+    await page.locator('#create-in-time').getByRole('button', { name: '14:00', exact: true }).click()
+    await expect(page.getByRole('radio', { name: new RegExp(prop.internal_name) })).toHaveCount(0)
   })
 
   test('date range picker shows one month on mobile viewport', async ({ page }) => {
@@ -208,15 +310,15 @@ test.describe('Booking CRUD - E2E', () => {
     await page.goto(`/bookings/${booking.id}`)
     await page.waitForLoadState('networkidle')
 
-    await page.getByRole('button', { name: 'Edit', exact: true }).click()
-    await expect(page).toHaveURL(new RegExp(`/bookings/${booking.id}/edit$`))
+    await page.getByRole('button', { name: /^Guests/ }).click()
+    const panel = page.getByRole('dialog', { name: 'Guests' })
 
-    await page.locator('input[type="number"]').first().fill('5')
+    await panel.locator('input[type="number"]').first().fill('5')
 
-    await page.getByRole('button', { name: /save/i }).click()
+    await panel.getByRole('button', { name: /save/i }).click()
     // More guests change the price Day worked out: the form asks first.
-    await page.getByRole('button', { name: /^Reprice/ }).click()
-    await expect(page).toHaveURL(new RegExp(`/bookings/${booking.id}$`), { timeout: 10000 })
+    await panel.getByRole('button', { name: /^Reprice/ }).click()
+    await expect(panel).toBeHidden({ timeout: 10000 })
 
     const detailRes = await request.get(`${API_BASE}/bookings/${booking.id}`)
     expect(detailRes.ok()).toBeTruthy()

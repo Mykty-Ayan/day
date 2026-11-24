@@ -5,6 +5,8 @@ import {
 } from '@tanstack/react-query'
 import { blockNights, bookedNights } from '../lib/booking-dates'
 import { listBlocks } from '../api/properties'
+import { CLEANING_KEY } from './useCleaning'
+import { settleAttempt } from '../lib/payment-attempt'
 import type {
   BookingFilters,
   BookingCreateInput,
@@ -21,6 +23,7 @@ import type {
 } from '../types/booking'
 import {
   listBookings,
+  listAllBookings,
   getBooking,
   createBooking,
   updateBooking,
@@ -50,6 +53,7 @@ const DEPOSITS_KEY = 'booking-deposits'
 const COMMENTS_KEY = 'booking-comments'
 const GANTT_KEY = 'gantt-data'
 const TODAY_KEY = 'today-checks'
+export const TODAY_REFRESH = 60_000
 const GUESTS_KEY = 'guests'
 const PRICE_KEY = 'price-calculation'
 
@@ -60,6 +64,13 @@ export function useBookings(filters: BookingFilters = {}, enabled = true) {
     queryKey: [BOOKINGS_KEY, filters],
     queryFn: () => listBookings(filters),
     enabled,
+  })
+}
+
+export function useAllBookings(filters: BookingFilters = {}) {
+  return useQuery({
+    queryKey: [BOOKINGS_KEY, 'all', filters],
+    queryFn: () => listAllBookings(filters),
   })
 }
 
@@ -94,6 +105,30 @@ export function useBookedNights(
   })
 }
 
+/** Every stay of a flat that ends on `from` (YYYY-MM-DD) or later, and whoever is checked in, all pages: the list
+ *  comes newest first, cancelled ones included, so one page can miss the stay of today. */
+export function useFlatStaysFrom(propertyId: string, from: string) {
+  return useQuery({
+    queryKey: [BOOKINGS_KEY, 'flat-stays', propertyId, from],
+    queryFn: async () => {
+      const allPages = async (filters: BookingFilters) => {
+        const first = await listBookings(filters)
+        const rest = await Promise.all(
+          Array.from({ length: Math.max(0, first.pages - 1) }, (_, i) => listBookings({ ...filters, page: i + 2 })),
+        )
+        return [first, ...rest].flatMap((page) => page.items)
+      }
+      const [stays, living] = await Promise.all([
+        allPages({ property_id: propertyId, date_from: from, per_page: 100 }),
+        // A guest kept past the checkout ends before `from` and is still in the flat.
+        allPages({ property_id: propertyId, status: 'checked_in', per_page: 100 }),
+      ])
+      return [...stays, ...living.filter((stay) => !stays.some((s) => s.id === stay.id))]
+    },
+    enabled: !!propertyId,
+  })
+}
+
 export function useBooking(id: string) {
   return useQuery({
     queryKey: [BOOKING_KEY, id],
@@ -122,6 +157,9 @@ export function useUpdateBooking(id: string) {
       qc.invalidateQueries({ queryKey: [BOOKINGS_KEY] })
       qc.invalidateQueries({ queryKey: [BOOKING_KEY, id] })
       qc.invalidateQueries({ queryKey: [GANTT_KEY] })
+      qc.invalidateQueries({ queryKey: [TODAY_KEY] })
+      // A guest left, or the stay's end moved: its cleaning changed on the server.
+      qc.invalidateQueries({ queryKey: [CLEANING_KEY] })
     },
   })
 }
@@ -150,6 +188,8 @@ export function useChangeBookingStatus(id: string) {
       qc.invalidateQueries({ queryKey: [BOOKING_KEY, id] })
       qc.invalidateQueries({ queryKey: [GANTT_KEY] })
       qc.invalidateQueries({ queryKey: [TODAY_KEY] })
+      // A guest left, or the stay's end moved: its cleaning changed on the server.
+      qc.invalidateQueries({ queryKey: [CLEANING_KEY] })
     },
   })
 }
@@ -187,10 +227,28 @@ export function useBookingPayments(bookingId: string) {
 export function useAddPayment(bookingId: string) {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (data: PaymentInput) => addPayment(bookingId, data),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: [PAYMENTS_KEY, bookingId] })
+    mutationKey: ['add-payment', bookingId],
+    mutationFn: ({ idempotencyKey, ...data }: PaymentInput & { idempotencyKey?: string }) =>
+      addPayment(bookingId, data, idempotencyKey),
+    // Pending until the new balance is read: the screen offers what is owed or due back
+    // from it, and the old one would offer the same sum again. The payment's key is settled
+    // here, not in the panel: this runs even when the panel was closed before the answer.
+    onSuccess: (_payment, { idempotencyKey }) => {
+      if (idempotencyKey) settleAttempt(bookingId, idempotencyKey)
+      return Promise.all([
+        qc.invalidateQueries({ queryKey: [PAYMENTS_KEY, bookingId] }),
+        qc.invalidateQueries({ queryKey: [BOOKING_KEY, bookingId] }),
+      ])
+    },
+    // After a failure too: the answer may be lost with the money recorded. The
+    // chessboard shows what is paid and owed on its bars, the booking list on its lines.
+    onSettled: () => {
+      qc.invalidateQueries({ queryKey: [BOOKINGS_KEY] })
+      qc.invalidateQueries({ queryKey: [TODAY_KEY] })
+      qc.invalidateQueries({ queryKey: [GANTT_KEY] })
+      // A failure too may have recorded it: the booking's own balance is read again.
       qc.invalidateQueries({ queryKey: [BOOKING_KEY, bookingId] })
+      qc.invalidateQueries({ queryKey: [PAYMENTS_KEY, bookingId] })
     },
   })
 }
@@ -201,8 +259,11 @@ export function useConfirmPayment(bookingId: string) {
   return useMutation({
     mutationFn: (paymentId: string) => confirmPayment(bookingId, paymentId),
     onSuccess: () => {
+      qc.invalidateQueries({ queryKey: [BOOKINGS_KEY] })
       qc.invalidateQueries({ queryKey: [PAYMENTS_KEY, bookingId] })
       qc.invalidateQueries({ queryKey: [BOOKING_KEY, bookingId] })
+      qc.invalidateQueries({ queryKey: [TODAY_KEY] })
+      qc.invalidateQueries({ queryKey: [GANTT_KEY] })
     },
   })
 }
@@ -284,11 +345,28 @@ export function useDeleteBookingFile(bookingId: string) {
 
 // --- Gantt ---
 
-export function useGanttData(startDate: string, endDate: string) {
+export function useGanttData(startDate: string, endDate: string, refetchInterval?: number) {
   return useQuery({
     queryKey: [GANTT_KEY, startDate, endDate],
     queryFn: () => getGanttData(startDate, endDate),
     enabled: !!startDate && !!endDate,
+    ...(refetchInterval ? { refetchInterval, staleTime: refetchInterval } : {}),
+  })
+}
+
+/** Every guest checked in, all pages: one kept past the checkout is still in, whatever the dates say. */
+export function useCheckedIn(refetchInterval?: number) {
+  return useQuery({
+    queryKey: [BOOKINGS_KEY, 'checked-in'],
+    queryFn: async () => {
+      const filters: BookingFilters = { status: 'checked_in', per_page: 100 }
+      const first = await listBookings(filters)
+      const rest = await Promise.all(
+        Array.from({ length: Math.max(0, first.pages - 1) }, (_, i) => listBookings({ ...filters, page: i + 2 })),
+      )
+      return [first, ...rest].flatMap((page) => page.items)
+    },
+    ...(refetchInterval ? { refetchInterval, staleTime: refetchInterval } : {}),
   })
 }
 
@@ -298,6 +376,9 @@ export function useTodayChecks() {
   return useQuery({
     queryKey: [TODAY_KEY],
     queryFn: getTodayChecks,
+    // The screen stays open on a desk: a booking from the CRM, a new day.
+    refetchInterval: TODAY_REFRESH,
+    staleTime: TODAY_REFRESH,
   })
 }
 

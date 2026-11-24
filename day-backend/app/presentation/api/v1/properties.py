@@ -26,6 +26,7 @@ from app.application.property.manage_pricing import (
     ManagePricingService,
     PricingConfigInput,
 )
+from app.application.property.order_properties import OrderPropertiesService
 from app.application.property.update_property import (
     UpdatePropertyInput,
     UpdatePropertyService,
@@ -34,11 +35,13 @@ from app.config import settings
 from app.domain.auth.permissions import Permission
 from app.domain.booking.exceptions import BlockFromCalendarError, BlockOverlapsBookingError
 from app.domain.property.entities import TARIFF_FIELDS, DiscountRule, PropertyCosts, SeasonalPrice, whatsapp_product_id
-from app.domain.property.value_objects import FactAudience, FactSource, PropertyStatus
+from app.domain.property.value_objects import FactAudience, FactSource, GuestMediaSection, MediaKind, PropertyStatus
 from app.infrastructure.calendar_feeds import build_calendar_feeds
 from app.infrastructure.calendar_fetch import fetch_calendar
 from app.infrastructure.database import get_session
-from app.infrastructure.repositories.booking import SqlBookingRepository
+from app.infrastructure.map_point import MapLinkError, find_point
+from app.infrastructure.repositories.auth import SqlUserRepository
+from app.infrastructure.repositories.booking import SqlBookingRepository, SqlCalendarFeedRepository
 from app.infrastructure.repositories.property import (
     SqlAmenityRepository,
     SqlCompanyFactRepository,
@@ -68,6 +71,9 @@ from app.presentation.schemas.property import (
     DayPriceSet,
     DiscountRuleCreate,
     DiscountRuleResponse,
+    MapLink,
+    MapPointResponse,
+    NearbyCopy,
     PhotoCaption,
     PhotoCreate,
     PhotoReorder,
@@ -82,10 +88,12 @@ from app.presentation.schemas.property import (
     PropertyFactCreate,
     PropertyFactResponse,
     PropertyListResponse,
+    PropertyOrder,
     PropertyPhotoResponse,
     PropertyReadinessItem,
     PropertyReadinessResponse,
     PropertyResponse,
+    PropertySetupItem,
     PropertyStatusChange,
     PropertyUpdate,
     SeasonalPriceCreate,
@@ -182,6 +190,8 @@ def _to_property_response(p, photos: list | None = None, *, sees_secrets: bool) 
         bathrooms=p.bathrooms,
         check_in_hour=p.check_in_hour,
         check_out_hour=p.check_out_hour,
+        late_check_out_hour=p.late_check_out_hour,
+        late_check_out_price=float(p.late_check_out_price) if p.late_check_out_price is not None else None,
         check_in_method=p.check_in_method,
         area_living=p.area_living,
         area_total=p.area_total,
@@ -189,6 +199,7 @@ def _to_property_response(p, photos: list | None = None, *, sees_secrets: bool) 
         check_in_instructions=p.check_in_instructions if sees_secrets else None,
         check_out_instructions=p.check_out_instructions,
         house_rules=p.house_rules,
+        nearby=p.nearby,
         wifi_name=p.wifi_name,
         wifi_password=p.wifi_password if sees_secrets else None,
         photos=[_photo_response(photo) for photo in _visible_photos(photos or [], sees_secrets=sees_secrets)],
@@ -211,6 +222,30 @@ def _name_taken(e: IntegrityError, internal_name: str | None) -> HTTPException:
     if internal_name is None:
         return HTTPException(status_code=409, detail="Another flat took this internal name just now; try again")
     return HTTPException(status_code=409, detail=f"Property with internal name '{internal_name}' already exists")
+
+
+# What the property services say when the flat, its photo or the tag is not the
+# caller's: absent or another company's alike.
+_NOT_FOUND = frozenset({"Property not found", "Photo not found", "Tag not found"})
+
+
+def _refused(e: ValueError) -> HTTPException:
+    """404 for a flat, photo or tag that is not the caller's; 400 for any other refusal."""
+    return HTTPException(status_code=404 if str(e) in _NOT_FOUND else 400, detail=str(e))
+
+
+@router.post(
+    "/map-point",
+    response_model=MapPointResponse,
+    dependencies=[Depends(require(Permission.PROPERTIES_WRITE))],
+)
+async def map_point(body: MapLink):
+    """The point of a 2GIS link, for the address form to fill in. Nothing is saved."""
+    try:
+        point = await find_point(body.url)
+    except MapLinkError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    return MapPointResponse(latitude=point.latitude, longitude=point.longitude)
 
 
 @router.post(
@@ -262,11 +297,14 @@ async def create_property(
                 bathrooms=body.bathrooms,
                 check_in_hour=body.check_in_hour,
                 check_out_hour=body.check_out_hour,
+                late_check_out_hour=body.late_check_out_hour,
+                late_check_out_price=body.late_check_out_price,
                 check_in_method=body.check_in_method,
                 area_living=body.area_living,
                 area_total=body.area_total,
                 check_in_instructions=body.check_in_instructions,
                 check_out_instructions=body.check_out_instructions,
+                nearby=[place.model_dump() for place in body.nearby],
                 house_rules=body.house_rules,
                 wifi_name=body.wifi_name,
                 wifi_password=body.wifi_password,
@@ -338,6 +376,27 @@ _READINESS_FIELDS = {
 }
 
 
+@router.put(
+    "/order",
+    status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[Depends(require(Permission.PROPERTIES_WRITE))],
+)
+async def order_properties(
+    body: PropertyOrder,
+    session: AsyncSession = Depends(get_session),
+    company_id: uuid.UUID = Depends(get_company_id),
+):
+    """The company's flats in the order the chessboard shows them; empty: by name."""
+    try:
+        await OrderPropertiesService(SqlPropertyRepository(session)).execute(company_id, body.property_ids)
+    except LookupError:
+        raise HTTPException(status_code=404, detail="Property not found")
+    except ValueError as error:
+        raise HTTPException(status_code=422, detail=str(error))
+    await session.commit()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
 @router.get(
     "/readiness",
     response_model=PropertyReadinessResponse,
@@ -374,6 +433,36 @@ async def property_readiness(
     return PropertyReadinessResponse(
         company_facts=bool(await repos["company_fact"].list_by_company(company_id)), items=items
     )
+
+
+@router.get(
+    "/setup",
+    response_model=list[PropertySetupItem],
+    dependencies=[Depends(require(Permission.PROPERTIES_READ))],
+)
+async def property_setup(
+    session: AsyncSession = Depends(get_session),
+    company_id: uuid.UUID = Depends(get_company_id),
+):
+    """Each flat's prices and whether its calendars read, for the flats list in one call, not two per flat."""
+    repos = _repos(session)
+    feeds = SqlCalendarFeedRepository(session)
+    items = []
+    # Every flat, however many: a page would cut flats off behind archived ones that sort first.
+    every = await repos["property"].count_by_company(company_id)
+    # One query per flat and kind, as in the readiness report: a company has a handful of flats.
+    for prop in await repos["property"].list_by_company(company_id, limit=every):
+        if prop.status == PropertyStatus.ARCHIVED:
+            continue
+        pricing = await repos["pricing"].get_by_property(prop.id)
+        items.append(
+            PropertySetupItem(
+                property_id=prop.id,
+                pricing=PricingConfigResponse.model_validate(pricing) if pricing else None,
+                calendar_error=any(feed.last_error for feed in await feeds.list_for_property(prop.id)),
+            )
+        )
+    return items
 
 
 @router.get(
@@ -547,6 +636,29 @@ async def update_property(
 
 
 @router.post(
+    "/{property_id}/nearby/copy",
+    dependencies=[Depends(require(Permission.PROPERTIES_WRITE))],
+)
+async def copy_nearby(
+    property_id: uuid.UUID,
+    body: NearbyCopy,
+    session: AsyncSession = Depends(get_session),
+    company_id: uuid.UUID = Depends(get_company_id),
+    user_id: uuid.UUID | None = Depends(get_user_id),
+) -> dict[str, int]:
+    """This flat's list «Рядом» to the chosen flats of the company, in place of theirs."""
+    repos = _repos(session)
+    svc = UpdatePropertyService(repos["property"], repos["audit"])
+    try:
+        changed = await svc.copy_nearby(property_id, body.property_ids, company_id, user_id)
+    except ValueError as e:
+        await session.rollback()
+        raise HTTPException(status_code=404 if "not found" in str(e).lower() else 400, detail=str(e))
+    await session.commit()
+    return {"updated": changed}
+
+
+@router.post(
     "/{property_id}/status",
     response_model=PropertyResponse,
     dependencies=[Depends(require(Permission.PROPERTIES_WRITE))],
@@ -567,7 +679,7 @@ async def change_property_status(
         return _to_property_response(result, sees_secrets=_sees_secrets(principal))
     except ValueError as e:
         await session.rollback()
-        raise HTTPException(status_code=400, detail=str(e))
+        raise _refused(e)
 
 
 # ---------- Clone ----------
@@ -645,7 +757,7 @@ async def add_photo(
         return _photo_response(result)
     except ValueError as e:
         await session.rollback()
-        raise HTTPException(status_code=400, detail=str(e))
+        raise _refused(e)
 
 
 def _sniff_photo(head: bytes) -> str | None:
@@ -663,6 +775,22 @@ def _sniff_photo(head: bytes) -> str | None:
     return None
 
 
+# MP4 and MOV open with a "ftyp" box naming the brand; HEIC photos share the box, so brands are listed.
+_MP4_BRANDS = {b"isom", b"iso2", b"iso4", b"iso5", b"iso6", b"mp41", b"mp42", b"avc1", b"M4V ", b"MSNV"}
+
+
+def _sniff_video(head: bytes) -> str | None:
+    """The video format the bytes hold: what a phone records and a browser plays."""
+    if head[4:8] == b"ftyp":
+        if head[8:12] == b"qt  ":
+            return "video/quicktime"
+        if head[8:12] in _MP4_BRANDS:
+            return "video/mp4"
+    if head.startswith(b"\x1a\x45\xdf\xa3"):
+        return "video/webm"
+    return None
+
+
 @router.post(
     "/{property_id}/photos/upload",
     response_model=PropertyPhotoResponse,
@@ -676,14 +804,19 @@ async def upload_photo(
     is_cover: bool = Form(False),
     audience: FactAudience = Form(FactAudience.PUBLIC),
     caption: str | None = Form(None, max_length=500),
+    section: GuestMediaSection = Form(GuestMediaSection.PATH),
     session: AsyncSession = Depends(get_session),
     company_id: uuid.UUID = Depends(get_company_id),
     principal: Principal = Depends(get_principal),
 ):
-    """A photo from the owner's phone or computer. Linking by URL (imports, the CRM) stays on POST /photos."""
+    """A photo from the owner's phone or computer. Linking by URL (imports, the CRM) stays on POST /photos.
+
+    A check-in one may be a video and may stand beside the door code or in «how to use»."""
     _check_photo_audience(audience, principal)
     if is_cover and audience == FactAudience.GUEST:
         raise HTTPException(status_code=400, detail="A check-in photo cannot be the cover")
+    if section != GuestMediaSection.PATH and audience != FactAudience.GUEST:
+        raise HTTPException(status_code=400, detail="Only a check-in photo has a place on the guest's page")
     repos = _repos(session)
     prop = await repos["property"].get_by_id(property_id)
     if prop is None or prop.company_id != company_id:
@@ -691,17 +824,22 @@ async def upload_photo(
     head = file.file.read(16)
     file.file.seek(0)
     content_type = _sniff_photo(head)
+    kind = MediaKind.PHOTO
+    # A video never reaches the listing or the OTAs: only the guest's booking page plays it.
+    if content_type is None and audience == FactAudience.GUEST:
+        content_type, kind = _sniff_video(head), MediaKind.VIDEO
     if content_type is None:
-        raise HTTPException(status_code=415, detail="Only JPEG, PNG or WebP photos")
+        videos = ", or MP4, MOV or WebM videos" if audience == FactAudience.GUEST else ""
+        raise HTTPException(status_code=415, detail=f"Only JPEG, PNG or WebP photos{videos}")
     size = file.size
     if size is None:
         file.file.seek(0, 2)
         size = file.file.tell()
         file.file.seek(0)
-    if size > settings.S3_MAX_UPLOAD_BYTES:
-        raise HTTPException(
-            status_code=413, detail=f"Photo too large (max {settings.S3_MAX_UPLOAD_BYTES // (1024 * 1024)} MB)"
-        )
+    limit = settings.S3_MAX_VIDEO_BYTES if kind == MediaKind.VIDEO else settings.S3_MAX_UPLOAD_BYTES
+    if size > limit:
+        what = "Video" if kind == MediaKind.VIDEO else "Photo"
+        raise HTTPException(status_code=413, detail=f"{what} too large (max {limit // (1024 * 1024)} MB)")
 
     try:
         url = await upload_property_photo(
@@ -715,7 +853,15 @@ async def upload_photo(
 
     svc = ManagePhotosService(repos["property"], repos["photo"])
     result = await svc.add_photo(
-        property_id, company_id, url, sort_order=sort_order, is_cover=is_cover, caption=caption, audience=audience
+        property_id,
+        company_id,
+        url,
+        sort_order=sort_order,
+        is_cover=is_cover,
+        caption=caption,
+        audience=audience,
+        kind=kind,
+        section=section,
     )
     await session.commit()
     return _photo_response(result)
@@ -748,6 +894,30 @@ async def set_photo_caption(
     return _photo_response(result)
 
 
+@router.put(
+    "/{property_id}/photos/{photo_id}/cover",
+    response_model=list[PropertyPhotoResponse],
+    dependencies=[Depends(require(Permission.PROPERTIES_WRITE))],
+)
+async def set_photo_cover(
+    property_id: uuid.UUID,
+    photo_id: uuid.UUID,
+    session: AsyncSession = Depends(get_session),
+    company_id: uuid.UUID = Depends(get_company_id),
+    principal: Principal = Depends(get_principal),
+):
+    """This listing photo opens the flat on its pages; the others stop being the cover."""
+    repos = _repos(session)
+    svc = ManagePhotosService(repos["property"], repos["photo"])
+    try:
+        result = await svc.set_cover(photo_id, property_id, company_id)
+    except ValueError as e:
+        await session.rollback()
+        raise HTTPException(status_code=404 if "not found" in str(e) else 400, detail=str(e))
+    await session.commit()
+    return [_photo_response(p) for p in _visible_photos(result, sees_secrets=_sees_secrets(principal))]
+
+
 @router.delete(
     "/{property_id}/photos/{photo_id}",
     status_code=204,
@@ -766,7 +936,7 @@ async def delete_photo(
         await session.commit()
     except ValueError as e:
         await session.rollback()
-        raise HTTPException(status_code=400, detail=str(e))
+        raise _refused(e)
 
 
 @router.put(
@@ -789,7 +959,7 @@ async def reorder_photos(
         return [_photo_response(p) for p in _visible_photos(result, sees_secrets=_sees_secrets(principal))]
     except ValueError as e:
         await session.rollback()
-        raise HTTPException(status_code=400, detail=str(e))
+        raise _refused(e)
 
 
 # ---------- Amenities ----------
@@ -826,7 +996,7 @@ async def set_property_amenities(
         return [AmenityResponse.model_validate(a, from_attributes=True) for a in result]
     except ValueError as e:
         await session.rollback()
-        raise HTTPException(status_code=400, detail=str(e))
+        raise _refused(e)
 
 
 # ---------- Costs ----------
@@ -1005,6 +1175,39 @@ async def add_seasonal_price(
         raise HTTPException(status_code=400, detail=str(e))
 
 
+@router.patch(
+    "/{property_id}/pricing/seasonal/{season_id}",
+    response_model=SeasonalPriceResponse,
+    dependencies=[Depends(require(Permission.PROPERTIES_WRITE))],
+)
+async def update_seasonal_price(
+    property_id: uuid.UUID,
+    season_id: uuid.UUID,
+    body: SeasonalPriceCreate,
+    session: AsyncSession = Depends(get_session),
+    company_id: uuid.UUID = Depends(get_company_id),
+):
+    repos = _repos(session)
+    svc = ManagePricingService(repos["property"], repos["pricing"], repos["seasonal"], repos["discount"])
+    try:
+        result = await svc.update_seasonal_price(
+            property_id,
+            company_id,
+            season_id,
+            SeasonalPrice(
+                name=body.name,
+                start_date=body.start_date,
+                end_date=body.end_date,
+                price_per_night=body.price_per_night,
+            ),
+        )
+        await session.commit()
+        return SeasonalPriceResponse.model_validate(result, from_attributes=True)
+    except ValueError as e:
+        await session.rollback()
+        raise HTTPException(status_code=400, detail=str(e))
+
+
 @router.delete(
     "/{property_id}/pricing/seasonal/{season_id}",
     status_code=204,
@@ -1146,6 +1349,12 @@ async def get_audit_log(
         raise HTTPException(status_code=404, detail="Property not found")
     logs = await repos["audit"].list_by_property(property_id, offset=offset, limit=limit)
     entries = [PropertyAuditLogResponse.model_validate(entry, from_attributes=True) for entry in logs]
+    users = await SqlUserRepository(session).get_many(list({e.changed_by for e in entries if e.changed_by}))
+    for entry in entries:
+        user = users.get(entry.changed_by) if entry.changed_by else None
+        # Only a person of this company is named.
+        if user is not None and user.company_id == company_id:
+            entry.changed_by_name = user.full_name or user.email
     if not _sees_secrets(principal):
         # The history of how a guest gets in may hold a code, older rows included.
         for entry in entries:
@@ -1181,7 +1390,7 @@ async def assign_property_tag(
         return [TagResponse.model_validate(t, from_attributes=True) for t in result]
     except ValueError as e:
         await session.rollback()
-        raise HTTPException(status_code=400, detail=str(e))
+        raise _refused(e)
 
 
 @router.delete(
@@ -1206,7 +1415,7 @@ async def remove_property_tag(
         await session.commit()
     except ValueError as e:
         await session.rollback()
-        raise HTTPException(status_code=400, detail=str(e))
+        raise _refused(e)
 
 
 @router.get(

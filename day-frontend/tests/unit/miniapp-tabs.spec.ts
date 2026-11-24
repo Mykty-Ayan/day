@@ -43,10 +43,10 @@ test('upcoming reads one window ahead page by page, past and cancelled read page
     per_page: 100,
     page: 2,
   })
-  // The server reads date_to as midnight: tomorrow keeps a stay that ended this morning.
+  // date_to is a whole day: today keeps a stay that ended this morning.
   expect(segmentFilters('past', today, ' Айгерим ', 2)).toEqual({
     search: 'Айгерим',
-    date_to: '2026-10-26',
+    date_to: '2026-10-25',
     per_page: 30,
     page: 2,
   })

@@ -3,9 +3,18 @@ from __future__ import annotations
 import uuid
 from datetime import date, datetime, time
 from decimal import Decimal
-from typing import Annotated
+from typing import Annotated, Literal
 
-from pydantic import AliasChoices, BaseModel, ConfigDict, Field, StringConstraints, computed_field, model_validator
+from pydantic import (
+    AliasChoices,
+    BaseModel,
+    ConfigDict,
+    Field,
+    StringConstraints,
+    computed_field,
+    field_validator,
+    model_validator,
+)
 
 from app.domain.booking.value_objects import RentalMode
 from app.domain.property.value_objects import (
@@ -14,6 +23,8 @@ from app.domain.property.value_objects import (
     CheckInMethod,
     FactAudience,
     FactSource,
+    GuestMediaSection,
+    MediaKind,
     PropertyStatus,
     PropertyType,
 )
@@ -24,6 +35,27 @@ from app.domain.property.value_objects import (
 WebLink = Annotated[str, StringConstraints(strip_whitespace=True, max_length=1024, pattern=r"^https?://\S+$")]
 # A listing of the flat on Krisha, Booking, Airbnb, OLX; the CRM matches a guest's link against them.
 ListingLink = Annotated[str, StringConstraints(strip_whitespace=True, max_length=500, pattern=r"^https?://\S+$")]
+
+
+class NearbyPlace(BaseModel):
+    """A place near the flat for the guest: a shop, a park, the airport, and how far."""
+
+    name: str = Field(min_length=1, max_length=80)
+    minutes: int = Field(ge=1, le=240)
+    by: Literal["walk", "car"] = "walk"
+
+    @field_validator("name")
+    @classmethod
+    def _trimmed(cls, value: str) -> str:
+        if not value.strip():
+            raise ValueError("A place needs a name")
+        return value.strip()
+
+
+class NearbyCopy(BaseModel):
+    """The flats that take this flat's list «Рядом» in place of their own."""
+
+    property_ids: list[uuid.UUID] = Field(min_length=1, max_length=1000)
 
 
 class _TurnoverHours(BaseModel):
@@ -51,6 +83,15 @@ class _TurnoverHours(BaseModel):
         if fewest is not None and most is not None and most < fewest:
             raise ValueError("max_nights must not be below min_nights")
         return self
+
+
+class MapLink(BaseModel):
+    url: str = Field(min_length=1, max_length=1000)
+
+
+class MapPointResponse(BaseModel):
+    latitude: float
+    longitude: float
 
 
 class PropertyCreate(_TurnoverHours):
@@ -85,12 +126,15 @@ class PropertyCreate(_TurnoverHours):
     bathrooms: int | None = Field(default=None, ge=1, le=50)
     check_in_hour: int | None = Field(default=None, ge=0, le=23)
     check_out_hour: int | None = Field(default=None, ge=0, le=23)
+    late_check_out_hour: int | None = Field(default=None, ge=1, le=23)
+    late_check_out_price: Decimal | None = Field(default=None, ge=0, le=10_000_000, decimal_places=2)
     check_in_method: CheckInMethod | None = None
     area_living: float | None = None
     area_total: float | None = None
     check_in_instructions: str | None = None
     check_out_instructions: str | None = None
     house_rules: str | None = None
+    nearby: list[NearbyPlace] = Field(default_factory=list, max_length=12)
     wifi_name: str | None = Field(default=None, max_length=255)
     wifi_password: str | None = Field(default=None, max_length=255)
 
@@ -127,12 +171,15 @@ class PropertyUpdate(_TurnoverHours):
     bathrooms: int | None = Field(default=None, ge=1, le=50)
     check_in_hour: int | None = Field(default=None, ge=0, le=23)
     check_out_hour: int | None = Field(default=None, ge=0, le=23)
+    late_check_out_hour: int | None = Field(default=None, ge=1, le=23)
+    late_check_out_price: Decimal | None = Field(default=None, ge=0, le=10_000_000, decimal_places=2)
     check_in_method: CheckInMethod | None = None
     area_living: float | None = None
     area_total: float | None = None
     check_in_instructions: str | None = None
     check_out_instructions: str | None = None
     house_rules: str | None = None
+    nearby: list[NearbyPlace] = Field(default_factory=list, max_length=12)
     wifi_name: str | None = Field(default=None, max_length=255)
     wifi_password: str | None = Field(default=None, max_length=255)
 
@@ -177,12 +224,15 @@ class PropertyResponse(BaseModel):
     bathrooms: int | None = None
     check_in_hour: int | None = None
     check_out_hour: int | None = None
+    late_check_out_hour: int | None = None
+    late_check_out_price: float | None = None
     check_in_method: CheckInMethod | None = None
     area_living: float | None = None
     area_total: float | None = None
     check_in_instructions: str | None = None
     check_out_instructions: str | None = None
     house_rules: str | None = None
+    nearby: list[NearbyPlace] = []
     wifi_name: str | None = None
     wifi_password: str | None = None
     photos: list["PropertyPhotoResponse"] = Field(default_factory=list)
@@ -233,6 +283,9 @@ class PropertyPhotoResponse(BaseModel):
     is_cover: bool
     caption: str | None = None
     audience: FactAudience = FactAudience.PUBLIC
+    # A check-in photo may be a video; where it stands on the guest's booking page.
+    kind: MediaKind = MediaKind.PHOTO
+    section: GuestMediaSection = GuestMediaSection.PATH
     created_at: datetime | None = None
 
 
@@ -306,6 +359,12 @@ class PricingConfigCreate(BaseModel):
         if self.late_from is not None and self.night_to is not None and self.night_to >= self.late_from:
             raise ValueError("Late hours start in the evening, the night ends next morning: night_to before late_from")
         return self
+
+
+class PropertyOrder(BaseModel):
+    """The flats in their order on the chessboard; empty: back to the order by name."""
+
+    property_ids: list[uuid.UUID] = Field(default_factory=list, max_length=500)
 
 
 class PropertyCostsInput(BaseModel):
@@ -455,6 +514,8 @@ class PropertyAuditLogResponse(BaseModel):
     id: uuid.UUID
     property_id: uuid.UUID
     changed_by: uuid.UUID | None = None
+    # The person's name for the history; none for a change by an API key or the system.
+    changed_by_name: str | None = None
     field_name: str
     old_value: str | None = None
     new_value: str | None = None
@@ -479,6 +540,15 @@ class PropertyReadinessResponse(BaseModel):
     # Whether the company has any rules for guests (documents, pets, smoking).
     company_facts: bool
     items: list[PropertyReadinessItem]
+
+
+class PropertySetupItem(BaseModel):
+    """What the flats list shows beyond a flat's own fields: its prices and whether its calendars read."""
+
+    property_id: uuid.UUID
+    pricing: PricingConfigResponse | None
+    # A calendar from a site failed on its last read, so its nights may be sold twice.
+    calendar_error: bool
 
 
 class CompanyFactCreate(BaseModel):

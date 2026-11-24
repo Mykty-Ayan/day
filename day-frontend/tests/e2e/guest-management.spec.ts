@@ -207,8 +207,8 @@ test.describe('Guest Management - E2E', () => {
     // A stay opens on its page, with the guest's details
     await bookingsOf(page, guestName).first().click()
     await expect(page).toHaveURL(new RegExp(`/bookings/(${first.id}|${second.id})$`))
-    // The list is replaced by the booking page, which has tabs
-    await expect(page.getByRole('tab', { name: 'Overview' })).toBeVisible()
+    // The list is replaced by the booking page
+    await expect(page.getByRole('heading', { name: guestName })).toBeVisible()
     await expect(page.getByText(guestName).first()).toBeVisible()
     await expect(page.getByText(guestPhone)).toBeVisible()
   })

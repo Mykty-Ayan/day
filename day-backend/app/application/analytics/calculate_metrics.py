@@ -7,9 +7,9 @@ from dataclasses import dataclass
 from datetime import date, timedelta
 from decimal import Decimal
 
-from app.domain.analytics.entities import AnalyticsSummary, PropertyMetrics
+from app.domain.analytics.entities import AnalyticsSummary, PropertyMetrics, SourceTotals
 from app.domain.analytics.repositories import AnalyticsRepository
-from app.domain.expenses.entities import ExpenseCategory
+from app.domain.expenses.entities import Expense, ExpenseCategory
 from app.domain.expenses.repositories import ExpenseRepository
 from app.domain.property.entities import PropertyCosts
 from app.domain.property.repositories import PropertyCostsRepository
@@ -21,7 +21,7 @@ class CalculateMetricsInput:
     date_from: date
     date_to: date
     property_ids: list[uuid.UUID] | None = None
-    source: str | None = None
+    source: list[str] | None = None
 
 
 @dataclass
@@ -62,7 +62,10 @@ class CalculateMetricsService:
 
         # The journal is not kept by booking source: a report on one source's
         # bookings leaves it out, or all the company's costs would land on them.
-        recorded = await self._recorded_expenses(inp) if inp.source is None else {}
+        journal = await self._journal(inp) if inp.source is None else []
+        recorded: dict[uuid.UUID | None, Decimal] = {}
+        for expense in journal:
+            recorded[expense.property_id] = recorded.get(expense.property_id, Decimal("0")) + expense.amount
         for pm in properties:
             pm.recorded_expenses = recorded.pop(pm.property_id, Decimal("0"))
             pm.expenses += pm.recorded_expenses
@@ -79,6 +82,14 @@ class CalculateMetricsService:
             summary.total_expenses += summary.total_recorded_expenses
             summary.total_profit -= summary.total_recorded_expenses
         summary.properties_count = len(properties)
+        # By category, the same expenses the total takes: the chosen flats' alone, or all.
+        listed = {pm.property_id for pm in properties}
+        for expense in journal:
+            if inp.property_ids is None or expense.property_id in listed:
+                category = expense.category.value
+                summary.expenses_by_category[category] = (
+                    summary.expenses_by_category.get(category, Decimal("0")) + expense.amount
+                )
 
         # booked_nights / vacancy_days are now (possibly fractional) Decimals,
         # so these accumulators are Decimal too.
@@ -100,6 +111,11 @@ class CalculateMetricsService:
             total_booked_nights += pm.booked_nights
             total_available_nights += pm.booked_nights + pm.vacancy_days
             weighted_stay_sum += pm.avg_stay_duration * pm.total_bookings
+            for name, part in pm.by_source.items():
+                total = summary.by_source.setdefault(name, SourceTotals())
+                total.revenue += part.revenue
+                total.commission += part.commission
+                total.bookings += part.bookings
 
         stay_revenue = summary.total_revenue - sum((pm.retained_prepayments for pm in properties), Decimal("0"))
 
@@ -120,25 +136,20 @@ class CalculateMetricsService:
 
         return CalculateMetricsResult(summary=summary, properties=properties)
 
-    async def _recorded_expenses(self, inp: CalculateMetricsInput) -> dict[uuid.UUID | None, Decimal]:
-        """The expense journal's non-void sums for the period, by flat (None: the whole company's).
+    async def _journal(self, inp: CalculateMetricsInput) -> list[Expense]:
+        """The expense journal's non-void entries for the period.
 
-        The period ends before date_to, as it does for the bookings. Summed here
-        from the list rather than in SQL: a company writes tens of expenses a
+        The period ends before date_to, as it does for the bookings. Summed by the
+        caller from the list rather than in SQL: a company writes tens of expenses a
         month; a GROUP BY in the repository is the upgrade if that grows.
         """
-        totals: dict[uuid.UUID | None, Decimal] = {}
         if self._expense_repo is None:
-            return totals
+            return []
         expenses = await self._expense_repo.list(
             inp.company_id, date_from=inp.date_from, date_to=inp.date_to - timedelta(days=1)
         )
-        for expense in expenses:
-            # Day computes the platforms' commission itself: a journal entry of it would count twice.
-            if expense.category == ExpenseCategory.PLATFORM_COMMISSION:
-                continue
-            totals[expense.property_id] = totals.get(expense.property_id, Decimal("0")) + expense.amount
-        return totals
+        # Day computes the platforms' commission itself: a journal entry of it would count twice.
+        return [e for e in expenses if e.category != ExpenseCategory.PLATFORM_COMMISSION]
 
 
 def _apply_costs(pm: PropertyMetrics, costs: PropertyCosts | None, period_days: int) -> None:

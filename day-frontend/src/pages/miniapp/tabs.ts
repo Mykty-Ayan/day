@@ -52,9 +52,9 @@ export function segmentFilters(
     const until = query ? undefined : toISODate(addDays(today, UPCOMING_WINDOW_DAYS))
     return { ...base, date_from: toISODate(today), date_to: until, per_page: WINDOW_PAGE, page }
   }
-  // The server reads date_to as midnight: tomorrow keeps an hourly stay that ended
-  // this morning; segmentItems then keeps only what has ended.
-  if (segment === 'past') return { ...base, date_to: toISODate(addDays(today, 1)), per_page: PAGE_SIZE, page }
+  // Today keeps an hourly stay that ended this morning; segmentItems then keeps only
+  // what has ended.
+  if (segment === 'past') return { ...base, date_to: toISODate(today), per_page: PAGE_SIZE, page }
   return { ...base, status: 'cancelled', per_page: PAGE_SIZE, page }
 }
 

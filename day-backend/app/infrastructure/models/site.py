@@ -17,6 +17,7 @@ class CompanySiteModel(Base):
     company_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("companies.id", ondelete="CASCADE"), primary_key=True)
     slug: Mapped[str] = mapped_column(String(40), unique=True)
     title: Mapped[str] = mapped_column(String(120))
+    tagline: Mapped[str | None] = mapped_column(String(120), nullable=True)
     about: Mapped[str | None] = mapped_column(Text, nullable=True)
     logo_url: Mapped[str | None] = mapped_column(String(1024), nullable=True)
     cover_url: Mapped[str | None] = mapped_column(String(1024), nullable=True)

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { isAxiosError } from 'axios'
-import { KeyRound, X } from 'lucide-react'
+import { ArrowRight, KeyRound, X } from 'lucide-react'
 import { getStayHere, unlockStay } from '../../api/public'
 import { MASK } from '../../lib/clarity'
 import { retryNetwork } from '../../lib/public-stay'
@@ -45,19 +45,25 @@ export function StayHereBanner({ code, whatsapp }: { code: string; whatsapp: str
 
   if (!here.data?.staying || here.data.mine) return null
   return (
-    <section className="mx-5 mt-4 flex flex-col gap-3 rounded-2xl bg-[var(--accent)] p-4 text-[var(--on-accent)]">
-      <div className="flex flex-col gap-1">
-        <h2 className="text-lg font-bold">{t('stayHere.title')}</h2>
-        <p className="text-sm opacity-90">{t('stayHere.hint')}</p>
+    // A dark card under the photo, as the approved mockup: the guest staying now opens their booking.
+    <section className="m-2 flex flex-col gap-4 rounded-[28px] bg-[#111114] p-5 text-white">
+      <div className="flex items-center gap-3.5">
+        <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-white/[0.12]">
+          <KeyRound className="h-5 w-5" aria-hidden />
+        </span>
+        <div className="flex flex-col gap-0.5">
+          <h2 className="text-lg font-bold">{t('stayHere.title')}</h2>
+          <p className="text-sm text-white/65">{t('stayHere.hint')}</p>
+        </div>
       </div>
       {here.data.by_phone ? (
         <button
           type="button"
           onClick={() => setOpen(true)}
-          className="flex h-12 items-center justify-center gap-2 rounded-xl bg-white text-base font-semibold text-gray-900"
+          className="flex h-[52px] items-center justify-center gap-2 rounded-full bg-white text-base font-semibold text-[#111114]"
         >
-          <KeyRound className="h-5 w-5" aria-hidden />
           {t('stayHere.open')}
+          <ArrowRight className="h-5 w-5 rtl:rotate-180" aria-hidden />
         </button>
       ) : (
         <p className="text-sm font-semibold">
@@ -128,7 +134,7 @@ function DigitsSheet({
         aria-labelledby="stay-here-title"
         onClick={(e) => e.stopPropagation()}
         onKeyDown={(e) => e.key === 'Escape' && onClose()}
-        className="flex w-full max-w-[640px] flex-col gap-4 rounded-t-3xl bg-white p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] text-gray-900 sm:rounded-3xl"
+        className="flex w-full max-w-[640px] flex-col gap-4 rounded-t-3xl bg-white p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] text-[#111114] sm:rounded-3xl"
       >
         <div className="flex items-start justify-between gap-3">
           <h2 id="stay-here-title" className="text-xl font-bold">{t('stayHere.open')}</h2>
@@ -160,7 +166,7 @@ function DigitsSheet({
               aria-invalid={error != null}
               className="h-14 rounded-xl border border-gray-300 px-3 text-center text-2xl tracking-[0.5em]"
             />
-            <span className="text-xs text-gray-500">{t('stayHere.digitsHint')}</span>
+            <span className="text-xs text-[#6B6B74]">{t('stayHere.digitsHint')}</span>
           </label>
           {error && (
             <p role="alert" className="text-sm font-semibold text-amber-800">
@@ -175,7 +181,7 @@ function DigitsSheet({
           <button
             type="submit"
             disabled={digits.length !== 4 || sending}
-            className="h-12 rounded-xl bg-[var(--accent)] text-base font-semibold text-[var(--on-accent)] disabled:opacity-40"
+            className="h-12 rounded-full bg-[#111114] text-base font-semibold text-white disabled:opacity-40"
           >
             {t('stayHere.submit')}
           </button>

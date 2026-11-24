@@ -3,25 +3,34 @@
 from __future__ import annotations
 
 import uuid
+from datetime import date, datetime, timedelta
+from zoneinfo import ZoneInfo
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.application.booking.price_calculator import has_tariffs
+from app.application.property.public_stay import public_nights, taken_nights
 from app.domain.auth.permissions import Permission
 from app.domain.booking.value_objects import RentalMode
 from app.domain.property.value_objects import FactAudience, PropertyStatus
+from app.domain.settings.entities import DEFAULT_TIME_ZONE, DEFAULT_WEEKEND_NIGHTS, CompanySettings
 from app.domain.site.entities import CompanySite
 from app.domain.site.repositories import SlugTakenError
 from app.infrastructure.database import get_session
+from app.infrastructure.repositories.booking import SqlBookingRepository
 from app.infrastructure.repositories.property import (
     SqlCompanyFactRepository,
+    SqlDayPriceRepository,
     SqlPricingConfigRepository,
     SqlPropertyPhotoRepository,
     SqlPropertyRepository,
+    SqlSeasonalPriceRepository,
 )
+from app.infrastructure.repositories.settings import SqlCompanySettingsRepository
 from app.infrastructure.repositories.site import SqlCompanySiteRepository
 from app.presentation.api.deps import get_company_id, require
+from app.presentation.api.v1.public import public_prices
 from app.presentation.schemas.site import PublicCompanyFlat, PublicCompanyResponse, SiteResponse, SiteUpdate
 
 site_router = APIRouter(prefix="/site", tags=["site"])
@@ -57,14 +66,52 @@ async def save_site(
     return SiteResponse.model_validate(site, from_attributes=True)
 
 
+# How far ahead «free from» looks: a flat taken longer says nothing.
+FREE_AHEAD_DAYS = 60
+# A search by dates: as many nights as a stay on the site holds, and no further than the
+# flat's page shows nights (WINDOW_NIGHTS in PublicStayPage.tsx): a stay found here can be booked there.
+MAX_SEARCH_NIGHTS = 30
+MAX_SEARCH_AHEAD_DAYS = 119
+
+
+def company_today(company: CompanySettings | None) -> date:
+    zone = ZoneInfo(company.time_zone if company and company.time_zone else DEFAULT_TIME_ZONE)
+    return datetime.now(tz=zone).date()
+
+
+def _days(first: date, count: int) -> list[date]:
+    return [first + timedelta(days=n) for n in range(count)]
+
+
 @public_company_router.get("/{slug}", response_model=PublicCompanyResponse)
-async def public_company(slug: str, session: AsyncSession = Depends(get_session)):
-    """The company's page for guests, with no sign-in: the slug is the key."""
+async def public_company(
+    slug: str,
+    check_in: date | None = Query(default=None),
+    check_out: date | None = Query(default=None),
+    guests: int = Query(default=1, ge=1, le=50),
+    session: AsyncSession = Depends(get_session),
+):
+    """The company's page for guests, with no sign-in: the slug is the key. With the guest's
+    dates each flat let by the night says whether it is free for them and what all the nights cost."""
     site = await SqlCompanySiteRepository(session).get_by_slug(slug.lower())
     if site is None:
         raise HTTPException(status_code=404, detail="Not found")
     properties, photos = SqlPropertyRepository(session), SqlPropertyPhotoRepository(session)
     pricing = SqlPricingConfigRepository(session)
+    bookings = SqlBookingRepository(session)
+    # «Free tonight» is the company's night: its own day, whatever the server's zone.
+    company = await SqlCompanySettingsRepository(session).get_by_company(site.company_id)
+    today = company_today(company)
+    if (check_in is None) != (check_out is None):
+        raise HTTPException(status_code=422, detail="Both check_in and check_out, or neither")
+    if check_in and check_out:
+        if not (today <= check_in < check_out <= check_in + timedelta(days=MAX_SEARCH_NIGHTS)):
+            raise HTTPException(status_code=422, detail=f"From today, 1 to {MAX_SEARCH_NIGHTS} nights")
+        if check_out > today + timedelta(days=MAX_SEARCH_AHEAD_DAYS):
+            raise HTTPException(status_code=422, detail=f"Check-out within {MAX_SEARCH_AHEAD_DAYS} days from today")
+    weekend = company.weekend_nights if company else DEFAULT_WEEKEND_NIGHTS
+    seasonals, day_prices = SqlSeasonalPriceRepository(session), SqlDayPriceRepository(session)
+    prices = public_prices(session)
     flats = []
     # A few queries a flat; a company has a handful of them.
     for prop in await properties.list_by_company(site.company_id, status=PropertyStatus.ACTIVE, limit=MAX_FLATS):
@@ -73,6 +120,24 @@ async def public_company(slug: str, session: AsyncSession = Depends(get_session)
             key=lambda p: (not p.is_cover, p.sort_order),
         )
         price = await pricing.get_by_property(prop.id)
+        free_from = None
+        if prop.rental_mode != RentalMode.HOURLY:
+            taken = await taken_nights(bookings, prop, today, today + timedelta(days=FREE_AHEAD_DAYS))
+            free_from = next((d for d in _days(today, FREE_AHEAD_DAYS) if d not in taken), None)
+        stay_free, stay_total = None, None
+        if check_in and check_out:
+            # Free for the dates: every night free, as many nights as the flat takes, priced by the night.
+            stay_free = False
+            if prop.rental_mode != RentalMode.HOURLY and price and price.base_price > 0:
+                nights = await public_nights(prop, price, seasonals, day_prices, bookings, check_in, check_out, weekend)
+                fits = (prop.min_nights is None or len(nights) >= prop.min_nights) and (
+                    prop.max_nights is None or len(nights) <= prop.max_nights
+                )
+                fits = fits and (prop.max_guests is None or guests <= prop.max_guests)
+                if fits and all(n.free for n in nights):
+                    # What the booking will cost: extra guests and discounts, not the nights alone.
+                    price_of = await prices.calculate(prop.id, check_in, check_out, guests, 0, RentalMode.DAILY)
+                    stay_free, stay_total = True, float(price_of.total)
         flats.append(
             PublicCompanyFlat(
                 code=prop.public_code,
@@ -82,6 +147,10 @@ async def public_company(slug: str, session: AsyncSession = Depends(get_session)
                 max_guests=prop.max_guests,
                 area_total=prop.area_total,
                 photo=shown[0].url if shown else None,
+                photos=len(shown),
+                free_from=free_from,
+                stay_free=stay_free,
+                stay_total=stay_total,
                 night_price=float(price.base_price)
                 if price and prop.rental_mode != RentalMode.HOURLY and price.base_price > 0
                 else None,
@@ -100,4 +169,5 @@ async def public_company(slug: str, session: AsyncSession = Depends(get_session)
         **SiteResponse.model_validate(site, from_attributes=True).model_dump(exclude={"updated_at"}),
         rules=rules,
         flats=flats,
+        today=today,
     )

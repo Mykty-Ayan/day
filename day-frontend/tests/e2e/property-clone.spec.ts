@@ -119,7 +119,8 @@ test.describe('Property Clone - E2E', () => {
     await page.goto(`/properties/${prop.id}`)
     await page.waitForLoadState('networkidle')
 
-    // Look for clone button
+    // Copy lives in the "More actions" menu.
+    await page.getByRole('button', { name: 'More actions' }).click()
     const cloneBtn = page.getByRole('button', { name: /clone|duplicate|copy/i })
     if (await cloneBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
       await cloneBtn.click()

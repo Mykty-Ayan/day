@@ -38,9 +38,9 @@ export default function BatchImportForm({ onSubmit, isLoading }: Props) {
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div>
-        <label htmlFor="batch-urls" className="block text-xs font-bold text-gray-700 mb-1.5">
+        <label htmlFor="batch-urls" className="block text-xs font-bold text-ink mb-1.5">
           {t('aiImport.propertyUrls')}
-          <span className="font-normal text-gray-400 ml-1">{t('aiImport.onePerLine')}</span>
+          <span className="font-normal text-ink-muted ml-1">{t('aiImport.onePerLine')}</span>
         </label>
         <textarea
           id="batch-urls"
@@ -48,16 +48,16 @@ export default function BatchImportForm({ onSubmit, isLoading }: Props) {
           onChange={(e) => setUrlsText(e.target.value)}
           placeholder={"https://booking.com/hotel/first-property\nhttps://airbnb.com/rooms/12345\nhttps://krisha.kz/a/show/..."}
           rows={6}
-          className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 outline-none focus:ring-2 focus:ring-black/10 text-gray-800 text-sm resize-none font-mono"
+          className="w-full bg-surface-page border border-line rounded-xl p-3 outline-none focus:border-accent text-ink text-sm resize-none font-mono"
         />
         <div className="flex items-center gap-3 mt-1.5">
           {parsedUrls.length > 0 && (
-            <span className="text-xs text-gray-500">
+            <span className="text-xs text-ink-muted">
               {t('aiImport.validUrls', { count: validUrls.length })}
             </span>
           )}
           {invalidCount > 0 && (
-            <span className="text-xs text-red-500">
+            <span className="text-xs text-danger">
               {t('aiImport.invalidLines', { count: invalidCount })}
             </span>
           )}
@@ -65,9 +65,9 @@ export default function BatchImportForm({ onSubmit, isLoading }: Props) {
       </div>
 
       <div>
-        <label htmlFor="batch-prompt" className="block text-xs font-bold text-gray-700 mb-1.5">
+        <label htmlFor="batch-prompt" className="block text-xs font-bold text-ink mb-1.5">
           {t('aiImport.sharedInstructions')}
-          <span className="font-normal text-gray-400 ml-1">{t('aiImport.optionalAppliesToAll')}</span>
+          <span className="font-normal text-ink-muted ml-1">{t('aiImport.optionalAppliesToAll')}</span>
         </label>
         <textarea
           id="batch-prompt"
@@ -75,7 +75,7 @@ export default function BatchImportForm({ onSubmit, isLoading }: Props) {
           onChange={(e) => setPrompt(e.target.value)}
           placeholder="e.g. These are all apartments in Almaty, extract local amenities..."
           rows={3}
-          className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 outline-none focus:ring-2 focus:ring-black/10 text-gray-800 text-sm resize-none"
+          className="w-full bg-surface-page border border-line rounded-xl p-3 outline-none focus:border-accent text-ink text-sm resize-none"
         />
       </div>
 
@@ -83,7 +83,7 @@ export default function BatchImportForm({ onSubmit, isLoading }: Props) {
         whileTap={{ scale: 0.97 }}
         type="submit"
         disabled={isLoading || validUrls.length === 0}
-        className="flex items-center justify-center gap-2 w-full bg-black text-white hover:bg-gray-800 rounded-xl px-6 py-2.5 font-semibold shadow-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        className="flex items-center justify-center gap-2 w-full bg-accent text-white hover:bg-accent-hover rounded-xl px-6 py-2.5 font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
       >
         {isLoading ? (
           <>

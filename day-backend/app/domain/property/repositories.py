@@ -59,6 +59,11 @@ class PropertyRepository(abc.ABC):
     @abc.abstractmethod
     async def update(self, prop: Property) -> Property: ...
 
+    async def set_positions(self, company_id: uuid.UUID, positions: dict[uuid.UUID, int]) -> None:
+        """The company's flats in order at once: the listed ones at their places, every
+        other one without a place. Only the positions are written, never a card."""
+        raise NotImplementedError
+
     @abc.abstractmethod
     async def exists_internal_name(
         self, company_id: uuid.UUID, internal_name: str, *, exclude_id: uuid.UUID | None = None
@@ -83,6 +88,10 @@ class PropertyPhotoRepository(abc.ABC):
 
     @abc.abstractmethod
     async def set_caption(self, photo_id: uuid.UUID, caption: str | None) -> None: ...
+
+    @abc.abstractmethod
+    async def set_cover(self, property_id: uuid.UUID, photo_id: uuid.UUID) -> None:
+        """This listing photo becomes the flat's only cover."""
 
 
 class AmenityRepository(abc.ABC):
@@ -138,6 +147,9 @@ class SeasonalPriceRepository(abc.ABC):
 
     @abc.abstractmethod
     async def save(self, price: SeasonalPrice) -> SeasonalPrice: ...
+
+    @abc.abstractmethod
+    async def update(self, price: SeasonalPrice) -> SeasonalPrice: ...
 
     @abc.abstractmethod
     async def delete(self, price_id: uuid.UUID) -> None: ...

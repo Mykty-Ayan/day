@@ -1,5 +1,5 @@
 import { isWebLink } from '../../lib/utils'
-import type { CheckInMethod, Property, PropertyCreateInput, PropertyType, PropertyUpdateInput } from '../../types/property'
+import type { CheckInMethod, Property, PropertyType, PropertyUpdateInput } from '../../types/property'
 
 /** The edit form keeps every field as typed text; the payload turns it back into values. */
 export interface PropertyEditForm {
@@ -9,7 +9,6 @@ export interface PropertyEditForm {
     type: PropertyType
     description: string
     source_url: string
-    map_url: string
     whatsapp_product_url: string
     video_url: string
     /** One link per line. */
@@ -17,6 +16,8 @@ export interface PropertyEditForm {
     hourly_listing_urls: string
   }
   address: {
+    /** A 2GIS link: the point below is taken from it. */
+    map_url: string
     address_full: string
     apartment_number: string
     entrance: string
@@ -38,6 +39,8 @@ export interface PropertyEditForm {
   rules: {
     check_in_hour: string
     check_out_hour: string
+    late_check_out_hour: string
+    late_check_out_price: string
     check_in_method: string
     check_in_instructions: string
     check_out_instructions: string
@@ -62,13 +65,13 @@ export function propertyToForm(property: Property): PropertyEditForm {
       type: property.type || 'apartment',
       description: asText(property.description),
       source_url: asText(property.source_url),
-      map_url: asText(property.map_url),
       whatsapp_product_url: asText(property.whatsapp_product_url),
       video_url: asText(property.video_url),
       listing_urls: (property.listing_urls ?? []).join('\n'),
       hourly_listing_urls: (property.hourly_listing_urls ?? []).join('\n'),
     },
     address: {
+      map_url: asText(property.map_url),
       address_full: asText(property.address_full),
       apartment_number: asText(property.apartment_number),
       entrance: asText(property.entrance),
@@ -90,6 +93,8 @@ export function propertyToForm(property: Property): PropertyEditForm {
     rules: {
       check_in_hour: asNumberText(property.check_in_hour),
       check_out_hour: asNumberText(property.check_out_hour),
+      late_check_out_hour: asNumberText(property.late_check_out_hour),
+      late_check_out_price: asNumberText(property.late_check_out_price),
       check_in_method: asText(property.check_in_method),
       check_in_instructions: asText(property.check_in_instructions),
       check_out_instructions: asText(property.check_out_instructions),
@@ -115,6 +120,11 @@ export function listingLines(value: string): string[] {
 // As the server takes them: web addresses of up to 500 characters, at most twenty.
 const MAX_LISTING_LINKS = 20
 const MAX_LISTING_LINK_LENGTH = 500
+
+/** A 2GIS link, short or full: the server finds the point in it or on its page. */
+export function is2gisLink(value: string): boolean {
+  return /^https?:\/\/([\w-]+\.)*2gis\.[a-z]+\//i.test(value.trim())
+}
 
 /** As the server takes it: empty (no rule), or 15 to 1440 minutes in steps of 15. */
 export function bufferMinutesValid(value: string): boolean {
@@ -154,7 +164,7 @@ export function formToUpdate(form: PropertyEditForm, opened: PropertyEditForm): 
     type: form.basic.type,
     description: text(form.basic.description),
     source_url: text(form.basic.source_url),
-    map_url: text(form.basic.map_url),
+    map_url: text(form.address.map_url),
     whatsapp_product_url: text(form.basic.whatsapp_product_url),
     video_url: text(form.basic.video_url),
     // Always sent: an emptied field clears the links.
@@ -177,6 +187,9 @@ export function formToUpdate(form: PropertyEditForm, opened: PropertyEditForm): 
     area_total: float(form.details.area_total),
     check_in_hour: int(form.rules.check_in_hour),
     check_out_hour: int(form.rules.check_out_hour),
+    late_check_out_hour: int(form.rules.late_check_out_hour),
+    // No later hour: no price to sell either.
+    late_check_out_price: form.rules.late_check_out_hour ? float(form.rules.late_check_out_price) : null,
     check_in_method: form.rules.check_in_method ? (form.rules.check_in_method as CheckInMethod) : null,
     check_in_instructions: text(form.rules.check_in_instructions),
     check_out_instructions: text(form.rules.check_out_instructions),
@@ -195,22 +208,20 @@ export function formToUpdate(form: PropertyEditForm, opened: PropertyEditForm): 
   return body
 }
 
-/** The wizard's create payload as an update of the flat it already created:
- *  a field left empty goes out as null, so a field cleared between attempts clears. */
-export function wizardToUpdate(payload: PropertyCreateInput): PropertyUpdateInput {
-  return Object.fromEntries(Object.entries(payload).map(([key, value]) => [key, value ?? null]))
+/** Only the fields changed since the panel opened: a panel of one block must not
+ *  send back the other blocks, or it would undo what was saved there meanwhile
+ *  (another panel, the CRM). A cleared field goes out as null. */
+/** A flat on sale may not lose its number of guests. One on sale from before the rule,
+ *  saved with none, still saves its other details: only clearing a number is refused. */
+export function clearsGuestsOnSale(status: Property['status'], form: PropertyEditForm, opened: PropertyEditForm): boolean {
+  return status === 'active' && opened.details.max_guests.trim() !== '' && form.details.max_guests.trim() === ''
 }
 
-/** The wizard's save. The flat is created once: a retry after a failed price or
- *  amenity save first saves the form as it is now onto that flat, then finishes it. */
-export async function saveWizard(
-  created: { current: string | null },
-  create: () => Promise<string>,
-  update: (propertyId: string) => Promise<void>,
-  finish: (propertyId: string) => Promise<void>,
-): Promise<string> {
-  if (created.current === null) created.current = await create()
-  else await update(created.current)
-  await finish(created.current)
-  return created.current
+export function changedFields(form: PropertyEditForm, opened: PropertyEditForm): PropertyUpdateInput {
+  const before = formToUpdate(opened, opened) as Record<string, unknown>
+  return Object.fromEntries(
+    Object.entries(formToUpdate(form, opened)).filter(
+      ([key, value]) => key === 'wifi_password' || JSON.stringify(value) !== JSON.stringify(before[key]),
+    ),
+  )
 }

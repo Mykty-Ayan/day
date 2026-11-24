@@ -25,10 +25,10 @@ export default function LoginPage() {
     const detail = (verifyMutation.error as { response?: { data?: { detail?: unknown } } } | null)?.response?.data
       ?.detail
     return (
-      <div className="flex flex-1 items-center justify-center px-4 py-4 sm:px-6 sm:py-6 min-h-screen bg-white">
-        <div className="bg-white border border-gray-200 rounded-xl p-5 sm:p-8 shadow-sm w-full max-w-sm">
-          <h1 className="text-xl font-bold text-gray-900 mb-1 text-center">{t('auth.twoFactor.title')}</h1>
-          <p className="text-sm text-gray-500 mb-6 text-center">{t('auth.twoFactor.hint')}</p>
+      <div className="flex flex-1 items-center justify-center px-4 py-4 sm:px-6 sm:py-6 min-h-screen bg-surface-card">
+        <div className="bg-surface-card border border-line rounded-xl p-5 sm:p-8 w-full max-w-sm">
+          <h1 className="text-xl font-bold text-ink mb-1 text-center">{t('auth.twoFactor.title')}</h1>
+          <p className="text-sm text-ink-muted mb-6 text-center">{t('auth.twoFactor.hint')}</p>
           <form
             onSubmit={(e) => {
               e.preventDefault()
@@ -45,10 +45,10 @@ export default function LoginPage() {
               required
               value={code}
               onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
-              className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-gray-400 transition-colors"
+              className="w-full rounded-lg border border-line px-3 py-2 text-sm outline-none focus:border-accent transition-colors"
             />
             {verifyMutation.isError && (
-              <p role="alert" className="text-xs text-red-600">
+              <p role="alert" className="text-xs text-danger">
                 {detail === 'The code is wrong or expired' ? t('auth.forgot.wrongCode') : t('auth.forgot.failed')}
               </p>
             )}
@@ -62,62 +62,64 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex flex-1 items-center justify-center px-4 py-4 sm:px-6 sm:py-6 min-h-screen bg-white">
+    <div className="flex flex-1 items-center justify-center px-4 py-4 sm:px-6 sm:py-6 min-h-screen bg-surface-card">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4 }}
-        className="bg-white border border-gray-200 rounded-xl p-5 sm:p-8 shadow-sm w-full max-w-sm"
+        className="bg-surface-card border border-line rounded-xl p-5 sm:p-8 w-full max-w-sm"
       >
         <div className="flex justify-center mb-4">
-          <div className="bg-gray-50 p-3 rounded-full">
-            <LogIn className="w-6 h-6 text-gray-900" />
+          <div className="bg-surface-page p-3 rounded-full">
+            <LogIn className="w-6 h-6 text-ink" />
           </div>
         </div>
-        <h1 className="text-xl font-bold text-gray-900 mb-1 text-center">Sign in to Day</h1>
-        <p className="text-sm text-gray-500 mb-6 text-center">Enter your credentials</p>
+        <h1 className="text-xl font-bold text-ink mb-1 text-center">{t('auth.login.title')}</h1>
+        <p className="text-sm text-ink-muted mb-6 text-center">{t('auth.login.hint')}</p>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <input
             type="email"
-            placeholder="Email"
+            placeholder={t('auth.login.email')}
+            aria-label={t('auth.login.email')}
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
-            className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-gray-400 transition-colors"
+            className="w-full rounded-lg border border-line px-3 py-2 text-sm outline-none focus:border-accent transition-colors"
           />
           <input
             type="password"
-            placeholder="Password"
+            placeholder={t('auth.login.password')}
+            aria-label={t('auth.login.password')}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
-            className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-gray-400 transition-colors"
+            className="w-full rounded-lg border border-line px-3 py-2 text-sm outline-none focus:border-accent transition-colors"
           />
 
           {loginMutation.isError && (
-            <p className="text-xs text-red-600">
+            <p className="text-xs text-danger">
               {loginError.response?.data?.detail === 'Invalid email or password'
                 ? t('auth.login.wrongPassword')
-                : loginError.response?.data?.detail || 'Login failed'}
+                : t('auth.login.failed')}
             </p>
           )}
 
           <Button type="submit" disabled={loginMutation.isPending}>
-            {loginMutation.isPending ? 'Signing in...' : 'Sign in'}
+            {loginMutation.isPending ? t('auth.login.submitting') : t('auth.login.submit')}
           </Button>
         </form>
 
         <p className="text-xs text-center mt-3">
-          <Link to="/forgot-password" className="text-gray-500 hover:underline">
+          <Link to="/forgot-password" className="text-ink-muted hover:underline">
             {t('auth.forgot.link')}
           </Link>
         </p>
 
-        <p className="text-xs text-gray-500 mt-4 text-center">
-          Don't have an account?{' '}
-          <Link to="/register" className="text-gray-900 font-semibold hover:underline">
-            Register
+        <p className="text-xs text-ink-muted mt-4 text-center">
+          {t('auth.login.noAccount')}{' '}
+          <Link to="/register" className="text-ink font-semibold hover:underline">
+            {t('auth.login.register')}
           </Link>
         </p>
       </motion.div>

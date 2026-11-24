@@ -3,6 +3,7 @@ from __future__ import annotations
 import uuid
 from dataclasses import dataclass
 
+from app.domain.auth.repositories import UserRepository
 from app.domain.booking.entities import (
     Booking,
     BookingAuditLog,
@@ -23,6 +24,7 @@ from app.domain.booking.repositories import (
     BookingRepository,
     GuestRepository,
 )
+from app.domain.booking.value_objects import BookingStatus
 from app.domain.property.repositories import PropertyRepository
 
 
@@ -38,6 +40,10 @@ class BookingDetail:
     comments: list[BookingComment]
     contract: BookingContract | None
     audit_logs: list[BookingAuditLog]
+    # The guest's stays with the company, this one included; cancelled ones don't count.
+    guest_stays: int
+    # Who changed the booking or commented on it, by user id; the company's users only.
+    people: dict[uuid.UUID, str]
 
 
 class GetBookingService:
@@ -52,6 +58,7 @@ class GetBookingService:
         comment_repo: BookingCommentRepository,
         contract_repo: BookingContractRepository,
         audit_repo: BookingAuditLogRepository,
+        user_repo: UserRepository,
     ) -> None:
         self._booking_repo = booking_repo
         self._guest_repo = guest_repo
@@ -62,6 +69,7 @@ class GetBookingService:
         self._comment_repo = comment_repo
         self._contract_repo = contract_repo
         self._audit_repo = audit_repo
+        self._user_repo = user_repo
 
     async def execute(
         self, booking_id: uuid.UUID, company_id: uuid.UUID
@@ -80,6 +88,7 @@ class GetBookingService:
         comments = await self._comment_repo.list_by_booking(booking_id)
         contract = await self._contract_repo.get_by_booking(booking_id)
         audit_logs = await self._audit_repo.list_by_booking(booking_id)
+        stays = await self._booking_repo.list_by_guest(company_id, booking.guest_id)
 
         return BookingDetail(
             booking=booking,
@@ -92,4 +101,18 @@ class GetBookingService:
             comments=comments,
             contract=contract,
             audit_logs=audit_logs,
+            guest_stays=sum(1 for stay in stays if stay.status != BookingStatus.CANCELLED),
+            people=await self._people(company_id, audit_logs, comments),
         )
+
+    async def _people(
+        self, company_id: uuid.UUID, logs: list[BookingAuditLog], comments: list[BookingComment]
+    ) -> dict[uuid.UUID, str]:
+        ids = {log.changed_by for log in logs} | {comment.author_id for comment in comments}
+        names: dict[uuid.UUID, str] = {}
+        # One read per person: a booking is touched by a handful of them.
+        for user_id in ids - {None}:
+            user = await self._user_repo.get_by_id(user_id)
+            if user is not None and user.company_id == company_id:
+                names[user_id] = user.full_name or user.email
+        return names

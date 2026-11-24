@@ -1,5 +1,6 @@
 import uuid
 from datetime import date, datetime, time
+from decimal import Decimal
 
 from sqlalchemy import (
     JSON,
@@ -33,6 +34,7 @@ class PropertyModel(Base):
     type: Mapped[str] = mapped_column(String(50))
     status: Mapped[str] = mapped_column(String(50), default="new")
     rental_mode: Mapped[str] = mapped_column(String(20), default="daily")
+    position: Mapped[int | None] = mapped_column(Integer, nullable=True)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     source_url: Mapped[str | None] = mapped_column(String(1024), nullable=True)
 
@@ -70,6 +72,9 @@ class PropertyModel(Base):
     # Rules
     check_in_instructions: Mapped[str | None] = mapped_column(Text, nullable=True)
     check_out_instructions: Mapped[str | None] = mapped_column(Text, nullable=True)
+    nearby: Mapped[list] = mapped_column(JSON, nullable=False, default=list, server_default="[]")
+    late_check_out_hour: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    late_check_out_price: Mapped[Decimal | None] = mapped_column(Numeric(12, 2), nullable=True)
     house_rules: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # Access
@@ -107,6 +112,8 @@ class PropertyPhotoModel(Base):
     is_cover: Mapped[bool] = mapped_column(Boolean, default=False)
     caption: Mapped[str | None] = mapped_column(String(500), nullable=True)
     audience: Mapped[str] = mapped_column(String(20), default="public", server_default="public")
+    kind: Mapped[str] = mapped_column(String(10), default="photo", server_default="photo")
+    section: Mapped[str] = mapped_column(String(10), default="path", server_default="path")
     created_at: Mapped[datetime] = mapped_column(default=datetime.utcnow)
 
     property: Mapped["PropertyModel"] = relationship(back_populates="photos")

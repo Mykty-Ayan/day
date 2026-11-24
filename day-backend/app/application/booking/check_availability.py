@@ -16,7 +16,7 @@ from decimal import Decimal
 from app.application.booking.blocks import blocks_stay
 from app.application.booking.create_booking import apply_default_times
 from app.application.booking.price_calculator import PriceCalculatorService
-from app.application.booking.stay_rules import company_now
+from app.application.booking.stay_rules import company_now, takes
 from app.config import settings
 from app.domain.booking.repositories import BookingRepository
 from app.domain.booking.stay_rules import RuleBreach, stay_breaches
@@ -107,10 +107,13 @@ class CheckAvailabilityService:
         rental_mode: RentalMode = RentalMode.DAILY,
         with_prices: bool = True,
         with_rule_breaches: bool = False,
+        source: str | None = None,
     ) -> list[AvailableProperty]:
         """`with_rule_breaches`: also the flats whose stay rules the stay breaks, each
         with the rules, for an operator who may book them by confirming. Without it
-        the search offers only what booking would accept."""
+        the search offers only what booking would accept. `source`: the platform the
+        stay comes from; that platform's own closed nights do not hide a flat, as
+        booking lets its stay in over them (the block is that very stay)."""
         start, end = _stay(check_in, check_out, rental_mode, None)
         if end <= start:
             raise ValueError("Check-out must be after check-in")
@@ -134,7 +137,10 @@ class CheckAvailabilityService:
         for block in await self._bookings.list_company_blocks(
             company_id, start.date() - timedelta(days=1), end.date() + timedelta(days=1)
         ):
-            closed[block.property_id].append(block)
+            if source is None or block.source != source:
+                closed[block.property_id].append(block)
+        # As booking judges it: a stay completed early frees its flat from today on.
+        today = now.replace(hour=0, minute=0, second=0, microsecond=0) if now is not None else None
 
         results: list[AvailableProperty] = []
         for prop in properties:
@@ -143,7 +149,7 @@ class CheckAvailabilityService:
             start, end = _stay(check_in, check_out, rental_mode, prop)
             # Half-open interval: a checkout at noon and a check-in at 14:00 on
             # the same day do not collide.
-            if any(b.check_in < end and b.check_out > start for b in taken[prop.id]):
+            if any(takes(b, start, end, today) for b in taken[prop.id]):
                 continue
             if blocks_stay(closed[prop.id], start, end):
                 continue

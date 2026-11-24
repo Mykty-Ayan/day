@@ -39,12 +39,12 @@ test('occupancy shows two weeks per flat and the flat filter narrows the lists',
     await expect(page.getByRole('list', { name: quiet.name }).locator('li[aria-label$=": Free"]')).toHaveCount(14)
 
     // One flat only.
-    await page.getByLabel('Flat', { exact: true }).selectOption(quiet.id)
+    await page.getByLabel('Property', { exact: true }).selectOption(quiet.id)
     await expect(page.getByRole('list', { name: busy.name })).toHaveCount(0)
     await expect(page.getByRole('list', { name: quiet.name })).toBeVisible()
 
     // The stay opens its card.
-    await page.getByLabel('Flat', { exact: true }).selectOption(busy.id)
+    await page.getByLabel('Property', { exact: true }).selectOption(busy.id)
     await page.getByRole('button', { name: new RegExp(guest) }).click()
     await expect(page.getByRole('dialog', { name: guest })).toBeVisible()
     await page.getByRole('button', { name: 'Close' }).click()
@@ -52,7 +52,7 @@ test('occupancy shows two weeks per flat and the flat filter narrows the lists',
     // The filter narrows the bookings list too.
     await page.getByRole('button', { name: 'Upcoming', exact: true }).click()
     await expect(page.getByText(guest)).toBeVisible()
-    await page.getByLabel('Flat', { exact: true }).selectOption(quiet.id)
+    await page.getByLabel('Property', { exact: true }).selectOption(quiet.id)
     await expect(page.getByText(guest)).toHaveCount(0)
   } finally {
     for (const flat of flats) await request.delete(`${API_BASE}/properties/${flat.id}`)

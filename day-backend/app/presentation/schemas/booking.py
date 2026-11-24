@@ -13,6 +13,7 @@ from pydantic import (
     Field,
     computed_field,
     field_serializer,
+    field_validator,
     model_validator,
 )
 
@@ -103,6 +104,8 @@ class BookingCreate(BaseModel):
 
 class BookingUpdate(BaseModel):
     agent_id: uuid.UUID | None = None
+    # Another flat of the company, saved together with any new dates.
+    property_id: uuid.UUID | None = None
     check_in: datetime | None = None
     check_out: datetime | None = None
     rental_mode: RentalMode | None = None
@@ -293,10 +296,36 @@ class DepositCreate(BaseModel):
     unless_open: bool = False
 
 
+class DepositDeductionIn(BaseModel):
+    """One line of a hold, for the guest: what happened, how much, the photos of it."""
+
+    amount: Decimal = Field(..., gt=0, le=10_000_000, decimal_places=2)
+    reason: str = Field(..., min_length=1, max_length=200)
+    # Photos uploaded with POST /deposits/{id}/photos: this booking's own, at most three.
+    photos: list[str] = Field(default_factory=list, max_length=3)
+
+    @field_validator("reason")
+    @classmethod
+    def _said(cls, value: str) -> str:
+        if not value.strip():
+            raise ValueError("A deduction says what it is for")
+        return value.strip()
+
+
+class DepositDeductionResponse(BaseModel):
+    amount: Decimal
+    reason: str
+    # Links that expire within the hour.
+    photos: list[str] = []
+
+
 class DepositAction(BaseModel):
     action: str = Field(..., pattern="^(pay|return|hold|partial_hold)$")
     held_amount: Decimal | None = None
+    # The owner's own note; the guest never reads it.
     reason: str | None = None
+    # With a hold: what is kept, line by line, as the guest will read it; their sum is what is held.
+    deductions: list[DepositDeductionIn] | None = Field(default=None, max_length=10)
 
 
 class DepositResponse(BaseModel):
@@ -311,8 +340,16 @@ class DepositResponse(BaseModel):
     status: DepositStatus
     held_amount: Decimal
     reason: str | None = None
+    deductions: list[DepositDeductionResponse] = []
     created_at: datetime | None = None
     updated_at: datetime | None = None
+
+
+class DepositPhotoResponse(BaseModel):
+    # To send back in a deduction's photos.
+    url: str
+    # To show now: a link that expires.
+    preview_url: str
 
 
 # ---------- File ----------
@@ -449,6 +486,8 @@ class GanttBookingResponse(BaseModel):
     adults_count: int
     children_count: int
     total_price: float
+    # Payments less refunds: with total_price, the chessboard marks who still owes.
+    paid_amount: float = 0
     overbooking: bool = False
 
 
@@ -459,6 +498,9 @@ class GanttBlockResponse(BaseModel):
     reason: str | None = None
     # A platform's booking over a Day booking: the same night sold twice.
     clash: bool = False
+    # The exact span, from the check-out hour of its first day to that of its last.
+    starts_at: datetime | None = None
+    ends_at: datetime | None = None
 
 
 class GanttDayPriceResponse(BaseModel):
@@ -478,6 +520,11 @@ class GanttPropertyResponse(BaseModel):
     rental_mode: RentalMode = RentalMode.DAILY
     # Nights priced on the calendar, replacing the flat's usual price.
     day_prices: list[GanttDayPriceResponse] = []
+    # The flat's row as the company ordered them; None: by its name.
+    position: int | None = None
+    # Its own check-in and check-out hours, or the defaults: busy nights go by them.
+    check_in_hour: int = 14
+    check_out_hour: int = 12
 
 
 class GanttDataResponse(BaseModel):
@@ -497,6 +544,12 @@ class TodayCheckResponse(BaseModel):
     check_ins: list[TodayBookingItem]
     check_outs: list[TodayBookingItem]
     in_house: list[TodayBookingItem]
+    # Stays that ended before this day with money still owed, the latest first.
+    past_debts: list[TodayBookingItem] = []
+    # Still marked in after the last day, or never marked in after the first.
+    unclosed: list[TodayBookingItem] = []
+    # Money received this day; null for a caller who may not read analytics.
+    received_today: Decimal | None = None
 
 
 # ---------- Audit ----------
@@ -527,6 +580,8 @@ class BookingDetailResponse(BaseModel):
     comments: list[BookingCommentResponse]
     contract: None = None  # BookingContractResponse placeholder
     audit_logs: list[BookingAuditLogResponse]
+    guest_stays: int = 0
+    people: dict[uuid.UUID, str] = {}
 
 
 class PropertyBlockCreate(BaseModel):

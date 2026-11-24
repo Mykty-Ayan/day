@@ -15,6 +15,7 @@ from app.application.property.public_stay import PublicStay
 from app.config import settings
 from app.domain.booking.value_objects import RentalMode
 from app.presentation.schemas.offers import full_phone
+from app.presentation.schemas.property import NearbyPlace
 
 
 class PublicAmenity(BaseModel):
@@ -30,7 +31,7 @@ def _set(amount) -> float | None:
 class PublicTariff(BaseModel):
     name: str  # "3h", "6h" or "night"
     price: float
-    # Friday and Saturday, when it differs from the price.
+    # On the company's weekend (PublicPrices.weekend_nights), when it differs from the price.
     weekend: float | None = None
 
 
@@ -45,6 +46,8 @@ class PublicPrices(BaseModel):
     # The deposit of a stay by the night and by the hour, each only where the flat takes it.
     deposit: float | None = None
     hour_deposit: float | None = None
+    # The nights the weekend prices are for, Monday 0 (Friday 4, Saturday 5, Sunday 6).
+    weekend_nights: list[int] = [4, 5]
 
 
 class PublicNightResponse(BaseModel):
@@ -82,6 +85,8 @@ class PublicStayResponse(BaseModel):
     check_out_hour: int | None = None
     check_in_method: str | None = None
     house_rules: str | None = None
+    # Shops, a park, the airport and how far: the place without the address.
+    nearby: list[NearbyPlace] = []
     min_nights: int | None = None
     # No map link and no video: the map pins the building (as Airbnb, the place is
     # told after booking), and an owner's video may be the one of the lock.
@@ -96,7 +101,12 @@ class PublicStayResponse(BaseModel):
         p, pricing = stay.property, stay.pricing
         tariffs = (
             [
-                PublicTariff(name=name, price=float(price), weekend=float(weekend) if 0 < weekend != price else None)
+                PublicTariff(
+                    name=name,
+                    price=float(price),
+                    # No weekend at all: no weekend price to promise.
+                    weekend=float(weekend) if stay.weekend_nights and 0 < weekend != price else None,
+                )
                 for name, price, weekend in (
                     ("3h", pricing.price_3h, pricing.price_3h_weekend),
                     ("6h", pricing.price_6h, pricing.price_6h_weekend),
@@ -126,6 +136,7 @@ class PublicStayResponse(BaseModel):
             check_out_hour=settings.DEFAULT_CHECK_OUT_HOUR if p.check_out_hour is None else p.check_out_hour,
             check_in_method=p.check_in_method.value if p.check_in_method else None,
             house_rules=p.house_rules,
+            nearby=p.nearby,
             min_nights=p.min_nights,
             photos=stay.photos,
             amenities=[PublicAmenity(name=a.name, category=a.category.value) for a in stay.amenities],
@@ -141,6 +152,7 @@ class PublicStayResponse(BaseModel):
                 # calendar alone still takes the nightly deposit when booked by a link.
                 deposit=_set(pricing.default_deposit) if pricing and p.rental_mode != RentalMode.HOURLY else None,
                 hour_deposit=_set(pricing.hourly_deposit) if pricing and p.rental_mode != RentalMode.DAILY else None,
+                weekend_nights=list(stay.weekend_nights),
             ),
             nights=[PublicNightResponse(date=n.date, price=float(n.price), free=n.free) for n in stay.nights],
         )
@@ -158,6 +170,15 @@ class PublicOfferFlat(BaseModel):
     # The stay's price for the offer's dates and guests, as a booking would count it.
     total: float | None = None
     free: bool
+    # The deposit a booking from the link asks; None when the flat has none.
+    deposit: float | None = None
+
+
+class PublicOfferCompany(BaseModel):
+    """Who sent the link, once the company has set up its site."""
+
+    title: str
+    logo_url: str | None = None
 
 
 class PublicOfferBook(BaseModel):
@@ -173,6 +194,16 @@ class PublicOfferBook(BaseModel):
     @classmethod
     def _a_phone_number(cls, value: str | None) -> str | None:
         return full_phone(value) if value else None
+
+
+class PublicStayQuote(BaseModel):
+    """What a stay costs for the guests asked, as the booking counts it: extra guests
+    above the flat's base and the best discount included."""
+
+    nights: int
+    total: float
+    extra_guests: float = 0
+    discount: float = 0
 
 
 class PublicStayBook(BaseModel):
@@ -223,11 +254,16 @@ class PublicOfferBooking(BaseModel):
     guests: int
     # What the nights cost for the guests booked, paid at check-in; none when the flat has no price.
     total: float | None = None
+    # The guest's own booking page, /g/<code>: only in the answer to the booking itself, to the
+    # one who just made it, and only for a number the company did not know (or the offer's own):
+    # the page shows the guest's name. Opening the offer link again does not give it.
+    guest_code: str | None = None
 
     @classmethod
-    def from_hold(cls, held: OfferBooking) -> PublicOfferBooking:
+    def from_hold(cls, held: OfferBooking, *, with_page: bool = False) -> PublicOfferBooking:
         b = held.booking
         return cls(
+            guest_code=b.guest_code if with_page and held.page_for_booker else None,
             flat=held.flat,
             status=b.status.value,
             expires_at=b.expires_at.replace(tzinfo=timezone.utc) if b.expires_at else None,
@@ -255,6 +291,7 @@ class PublicOfferResponse(BaseModel):
     guests: int
     flats: list[PublicOfferFlat]
     booking: PublicOfferBooking | None = None
+    company: PublicOfferCompany | None = None
 
     @classmethod
     def from_offer(cls, public: PublicOffer, held: OfferBooking | None = None) -> PublicOfferResponse:
@@ -285,6 +322,7 @@ class PublicOfferResponse(BaseModel):
                     photo=f.photo,
                     total=float(f.total) if f.total is not None else None,
                     free=f.free,
+                    deposit=float(f.deposit) if f.deposit is not None else None,
                 )
                 for f in public.flats
             ],

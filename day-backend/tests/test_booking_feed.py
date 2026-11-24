@@ -181,6 +181,9 @@ class _NoTab:
     async def due_by_bookings(self, company_id, ids):
         return {}
 
+    async def booking_ids_with_due(self, company_id):
+        return []
+
 
 class _Payments:
     def __init__(self, paid):
@@ -320,6 +323,12 @@ async def test_today_says_which_arrival_landed_on_nights_already_taken(monkeypat
         async def list_by_company_date_range(self, company_id, start, end):
             return [b for b in self._rows if b.company_id == company_id]
 
+        async def list_ended_owing(self, company_id, before, with_orders_due):
+            return []
+
+        async def list_unclosed(self, company_id, before):
+            return []
+
     guest = Guest(company_id=COMPANY_ID, name="Guest")
     prop = Property(company_id=COMPANY_ID, name="Т13", internal_name="t13")
     arrivals = [
@@ -338,6 +347,50 @@ async def test_today_says_which_arrival_landed_on_nights_already_taken(monkeypat
     assert response.status_code == 200
     # The Mini App opens a booking from "Arrivals" and must warn before check-in.
     assert [i["overbooking"] for i in response.json()["check_ins"]] == [True, False]
+
+
+@pytest.mark.parametrize(
+    "permissions, received",
+    [((Permission.BOOKINGS_READ,), None), ((Permission.BOOKINGS_READ, Permission.ANALYTICS_READ), "4500")],
+)
+async def test_today_shows_the_days_money_only_to_who_reads_analytics(monkeypatch, permissions, received):
+    from app.presentation.api import deps
+    from app.presentation.api.v1 import bookings
+
+    class _Empty:
+        async def list_by_company_date_range(self, company_id, start, end):
+            return []
+
+        async def list_ended_owing(self, company_id, before, with_orders_due):
+            return []
+
+        async def list_unclosed(self, company_id, before):
+            return []
+
+    class _Settings:
+        async def get_by_company(self, company_id):
+            return None
+
+    class _Received(_Payments):
+        async def sum_received_between(self, company_id, start, end):
+            self.asked = (company_id, start, end)
+            return Decimal("4500")
+
+    payments = _Received({})
+    repos = {"booking": _Empty(), "payment": payments, "orders": _NoTab(), "settings": _Settings()}
+    monkeypatch.setattr(bookings, "_repos", lambda session: repos)
+    app.dependency_overrides[deps.get_session] = lambda: _Session()
+    try:
+        response = await _get("/api/v1/bookings/today", _principal(*permissions), date="2026-11-01")
+    finally:
+        app.dependency_overrides.pop(deps.get_session, None)
+
+    assert response.status_code == 200
+    body = response.json()["received_today"]
+    assert (None if body is None else str(int(float(body)))) == received
+    if received:
+        # 1 November in Almaty (UTC+5) starts at 19:00 UTC the day before.
+        assert payments.asked == (COMPANY_ID, datetime(2026, 10, 31, 19), datetime(2026, 11, 1, 19))
 
 
 async def test_a_phone_we_cannot_normalise_gives_null(feed_api):

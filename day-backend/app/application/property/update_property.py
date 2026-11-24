@@ -3,9 +3,15 @@ from __future__ import annotations
 import enum
 import uuid
 from dataclasses import dataclass
+from decimal import Decimal
 
-from app.application.property.create_property import check_listing_kinds, check_stay_nights, check_turnover_hours
-from app.domain.property.entities import Property, PropertyAuditLog
+from app.application.property.create_property import (
+    check_late_check_out,
+    check_listing_kinds,
+    check_stay_nights,
+    check_turnover_hours,
+)
+from app.domain.property.entities import GUESTS_REQUIRED, Property, PropertyAuditLog
 from app.domain.property.repositories import PropertyAuditLogRepository, PropertyRepository
 from app.domain.property.value_objects import AuditAction, PropertyStatus
 
@@ -52,6 +58,9 @@ class UpdatePropertyInput:
     area_total: object = _UNSET
     check_in_instructions: object = _UNSET
     check_out_instructions: object = _UNSET
+    nearby: object = _UNSET
+    late_check_out_hour: object = _UNSET
+    late_check_out_price: object = _UNSET
     house_rules: object = _UNSET
     wifi_name: object = _UNSET
     wifi_password: object = _UNSET
@@ -67,9 +76,9 @@ _UPDATABLE_FIELDS = {
     "complex_name", "floors_total", "map_url", "whatsapp_product_url", "video_url",
     "listing_urls", "hourly_listing_urls",
     "min_nights", "max_nights", "buffer_minutes", "min_lead_hours",
-    "check_in_hour", "check_out_hour", "check_in_method",
+    "check_in_hour", "check_out_hour", "check_in_method", "late_check_out_hour", "late_check_out_price",
     "area_living", "area_total",
-    "check_in_instructions", "check_out_instructions", "house_rules",
+    "check_in_instructions", "check_out_instructions", "house_rules", "nearby",
     "wifi_name", "wifi_password",
 }
 
@@ -93,12 +102,20 @@ class UpdatePropertyService:
         if prop.company_id != inp.company_id:
             raise ValueError("Property not found")
         if prop.status == PropertyStatus.ARCHIVED:
-            raise ValueError("Cannot update an archived property")
+            # Only its number of guests may be added: without it the flat could never go on sale again.
+            given = {name for name in _UPDATABLE_FIELDS if getattr(inp, name, _UNSET) is not _UNSET}
+            if given != {"max_guests"} or inp.max_guests is None:
+                raise ValueError("Cannot update an archived property")
 
         # One hour in a PATCH is checked against the other as saved.
         check_turnover_hours(
             prop.check_in_hour if inp.check_in_hour is _UNSET else inp.check_in_hour,  # type: ignore[arg-type]
             prop.check_out_hour if inp.check_out_hour is _UNSET else inp.check_out_hour,  # type: ignore[arg-type]
+        )
+        check_late_check_out(
+            prop.check_out_hour if inp.check_out_hour is _UNSET else inp.check_out_hour,  # type: ignore[arg-type]
+            prop.late_check_out_hour if inp.late_check_out_hour is _UNSET else inp.late_check_out_hour,  # type: ignore[arg-type]
+            prop.late_check_out_price if inp.late_check_out_price is _UNSET else inp.late_check_out_price,  # type: ignore[arg-type]
         )
         check_stay_nights(
             prop.min_nights if inp.min_nights is _UNSET else inp.min_nights,  # type: ignore[arg-type]
@@ -108,6 +125,10 @@ class UpdatePropertyService:
             prop.listing_urls if inp.listing_urls is _UNSET else inp.listing_urls,  # type: ignore[arg-type]
             prop.hourly_listing_urls if inp.hourly_listing_urls is _UNSET else inp.hourly_listing_urls,  # type: ignore[arg-type]
         )
+
+        # A flat on sale keeps its number of guests: without it any party is offered the flat.
+        if prop.status == PropertyStatus.ACTIVE and inp.max_guests is None:
+            raise ValueError(GUESTS_REQUIRED)
 
         # Check unique internal_name if changed
         new_internal = getattr(inp, "internal_name", _UNSET)
@@ -125,6 +146,9 @@ class UpdatePropertyService:
             if new_val is _UNSET:
                 continue
             old_val = getattr(prop, field_name)
+            # A price sent back as typed (5000) is the one stored (5000.00): no change to record.
+            if isinstance(new_val, Decimal) and isinstance(old_val, Decimal) and new_val == old_val:
+                continue
             # Any enum compares and audits by its value ("lockbox", not "CheckInMethod.LOCKBOX").
             if isinstance(new_val, enum.Enum):
                 new_val_str = new_val.value
@@ -152,3 +176,30 @@ class UpdatePropertyService:
                 )
 
         return await self._property_repo.update(prop)
+
+    async def copy_nearby(
+        self,
+        source_id: uuid.UUID,
+        target_ids: list[uuid.UUID],
+        company_id: uuid.UUID,
+        changed_by: uuid.UUID | None,
+    ) -> int:
+        """Give the chosen flats this flat's list «Рядом» in place of theirs, each change in
+        its own history. All or none: a flat of another company, or an archived one, refuses
+        the whole copy. Returns how many flats took the list."""
+        source = await self._property_repo.get_by_id(source_id)
+        if source is None or source.company_id != company_id:
+            raise ValueError("Property not found")
+        # An empty list would wipe theirs: that is an edit of each flat, not a copy.
+        if not source.nearby:
+            raise ValueError("Nothing to copy: the list «Рядом» is empty")
+        changed = 0
+        for target_id in dict.fromkeys(target_ids):
+            if target_id == source_id:
+                continue
+            inp = UpdatePropertyInput(property_id=target_id, company_id=company_id, changed_by=changed_by)
+            # Each flat its own list: an edit of one later leaves the others as they are.
+            inp.nearby = [dict(place) for place in source.nearby]
+            await self.execute(inp)
+            changed += 1
+        return changed

@@ -14,6 +14,8 @@ from app.domain.property.value_objects import (
     CheckInMethod,
     FactAudience,
     FactSource,
+    GuestMediaSection,
+    MediaKind,
     PropertyStatus,
     PropertyType,
 )
@@ -36,6 +38,10 @@ def whatsapp_product_id(url: str | None) -> str | None:
     return found.group(1) if found else None
 
 
+# The refusal a flat without its number of guests gets when it goes on sale or loses the number.
+GUESTS_REQUIRED = "Set how many guests the property takes"
+
+
 @dataclass
 class Property:
     """Aggregate root for the Property domain."""
@@ -50,6 +56,8 @@ class Property:
     type: PropertyType = PropertyType.APARTMENT
     status: PropertyStatus = PropertyStatus.NEW
     rental_mode: RentalMode = RentalMode.DAILY
+    # Its row on the chessboard, as the company put the flats in order; None: by its name.
+    position: int | None = None
     description: str | None = None
     source_url: str | None = None
 
@@ -95,6 +103,10 @@ class Property:
     # The flat's own hours; empty means the company default (14:00 / 12:00).
     check_in_hour: int | None = None
     check_out_hour: int | None = None
+    # A later check-out the guest may ask for: until this hour, for this price (None: free).
+    # No hour: the guest's button only asks.
+    late_check_out_hour: int | None = None
+    late_check_out_price: Decimal | None = None
     check_in_method: CheckInMethod | None = None
     area_living: float | None = None
     area_total: float | None = None
@@ -103,6 +115,8 @@ class Property:
     check_in_instructions: str | None = None
     check_out_instructions: str | None = None
     house_rules: str | None = None
+    # Near the flat, for the guest: {"name": "Magnum, продукты 24/7", "minutes": 3, "by": "walk" | "car"}.
+    nearby: list[dict] = field(default_factory=list)
 
     # Access. The guest asks for the Wi-Fi password more often than anything
     # else, so it lives on the unit rather than buried in the check-in text.
@@ -115,6 +129,9 @@ class Property:
     def change_status(self, new_status: PropertyStatus) -> None:
         if not self.status.can_transition_to(new_status):
             raise ValueError(f"Cannot transition from {self.status.value} to {new_status.value}")
+        # On sale, a flat is offered by the size of the party: an unknown size takes any party.
+        if new_status == PropertyStatus.ACTIVE and self.max_guests is None:
+            raise ValueError(GUESTS_REQUIRED)
         self.status = new_status
 
 
@@ -130,6 +147,9 @@ class PropertyPhoto:
     # guest: a check-in instruction (the entrance, the lock): never in the
     # listing, only for those who hand codes to guests.
     audience: FactAudience = FactAudience.PUBLIC
+    # A check-in photo may be a video, and stands in one of the guest page's places.
+    kind: MediaKind = MediaKind.PHOTO
+    section: GuestMediaSection = GuestMediaSection.PATH
     created_at: datetime | None = None
 
 

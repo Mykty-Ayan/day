@@ -1,10 +1,3 @@
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '../ui/select'
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover'
 import { ToggleGroup, ToggleGroupItem } from '../ui/toggle-group'
 import DateRangePicker from '../ui/date-range-picker'
@@ -26,8 +19,9 @@ interface Props {
   onGranularityChange: (granularity: Granularity) => void
   propertyIds: string[]
   onPropertyChange: (ids: string[]) => void
-  source: string
-  onSourceChange: (source: string) => void
+  /** The sources picked; none is all of them. */
+  sources: string[]
+  onSourcesChange: (sources: string[]) => void
   properties: Property[]
   onExport: () => void
   /** No export while the own period is not picked yet. */
@@ -41,8 +35,8 @@ export default function AnalyticsFilterBar({
   onGranularityChange,
   propertyIds,
   onPropertyChange,
-  source,
-  onSourceChange,
+  sources,
+  onSourcesChange,
   range,
   onRangeChange,
   properties,
@@ -66,7 +60,6 @@ export default function AnalyticsFilterBar({
   ]
 
   const SOURCE_OPTIONS = [
-    { value: 'all', label: t('common.allSources') },
     { value: 'direct', label: t('common.direct') },
     { value: 'booking', label: t('common.bookingCom') },
     { value: 'airbnb', label: t('common.airbnb') },
@@ -75,30 +68,6 @@ export default function AnalyticsFilterBar({
     { value: 'offer', label: t('bookings.sources.offer') },
     { value: 'site', label: t('bookings.sources.site') },
   ]
-
-  const selectedProperties = properties.filter((p) => propertyIds.includes(p.id))
-  const propertyLabel =
-    selectedProperties.length === 0
-      ? t('common.allProperties')
-      : selectedProperties.length === 1
-        ? selectedProperties[0].internal_name
-        : t('analytics.propertiesCount', { count: selectedProperties.length })
-  const propertyTitle =
-    selectedProperties.length <= 1
-      ? propertyLabel
-      : selectedProperties.map((p) => p.internal_name).join(', ')
-
-  const isAllSelected = propertyIds.length === 0
-
-  const toggleProperty = (id: string) => {
-    if (propertyIds.includes(id)) {
-      onPropertyChange(propertyIds.filter((pid) => pid !== id))
-      return
-    }
-    onPropertyChange([...propertyIds, id])
-  }
-
-  const clearProperties = () => onPropertyChange([])
 
   return (
     <div className="flex flex-col gap-3">
@@ -152,95 +121,123 @@ export default function AnalyticsFilterBar({
       </div>
 
       <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
-        <Popover>
-          <PopoverTrigger asChild>
-            <button
-              type="button"
-              className={cn(
-                'flex h-11 w-full items-center justify-between rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700 shadow-sm',
-                'focus:outline-none focus:ring-2 focus:ring-black/10',
-                'sm:w-56',
-              )}
-              title={propertyTitle}
-            >
-              <span className="truncate">{propertyLabel}</span>
-              <ChevronDown className="h-4 w-4 text-gray-400" />
-            </button>
-          </PopoverTrigger>
-          <PopoverContent className="w-64 p-2" align="start">
-            <div className="max-h-64 overflow-auto">
-              <label
-                htmlFor="analytics-all-properties"
-                className={cn(
-                  'flex w-full cursor-pointer items-center gap-2 rounded-lg px-2 py-2 text-sm text-gray-700',
-                  'hover:bg-gray-100',
-                )}
-              >
-                <Checkbox
-                  id="analytics-all-properties"
-                  checked={isAllSelected}
-                  onCheckedChange={(checked) => {
-                    if (checked) clearProperties()
-                  }}
-                />
-                <span className="truncate">{t('common.allProperties')}</span>
-              </label>
+        <ChecksPopover
+          name={t('analytics.property')}
+          all={t('common.allProperties')}
+          many={(count) => t('analytics.propertiesCount', { count })}
+          empty={t('analytics.noPropertiesAvailable')}
+          idPrefix="analytics-property"
+          options={properties.map((p) => ({ value: p.id, label: p.internal_name }))}
+          picked={propertyIds}
+          onChange={onPropertyChange}
+          className="sm:w-56"
+        />
 
-              <div className="my-1 h-px bg-gray-100" />
-
-              {properties.length === 0 ? (
-                <div className="px-2 py-2 text-sm text-gray-400">
-                  {t('analytics.noPropertiesAvailable')}
-                </div>
-              ) : (
-                properties.map((p) => {
-                  const checked = propertyIds.includes(p.id)
-                  return (
-                    <label
-                      key={p.id}
-                      htmlFor={`analytics-property-${p.id}`}
-                      className={cn(
-                        'flex w-full cursor-pointer items-center gap-2 rounded-lg px-2 py-2 text-sm text-gray-700',
-                        'hover:bg-gray-100',
-                      )}
-                    >
-                      <Checkbox
-                        id={`analytics-property-${p.id}`}
-                        checked={checked}
-                        onCheckedChange={() => toggleProperty(p.id)}
-                      />
-                      <span className="truncate">{p.internal_name}</span>
-                    </label>
-                  )
-                })
-              )}
-            </div>
-          </PopoverContent>
-        </Popover>
-
-        <Select value={source} onValueChange={onSourceChange}>
-          <SelectTrigger className="w-full sm:w-44">
-            <SelectValue placeholder={t('common.allSources')} />
-          </SelectTrigger>
-          <SelectContent>
-            {SOURCE_OPTIONS.map((s) => (
-              <SelectItem key={s.value} value={s.value}>
-                {s.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <ChecksPopover
+          name={t('bookings.source')}
+          all={t('common.allSources')}
+          many={(count) => t('analytics.sourcesCount', { count })}
+          idPrefix="analytics-source"
+          options={SOURCE_OPTIONS}
+          picked={sources}
+          onChange={onSourcesChange}
+          fullIsAll
+          className="sm:w-52"
+        />
 
         <motion.button
           whileTap={{ scale: 0.97 }}
           onClick={onExport}
           disabled={exportDisabled}
-          className="flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 disabled:opacity-50 sm:w-auto"
+          className="flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl border border-line bg-surface-card px-4 py-2 text-sm font-semibold text-ink transition-colors hover:bg-surface-page disabled:opacity-50 sm:w-auto"
         >
           <Download className="w-4 h-4" />
           {t('analytics.exportCsv')}
         </motion.button>
       </div>
     </div>
+  )
+}
+
+/** A list to tick: «all» on top, then each option. None ticked is all of them. */
+function ChecksPopover({
+  name,
+  all,
+  many,
+  empty,
+  idPrefix,
+  options,
+  picked,
+  onChange,
+  className,
+  fullIsAll = false,
+}: {
+  name: string
+  all: string
+  many: (count: number) => string
+  empty?: string
+  idPrefix: string
+  options: { value: string; label: string }[]
+  picked: string[]
+  onChange: (values: string[]) => void
+  className?: string
+  /** Every option ticked is «all»: for sources, where «all» also counts expenses and bookings
+   *  with no source. Not for objects: «all» there takes in the archived ones too. */
+  fullIsAll?: boolean
+}) {
+  const chosen = options.filter((o) => picked.includes(o.value))
+  const label = chosen.length === 0 ? all : chosen.length === 1 ? chosen[0].label : many(chosen.length)
+  const toggle = (value: string) => {
+    const next = picked.includes(value) ? picked.filter((v) => v !== value) : [...picked, value]
+    onChange(fullIsAll && next.length === options.length ? [] : next)
+  }
+  const row = cn('flex w-full cursor-pointer items-center gap-2 rounded-lg px-2 py-2 text-sm text-ink', 'hover:bg-surface-page')
+
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          role="combobox"
+          aria-label={name}
+          className={cn(
+            'flex h-11 w-full items-center justify-between rounded-xl border border-line bg-surface-page px-3 py-2 text-sm text-ink',
+            'focus:outline-none focus:border-accent',
+            className,
+          )}
+          title={chosen.length > 1 ? chosen.map((o) => o.label).join(', ') : label}
+        >
+          <span className="truncate">{label}</span>
+          <ChevronDown className="h-4 w-4 text-ink-muted" />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent className="w-64 p-2" align="start">
+        <div className="max-h-64 overflow-auto">
+          <label htmlFor={`${idPrefix}-all`} className={row}>
+            <Checkbox
+              id={`${idPrefix}-all`}
+              checked={picked.length === 0}
+              onCheckedChange={(checked) => {
+                if (checked) onChange([])
+              }}
+            />
+            <span className="truncate">{all}</span>
+          </label>
+
+          <div className="my-1 h-px bg-surface-page" />
+
+          {options.length === 0 && empty ? (
+            <div className="px-2 py-2 text-sm text-ink-muted">{empty}</div>
+          ) : (
+            options.map((o) => (
+              <label key={o.value} htmlFor={`${idPrefix}-${o.value}`} className={row}>
+                <Checkbox id={`${idPrefix}-${o.value}`} checked={picked.includes(o.value)} onCheckedChange={() => toggle(o.value)} />
+                <span className="truncate">{o.label}</span>
+              </label>
+            ))
+          )}
+        </div>
+      </PopoverContent>
+    </Popover>
   )
 }

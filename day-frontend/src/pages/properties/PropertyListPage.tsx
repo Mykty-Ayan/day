@@ -1,199 +1,466 @@
 import { useEffect, useState } from 'react'
-import { motion } from 'framer-motion'
-import { Plus, Search, LayoutGrid, Grid2X2, List, Tag } from 'lucide-react'
+import { Building2, Plus, Search } from 'lucide-react'
 import { Link } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
+import { addDays, format, parseISO } from 'date-fns'
 import Spinner from '../../components/ui/Spinner'
-import { useAllProperties, useTags } from '../../hooks/useProperties'
-import type { PropertyStatus } from '../../types/property'
-import PropertyCard from '../../components/property/PropertyCard'
+import Button from '../../components/ui/Button'
+import { Badge } from '../../components/ui/badge'
+import StatusBadge from '../../components/property/StatusBadge'
 import { ToggleGroup, ToggleGroupItem } from '../../components/ui/toggle-group'
+import { useAllProperties, usePropertySetup, useTags } from '../../hooks/useProperties'
+import { TODAY_REFRESH, useCheckedIn, useGanttData } from '../../hooks/useBookings'
+import { useAllCleaningTasks } from '../../hooks/useCleaning'
+import { useSettings } from '../../hooks/useSettings'
+import { dateLocale } from '../../lib/date-locale'
+import { wallClock } from '../../lib/property-overview'
+import {
+  DAY_COUNTS,
+  dayCounts,
+  daySegments,
+  inCount,
+  objectDay,
+  objectProblems,
+  type DayCount,
+  type ObjectDay,
+  type Problem,
+  type Segment,
+  type SegmentTone,
+} from '../../lib/object-day'
+import type { Booking } from '../../types/booking'
+import type { CleaningTask } from '../../types/cleaning'
+import type { Property, PropertyStatus } from '../../types/property'
 
-const statusTabValues: (PropertyStatus | 'all')[] = ['all', 'active', 'paused', 'archived', 'new']
+const STATUS_TABS: (PropertyStatus | 'all')[] = ['all', 'active', 'paused', 'new', 'archived']
+const FIELD =
+  'h-11 w-full rounded-xl border border-line bg-surface-card px-3 text-sm text-ink outline-none placeholder:text-ink-muted focus:border-accent'
+const ADD =
+  'inline-flex h-10 shrink-0 items-center gap-1.5 rounded-xl border border-line bg-surface-card px-3.5 text-sm font-semibold text-ink transition-colors hover:bg-surface-page'
+// Object | its day | what comes next.
+const COLUMNS = 'lg:grid lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1.5fr)_minmax(0,0.9fr)] lg:items-center lg:gap-5'
+// The next arrival is looked for this far ahead; one further off reads as none yet.
+const AHEAD_DAYS = 60
+
+const shift = (day: string, days: number) => format(addDays(parseISO(day), days), 'yyyy-MM-dd')
+
+/** The company's wall clock, not the browser's, moved on every minute: the board stays open on a desk. */
+function useClock(timeZone: string) {
+  const [at, setAt] = useState(() => new Date())
+  useEffect(() => {
+    const timer = setInterval(() => setAt(new Date()), 60_000)
+    return () => clearInterval(timer)
+  }, [])
+  return wallClock(at, timeZone)
+}
+
+/** Today's stays, closed hours and cleanings of every object sold, read again every minute. Unknown
+ *  until the company's time zone and all three are read: a stay or a cleaning missing, or a clock
+ *  hours off, would show a busy object as free. A refresh that fails keeps the day last read. */
+function useToday() {
+  const settings = useSettings()
+  const now = useClock(settings.data?.time_zone ?? 'Asia/Almaty')
+  const today = now.slice(0, 10)
+  // From yesterday: closed dates that end at today's check-out hour come only with it.
+  const gantt = useGanttData(shift(today, -1), shift(today, AHEAD_DAYS), TODAY_REFRESH)
+  const checkedIn = useCheckedIn(TODAY_REFRESH)
+  const cleaning = useAllCleaningTasks({ due_by: today }, TODAY_REFRESH)
+  const ready =
+    settings.data !== undefined && gantt.data !== undefined && checkedIn.data !== undefined && cleaning.data !== undefined
+  const queries = [settings, gantt, checkedIn, cleaning]
+  const failed = queries.some((query) => query.isError)
+  const retry = () => queries.forEach((query) => query.refetch())
+
+  const days = new Map<string, ObjectDay>()
+  const segments = new Map<string, Segment[]>()
+  if (ready) {
+    const tasks = new Map<string, CleaningTask[]>()
+    for (const task of cleaning.data) tasks.set(task.property_id, [...(tasks.get(task.property_id) ?? []), task])
+    for (const row of gantt.data.properties) {
+      // A guest kept past the check-out ends before the chessboard's dates and is still in.
+      const kept = checkedIn.data.filter((s) => s.property_id === row.id && !row.bookings.some((b) => b.id === s.id))
+      const stays = [...row.bookings, ...kept]
+      days.set(row.id, objectDay(stays, row.blocks ?? [], tasks.get(row.id) ?? [], now))
+      segments.set(row.id, daySegments(stays, row.blocks ?? [], now))
+    }
+  }
+  return { now, today, days, segments, ready, failed, retry }
+}
+
+/** What each object lacks: its own fields, then its prices and calendars, read for all objects at once. */
+function useProblems(items: Property[]): Map<string, Problem[]> {
+  const { data } = usePropertySetup()
+  const setup = new Map((data ?? []).map((s) => [s.property_id, s]))
+  return new Map(items.map((p) => [p.id, objectProblems(p, setup.get(p.id))]))
+}
+
+function cover(property: Property) {
+  // Check-in photos (the lock, the entrance) never stand for the object.
+  const photos = property.photos.filter((photo) => photo.audience !== 'guest')
+  const photo = photos.find((p) => p.is_cover) ?? photos[0]
+  return photo ? photo.thumbnail_url || photo.url : null
+}
+
+function Thumb({ property }: { property: Property }) {
+  const src = cover(property)
+  return src ? (
+    <img src={src} alt="" className="h-10 w-10 shrink-0 rounded-lg object-cover" />
+  ) : (
+    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-surface-page">
+      <Building2 className="h-4 w-4 text-ink-muted/60" aria-hidden="true" />
+    </span>
+  )
+}
+
+/** The guests' name when it differs from the owner's, and where the object is. */
+function subtitle(property: Property) {
+  const guestName = property.name && property.name !== property.internal_name ? property.name : ''
+  return [guestName, property.complex_name || property.address_full].filter(Boolean).join(' · ')
+}
+
+/** A flat that is sold: new and archived ones have no stays to show. */
+const sold = (property: Property) => property.status === 'active' || property.status === 'paused'
+
+const TONE: Record<SegmentTone, string> = {
+  in: 'bg-success text-white',
+  booked: 'bg-accent text-white',
+  pending: 'border border-dashed border-accent bg-accent-soft text-accent-ink',
+  gone: 'bg-line text-ink-muted',
+  closed: 'bg-[repeating-linear-gradient(45deg,var(--color-surface-page)_0_4px,var(--color-line)_4px_6px)]',
+}
+const HOURS = [0, 6, 12, 18, 24]
+const pct = (minutes: number) => `${(minutes / 1440) * 100}%`
+
+/** The object's day from midnight to midnight, with a line at now. */
+function DayBar({ segments, now }: { segments: Segment[]; now: string }) {
+  const nowMinutes = Number(now.slice(11, 13)) * 60 + Number(now.slice(14, 16))
+  return (
+    <span aria-hidden="true" className="relative block h-6 rounded-md bg-surface-page lg:h-7">
+      {[25, 50, 75].map((at) => (
+        <span key={at} className="absolute inset-y-0 w-px bg-line" style={{ left: `${at}%` }} />
+      ))}
+      {segments.map((s) => (
+        <span
+          key={s.id}
+          title={s.stay ? `${s.stay.guest_name} · ${s.stay.check_in.slice(11, 16)}–${s.stay.check_out.slice(11, 16)}` : undefined}
+          className={`absolute inset-y-[3px] flex items-center overflow-hidden rounded px-1.5 text-[11px] font-semibold whitespace-nowrap ${TONE[s.tone]}`}
+          style={{ left: pct(s.from), width: `max(4px, calc(${pct(s.to - s.from)} - 2px))` }}
+        >
+          {s.stay && s.to - s.from >= 150 ? s.stay.guest_name : null}
+        </span>
+      ))}
+      <span className="absolute -inset-y-1 w-0.5 rounded bg-danger" style={{ left: pct(nowMinutes) }} />
+    </span>
+  )
+}
+
+function useWhen(today: string) {
+  const { t, i18n } = useTranslation()
+  const tomorrow = format(addDays(parseISO(today), 1), 'yyyy-MM-dd')
+  const day = (iso: string) => format(parseISO(iso), i18n.language === 'en' ? 'MMM d' : 'd MMM', { locale: dateLocale(i18n.language) })
+  const when = (iso: string) => {
+    const time = iso.slice(11, 16)
+    const date = iso.slice(0, 10)
+    if (date === today) return t('properties.board.when.today', { time })
+    if (date === tomorrow) return t('properties.board.when.tomorrow', { time })
+    return t('properties.board.when.day', { day: day(iso), time })
+  }
+  const length = (stay: Pick<Booking, 'check_in' | 'check_out' | 'rental_mode'>) => {
+    const ms = Date.parse(`${stay.check_out}Z`) - Date.parse(`${stay.check_in}Z`)
+    return stay.rental_mode === 'hourly'
+      ? t('bookings.hours', { count: Math.round(ms / 3_600_000) })
+      : t('bookings.nights', { count: Math.max(1, Math.round(ms / 86_400_000)) })
+  }
+  return { when, length }
+}
+
+/** What comes next: the guest's departure while one is in, else the next arrival. One line on a phone. */
+function Next({ day, now, today }: { day: ObjectDay | undefined; now: string; today: string }) {
+  const { t } = useTranslation()
+  const { when, length } = useWhen(today)
+  if (!day) return null
+  const none = t('properties.board.none')
+  const [main, sub] = day.current
+    ? day.current.check_out < now
+      ? // Still marked in after the check-out: someone has to mark the guest out, or ask.
+        [t('today.notCheckedOut'), when(day.current.check_out)]
+      : [
+          t('properties.board.checkOut', { when: when(day.current.check_out) }),
+          day.next ? t('properties.board.then', { when: when(day.next.check_in) }) : none,
+        ]
+    : day.next
+      ? [
+          t('properties.board.checkIn', { when: when(day.next.check_in) }),
+          `${day.next.guest_name} · ${length(day.next)}`,
+        ]
+      : [null, null]
+  if (!main) return <span className="block text-xs text-ink-muted lg:text-sm">{none}</span>
+  return (
+    <span className="block min-w-0 truncate text-xs lg:whitespace-normal lg:text-sm">
+      <span className="font-semibold text-ink lg:block lg:truncate">{main}</span>
+      <span className="text-ink-muted lg:hidden"> · </span>
+      <span className="text-ink-muted lg:block lg:truncate lg:text-xs">{sub}</span>
+    </span>
+  )
+}
+
+function Row({
+  property,
+  day,
+  segments,
+  problems,
+  now,
+  today,
+}: {
+  property: Property
+  day: ObjectDay | undefined
+  segments: Segment[]
+  problems: Problem[]
+  now: string
+  today: string
+}) {
+  const { t } = useTranslation()
+  const isSold = sold(property)
+  return (
+    <Link
+      to="/properties/$propertyId"
+      params={{ propertyId: property.id }}
+      className={`flex flex-col gap-2 px-4 py-3 transition-colors lg:py-3.5 hover:bg-surface-page focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent sm:px-5 ${COLUMNS}`}
+    >
+      <span className="flex min-w-0 items-start gap-3">
+        <Thumb property={property} />
+        <span className="min-w-0 flex-1">
+          <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+            <span className="truncate text-sm font-semibold text-ink">{property.internal_name || property.name}</span>
+            {property.status !== 'active' && <StatusBadge status={property.status} />}
+            {isSold &&
+              day &&
+              (day.current ? (
+                <Badge tone="success">{t('properties.board.living')}</Badge>
+              ) : day.closed ? (
+                <Badge>{t('properties.board.closed')}</Badge>
+              ) : (
+                !day.cleaning && <Badge>{t('properties.now.free')}</Badge>
+              ))}
+            {isSold && day?.cleaning && <Badge tone="warning">{t('properties.board.cleaning')}</Badge>}
+          </span>
+          {subtitle(property) && <span className="mt-0.5 block truncate text-xs text-ink-muted">{subtitle(property)}</span>}
+          {problems.length > 0 && (
+            <span className="mt-1.5 flex flex-wrap gap-1">
+              {problems.map((problem) => (
+                <Badge key={problem} tone={problem === 'noPrices' || problem === 'calendar' ? 'danger' : 'warning'}>
+                  {t(`properties.board.problems.${problem}`)}
+                </Badge>
+              ))}
+            </span>
+          )}
+        </span>
+      </span>
+      {isSold ? (
+        <>
+          <DayBar segments={segments} now={now} />
+          <Next day={day} now={now} today={today} />
+        </>
+      ) : (
+        <span className="hidden text-sm text-ink-muted lg:col-span-2 lg:block">
+          {property.status === 'new' ? t('properties.board.notSold') : null}
+        </span>
+      )}
+    </Link>
+  )
+}
+
+function Counters({
+  counts,
+  active,
+  onPick,
+}: {
+  counts: Record<DayCount, number>
+  active: DayCount | null
+  onPick: (count: DayCount | null) => void
+}) {
+  const { t } = useTranslation()
+  return (
+    // A phone scrolls the counters sideways rather than stacking them three rows high.
+    <div className="-mx-4 mb-5 overflow-x-auto px-4 sm:mx-0 sm:px-0">
+      <div className="grid w-max auto-cols-[8.5rem] grid-flow-col gap-2 sm:w-full sm:auto-cols-fr">
+        {DAY_COUNTS.map((count) => {
+          const on = active === count
+          const hot = count === 'cleaning' && counts.cleaning > 0
+          return (
+            <button
+              key={count}
+              type="button"
+              aria-pressed={on}
+              onClick={() => onPick(on ? null : count)}
+              className={`rounded-xl border px-3 py-2.5 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent ${
+                on
+                  ? 'border-accent bg-accent-soft'
+                  : hot
+                    ? 'border-warning/30 bg-warning-soft/50 hover:bg-warning-soft'
+                    : 'border-line bg-surface-card hover:bg-surface-page'
+              }`}
+            >
+              <span className={`block text-xl font-bold tabular-nums ${on ? 'text-accent-ink' : 'text-ink'}`}>{counts[count]}</span>
+              <span className={`block text-xs ${on ? 'text-accent-ink' : 'text-ink-muted'}`}>
+                {t(`properties.board.counts.${count}`)}
+              </span>
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
 
 export default function PropertyListPage() {
   const { t } = useTranslation()
   const [search, setSearch] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<PropertyStatus | 'all'>('all')
-  const [viewMode, setViewMode] = useState<'large' | 'medium' | 'list'>('large')
-  const [tagFilter, setTagFilter] = useState<string>('')
-  const { data: tagsData } = useTags()
-  const allTags = tagsData ?? []
-  const primaryActionClass =
-    'inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl bg-black px-6 py-2.5 font-semibold text-white shadow-lg transition-colors hover:bg-gray-800 sm:w-auto'
+  const [tagFilter, setTagFilter] = useState('')
+  const [count, setCount] = useState<DayCount | null>(null)
+  const { data: tags } = useTags()
+  const { now, today, days, segments, ready, failed, retry } = useToday()
 
   const { data, isLoading, isError, refetch } = useAllProperties({
     status: statusFilter === 'all' ? undefined : statusFilter,
     search: debouncedSearch || undefined,
     tag_id: tagFilter || undefined,
   })
+  // "All" is every object at work: the archive has its own tab.
+  const listed = (data?.items ?? []).filter((p) => statusFilter !== 'all' || p.status !== 'archived')
+  // The day's filter waits for the day: without it every object would drop out of the list.
+  const items = count && ready ? listed.filter((p) => sold(p) && days.has(p.id) && inCount(days.get(p.id)!, count)) : listed
+  const problems = useProblems(listed)
+  const filtered = statusFilter !== 'all' || !!debouncedSearch || !!tagFilter || (!!count && ready)
 
-  // Debounce the search input so the query fires ~300ms after typing stops.
+  // The query fires ~300ms after typing stops.
   useEffect(() => {
     const timeout = setTimeout(() => setDebouncedSearch(search), 300)
     return () => clearTimeout(timeout)
   }, [search])
 
   return (
-    <div className="px-4 py-4 sm:px-6 sm:py-6 max-w-7xl mx-auto w-full">
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4 }}
-      >
-        {/* Header */}
-        <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <h1 className="text-xl font-bold text-gray-900">{t('properties.title')}</h1>
-          <Link to="/properties/new" className={primaryActionClass}>
-            <Plus className="w-4 h-4" />
-            {t('properties.addProperty')}
-          </Link>
-        </div>
+    <div className="mx-auto w-full max-w-7xl px-4 py-4 sm:px-6 sm:py-6">
+      <div className="mb-5 flex items-center justify-between gap-3">
+        <h1 className="text-xl font-bold text-ink">
+          {t('properties.title')}
+          {data && !filtered && <span className="ml-2 font-semibold tabular-nums text-ink-muted">{listed.length}</span>}
+        </h1>
+        <Link to="/properties/new" className={ADD}>
+          <Plus className="h-4 w-4" aria-hidden="true" />
+          {t('properties.addProperty')}
+        </Link>
+      </div>
 
-        {/* Search and filters */}
-        <div className="mb-6 space-y-3">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => {
-                setSearch(e.target.value)
-              }}
-              placeholder={t('properties.searchPlaceholder')}
-              className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 pl-9 outline-none focus:ring-2 focus:ring-black/10 text-gray-800 text-sm"
-            />
-          </div>
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-            <div className="w-full sm:w-auto">
-              <ToggleGroup
-                type="single"
-                value={statusFilter}
-                onValueChange={(value) => {
-                  if (!value) return
-                  setStatusFilter(value as PropertyStatus | 'all')
-                }}
+      {failed && (
+        <div role="alert" className="mb-5 flex items-center justify-between gap-3 rounded-xl border border-danger/30 bg-danger-soft px-4 py-3">
+          <p className="text-sm text-ink">{t('properties.board.failed')}</p>
+          <Button variant="secondary" onClick={retry}>
+            {t('common.retry')}
+          </Button>
+        </div>
+      )}
+      {ready && days.size > 0 && <Counters counts={dayCounts([...days.values()])} active={count} onPick={setCount} />}
+
+      <div className="mb-5 flex flex-col gap-3 lg:flex-row lg:items-center">
+        <label className="relative lg:flex-1">
+          <span className="sr-only">{t('properties.searchPlaceholder')}</span>
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-muted" aria-hidden="true" />
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder={t('properties.searchPlaceholder')}
+            className={`${FIELD} pl-9`}
+          />
+        </label>
+        {/* A phone scrolls the statuses sideways rather than wrapping them onto two lines. */}
+        <div className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
+          <ToggleGroup
+            type="single"
+            className="w-max max-w-none flex-nowrap"
+            value={statusFilter}
+            onValueChange={(value) => value && setStatusFilter(value as PropertyStatus | 'all')}
+          >
+            {STATUS_TABS.map((value) => (
+              <ToggleGroupItem key={value} value={value}>
+                {t(`common.${value}`)}
+              </ToggleGroupItem>
+            ))}
+          </ToggleGroup>
+        </div>
+      </div>
+
+      {tags && tags.length > 0 && (
+        <div className="mb-5 flex flex-wrap items-center gap-1.5" role="group" aria-label={t('properties.tagsLabel')}>
+          <span className="mr-1 text-xs font-semibold text-ink-muted">{t('properties.tagsLabel')}</span>
+          {tags.map((tag) => {
+            const on = tagFilter === tag.id
+            return (
+              <button
+                key={tag.id}
+                type="button"
+                aria-pressed={on}
+                onClick={() => setTagFilter(on ? '' : tag.id)}
+                className={`inline-flex min-h-[36px] items-center rounded-full border px-3 text-xs font-semibold transition-colors ${
+                  on ? 'border-transparent text-white' : 'border-line bg-surface-card hover:bg-surface-page'
+                }`}
+                style={on ? { backgroundColor: tag.color } : { color: tag.color }}
               >
-                {statusTabValues.map((value) => (
-                  <ToggleGroupItem key={value} value={value}>
-                    {t(`common.${value}`)}
-                  </ToggleGroupItem>
-                ))}
-              </ToggleGroup>
-            </div>
-            <div className="w-full sm:w-auto">
-              <ToggleGroup
-                type="single"
-                value={viewMode}
-                onValueChange={(value) => {
-                  if (!value) return
-                  setViewMode(value as 'large' | 'medium' | 'list')
-                }}
-              >
-                <ToggleGroupItem value="large" aria-label="Large tiles">
-                  <span className="inline-flex items-center gap-1">
-                    <LayoutGrid className="w-3.5 h-3.5" />
-                    {t('common.large')}
-                  </span>
-                </ToggleGroupItem>
-                <ToggleGroupItem value="medium" aria-label="Medium tiles">
-                  <span className="inline-flex items-center gap-1">
-                    <Grid2X2 className="w-3.5 h-3.5" />
-                    {t('common.medium')}
-                  </span>
-                </ToggleGroupItem>
-                <ToggleGroupItem value="list" aria-label="List view">
-                  <span className="inline-flex items-center gap-1">
-                    <List className="w-3.5 h-3.5" />
-                    {t('common.list')}
-                  </span>
-                </ToggleGroupItem>
-              </ToggleGroup>
-            </div>
-          </div>
-          {allTags.length > 0 && (
-            <div className="space-y-1.5">
-              <div className="flex items-center gap-1.5 text-gray-500">
-                <Tag className="w-3.5 h-3.5 text-gray-400" aria-hidden="true" />
-                <span className="text-xs font-bold uppercase tracking-wider">{t('properties.tagsLabel')}</span>
-              </div>
-              <div className="flex flex-wrap gap-1.5">
-                <button
-                  type="button"
-                  onClick={() => setTagFilter('')}
-                  className={`inline-flex min-h-[44px] min-w-[44px] items-center rounded-full px-3 py-2 text-xs font-bold transition-colors ${
-                    !tagFilter
-                      ? 'bg-gray-900 text-white'
-                      : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border border-gray-200'
-                  }`}
-                >
-                  {t('common.all')}
-                </button>
-                {allTags.map((tag) => (
-                  <button
-                    key={tag.id}
-                    type="button"
-                    onClick={() => setTagFilter(tagFilter === tag.id ? '' : tag.id)}
-                    className={`inline-flex min-h-[44px] min-w-[44px] items-center rounded-full px-3 py-2 text-xs font-bold transition-colors ${
-                      tagFilter === tag.id
-                        ? 'text-white'
-                        : 'border border-gray-200 hover:opacity-80'
-                    }`}
-                    style={{
-                      backgroundColor: tagFilter === tag.id ? tag.color : undefined,
-                      color: tagFilter === tag.id ? 'white' : tag.color,
-                    }}
-                  >
-                    {tag.name}
-                  </button>
-                ))}
-              </div>
-            </div>
+                {tag.name}
+              </button>
+            )
+          })}
+        </div>
+      )}
+
+      {isLoading ? (
+        <Spinner />
+      ) : isError ? (
+        <div className="flex flex-col items-center gap-3 py-16 text-center">
+          <p className="text-sm text-ink-muted">{t('common.errorLoading')}</p>
+          <Button variant="secondary" onClick={() => refetch()}>
+            {t('common.retry')}
+          </Button>
+        </div>
+      ) : items.length === 0 ? (
+        <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-line py-16 text-center">
+          <p className="text-sm text-ink-muted">{filtered ? t('properties.noProperties') : t('properties.createFirst')}</p>
+          {!filtered && (
+            <Link to="/properties/new" className={ADD}>
+              <Plus className="h-4 w-4" aria-hidden="true" />
+              {t('properties.addProperty')}
+            </Link>
           )}
         </div>
-
-        {/* Content */}
-        {isLoading ? (
-          <Spinner />
-        ) : isError ? (
-          <div className="flex flex-col items-center justify-center py-20 text-center">
-            <p className="mb-1 text-sm font-semibold text-gray-900">{t('common.errorTitle')}</p>
-            <p className="mb-4 text-sm text-gray-500">{t('common.errorLoading')}</p>
-            <motion.button
-              whileTap={{ scale: 0.97 }}
-              onClick={() => refetch()}
-              className="flex min-h-[44px] items-center gap-2 rounded-xl border border-gray-200 bg-white px-6 py-2.5 font-semibold text-gray-700 shadow-sm transition-colors hover:bg-gray-50"
-            >
-              {t('common.retry')}
-            </motion.button>
-          </div>
-        ) : !data || data.items.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20">
-            <p className="text-sm text-gray-500 mb-4">{t('properties.noProperties')}</p>
-            <Link to="/properties/new" className={primaryActionClass}>
-              <Plus className="w-4 h-4" />
-              {t('properties.createFirst')}
-            </Link>
-          </div>
-        ) : (
-          <>
-            <div
-              className={`grid ${
-                viewMode === 'large'
-                  ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4'
-                  : viewMode === 'medium'
-                    ? 'grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3'
-                    : 'grid-cols-1 gap-2'
-              }`}
-            >
-              {data.items.map((property, i) => (
-                <PropertyCard key={property.id} property={property} index={i} variant={viewMode} />
+      ) : (
+        <div className="overflow-hidden rounded-2xl border border-line bg-surface-card">
+          <div className={`hidden border-b border-line px-5 py-2.5 text-xs font-semibold text-ink-muted ${COLUMNS}`}>
+            <span>{t('properties.board.object')}</span>
+            <span className="flex justify-between tabular-nums">
+              {HOURS.map((hour) => (
+                <span key={hour}>{hour}</span>
               ))}
-            </div>
-          </>
-        )}
-      </motion.div>
+            </span>
+            <span>{t('properties.board.next')}</span>
+          </div>
+          <ul className="divide-y divide-line">
+            {items.map((property) => (
+              <li key={property.id}>
+                <Row
+                  property={property}
+                  day={days.get(property.id)}
+                  segments={segments.get(property.id) ?? []}
+                  problems={problems.get(property.id) ?? []}
+                  now={now}
+                  today={today}
+                />
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </div>
   )
 }

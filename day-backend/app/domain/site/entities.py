@@ -22,6 +22,8 @@ class CompanySite:
     company_id: uuid.UUID
     slug: str
     title: str
+    # The big line on top of the site («Flats by the night in Almaty»); the title then sits by the logo.
+    tagline: str | None = None
     about: str | None = None
     logo_url: str | None = None
     cover_url: str | None = None

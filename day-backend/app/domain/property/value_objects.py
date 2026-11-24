@@ -61,6 +61,19 @@ class FactAudience(str, enum.Enum):
     GUEST = "guest"  # only a guest with a confirmed stay: codes, passwords
 
 
+class MediaKind(str, enum.Enum):
+    PHOTO = "photo"
+    VIDEO = "video"
+
+
+class GuestMediaSection(str, enum.Enum):
+    """Where a check-in photo or video stands on the guest's booking page."""
+
+    PATH = "path"  # a step of the way to the door
+    DOOR = "door"  # beside the door code: how the lock opens
+    HOWTO = "howto"  # how to use a thing in the flat: the air conditioner, the stove
+
+
 class FactSource(str, enum.Enum):
     """The kind of credential that wrote a fact."""
 

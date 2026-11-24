@@ -59,3 +59,5 @@ class NotificationEvent(str, enum.Enum):
     GUEST_ORDER_CANCELLED = "guest_order_cancelled"
     # A cleaning was given to a cleaner: told to that cleaner alone.
     CLEANING_ASSIGNED = "cleaning_assigned"
+    # A stay's end moved, and the cleaning with it: told to its cleaner alone.
+    CLEANING_MOVED = "cleaning_moved"

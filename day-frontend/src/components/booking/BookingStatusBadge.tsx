@@ -1,29 +1,35 @@
+import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { BookingStatus } from '../../types/booking'
+import { statusKeys } from '../../lib/booking-status'
+import { intlLocale } from '../../pages/miniapp/format'
+import { Badge, type BadgeTone } from '../ui/badge'
 
-const statusStyles: Record<BookingStatus, string> = {
-  pending: 'bg-gray-100 text-gray-700',
-  confirmed: 'bg-blue-100 text-blue-700',
-  checked_in: 'bg-emerald-100 text-emerald-700',
-  checked_out: 'bg-amber-100 text-amber-700',
-  completed: 'bg-green-100 text-green-700',
-  cancelled: 'bg-red-100 text-red-700',
+const TONES: Record<BookingStatus, BadgeTone> = {
+  pending: 'neutral',
+  confirmed: 'accent',
+  checked_in: 'success',
+  checked_out: 'warning',
+  completed: 'success',
+  cancelled: 'danger',
 }
 
-const statusKeys: Record<BookingStatus, string> = {
-  pending: 'common.pending',
-  confirmed: 'common.confirmed',
-  checked_in: 'common.checkedIn',
-  checked_out: 'common.checkedOut',
-  completed: 'common.completed',
-  cancelled: 'common.cancelled',
-}
-
-export default function BookingStatusBadge({ status }: { status: BookingStatus }) {
-  const { t } = useTranslation()
-  return (
-    <span className={`inline-block px-2 py-0.5 rounded-md text-[10px] font-bold uppercase ${statusStyles[status]}`}>
-      {t(statusKeys[status])}
-    </span>
-  )
+/** A booking's status. A hold from the site or a link waits for its deposit until a
+ *  deadline and then cancels itself: the badge says until when, or that the time is out. */
+export default function BookingStatusBadge({ status, expiresAt }: { status: BookingStatus; expiresAt?: string | null }) {
+  const { t, i18n } = useTranslation()
+  const until = status === 'pending' && expiresAt ? Date.parse(expiresAt) : null
+  const [now, setNow] = useState(() => Date.now())
+  // A page left open past the deadline says so without a reload.
+  useEffect(() => {
+    if (until == null || until <= now) return
+    const wake = setTimeout(() => setNow(Date.now()), until - now + 500)
+    return () => clearTimeout(wake)
+  }, [until, now])
+  if (until != null) {
+    const ranOut = until <= now
+    const time = new Intl.DateTimeFormat(intlLocale(i18n.language), { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(until)
+    return <Badge tone={ranOut ? 'danger' : 'warning'}>{ranOut ? t('bookings.holdRanOut') : t('bookings.holdUntil', { time })}</Badge>
+  }
+  return <Badge tone={TONES[status]}>{t(statusKeys[status])}</Badge>
 }

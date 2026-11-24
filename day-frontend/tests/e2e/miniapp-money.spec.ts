@@ -73,3 +73,14 @@ test('money tab shows debts, payments and expenses, and records an expense', asy
     for (const flat of flats) await request.delete(`${API_BASE}/properties/${flat.id}`)
   }
 })
+
+test('the costs tile says how much of it is the platforms\' commission', async ({ page, authTokens }) => {
+  // The month's figures as the server gives them, with a commission in the costs.
+  await page.route('**/api/v1/analytics/metrics**', async (route) => {
+    const body = await (await route.fetch()).json()
+    body.summary = { ...body.summary, total_expenses: 61150, total_commission: 45120 }
+    await route.fulfill({ json: body })
+  })
+  await openMiniApp(page, authTokens, '/tma?tab=money')
+  await expect(page.getByText(/^of which platform commission 45\D?120\s₸$/)).toBeVisible()
+})

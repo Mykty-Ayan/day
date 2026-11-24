@@ -1,6 +1,6 @@
 import apiClient from './client'
 import type { GanttDayPrice } from '../types/booking'
-import type { Property, PropertyCreateInput, PropertyUpdateInput, PropertyFilters, PaginatedResponse, PricingConfig, PricingInput, SeasonalPrice, SeasonalPriceInput, DiscountRule, DiscountRuleInput, Amenity, PropertyAuditLog, PropertyStatus, PhotoAudience, Tag, TagCreateInput, PropertyBlock, CalendarFeed } from '../types/property'
+import type { Property, PropertyCreateInput, PropertyUpdateInput, PropertyFilters, PaginatedResponse, PricingConfig, PricingInput, SeasonalPrice, SeasonalPriceInput, DiscountRule, DiscountRuleInput, Amenity, PropertyAuditLog, PropertyStatus, PhotoAudience, MediaSection, Tag, TagCreateInput, PropertyBlock, CalendarFeed, PricingBase, PropertySetup } from '../types/property'
 
 // --- Properties ---
 
@@ -69,19 +69,26 @@ export async function changePropertyStatus(
   return res.data
 }
 
+/** The point of a 2GIS link, as the server finds it. Nothing is saved. */
+export async function findMapPoint(url: string): Promise<{ latitude: number; longitude: number }> {
+  const res = await apiClient.post('/properties/map-point', { url })
+  return res.data
+}
+
 // --- Photos ---
 
 /** One file per request: a failed photo does not take the others down with it. */
 export async function uploadPhoto(
   propertyId: string,
   file: File,
-  options: { sortOrder?: number; isCover?: boolean; audience?: PhotoAudience } = {},
+  options: { sortOrder?: number; isCover?: boolean; audience?: PhotoAudience; section?: MediaSection } = {},
 ): Promise<void> {
   const formData = new FormData()
   formData.append('file', file)
   formData.append('sort_order', String(options.sortOrder ?? 0))
   formData.append('is_cover', String(options.isCover ?? false))
   formData.append('audience', options.audience ?? 'public')
+  if (options.section) formData.append('section', options.section)
   await apiClient.post(`/properties/${propertyId}/photos/upload`, formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
   })
@@ -94,11 +101,12 @@ export async function uploadPhotos(
   photos: { file: File; isCover?: boolean }[],
   startAt = 0,
   audience: PhotoAudience = 'public',
+  section?: MediaSection,
 ): Promise<number> {
   let failed = 0
   for (const [index, photo] of photos.entries()) {
     try {
-      await uploadPhoto(propertyId, photo.file, { sortOrder: startAt + index, isCover: photo.isCover, audience })
+      await uploadPhoto(propertyId, photo.file, { sortOrder: startAt + index, isCover: photo.isCover, audience, section })
     } catch {
       failed += 1
     }
@@ -116,6 +124,11 @@ export async function deletePhoto(
   photoId: string,
 ): Promise<void> {
   await apiClient.delete(`/properties/${propertyId}/photos/${photoId}`)
+}
+
+/** This listing photo opens the flat; the others stop being the cover. */
+export async function setPhotoCover(propertyId: string, photoId: string): Promise<void> {
+  await apiClient.put(`/properties/${propertyId}/photos/${photoId}/cover`)
 }
 
 export async function reorderPhotos(
@@ -143,13 +156,6 @@ export async function linkAmenities(
   })
 }
 
-export async function unlinkAmenity(
-  propertyId: string,
-  amenityId: string,
-): Promise<void> {
-  await apiClient.delete(`/properties/${propertyId}/amenities/${amenityId}`)
-}
-
 // --- Pricing ---
 
 export async function createOrUpdatePricing(
@@ -165,6 +171,12 @@ export async function createOrUpdatePricing(
   }
 }
 
+/** This flat's list «Рядом» to the chosen flats, in place of theirs: all of them or none. */
+export async function copyNearby(propertyId: string, propertyIds: string[]): Promise<number> {
+  const res = await apiClient.post(`/properties/${propertyId}/nearby/copy`, { property_ids: propertyIds })
+  return (res.data as { updated: number }).updated
+}
+
 /** Copies this flat's saved tariffs and late hours to the company's other priced flats. */
 export async function copyTariffsToAll(propertyId: string): Promise<number> {
   const res = await apiClient.post(`/properties/${propertyId}/pricing/tariffs/copy-to-all`)
@@ -173,7 +185,7 @@ export async function copyTariffsToAll(propertyId: string): Promise<number> {
 
 export async function getPricing(propertyId: string): Promise<PricingConfig | null> {
   const res = await apiClient.get(`/properties/${propertyId}/pricing`)
-  const base = res.data as Omit<PricingConfig, 'seasonal_prices' | 'discount_rules'> | null
+  const base = res.data as PricingBase | null
   if (!base) return null
 
   const [seasonal_prices, discount_rules] = await Promise.all([
@@ -196,6 +208,16 @@ export async function addSeasonalPrice(
     `/properties/${propertyId}/pricing/seasonal`,
     data,
   )
+  return res.data
+}
+
+/** A season changed in place, in one write. */
+export async function updateSeasonalPrice(
+  propertyId: string,
+  seasonId: string,
+  data: SeasonalPriceInput,
+): Promise<SeasonalPrice> {
+  const res = await apiClient.patch(`/properties/${propertyId}/pricing/seasonal/${seasonId}`, data)
   return res.data
 }
 
@@ -275,13 +297,6 @@ export async function getPropertyTags(propertyId: string): Promise<Tag[]> {
   return res.data
 }
 
-export async function assignTags(
-  propertyId: string,
-  tagIds: string[],
-): Promise<void> {
-  await apiClient.put(`/properties/${propertyId}/tags`, { tag_ids: tagIds })
-}
-
 /** The iCal link to paste into Airbnb and Booking.com (owners and managers only). */
 export async function getCalendarLink(propertyId: string): Promise<string> {
   const res = await apiClient.get<{ url: string }>(`/properties/${propertyId}/calendar-link`)
@@ -305,6 +320,12 @@ export async function createBlock(
 
 export async function deleteBlock(propertyId: string, blockId: string): Promise<void> {
   await apiClient.delete(`/properties/${propertyId}/blocks/${blockId}`)
+}
+
+/** Every flat's prices and whether its calendars read, for the flats list. */
+export async function getPropertySetup(): Promise<PropertySetup[]> {
+  const res = await apiClient.get('/properties/setup')
+  return res.data
 }
 
 export async function listCalendarFeeds(propertyId: string): Promise<CalendarFeed[]> {
@@ -335,6 +356,11 @@ export interface DayPriceRange {
 export async function listDayPrices(propertyId: string, dateFrom: string, dateTo: string): Promise<GanttDayPrice[]> {
   const res = await apiClient.get(`/properties/${propertyId}/day-prices`, { params: { date_from: dateFrom, date_to: dateTo } })
   return res.data
+}
+
+/** The flats in their order on the chessboard; an empty list puts them back by name. */
+export async function orderProperties(propertyIds: string[]): Promise<void> {
+  await apiClient.put('/properties/order', { property_ids: propertyIds })
 }
 
 export async function setDayPrices(propertyId: string, body: DayPriceRange & { price: number }): Promise<void> {

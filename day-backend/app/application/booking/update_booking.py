@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import uuid
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from decimal import Decimal
 
@@ -13,6 +14,7 @@ from app.application.booking.create_booking import (
 )
 from app.application.booking.price_calculator import PriceCalculatorService
 from app.application.booking.stay_rules import company_now, overlapping_stays, overridden_rules, stay_rule_breaches
+from app.application.cleaning.create_task import follow_stay
 from app.domain.booking.entities import Booking, BookingAuditLog
 from app.domain.booking.exceptions import BookingOverlapError, StayRulesError
 from app.domain.booking.repositories import (
@@ -25,7 +27,10 @@ from app.domain.booking.value_objects import (
     BookingStatus,
     RentalMode,
 )
+from app.domain.cleaning.entities import CleaningTask
+from app.domain.cleaning.repositories import CleaningTaskRepository
 from app.domain.property.repositories import PropertyRepository
+from app.domain.property.value_objects import PropertyStatus
 from app.domain.settings.repositories import CompanySettingsRepository
 
 _UNSET = object()
@@ -36,6 +41,8 @@ class UpdateBookingInput:
     booking_id: uuid.UUID
     company_id: uuid.UUID
     changed_by: uuid.UUID | None = None
+    # Another flat of the company: checked there with the stay's new dates, in one save.
+    property_id: object = field(default=_UNSET)
     check_in: object = field(default=_UNSET)
     check_out: object = field(default=_UNSET)
     rental_mode: object = field(default=_UNSET)
@@ -61,11 +68,16 @@ class UpdateBookingService:
         audit_repo: BookingAuditLogRepository,
         price_calculator: PriceCalculatorService,
         settings_repo: CompanySettingsRepository | None = None,
+        task_repo: CleaningTaskRepository | None = None,
+        tell_cleaner: Callable[[CleaningTask], Awaitable[None]] | None = None,
     ) -> None:
         self._booking_repo = booking_repo
         self._property_repo = property_repo
         self._audit_repo = audit_repo
         self._price_calculator = price_calculator
+        # The stay's cleaning follows new dates, and its maid hears of it.
+        self._task_repo = task_repo
+        self._tell_cleaner = tell_cleaner
         # The company's clock for the lead-time rule; without it, the default zone.
         self._settings_repo = settings_repo
 
@@ -93,6 +105,19 @@ class UpdateBookingService:
         # date change; one the system worked out should follow the new dates.
         price_was_system_set = booking.total_price == booking.calculated_price
 
+        # First, so the mode, the overlaps, the closed nights and the rules below
+        # are all checked on the flat the stay is going to.
+        target = None
+        if inp.property_id not in (_UNSET, None) and inp.property_id != booking.property_id:
+            target = await self._property_repo.get_by_id(inp.property_id)  # type: ignore[arg-type]
+            if target is None or target.company_id != inp.company_id:
+                raise ValueError("Target property not found")
+            if target.status != PropertyStatus.ACTIVE:
+                raise ValueError("Target property is not active")
+            _track("property_id", booking.property_id, inp.property_id)
+            booking.property_id = inp.property_id  # type: ignore[assignment]
+            dates_changed = True  # re-check the stay on the new flat
+
         if inp.check_in is not _UNSET:
             _track("check_in", booking.check_in, inp.check_in)
             booking.check_in = inp.check_in  # type: ignore[assignment]
@@ -113,6 +138,9 @@ class UpdateBookingService:
             _track("rental_mode", booking.rental_mode.value, new_mode.value)
             booking.rental_mode = new_mode
             dates_changed = True  # re-guard + recalculate price under the new mode
+        if target is not None:
+            # The stay's mode, new or kept, must be one the new flat allows.
+            validate_rental_mode_allowed(booking.rental_mode, target.rental_mode)
         if inp.source is not _UNSET:
             _track("source", booking.source.value, inp.source)
             booking.source = BookingSource(inp.source)  # type: ignore[arg-type]
@@ -166,20 +194,28 @@ class UpdateBookingService:
                 booking.check_out = settle_boundary(booking.check_out, check_out, saved_out)
             if booking.check_out <= booking.check_in:
                 raise ValueError("Check-out must be after check-in")
+            now = await company_now(self._settings_repo, inp.company_id)
+            if target is None:
+                settled = (saved_in, saved_out)
+            else:
+                # A guest moved mid-stay lived the past nights in the other flat: only they
+                # are let off, as with /move. A stay over, or not begun, is checked in full.
+                settled = (saved_in, now) if saved_in < now < saved_out else None
             overlapping = await overlapping_stays(
                 self._booking_repo,
                 booking.property_id,
                 booking.check_in,
                 booking.check_out,
-                now=await company_now(self._settings_repo, inp.company_id),
+                now=now,
                 exclude_id=booking.id,
-                settled=(saved_in, saved_out),
+                settled=settled,
             )
             if overlapping:
                 raise BookingOverlapError()
             # The form sends the saved dates back with any edit: only a stay that
             # really moved is checked, and the lead time only for a new check-in.
-            moved = (booking.check_in, booking.check_out, booking.rental_mode) != (saved_in, saved_out, saved_mode)
+            new_dates = (booking.check_in, booking.check_out, booking.rental_mode) != (saved_in, saved_out, saved_mode)
+            moved = new_dates or target is not None
             if moved and prop is not None:
                 await ensure_not_blocked(
                     self._booking_repo, prop, booking.check_in, booking.check_out, booking.source.value
@@ -206,7 +242,8 @@ class UpdateBookingService:
             # Recalculate price, only for new dates or guests: the form sends the saved
             # ones back with any edit, and a price set since (a calendar price) must
             # not change a stay booked before it.
-            repriced = moved or (booking.adults_count, booking.children_count) != saved_guests
+            # Another flat alone keeps the price, as a move on the chessboard does.
+            repriced = new_dates or (booking.adults_count, booking.children_count) != saved_guests
             if repriced:
                 try:
                     breakdown = await self._price_calculator.calculate(
@@ -227,6 +264,15 @@ class UpdateBookingService:
                     pass  # No pricing config, keep existing calculated_price
 
         updated = await self._booking_repo.update(booking)
+
+        # On another flat the cleanings are not followed: follow_stay looks in the new flat
+        # and would take its own guest's cleaning for this one's. They stay where they were,
+        # as with a move on the chessboard.
+        if self._task_repo is not None and updated.check_out != saved_out and target is None:
+            for task in await follow_stay(self._task_repo, updated, saved_out):
+                changes.append(("cleaning_moved", str(task.id), str(task.scheduled_date)))
+                if self._tell_cleaner is not None:
+                    await self._tell_cleaner(task)
 
         for field_name, old_val, new_val in changes:
             await self._audit_repo.create(

@@ -12,6 +12,7 @@ from app.application.booking.manage_deposits import ManageDepositsService
 from app.application.booking.manage_payments import ManagePaymentsService
 from app.application.booking.move_booking import MoveBookingService
 from app.application.booking.price_calculator import PriceCalculatorService
+from app.application.booking.stay_rules import company_now
 from app.application.booking.update_booking import UpdateBookingInput, UpdateBookingService
 from app.domain.booking.entities import (
     Booking,
@@ -99,6 +100,12 @@ class FakePropertyRepository(PropertyRepository):
 
 
 class FakeBookingRepository(BookingRepository):
+    async def list_ended_owing(self, company_id, before, with_orders_due):
+        return []
+
+    async def list_unclosed(self, company_id, before):
+        return []
+
     def __init__(self) -> None:
         self._bookings: dict[uuid.UUID, Booking] = {}
         self._voided: set[tuple[uuid.UUID, str]] = set()
@@ -368,6 +375,9 @@ class FakeBookingPaymentRepository(BookingPaymentRepository):
             totals[payment.booking_id] = totals.get(payment.booking_id, Decimal("0")) + signed
         return totals
 
+    async def sum_received_between(self, company_id, start, end) -> Decimal:
+        raise NotImplementedError
+
 
 class FakeBookingDepositRepository(BookingDepositRepository):
     def __init__(self) -> None:
@@ -466,6 +476,9 @@ class FakeSeasonalPriceRepository(SeasonalPriceRepository):
     async def save(self, price: SeasonalPrice) -> SeasonalPrice:
         self._prices[price.id] = price
         return price
+
+    async def update(self, price: SeasonalPrice) -> SeasonalPrice:
+        return await self.save(price)
 
     async def delete(self, price_id: uuid.UUID) -> None:
         self._prices.pop(price_id, None)
@@ -891,7 +904,7 @@ class TestCreateBookingService:
     @pytest.mark.asyncio
     async def test_a_stay_finished_today_does_not_stop_tonights_sale(self):
         booking_repo, _, _, svc, prop = await self._setup()
-        today = date.today()
+        today = (await company_now(None, COMPANY_ID)).date()
         earlier_today = datetime.combine(today, time(0, 30))
         hourly = _make_booking(prop.id, status=BookingStatus.COMPLETED, rental_mode=RentalMode.HOURLY)
         hourly.check_in, hourly.check_out = earlier_today, earlier_today + timedelta(hours=16)
@@ -912,7 +925,7 @@ class TestCreateBookingService:
     @pytest.mark.asyncio
     async def test_a_no_show_marked_completed_today_holds_no_past_time(self):
         booking_repo, _, _, svc, prop = await self._setup()
-        today = date.today()
+        today = (await company_now(None, COMPANY_ID)).date()
         no_show = _make_booking(
             prop.id, check_in=today, check_out=today + timedelta(days=2), status=BookingStatus.COMPLETED
         )
@@ -1488,6 +1501,174 @@ class TestUpdateBookingService:
         fields = {log.field_name for log in logs}
         assert "notes" in fields
         assert "gantt_color" in fields
+
+
+class TestUpdateBookingToAnotherFlat:
+    """The booking's Dates panel saves another flat and new dates together: one save,
+    checked on the flat the stay is going to."""
+
+    async def _setup(self):
+        booking_repo = FakeBookingRepository()
+        audit_repo = FakeBookingAuditLogRepository()
+        pricing_repo = FakePricingConfigRepository()
+        prop_repo = FakePropertyRepository()
+        prop_a = _make_property(name="A", internal_name="a")
+        prop_b = _make_property(name="B", internal_name="b")
+        for prop, base in ((prop_a, Decimal("100")), (prop_b, Decimal("200"))):
+            await prop_repo.save(prop)
+            await pricing_repo.save(_make_pricing_config(prop.id, base))
+        svc = UpdateBookingService(
+            booking_repo, prop_repo, audit_repo, _build_price_calculator(pricing_repo=pricing_repo)
+        )
+        booking = _make_booking(prop_a.id, total_price=Decimal("400"), calculated_price=Decimal("400"))
+        await booking_repo.create(booking)
+        return booking_repo, prop_repo, audit_repo, svc, booking, prop_a, prop_b
+
+    @pytest.mark.asyncio
+    async def test_another_flat_alone_keeps_the_price(self):
+        # As a move on the chessboard: the agreed price stays.
+        _, _, audit_repo, svc, booking, prop_a, prop_b = await self._setup()
+
+        result = await svc.execute(
+            UpdateBookingInput(booking_id=booking.id, company_id=COMPANY_ID, property_id=prop_b.id)
+        )
+
+        assert result.property_id == prop_b.id
+        assert result.total_price == Decimal("400")
+        logs = await audit_repo.list_by_booking(booking.id)
+        assert [(log.field_name, log.old_value, log.new_value) for log in logs] == [
+            ("property_id", str(prop_a.id), str(prop_b.id))
+        ]
+
+    @pytest.mark.asyncio
+    async def test_new_flat_and_dates_busy_only_on_the_old_flat_save_together(self):
+        # Two requests in a row could not do it: the dates first fail on the old
+        # flat, the move first fails on the old dates.
+        booking_repo, _, _, svc, booking, prop_a, prop_b = await self._setup()
+        await booking_repo.create(_make_booking(prop_a.id, check_in=date(2025, 6, 5), check_out=date(2025, 6, 8)))
+
+        result = await svc.execute(
+            UpdateBookingInput(
+                booking_id=booking.id,
+                company_id=COMPANY_ID,
+                property_id=prop_b.id,
+                check_out=datetime(2025, 6, 7, 12, 0),
+            )
+        )
+
+        assert result.property_id == prop_b.id
+        assert result.check_out == datetime(2025, 6, 7, 12, 0)
+        # New dates reprice the stay Day priced, at the new flat's prices.
+        assert result.total_price == result.calculated_price
+        assert result.total_price > Decimal("400")
+
+    @pytest.mark.asyncio
+    async def test_a_busy_new_flat_refuses_and_nothing_changes(self):
+        booking_repo, _, _, svc, booking, prop_a, prop_b = await self._setup()
+        await booking_repo.create(_make_booking(prop_b.id, check_in=date(2025, 6, 2), check_out=date(2025, 6, 4)))
+
+        with pytest.raises(BookingOverlapError):
+            await svc.execute(
+                UpdateBookingInput(booking_id=booking.id, company_id=COMPANY_ID, property_id=prop_b.id)
+            )
+
+    @pytest.mark.asyncio
+    async def test_another_company_flat_is_refused(self):
+        _, prop_repo, _, svc, booking, _, _ = await self._setup()
+        other = _make_property(company_id=OTHER_COMPANY_ID, name="Other", internal_name="other")
+        await prop_repo.save(other)
+
+        with pytest.raises(ValueError, match="not found"):
+            await svc.execute(UpdateBookingInput(booking_id=booking.id, company_id=COMPANY_ID, property_id=other.id))
+
+    @pytest.mark.asyncio
+    async def test_a_flat_that_does_not_take_the_stay_mode_is_refused(self):
+        _, prop_repo, _, svc, booking, _, _ = await self._setup()
+        hourly = _make_property(name="H", internal_name="h", rental_mode=RentalMode.HOURLY)
+        await prop_repo.save(hourly)
+
+        with pytest.raises(ValueError, match="not allowed"):
+            await svc.execute(UpdateBookingInput(booking_id=booking.id, company_id=COMPANY_ID, property_id=hourly.id))
+
+    @pytest.mark.asyncio
+    async def test_past_days_added_with_a_new_flat_are_checked_in_full(self):
+        # A stay not begun yet, moved to B with a check-in in the past, over a stay B
+        # already had: only nights the guest lived are let off, and this one lived none.
+        booking_repo, _, _, svc, booking, _, prop_b = await self._setup()
+        today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+        booking.check_in, booking.check_out = today + timedelta(days=5, hours=14), today + timedelta(days=7, hours=12)
+        await booking_repo.update(booking)
+        await booking_repo.create(
+            _make_booking(
+                prop_b.id,
+                check_in=(today - timedelta(days=5)).date(),
+                check_out=(today - timedelta(days=3)).date(),
+                status=BookingStatus.COMPLETED,
+            )
+        )
+
+        with pytest.raises(BookingOverlapError):
+            await svc.execute(
+                UpdateBookingInput(
+                    booking_id=booking.id,
+                    company_id=COMPANY_ID,
+                    property_id=prop_b.id,
+                    check_in=today - timedelta(days=5) + timedelta(hours=14),
+                )
+            )
+
+    @pytest.mark.asyncio
+    async def test_a_past_stay_is_not_moved_over_a_past_stay_of_the_new_flat(self):
+        # As /move refuses it (test_move_onto_a_past_completed_stay_raises).
+        booking_repo, _, _, svc, booking, _, prop_b = await self._setup()
+        await booking_repo.create(
+            _make_booking(
+                prop_b.id,
+                check_in=booking.check_in.date(),
+                check_out=booking.check_out.date(),
+                status=BookingStatus.COMPLETED,
+            )
+        )
+
+        with pytest.raises(BookingOverlapError):
+            await svc.execute(UpdateBookingInput(booking_id=booking.id, company_id=COMPANY_ID, property_id=prop_b.id))
+
+    @pytest.mark.asyncio
+    async def test_the_new_flats_own_cleaning_is_not_taken_for_this_stay(self):
+        # B's cleaning for its own guest leaving on the day this stay used to end
+        # must not move to this stay's new end.
+        from app.domain.cleaning.value_objects import CleaningType
+        from tests.test_cleaning_services import FakeCleaningTaskRepository, _make_task
+
+        booking_repo, prop_repo, audit_repo, _, booking, _, prop_b = await self._setup()
+        tasks = FakeCleaningTaskRepository()
+        theirs = await tasks.create(
+            _make_task(property_id=prop_b.id, type=CleaningType.POST_CHECKOUT, scheduled_date=booking.check_out.date())
+        )
+        svc = UpdateBookingService(
+            booking_repo, prop_repo, audit_repo, _build_price_calculator(), None, tasks
+        )
+        their_day = theirs.scheduled_date
+
+        await svc.execute(
+            UpdateBookingInput(
+                booking_id=booking.id,
+                company_id=COMPANY_ID,
+                property_id=prop_b.id,
+                check_out=booking.check_out + timedelta(days=2),
+            )
+        )
+
+        assert (await tasks.get_by_id(theirs.id)).scheduled_date == their_day
+
+    @pytest.mark.asyncio
+    async def test_a_paused_flat_is_refused(self):
+        _, prop_repo, _, svc, booking, _, _ = await self._setup()
+        paused = _make_property(name="P", internal_name="p", status=PropertyStatus.PAUSED)
+        await prop_repo.save(paused)
+
+        with pytest.raises(ValueError, match="not active"):
+            await svc.execute(UpdateBookingInput(booking_id=booking.id, company_id=COMPANY_ID, property_id=paused.id))
 
 
 # ---------- TestChangeBookingStatusService ----------
@@ -2075,6 +2256,51 @@ class TestManageDepositsService:
         assert result.status == DepositStatus.PARTIALLY_HELD
         assert result.held_amount == Decimal("200")
         assert result.reason == "Minor damage"
+
+    @pytest.mark.asyncio
+    async def test_a_hold_line_by_line_keeps_their_sum_for_the_guest(self):
+        _, _, svc, booking = await self._setup()
+        deposit = await svc.create_deposit(booking.id, COMPANY_ID, Decimal("10000"))
+        await svc.perform_action(booking.id, deposit.id, COMPANY_ID, "pay")
+        lines = [
+            {"amount": Decimal("3000"), "reason": "Разбит бокал", "photos": ["https://s3/deposits/b/glass.jpg"]},
+            {"amount": Decimal("1500.5"), "reason": "Пятно на диване", "photos": []},
+        ]
+
+        result = await svc.perform_action(
+            booking.id, deposit.id, COMPANY_ID, "partial_hold", reason="для себя", deductions=lines
+        )
+
+        assert (result.status, result.held_amount, result.reason) == (
+            DepositStatus.PARTIALLY_HELD, Decimal("4500.50"), "для себя"
+        )
+        assert result.deductions == [
+            {"amount": "3000.00", "reason": "Разбит бокал", "photos": ["https://s3/deposits/b/glass.jpg"]},
+            {"amount": "1500.50", "reason": "Пятно на диване", "photos": []},
+        ]
+
+    @pytest.mark.asyncio
+    async def test_hold_lines_must_add_up_and_come_with_a_hold(self):
+        _, _, svc, booking = await self._setup()
+        deposit = await svc.create_deposit(booking.id, COMPANY_ID, Decimal("10000"))
+        line = [{"amount": Decimal("3000"), "reason": "Разбит бокал", "photos": []}]
+        with pytest.raises(ValueError, match="come with a hold"):
+            await svc.perform_action(booking.id, deposit.id, COMPANY_ID, "pay", deductions=line)
+        await svc.perform_action(booking.id, deposit.id, COMPANY_ID, "pay")
+        # A whole hold is the whole deposit, line by line.
+        with pytest.raises(ValueError, match="add up to the deposit"):
+            await svc.perform_action(booking.id, deposit.id, COMPANY_ID, "hold", deductions=line)
+        with pytest.raises(ValueError, match="sum of the deductions"):
+            await svc.perform_action(
+                booking.id, deposit.id, COMPANY_ID, "partial_hold", held_amount=Decimal("5000"), deductions=line
+            )
+        with pytest.raises(ValueError, match="cannot exceed"):
+            await svc.perform_action(
+                booking.id, deposit.id, COMPANY_ID, "partial_hold",
+                deductions=[{"amount": Decimal("12000"), "reason": "Сломан замок", "photos": []}],
+            )
+        # Nothing refused was kept.
+        assert (deposit.status, deposit.deductions) == (DepositStatus.PAID, [])
 
     @pytest.mark.asyncio
     async def test_partial_hold_requires_amount(self):

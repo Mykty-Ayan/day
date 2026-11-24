@@ -180,13 +180,16 @@ test.describe('Property Tags - E2E', () => {
     // so the tagged property is awaited first: a hidden one proves nothing until the
     // filtered list is on screen
     const filtered = page.waitForResponse((r) => r.url().includes('/properties?') && r.url().includes(`tag_id=${tag.id}`))
-    await page.getByRole('button', { name: tag.name, exact: true }).click()
+    const chip = page.getByRole('button', { name: tag.name, exact: true })
+    await chip.click()
     await filtered
+    await expect(chip).toHaveAttribute('aria-pressed', 'true')
     await expect(page.getByText(tagged.name)).toBeVisible()
     await expect(page.getByText(untagged.name)).toHaveCount(0)
 
-    // "All" shows both again
-    await page.getByRole('button', { name: 'All', exact: true }).click()
+    // A second tap on the chip shows both again
+    await chip.click()
+    await expect(chip).toHaveAttribute('aria-pressed', 'false')
     await expect(page.getByText(untagged.name)).toBeVisible()
     await expect(page.getByText(tagged.name)).toBeVisible()
   })
@@ -194,7 +197,7 @@ test.describe('Property Tags - E2E', () => {
   test('tags UI - create a tag and see it on the property page', async () => {
     test.fixme(
       true,
-      'No such UI: TagSelector (create a tag, assign it to a flat) is not used on any page. ' +
+      'No such UI: creating a tag and assigning it to a flat is not on any page. ' +
         'Tags are only filter chips on the property list, and tags are created through the API',
     )
   })

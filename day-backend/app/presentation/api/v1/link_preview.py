@@ -32,6 +32,7 @@ from app.infrastructure.repositories.property import (
     SqlPropertyRepository,
     SqlSeasonalPriceRepository,
 )
+from app.infrastructure.repositories.settings import SqlCompanySettingsRepository
 from app.infrastructure.repositories.site import SqlCompanySiteRepository
 from app.presentation.api.v1.offers import offers_service
 
@@ -104,6 +105,7 @@ async def flat_preview(code: str, session: AsyncSession = Depends(get_session)):
         SqlSeasonalPriceRepository(session),
         SqlDayPriceRepository(session),
         SqlBookingRepository(session),
+        SqlCompanySettingsRepository(session),
     )
     today = date.today()
     try:

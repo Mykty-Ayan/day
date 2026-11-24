@@ -80,13 +80,13 @@ def _overrides(value: Any) -> bool:
     return value is True
 
 
-_AGAINST_RULES = " вопреки правилам квартиры"
+_AGAINST_RULES = " вопреки правилам объекта"
 
 
 def _stay_rules_refused(refused: StayRulesError) -> ValueError:
     broken = "; ".join(describe_breach(b) for b in refused.breaches)
     return ValueError(
-        f"Бронь нарушает правила квартиры: {broken}. Нарушить их можно только если пользователь явно "
+        f"Бронь нарушает правила объекта: {broken}. Нарушить их можно только если пользователь явно "
         "согласится: тогда повтори с override_rules=true."
     )
 

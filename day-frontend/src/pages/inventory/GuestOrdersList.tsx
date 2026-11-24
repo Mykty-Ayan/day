@@ -1,68 +1,86 @@
 import { useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
+import { intlLocale } from '../miniapp/format'
 import { listGuestOrders, type OrderStatus } from '../../api/inventory'
-import { useCurrency } from '../../hooks/useCurrency'
+import { useMoney } from '../../hooks/useMoney'
+import LoadError from '../../components/ui/LoadError'
 
 const STATUSES: OrderStatus[] = ['new', 'awaiting_payment', 'accepted', 'delivered', 'cancelled']
+const TONE: Record<OrderStatus, string> = {
+  new: 'bg-accent-soft text-accent-ink',
+  awaiting_payment: 'bg-warning-soft text-warning',
+  accepted: 'bg-accent-soft text-accent-ink',
+  delivered: 'bg-success-soft text-success',
+  cancelled: 'bg-surface-page text-ink-muted',
+}
 
-/** Guests' minibar orders, newest first, by status. Handled in the Mini App;
- *  here the owner reads them. */
+/** Guests' minibar orders, newest first, by status. Handled in the Mini App; here the owner reads them. */
 export default function GuestOrdersList() {
   const { t, i18n } = useTranslation()
-  const { format } = useCurrency()
+  const money = useMoney()
   const [status, setStatus] = useState<OrderStatus | ''>('')
-  const { data: orders = [], isLoading } = useQuery({
+  const { data: orders = [], isLoading, isError, refetch } = useQuery({
     queryKey: ['guest-orders', status],
     queryFn: () => listGuestOrders(status || undefined),
+    // Another status keeps the list on screen until its own orders come: no blank flash.
+    placeholderData: keepPreviousData,
   })
 
   return (
-    <section className="rounded-xl border border-gray-200 bg-white shadow-sm">
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-gray-100 px-4 py-3">
-        <h2 className="text-sm font-bold text-gray-900">{t('inventory.orders.title')}</h2>
-        <select
-          id="orders-status"
-          aria-label={t('inventory.orders.status')}
-          value={status}
-          onChange={(e) => setStatus(e.target.value as OrderStatus | '')}
-          className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm"
-        >
-          <option value="">{t('inventory.orders.all')}</option>
-          {STATUSES.map((s) => (
-            <option key={s} value={s}>
-              {t(`inventory.orders.statuses.${s}`)}
-            </option>
+    <section aria-label={t('inventory.orders.title')}>
+      <h2 className="mb-2 text-sm font-semibold text-ink">{t('inventory.orders.title')}</h2>
+      <div className="-mx-4 mb-3 overflow-x-auto px-4 sm:mx-0 sm:px-0">
+        <div role="radiogroup" aria-label={t('inventory.orders.status')} className="flex w-max gap-1.5">
+          {(['', ...STATUSES] as const).map((s) => (
+            <button
+              key={s || 'all'}
+              type="button"
+              role="radio"
+              aria-checked={status === s}
+              onClick={() => setStatus(s)}
+              className={`min-h-[36px] whitespace-nowrap rounded-full border px-3 text-xs font-semibold transition-colors ${
+                status === s ? 'border-accent bg-accent-soft text-accent-ink' : 'border-line bg-surface-card text-ink hover:bg-surface-page'
+              }`}
+            >
+              {s ? t(`inventory.orders.filter.${s}`) : t('inventory.orders.all')}
+            </button>
           ))}
-        </select>
+        </div>
       </div>
-      {isLoading ? null : orders.length === 0 ? (
-        <p className="px-4 py-6 text-sm text-gray-500">{t('inventory.orders.empty')}</p>
+      {isLoading ? null : isError ? (
+        <LoadError message={t('inventory.orders.loadFailed')} onRetry={() => refetch()} />
+      ) : orders.length === 0 ? (
+        <div className="rounded-2xl border border-dashed border-line px-5 py-8 text-center">
+          <p className="text-sm text-ink-muted">{t('inventory.orders.empty')}</p>
+        </div>
       ) : (
-        <ul className="divide-y divide-gray-100">
+        <ul className="divide-y divide-line overflow-hidden rounded-2xl border border-line bg-surface-card">
           {orders.map((o) => (
-            <li key={o.id} data-testid="guest-order" className="space-y-1 px-4 py-3 text-sm">
+            <li key={o.id} data-testid="guest-order" className="flex flex-col gap-1 px-4 py-3 text-sm sm:px-5">
               <div className="flex flex-wrap items-baseline justify-between gap-2">
-                <span className="font-medium text-gray-900">
+                <span className="font-semibold text-ink">
                   {t('inventory.orders.number', { number: o.number })} · {o.property_name ?? '—'}
-                  {o.guest_name && <span className="text-gray-500"> · {o.guest_name}</span>}
+                  {o.guest_name && <span className="font-normal text-ink-muted"> · {o.guest_name}</span>}
                 </span>
-                <span className="font-semibold text-gray-900">{format(o.total)}</span>
+                <span className="font-semibold tabular-nums text-ink">{money(o.total)}</span>
               </div>
-              <p className="text-xs text-gray-500">
+              <p className="text-ink">{o.items.map((i) => `${i.name} × ${i.quantity}`).join(', ')}</p>
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-ink-muted">
+                <span className={`inline-block rounded-full px-2 py-0.5 font-semibold first-letter:uppercase ${TONE[o.status]}`}>{t(`inventory.orders.statuses.${o.status}`)}</span>
                 {[
                   // The server keeps UTC without a zone: shown on this device's clock.
-                  o.created_at ? new Date(`${o.created_at}Z`).toLocaleString(i18n.language, { dateStyle: 'short', timeStyle: 'short' }) : null,
-                  t(`inventory.orders.statuses.${o.status}`),
+                  o.created_at ? new Date(`${o.created_at}Z`).toLocaleString(intlLocale(i18n.language), { dateStyle: 'short', timeStyle: 'short' }) : null,
                   t(`inventory.orders.billing.${o.billing}`),
                   o.payment_status === 'on_booking' ? t('inventory.orders.onTab') : null,
                   o.payment_method ? t(`inventory.orders.payments.${o.payment_method}`) : null,
                 ]
                   .filter(Boolean)
-                  .join(' · ')}
-              </p>
-              <p className="text-gray-700">{o.items.map((i) => `${i.name} × ${i.quantity}`).join(', ')}</p>
-              {o.guest_note && <p className="text-xs italic text-gray-500">«{o.guest_note}»</p>}
+                  .map((part) => (
+                    <span key={part}>{part}</span>
+                  ))}
+              </div>
+              {o.guest_note && <p className="text-xs italic text-ink-muted">«{o.guest_note}»</p>}
             </li>
           ))}
         </ul>

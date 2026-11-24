@@ -1,6 +1,5 @@
 import { useMemo, useState } from 'react'
 import { useQueries, useQuery } from '@tanstack/react-query'
-import { motion } from 'framer-motion'
 import {
   ArrowLeft,
   Building2,
@@ -13,11 +12,15 @@ import {
   Archive,
   Pencil,
   Copy,
-  CalendarSync,
   Users,
   Bath,
   ImagePlus,
   ExternalLink,
+  MoreHorizontal,
+  ChevronDown,
+  CircleCheck,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react'
 import { useParams, Link, useNavigate } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
@@ -30,26 +33,45 @@ import {
   useCreateOrUpdatePricing,
   useAddSeasonalPrice,
   useDeleteSeasonalPrice,
+  useUpdateSeasonalPrice,
   useAddDiscountRule,
   useDeleteDiscountRule,
   usePropertyAuditLog,
   useCloneProperty,
-  useUploadPhotos,
+  useBlocks,
+  useCalendarFeeds,
 } from '../../hooks/useProperties'
+import { useFlatStaysFrom } from '../../hooks/useBookings'
+import { useSettings } from '../../hooks/useSettings'
+import { occupancy, readiness, stayNow, wallClock, type ReadinessItem, type ReadinessPlace } from '../../lib/property-overview'
+import { addDays, format, parseISO } from 'date-fns'
+import { dateLocale } from '../../lib/date-locale'
 import { getCalendarLink, getPricing } from '../../api/properties'
 import { useCurrentUser } from '../../hooks/useAuth'
-import type { PropertyStatus, PricingInput, SeasonalPrice } from '../../types/property'
+import { useCurrency } from '../../hooks/useCurrency'
+import { formatMoneyExact } from '../miniapp/format'
+import { errorText } from '../miniapp/errors'
+import { isNotFound } from '../../lib/utils'
+import type { PricingConfig, PricingInput, PropertyPhoto, PropertyStatus, SeasonalPrice } from '../../types/property'
 import type { RentalMode } from '../../types/booking'
 import PricingForm, { type SeasonalSuggestion } from '../../components/property/PricingForm'
 import StatusBadge from '../../components/property/StatusBadge'
 import { showToast } from '../../components/ui/Toast'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import CheckInPhotosCard from '../../components/property/CheckInPhotosCard'
+import NearbyCard from '../../components/property/NearbyCard'
+import ListingPhotosCard from '../../components/property/ListingPhotosCard'
+import { listingOrder } from '../../lib/property-photos'
+import PropertyEditSheet, { type PropertyBlock } from '../../components/property/PropertyEditSheet'
 import BlocksCard from '../../components/property/BlocksCard'
 import CalendarFeedsCard from '../../components/property/CalendarFeedsCard'
-import AuditTrail from '../../components/ui/AuditTrail'
+import CopyLink from '../../components/property/CopyLink'
+import PropertyHistory from '../../components/property/PropertyHistory'
 import Spinner from '../../components/ui/Spinner'
+import LoadError from '../../components/ui/LoadError'
 import Button from '../../components/ui/Button'
+import { Badge } from '../../components/ui/badge'
+import { Popover, PopoverContent, PopoverTrigger } from '../../components/ui/popover'
 
 function getStatusActions(status: PropertyStatus): { labelKey: string; target: PropertyStatus; icon: typeof Play }[] {
   switch (status) {
@@ -75,37 +97,45 @@ function seasonalKey(seasonal: Pick<SeasonalPrice, 'name' | 'start_date' | 'end_
 }
 
 export default function PropertyDetailPage() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
+  const { symbol } = useCurrency()
   const { propertyId } = useParams({ strict: false }) as { propertyId: string }
   const navigate = useNavigate()
-  const { data: property, isLoading } = useProperty(propertyId)
-  const uploadPhotos = useUploadPhotos(propertyId)
+  const { data: property, isLoading, isError, error, refetch } = useProperty(propertyId)
   const { data: currentUser } = useCurrentUser()
 
-  function addPhotos(event: React.ChangeEvent<HTMLInputElement>) {
-    const files = Array.from(event.target.files ?? [])
-    event.target.value = ''
-    if (files.length === 0) return
-    const startAt = Math.max(-1, ...(property?.photos ?? []).map((photo) => photo.sort_order)) + 1
-    uploadPhotos.mutate({ files, startAt }, {
-      onSuccess: (failed) =>
-        failed > 0
-          ? showToast('error', t('properties.photosNotAdded', { count: failed }))
-          : showToast('success', t('properties.photosAdded', { count: files.length })),
-    })
-  }
   const { data: allProperties } = useAllProperties()
   const changeStatus = useChangePropertyStatus(propertyId)
   const updatePropertyMut = useUpdateProperty(propertyId)
-  const { data: pricing } = usePropertyPricing(propertyId)
+  const pricingQuery = usePropertyPricing(propertyId)
+  const pricing = pricingQuery.data
   const savePricing = useCreateOrUpdatePricing(propertyId)
   const addSeasonal = useAddSeasonalPrice(propertyId)
   const deleteSeasonal = useDeleteSeasonalPrice(propertyId)
+  const updateSeasonal = useUpdateSeasonalPrice(propertyId)
   const addDiscount = useAddDiscountRule(propertyId)
   const deleteDiscount = useDeleteDiscountRule(propertyId)
   const { data: auditLog = [] } = usePropertyAuditLog(propertyId)
+  // The same queries as the Closed dates and Calendars tabs: one fetch, shared.
+  const today = format(new Date(), 'yyyy-MM-dd')
+  const blocks = useBlocks(propertyId, today, format(addDays(new Date(), 366), 'yyyy-MM-dd'))
+  const feeds = useCalendarFeeds(propertyId, currentUser?.role !== 'cleaner')
   const clonePropertyMut = useCloneProperty()
   const [showCloneConfirm, setShowCloneConfirm] = useState(false)
+  const [menuOpen, setMenuOpen] = useState(false)
+  // The block being changed in the panel from the right.
+  const [editing, setEditing] = useState<PropertyBlock | null>(null)
+  // The tab lives in the address (?tab=photos): back to the page opens it again.
+  const [tab, setTabState] = useState<PropertyTab>(() => {
+    const asked = new URLSearchParams(window.location.search).get('tab')
+    return (PROPERTY_TABS as readonly string[]).includes(asked ?? '') ? (asked as PropertyTab) : 'prices'
+  })
+  const setTab = (next: PropertyTab) => {
+    setTabState(next)
+    const url = new URL(window.location.href)
+    url.searchParams.set('tab', next)
+    window.history.replaceState(window.history.state, '', url)
+  }
 
   const otherProperties = useMemo(
     () => (allProperties?.items ?? []).filter((p) => p.id !== propertyId),
@@ -171,26 +201,35 @@ export default function PropertyDetailPage() {
   }, [otherPricingQueries, otherProperties, pricing?.seasonal_prices])
 
   const handleSavePricing = (data: PricingInput & { rental_mode: RentalMode }) => {
-    const { rental_mode, ...pricingInput } = data
-    // rental_mode lives on the property, not the pricing config — persist it
-    // separately when the operator changed it.
-    if (property && rental_mode !== property.rental_mode) {
-      updatePropertyMut.mutate({ rental_mode })
-    }
-    savePricing.mutate(pricingInput, {
-      onSuccess: () => showToast('success', t('properties.pricingSaved')),
-      onError: (err: Error) => showToast('error', err.message || t('properties.failedSavePricing')),
-    })
+    // The way of letting is saved on its own, when it is switched.
+    const { rental_mode: _mode, ...pricingInput } = data
+    void _mode
+    return savePricing.mutateAsync(pricingInput).then(
+      () => showToast('success', t('properties.pricingSaved')),
+      (err: Error) => {
+        showToast('error', errorText(err, t('properties.failedSavePricing'), t))
+        throw err
+      },
+    )
   }
 
   if (isLoading) {
     return <Spinner />
   }
 
+  // Only an answer that the object is not there is «not found»: any other failure says so.
+  if (!property && isError && !isNotFound(error)) {
+    return (
+      <div className="mx-auto w-full max-w-6xl px-4 py-4 sm:px-6 sm:py-6">
+        <LoadError message={t('properties.loadFailed')} onRetry={() => refetch()} />
+      </div>
+    )
+  }
+
   if (!property) {
     return (
       <div className="flex flex-col items-center justify-center gap-4 py-20">
-        <p className="text-sm text-gray-500">{t('properties.notFound')}</p>
+        <p className="text-sm text-ink-muted">{t('properties.notFound')}</p>
         <Button variant="secondary" onClick={() => navigate({ to: '/properties' })}>
           {t('properties.backToProperties')}
         </Button>
@@ -199,379 +238,412 @@ export default function PropertyDetailPage() {
   }
 
   const statusActions = getStatusActions(property.status)
-  const actionButtonClass =
-    'inline-flex min-h-[44px] min-w-[44px] items-center justify-center gap-2 rounded-xl border border-gray-200 bg-gray-50 px-4 py-2 text-xs font-bold text-gray-700 transition-colors hover:bg-gray-100'
+  const staff = Boolean(currentUser) && currentUser?.role !== 'cleaner'
+  const listingPhotos = property.photos.filter((photo) => photo.audience !== 'guest')
+  const facts = [
+    { icon: Building2, label: t('common.type'), value: t(`common.${property.type}`) },
+    { icon: DoorOpen, label: t('properties.rooms'), value: property.rooms },
+    { icon: Bed, label: t('properties.beds'), value: property.beds },
+    { icon: Users, label: t('properties.form.maxGuests'), value: property.max_guests },
+    { icon: Bath, label: t('properties.form.bathrooms'), value: property.bathrooms },
+    { icon: Ruler, label: t('properties.area'), value: property.area_total != null ? `${property.area_total} m²` : null },
+  ].filter((fact) => fact.value != null && fact.value !== '')
+  const links = (
+    [
+      [property.map_url, 'mapUrl'],
+      [property.whatsapp_product_url, 'whatsappProductUrl'],
+      [property.video_url, 'videoUrl'],
+    ] as const
+  ).filter(([url]) => Boolean(url))
+  const hasRules = Boolean(
+    property.check_in_instructions ||
+      property.check_out_instructions ||
+      property.house_rules ||
+      property.check_in_hour != null ||
+      property.check_out_hour != null ||
+      property.check_in_method,
+  )
+  const listingGroups = (
+    [
+      ['listings', property.listing_urls],
+      ['hourlyListings', property.hourly_listing_urls],
+    ] as const
+  ).filter(([, urls]) => urls?.length > 0)
+  const feedsFailing = (feeds.data ?? []).some((feed) => Boolean(feed.last_error))
+  // A count where there is something to count; a red dot where something needs a look.
+  const tabs: { key: PropertyTab; label: string; count?: number; alert?: boolean }[] = [
+    { key: 'prices', label: t('properties.pricing.title') },
+    ...(staff ? [{ key: 'blocks' as const, label: t('properties.blocks.title'), count: blocks.data?.length }] : []),
+    { key: 'photos', label: t('properties.photos'), count: listingPhotos.length },
+    { key: 'about', label: t('properties.aboutAndRules') },
+    { key: 'amenities', label: t('properties.amenities'), count: property.amenities.length },
+    { key: 'calendars', label: t('properties.calendars'), count: feeds.data?.length, alert: feedsFailing },
+    { key: 'history', label: t('properties.history') },
+  ]
 
   return (
-    <div className="px-4 py-4 sm:px-6 sm:py-6 max-w-5xl mx-auto w-full">
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4 }}
+    <div className="mx-auto w-full max-w-6xl px-4 py-4 sm:px-6 sm:py-6">
+      <Link
+        to="/properties"
+        className="mb-4 inline-flex items-center gap-1 text-xs font-bold text-ink-muted transition-colors hover:text-ink"
       >
-        {/* Back link */}
-        <Link
-          to="/properties"
-          className="inline-flex items-center gap-1 text-xs font-bold text-gray-500 hover:text-gray-900 mb-4 transition-colors"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          {t('properties.backToProperties')}
-        </Link>
+        <ArrowLeft className="h-4 w-4" />
+        {t('properties.backToProperties')}
+      </Link>
 
-        {/* Header */}
-        <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-          <div className="min-w-0">
-            <div className="flex items-center gap-3 mb-1">
-              <h1 className="text-xl font-bold text-gray-900">{property.name}</h1>
-              <StatusBadge status={property.status} />
+      {/* The flat at a glance: its photos, what it is, how it is let and what it costs. */}
+      <section className="mb-5 overflow-hidden rounded-2xl border border-line bg-surface-card lg:grid lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)]">
+        <PhotoCarousel photos={listingPhotos} onAdd={() => setTab('photos')} />
+        <div className="min-w-0 p-5 sm:p-6">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                <h1 className="truncate text-2xl font-bold text-ink">{property.internal_name || property.name}</h1>
+                <EditPencil label={t('properties.edit.basic')} onClick={() => setEditing('basic')} />
+                <StatusMenu
+                  status={property.status}
+                  actions={statusActions}
+                  busy={changeStatus.isPending}
+                  onChange={(target) => {
+                    // On sale a flat is offered by the size of the party: its number comes first.
+                    if (target === 'active' && property.max_guests == null) {
+                      showToast('error', t('properties.guestsRequired'))
+                      setEditing('details')
+                      return
+                    }
+                    changeStatus.mutate(target, {
+                      onError: (err) => showToast('error', errorText(err, t('properties.statusFailed'), t)),
+                    })
+                  }}
+                />
+              </div>
+              {property.internal_name && property.name !== property.internal_name && (
+                <p className="mt-0.5 text-sm text-ink-muted">{property.name}</p>
+              )}
             </div>
-            <p className="text-sm text-gray-500">{property.internal_name}</p>
-          </div>
-          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap">
-            <Link
-              to="/properties/$propertyId/edit"
-              params={{ propertyId }}
-              className={`${actionButtonClass} w-full sm:w-auto`}
-            >
-              <Pencil className="w-3.5 h-3.5" />
-              {t('common.edit')}
-            </Link>
-            <motion.button
-              type="button"
-              whileTap={{ scale: 0.97 }}
-              onClick={() => setShowCloneConfirm(true)}
-              className={`${actionButtonClass} w-full sm:w-auto`}
-            >
-              <Copy className="w-3.5 h-3.5" />
-              {t('common.clone')}
-            </motion.button>
-            {statusActions.map((action) => (
-              <motion.button
-                key={action.target}
-                type="button"
-                whileTap={{ scale: 0.97 }}
-                onClick={() => changeStatus.mutate(action.target)}
-                className={`${actionButtonClass} w-full sm:w-auto`}
-              >
-                <action.icon className="w-3.5 h-3.5" />
-                {t(action.labelKey)}
-              </motion.button>
-            ))}
-          </div>
-        </div>
-
-        {/* Photo gallery */}
-        <div className="mb-6">
-          <div className="flex gap-2 overflow-x-auto pb-2">
-            <label className="shrink-0 w-48 h-32 rounded-xl border border-dashed border-gray-300 flex flex-col items-center justify-center gap-1 text-xs font-semibold text-gray-600 cursor-pointer hover:bg-gray-50">
-              <ImagePlus className="w-5 h-5" />
-              {uploadPhotos.isPending ? t('properties.photosUploading') : t('properties.addPhotos')}
-              <input
-                id="add-photos"
-                type="file"
-                accept="image/jpeg,image/png,image/webp"
-                multiple
-                className="hidden"
-                disabled={uploadPhotos.isPending}
-                onChange={addPhotos}
-              />
-            </label>
-              {property.photos.filter((photo) => photo.audience !== 'guest').map((photo) => (
-                <div
-                  key={photo.id}
-                  className={`shrink-0 w-48 h-32 rounded-xl overflow-hidden ${
-                    photo.is_cover ? 'ring-2 ring-black' : ''
-                  }`}
-                >
-                  <img
-                    src={photo.url}
-                    alt=""
-                    className="w-full h-full object-cover"
+            <div className="flex shrink-0 items-center gap-2">
+              <Popover open={menuOpen} onOpenChange={setMenuOpen}>
+                <PopoverTrigger aria-label={t('bookings.card.moreActions')} className={SECONDARY}>
+                  <MoreHorizontal className="h-4 w-4" aria-hidden="true" />
+                </PopoverTrigger>
+                <PopoverContent align="end" className="w-auto min-w-44 p-1">
+                  <MenuItem
+                    icon={Copy}
+                    label={t('common.clone')}
+                    onClick={() => {
+                      setMenuOpen(false)
+                      setShowCloneConfirm(true)
+                    }}
                   />
-                </div>
-              ))}
-          </div>
-        </div>
-
-        <CalendarLinkCard propertyId={propertyId} />
-        {currentUser && currentUser.role !== 'cleaner' && <CalendarFeedsCard propertyId={propertyId} />}
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Left column - Details */}
-          <div className="lg:col-span-2 space-y-6">
-            {/* Property details grid */}
-            <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
-              <h2 className="text-sm font-bold text-gray-900 mb-4">{t('properties.details')}</h2>
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-                <div className="flex items-center gap-2">
-                  <Building2 className="w-4 h-4 text-gray-400" />
-                  <div>
-                    <p className="text-xs text-gray-500">{t('common.type')}</p>
-                    <p className="text-sm font-semibold text-gray-900">
-                      {t(`common.${property.type}`)}
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <DoorOpen className="w-4 h-4 text-gray-400" />
-                  <div>
-                    <p className="text-xs text-gray-500">{t('properties.rooms')}</p>
-                    <p className="text-sm font-semibold text-gray-900">
-                      {property.rooms ?? '-'}
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Bed className="w-4 h-4 text-gray-400" />
-                  <div>
-                    <p className="text-xs text-gray-500">{t('properties.beds')}</p>
-                    <p className="text-sm font-semibold text-gray-900">
-                      {property.beds ?? '-'}
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Users className="w-4 h-4 text-gray-400" />
-                  <div>
-                    <p className="text-xs text-gray-500">{t('properties.form.maxGuests')}</p>
-                    <p className="text-sm font-semibold text-gray-900">{property.max_guests ?? '-'}</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Bath className="w-4 h-4 text-gray-400" />
-                  <div>
-                    <p className="text-xs text-gray-500">{t('properties.form.bathrooms')}</p>
-                    <p className="text-sm font-semibold text-gray-900">{property.bathrooms ?? '-'}</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Ruler className="w-4 h-4 text-gray-400" />
-                  <div>
-                    <p className="text-xs text-gray-500">{t('properties.area')}</p>
-                    <p className="text-sm font-semibold text-gray-900">
-                      {property.area_total != null ? `${property.area_total} m²` : '-'}
-                    </p>
-                  </div>
-                </div>
-              </div>
-              {(property.address_full || property.complex_name) && (
-                <div className="flex items-start gap-2 mt-4 pt-4 border-t border-gray-100">
-                  <MapPin className="w-4 h-4 text-gray-400 mt-0.5" />
-                  <div>
-                    <p className="text-xs text-gray-500">{t('properties.address')}</p>
-                    <p className="text-sm text-gray-900">
-                      {[property.complex_name, property.address_full].filter(Boolean).join(', ')}
-                    </p>
-                    {(property.apartment_number || property.floor != null) && (
-                      <p className="text-xs text-gray-500 mt-0.5">
-                        {property.apartment_number && t('properties.apt', { number: property.apartment_number })}
-                        {property.apartment_number && property.floor != null && ', '}
-                        {property.floor != null &&
-                          (property.floors_total
-                            ? t('properties.floorOf', { number: property.floor, total: property.floors_total })
-                            : t('properties.floor', { number: property.floor }))}
-                      </p>
-                    )}
-                  </div>
-                </div>
-              )}
-              {(property.map_url || property.whatsapp_product_url || property.video_url) && (
-                <div className="flex items-start gap-2 mt-4 pt-4 border-t border-gray-100">
-                  <ExternalLink className="w-4 h-4 text-gray-400 mt-0.5" />
-                  <div>
-                    <p className="text-xs text-gray-500">{t('properties.links')}</p>
-                    <div className="flex flex-wrap gap-x-4 gap-y-1">
-                      {(
-                        [
-                          [property.map_url, 'mapUrl'],
-                          [property.whatsapp_product_url, 'whatsappProductUrl'],
-                          [property.video_url, 'videoUrl'],
-                        ] as const
-                      ).map(([url, label]) =>
-                        url ? (
-                          <a
-                            key={label}
-                            href={url}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="text-sm text-blue-600 hover:underline"
-                          >
-                            {t(`properties.form.${label}`)}
-                          </a>
-                        ) : null,
-                      )}
-                    </div>
-                  </div>
-                </div>
-              )}
-              {(
-                [
-                  ['listings', property.listing_urls],
-                  ['hourlyListings', property.hourly_listing_urls],
-                ] as const
-              ).map(([label, urls]) =>
-                urls?.length > 0 ? (
-                  <div key={label} className="flex items-start gap-2 mt-4 pt-4 border-t border-gray-100">
-                    <ExternalLink className="w-4 h-4 text-gray-400 mt-0.5" />
-                    <div className="min-w-0">
-                      <p className="text-xs text-gray-500">{t(`properties.${label}`)}</p>
-                      <div className="flex flex-col gap-y-1">
-                        {urls.map((url) => (
-                          <a
-                            key={url}
-                            href={url}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="truncate text-sm text-blue-600 hover:underline"
-                          >
-                            {url.replace(/^https?:\/\/(www\.)?/, '')}
-                          </a>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                ) : null,
-              )}
+                </PopoverContent>
+              </Popover>
             </div>
+          </div>
 
-            {/* Description */}
-            {property.description && (
-              <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
-                <h2 className="text-sm font-bold text-gray-900 mb-2">
-                  {t('properties.description')}
-                </h2>
-                <p className="text-sm text-gray-700 whitespace-pre-line">
-                  {property.description}
-                </p>
-              </div>
-            )}
+          {/* How the flat is let, in plain sight: switching it hides or shows prices on the chessboard. */}
+          <p className="mt-3 flex flex-wrap items-center gap-2 text-sm">
+            <span className="text-ink-muted">{t('properties.letAs')}</span>
+            <Badge tone="accent">{t(`properties.rentalModeShort.${property.rental_mode}`)}</Badge>
+          </p>
 
-            {currentUser && currentUser.role !== 'cleaner' && (
-              <>
-                <CheckInPhotosCard propertyId={propertyId} photos={property.photos} />
-                <BlocksCard propertyId={propertyId} />
-              </>
-            )}
+          {/* What is happening in the flat now: the host's first question. */}
+          {staff && <NowLine propertyId={propertyId} />}
 
-            {/* Rules */}
-            {(property.check_in_instructions ||
-              property.check_out_instructions ||
-              property.house_rules ||
-              property.check_in_hour != null ||
-              property.check_out_hour != null ||
-              property.check_in_method) && (
-              <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm space-y-4">
-                <h2 className="text-sm font-bold text-gray-900">{t('properties.rules')}</h2>
-                {(property.check_in_hour != null || property.check_out_hour != null || property.check_in_method) && (
-                  <p className="text-sm text-gray-700">
-                    {[
-                      property.check_in_hour != null &&
-                        `${t('properties.form.checkInFrom')} ${String(property.check_in_hour).padStart(2, '0')}:00`,
-                      property.check_out_hour != null &&
-                        `${t('properties.form.checkOutUntil')} ${String(property.check_out_hour).padStart(2, '0')}:00`,
-                      property.check_in_method && t(`properties.checkInMethod.${property.check_in_method}`),
-                    ]
-                      .filter(Boolean)
-                      .join(' · ')}
-                  </p>
+          {/* What a stay costs, read at a glance; changed on the Prices tab. */}
+          {pricing && <PriceSummary pricing={pricing} mode={property.rental_mode} onEdit={() => setTab('prices')} />}
+
+          {facts.length > 0 && (
+            <ul className="mt-4 flex flex-wrap gap-2">
+              {facts.map((fact) => (
+                <li key={fact.label} className="inline-flex items-center gap-1.5 rounded-lg bg-surface-page px-2.5 py-1.5 text-xs text-ink">
+                  <fact.icon className="h-3.5 w-3.5 text-ink-muted" aria-hidden="true" />
+                  <span className="text-ink-muted">{fact.label}</span>
+                  <span className="font-semibold">{fact.value}</span>
+                </li>
+              ))}
+              <li>
+                <EditPencil label={t('properties.edit.details')} onClick={() => setEditing('details')} />
+              </li>
+            </ul>
+          )}
+
+          {(property.address_full || property.complex_name) && (
+            <p className="mt-4 flex items-start gap-2 text-sm text-ink">
+              <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-ink-muted" aria-hidden="true" />
+              <span>
+                {[property.complex_name, property.address_full].filter(Boolean).join(', ')}
+                {(property.apartment_number || property.floor != null) && (
+                  <span className="text-ink-muted">
+                    {' · '}
+                    {property.apartment_number && t('properties.apt', { number: property.apartment_number })}
+                    {property.apartment_number && property.floor != null && ', '}
+                    {property.floor != null &&
+                      (property.floors_total
+                        ? t('properties.floorOf', { number: property.floor, total: property.floors_total })
+                        : t('properties.floor', { number: property.floor }))}
+                  </span>
                 )}
-                {property.check_in_instructions && (
-                  <div>
-                    <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">
-                      {t('properties.checkIn')}
-                    </p>
-                    <p className="text-sm text-gray-700 whitespace-pre-line">
-                      {property.check_in_instructions}
-                    </p>
-                  </div>
-                )}
-                {property.check_out_instructions && (
-                  <div>
-                    <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">
-                      {t('properties.checkOut')}
-                    </p>
-                    <p className="text-sm text-gray-700 whitespace-pre-line">
-                      {property.check_out_instructions}
-                    </p>
-                  </div>
-                )}
-                {property.house_rules && (
-                  <div>
-                    <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">
-                      {t('properties.houseRules')}
-                    </p>
-                    <p className="text-sm text-gray-700 whitespace-pre-line">
-                      {property.house_rules}
-                    </p>
-                  </div>
-                )}
-              </div>
-            )}
+              </span>
+              <EditPencil label={t('properties.edit.address')} onClick={() => setEditing('address')} />
+            </p>
+          )}
 
-            {/* Amenities */}
-            {property.amenities.length > 0 && (
-              <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
-                <h2 className="text-sm font-bold text-gray-900 mb-3">{t('properties.amenities')}</h2>
-                <div className="flex flex-wrap gap-2">
-                  {property.amenities.map((amenity) => (
-                    <span
-                      key={amenity.id}
-                      className="bg-gray-50 border border-gray-200 rounded-lg px-3 py-1.5 text-xs font-semibold text-gray-700"
-                    >
-                      {amenity.name}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
+          {(links.length > 0 || property.public_code) && (
+            <p className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-sm">
+              {property.public_code && (
+                <a href={`/s/${property.public_code}`} target="_blank" rel="noreferrer" className="font-semibold text-accent-ink hover:underline">
+                  {t('properties.guestPage')}
+                </a>
+              )}
+              {links.map(([url, label]) => (
+                <a key={label} href={url ?? ''} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-accent-ink hover:underline">
+                  <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
+                  {t(`properties.form.${label}`)}
+                </a>
+              ))}
+            </p>
+          )}
+        </div>
+      </section>
 
-            {/* Pricing */}
-            <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
-              <h2 className="text-sm font-bold text-gray-900 mb-4">{t('properties.pricing.title')}</h2>
+      {/* What the guest page and the CRM still lack, each a step to where it is filled in. */}
+      <ReadinessCard
+        items={readiness(property, pricing)}
+        onOpen={(place) => {
+          if (place !== 'prices' && place !== 'photos') return setEditing(place)
+          setTab(place)
+          // The tabs are below the card and often below the screen: bring them up, or the
+          // tap seems to do nothing. On a phone the app's bar stays on top: the tabs go below it.
+          requestAnimationFrame(() => {
+            const tabRow = document.getElementById(`tab-${place}`)
+            if (!tabRow) return
+            const bar = document.querySelector('[data-app-bar]')
+            const covered = bar ? Math.max(0, bar.getBoundingClientRect().bottom) : 0
+            window.scrollTo({
+              top: tabRow.getBoundingClientRect().top + window.scrollY - covered - 8,
+              behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
+            })
+          })
+        }}
+      />
+
+      {/* One part of the flat at a time, as a host's listing is kept on Airbnb. The grey line
+          is drawn inside the row, not a border the tabs reach over: a row that scrolls sideways
+          would scroll up and down by that reach too. */}
+      <div role="tablist" aria-label={t('properties.sections')} className="-mx-4 mb-5 flex gap-1 overflow-x-auto px-4 shadow-[inset_0_-1px_0_var(--color-line)] sm:mx-0 sm:px-0">
+        {tabs.map((item) => (
+          <button
+            key={item.key}
+            type="button"
+            role="tab"
+            id={`tab-${item.key}`}
+            aria-selected={tab === item.key}
+            aria-controls={`panel-${item.key}`}
+            onClick={() => setTab(item.key)}
+            className={`shrink-0 border-b-2 px-3 py-2.5 text-sm font-semibold transition-colors ${
+              tab === item.key ? 'border-accent text-accent-ink' : 'border-transparent text-ink-muted hover:text-ink'
+            }`}
+          >
+            <span className="inline-flex items-center gap-1.5">
+              {item.label}
+              {item.count != null && item.count > 0 && (
+                <span className="rounded-full bg-surface-page px-1.5 text-xs font-semibold tabular-nums text-ink-muted">{item.count}</span>
+              )}
+              {item.alert && <span className="h-2 w-2 rounded-full bg-danger" aria-label={t('properties.needsAttention')} />}
+            </span>
+          </button>
+        ))}
+      </div>
+
+      {/* Every panel stays mounted, the others hidden: a price typed and not saved survives a look at another tab. */}
+      <div className="flex flex-col gap-5">
+        <TabPanel name="prices" current={tab}>
+          <div role="region" aria-labelledby="property-pricing">
+            <h2 id="property-pricing" className="sr-only">{t('properties.pricing.title')}</h2>
+            {/* No form until the prices are read: an empty one would save zeros over them. */}
+            {pricingQuery.isPending ? (
+              <Spinner />
+            ) : pricingQuery.isError ? (
+              <LoadError message={t('properties.pricing.loadFailed')} onRetry={() => pricingQuery.refetch()} />
+            ) : (
               <PricingForm
                 pricing={pricing ?? null}
                 rentalMode={property.rental_mode}
                 seasonalSuggestions={seasonalSuggestions}
                 onSaveBase={handleSavePricing}
+                onChangeMode={(mode) =>
+                  updatePropertyMut.mutate(
+                    { rental_mode: mode },
+                    {
+                      onSuccess: () => showToast('success', t('properties.pricing.modeSaved')),
+                      onError: (err: Error) => showToast('error', errorText(err, t('properties.failedSavePricing'), t)),
+                    },
+                  )
+                }
+                modeSaving={updatePropertyMut.isPending}
                 onAddSeasonal={(data) =>
-                  addSeasonal.mutate(data, {
-                    onSuccess: () => showToast('success', t('properties.seasonalPriceAdded')),
-                    onError: (err: Error) =>
-                      showToast('error', err.message || t('properties.failedAddSeasonal')),
-                  })
+                  addSeasonal.mutateAsync(data).then(
+                    () => showToast('success', t('properties.seasonalPriceAdded')),
+                    (err: Error) => {
+                      showToast('error', errorText(err, t('properties.failedAddSeasonal'), t))
+                      throw err
+                    },
+                  )
+                }
+                onUpdateSeasonal={(id, data) =>
+                  updateSeasonal.mutateAsync({ id, ...data }).then(
+                    () => showToast('success', t('properties.seasonalPriceUpdated')),
+                    (err: Error) => {
+                      showToast('error', errorText(err, t('properties.failedUpdateSeasonal'), t))
+                      throw err
+                    },
+                  )
                 }
                 onDeleteSeasonal={(id) =>
-                  deleteSeasonal.mutate(id, {
-                    onSuccess: () => showToast('success', t('properties.seasonalPriceRemoved')),
-                    onError: (err: Error) =>
-                      showToast('error', err.message || t('properties.failedRemoveSeasonal')),
-                  })
+                  deleteSeasonal.mutateAsync(id).then(
+                    () => showToast('success', t('properties.seasonalPriceRemoved')),
+                    (err: Error) => {
+                      showToast('error', errorText(err, t('properties.failedRemoveSeasonal'), t))
+                      throw err
+                    },
+                  )
                 }
                 onAddDiscount={(data) =>
                   addDiscount.mutate(data, {
                     onSuccess: () => showToast('success', t('properties.discountRuleAdded')),
-                    onError: (err: Error) =>
-                      showToast('error', err.message || t('properties.failedAddDiscount')),
+                    onError: (err: Error) => showToast('error', errorText(err, t('properties.failedAddDiscount'), t)),
                   })
                 }
                 onDeleteDiscount={(id) =>
                   deleteDiscount.mutate(id, {
                     onSuccess: () => showToast('success', t('properties.discountRuleRemoved')),
-                    onError: (err: Error) =>
-                      showToast('error', err.message || t('properties.failedRemoveDiscount')),
+                    onError: (err: Error) => showToast('error', errorText(err, t('properties.failedRemoveDiscount'), t)),
                   })
                 }
                 isSaving={savePricing.isPending}
               />
-            </div>
+            )}
           </div>
+        </TabPanel>
 
-          {/* Right column - Audit log */}
-          <div>
-            <AuditTrail entries={auditLog} />
-          </div>
-        </div>
-      </motion.div>
+        <TabPanel name="blocks" current={tab}>{staff && <BlocksCard propertyId={propertyId} />}</TabPanel>
+
+        <TabPanel name="photos" current={tab}>
+          <>
+            <ListingPhotosCard propertyId={propertyId} photos={property.photos} />
+            {staff && <CheckInPhotosCard propertyId={propertyId} photos={property.photos} />}
+          </>
+        </TabPanel>
+
+        <TabPanel name="about" current={tab}>
+          <section className={`${CARD} space-y-3`} aria-labelledby="property-description">
+            <div className="flex items-center justify-between gap-2">
+              <h2 id="property-description" className="text-sm font-bold text-ink">{t('properties.description')}</h2>
+              <EditPencil label={t('properties.edit.basic')} onClick={() => setEditing('basic')} />
+            </div>
+            {property.description ? (
+              <p className="whitespace-pre-line text-sm text-ink">{property.description}</p>
+            ) : (
+              <p className="text-sm text-ink-muted">{t('properties.nothingYet')}</p>
+            )}
+          </section>
+          <section className={`${CARD} space-y-4`} aria-labelledby="property-rules">
+            <div className="flex items-center justify-between gap-2">
+              <h2 id="property-rules" className="text-sm font-bold text-ink">{t('properties.edit.rules')}</h2>
+              <EditPencil label={t('properties.edit.rules')} onClick={() => setEditing('rules')} />
+            </div>
+            {(property.check_in_hour != null || property.check_out_hour != null || property.check_in_method || property.late_check_out_hour != null) && (
+              <p className="text-sm text-ink">
+                {[
+                  property.check_in_hour != null &&
+                    `${t('properties.form.checkInFrom')} ${String(property.check_in_hour).padStart(2, '0')}:00`,
+                  property.check_out_hour != null &&
+                    `${t('properties.form.checkOutUntil')} ${String(property.check_out_hour).padStart(2, '0')}:00`,
+                  property.late_check_out_hour != null &&
+                    t(property.late_check_out_price ? 'properties.lateCheckOutPaid' : 'properties.lateCheckOutFree', {
+                      time: `${String(property.late_check_out_hour).padStart(2, '0')}:00`,
+                      price: `${formatMoneyExact(Number(property.late_check_out_price ?? 0), i18n.language)} ${symbol}`,
+                    }),
+                  property.check_in_method && t(`properties.checkInMethod.${property.check_in_method}`),
+                ]
+                  .filter(Boolean)
+                  .join(' · ')}
+              </p>
+            )}
+            {(
+              [
+                [property.check_in_instructions, 'properties.checkIn'],
+                [property.check_out_instructions, 'properties.checkOut'],
+                [property.house_rules, 'properties.houseRules'],
+              ] as const
+            ).map(([text, label]) =>
+              text ? (
+                <div key={label}>
+                  <p className="mb-1 text-xs font-semibold text-ink-muted">{t(label)}</p>
+                  <p className="whitespace-pre-line text-sm text-ink">{text}</p>
+                </div>
+              ) : null,
+            )}
+            {!hasRules && <p className="text-sm text-ink-muted">{t('properties.nothingYet')}</p>}
+          </section>
+          {/* Keyed by the saved list: after a save elsewhere the rows start from what is stored. */}
+          <NearbyCard key={JSON.stringify(property.nearby ?? [])} propertyId={propertyId} places={property.nearby ?? []} />
+        </TabPanel>
+
+        <TabPanel name="amenities" current={tab}>
+          <section className={CARD} aria-labelledby="property-amenities">
+            <div className="mb-3 flex items-center justify-between gap-2">
+              <h2 id="property-amenities" className="text-sm font-bold text-ink">{t('properties.amenities')}</h2>
+              <EditPencil label={t('properties.amenities')} onClick={() => setEditing('amenities')} />
+            </div>
+            {property.amenities.length > 0 ? (
+              <ul className="flex flex-wrap gap-2">
+                {property.amenities.map((amenity) => (
+                  <li key={amenity.id} className="rounded-lg bg-surface-page px-3 py-1.5 text-xs font-semibold text-ink">
+                    {amenity.name}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-sm text-ink-muted">{t('properties.nothingYet')}</p>
+            )}
+          </section>
+        </TabPanel>
+
+        <TabPanel name="calendars" current={tab}>
+          {/* Platforms' own calendars first: most flats sync both ways with each platform. */}
+          {staff && <CalendarFeedsCard propertyId={propertyId} />}
+          <CalendarLinkCard propertyId={propertyId} />
+          <section className={CARD} aria-labelledby="property-listings">
+            <div className="mb-3 flex items-center justify-between gap-2">
+              <h2 id="property-listings" className="text-sm font-bold text-ink">{t('properties.listingsTitle')}</h2>
+              <EditPencil label={t('properties.listingsTitle')} onClick={() => setEditing('listings')} />
+            </div>
+            {listingGroups.length > 0 ? (
+              listingGroups.map(([label, urls]) => (
+                <div key={label} className="mb-3 last:mb-0">
+                  <h3 className="mb-1 text-xs font-semibold text-ink-muted">{t(`properties.${label}`)}</h3>
+                  <ul className="flex flex-col gap-1">
+                    {urls.map((url) => (
+                      <li key={url} className="min-w-0">
+                        <a href={url} target="_blank" rel="noreferrer" className="block truncate text-sm text-accent-ink hover:underline">
+                          {url.replace(/^https?:\/\/(www\.)?/, '')}
+                        </a>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))
+            ) : (
+              <p className="text-sm text-ink-muted">{t('properties.nothingYet')}</p>
+            )}
+          </section>
+        </TabPanel>
+
+        <TabPanel name="history" current={tab}><PropertyHistory entries={auditLog} /></TabPanel>
+      </div>
+
+      <PropertyEditSheet property={property} block={editing} onClose={() => setEditing(null)} />
 
       <ConfirmDialog
         open={showCloneConfirm}
@@ -597,6 +669,281 @@ export default function PropertyDetailPage() {
   )
 }
 
+const PROPERTY_TABS = ['prices', 'blocks', 'photos', 'about', 'amenities', 'calendars', 'history'] as const
+type PropertyTab = (typeof PROPERTY_TABS)[number]
+
+const CARD = 'rounded-2xl border border-line bg-surface-card p-5'
+const SECONDARY =
+  'inline-flex min-h-[40px] items-center justify-center gap-1.5 rounded-lg border border-line px-3 text-xs font-bold text-ink transition-colors hover:bg-surface-page'
+
+/** The flat's photos one at a time, cover first, with a count and arrows. */
+function PhotoCarousel({ photos, onAdd }: { photos: PropertyPhoto[]; onAdd: () => void }) {
+  const { t } = useTranslation()
+  const ordered = listingOrder(photos)
+  const [index, setIndex] = useState(0)
+  const shown = ordered[Math.min(index, ordered.length - 1)]
+  if (!shown) {
+    return (
+      <button
+        type="button"
+        onClick={onAdd}
+        className="flex aspect-[4/3] w-full flex-col items-center justify-center gap-2 bg-surface-page text-sm font-semibold text-ink-muted transition-colors hover:text-ink lg:aspect-auto lg:h-full"
+      >
+        <ImagePlus className="h-6 w-6" aria-hidden="true" />
+        {t('properties.addPhotos')}
+      </button>
+    )
+  }
+  const step = (by: number) => setIndex((i) => (i + by + ordered.length) % ordered.length)
+  const arrow =
+    'flex h-9 w-9 items-center justify-center rounded-full bg-white/90 text-ink shadow-sm transition-colors hover:bg-white'
+  return (
+    <div className="relative aspect-[4/3] bg-surface-page lg:aspect-auto lg:h-full lg:min-h-[320px]">
+      <img src={shown.url} alt="" className="absolute inset-0 h-full w-full object-cover" />
+      {ordered.length > 1 && (
+        <>
+          <span className="absolute right-3 top-3 rounded-full bg-black/55 px-2.5 py-1 text-xs font-semibold text-white tabular-nums">
+            {index + 1} / {ordered.length}
+          </span>
+          <div className="absolute bottom-3 right-3 flex gap-2">
+            <button type="button" onClick={() => step(-1)} aria-label={t('common.previous')} className={arrow}>
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+            <button type="button" onClick={() => step(1)} aria-label={t('common.next')} className={arrow}>
+              <ChevronRight className="h-4 w-4" />
+            </button>
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
+
+/** The flat's prices in one look: the night and the weekend night, the hourly tariffs, the deposit. */
+function PriceSummary({ pricing, mode, onEdit }: { pricing: PricingConfig; mode: RentalMode; onEdit: () => void }) {
+  const { t, i18n } = useTranslation()
+  const { symbol } = useCurrency()
+  const money = (value: number) => `${formatMoneyExact(Number(value), i18n.language)} ${symbol}`
+  const nightly = mode !== 'hourly' && Number(pricing.base_price) > 0
+  const tariffs = mode !== 'daily'
+    ? (
+        [
+          ['3h', pricing.price_3h],
+          ['6h', pricing.price_6h],
+          ['night', pricing.price_night],
+        ] as const
+      ).filter(([, price]) => Number(price) > 0)
+    : []
+  const hour = mode !== 'daily' && tariffs.length === 0 && Number(pricing.hourly_price) > 0
+  if (!nightly && tariffs.length === 0 && !hour) return null
+  const byNight = mode !== 'hourly' && Number(pricing.default_deposit) > 0 ? Number(pricing.default_deposit) : 0
+  const byHour = mode !== 'daily' && Number(pricing.hourly_deposit) > 0 ? Number(pricing.hourly_deposit) : 0
+  const deposits =
+    byNight && byHour
+      ? [`${t('properties.rentalModeShort.daily')} ${money(byNight)}`, `${t('properties.rentalModeShort.hourly')} ${money(byHour)}`]
+      : [byNight || byHour].filter(Boolean).map((sum) => money(sum))
+  return (
+    <button
+      type="button"
+      onClick={onEdit}
+      className="mt-4 block w-full rounded-xl bg-surface-page px-4 py-3 text-left transition-colors hover:bg-accent-soft"
+    >
+      {nightly && (
+        <p className="flex flex-wrap items-baseline gap-x-2">
+          <span className="text-2xl font-bold tabular-nums text-ink">{money(pricing.base_price)}</span>
+          <span className="text-sm text-ink-muted">{t('properties.nightPrice')}</span>
+          {Number(pricing.weekend_markup) > 0 && (
+            <span className="text-sm text-ink-muted">
+              · {t('properties.weekendNight', { price: money(Number(pricing.base_price) + Number(pricing.weekend_markup)) })}
+            </span>
+          )}
+        </p>
+      )}
+      {(tariffs.length > 0 || hour) && (
+        <p className="mt-1 text-sm text-ink">
+          {hour
+            ? t('properties.perHourPrice', { price: money(pricing.hourly_price) })
+            : tariffs.map(([name, price]) => `${t(`guest.tariff_${name}`)} ${money(price)}`).join(' · ')}
+        </p>
+      )}
+      {deposits.length > 0 && (
+        <p className="mt-1 text-xs text-ink-muted">
+          {/* Each kind of stay its own deposit: "by the night 10 000 · by the hour 5 000". */}
+          {t('properties.depositLine', { price: deposits.join(' · ') })}
+        </p>
+      )}
+    </button>
+  )
+}
+
+/** One tab's content; kept mounted when another tab is open, so nothing typed is lost. */
+function TabPanel({ name, current, children }: { name: PropertyTab; current: PropertyTab; children: React.ReactNode }) {
+  return (
+    <div role="tabpanel" id={`panel-${name}`} aria-labelledby={`tab-${name}`} hidden={name !== current} className="flex flex-col gap-5">
+      {children}
+    </div>
+  )
+}
+
+/** The flat's status as a button: what it means now, and the steps it can take, each said. */
+function StatusMenu({
+  status,
+  actions,
+  busy,
+  onChange,
+}: {
+  status: PropertyStatus
+  actions: { labelKey: string; target: PropertyStatus; icon: typeof Play }[]
+  busy: boolean
+  onChange: (target: PropertyStatus) => void
+}) {
+  const { t } = useTranslation()
+  const [open, setOpen] = useState(false)
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger
+        aria-label={`${t('properties.statusLabel')}: ${t(`properties.statusOne.${status}`)}`}
+        className="inline-flex items-center gap-1 rounded-full transition-opacity hover:opacity-80"
+      >
+        <StatusBadge status={status} />
+        <ChevronDown className="h-3.5 w-3.5 text-ink-muted" aria-hidden="true" />
+      </PopoverTrigger>
+      <PopoverContent align="start" className="w-72 p-2">
+        <p className="px-2 pb-2 text-xs text-ink-muted">
+          <span className="font-semibold text-ink">{t(`properties.statusOne.${status}`)}.</span> {t(`properties.statusWhat.${status}`)}
+        </p>
+        {actions.map((action) => (
+          <button
+            key={action.target}
+            type="button"
+            disabled={busy}
+            onClick={() => {
+              setOpen(false)
+              onChange(action.target)
+            }}
+            className="flex w-full items-start gap-2 rounded-lg px-2 py-2 text-left transition-colors hover:bg-surface-page disabled:opacity-50"
+          >
+            <action.icon className="mt-0.5 h-4 w-4 shrink-0 text-ink-muted" aria-hidden="true" />
+            <span>
+              <span className="block text-sm font-semibold text-ink">{t(action.labelKey)}</span>
+              <span className="block text-xs text-ink-muted">{t(`properties.statusWhat.${action.target}`)}</span>
+            </span>
+          </button>
+        ))}
+      </PopoverContent>
+    </Popover>
+  )
+}
+
+/** Who is in the flat now, who comes next, how full the next 30 nights are. */
+function NowLine({ propertyId }: { propertyId: string }) {
+  const { t, i18n } = useTranslation()
+  // Stays' times are the company's wall clock, not the browser's.
+  const { data: settings, isPending: settingsPending } = useSettings()
+  const now = wallClock(new Date(), settings?.time_zone ?? 'Asia/Almaty')
+  const today = now.slice(0, 10)
+  // No upper bound: the next arrival may be further than the 30 nights of the occupancy.
+  const { data: stays } = useFlatStaysFrom(propertyId, today)
+  if (!stays || settingsPending) return null
+  const { current, next } = stayNow(stays, now)
+  const share = Math.round(occupancy(stays, today, 30) * 100)
+  const day = (iso: string) => format(parseISO(iso), i18n.language === 'en' ? 'MMM d' : 'd MMM', { locale: dateLocale(i18n.language) })
+  const guest = (stay: { id: string; guest_name: string }, text: string) => (
+    <Link to="/bookings/$bookingId" params={{ bookingId: stay.id }} className="font-semibold text-accent-ink hover:underline">
+      {text}
+    </Link>
+  )
+  return (
+    <div className="mt-3 grid grid-cols-1 gap-2 rounded-xl border border-line px-4 py-3 text-sm sm:grid-cols-3">
+      <p>
+        <span className="block text-xs text-ink-muted">{t('properties.now.label')}</span>
+        {current ? guest(current, t('properties.now.living', { name: current.guest_name, until: day(current.check_out) })) : (
+          <span className="font-semibold text-success">{t('properties.now.free')}</span>
+        )}
+      </p>
+      <p>
+        <span className="block text-xs text-ink-muted">{t('properties.now.next')}</span>
+        {next ? guest(next, `${day(next.check_in)} · ${next.guest_name}`) : <span className="text-ink-muted">{t('properties.now.none')}</span>}
+      </p>
+      <p>
+        <span className="block text-xs text-ink-muted">{t('properties.now.occupancy')}</span>
+        <span className="font-semibold tabular-nums text-ink">{share}%</span>{' '}
+        <Link to="/properties/gantt" className="text-xs text-accent-ink hover:underline">
+          {t('properties.now.onChessboard')}
+        </Link>
+      </p>
+    </div>
+  )
+}
+
+/** What the flat still lacks, each item a step to where it is filled in; gone once all is done. */
+function ReadinessCard({ items, onOpen }: { items: ReadinessItem[]; onOpen: (place: ReadinessPlace) => void }) {
+  const { t } = useTranslation()
+  const done = items.filter((item) => item.done).length
+  if (done === items.length) return null
+  return (
+    <section className="mb-5 rounded-2xl border border-line bg-surface-card p-5" aria-labelledby="property-readiness">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h2 id="property-readiness" className="text-sm font-bold text-ink">
+          {t('properties.ready.title', { done, total: items.length })}
+        </h2>
+        <span className="text-xs text-ink-muted">{t('properties.ready.why')}</span>
+      </div>
+      <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-surface-page">
+        <div className="h-full rounded-full bg-accent" style={{ width: `${(done / items.length) * 100}%` }} />
+      </div>
+      <ul className="mt-3 flex flex-wrap gap-2">
+        {items.map((item) =>
+          item.done ? (
+            <li key={item.key} className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs text-ink-muted">
+              <CircleCheck className="h-3.5 w-3.5 text-success" aria-hidden="true" />
+              {t(`properties.ready.items.${item.key}`)}
+            </li>
+          ) : (
+            <li key={item.key}>
+              <button
+                type="button"
+                onClick={() => onOpen(item.place)}
+                className="inline-flex items-center gap-1 rounded-lg border border-line px-2.5 py-1 text-xs font-semibold text-ink transition-colors hover:border-accent hover:bg-accent-soft"
+              >
+                + {t(`properties.ready.items.${item.key}`)}
+              </button>
+            </li>
+          ),
+        )}
+      </ul>
+    </section>
+  )
+}
+
+/** A pencil by a block: opens that block in the panel from the right. */
+function EditPencil({ label, onClick }: { label: string; onClick: () => void }) {
+  const { t } = useTranslation()
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={`${t('common.edit')}: ${label}`}
+      className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-ink-muted transition-colors hover:bg-surface-page hover:text-accent-ink"
+    >
+      <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
+    </button>
+  )
+}
+
+function MenuItem({ icon: Icon, label, onClick }: { icon: typeof Play; label: string; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex min-h-[40px] w-full items-center gap-2 rounded-lg px-3 text-left text-sm font-semibold text-ink transition-colors hover:bg-surface-page"
+    >
+      <Icon className="h-3.5 w-3.5" aria-hidden="true" />
+      {label}
+    </button>
+  )
+}
+
 /** Until Channex is live, iCal is how Airbnb and Booking.com learn about bookings taken in Day. */
 function CalendarLinkCard({ propertyId }: { propertyId: string }) {
   const { t } = useTranslation()
@@ -612,41 +959,17 @@ function CalendarLinkCard({ propertyId }: { propertyId: string }) {
   })
   if (!allowed) return null
 
-  function copyLink() {
-    if (!link.data) return
-    navigator.clipboard.writeText(link.data).then(
-      () => showToast('success', t('properties.calendar.copied')),
-      // The link stays on screen to copy by hand.
-      () => showToast('error', t('properties.calendar.copyFailed')),
-    )
-  }
-
   return (
-    <div className="mb-6 bg-white border border-gray-200 rounded-xl p-5 shadow-sm flex flex-col gap-3">
-      <div className="flex items-start gap-2 min-w-0">
-        <CalendarSync className="w-4 h-4 mt-0.5 shrink-0 text-gray-500" />
-        <div className="min-w-0">
-          <h2 className="text-sm font-bold text-gray-900">{t('properties.calendar.title')}</h2>
-          <p className="text-xs text-gray-500">{t('properties.calendar.hint')}</p>
-        </div>
+    <section className="flex flex-col gap-3 rounded-2xl border border-line bg-surface-card p-5">
+      <div className="min-w-0">
+        <h2 className="text-sm font-bold text-ink">{t('properties.calendar.title')}</h2>
+        <p className="mt-1 text-xs text-ink-muted">{t('properties.calendar.hint')}</p>
       </div>
       {link.isError ? (
-        <p className="text-xs text-red-600">{t('properties.calendar.failed')}</p>
+        <p className="text-xs text-danger">{t('properties.calendar.failed')}</p>
       ) : (
-        <div className="flex flex-col gap-2 sm:flex-row">
-          <input
-            type="text"
-            readOnly
-            value={link.data ?? ''}
-            onFocus={(e) => e.currentTarget.select()}
-            aria-label={t('properties.calendar.title')}
-            className="min-w-0 flex-1 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 font-mono text-xs text-gray-700"
-          />
-          <Button type="button" onClick={copyLink} disabled={!link.data}>
-            {t('properties.calendar.copy')}
-          </Button>
-        </div>
+        <CopyLink value={link.data} label={t('properties.calendar.title')} />
       )}
-    </div>
+    </section>
   )
 }

@@ -80,6 +80,11 @@ export default function CleaningSheet({
           {t('miniapp.cleaning.cleaner')}
         </span>
         {cleaners.isLoading && <p className="tg-hint text-sm">{t('miniapp.loading')}</p>}
+        {cleaners.isError && (
+          <p role="alert" className="text-sm">
+            {errorText(cleaners.error, t('miniapp.cleaning.cleanersFailed'), t)}
+          </p>
+        )}
         {cleaners.data && cleaners.data.length === 0 && (
           <p className="tg-hint text-sm">{t('miniapp.cleaning.noCleaners')}</p>
         )}

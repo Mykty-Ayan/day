@@ -4,7 +4,7 @@ import uuid
 from decimal import Decimal
 
 from app.domain.booking.entities import BookingDeposit
-from app.domain.booking.exceptions import DepositAlreadyOpenError
+from app.domain.booking.exceptions import DepositAlreadyOpenError, DepositNotFoundError
 from app.domain.booking.repositories import (
     BookingDepositRepository,
     BookingRepository,
@@ -66,18 +66,35 @@ class ManageDepositsService:
         action: str,
         held_amount: Decimal | None = None,
         reason: str | None = None,
+        deductions: list[dict] | None = None,
     ) -> BookingDeposit:
         booking = await self._booking_repo.get_by_id(booking_id)
         if booking is None:
-            raise ValueError("Booking not found")
+            raise DepositNotFoundError("Booking not found")
         if booking.company_id != company_id:
-            raise ValueError("Booking does not belong to company")
+            raise DepositNotFoundError("Booking does not belong to company")
 
         deposit = await self._deposit_repo.get_by_id(deposit_id)
         if deposit is None:
-            raise ValueError("Deposit not found")
+            raise DepositNotFoundError("Deposit not found")
         if deposit.booking_id != booking_id:
-            raise ValueError("Deposit does not belong to booking")
+            raise DepositNotFoundError("Deposit does not belong to booking")
+
+        if deductions and action not in ("hold", "partial_hold"):
+            raise ValueError("Deductions come with a hold")
+        if deductions:
+            # The guest reads the lines: what is kept is their sum, nothing more.
+            total = sum((Decimal(str(d["amount"])) for d in deductions), Decimal("0"))
+            if held_amount is not None and held_amount != total:
+                raise ValueError("held_amount must be the sum of the deductions")
+            if action == "hold" and total != deposit.amount:
+                raise ValueError("A whole hold's deductions must add up to the deposit")
+            held_amount = total
+            lines = [
+                {"amount": str(Decimal(str(d["amount"])).quantize(Decimal("0.01"))), "reason": d["reason"],
+                 "photos": list(d.get("photos") or [])}
+                for d in deductions
+            ]
 
         if action == "pay":
             target = DepositStatus.PAID
@@ -104,6 +121,8 @@ class ManageDepositsService:
             )
 
         deposit.status = target
+        if deductions:
+            deposit.deductions = lines
         updated = await self._deposit_repo.update(deposit)
         await self._booking_repo.touch(booking_id)
         return updated

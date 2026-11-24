@@ -144,6 +144,27 @@ class ManagePricingService:
         seasonal.pricing_config_id = pricing.id
         return await self._seasonal_repo.save(seasonal)
 
+    async def update_seasonal_price(
+        self,
+        property_id: uuid.UUID,
+        company_id: uuid.UUID,
+        price_id: uuid.UUID,
+        changes: SeasonalPrice,
+    ) -> SeasonalPrice:
+        """A season changed in place, in one write: replacing it by add and delete
+        could leave two seasons on the same dates when the delete failed."""
+        await self._check_property(property_id, company_id)
+        pricing = await self._pricing_repo.get_by_property(property_id)
+        own = {s.id: s for s in await self._seasonal_repo.list_by_pricing_config(pricing.id)} if pricing else {}
+        season = own.get(price_id)
+        if season is None:
+            raise ValueError("Seasonal price not found")
+        season.name = changes.name
+        season.start_date = changes.start_date
+        season.end_date = changes.end_date
+        season.price_per_night = changes.price_per_night
+        return await self._seasonal_repo.update(season)
+
     async def delete_seasonal_price(
         self,
         property_id: uuid.UUID,

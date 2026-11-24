@@ -180,6 +180,20 @@ def _to_order(m: GuestOrderModel, items: list[GuestOrderItemModel]) -> GuestOrde
     )
 
 
+# An order the guest owes on their booking.
+_ON_THE_TAB = (
+    GuestOrderModel.status != OrderStatus.CANCELLED.value,
+    GuestOrderModel.payment_status.is_distinct_from(OrderPaymentStatus.PAID.value),
+    or_(
+        GuestOrderModel.payment_status == OrderPaymentStatus.ON_BOOKING.value,
+        and_(
+            GuestOrderModel.billing == OrderBilling.BOOKING.value,
+            GuestOrderModel.status.in_([OrderStatus.ACCEPTED.value, OrderStatus.DELIVERED.value]),
+        ),
+    ),
+)
+
+
 class SqlGuestOrderRepository(GuestOrderRepository):
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
@@ -269,6 +283,14 @@ class SqlGuestOrderRepository(GuestOrderRepository):
         )
         return await self._with_items(list(await self._session.scalars(stmt)))
 
+    async def booking_ids_with_due(self, company_id: uuid.UUID) -> list[uuid.UUID]:
+        rows = await self._session.scalars(
+            select(GuestOrderModel.booking_id)
+            .where(GuestOrderModel.company_id == company_id, *_ON_THE_TAB)
+            .distinct()
+        )
+        return [booking_id for booking_id in rows.all() if booking_id is not None]
+
     async def due_by_bookings(
         self, company_id: uuid.UUID, booking_ids: Sequence[uuid.UUID]
     ) -> dict[uuid.UUID, Decimal]:
@@ -279,15 +301,7 @@ class SqlGuestOrderRepository(GuestOrderRepository):
             .where(
                 GuestOrderModel.company_id == company_id,
                 GuestOrderModel.booking_id.in_(booking_ids),
-                GuestOrderModel.status != OrderStatus.CANCELLED.value,
-                GuestOrderModel.payment_status.is_distinct_from(OrderPaymentStatus.PAID.value),
-                or_(
-                    GuestOrderModel.payment_status == OrderPaymentStatus.ON_BOOKING.value,
-                    and_(
-                        GuestOrderModel.billing == OrderBilling.BOOKING.value,
-                        GuestOrderModel.status.in_([OrderStatus.ACCEPTED.value, OrderStatus.DELIVERED.value]),
-                    ),
-                ),
+                *_ON_THE_TAB,
             )
             .group_by(GuestOrderModel.booking_id)
         )

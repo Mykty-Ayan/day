@@ -1,7 +1,6 @@
 import type { APIRequestContext, Locator, Page } from '@playwright/test'
 import { test, expect } from '../fixtures/e2e-auth'
 import { createTestProperty, API_BASE } from '../fixtures/test-data'
-import { wizardField, nextStep } from '../fixtures/property-ui'
 import path from 'path'
 import fs from 'fs'
 import { fileURLToPath } from 'url'
@@ -27,7 +26,8 @@ async function photosOf(request: APIRequestContext, propertyId: string): Promise
  * A check-in photo's URL is signed anew on every request, so only the part before `?` is compared.
  */
 function photoImage(page: Page, photo: Photo): Locator {
-  return page.locator(`img[src^="${photo.url.split('?')[0]}"]`)
+  // The cover shows twice, at the top and among the photos: the strip's is the last.
+  return page.locator(`img[src^="${photo.url.split('?')[0]}"]`).last()
 }
 
 test.describe('Property Photos - E2E', () => {
@@ -84,7 +84,7 @@ test.describe('Property Photos - E2E', () => {
   test('upload photos to property', async ({ page, request }) => {
     const prop = await createPropertyViaApi(request)
 
-    await page.goto(`/properties/${prop.id}`)
+    await page.goto(`/properties/${prop.id}?tab=photos`)
 
     // The "Add photos" tile of the gallery holds a hidden file input
     await page.locator('#add-photos').setInputFiles(TEST_IMAGE_PATH)
@@ -99,7 +99,7 @@ test.describe('Property Photos - E2E', () => {
   test('upload multiple photos', async ({ page, request }) => {
     const prop = await createPropertyViaApi(request)
 
-    await page.goto(`/properties/${prop.id}`)
+    await page.goto(`/properties/${prop.id}?tab=photos`)
 
     await page.locator('#add-photos').setInputFiles([TEST_IMAGE_PATH, TEST_IMAGE_2_PATH])
     await expect(page.getByText('Photos added: 2')).toBeVisible()
@@ -112,51 +112,54 @@ test.describe('Property Photos - E2E', () => {
     }
   })
 
-  test('set cover photo', async ({ page, request }) => {
-    // The cover is chosen in the create wizard; the property page shows the gallery but has no cover button
-    const data = createTestProperty()
-    await page.goto('/properties/new')
-    await wizardField(page, 'Public Name').fill(data.name)
-    await wizardField(page, 'Internal Name').fill(data.internal_name)
-    await nextStep(page, 'Address')
-    await nextStep(page, 'Details')
-    await nextStep(page, 'Pricing')
-    await nextStep(page, 'Photos')
+  test('the photos are arranged on the flat page: the first one is the cover', async ({ page, request }) => {
+    const prop = await createPropertyViaApi(request)
+    const add = async (name: string, isCover = false) =>
+      (await (await request.post(`${API_BASE}/properties/${prop.id}/photos`, {
+        data: { url: `https://cdn.example.com/${name}.jpg`, is_cover: isCover },
+      })).json()).id as string
+    const a = await add('a', true)
+    const b = await add('b')
+    const c = await add('c')
+    // As guests see them: the cover first, then by order.
+    const shown = async () =>
+      (await photosOf(request, prop.id))
+        .sort((x, y) => Number(y.is_cover) - Number(x.is_cover) || x.sort_order - y.sort_order)
+        .map((photo) => photo.id)
+    const click = async (name: string) => {
+      await page.getByRole('button', { name, exact: true }).click()
+      await expect(page.getByRole('button', { name, exact: true })).toBeEnabled()
+    }
 
-    // The first photo added is the cover; make the second one the cover instead
-    await page.locator('input[type="file"]').setInputFiles([TEST_IMAGE_PATH, TEST_IMAGE_2_PATH])
-    const tiles = page.locator('div.relative.group')
-    await expect(tiles).toHaveCount(2)
-    await expect(tiles.nth(0).getByText('Cover', { exact: true })).toBeVisible()
-    await expect(tiles.nth(1).getByText('Cover', { exact: true })).toHaveCount(0)
-    await tiles.nth(1).getByRole('button', { name: 'Set as cover' }).click()
-    await expect(tiles.nth(1).getByText('Cover', { exact: true })).toBeVisible()
-    await expect(tiles.nth(0).getByText('Cover', { exact: true })).toHaveCount(0)
+    await page.goto(`/properties/${prop.id}?tab=photos`)
+    await expect(page.getByRole('listitem', { name: 'Photo 1', exact: true }).getByText('Cover')).toBeVisible()
 
-    await nextStep(page, 'Rules')
-    await nextStep(page, 'Amenities')
-    await page.getByRole('button', { name: 'Create Property' }).click()
+    await click('Make photo 3 the cover')
+    await expect.poll(shown).toEqual([c, a, b])
+    await click('Move photo 2 later')
+    await expect.poll(shown).toEqual([c, b, a])
+    // Moved to the front, a photo becomes the cover.
+    await click('Move photo 2 earlier')
+    await expect.poll(shown).toEqual([b, c, a])
+    const covers = (await photosOf(request, prop.id)).filter((photo) => photo.is_cover)
+    expect(covers.map((photo) => photo.id)).toEqual([b])
 
-    // The photos upload in the order of the tiles, so the second one is the cover on the server
-    await expect(page).toHaveURL(/\/properties\/[0-9a-f-]{36}$/)
-    const id = page.url().split('/').pop() as string
-    propertyIdsToCleanup.push(id)
-    const [first, second] = (await photosOf(request, id)).sort((a, b) => a.sort_order - b.sort_order)
-    expect([first.is_cover, second.is_cover]).toEqual([false, true])
-
-    // The gallery rings the cover
-    await expect(photoImage(page, second).locator('xpath=..')).toHaveClass(/ring-2/)
-    await expect(photoImage(page, first).locator('xpath=..')).not.toHaveClass(/ring-2/)
+    // Deleting the cover asks first and says the next one takes its place.
+    await page.getByRole('button', { name: 'Delete photo 1', exact: true }).click()
+    await expect(page.getByText('The next one becomes the cover.')).toBeVisible()
+    await page.getByRole('button', { name: 'Delete', exact: true }).click()
+    await expect.poll(shown).toEqual([c, a])
   })
 
   test('delete check-in photo', async ({ page, request }) => {
     const prop = await createPropertyViaApi(request)
 
-    await page.goto(`/properties/${prop.id}`)
+    await page.goto(`/properties/${prop.id}?tab=photos`)
 
     // Only a check-in photo can be deleted on this page: the gallery has no delete button
     await page
-      .locator('label', { hasText: 'Add a check-in photo' })
+      .getByTestId('check-in-path')
+      .locator('label', { hasText: 'Add a photo or video' })
       .locator('input[type="file"]')
       .setInputFiles(TEST_IMAGE_PATH)
     await expect(page.getByText('Photos added: 1')).toBeVisible()
@@ -167,12 +170,30 @@ test.describe('Property Photos - E2E', () => {
     // The trash button asks for confirmation
     await page.getByRole('button', { name: 'Delete', exact: true }).click()
     const dialog = page
-      .getByRole('heading', { name: 'Delete the photo?' })
+      .getByRole('heading', { name: 'Delete the photo or video?' })
       .locator('xpath=ancestor::div[contains(@class, "rounded-2xl")][1]')
     await dialog.getByRole('button', { name: 'Delete', exact: true }).click()
 
     await expect(photoImage(page, photo)).toHaveCount(0)
     expect(await photosOf(request, prop.id)).toHaveLength(0)
+  })
+
+  test('a lock video goes beside the door code, private like the check-in photos', async ({ page, request }) => {
+    const prop = await createPropertyViaApi(request)
+    await page.goto(`/properties/${prop.id}?tab=photos`)
+
+    // The smallest MP4 the server takes: the "ftyp" box with an MP4 brand.
+    const mp4 = Buffer.concat([Buffer.from([0, 0, 0, 0x18]), Buffer.from('ftypisom'), Buffer.alloc(32)])
+    await page
+      .getByTestId('check-in-door')
+      .locator('input[type="file"]')
+      .setInputFiles({ name: 'lock.mp4', mimeType: 'video/mp4', buffer: mp4 })
+    await expect(page.getByText('Photos added: 1')).toBeVisible()
+    const [video] = (await photosOf(request, prop.id)) as (Photo & { kind: string; section: string })[]
+    expect([video.audience, video.kind, video.section]).toEqual(['guest', 'video', 'door'])
+    expect(video.url).toContain('X-Amz-Signature')
+    await expect(page.getByTestId('check-in-door').locator('video')).toHaveCount(1)
+    await expect(page.getByTestId('check-in-path').locator('video')).toHaveCount(0)
   })
 
   test('photo gallery displays on detail page', async ({ page, request, playwright, authTokens }) => {
@@ -198,7 +219,7 @@ test.describe('Property Photos - E2E', () => {
     }
     const [photo] = await photosOf(request, prop.id)
 
-    await page.goto(`/properties/${prop.id}`)
+    await page.goto(`/properties/${prop.id}?tab=photos`)
 
     // The gallery shows the photo, after the "Add photos" tile
     await expect(photoImage(page, photo)).toBeVisible()

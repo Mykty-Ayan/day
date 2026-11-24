@@ -9,7 +9,6 @@ import {
 } from '../fixtures/test-data'
 import type { Page } from '../fixtures/e2e-auth'
 
-const CLEANING_LIST_VIEW_MODE_STORAGE_KEY = 'day:cleaning:list-view-mode'
 
 test.describe('Cleaning Task CRUD - E2E', () => {
   let propertyIdsToCleanup: string[] = []
@@ -81,21 +80,21 @@ test.describe('Cleaning Task CRUD - E2E', () => {
 
   // ── Navigation ────────────────────────────────────────────────────
 
-  test('navigate to cleaning list via nav bar', async ({ page }) => {
+  test('navigate to cleaning list via nav bar', async ({ page, isMobile }) => {
     await page.goto('/')
     await page.waitForLoadState('networkidle')
 
+    if (isMobile) await page.getByRole('button', { name: 'More' }).first().click()
     await page.getByRole('link', { name: /cleaning/i }).first().click()
     await page.waitForURL(/\/cleaning/, { timeout: 5000 })
 
     await expect(page.getByRole('heading', { name: /cleaning tasks/i })).toBeVisible({ timeout: 5000 })
   })
 
-  test('navigate to checklists via nav bar', async ({ page, isMobile }) => {
-    await page.goto('/')
+  test('navigate to checklists via the section tabs', async ({ page }) => {
+    await page.goto('/cleaning')
     await page.waitForLoadState('networkidle')
 
-    if (isMobile) await page.getByRole('button', { name: 'More' }).first().click()
     await page.getByRole('link', { name: /checklists/i }).click()
     await page.waitForURL(/\/cleaning\/checklists/, { timeout: 5000 })
 
@@ -177,34 +176,34 @@ test.describe('Cleaning Task CRUD - E2E', () => {
     await expect(page.getByText(prop.name as string).first()).toBeVisible({ timeout: 5000 })
   })
 
-  test('mobile list view toggle switches to table and persists after reload', async ({ page, request }) => {
+  test('a phone and a wide screen show one list, with no switch between cards and a table', async ({ page, request }) => {
     const prop = await setupActiveProperty(request)
     await createTaskViaApi(request, prop.id)
 
-    await page.setViewportSize({ width: 390, height: 844 })
+    for (const width of [390, 1280]) {
+      await page.setViewportSize({ width, height: 844 })
+      await page.goto('/cleaning')
+      const row = page.getByRole('button', { name: prop.internal_name as string })
+      await expect(row).toBeVisible({ timeout: 5000 })
+      await expect(row).toContainText(/Post Checkout|Mid Stay|On Demand/)
+      await expect(page.getByRole('radio', { name: /^(cards|table)$/i })).toHaveCount(0)
+    }
+  })
+
+  test('two cleanings of one object are told apart by what a screen reader says of each row', async ({ page, request }) => {
+    const prop = await setupActiveProperty(request)
+    const days = [futureDate(5), futureDate(6)]
+    for (const day of days) await createTaskViaApi(request, prop.id, { scheduled_date: day })
+
     await page.goto('/cleaning')
-    await page.waitForLoadState('networkidle')
-
-    await page.evaluate((storageKey) => {
-      localStorage.removeItem(storageKey)
-    }, CLEANING_LIST_VIEW_MODE_STORAGE_KEY)
-    await page.reload({ waitUntil: 'networkidle' })
-
-    const cardsToggle = page.getByRole('radio', { name: /cards/i }).first()
-    const tableToggle = page.getByRole('radio', { name: /table/i }).first()
-    await expect(cardsToggle).toHaveAttribute('data-state', 'on')
-
-    await tableToggle.click()
-    await expect(tableToggle).toHaveAttribute('data-state', 'on')
-    await expect(page.locator('tbody tr').first()).toBeVisible({ timeout: 5000 })
-    await expect
-      .poll(async () => page.evaluate((storageKey) => localStorage.getItem(storageKey), CLEANING_LIST_VIEW_MODE_STORAGE_KEY))
-      .toBe('table')
-
-    await page.reload({ waitUntil: 'networkidle' })
-    await expect(page.getByRole('radio', { name: /table/i }).first()).toHaveAttribute('data-state', 'on')
-    await expect(page.locator('tbody tr').first()).toBeVisible({ timeout: 5000 })
-    await expect(page.getByText(prop.name as string).first()).toBeVisible({ timeout: 5000 })
+    const rows = page.getByRole('button', { name: new RegExp(prop.internal_name as string) })
+    await expect(rows).toHaveCount(2)
+    const shown = (day: string) => new Date(day).toLocaleDateString('en', { month: 'short', day: 'numeric' })
+    // Newest first or not, each row's name carries its own day.
+    const names = await rows.evaluateAll((els) => els.map((el) => el.textContent ?? ''))
+    expect(names.some((n) => n.includes(shown(days[0])))).toBe(true)
+    expect(names.some((n) => n.includes(shown(days[1])))).toBe(true)
+    for (const row of await rows.all()) await expect(row).not.toHaveAttribute('aria-label')
   })
 
   test('filter tasks by status tabs', async ({ page, request }) => {
@@ -436,7 +435,7 @@ test.describe('Checklist Templates - E2E', () => {
     await nameInput.fill(templateName)
 
     // Click Create
-    await page.getByRole('button', { name: /^Create$/i }).click()
+    await page.locator('main').getByRole('button', { name: /^Create$/i }).click()
 
     // Template should appear in the list
     await expect(page.getByText(templateName)).toBeVisible({ timeout: 5000 })

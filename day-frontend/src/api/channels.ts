@@ -42,3 +42,23 @@ export async function disconnectChannel(identityId: string): Promise<ConnectedCh
   const res = await apiClient.delete<ConnectedChannel>(`/channels/${identityId}`)
   return res.data
 }
+
+/** A notice the bot gave up on: the owner never heard of it. */
+export interface FailedNotification {
+  id: string
+  event: string
+  created_at: string | null
+  reason: string | null
+  property_name: string | null
+  guest_name: string | null
+  booking_id: string | null
+}
+
+export async function listFailedNotifications(): Promise<FailedNotification[]> {
+  const res = await apiClient.get<FailedNotification[]>('/channels/failed')
+  return res.data
+}
+
+export async function sendNotificationAgain(id: string): Promise<void> {
+  await apiClient.post(`/channels/failed/${id}/send-again`)
+}

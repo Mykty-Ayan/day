@@ -1,0 +1,6 @@
+# Switches a guest page to Russian: the headless Chromium speaks English, and a guest
+# page follows the browser's language until the guest picks another.
+url: ${BASE_URL}
+---
+- tapOn: "EN|RU"
+- tapOn: "Русский"

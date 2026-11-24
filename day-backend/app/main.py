@@ -199,7 +199,7 @@ def _setup_logging() -> None:
 def create_app() -> FastAPI:
     _setup_logging()
 
-    app = FastAPI(title="Day PMS API", version="0.9.1", lifespan=lifespan)
+    app = FastAPI(title="Day PMS API", version="0.10.0", lifespan=lifespan)
 
     from app.infrastructure.rate_limiter import RateLimitMiddleware
 
@@ -218,6 +218,8 @@ def create_app() -> FastAPI:
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
+        # The app reads when the rate limit's window ends, to ask a refused page again in time.
+        expose_headers=["X-RateLimit-Limit", "X-RateLimit-Remaining", "X-RateLimit-Reset"],
     )
 
     app.include_router(api_v1_router)

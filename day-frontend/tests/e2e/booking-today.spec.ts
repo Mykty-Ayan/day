@@ -106,7 +106,8 @@ test.describe('Booking Today View - E2E', () => {
     await expect(page.getByRole('heading', { name: /check-ins today\s*\(1\)/i })).toBeVisible()
     await expect(page.getByRole('heading', { name: /check-outs today\s*\(0\)/i })).toBeVisible()
     await expect(page.getByRole('heading', { name: /in-house\s*\(0\)/i })).toBeVisible()
-    await expect(page.getByText('CheckIn Today Guest')).toBeVisible()
+    // An unpaid stay stands in "Needs attention" too; the column comes after it
+    await expect(page.getByText('CheckIn Today Guest').last()).toBeVisible()
   })
 
   test('today page shows check-outs', async ({ page, request }) => {
@@ -129,7 +130,34 @@ test.describe('Booking Today View - E2E', () => {
     await expect(page.getByRole('heading', { name: /check-outs today\s*\(1\)/i })).toBeVisible()
     await expect(page.getByRole('heading', { name: /check-ins today\s*\(0\)/i })).toBeVisible()
     await expect(page.getByRole('heading', { name: /in-house\s*\(0\)/i })).toBeVisible()
-    await expect(page.getByText('CheckOut Today Guest')).toBeVisible()
+    // An unpaid stay stands in "Needs attention" too; the column comes after it
+    await expect(page.getByText('CheckOut Today Guest').last()).toBeVisible()
+  })
+
+  test('a step asked about stays that step when the booking changes meanwhile', async ({ page, request }) => {
+    // Someone else confirms the booking while the question is open; the next refresh
+    // turns the row's button into "Check In". The dialog must still confirm, not let in.
+    await page.clock.install()
+    const prop = await setupActiveProperty(request)
+    const booking = await createBookingViaApi(request, prop.id, {
+      check_in: await browserDate(page),
+      check_out: await browserDate(page, 2),
+      guest_name: 'Raced Guest',
+    })
+
+    await page.goto('/bookings/today')
+    await page.getByRole('button', { name: 'Confirm', exact: true }).first().click()
+    await expect(page.getByRole('dialog')).toBeVisible()
+    await transitionViaApi(request, booking.id, 'confirmed')
+    const refreshed = page.waitForResponse((response) => response.url().includes('/bookings/today'))
+    await page.clock.runFor(61_000)
+    await refreshed
+    // The row behind the dialog now offers the next step
+    await expect(page.getByText('Check In', { exact: true }).first()).toBeAttached()
+
+    await page.getByRole('dialog').getByRole('button', { name: 'Confirm', exact: true }).click()
+    await expect(page.getByRole('dialog')).toBeHidden()
+    expect(await bookingStatus(request, booking.id)).toBe('confirmed')
   })
 
   test('quick check-in action works', async ({ page, request }) => {
@@ -145,14 +173,316 @@ test.describe('Booking Today View - E2E', () => {
     await page.goto('/bookings/today')
     await page.waitForLoadState('networkidle')
 
-    // The button acts at once (there is no confirmation dialog)
+    // A guest let in cannot be undone: the button asks first
     await page.getByRole('button', { name: 'Check In' }).click()
+    await page.getByRole('dialog').getByRole('button', { name: 'Check In' }).click()
 
     await expect.poll(() => bookingStatus(request, booking.id)).toBe('checked_in')
     // A checked-in guest moves from the check-ins column to the in-house one
     await expect(page.getByRole('heading', { name: /in-house\s*\(1\)/i })).toBeVisible()
     await expect(page.getByRole('heading', { name: /check-ins today\s*\(0\)/i })).toBeVisible()
-    await expect(page.getByText('Checked In', { exact: true })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Extend', exact: true })).toBeVisible()
+  })
+
+  test('extend asks with the new total, then moves the check-out', async ({ page, request }) => {
+    const prop = await setupActiveProperty(request)
+
+    const booking = await createBookingViaApi(request, prop.id, {
+      check_in: await browserDate(page, -1),
+      check_out: await browserDate(page, 2),
+      guest_name: 'Extend Stay Guest',
+    })
+    await transitionViaApi(request, booking.id, 'confirmed')
+    await transitionViaApi(request, booking.id, 'checked_in')
+    const longer = await browserDate(page, 4)
+
+    await page.goto('/bookings/today')
+    await page.waitForLoadState('networkidle')
+
+    await page.getByRole('button', { name: 'Extend', exact: true }).click()
+    await page.getByRole('button', { name: 'More' }).click()
+    await expect(page.getByText('Extra to pay')).toBeVisible()
+    await page.getByRole('button', { name: /^Extend by 2/ }).click()
+
+    await expect
+      .poll(async () => {
+        const res = await request.get(`${API_BASE}/bookings/${booking.id}`, { maxRetries: 3 })
+        return ((await res.json()).booking.check_out as string).slice(0, 10)
+      })
+      .toBe(longer)
+  })
+
+  test('extend keeps its lines and its button steady while it waits, and a refusal goes with a new length', async ({ page, request }) => {
+    const prop = await setupActiveProperty(request)
+    const booking = await createBookingViaApi(request, prop.id, {
+      check_in: await browserDate(page, -1),
+      check_out: await browserDate(page, 2),
+      guest_name: 'Steady Extend Guest',
+    })
+    await transitionViaApi(request, booking.id, 'confirmed')
+    await transitionViaApi(request, booking.id, 'checked_in')
+    // The next guest arrives a night after: two more nights run into them.
+    await createBookingViaApi(request, prop.id, {
+      check_in: await browserDate(page, 3),
+      check_out: await browserDate(page, 5),
+      guest_name: 'Next Guest',
+    })
+
+    // Slow answers: what the panel shows while it waits is what flickered.
+    const slow = async (route: import('@playwright/test').Route) => {
+      await new Promise((r) => setTimeout(r, 700))
+      await route.continue()
+    }
+    await page.route('**/bookings/calculate-price', slow)
+    await page.route(`**/bookings/${booking.id}`, (route) => (route.request().method() === 'GET' ? route.continue() : slow(route)))
+
+    await page.goto('/bookings/today')
+    await page.waitForLoadState('networkidle')
+    await page.getByRole('button', { name: 'Extend', exact: true }).click()
+    const sheet = page.getByRole('dialog')
+    const sums = sheet.locator('dl')
+
+    // The lines are there before the first price comes: the panel does not grow under the cursor.
+    await expect(sheet.getByText('Extra to pay')).toBeVisible({ timeout: 300 })
+    await expect(sums).toHaveAttribute('aria-busy', 'true')
+    await expect(sums).toHaveAttribute('aria-busy', 'false')
+
+    // A new length dims the old sums instead of showing them as its own.
+    await sheet.getByRole('button', { name: 'More' }).click()
+    await expect(sums).toHaveAttribute('aria-busy', 'true')
+    await expect(sums).toHaveAttribute('aria-busy', 'false')
+
+    // Pressed, the button keeps its words and its colour; the refusal says what to do.
+    const extend = sheet.getByRole('button', { name: /^Extend by 2/ })
+    // Measured under the cursor, as it is when pressed: hover has its own shade.
+    await extend.hover()
+    await page.waitForTimeout(400)
+    const colour = await extend.evaluate((el) => getComputedStyle(el).backgroundColor)
+    await extend.click()
+    await expect(extend).toHaveAttribute('aria-disabled', 'true')
+    expect(await extend.evaluate((el) => getComputedStyle(el).backgroundColor)).toBe(colour)
+    // The length is locked while the save is on its way: a second save could overwrite the first.
+    await expect(sheet.getByRole('button', { name: 'More' })).toBeDisabled()
+    await expect(sheet.getByRole('button', { name: 'Fewer' })).toBeDisabled()
+    await expect(sheet.getByRole('alert')).toHaveText('The property is taken after that. Extend by less')
+
+    // One night less: the refusal was for two, it goes.
+    await sheet.getByRole('button', { name: 'Fewer' }).click()
+    await expect(sheet.getByRole('alert')).toHaveCount(0)
+  })
+
+  test('a debt is paid from a panel, without leaving Today', async ({ page, request }) => {
+    const prop = await setupActiveProperty(request)
+    const booking = await createBookingViaApi(request, prop.id, {
+      check_in: await browserDate(page),
+      check_out: await browserDate(page, 2),
+      guest_name: 'Panel Payment Guest',
+    })
+    await transitionViaApi(request, booking.id, 'confirmed')
+
+    await page.goto('/bookings/today')
+    await page.waitForLoadState('networkidle')
+
+    await page.getByRole('button', { name: /Guest owes/ }).click()
+    await page.getByRole('button', { name: /^Add \d/ }).click()
+
+    await expect(page.getByText('Nothing needs attention')).toBeVisible()
+    await expect(page).toHaveURL(/\/bookings\/today$/)
+  })
+
+  test('a payment offers the first night, half and all that is left in one tap', async ({ page, request }) => {
+    const prop = await setupActiveProperty(request)
+    const checkIn = await browserDate(page)
+    const booking = await createBookingViaApi(request, prop.id, {
+      check_in: checkIn,
+      check_out: await browserDate(page, 3),
+      guest_name: 'Quick Sums Guest',
+    })
+    await transitionViaApi(request, booking.id, 'confirmed')
+    const total = Number(booking.total_price)
+    const night = await request.post(`${API_BASE}/bookings/calculate-price`, {
+      data: { property_id: prop.id, check_in: checkIn, check_out: await browserDate(page, 1), adults_count: 2, children_count: 0 },
+    })
+    expect(night.ok(), await night.text()).toBeTruthy()
+    const firstNight = Number((await night.json()).total)
+
+    await page.goto('/bookings/today')
+    await page.waitForLoadState('networkidle')
+    await page.getByRole('button', { name: /Guest owes/ }).filter({ hasText: 'Quick Sums Guest' }).click()
+    const sheet = page.getByRole('dialog')
+    const amount = sheet.getByRole('spinbutton', { name: 'Amount' })
+
+    await sheet.getByRole('button', { name: /^First night ·/ }).click()
+    await expect(amount).toHaveValue(String(firstNight))
+    await sheet.getByRole('button', { name: /^50% ·/ }).click()
+    await expect(amount).toHaveValue(String(total / 2))
+    await sheet.getByRole('button', { name: /^Balance ·/ }).click()
+    await expect(amount).toHaveValue(String(total))
+    await expect(sheet.getByRole('button', { name: /^Balance ·/ })).toHaveAttribute('aria-pressed', 'true')
+  })
+
+  test('50% is half of the whole price, and is not offered once less than that is owed', async ({ page, request }) => {
+    const prop = await setupActiveProperty(request)
+    const booking = await createBookingViaApi(request, prop.id, {
+      check_in: await browserDate(page),
+      check_out: await browserDate(page, 3),
+      guest_name: 'Half Price Guest',
+    })
+    await transitionViaApi(request, booking.id, 'confirmed')
+    const total = Number(booking.total_price)
+    const pay = async (amount: number) => {
+      const paid = await request.post(`${API_BASE}/bookings/${booking.id}/payments`, {
+        data: { amount, type: 'payment', method: 'cash' },
+      })
+      expect(paid.ok(), `POST payment: ${paid.status()}`).toBeTruthy()
+    }
+    const openSheet = async () => {
+      await page.goto('/bookings/today')
+      await page.waitForLoadState('networkidle')
+      await page.getByRole('button', { name: /Guest owes/ }).filter({ hasText: 'Half Price Guest' }).click()
+      return page.getByRole('dialog')
+    }
+
+    // A tenth paid: half is of the price, not of the nine tenths left.
+    await pay(total / 10)
+    let sheet = await openSheet()
+    await sheet.getByRole('button', { name: /^50% ·/ }).click()
+    await expect(sheet.getByRole('spinbutton', { name: 'Amount' })).toHaveValue(String(total / 2))
+
+    // Six tenths paid: half the price would be more than the four tenths owed.
+    await pay(total / 2)
+    sheet = await openSheet()
+    await expect(sheet.getByRole('button', { name: /^Balance ·/ })).toBeVisible()
+    await expect(sheet.getByRole('button', { name: /^50% ·/ })).toHaveCount(0)
+  })
+
+  test('prices changed since the booking: the first night is the booked price shared, not today\'s', async ({ page, request }) => {
+    const prop = await setupActiveProperty(request)
+    const booking = await createBookingViaApi(request, prop.id, {
+      check_in: await browserDate(page),
+      check_out: await browserDate(page, 3),
+      guest_name: 'Repriced Guest',
+    })
+    await transitionViaApi(request, booking.id, 'confirmed')
+    const total = Number(booking.total_price)
+    // The flat costs five times more now; the guest booked at the old price.
+    const raised = await request.put(`${API_BASE}/properties/${prop.id}/pricing`, { data: createTestPricing({ base_price: 500 }) })
+    expect(raised.ok(), await raised.text()).toBeTruthy()
+
+    await page.goto('/bookings/today')
+    await page.waitForLoadState('networkidle')
+    await page.getByRole('button', { name: /Guest owes/ }).filter({ hasText: 'Repriced Guest' }).click()
+    const sheet = page.getByRole('dialog')
+    await sheet.getByRole('button', { name: /^First night ·/ }).click()
+    await expect(sheet.getByRole('spinbutton', { name: 'Amount' })).toHaveValue(String(Math.round(Math.round(total * 100) / 3) / 100))
+  })
+
+  test('a cleaner is assigned only once the choice is confirmed', async ({ page, request }) => {
+    const prop = await setupActiveProperty(request)
+    const cleaner = await request.post(`${API_BASE}/users`, {
+      data: { email: `maid-${Date.now()}@example.com`, password: 'Cleaner-e2e-1', full_name: 'E2E Maid', role: 'cleaner' },
+    })
+    expect(cleaner.ok(), `POST users: ${cleaner.status()}`).toBeTruthy()
+    const task = await request.post(`${API_BASE}/cleaning`, {
+      data: { property_id: prop.id, scheduled_date: await browserDate(page) },
+    })
+    expect(task.ok(), `POST cleaning: ${task.status()}`).toBeTruthy()
+
+    await page.goto('/bookings/today')
+    await page.waitForLoadState('networkidle')
+
+    await page.getByRole('button', { name: /no cleaner/i }).click()
+    const assign = page.getByRole('dialog').getByRole('button', { name: 'Assign' })
+    await expect(assign).toBeDisabled()
+
+    await page.getByLabel('Choose a cleaner').click()
+    await page.getByRole('option', { name: 'E2E Maid' }).click()
+    // The choice alone changes nothing: the row is still there
+    await expect(page.getByRole('dialog')).toBeVisible()
+
+    await assign.click()
+    await expect(page.getByRole('dialog')).toBeHidden()
+    await expect(page.getByRole('button', { name: /no cleaner/i })).toBeHidden()
+  })
+
+  test('a cleaning left from a past day still asks for a maid', async ({ page, request }) => {
+    const prop = await setupActiveProperty(request)
+    const task = await request.post(`${API_BASE}/cleaning`, {
+      data: { property_id: prop.id, scheduled_date: await browserDate(page, -2) },
+    })
+    expect(task.ok(), `POST cleaning: ${task.status()}`).toBeTruthy()
+
+    await page.goto('/bookings/today')
+
+    await expect(page.getByRole('button', { name: /no cleaner/i })).toContainText(prop.name)
+    await expect(page.getByRole('button', { name: /no cleaner/i })).toContainText('from past days')
+  })
+
+  test('extending adds to what the guest owes', async ({ page, request }) => {
+    const prop = await setupActiveProperty(request)
+    const booking = await createBookingViaApi(request, prop.id, {
+      check_in: await browserDate(page, -1),
+      check_out: await browserDate(page, 1),
+      guest_name: 'Longer Guest',
+    })
+    await transitionViaApi(request, booking.id, 'confirmed')
+    await transitionViaApi(request, booking.id, 'checked_in')
+    const paid = await request.post(`${API_BASE}/bookings/${booking.id}/payments`, {
+      data: { amount: Number(booking.total_price) + 1, type: 'payment', method: 'cash' },
+    })
+    expect(paid.ok(), `POST payment: ${paid.status()}`).toBeTruthy()
+
+    await page.goto('/bookings/today')
+    await page.getByRole('button', { name: 'Extend', exact: true }).first().click()
+    const panel = page.getByRole('dialog')
+    await expect(panel.getByText('To pay', { exact: true })).toBeVisible()
+    await panel.getByRole('button', { name: /^Extend by/ }).click()
+    await expect(panel).toBeHidden()
+
+    await expect(page.getByRole('button', { name: /Guest owes/ })).toContainText('Longer Guest')
+  })
+
+  test('a hand-set price still grows when the stay does', async ({ page, request }) => {
+    const prop = await setupActiveProperty(request)
+    const booking = await createBookingViaApi(request, prop.id, {
+      check_in: await browserDate(page, -1),
+      check_out: await browserDate(page, 1),
+      guest_name: 'Hand Priced Guest',
+    })
+    await transitionViaApi(request, booking.id, 'confirmed')
+    await transitionViaApi(request, booking.id, 'checked_in')
+    const saved = Number(booking.total_price) - 1
+    await request.patch(`${API_BASE}/bookings/${booking.id}`, { data: { total_price: saved } })
+
+    await page.goto('/bookings/today')
+    await page.getByRole('button', { name: 'Extend', exact: true }).first().click()
+    const panel = page.getByRole('dialog')
+    await expect(panel.getByText('hand-set price')).toBeVisible()
+    await panel.getByRole('button', { name: /^Extend by/ }).click()
+    await expect(panel).toBeHidden()
+
+    const after = await (await request.get(`${API_BASE}/bookings/${booking.id}`)).json()
+    expect(Number((after.booking ?? after).total_price)).toBeGreaterThan(saved)
+  })
+
+  test('a longer stay takes its cleaning to the new last day', async ({ page, request }) => {
+    const prop = await setupActiveProperty(request)
+    const [today, later] = [await browserDate(page), await browserDate(page, 2)]
+    const booking = await createBookingViaApi(request, prop.id, {
+      check_in: await browserDate(page, -1),
+      check_out: today,
+    })
+    const task = await request.post(`${API_BASE}/cleaning`, {
+      data: { property_id: prop.id, booking_id: booking.id, scheduled_date: today },
+    })
+    expect(task.ok(), `POST cleaning: ${task.status()}`).toBeTruthy()
+    const { id } = await task.json()
+
+    const longer = await request.patch(`${API_BASE}/bookings/${booking.id}`, { data: { check_out: later } })
+    expect(longer.ok(), `PATCH booking: ${longer.status()}`).toBeTruthy()
+
+    const moved = await (await request.get(`${API_BASE}/cleaning/${id}`)).json()
+    expect(moved.task.scheduled_date).toBe(later)
   })
 
   test('quick check-out action works', async ({ page, request }) => {
@@ -170,8 +500,9 @@ test.describe('Booking Today View - E2E', () => {
     await page.goto('/bookings/today')
     await page.waitForLoadState('networkidle')
 
-    // The button acts at once (there is no confirmation dialog)
+    // A guest let out cannot be undone: the button asks first
     await page.getByRole('button', { name: 'Check Out' }).click()
+    await page.getByRole('dialog').getByRole('button', { name: 'Check Out' }).click()
 
     await expect.poll(() => bookingStatus(request, booking.id)).toBe('checked_out')
     // A guest who has left stays in the check-outs column: the flat still needs a cleaning

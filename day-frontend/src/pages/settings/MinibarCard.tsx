@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Wine } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import Button from '../../components/ui/Button'
+import LoadError from '../../components/ui/LoadError'
 import { showToast } from '../../components/ui/Toast'
 import { useSettings, useUpdateSettings } from '../../hooks/useSettings'
 import { minibarSettings, type MinibarDraft } from './minibar'
@@ -10,7 +11,8 @@ import { minibarSettings, type MinibarDraft } from './minibar'
  *  as the settings are. */
 export default function MinibarCard() {
   const { t } = useTranslation()
-  const { data: settings } = useSettings()
+  // Locked until the company's own ways and hours are read: guessed ones would be saved over them.
+  const { data: settings, isSuccess: known, isError, refetch } = useSettings()
   const update = useUpdateSettings()
   const [edit, setEdit] = useState<Partial<MinibarDraft>>({})
   const draft: MinibarDraft = {
@@ -24,6 +26,7 @@ export default function MinibarCard() {
 
   async function save(event: React.FormEvent) {
     event.preventDefault()
+    if (!known) return
     const body = minibarSettings(draft)
     if (!body) {
       showToast('error', !draft.invoice && !draft.onBooking ? t('settings.minibar.oneWay') : t('settings.minibar.hoursInvalid'))
@@ -39,48 +42,49 @@ export default function MinibarCard() {
   }
 
   const box = 'mt-0.5 h-4 w-4 shrink-0 accent-black'
-  const input = 'mt-1.5 w-full rounded-xl border border-gray-200 bg-gray-50 p-3 text-sm text-gray-800 disabled:opacity-50'
+  const input = 'mt-1.5 w-full rounded-xl border border-line bg-surface-page p-3 text-sm text-ink disabled:opacity-50'
   return (
-    <form onSubmit={save} className="mt-4 space-y-3 rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+    <form onSubmit={save} className="mt-4 space-y-3 rounded-xl border border-line bg-surface-card p-5">
       <div className="flex items-center gap-2">
-        <Wine className="h-4 w-4 text-gray-500" />
+        <Wine className="h-4 w-4 text-ink-muted" />
         <div>
-          <h2 className="text-sm font-bold text-gray-900">{t('settings.minibar.title')}</h2>
-          <p className="text-xs text-gray-500">{t('settings.minibar.description')}</p>
+          <h2 className="text-sm font-bold text-ink">{t('settings.minibar.title')}</h2>
+          <p className="text-xs text-ink-muted">{t('settings.minibar.description')}</p>
         </div>
       </div>
-      <fieldset className="space-y-2">
-        <legend className="text-xs font-bold uppercase tracking-wider text-gray-400">{t('settings.minibar.ways')}</legend>
+      {isError && <LoadError message={t('settings.loadFailed')} onRetry={() => refetch()} />}
+      <fieldset className="space-y-2" disabled={!known}>
+        <legend className="text-xs font-semibold text-ink-muted">{t('settings.minibar.ways')}</legend>
         <label className="flex gap-3 text-sm">
           <input id="minibar-invoice" type="checkbox" checked={draft.invoice} onChange={(e) => change({ invoice: e.target.checked })} className={box} />
-          <span>
-            <span className="block font-semibold text-gray-900">{t('settings.minibar.invoice')}</span>
-            <span className="block text-xs text-gray-500">{t('settings.minibar.invoiceHint')}</span>
+ <span>
+            <span className="block font-semibold text-ink">{t('settings.minibar.invoice')}</span>
+            <span className="block text-xs text-ink-muted">{t('settings.minibar.invoiceHint')}</span>
           </span>
         </label>
         <label className="flex gap-3 text-sm">
           <input id="minibar-on-booking" type="checkbox" checked={draft.onBooking} onChange={(e) => change({ onBooking: e.target.checked })} className={box} />
-          <span>
-            <span className="block font-semibold text-gray-900">{t('settings.minibar.onBooking')}</span>
-            <span className="block text-xs text-gray-500">{t('settings.minibar.onBookingHint')}</span>
+ <span>
+            <span className="block font-semibold text-ink">{t('settings.minibar.onBooking')}</span>
+            <span className="block text-xs text-ink-muted">{t('settings.minibar.onBookingHint')}</span>
           </span>
         </label>
       </fieldset>
-      <label className="flex items-center gap-3 text-sm font-semibold text-gray-900">
-        <input id="minibar-all-day" type="checkbox" checked={draft.allDay} onChange={(e) => change({ allDay: e.target.checked })} className={box} />
-        {t('settings.minibar.allDay')}
+      <label className="flex items-center gap-3 text-sm font-semibold text-ink">
+        <input id="minibar-all-day" type="checkbox" disabled={!known} checked={draft.allDay} onChange={(e) => change({ allDay: e.target.checked })} className={box} />
+ {t('settings.minibar.allDay')}
       </label>
       <div className="grid grid-cols-2 gap-3">
-        <label className="text-xs font-bold uppercase tracking-wider text-gray-400">
+        <label className="text-xs font-semibold text-ink-muted">
           {t('settings.minibar.opens')}
-          <input id="minibar-opens" type="time" disabled={draft.allDay} value={draft.opens} onChange={(e) => change({ opens: e.target.value })} className={input} />
-        </label>
-        <label className="text-xs font-bold uppercase tracking-wider text-gray-400">
+          <input id="minibar-opens" type="time" disabled={!known || draft.allDay} value={draft.opens} onChange={(e) => change({ opens: e.target.value })} className={input} />
+ </label>
+        <label className="text-xs font-semibold text-ink-muted">
           {t('settings.minibar.closes')}
-          <input id="minibar-closes" type="time" disabled={draft.allDay} value={draft.closes} onChange={(e) => change({ closes: e.target.value })} className={input} />
-        </label>
+          <input id="minibar-closes" type="time" disabled={!known || draft.allDay} value={draft.closes} onChange={(e) => change({ closes: e.target.value })} className={input} />
+ </label>
       </div>
-      <Button type="submit" disabled={update.isPending}>
+      <Button type="submit" disabled={!known || update.isPending}>
         {t('settings.minibar.save')}
       </Button>
     </form>

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timedelta
+from datetime import date, datetime, time, timedelta, timezone
 from zoneinfo import ZoneInfo
 
 from app.domain.booking.entities import Booking
@@ -14,14 +14,41 @@ from app.domain.settings.entities import DEFAULT_TIME_ZONE
 from app.domain.settings.repositories import CompanySettingsRepository
 
 
-async def company_now(settings_repo: CompanySettingsRepository | None, company_id: uuid.UUID) -> datetime:
-    """Now on the company's clock, naive like every check-in in Day."""
-    zone = DEFAULT_TIME_ZONE
+async def _company_zone(settings_repo: CompanySettingsRepository | None, company_id: uuid.UUID) -> ZoneInfo:
     if settings_repo is not None:
         settings = await settings_repo.get_by_company(company_id)
         if settings is not None and settings.time_zone:
-            zone = settings.time_zone
-    return datetime.now(ZoneInfo(zone)).replace(tzinfo=None)
+            return ZoneInfo(settings.time_zone)
+    return ZoneInfo(DEFAULT_TIME_ZONE)
+
+
+async def company_now(settings_repo: CompanySettingsRepository | None, company_id: uuid.UUID) -> datetime:
+    """Now on the company's clock, naive like every check-in in Day."""
+    return datetime.now(await _company_zone(settings_repo, company_id)).replace(tzinfo=None)
+
+
+async def company_day_utc(
+    settings_repo: CompanySettingsRepository | None, company_id: uuid.UUID, day: date
+) -> tuple[datetime, datetime]:
+    """A day on the company's clock as naive UTC bounds, the way payments store paid_at."""
+    zone = await _company_zone(settings_repo, company_id)
+    start = datetime.combine(day, time.min, zone).astimezone(timezone.utc).replace(tzinfo=None)
+    end = datetime.combine(day + timedelta(days=1), time.min, zone).astimezone(timezone.utc).replace(tzinfo=None)
+    return start, end
+
+
+def held_until(stay: Booking, today: datetime | None) -> datetime:
+    """When a stay frees its flat. A completed stay is over: from today on the flat is free,
+    before today it keeps its dates (Day does not store the real departure)."""
+    if stay.status == BookingStatus.COMPLETED and today is not None:
+        return min(stay.check_out, today)
+    return stay.check_out
+
+
+def takes(stay: Booking, start: datetime, end: datetime, today: datetime | None) -> bool:
+    """Whether a stay holds any of the time from start to end, as booking judges it."""
+    until = held_until(stay, today)
+    return stay.check_in < until and stay.check_in < end and until > start
 
 
 async def overlapping_stays(
@@ -51,7 +78,7 @@ async def overlapping_stays(
     def clashes(stay: Booking) -> bool:
         if stay.status != BookingStatus.COMPLETED:
             return True
-        ended = min(stay.check_out, today)
+        ended = held_until(stay, today)
         return stay.check_in < ended and any(
             start < end and start < ended and end > stay.check_in for start, end in new_time
         )

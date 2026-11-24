@@ -1,5 +1,29 @@
 @import "tailwindcss";
 
+/* The operator's web. A screen moves to these tokens when it is redone; the rest keep
+   Tailwind's own colors until then. The Mini App and the guest pages do not use them. */
+@theme {
+  --font-app: 'Onest', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+
+  --color-surface-page: #f2f3f7;
+  --color-surface-card: #fdfdff;
+  --color-line: #e2e2e8;
+  --color-ink: #181a23;
+  --color-ink-muted: #61626c;
+
+  --color-accent: #334fb8;
+  --color-accent-hover: #28409a;
+  --color-accent-soft: #e5edfe;
+  --color-accent-ink: #2b44a6;
+
+  --color-danger: #af283d;
+  --color-danger-soft: #ffebea;
+  --color-warning: #7e4f04;
+  --color-warning-soft: #fdefd2;
+  --color-success: #1d6835;
+  --color-success-soft: #e3f6e6;
+}
+
 :root {
   color-scheme: light;
 }
@@ -88,6 +112,32 @@ body {
 .number-input::-webkit-inner-spin-button {
   -webkit-appearance: none;
   margin: 0;
+}
+
+@keyframes dialog-fade-in {
+  from { opacity: 0; }
+}
+
+@keyframes dialog-fade-out {
+  to { opacity: 0; }
+}
+
+@keyframes dialog-pop-in {
+  from { opacity: 0; transform: translate(-50%, -48%) scale(0.97); }
+}
+
+@keyframes dialog-pop-out {
+  to { opacity: 0; transform: translate(-50%, -48%) scale(0.97); }
+}
+
+.dialog-fade[data-state='open'] { animation: dialog-fade-in 150ms ease-out; }
+.dialog-fade[data-state='closed'] { animation: dialog-fade-out 120ms ease-in forwards; }
+.dialog-pop { transform: translate(-50%, -50%); }
+.dialog-pop[data-state='open'] { animation: dialog-pop-in 150ms ease-out; }
+.dialog-pop[data-state='closed'] { animation: dialog-pop-out 120ms ease-in forwards; }
+
+@media (prefers-reduced-motion: reduce) {
+  .dialog-fade[data-state], .dialog-pop[data-state] { animation-duration: 1ms; }
 }
 
 /* Guest pages: a sheet slides up, revealed content fades in. */

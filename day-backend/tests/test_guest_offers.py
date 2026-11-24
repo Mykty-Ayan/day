@@ -55,14 +55,17 @@ class Offers:
         self.service = GuestOffersService(
             self.offers, self.props, _Photos(), self.bookings,
             _build_price_calculator(pricing_repo=self.pricing), today=lambda: self.today, now=lambda: self.now,
+            pricing=self.pricing,
         )
 
-    async def flat(self, name="Студия", price="20000", company_id=COMPANY_ID, status=PropertyStatus.ACTIVE, **facts):
+    async def flat(self, name="Студия", price="20000", company_id=COMPANY_ID, status=PropertyStatus.ACTIVE, deposit="0",
+                   **facts):
         prop = Property(company_id=company_id, name=name, internal_name=uuid.uuid4().hex[:6], status=status,
                         rooms=1, max_guests=2, check_in_hour=14, check_out_hour=12, **facts)
         await self.props.save(prop)
         await self.pricing.save(PricingConfig(property_id=prop.id, base_price=Decimal(price),
-                                              hourly_price=Decimal("3000")))
+                                              hourly_price=Decimal("3000"), default_deposit=Decimal(deposit),
+                                              hourly_deposit=Decimal("5000")))
         return prop
 
     async def offer(self, *flats, check_in=date(2030, 10, 20), check_out=date(2030, 10, 22), guests=2, **guest):
@@ -110,6 +113,14 @@ async def test_a_guest_sees_each_flat_for_the_dates_and_nothing_of_the_others():
     answer = shown.model_dump_json()
     for secret in ("Сапаров", "234 56", "+7 701 234 56 78", studio.internal_name, str(studio.id)):
         assert secret not in answer, secret
+
+
+async def test_each_flat_of_the_link_shows_its_deposit_for_the_link_s_kind_of_stay():
+    o = Offers()
+    studio, family = await o.flat("Студия", deposit="10000"), await o.flat("Двухкомнатная")
+    shown = PublicOfferResponse.from_offer(await o.service.public((await o.offer(studio, family)).code))
+    # By the night the nightly deposit; none set is none, never 0.
+    assert [(f.name, f.deposit) for f in shown.flats] == [("Студия", 10000.0), ("Двухкомнатная", None)]
 
 
 async def test_an_offer_holds_only_the_companys_own_flats_on_sale():
@@ -208,6 +219,14 @@ async def test_offers_through_the_api(flat):  # noqa: F811  (the imported fixtur
     assert page.status_code == 200, page.text
     assert page.json()["phone"] == "+7 701 ••• •• 78" and "2345678" not in page.text and "Сапаров" not in page.text
     assert page.json()["flats"][0]["total"] == 40000.0
+    # No site yet: the page names no company.
+    assert page.json()["company"] is None
+    use(Permission.SETTINGS_READ, Permission.SETTINGS_WRITE)
+    slug = f"o-{uuid.uuid4().hex[:8]}"
+    assert (await client.put("/api/v1/site", json={"slug": slug, "title": "Munar"})).status_code == 200
+    use()
+    named = (await client.get(f"/api/v1/public/offers/{code}")).json()["company"]
+    assert (named["title"], named["logo_url"]) == ("Munar", None)
     assert (await client.get("/api/v1/public/offers/nosuchcode")).status_code == 404
 
 

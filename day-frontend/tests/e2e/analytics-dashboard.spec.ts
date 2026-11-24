@@ -11,7 +11,6 @@ import {
 
 let propertyIdsToCleanup: string[] = []
 let bookingIdsToCleanup: string[] = []
-const METRICS_TABLE_VIEW_MODE_STORAGE_KEY = 'day:analytics:metrics-view-mode'
 
 test.afterEach(async ({ request }) => {
   for (const id of bookingIdsToCleanup) {
@@ -70,17 +69,12 @@ async function setupBookingWithPayment(
 }
 
 test.describe('Analytics Dashboard - Navigation', () => {
-  test('navigate to analytics from header', async ({ page }) => {
+  test('navigate to analytics from the menu', async ({ page, isMobile }) => {
     await page.goto('/')
     await page.waitForLoadState('networkidle')
 
-    const analyticsLink = page.getByRole('link', { name: /analytics/i })
-    if (await analyticsLink.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await analyticsLink.click()
-      await page.waitForURL(/\/analytics/, { timeout: 5000 })
-    } else {
-      await page.goto('/analytics')
-    }
+    if (isMobile) await page.getByRole('button', { name: 'More' }).first().click()
+    await page.getByRole('link', { name: 'Money', exact: true }).click()
 
     await expect(page).toHaveURL(/\/analytics/)
   })
@@ -177,6 +171,35 @@ test.describe('Analytics Dashboard - Filters', () => {
     // Look for source filter
     const sourceFilter = page.getByText(/all sources/i).first()
     await expect(sourceFilter).toBeVisible({ timeout: 5000 })
+  })
+
+  test('sources are picked by ticks, several at once, and «all» clears them', async ({ page }) => {
+    await page.goto('/analytics')
+    const filter = page.getByRole('combobox', { name: 'Source' })
+    await filter.click()
+    await expect(page.getByRole('checkbox', { name: 'All Sources' })).toBeChecked()
+    const asked = page.waitForRequest(
+      (r) => r.url().includes('/analytics/metrics') && new URL(r.url()).searchParams.getAll('source').length === 2,
+    )
+    await page.getByRole('checkbox', { name: 'Airbnb' }).click()
+    await page.getByRole('checkbox', { name: 'Booking.com' }).click()
+    expect(new URL((await asked).url()).searchParams.getAll('source').sort()).toEqual(['airbnb', 'booking'])
+    await expect(page.getByRole('checkbox', { name: 'All Sources' })).not.toBeChecked()
+    await expect(filter).toHaveText('2 sources')
+
+    await page.getByRole('checkbox', { name: 'All Sources' }).click()
+    await expect(filter).toHaveText('All Sources')
+    await expect(page.getByRole('checkbox', { name: 'Airbnb' })).not.toBeChecked()
+
+    // Every source ticked one by one is «all»: expenses and bookings with no source count again.
+    // The first tick is «all», then each source.
+    const ticks = page.locator('[data-radix-popper-content-wrapper]').getByRole('checkbox')
+    const count = await ticks.count()
+    for (let n = 2; n < count; n++) await ticks.nth(n).click()
+    await expect(page.getByRole('checkbox', { name: 'All Sources' })).not.toBeChecked()
+    await ticks.nth(1).click()
+    await expect(page.getByRole('checkbox', { name: 'All Sources' })).toBeChecked()
+    await expect(filter).toHaveText('All Sources')
   })
 
   test('property filter dropdown is visible', async ({ page }) => {
@@ -345,10 +368,7 @@ test.describe('Analytics Dashboard - Table', () => {
     }
   })
 
-  test('mobile metrics view toggle switches to table and persists after reload', async ({
-    page,
-    request,
-  }) => {
+  test('the metrics by object: cards on a phone, the table on a wide screen, no switch', async ({ page, request }) => {
     const typedRequest = request as Parameters<
       Parameters<typeof test>[2]
     >[0]['request']
@@ -357,41 +377,14 @@ test.describe('Analytics Dashboard - Table', () => {
 
     await page.setViewportSize({ width: 390, height: 844 })
     await page.goto('/analytics?period=year')
-    await page.waitForLoadState('networkidle')
+    await expect(page.getByText(prop.internal_name as string).first()).toBeVisible({ timeout: 10000 })
+    await expect(page.getByRole('columnheader', { name: /property/i })).toBeHidden()
+    await expect(page.getByRole('radio', { name: /^(cards|table)$/i })).toHaveCount(0)
 
-    await page.evaluate((storageKey) => {
-      localStorage.removeItem(storageKey)
-    }, METRICS_TABLE_VIEW_MODE_STORAGE_KEY)
-    await page.reload({ waitUntil: 'networkidle' })
-
-    await page
-      .locator('.animate-spin')
-      .waitFor({ state: 'hidden', timeout: 10000 })
-      .catch(() => {})
-
-    const cardsToggle = page.getByRole('radio', { name: /cards/i }).first()
-    const tableToggle = page.getByRole('radio', { name: /table/i }).first()
-    await expect(cardsToggle).toHaveAttribute('data-state', 'on')
-
-    await tableToggle.click()
-    await expect(tableToggle).toHaveAttribute('data-state', 'on')
-    await expect(page.getByRole('columnheader', { name: /property/i }).first()).toBeVisible({ timeout: 5000 })
-    await expect
-      .poll(async () => page.evaluate((storageKey) => localStorage.getItem(storageKey), METRICS_TABLE_VIEW_MODE_STORAGE_KEY))
-      .toBe('table')
-
-    await page.reload({ waitUntil: 'networkidle' })
-    await page
-      .locator('.animate-spin')
-      .waitFor({ state: 'hidden', timeout: 10000 })
-      .catch(() => {})
-
-    await expect(page.getByRole('radio', { name: /table/i }).first()).toHaveAttribute('data-state', 'on')
+    await page.setViewportSize({ width: 1280, height: 900 })
     await expect(page.getByRole('columnheader', { name: /property/i }).first()).toBeVisible({ timeout: 5000 })
   })
-})
 
-test.describe('Analytics Dashboard - With Data', () => {
   test('dashboard shows data when bookings exist', async ({
     page,
     request,

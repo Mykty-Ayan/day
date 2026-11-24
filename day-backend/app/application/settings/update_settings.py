@@ -23,6 +23,7 @@ class UpdateSettingsService:
         secrets_lead_hours_hourly: int | None = None,
         minibar_invoice: bool | None = None,
         minibar_on_booking: bool | None = None,
+        weekend_nights: list[int] | None = None,
         **hours: time | None,
     ) -> CompanySettings:
         """`hours`: minibar_opens and minibar_closes, given together (both None:
@@ -35,6 +36,7 @@ class UpdateSettingsService:
             "secrets_lead_hours_hourly": secrets_lead_hours_hourly,
             "minibar_invoice": minibar_invoice,
             "minibar_on_booking": minibar_on_booking,
+            "weekend_nights": tuple(weekend_nights) if weekend_nights is not None else None,
         }
         if hours:
             opens, closes = hours.get("minibar_opens"), hours.get("minibar_closes")

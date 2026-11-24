@@ -1,7 +1,15 @@
 import { useMemo, useState } from 'react'
 import { isAxiosError } from 'axios'
 import { useTranslation } from 'react-i18next'
-import { Ban, Plus } from 'lucide-react'
+import { Ban, ChevronLeft, ChevronRight, Plus } from 'lucide-react'
+import { format as formatDay, parseISO } from 'date-fns'
+import Button from '../../components/ui/Button'
+import ConfirmDialog from '../../components/ui/ConfirmDialog'
+import DatePicker from '../../components/ui/date-picker'
+import LoadError from '../../components/ui/LoadError'
+import { Sheet } from '../../components/ui/sheet'
+import { dateLocale } from '../../lib/date-locale'
+import { shiftMonth } from '../../lib/bookings-dashboard'
 import { showToast } from '../../components/ui/Toast'
 import { useCurrentUser } from '../../hooks/useAuth'
 import { useCurrency } from '../../hooks/useCurrency'
@@ -21,8 +29,10 @@ import {
 } from '../../lib/expenses'
 
 const field =
-  'w-full rounded-xl border border-gray-200 bg-gray-50 p-3 text-sm text-gray-800 outline-none focus:ring-2 focus:ring-black/10'
-const label = 'mb-1.5 block text-xs font-bold uppercase tracking-wider text-gray-400'
+  'min-h-[44px] w-full min-w-0 rounded-xl border border-line bg-surface-card px-3 text-sm text-ink outline-none focus:border-accent'
+const label = 'block text-xs font-semibold text-ink'
+const ADD =
+  'inline-flex h-10 shrink-0 items-center gap-1.5 rounded-xl border border-line bg-surface-card px-3.5 text-sm font-semibold text-ink transition-colors hover:bg-surface-page'
 
 /** The server's reason for refusing, when it gave one (a sentence, or pydantic's list). */
 function serverReason(error: unknown): string | null {
@@ -39,14 +49,17 @@ function localToday(): string {
 }
 
 export default function ExpensesPage() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
+  const locale = dateLocale(i18n.language)
+  const [adding, setAdding] = useState(false)
+  const [voiding, setVoiding] = useState<string | null>(null)
   const { data: user } = useCurrentUser()
   const isOwner = user?.role === 'owner'
   const { format } = useCurrency()
   const today = localToday()
   const [month, setMonth] = useState(today.slice(0, 7))
   const period = monthPeriod(month)
-  const { data: expenses = [], isLoading } = useExpenses(period, isOwner)
+  const { data: expenses = [], isLoading, isError, refetch } = useExpenses(period, isOwner)
   const { data: allFlats } = useAllProperties()
   const createExpense = useCreateExpense()
   const voidExpense = useVoidExpense()
@@ -64,7 +77,7 @@ export default function ExpensesPage() {
   const total = expenses.reduce((sum, e) => sum + Number(e.amount), 0)
 
   if (!isOwner) {
-    return <p className="p-6 text-sm text-gray-600">{t('expenses.ownerOnly')}</p>
+    return <p className="p-6 text-sm text-ink-muted">{t('expenses.ownerOnly')}</p>
   }
 
   function update<K extends keyof ExpenseForm>(key: K, value: ExpenseForm[K]) {
@@ -93,6 +106,7 @@ export default function ExpensesPage() {
       // Show the month the expense went to, or it seems to vanish.
       setMonth(form.spent_on.slice(0, 7))
       setForm(emptyExpenseForm(form.spent_on))
+      setAdding(false)
     } catch (error) {
       const reason = serverReason(error)
       if (reason) setFormError(reason)
@@ -100,38 +114,54 @@ export default function ExpensesPage() {
     }
   }
 
-  async function cancelExpense(id: string) {
-    // Money: a voided expense leaves the books' totals, so ask first.
-    if (!window.confirm(t('expenses.voidConfirm'))) return
+  // Money: a voided expense leaves the books' totals, so the app's dialog asks first.
+  async function cancelExpense() {
+    if (!voiding) return
     try {
-      await voidExpense.mutateAsync(id)
+      await voidExpense.mutateAsync(voiding)
       showToast('success', t('expenses.voided'))
+      setVoiding(null)
     } catch {
       showToast('error', t('expenses.failed'))
     }
   }
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6 p-4 sm:p-6">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <h1 className="text-xl font-bold text-gray-900">{t('expenses.title')}</h1>
-        <label className="text-xs font-bold uppercase tracking-wider text-gray-400">
-          {t('expenses.month')}
-          <input
-            id="expenses-month"
-            type="month"
-            value={month}
-            onChange={(e) => e.target.value && setMonth(e.target.value)}
-            className={`mt-1.5 ${field}`}
-          />
-        </label>
+    <div className="mx-auto w-full max-w-4xl px-4 py-4 sm:px-6 sm:py-6">
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <h1 className="text-xl font-bold text-ink">{t('expenses.title')}</h1>
+        <button type="button" onClick={() => setAdding(true)} className={ADD}>
+          <Plus className="h-4 w-4" aria-hidden="true" />
+          {t('expenses.addButton')}
+        </button>
+      </div>
+      <div className="mb-5 flex items-center gap-1">
+        <button
+          type="button"
+          onClick={() => setMonth(shiftMonth(month, -1))}
+          aria-label={t('bookings.overview.prevMonth')}
+          className="flex h-10 w-10 items-center justify-center rounded-lg text-ink-muted hover:bg-surface-card hover:text-ink"
+        >
+          <ChevronLeft className="h-4 w-4" />
+        </button>
+        <h2 id="expenses-month" className="min-w-[9.5rem] text-center text-base font-semibold text-ink first-letter:uppercase" aria-live="polite">
+          {formatDay(parseISO(`${month}-01`), 'LLLL yyyy', { locale })}
+        </h2>
+        <button
+          type="button"
+          onClick={() => setMonth(shiftMonth(month, 1))}
+          aria-label={t('bookings.overview.nextMonth')}
+          className="flex h-10 w-10 items-center justify-center rounded-lg text-ink-muted hover:bg-surface-card hover:text-ink"
+        >
+          <ChevronRight className="h-4 w-4" />
+        </button>
       </div>
 
-      <section className="space-y-3 rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-        <h2 className="text-sm font-bold text-gray-900">{t('expenses.add')}</h2>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+      <Sheet open={adding} onClose={() => setAdding(false)} title={t('expenses.add')}>
+      <section className="space-y-3">
+        <div className="grid grid-cols-1 gap-3">
           <label className={label}>
-            {t('expenses.category')}
+ {t('expenses.category')}
             <select
               id="expense-category"
               value={form.category}
@@ -146,7 +176,7 @@ export default function ExpensesPage() {
             </select>
           </label>
           <label className={label}>
-            {t('expenses.amount')}
+ {t('expenses.amount')}
             <input
               id="expense-amount"
               inputMode="decimal"
@@ -157,17 +187,11 @@ export default function ExpensesPage() {
             />
           </label>
           <label className={label}>
-            {t('expenses.day')}
-            <input
-              id="expense-day"
-              type="date"
-              value={form.spent_on}
-              onChange={(e) => update('spent_on', e.target.value)}
-              className={`mt-1.5 ${field}`}
-            />
+ {t('expenses.day')}
+            <DatePicker id="expense-day" value={form.spent_on} onChange={(day) => update('spent_on', day)} className="mt-1.5" />
           </label>
           <label className={label}>
-            {t('expenses.flat')}
+ {t('expenses.flat')}
             <select
               id="expense-flat"
               value={form.property_id}
@@ -185,7 +209,7 @@ export default function ExpensesPage() {
           {isCommission && (
             <>
               <label className={label}>
-                {t('expenses.agent')}
+ {t('expenses.agent')}
                 <AgentSelect
                   id="expense-agent"
                   value={form.agent_id}
@@ -198,7 +222,7 @@ export default function ExpensesPage() {
                 />
               </label>
               <label className={label}>
-                {t('expenses.booking')}
+ {t('expenses.booking')}
                 <select
                   id="expense-booking"
                   value={form.booking_id}
@@ -217,7 +241,7 @@ export default function ExpensesPage() {
             </>
           )}
           <label className={label}>
-            {t('expenses.payee')}
+ {t('expenses.payee')}
             <input
               id="expense-payee"
               value={form.payee}
@@ -226,7 +250,7 @@ export default function ExpensesPage() {
             />
           </label>
           <label className={label}>
-            {t('expenses.note')}
+ {t('expenses.note')}
             <input
               id="expense-note"
               value={form.note}
@@ -236,52 +260,54 @@ export default function ExpensesPage() {
           </label>
         </div>
         {formError && (
-          <p role="alert" className="text-xs text-red-600">
+          <p role="alert" className="text-xs text-danger">
             {formError}
           </p>
         )}
-        <button
-          type="button"
-          onClick={submit}
-          disabled={createExpense.isPending}
-          className="inline-flex items-center gap-2 rounded-xl bg-black px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
-        >
-          <Plus className="h-4 w-4" />
+        <Button onClick={submit} disabled={createExpense.isPending} className="w-full">
           {t('expenses.save')}
-        </button>
+        </Button>
       </section>
+      </Sheet>
 
-      <section className="rounded-xl border border-gray-200 bg-white shadow-sm">
-        <div className="flex items-center justify-between border-b border-gray-100 px-4 py-3">
-          <h2 className="text-sm font-bold text-gray-900">{t('expenses.list')}</h2>
-          <span data-testid="expenses-total" className="text-sm font-bold text-gray-900">
-            {t('expenses.total', { amount: format(total) })}
-          </span>
+      <section className="overflow-hidden rounded-2xl border border-line bg-surface-card">
+        <div className="flex items-center justify-between border-b border-line px-5 py-3">
+          <h2 className="text-sm font-semibold text-ink">{t('expenses.list')}</h2>
+          {/* No total when the list did not load: 0 would read as a month without expenses. */}
+          {!isError && (
+            <span data-testid="expenses-total" className="text-sm font-bold text-ink">
+              {t('expenses.total', { amount: format(total) })}
+            </span>
+          )}
         </div>
-        {isLoading ? null : expenses.length === 0 ? (
-          <p className="px-4 py-6 text-sm text-gray-500">{t('expenses.empty')}</p>
+        {isLoading ? null : isError ? (
+          <div className="p-4">
+            <LoadError message={t('expenses.loadFailed')} onRetry={() => refetch()} />
+          </div>
+        ) : expenses.length === 0 ? (
+          <p className="px-5 py-8 text-center text-sm text-ink-muted">{t('expenses.empty')}</p>
         ) : (
-          <ul className="divide-y divide-gray-100">
+          <ul className="divide-y divide-line">
             {expenses.map((e) => (
-              <li key={e.id} className="flex items-center gap-3 px-4 py-3 text-sm">
-                <span className="w-24 shrink-0 text-gray-500">{e.spent_on}</span>
+              <li key={e.id} className="flex items-center gap-3 px-5 py-3 text-sm">
+                <span className="w-16 shrink-0 text-ink-muted">{formatDay(parseISO(e.spent_on), 'd MMM', { locale })}</span>
                 <span className="min-w-0 flex-1">
-                  <span className="font-medium text-gray-900">{t(`expenses.categories.${e.category}`)}</span>
-                  {e.property_id && <span className="text-gray-500"> · {flatName.get(e.property_id) ?? '—'}</span>}
-                  {e.agent_id && <span className="text-gray-500"> · {agentName.get(e.agent_id) ?? '—'}</span>}
+                  <span className="font-medium text-ink">{t(`expenses.categories.${e.category}`)}</span>
+                  {e.property_id && <span className="text-ink-muted"> · {flatName.get(e.property_id) ?? '—'}</span>}
+                  {e.agent_id && <span className="text-ink-muted"> · {agentName.get(e.agent_id) ?? '—'}</span>}
                   {(e.payee || e.note) && (
-                    <span className="block truncate text-xs text-gray-500">
+                    <span className="block truncate text-xs text-ink-muted">
                       {[e.payee, e.note].filter(Boolean).join(' · ')}
                     </span>
                   )}
                 </span>
-                <span className="font-semibold text-gray-900">{format(e.amount)}</span>
+                <span className="shrink-0 font-semibold tabular-nums text-ink">{format(e.amount)}</span>
                 <button
                   type="button"
-                  onClick={() => cancelExpense(e.id)}
+                  onClick={() => setVoiding(e.id)}
                   aria-label={t('expenses.void')}
                   title={t('expenses.void')}
-                  className="flex min-h-11 min-w-11 items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-red-600"
+                  className="flex min-h-11 min-w-11 items-center justify-center rounded-lg text-ink-muted hover:bg-surface-page hover:text-danger"
                 >
                   <Ban className="h-4 w-4" />
                 </button>
@@ -290,6 +316,17 @@ export default function ExpensesPage() {
           </ul>
         )}
       </section>
+
+      <ConfirmDialog
+        open={voiding !== null}
+        title={t('expenses.voidTitle')}
+        message={t('expenses.voidConfirm')}
+        confirmLabel={t('expenses.void')}
+        variant="danger"
+        loading={voidExpense.isPending}
+        onConfirm={cancelExpense}
+        onCancel={() => setVoiding(null)}
+      />
     </div>
   )
 }

@@ -7,6 +7,7 @@
  */
 
 import { useEffect, useRef, type ReactNode } from 'react'
+import i18next from 'i18next'
 import { X } from 'lucide-react'
 import { showBackButton, tapFeedback } from '../../lib/telegram'
 import type { Booking } from '../../types/booking'
@@ -207,7 +208,7 @@ export function Sheet({
               tapFeedback()
               onClose()
             }}
-            aria-label="Close"
+            aria-label={i18next.t('common.close')}
             className="tg-surface flex h-9 w-9 items-center justify-center rounded-full"
           >
             <X className="h-4 w-4" />

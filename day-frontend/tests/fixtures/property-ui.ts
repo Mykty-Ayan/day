@@ -21,10 +21,18 @@ export async function nextStep(page: Page, step: string) {
 
 /** The Pricing card of the property page. */
 export function pricingCard(page: Page): Locator {
-  return page.locator('div.rounded-xl', { has: page.getByRole('heading', { name: 'Pricing', exact: true }) }).last()
+  return page.getByRole('region', { name: 'Pricing', exact: true })
 }
 
 /** An input of the Pricing card: the one in the block after its label. */
 export function priceField(card: Locator, label: string): Locator {
-  return card.getByText(label, { exact: true }).locator('xpath=following-sibling::div[1]//input')
+  return card.getByRole('spinbutton', { name: label, exact: true })
+}
+
+/** Opens one block of the flat by its pencil on the flat's page; returns the side panel. */
+export async function openBlock(page: Page, block: string): Promise<Locator> {
+  await page.getByRole('button', { name: `Edit: ${block}`, exact: true }).first().click()
+  const panel = page.getByRole('dialog', { name: block, exact: true })
+  await expect(panel).toBeVisible()
+  return panel
 }

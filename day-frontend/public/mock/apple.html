@@ -1,0 +1,116 @@
+<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>Макет — даты как в Apple</title><link href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700&display=swap" rel="stylesheet"><script src="https://unpkg.com/lucide@0.460.0/dist/umd/lucide.min.js"></script><link rel="stylesheet" href="base.css">
+<style>
+.lbl { padding:22px 20px 2px; font-size:13px; font-weight:700; color:var(--mute); text-transform:uppercase; letter-spacing:.06em; }
+.lbl small { display:block; text-transform:none; letter-spacing:0; font-weight:500; margin-top:2px; line-height:1.4; }
+.mute { color:var(--mute); }
+.ap-h { display:flex; justify-content:space-between; align-items:baseline; }
+.ap-h h2 { font-size:26px; letter-spacing:-.03em; } .ap-h h2 span { color:var(--mute); font-weight:500; }
+.ap-h a { font-size:15px; font-weight:600; color:var(--accent); }
+.wd, .row7 { display:grid; grid-template-columns:repeat(7,1fr); text-align:center; }
+.wd { margin-top:12px; font-size:12px; font-weight:600; color:var(--mute); }
+.c { position:relative; padding:3px 0; }
+.c i { font-style:normal; display:grid; place-items:center; width:38px; height:38px; margin:0 auto; border-radius:50%; font-size:18px; font-weight:500; position:relative; z-index:1; }
+.c u { display:block; text-decoration:none; font-size:10px; color:var(--mute); height:12px; }
+.c.today i { color:var(--accent); font-weight:700; }
+.c.off i, .c.past i { color:#C7C7CC; } .c.off i { text-decoration:line-through; }
+.c.sel i { background:var(--accent); color:#fff; font-weight:700; }
+.c.in i { color:var(--accent); font-weight:700; }
+.c.in::before, .c.s::before, .c.e::before { content:''; position:absolute; top:3px; height:38px; left:0; right:0; background:var(--accent-soft); }
+.c.s::before { left:50%; } .c.e::before { right:50%; }
+.c .dot { display:block; width:5px; height:5px; border-radius:50%; margin:3px auto 0; background:#34C759; }
+.c.off .dot, .c.past .dot { background:transparent; }
+.c .dot.cheap { background:var(--accent); }
+.line { text-align:center; font-size:15px; font-weight:600; padding:12px 0 0; margin-top:8px; border-top:1px solid #EEEEF2; } .line span { color:var(--mute); font-weight:500; }
+
+/* A — grabber */
+.grab { display:flex; flex-direction:column; align-items:center; gap:4px; margin-top:6px; cursor:pointer; color:var(--mute); font-size:12px; font-weight:600; }
+.grab b { width:40px; height:5px; border-radius:3px; background:#D6D6DD; }
+.month { overflow:hidden; transition:max-height .35s ease; }
+
+/* C — inset grouped rows */
+.grp { background:var(--chip); border-radius:18px; overflow:hidden; }
+.grp .r { display:flex; align-items:center; justify-content:space-between; padding:13px 14px; font-size:16px; }
+.grp .r + .r, .grp .r + .inl, .grp .inl + .r { border-top:1px solid #E4E4EA; }
+.grp .r b { font-weight:500; } .grp .r .v { display:flex; gap:6px; }
+.grp .r .v span { background:#fff; padding:5px 10px; border-radius:9px; font-weight:600; font-size:15px; }
+.grp .r.act .v span:first-child { color:var(--accent); background:var(--accent-soft); }
+.grp .inl { padding:10px 8px 12px; background:#fff; }
+.grp .inl .mh { display:flex; justify-content:space-between; align-items:center; padding:0 8px 6px; font-weight:700; }
+.grp .inl .mh span { display:flex; gap:18px; color:var(--accent); }
+.grp .inl .mh svg { width:20px; height:20px; }
+
+/* D — year */
+.yr { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:12px; }
+.mini { background:var(--chip); border-radius:18px; padding:12px 10px 10px; }
+.mini h4 { font-size:15px; margin-bottom:6px; color:var(--accent); } .mini.now h4 { color:var(--ink); }
+.mini .g { display:grid; grid-template-columns:repeat(7,1fr); gap:2px 0; text-align:center; font-size:9.5px; font-weight:600; }
+.mini .g span { height:14px; line-height:14px; border-radius:50%; }
+.mini .g .o { color:#C7C7CC; text-decoration:line-through; } .mini .g .p { color:#D0D0D6; }
+.mini .g .t { background:var(--accent); color:#fff; width:14px; margin:0 auto; }
+.mini p { margin-top:8px; font-size:12px; color:var(--mute); } .mini p b { color:#1E9E5A; }
+</style></head><body><div class="wrap">
+
+<div class="lbl">A · неделя ⇄ месяц<small>Как переход «День → Месяц» в Календаре. Сверху неделя; потяните ручку вниз — раскроется весь месяц, вверх — снова неделя. Длинная бронь выбирается без листания.</small></div>
+<div class="card">
+  <div class="ap-h"><h2>Ноябрь <span>2026</span></h2><a>Сегодня</a></div>
+  <div class="wd"><span>пн</span><span>вт</span><span>ср</span><span>чт</span><span>пт</span><span>сб</span><span>вс</span></div>
+  <div class="month" id="mA"></div>
+  <div class="grab" id="gA"><b></b><span id="gAt">весь месяц</span></div>
+  <div class="line">4 ноября → 6 ноября <span>· 2 ночи</span></div>
+</div>
+
+<div class="lbl">B · точки вместо цен<small>Как точки событий в Календаре. Зелёная — свободно, синяя — дешевле обычного, без точки — занято. Цифры не мешают читать даты; цена — в строке под неделей.</small></div>
+<div class="card">
+  <div class="ap-h"><h2>Ноябрь <span>2026</span></h2><a>Сегодня</a></div>
+  <div class="wd"><span>пн</span><span>вт</span><span>ср</span><span>чт</span><span>пт</span><span>сб</span><span>вс</span></div>
+  <div class="row7" id="wB"></div>
+  <div class="line">4 → 6 ноября · 2 ночи <span>· 36 000 ₸</span></div>
+  <div style="display:flex;gap:14px;justify-content:center;margin-top:10px;font-size:12px;color:var(--mute)"><span><i class="dot" style="display:inline-block;width:6px;height:6px;border-radius:50%;background:#34C759;margin-right:5px"></i>свободно</span><span><i style="display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--accent);margin-right:5px"></i>дешевле</span><span><s>12</s> занято</span></div>
+</div>
+
+<div class="lbl">C · как «Новое событие»<small>Две строки — «Заезд» и «Выезд» — с датой и временем. Тап по строке раскрывает календарь прямо под ней, второй тап — сворачивает. Самый компактный вид.</small></div>
+<div class="card">
+  <div class="grp">
+    <div class="r act"><b>Заезд</b><div class="v"><span>ср, 4 нояб.</span><span>14:00</span></div></div>
+    <div class="inl"><div class="mh">Ноябрь 2026 <span><i data-lucide="chevron-left"></i><i data-lucide="chevron-right"></i></span></div>
+      <div class="wd" style="margin-top:0"><span>пн</span><span>вт</span><span>ср</span><span>чт</span><span>пт</span><span>сб</span><span>вс</span></div><div id="mC"></div></div>
+    <div class="r"><b>Выезд</b><div class="v"><span>пт, 6 нояб.</span><span>12:00</span></div></div>
+    <div class="r"><b>Ночей</b><div class="v" style="color:var(--mute);font-weight:600">2</div></div>
+  </div>
+</div>
+
+<div class="lbl">D · обзор месяцев<small>Как вид «Год». Тап по «2026» в заголовке — карточки месяцев с занятыми днями и числом свободных ночей. Удобно, когда гость ещё не знает точных дат.</small></div>
+<div class="card">
+  <div class="ap-h"><h2>2026–27</h2><a>Сегодня</a></div>
+  <div class="yr" id="yD"></div>
+</div>
+
+<div style="height:40px"></div>
+</div>
+<script>
+// Ноябрь 2026 начинается в воскресенье; декабрь — во вторник; январь 2027 — в пятницу.
+const busyN=[2,3,12,13];
+function grid(el, {start, len, busy=[], today=null, past=0, a=null, b=null, dots=false, rows=null}){
+ let h=''; const cells=[]; for(let k=0;k<start;k++) cells.push('<div></div>');
+ for(let d=1; d<=len; d++){ let c=''; if(d<=past) c='past'; else if(busy.includes(d)) c='off'; if(d===today) c+=' today';
+  if(d===a) c+=' sel s'; if(d===b) c+=' sel e'; if(a&&b&&d>a&&d<b) c+=' in';
+  const tail=dots?`<span class="dot ${[9,10,16,17].includes(d)?'cheap':''}"></span>`:'';
+  cells.push(`<div class="c ${c}"><i>${d}</i>${tail}</div>`); }
+ const out=[]; for(let r=0;r<cells.length;r+=7) out.push(`<div class="row7">${cells.slice(r,r+7).join('')}</div>`);
+ el.innerHTML=(rows?out.slice(rows[0],rows[1]):out).join(''); }
+// A
+const mA=document.getElementById('mA'); let open=false;
+function drawA(){ grid(mA,{start:6,len:30,busy:busyN,a:4,b:6,rows:open?null:[1,2]}); document.getElementById('gAt').textContent=open?'только неделя':'весь месяц'; }
+document.getElementById('gA').onclick=()=>{ open=!open; drawA(); }; drawA();
+// B
+grid(document.getElementById('wB'),{start:6,len:30,busy:busyN,a:4,b:6,dots:true,rows:[1,2]});
+document.getElementById('wB').classList.remove('row7');
+// C
+grid(document.getElementById('mC'),{start:6,len:30,busy:busyN,a:4,b:6});
+// D
+const months=[['Ноябрь',6,30,busyN,'now'],['Декабрь',1,31,[5,6,19,20,31],''],['Январь',4,31,[1,2,3],''],['Февраль',0,28,[14],'']];
+document.getElementById('yD').innerHTML=months.map(([n,s,l,bz,cl])=>{ let g=''; for(let k=0;k<s;k++) g+='<span></span>';
+ for(let d=1;d<=l;d++) g+=`<span class="${bz.includes(d)?'o':''} ${cl&&d===4?'t':''}">${d}</span>`;
+ return `<div class="mini ${cl}"><h4>${n}</h4><div class="g">${g}</div><p><b>${l-bz.length}</b> свободных ночей</p></div>`; }).join('');
+lucide.createIcons();
+</script></body></html>

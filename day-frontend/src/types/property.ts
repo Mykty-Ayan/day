@@ -12,6 +12,14 @@ export type AmenityCategory =
 
 /** guest: a check-in photo (the entrance, the lock): never in the listing. */
 export type PhotoAudience = 'public' | 'guest'
+/** A place near the flat for the guest: a shop, a park, the airport, and how far. */
+export interface NearbyPlace {
+  name: string
+  minutes: number
+  by: 'walk' | 'car'
+}
+/** Where a check-in photo or video stands on the guest's booking page. */
+export type MediaSection = 'door' | 'path' | 'howto'
 
 export interface PropertyPhoto {
   id: string
@@ -21,6 +29,9 @@ export interface PropertyPhoto {
   sort_order: number
   caption: string | null
   audience: PhotoAudience
+  /** A check-in one may be a video. */
+  kind?: 'photo' | 'video'
+  section?: MediaSection
   created_at: string
 }
 
@@ -133,12 +144,16 @@ export interface Property {
   bathrooms: number | null
   check_in_hour: number | null
   check_out_hour: number | null
+  /** A later check-out the guest may ask for: until this hour, for this price (null: free). */
+  late_check_out_hour?: number | null
+  late_check_out_price?: number | null
   check_in_method: CheckInMethod | null
   area_living: number | null
   area_total: number | null
   check_in_instructions: string
   check_out_instructions: string
   house_rules: string
+  nearby?: NearbyPlace[]
   wifi_name: string | null
   wifi_password: string | null
   photos: PropertyPhoto[]
@@ -181,12 +196,15 @@ export interface PropertyCreateInput {
   bathrooms?: number | null
   check_in_hour?: number | null
   check_out_hour?: number | null
+  late_check_out_hour?: number | null
+  late_check_out_price?: number | null
   check_in_method?: CheckInMethod | null
   area_living?: number | null
   area_total?: number | null
   check_in_instructions?: string
   check_out_instructions?: string
   house_rules?: string
+  nearby?: NearbyPlace[]
   wifi_name?: string
   wifi_password?: string
 }
@@ -236,6 +254,8 @@ export interface PropertyAuditLog {
   id: string
   property_id: string
   changed_by: string | null
+  /** The person's name; none for a change by an API key or the system. */
+  changed_by_name?: string | null
   action: string
   field_name: string | null
   old_value: string | null
@@ -287,6 +307,17 @@ export interface PropertyBlock {
   feed_id?: string | null
   /** That platform, as bookings name it (airbnb, booking). */
   source?: string | null
+}
+
+/** A flat's prices without seasons and discounts, as the server keeps them. */
+export type PricingBase = Omit<PricingConfig, 'seasonal_prices' | 'discount_rules'>
+
+/** What the flats list shows beyond a flat's own fields, for every flat in one call. */
+export interface PropertySetup {
+  property_id: string
+  pricing: PricingBase | null
+  /** A platform's calendar failed on its last read. */
+  calendar_error: boolean
 }
 
 /** A platform's iCal calendar of the flat, read by Day every half hour. */

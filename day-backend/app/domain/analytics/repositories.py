@@ -6,7 +6,7 @@ import abc
 import uuid
 from datetime import date
 
-from app.domain.analytics.entities import PropertyMetrics, TimeSeriesPoint
+from app.domain.analytics.entities import PaymentsSummary, PropertyMetrics, TimeSeriesPoint
 from app.domain.analytics.value_objects import Granularity
 
 
@@ -19,7 +19,7 @@ class AnalyticsRepository(abc.ABC):
         date_to: date,
         *,
         property_ids: list[uuid.UUID] | None = None,
-        source: str | None = None,
+        source: list[str] | None = None,
     ) -> list[PropertyMetrics]:
         ...
 
@@ -32,6 +32,18 @@ class AnalyticsRepository(abc.ABC):
         granularity: Granularity,
         *,
         property_ids: list[uuid.UUID] | None = None,
-        source: str | None = None,
+        source: list[str] | None = None,
     ) -> list[TimeSeriesPoint]:
+        ...
+
+    @abc.abstractmethod
+    async def get_payments_summary(
+        self,
+        company_id: uuid.UUID,
+        date_from: date,
+        date_to: date,
+        *,
+        property_ids: list[uuid.UUID] | None = None,
+        source: list[str] | None = None,
+    ) -> PaymentsSummary:
         ...

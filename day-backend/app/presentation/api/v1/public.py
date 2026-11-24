@@ -26,6 +26,7 @@ from app.application.property.public_stay import GetPublicStayService
 from app.domain.booking.exceptions import BookingOverlapError, PropertyBlockedError, StayRulesError
 from app.domain.booking.value_objects import RentalMode
 from app.domain.messaging.value_objects import NotificationEvent
+from app.domain.property.value_objects import PropertyStatus
 from app.infrastructure.database import get_session
 from app.infrastructure.login_throttle import StayKeyThrottle, get_stay_key_throttle
 from app.infrastructure.messaging.booking_notice import notify_guest_hold
@@ -57,15 +58,18 @@ from app.infrastructure.repositories.property import (
 )
 from app.infrastructure.repositories.settings import SqlCompanySettingsRepository
 from app.infrastructure.repositories.site import SqlCompanySiteRepository
+from app.infrastructure.storage.s3 import signed_photo_url
 from app.presentation.api.v1.offers import offers_service
 from app.presentation.schemas.guest_orders import GuestOrderCreate, GuestOrderPlaced
 from app.presentation.schemas.guest_panel import GuestPanelResponse
 from app.presentation.schemas.public import (
     PublicOfferBook,
     PublicOfferBooking,
+    PublicOfferCompany,
     PublicOfferResponse,
     PublicStayBook,
     PublicStayCompany,
+    PublicStayQuote,
     PublicStayResponse,
     StayHereResponse,
     StayKeyBody,
@@ -105,6 +109,7 @@ async def public_stay(
         SqlSeasonalPriceRepository(session),
         SqlDayPriceRepository(session),
         SqlBookingRepository(session),
+        SqlCompanySettingsRepository(session),
     )
     try:
         stay = await service.execute(code, start, end)
@@ -131,18 +136,29 @@ async def public_offer(code: str, session: AsyncSession = Depends(get_session)):
         raise HTTPException(status_code=410, detail="Expired")
     except ValueError:
         raise HTTPException(status_code=404, detail="Not found")
-    return PublicOfferResponse.from_offer(offer, await _holds(session).current(offer.offer))
+    page = PublicOfferResponse.from_offer(offer, await _holds(session).current(offer.offer))
+    site = await SqlCompanySiteRepository(session).get(offer.offer.company_id)
+    if site is not None:
+        page.company = PublicOfferCompany(title=site.title, logo_url=site.logo_url)
+    return page
+
+
+def public_prices(session: AsyncSession) -> PriceCalculatorService:
+    """The price a booking from a public page is made at: the guest is shown the same."""
+    return PriceCalculatorService(
+        SqlPricingConfigRepository(session),
+        SqlSeasonalPriceRepository(session),
+        SqlDiscountRuleRepository(session),
+        SqlDayPriceRepository(session),
+        SqlPropertyRepository(session),
+        SqlCompanySettingsRepository(session),
+    )
 
 
 def _holds(session: AsyncSession) -> GuestHoldService:
     bookings, guests = SqlBookingRepository(session), SqlGuestRepository(session)
     properties, pricing = SqlPropertyRepository(session), SqlPricingConfigRepository(session)
-    prices = PriceCalculatorService(
-        pricing,
-        SqlSeasonalPriceRepository(session),
-        SqlDiscountRuleRepository(session),
-        SqlDayPriceRepository(session),
-    )
+    prices = public_prices(session)
     audit, settings_repo = SqlBookingAuditLogRepository(session), SqlCompanySettingsRepository(session)
     return GuestHoldService(
         SqlGuestOfferRepository(session),
@@ -187,7 +203,7 @@ async def book_from_offer(code: str, body: PublicOfferBook, session: AsyncSessio
         await session.rollback()
         raise HTTPException(status_code=404 if str(e) == "Not found" else 422, detail=str(e))
     await session.commit()
-    return PublicOfferBooking.from_hold(held)
+    return PublicOfferBooking.from_hold(held, with_page=True)
 
 
 @public_router.post("/stays/{code}/book", response_model=PublicOfferBooking, status_code=201)
@@ -221,7 +237,7 @@ async def book_from_stay(code: str, body: PublicStayBook, session: AsyncSession 
         await session.rollback()
         raise HTTPException(status_code=404 if str(e) == "Not found" else 422, detail=str(e))
     await session.commit()
-    return PublicOfferBooking.from_hold(held)
+    return PublicOfferBooking.from_hold(held, with_page=True)
 
 
 def _stay_key(session: AsyncSession) -> StayKeyService:
@@ -230,6 +246,33 @@ def _stay_key(session: AsyncSession) -> StayKeyService:
         SqlBookingRepository(session),
         SqlGuestRepository(session),
         SqlCompanySettingsRepository(session),
+    )
+
+
+@public_router.get("/stays/{code}/quote", response_model=PublicStayQuote)
+async def stay_quote(
+    code: str,
+    check_in: date = Query(),
+    check_out: date = Query(),
+    guests: int = Query(ge=1, le=50),
+    session: AsyncSession = Depends(get_session),
+):
+    """What a stay by the night costs for this many guests, counted as the booking will be:
+    extra guests and discounts included. The flat's page shows it before the guest books."""
+    prop = await SqlPropertyRepository(session).get_by_public_code(code)
+    if prop is None or prop.status != PropertyStatus.ACTIVE or prop.rental_mode == RentalMode.HOURLY:
+        raise HTTPException(status_code=404, detail="Not found")
+    if not (check_in < check_out <= check_in + timedelta(days=_MAX_NIGHTS)):
+        raise HTTPException(status_code=422, detail=f"check_out must be after check_in, at most {_MAX_NIGHTS} nights")
+    try:
+        price = await public_prices(session).calculate(prop.id, check_in, check_out, guests, 0, RentalMode.DAILY)
+    except ValueError:
+        raise HTTPException(status_code=404, detail="Not found")
+    return PublicStayQuote(
+        nights=price.nights,
+        total=float(price.total),
+        extra_guests=float(price.extra_guest_surcharge),
+        discount=float(price.discount_amount),
     )
 
 
@@ -286,12 +329,13 @@ async def guest_panel(code: str, session: AsyncSession = Depends(get_session)):
         SqlProductRepository(session),
         SqlGuestOrderRepository(session),
         photos=SqlPropertyPhotoRepository(session),
+        deposits=SqlBookingDepositRepository(session),
     )
     try:
         panel = await service.execute(code)
     except ValueError:
         raise HTTPException(status_code=404, detail="Not found")
-    return GuestPanelResponse.from_panel(panel)
+    return GuestPanelResponse.from_panel(panel, sign=signed_photo_url)
 
 
 @public_router.post("/guest/{code}/checked-out")
@@ -304,19 +348,21 @@ async def guest_checked_out(code: str, session: AsyncSession = Depends(get_sessi
         SqlPropertyRepository(session),
         SqlCleaningTaskRepository(session),
         SqlCompanySettingsRepository(session),
+        audit=SqlBookingAuditLogRepository(session),
     )
     try:
         left = await service.execute(code)
-        await build_notification_service(session).notify_company(
-            left.booking.company_id,
-            NotificationEvent.GUEST_CHECKED_OUT,
-            {
-                "property_name": left.flat_name or "—",
-                "guest_name": left.guest_name or "—",
-                "cleaning_created": left.cleaning_created,
-                "booking_id": str(left.booking.id),
-            },
-        )
+        if left.first:
+            await build_notification_service(session).notify_company(
+                left.booking.company_id,
+                NotificationEvent.GUEST_CHECKED_OUT,
+                {
+                    "property_name": left.flat_name or "—",
+                    "guest_name": left.guest_name or "—",
+                    "cleaning_created": left.cleaning_created,
+                    "booking_id": str(left.booking.id),
+                },
+            )
     except LookupError:
         await session.rollback()
         raise HTTPException(status_code=404, detail="Not found")

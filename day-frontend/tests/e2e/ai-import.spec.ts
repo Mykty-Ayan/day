@@ -24,12 +24,11 @@ test.describe('AI Import - E2E', () => {
     await expect(urlInput).toBeVisible({ timeout: 5000 })
   })
 
-  test('AI Import link in navigation', async ({ page, isMobile }) => {
-    await page.goto('/')
+  test('AI Import link in navigation', async ({ page }) => {
+    await page.goto('/settings')
     await page.waitForLoadState('networkidle')
 
-    if (isMobile) await page.getByRole('button', { name: 'More' }).first().click()
-    // Look for an AI Import navigation link
+    // Look for an AI Import tab
     const navLink = page.getByRole('link', { name: /ai.?import|import/i })
     const hasNavLink = await navLink.first().isVisible({ timeout: 3000 }).catch(() => false)
 

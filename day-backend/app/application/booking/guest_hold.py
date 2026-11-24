@@ -9,6 +9,7 @@ the guest pays now.
 
 from __future__ import annotations
 
+import re
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta, timezone
@@ -34,8 +35,12 @@ from app.domain.settings.repositories import CompanySettingsRepository
 from app.domain.site.repositories import CompanySiteRepository
 
 HOLD_MINUTES = 30
-# A stay booked from a flat's page: as long and as far ahead as a personal link takes.
-SITE_MAX_NIGHTS = 120
+# A stay booked from a flat's page, by anyone with no login. Its unpaid hold is exported
+# to iCal as taken, so a long one closes the flat on Airbnb and Booking.com; with three
+# holds per flat, 120 nights let made-up phones close four months. Thirty nights is a
+# month's stay; a longer one goes through the host. A personal link (/o/) is not capped
+# here: its dates are set by the host or the CRM, not by the guest.
+SITE_MAX_NIGHTS = 30
 SITE_MAX_HOURS = 24
 SITE_HORIZON_DAYS = 730
 # Unpaid holds from a flat's page at once: real guests rarely wait on more, and
@@ -60,6 +65,10 @@ class OfferBooking:
     # Who booked: the name on the form, or the one aidyn took from the chat. The
     # booking's guest is found by phone and may carry an older name.
     name: str = ""
+    # The booking page may go to whoever just booked: false when the number on the form
+    # belongs to a guest the company already has. The page shows that guest's name, and
+    # an anonymous form proves nothing about owning the number.
+    page_for_booker: bool = False
 
 
 class GuestHoldService:
@@ -134,6 +143,10 @@ class GuestHoldService:
             # The guest found by phone keeps its own name: who booked is told here.
             notes += f". С формы: {name or offer.guest_name}, {phone or offer.guest_phone}"
         name, phone = name or offer.guest_name, phone or offer.guest_phone
+        # The link's own number is the guest the company sent it to: the page is theirs. Another
+        # number given on the form gets no page, known or not: given to a new number only, it
+        # would tell whoever holds the link which numbers the company knows.
+        page_for_booker = bool(offer.guest_phone) and _same_number(phone, offer.guest_phone)
         booking = await self._create.execute(
             CreateBookingInput(
                 company_id=offer.company_id,
@@ -156,7 +169,10 @@ class GuestHoldService:
             await self._deposits.create(BookingDeposit(booking_id=booking.id, amount=deposit))
         await self._offers.set_booking(offer.id, booking.id)
         offer.booking_id = booking.id
-        return OfferBooking(booking=booking, flat=prop.public_code, deposit=deposit, phone=phone, name=name)
+        return OfferBooking(
+            booking=booking, flat=prop.public_code, deposit=deposit, phone=phone, name=name,
+            page_for_booker=page_for_booker,
+        )
 
     async def book_stay(
         self,
@@ -236,12 +252,15 @@ class GuestHoldService:
                 adults_count=guests,
                 source=BookingSource.SITE,
                 # The guest found by phone keeps its own name: who booked is told here.
-                notes=f"Гость забронировал на странице квартиры /s/{prop.public_code}. С формы: {name}, {phone}",
+                notes=f"Гость забронировал на странице объекта /s/{prop.public_code}. С формы: {name}, {phone}",
                 expires_at=self._now() + timedelta(minutes=HOLD_MINUTES),
             )
         )
         if deposit is not None:
             await self._deposits.create(BookingDeposit(booking_id=booking.id, amount=deposit))
+        # No booking page for anyone from an anonymous form: given to a new number only, its
+        # absence would tell a stranger that the company knows the number typed. The host
+        # sends the link with the invoice, from the booking card.
         return OfferBooking(booking=booking, flat=prop.public_code, deposit=deposit, phone=phone, name=name)
 
     async def current(self, offer: GuestOffer) -> OfferBooking | None:
@@ -274,3 +293,11 @@ class GuestHoldService:
         if booking is None or booking.status == BookingStatus.CANCELLED or booking.company_id != offer.company_id:
             return None
         return booking
+
+
+def _same_number(a: str, b: str) -> bool:
+    """One number typed two ways. A Kazakh number in any form; any other one by its digits:
+    normalise_phone gives "" for every foreign number, and two of them are not one."""
+    key_a = normalise_phone(a) or re.sub(r"\D", "", a or "")
+    key_b = normalise_phone(b) or re.sub(r"\D", "", b or "")
+    return bool(key_a) and key_a == key_b

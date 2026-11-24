@@ -13,9 +13,10 @@ interface DetailsData {
 interface Props {
   data: DetailsData
   onChange: (data: DetailsData) => void
+  errors?: Record<string, string>
 }
 
-export default function PropertyFormStepDetails({ data, onChange }: Props) {
+export default function PropertyFormStepDetails({ data, onChange, errors = {} }: Props) {
   const { t } = useTranslation()
   function update<K extends keyof DetailsData>(key: K, value: string) {
     onChange({ ...data, [key]: value })
@@ -25,7 +26,7 @@ export default function PropertyFormStepDetails({ data, onChange }: Props) {
     <div className="space-y-4">
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
-          <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">
+          <label className="block text-xs font-semibold text-ink-muted mb-1.5">
             {t('properties.form.rooms')}
           </label>
           <NumberInput
@@ -37,7 +38,7 @@ export default function PropertyFormStepDetails({ data, onChange }: Props) {
           />
         </div>
         <div>
-          <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">
+          <label className="block text-xs font-semibold text-ink-muted mb-1.5">
             {t('properties.form.beds')}
           </label>
           <NumberInput
@@ -47,16 +48,17 @@ export default function PropertyFormStepDetails({ data, onChange }: Props) {
             step={1}
             placeholder="3"
           />
-          <p className="mt-1.5 text-xs text-gray-400">{t('properties.form.bedsHint')}</p>
+          <p className="mt-1.5 text-xs text-ink-muted">{t('properties.form.bedsHint')}</p>
         </div>
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
-          <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">
+          <label htmlFor="details-max-guests" className="block text-xs font-semibold text-ink-muted mb-1.5">
             {t('properties.form.maxGuests')}
           </label>
           <NumberInput
+            id="details-max-guests"
             value={data.max_guests}
             onChange={(value) => update('max_guests', value)}
             min={1}
@@ -64,10 +66,14 @@ export default function PropertyFormStepDetails({ data, onChange }: Props) {
             step={1}
             placeholder="4"
           />
-          <p className="mt-1.5 text-xs text-gray-400">{t('properties.form.maxGuestsHint')}</p>
+          {errors.max_guests ? (
+            <p role="alert" className="mt-1.5 text-xs text-danger">{errors.max_guests}</p>
+          ) : (
+            <p className="mt-1.5 text-xs text-ink-muted">{t('properties.form.maxGuestsHint')}</p>
+          )}
         </div>
         <div>
-          <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">
+          <label className="block text-xs font-semibold text-ink-muted mb-1.5">
             {t('properties.form.bathrooms')}
           </label>
           <NumberInput
@@ -83,7 +89,7 @@ export default function PropertyFormStepDetails({ data, onChange }: Props) {
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
-          <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">
+          <label className="block text-xs font-semibold text-ink-muted mb-1.5">
             {t('properties.form.livingArea')}
           </label>
           <NumberInput
@@ -95,7 +101,7 @@ export default function PropertyFormStepDetails({ data, onChange }: Props) {
           />
         </div>
         <div>
-          <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">
+          <label className="block text-xs font-semibold text-ink-muted mb-1.5">
             {t('properties.form.totalArea')}
           </label>
           <NumberInput

@@ -1,22 +1,21 @@
 /**
  * The property forms. A cleared field used to go out as "missing", and the
  * server keeps a missing field as it was: the edit looked saved and was not.
- * A failed price save after the flat was created made the next click create
- * a second flat.
  */
 
 import { expect, test } from '@playwright/test'
 import {
   bufferMinutesValid,
+  changedFields,
+  clearsGuestsOnSale,
   formToUpdate,
+  is2gisLink,
   listingInBoth,
   listingLines,
   listingLinksValid,
   propertyToForm,
-  saveWizard,
-  wizardToUpdate,
 } from '../../src/pages/properties/propertyForm'
-import type { Property, PropertyCreateInput } from '../../src/types/property'
+import type { Property } from '../../src/types/property'
 
 const flat = {
   id: 'p1',
@@ -70,6 +69,21 @@ test('a cleared field goes out as null, so the server clears it', () => {
   expect(body.wifi_name).toBeNull()
 })
 
+test('a late check-out price goes out only with its hour', () => {
+  const form = propertyToForm({ ...flat, late_check_out_hour: 15, late_check_out_price: 5000 } as Property)
+  expect(form.rules.late_check_out_hour).toBe('15')
+  expect(form.rules.late_check_out_price).toBe('5000')
+  const opened = propertyToForm(flat)
+  expect(formToUpdate(form, opened)).toMatchObject({ late_check_out_hour: 15, late_check_out_price: 5000 })
+  // Free until 15:00: no price.
+  form.rules.late_check_out_price = ''
+  expect(formToUpdate(form, opened)).toMatchObject({ late_check_out_hour: 15, late_check_out_price: null })
+  // No later hour: a price left in the field has nothing to sell.
+  form.rules.late_check_out_hour = ''
+  form.rules.late_check_out_price = '5000'
+  expect(formToUpdate(form, opened)).toMatchObject({ late_check_out_hour: null, late_check_out_price: null })
+})
+
 test('floor 0 is a floor, not an empty field', () => {
   const form = propertyToForm(flat)
   expect(form.address.floor).toBe('0')
@@ -119,52 +133,6 @@ test('Wi-Fi name and password keep their spaces', () => {
   expect(formToUpdate(form, propertyToForm(spaced)).wifi_name).toBe('Guest WiFi ')
   form.rules.wifi_password = ' secret123 '
   expect(formToUpdate(form, propertyToForm(spaced)).wifi_password).toBe(' secret123 ')
-})
-
-test('a retry after a failed save finishes the flat already created', async () => {
-  const created = { current: null as string | null }
-  const calls: string[] = []
-  const create = async () => {
-    calls.push('create')
-    return 'p1'
-  }
-  const update = async (id: string) => {
-    calls.push(`update ${id}`)
-  }
-  let finishes = 0
-  const failOnce = async (id: string) => {
-    calls.push(`finish ${id}`)
-    finishes += 1
-    if (finishes === 1) throw new Error('prices failed')
-  }
-
-  await expect(saveWizard(created, create, update, failOnce)).rejects.toThrow('prices failed')
-  expect(await saveWizard(created, create, update, failOnce)).toBe('p1')
-  // The retry saves the form as it is now onto the same flat, then finishes it.
-  expect(calls).toEqual(['create', 'finish p1', 'update p1', 'finish p1'])
-})
-
-test('a retry saves the form changed between attempts', () => {
-  // First try: daily, with a description. The price save failed; the user went back,
-  // switched to hourly and cleared the description. The flat must follow the form.
-  const retry: PropertyCreateInput = {
-    name: 'Студия',
-    internal_name: '62auc',
-    type: 'apartment',
-    rental_mode: 'hourly',
-    description: undefined,
-    floor: 0,
-    wifi_name: 'Guest WiFi ',
-  }
-  expect(wizardToUpdate(retry)).toEqual({
-    name: 'Студия',
-    internal_name: '62auc',
-    type: 'apartment',
-    rental_mode: 'hourly',
-    description: null,
-    floor: 0,
-    wifi_name: 'Guest WiFi ',
-  })
 })
 
 test('stay rules go out as numbers, and a cleared one as null', () => {
@@ -225,4 +193,47 @@ test('hourly listing links are a list of their own, and one link is not both kin
 test('the cleaning buffer is 15 to 1440 minutes in steps of 15, or empty', () => {
   expect(['', '15', '30', '1440'].map(bufferMinutesValid)).toEqual([true, true, true, true])
   expect(['20', '0', '1455', 'abc', '-15'].map(bufferMinutesValid)).toEqual([false, false, false, false, false])
+})
+
+test('a panel sends only what changed in it, a cleared field as null', () => {
+  const opened = propertyToForm(flat)
+  expect(changedFields(opened, opened)).toEqual({})
+  const form = propertyToForm(flat)
+  form.address.floor = '7'
+  form.basic.description = ''
+  expect(changedFields(form, opened)).toEqual({ floor: 7, description: null })
+})
+
+test('a flat on sale may not lose its number of guests, and one without it still saves the rest', () => {
+  const opened = propertyToForm(flat)
+  const cleared = { ...opened, details: { ...opened.details, max_guests: ' ' } }
+  expect(clearsGuestsOnSale('active', cleared, opened)).toBe(true)
+  // A draft may drop it: it is offered to nobody.
+  expect(clearsGuestsOnSale('new', cleared, opened)).toBe(false)
+  // On sale from before the rule with no number: changing the rooms is not clearing.
+  const old = propertyToForm({ ...flat, max_guests: null } as Property)
+  expect(clearsGuestsOnSale('active', { ...old, details: { ...old.details, rooms: '3' } }, old)).toBe(false)
+})
+
+test('the map link is kept with the address, and a cleared one goes out as null', () => {
+  const opened = propertyToForm(flat)
+  expect(opened.address.map_url).toBe('https://go.2gis.com/abc')
+  const form = propertyToForm(flat)
+  form.address.map_url = ''
+  form.address.latitude = '43.238286'
+  form.address.longitude = '76.945623'
+  expect(changedFields(form, opened)).toEqual({ map_url: null, latitude: 43.238286, longitude: 76.945623 })
+})
+
+test('a 2GIS link is told from other links', () => {
+  for (const link of [
+    'https://go.2gis.com/abcd',
+    'https://2gis.kz/almaty/geo/9430021605163017',
+    ' http://2gis.ru/moscow/firm/1 ',
+  ]) {
+    expect(is2gisLink(link)).toBe(true)
+  }
+  for (const link of ['https://yandex.kz/maps/?pt=76.9,43.2', 'https://evil.com/2gis.kz/', '2gis.kz/almaty', '']) {
+    expect(is2gisLink(link)).toBe(false)
+  }
 })

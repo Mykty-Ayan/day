@@ -1,9 +1,10 @@
 import { useRef, useState } from 'react'
+import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { isAxiosError } from 'axios'
 import { useTranslation } from 'react-i18next'
 import { parseISO } from 'date-fns'
-import { MessageCircle, Minus, Plus, X } from 'lucide-react'
-import { bookStay, type PublicOfferBooking, type PublicStay } from '../../api/public'
+import { ArrowRight, MessageCircle, Minus, Plus, X } from 'lucide-react'
+import { bookStay, getStayQuote, type PublicOfferBooking, type PublicStay } from '../../api/public'
 import { money } from '../../lib/public-stay'
 
 /** wa.me with the flat and, once picked, the dates: the owner sees what is asked. */
@@ -29,38 +30,42 @@ export function BookBar({
   /** False when the page has no nights to pick: the button would lead nowhere. */
   canPickDates: boolean
   onPickDates: () => void
-  onBook: () => void
+  /** Null when the flat cannot be booked from its page (no company site): the bar tells the price only. */
+  onBook: (() => void) | null
 }) {
   const { t } = useTranslation()
   const ask = askLink(stay, t('guestStay.askText', { flat: stay.name, code: stay.code, dates: dates ? ` — ${dates}` : '' }))
   // A flat let only by the hour has no nights to pick here: the guest writes instead.
   const byNight = stay.prices.night != null
   return (
-    <div className="fixed inset-x-0 bottom-0 z-sticky border-t border-gray-200 bg-white/95 backdrop-blur">
-      <div className="mx-auto flex max-w-[640px] items-center justify-between gap-3 px-5 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
-        <div className="min-w-0">
+    // A floating bar, as the approved mockup: the price on the start, the step on a dark pill with the accent arrow.
+    <div className="fixed inset-x-0 bottom-0 z-sticky px-2.5 pb-[max(10px,env(safe-area-inset-bottom))] pt-2.5">
+      {/* Wraps the buttons onto a second line when the total and the buttons do not fit one: neither is cut. */}
+      <div className="mx-auto flex max-w-[460px] flex-wrap items-center justify-between gap-2.5 rounded-[36px] bg-white/90 py-2 pe-2 ps-[22px] shadow-[0_10px_30px_rgba(17,17,20,0.12)] backdrop-blur-xl">
+        {/* As narrow as the total: the dates line below it truncates instead of widening the block. */}
+        <div className="flex-1">
           {quote ? (
             <>
-              <span data-testid="bar-total" className="block text-lg font-bold">{money(quote.total, locale)}</span>
-              <span className="block truncate text-sm text-gray-600">
+              <span data-testid="bar-total" className="block whitespace-nowrap text-lg font-bold leading-tight">{money(quote.total, locale)}</span>
+              <span className="block w-0 min-w-full truncate text-[13px] text-[#6B6B74]">
                 {dates} · {t('guest.nights', { count: quote.count })}
               </span>
             </>
           ) : stay.prices.night != null || stay.prices.hour != null ? (
             <>
-              <span className="block text-lg font-bold">{money((stay.prices.night ?? stay.prices.hour)!, locale)}</span>
-              <span className="block text-sm text-gray-600">
+              <span className="block text-lg font-bold leading-tight">{money((stay.prices.night ?? stay.prices.hour)!, locale)}</span>
+              <span className="block text-[13px] text-[#6B6B74]">
                 {stay.prices.night != null ? t('guest.perNight') : t('guest.perHour')}
               </span>
             </>
           ) : stay.prices.tariffs?.length ? (
             <>
-              <span className="block text-lg font-bold">{money(stay.prices.tariffs[0].price, locale)}</span>
-              <span className="block text-sm text-gray-600">{t(`guest.tariff_${stay.prices.tariffs[0].name}`)}</span>
+              <span className="block text-lg font-bold leading-tight">{money(stay.prices.tariffs[0].price, locale)}</span>
+              <span className="block text-[13px] text-[#6B6B74]">{t(`guest.tariff_${stay.prices.tariffs[0].name}`)}</span>
             </>
           ) : null}
         </div>
-        <div className="flex shrink-0 items-center gap-2">
+        <div className="ms-auto flex shrink-0 items-center gap-2">
           {ask && (
             <a
               href={ask}
@@ -68,18 +73,22 @@ export function BookBar({
               rel="noopener noreferrer"
               aria-label={t('guestStay.ask')}
               title={t('guestStay.ask')}
-              className="flex h-12 w-12 items-center justify-center rounded-xl border border-gray-200 text-gray-800"
+              className="flex h-12 w-12 items-center justify-center rounded-full bg-[#F3F3F6] text-[#111114]"
             >
               <MessageCircle className="h-5 w-5" aria-hidden />
             </a>
           )}
-          {byNight && (quote || canPickDates) && (
+          {byNight && (quote ? onBook : canPickDates) && (
             <button
               type="button"
-              onClick={quote ? onBook : onPickDates}
-              className="h-12 rounded-xl bg-[var(--accent)] px-5 text-base font-semibold text-[var(--on-accent)]"
+              onClick={quote ? onBook! : onPickDates}
+              className={`flex h-14 items-center gap-3 whitespace-nowrap rounded-full bg-[#111114] px-4 text-base font-semibold text-white ${quote ? 'min-[440px]:pe-2 min-[440px]:ps-[22px]' : 'min-[380px]:pe-2 min-[380px]:ps-[22px]'}`}
             >
               {quote ? t('guestBook.book') : t('guestStay.pickDates')}
+              {/* The arrow is decoration: a narrow phone keeps its room for the total. */}
+              <span className={`hidden h-10 w-10 items-center justify-center rounded-full bg-[var(--accent)] text-[var(--on-accent)] ${quote ? 'min-[440px]:flex' : 'min-[380px]:flex'}`}>
+                <ArrowRight className="h-5 w-5 rtl:rotate-180" aria-hidden />
+              </span>
             </button>
           )}
         </div>
@@ -100,6 +109,7 @@ export function BookSheet({
   checkIn,
   checkOut,
   total,
+  guests: searched = null,
   onClose,
   onBooked,
 }: {
@@ -108,6 +118,8 @@ export function BookSheet({
   checkIn: string
   checkOut: string
   total: number
+  /** The guests the company's search asked for. */
+  guests?: number | null
   onClose: () => void
   onBooked: (booking: PublicOfferBooking) => void
 }) {
@@ -115,7 +127,15 @@ export function BookSheet({
   const most = stay.max_guests ?? 50
   const [name, setName] = useState('')
   const [phone, setPhone] = useState('')
-  const [guests, setGuests] = useState(Math.min(2, most))
+  const [guests, setGuests] = useState(Math.min(searched ?? 2, most))
+  // The booking's own price for these guests: extra guests and discounts, as it will be made.
+  const exact = useQuery({
+    queryKey: ['stay-quote', stay.code, checkIn, checkOut, guests],
+    queryFn: () => getStayQuote(stay.code, checkIn, checkOut, guests),
+    placeholderData: keepPreviousData,
+    retry: 1,
+  })
+  const priced = exact.data && !exact.isPlaceholderData ? exact.data : null
   const [sending, setSending] = useState(false)
   // Two taps in one moment both see `sending` false; this does not wait for a render.
   const inFlight = useRef(false)
@@ -165,7 +185,7 @@ export function BookSheet({
         <div className="flex items-start justify-between gap-3">
           <div>
             <h2 id="book-title" className="text-xl font-bold">{t('guestBook.title')}</h2>
-            <p dir="auto" className="text-sm text-gray-600">
+            <p dir="auto" className="text-sm text-[#6B6B74]">
               {stay.name} · {day.format(parseISO(checkIn))} – {day.format(parseISO(checkOut))}
             </p>
           </div>
@@ -199,7 +219,7 @@ export function BookSheet({
             maxLength={50}
             className={`h-12 rounded-xl border px-3 text-base ${phoneWrong ? 'border-amber-600' : 'border-gray-300'}`}
           />
-          <span className={`text-xs ${phoneWrong ? 'text-amber-800' : 'text-gray-500'}`}>
+          <span className={`text-xs ${phoneWrong ? 'text-amber-800' : 'text-[#6B6B74]'}`}>
             {phoneWrong ? t('guestBook.phoneWrong') : t('guestBook.phoneHint')}
           </span>
         </label>
@@ -228,7 +248,7 @@ export function BookSheet({
           </div>
         </div>
 
-        <section className="flex flex-col gap-2 rounded-2xl bg-gray-50 p-4">
+        <section className="flex flex-col gap-2 rounded-2xl bg-[#F3F3F6] p-4">
           {stay.prices.deposit != null && (
             <div className="flex items-baseline justify-between gap-3">
               <span className="text-base font-semibold">{t('guestBook.depositNow')}</span>
@@ -236,10 +256,23 @@ export function BookSheet({
             </div>
           )}
           <div className="flex items-baseline justify-between gap-3">
-            <span className="text-sm text-gray-700">{t('guestBook.nightsLater', { nights: t('guest.nights', { count: Math.round((Date.parse(checkOut) - Date.parse(checkIn)) / 86_400_000) }) })}</span>
-            <span className="text-base font-semibold">{money(total, locale)}</span>
+            <span className="text-sm text-[#2A2A30]">{t('guestBook.nightsLater', { nights: t('guest.nights', { count: Math.round((Date.parse(checkOut) - Date.parse(checkIn)) / 86_400_000) }) })}</span>
+            <span data-testid="sheet-total" className="text-base font-semibold">{money(priced ? priced.total : total, locale)}</span>
           </div>
-          <p className="text-xs text-gray-500">{t('guest.totalHint')}</p>
+          {priced && priced.extra_guests > 0 && (
+            <div className="flex items-baseline justify-between gap-3 text-sm text-[#6B6B74]">
+              <span>{t('guestBook.extraGuests')}</span>
+              <span>+{money(priced.extra_guests, locale)}</span>
+            </div>
+          )}
+          {priced && priced.discount > 0 && (
+            <div className="flex items-baseline justify-between gap-3 text-sm text-[#6B6B74]">
+              <span>{t('guestBook.discount')}</span>
+              <span>−{money(priced.discount, locale)}</span>
+            </div>
+          )}
+          {/* Until the booking's own price is in, the nights alone, and said so. */}
+          {!priced && <p className="text-xs text-[#6B6B74]">{t('guest.totalHint')}</p>}
         </section>
 
         {error && (
@@ -251,12 +284,30 @@ export function BookSheet({
           type="button"
           onClick={send}
           disabled={sending}
-          className="h-12 rounded-xl bg-[var(--accent)] text-base font-semibold text-[var(--on-accent)] disabled:opacity-60"
+          className="h-12 rounded-full bg-[#111114] text-base font-semibold text-white disabled:opacity-60"
         >
           {sending ? t('guestBook.booking') : t('guestBook.book')}
         </button>
-        <p className="text-xs text-gray-500">{t('guestBook.holdNote')}</p>
+        <p className="text-xs text-[#6B6B74]">{t('guestBook.holdNote')}</p>
       </div>
+    </div>
+  )
+}
+
+/** The guest's own booking page, right after booking: the one link to keep. */
+export function BookingPageLink({ code }: { code: string | null | undefined }) {
+  const { t } = useTranslation()
+  if (!code) return null
+  return (
+    <div className="flex flex-col gap-2 rounded-[22px] bg-[#F3F3F6] p-4">
+      <a
+        href={`/g/${code}`}
+        className="flex h-[52px] items-center justify-center gap-2 rounded-full bg-[#111114] px-5 text-base font-semibold text-white"
+      >
+        {t('guestBook.openPage')}
+        <ArrowRight className="h-5 w-5 rtl:rotate-180" aria-hidden />
+      </a>
+      <p className="text-sm leading-snug text-[#6B6B74]">{t('guestBook.openPageHint')}</p>
     </div>
   )
 }
@@ -273,7 +324,7 @@ export function HeldView({ booking, locale }: { booking: PublicOfferBooking; loc
       <h1 className="text-2xl font-bold leading-tight tracking-tight">
         {until ? t('guestBook.heldUntil', { time: until }) : t('guestBook.held')}
       </h1>
-      <p className="text-base leading-relaxed text-gray-700">
+      <p className="text-base leading-relaxed text-[#2A2A30]">
         {deposit ? t('guestBook.invoice', { deposit, phone: booking.phone, time: until ?? '' }) : t('guestBook.noDeposit')}
       </p>
       {deposit && (
@@ -287,7 +338,15 @@ export function HeldView({ booking, locale }: { booking: PublicOfferBooking; loc
         </ol>
       )}
       {booking.total != null && (
-        <p className="text-sm text-gray-700">{t('guestBook.nightsAtCheckIn', { total: money(booking.total, locale) })}</p>
+        <p className="text-sm text-[#2A2A30]">{t('guestBook.nightsAtCheckIn', { total: money(booking.total, locale) })}</p>
+      )}
+      {booking.guest_code ? (
+        <BookingPageLink code={booking.guest_code} />
+      ) : (
+        // An anonymous form gets no page link (it would tell who the company knows): the host sends it.
+        <p className="text-sm leading-snug text-[#6B6B74]" data-testid="page-from-host">
+          {t('guestBook.pageFromHost')}
+        </p>
       )}
     </section>
   )

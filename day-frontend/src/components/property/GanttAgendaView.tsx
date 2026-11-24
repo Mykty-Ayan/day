@@ -2,30 +2,17 @@ import { useMemo } from 'react'
 import { motion } from 'framer-motion'
 import { Link, useNavigate } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
-import type { BookingStatus } from '../../types/booking'
 import type { GanttRow } from './GanttChart'
 import { useCurrency } from '../../hooks/useCurrency'
+import { byCompanyOrder } from '../../lib/chessboard'
+import StatusBadge from './StatusBadge'
+import BookingStatusBadge from '../booking/BookingStatusBadge'
+import { Badge } from '../ui/badge'
 
 interface Props {
   rows: GanttRow[]
   rangeStart: string
   rangeEnd: string
-}
-
-const propertyStatusClass: Record<GanttRow['property']['status'], string> = {
-  new: 'border-blue-200 bg-blue-50 text-blue-700',
-  active: 'border-emerald-200 bg-emerald-50 text-emerald-700',
-  paused: 'border-amber-200 bg-amber-50 text-amber-700',
-  archived: 'border-gray-200 bg-gray-100 text-gray-600',
-}
-
-const bookingStatusClass: Record<BookingStatus, string> = {
-  pending: 'border-slate-200 bg-slate-50 text-slate-700',
-  confirmed: 'border-sky-200 bg-sky-50 text-sky-700',
-  checked_in: 'border-emerald-200 bg-emerald-50 text-emerald-700',
-  checked_out: 'border-amber-200 bg-amber-50 text-amber-700',
-  completed: 'border-green-200 bg-green-50 text-green-700',
-  cancelled: 'border-rose-200 bg-rose-50 text-rose-700',
 }
 
 // Take only the date component so ISO date-time strings (hourly bookings) parse
@@ -76,14 +63,14 @@ export default function GanttAgendaView({ rows, rangeStart, rangeEnd }: Props) {
   )
 
   const sortedRows = useMemo(
-    () => [...rows].sort((a, b) => a.property.internal_name.localeCompare(b.property.internal_name)),
+    () => byCompanyOrder(rows),
     [rows],
   )
 
   if (sortedRows.length === 0) {
     return (
-      <div className="flex items-center justify-center rounded-xl border border-gray-200 bg-white py-10">
-        <p className="text-sm text-gray-500">{t('gantt.noProperties')}</p>
+      <div className="flex items-center justify-center rounded-xl border border-line bg-surface-card py-10">
+        <p className="text-sm text-ink-muted">{t('gantt.noProperties')}</p>
       </div>
     )
   }
@@ -101,19 +88,15 @@ export default function GanttAgendaView({ rows, rangeStart, rangeEnd }: Props) {
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.2, delay: index * 0.02 }}
-            className="rounded-xl border border-gray-200 bg-white p-3 shadow-sm"
+            className="rounded-xl border border-line bg-surface-card p-3"
           >
             <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
               <div>
                 <div className="flex flex-wrap items-center gap-2">
-                  <h2 className="text-sm font-bold text-gray-900">{row.property.internal_name}</h2>
-                  <span
-                    className={`inline-flex rounded-md border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${propertyStatusClass[row.property.status]}`}
-                  >
-                    {t(`common.${row.property.status}`)}
-                  </span>
+                  <h2 className="text-sm font-bold text-ink">{row.property.internal_name}</h2>
+                  <StatusBadge status={row.property.status} />
                 </div>
-                <p className="mt-0.5 text-xs text-gray-500">{row.property.name}</p>
+                <p className="mt-0.5 text-xs text-ink-muted">{row.property.name}</p>
               </div>
               <Link
                 to="/bookings/new"
@@ -123,14 +106,14 @@ export default function GanttAgendaView({ rows, rangeStart, rangeEnd }: Props) {
                   check_out: addDays(rangeStart, 1),
                   from: 'gantt',
                 } as Record<string, string>}
-                className="inline-flex min-h-[44px] items-center justify-center rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-xs font-bold text-gray-700 transition-colors hover:bg-gray-100"
+                className="inline-flex min-h-[44px] items-center justify-center rounded-lg border border-line bg-surface-page px-3 py-2 text-xs font-bold text-ink transition-colors hover:bg-surface-page"
               >
                 {t('bookings.addBooking')}
               </Link>
             </div>
 
             {visibleBookings.length === 0 ? (
-              <p className="rounded-lg border border-dashed border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-500">
+              <p className="rounded-lg border border-dashed border-line bg-surface-page px-3 py-2 text-xs text-ink-muted">
                 {t('gantt.noBookingsInRange')}
               </p>
             ) : (
@@ -146,40 +129,30 @@ export default function GanttAgendaView({ rows, rangeStart, rangeEnd }: Props) {
                         search: { from: 'gantt' } as Record<string, string>,
                       })
                     }
-                    className={`w-full rounded-lg border border-gray-200 bg-gray-50 p-3 text-left transition-colors hover:bg-gray-100 ${
-                      booking.overbooking ? 'outline outline-2 outline-red-600 outline-offset-1' : ''
+                    className={`w-full rounded-lg border border-line bg-surface-page p-3 text-left transition-colors hover:bg-surface-page ${
+                      booking.overbooking ? 'outline outline-2 outline-danger outline-offset-1' : ''
                     }`}
                   >
                     <div className="flex flex-wrap items-center justify-between gap-2">
-                      <p className="text-sm font-semibold text-gray-900">
+                      <p className="text-sm font-semibold text-ink">
                         {booking.overbooking && (
-                          <span className="mr-1.5 inline-flex rounded bg-red-600 px-1.5 py-0.5 text-[10px] font-bold text-white">
+                          <span className="mr-1.5 inline-flex rounded bg-danger px-1.5 py-0.5 text-[10px] font-bold text-white">
                             {t('bookings.overbooking.short')}
                           </span>
                         )}
                         {booking.guest_name}
                       </p>
-                      <span
-                        className={`inline-flex rounded-md border px-2 py-0.5 text-[10px] font-semibold ${bookingStatusClass[booking.status]}`}
-                      >
-                        {t(
-                          booking.status === 'checked_in'
-                            ? 'common.checkedIn'
-                            : booking.status === 'checked_out'
-                              ? 'common.checkedOut'
-                              : `common.${booking.status}`,
-                        )}
-                      </span>
+                      <BookingStatusBadge status={booking.status} />
                     </div>
-                    <p className="mt-1 text-xs text-gray-600">
+                    <p className="mt-1 text-xs text-ink-muted">
                       {booking.rental_mode === 'hourly' ? (
                         <>
                           {formatAgendaDate(booking.check_in, shortMonthNames)}
                           {' · '}
                           {formatTimeOfDay(booking.check_in)}–{formatTimeOfDay(booking.check_out)}
-                          <span className="ml-1.5 inline-flex rounded border border-indigo-200 bg-indigo-50 px-1 py-0.5 text-[10px] font-semibold text-indigo-700">
+                          <Badge tone="accent" className="ml-1.5">
                             {t('bookings.rentalMode.hourly')}
-                          </span>
+                          </Badge>
                         </>
                       ) : (
                         <>
@@ -187,9 +160,9 @@ export default function GanttAgendaView({ rows, rangeStart, rangeEnd }: Props) {
                         </>
                       )}
                     </p>
-                    <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-gray-500">
+                    <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-ink-muted">
                       <span>{t(`bookings.sources.${booking.source}`)}</span>
-                      <span className="text-gray-300">•</span>
+                      <span className="text-ink-muted/60">•</span>
                       <span>
                         {t('common.total')}: {formatChip(booking.total_price)}
                       </span>

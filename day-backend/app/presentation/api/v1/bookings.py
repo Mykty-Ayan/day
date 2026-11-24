@@ -28,6 +28,7 @@ from app.application.booking.manage_deposits import ManageDepositsService
 from app.application.booking.manage_payments import ManagePaymentsService
 from app.application.booking.move_booking import MoveBookingService
 from app.application.booking.price_calculator import PriceCalculatorService
+from app.application.booking.stay_rules import company_day_utc, company_now
 from app.application.booking.update_booking import (
     UpdateBookingInput,
     UpdateBookingService,
@@ -41,10 +42,11 @@ from app.application.booking.update_guest import (
 from app.application.leads.check_guest import normalise_phone
 from app.config import settings
 from app.domain.auth.permissions import Permission
-from app.domain.booking.entities import BookingComment, BookingFile
+from app.domain.booking.entities import Booking, BookingComment, BookingFile
 from app.domain.booking.exceptions import (
     BookingOverlapError,
     DepositAlreadyOpenError,
+    DepositNotFoundError,
     IdempotencyKeyReusedError,
     IdempotencyKeyTakenError,
     IdempotencyKeyVoidedError,
@@ -57,7 +59,9 @@ from app.domain.property.value_objects import FactAudience
 from app.domain.settings.entities import CompanySettings
 from app.infrastructure.database import get_session
 from app.infrastructure.messaging.booking_notice import notify_booking
+from app.infrastructure.messaging.cleaning_notice import notify_cleaner
 from app.infrastructure.repositories.agents import SqlAgentRepository
+from app.infrastructure.repositories.auth import SqlUserRepository
 from app.infrastructure.repositories.booking import (
     SqlBookingAuditLogRepository,
     SqlBookingCommentRepository,
@@ -81,10 +85,15 @@ from app.infrastructure.repositories.property import (
 from app.infrastructure.repositories.settings import SqlCompanySettingsRepository
 from app.infrastructure.storage.s3 import (
     FileTooLargeError,
+    delete_booking_file,
+    deposit_photo_prefix,
     download_booking_file,
+    signed_photo_url,
     upload_booking_file,
+    upload_deposit_photo,
 )
 from app.presentation.api.deps import Principal, get_company_id, get_principal, get_user_id, require
+from app.presentation.api.v1.properties import _sniff_photo
 from app.presentation.schemas.booking import (
     AvailabilityResponse,
     AvailablePhotoResponse,
@@ -105,6 +114,7 @@ from app.presentation.schemas.booking import (
     BookingUpdate,
     DepositAction,
     DepositCreate,
+    DepositPhotoResponse,
     DepositResponse,
     GanttBlockResponse,
     GanttBookingResponse,
@@ -179,7 +189,9 @@ def _request_hash(body) -> str:
 
 
 def _price_calculator(repos):
-    return PriceCalculatorService(repos["pricing"], repos["seasonal"], repos["discount"], repos["day_price"])
+    return PriceCalculatorService(
+        repos["pricing"], repos["seasonal"], repos["discount"], repos["day_price"], repos["property"], repos["settings"]
+    )
 
 
 def _to_booking_response(
@@ -435,6 +447,81 @@ async def void_booking_key(
     return BookingKeyVoidResponse(voided=True)
 
 
+async def _listed(repos, company_id: uuid.UUID, bookings, principal: Principal) -> list[BookingResponse]:
+    """Bookings as the list shows them: guest and property names, plus what has been received —
+    one aggregate query for all of them rather than one per booking. A guest or a property is read
+    once however many bookings name it (one read per guest: a batch read would be the next step)."""
+    paid = await repos["payment"].sum_paid_by_bookings([b.id for b in bookings])
+    due = await repos["orders"].due_by_bookings(company_id, [b.id for b in bookings])
+    guests: dict = {}
+    props: dict = {}
+    items = []
+    for b in bookings:
+        if b.guest_id not in guests:
+            guests[b.guest_id] = await repos["guest"].get_by_id(b.guest_id)
+        if b.property_id not in props:
+            props[b.property_id] = await repos["property"].get_by_id(b.property_id)
+        guest, prop = guests[b.guest_id], props[b.property_id]
+        items.append(
+            _to_booking_response(
+                b,
+                guest_name=guest.name if guest else None,
+                guest_phone=guest.phone if guest else None,
+                property_name=prop.name if prop else None,
+                property_internal_name=prop.internal_name if prop else None,
+                paid_amount=paid.get(b.id),
+                orders_due=due.get(b.id),
+                with_link=_shows_link(principal),
+            )
+        )
+    return items
+
+
+# More than this asks for a narrower filter: the answer is one read, kept in memory.
+EXPORT_MAX = 10_000
+
+
+@booking_router.get(
+    "/export",
+    response_model=list[BookingResponse],
+    dependencies=[Depends(require(Permission.BOOKINGS_READ))],
+)
+async def export_bookings(
+    status: BookingStatus | None = None,
+    property_id: uuid.UUID | None = None,
+    source: BookingSource | None = None,
+    search: str | None = None,
+    date_from: date | None = None,
+    date_to: date | None = None,
+    agent_id: uuid.UUID | None = None,
+    created_from: date | None = None,
+    created_to: date | None = None,
+    session: AsyncSession = Depends(get_session),
+    company_id: uuid.UUID = Depends(get_company_id),
+    principal: Principal = Depends(get_principal),
+):
+    """Every booking the list finds with these filters, in one read: an export put together from
+    pages could repeat a stay or miss one while bookings change between the pages."""
+    repos = _repos(session)
+    found = await repos["booking"].list_by_company(
+        company_id,
+        offset=0,
+        limit=EXPORT_MAX + 1,
+        status=status,
+        property_id=property_id,
+        source=source,
+        search=search,
+        date_from=date_from,
+        date_to=date_to,
+        agent_id=agent_id,
+        created_from=created_from,
+        created_to=created_to,
+    )
+    if len(found) > EXPORT_MAX:
+        raise HTTPException(status_code=422, detail=f"More than {EXPORT_MAX} bookings: narrow the filter")
+    return await _listed(repos, company_id, found, principal)
+
+
 @booking_router.get("", response_model=BookingListResponse, dependencies=[Depends(require(Permission.BOOKINGS_READ))])
 async def list_bookings(
     page: int = Query(default=1, ge=1),
@@ -447,6 +534,9 @@ async def list_bookings(
     date_to: date | None = None,
     # The bookings an agent brought: what their commission is paid for.
     agent_id: uuid.UUID | None = None,
+    # The days the booking was made on (UTC), both whole: what was sold in a period.
+    created_from: date | None = None,
+    created_to: date | None = None,
     session: AsyncSession = Depends(get_session),
     company_id: uuid.UUID = Depends(get_company_id),
     principal: Principal = Depends(get_principal),
@@ -465,28 +555,11 @@ async def list_bookings(
         date_from=date_from,
         date_to=date_to,
         agent_id=agent_id,
+        created_from=created_from,
+        created_to=created_to,
     )
 
-    # Enrich with guest and property names, plus what has been received —
-    # one aggregate query for the whole page rather than one per booking.
-    paid = await repos["payment"].sum_paid_by_bookings([b.id for b in result.items])
-    due = await repos["orders"].due_by_bookings(company_id, [b.id for b in result.items])
-    items = []
-    for b in result.items:
-        guest = await repos["guest"].get_by_id(b.guest_id)
-        prop = await repos["property"].get_by_id(b.property_id)
-        items.append(
-            _to_booking_response(
-                b,
-                guest_name=guest.name if guest else None,
-                guest_phone=guest.phone if guest else None,
-                property_name=prop.name if prop else None,
-                property_internal_name=prop.internal_name if prop else None,
-                paid_amount=paid.get(b.id),
-                orders_due=due.get(b.id),
-                with_link=_shows_link(principal),
-            )
-        )
+    items = await _listed(repos, company_id, result.items, principal)
 
     pages = (result.total + per_page - 1) // per_page if result.total > 0 else 1
     return BookingListResponse(
@@ -591,9 +664,10 @@ async def get_today(
     date_value: date | None = Query(default=None, alias="date"),
     session: AsyncSession = Depends(get_session),
     company_id: uuid.UUID = Depends(get_company_id),
+    principal: Principal = Depends(get_principal),
 ):
     repos = _repos(session)
-    today = date_value or date.today()
+    today = date_value or (await company_now(repos["settings"], company_id)).date()
     yesterday = today - timedelta(days=1)
     tomorrow = today + timedelta(days=1)
 
@@ -605,16 +679,23 @@ async def get_today(
         tomorrow,
     )
 
+    ended = await repos["booking"].list_ended_owing(
+        company_id, today, await repos["orders"].booking_ids_with_due(company_id)
+    )
+    unclosed = await repos["booking"].list_unclosed(company_id, today)
+
     check_ins = []
     check_outs = []
     in_house = []
 
-    paid = await repos["payment"].sum_paid_by_bookings([b.id for b in all_bookings])
-    due = await repos["orders"].due_by_bookings(company_id, [b.id for b in all_bookings])
-    for b in all_bookings:
+    ids = list({b.id for b in [*all_bookings, *ended, *unclosed]})
+    paid = await repos["payment"].sum_paid_by_bookings(ids)
+    due = await repos["orders"].due_by_bookings(company_id, ids)
+
+    async def row(b: Booking) -> TodayBookingItem:
         guest = await repos["guest"].get_by_id(b.guest_id)
         prop = await repos["property"].get_by_id(b.property_id)
-        item = TodayBookingItem(
+        return TodayBookingItem(
             **_to_booking_response(
                 b,
                 guest_name=guest.name if guest else None,
@@ -626,6 +707,9 @@ async def get_today(
             ).model_dump(),
             property_status=prop.status if prop else None,
         )
+
+    for b in all_bookings:
+        item = await row(b)
         # check_in/check_out are datetimes; compare on their calendar date.
         check_in_date = b.check_in.date() if b.check_in is not None else None
         check_out_date = b.check_out.date() if b.check_out is not None else None
@@ -645,14 +729,24 @@ async def get_today(
             b.status == BookingStatus.CHECKED_IN
             and check_in_date is not None
             and check_out_date is not None
-            and check_in_date <= today < check_out_date
+            and check_in_date <= today
+            # Hours end the day they are sold: the guest is in until then.
+            and (today < check_out_date or (today == check_out_date and b.rental_mode == RentalMode.HOURLY))
         ):
             in_house.append(item)
+
+    received_today = None
+    if Permission.ANALYTICS_READ in principal.permissions:
+        start, end = await company_day_utc(repos["settings"], company_id, today)
+        received_today = await repos["payment"].sum_received_between(company_id, start, end)
 
     return TodayCheckResponse(
         check_ins=check_ins,
         check_outs=check_outs,
         in_house=in_house,
+        past_debts=[await row(b) for b in ended],
+        unclosed=[await row(b) for b in unclosed],
+        received_today=received_today,
     )
 
 
@@ -678,6 +772,7 @@ async def get_booking(
         repos["comment"],
         repos["contract"],
         repos["audit"],
+        SqlUserRepository(session),
     )
     try:
         detail = await svc.execute(booking_id, company_id)
@@ -696,10 +791,12 @@ async def get_booking(
         ),
         guest=GuestResponse.model_validate(detail.guest, from_attributes=True) if detail.guest else None,
         payments=[PaymentResponse.model_validate(p, from_attributes=True) for p in detail.payments],
-        deposits=[DepositResponse.model_validate(d, from_attributes=True) for d in detail.deposits],
+        deposits=[_deposit_response(d) for d in detail.deposits],
         files=[_to_file_response(f) for f in detail.files],
         comments=[BookingCommentResponse.model_validate(c, from_attributes=True) for c in detail.comments],
         audit_logs=[BookingAuditLogResponse.model_validate(a, from_attributes=True) for a in detail.audit_logs],
+        guest_stays=detail.guest_stays,
+        people=detail.people,
     )
 
 
@@ -717,7 +814,13 @@ async def update_booking(
 ):
     repos = _repos(session)
     svc = UpdateBookingService(
-        repos["booking"], repos["property"], repos["audit"], _price_calculator(repos), repos["settings"]
+        repos["booking"],
+        repos["property"],
+        repos["audit"],
+        _price_calculator(repos),
+        repos["settings"],
+        SqlCleaningTaskRepository(session),
+        lambda task: notify_cleaner(session, task, repos["property"], NotificationEvent.CLEANING_MOVED),
     )
 
     provided = body.model_dump(exclude_unset=True)
@@ -828,6 +931,7 @@ async def get_availability(
     children_count: int = Query(default=0, ge=0),
     rental_mode: RentalMode = Query(default=RentalMode.DAILY),
     include_rule_breaches: bool = Query(default=False),
+    source: BookingSource | None = Query(default=None),
     session: AsyncSession = Depends(get_session),
     company_id: uuid.UUID = Depends(get_company_id),
 ):
@@ -849,6 +953,7 @@ async def get_availability(
             children_count=children_count,
             rental_mode=rental_mode,
             with_rule_breaches=include_rule_breaches,
+            source=source.value if source else None,
         )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -1076,6 +1181,57 @@ async def list_payments(
 # ---------- Deposits ----------
 
 
+def _deposit_response(deposit) -> DepositResponse:
+    """A deposit as the owner reads it: the photos of what was kept as links that expire."""
+    response = DepositResponse.model_validate(deposit, from_attributes=True)
+    for line in response.deductions:
+        line.photos = [signed_photo_url(url) for url in line.photos]
+    return response
+
+
+@booking_router.post(
+    "/{booking_id:uuid}/deposits/{deposit_id}/photos",
+    response_model=DepositPhotoResponse,
+    status_code=201,
+    dependencies=[Depends(require(Permission.BOOKINGS_WRITE))],
+)
+async def upload_deposit_hold_photo(
+    booking_id: uuid.UUID,
+    deposit_id: uuid.UUID,
+    file: UploadFile = File(...),
+    session: AsyncSession = Depends(get_session),
+    company_id: uuid.UUID = Depends(get_company_id),
+):
+    """A photo of what a hold is for (a broken glass), before the hold that links to it.
+
+    Known limit: a photo whose line was dropped, or whose hold was refused, stays stored
+    (private, unread). A sweep of deposits/ against the holds' lines would clear them."""
+    repos = _repos(session)
+    booking = await repos["booking"].get_by_id(booking_id)
+    deposit = await repos["deposit"].get_by_id(deposit_id)
+    if booking is None or booking.company_id != company_id or deposit is None or deposit.booking_id != booking_id:
+        raise HTTPException(status_code=404, detail="Not found")
+    head = file.file.read(16)
+    file.file.seek(0)
+    content_type = _sniff_photo(head)
+    if content_type is None:
+        raise HTTPException(status_code=415, detail="Only JPEG, PNG or WebP photos")
+    size = file.size
+    if size is None:
+        file.file.seek(0, 2)
+        size = file.file.tell()
+        file.file.seek(0)
+    if size > settings.S3_MAX_UPLOAD_BYTES:
+        raise HTTPException(
+            status_code=413, detail=f"Photo too large (max {settings.S3_MAX_UPLOAD_BYTES // (1024 * 1024)} MB)"
+        )
+    try:
+        url = await upload_deposit_photo(booking_id=booking_id, file_obj=file.file, content_type=content_type)
+    except Exception:
+        raise HTTPException(status_code=500, detail="Failed to upload photo")
+    return DepositPhotoResponse(url=url, preview_url=signed_photo_url(url))
+
+
 @booking_router.post(
     "/{booking_id:uuid}/deposits",
     response_model=DepositResponse,
@@ -1093,7 +1249,7 @@ async def create_deposit(
     try:
         result = await svc.create_deposit(booking_id, company_id, body.amount, unless_open=body.unless_open)
         await session.commit()
-        return DepositResponse.model_validate(result, from_attributes=True)
+        return _deposit_response(result)
     except DepositAlreadyOpenError as e:
         await session.rollback()
         raise HTTPException(status_code=409, detail=str(e))
@@ -1114,6 +1270,13 @@ async def deposit_action(
     session: AsyncSession = Depends(get_session),
     company_id: uuid.UUID = Depends(get_company_id),
 ):
+    # A line links only to this booking's own uploads: another company's stored file would
+    # be signed and handed to this guest.
+    # Exactly a name the upload gives (<uuid>.<ext>): no "../" walking out of the prefix.
+    own = re.compile(re.escape(deposit_photo_prefix(booking_id)) + r"[0-9a-f-]{36}\.(?:jpg|png|webp)")
+    for line in body.deductions or []:
+        if any(not own.fullmatch(url) for url in line.photos):
+            raise HTTPException(status_code=400, detail="A deduction's photo is uploaded for this deposit")
     repos = _repos(session)
     svc = ManageDepositsService(repos["booking"], repos["deposit"])
     try:
@@ -1124,9 +1287,13 @@ async def deposit_action(
             body.action,
             body.held_amount,
             body.reason,
+            [line.model_dump() for line in body.deductions] if body.deductions else None,
         )
         await session.commit()
-        return DepositResponse.model_validate(result, from_attributes=True)
+        return _deposit_response(result)
+    except DepositNotFoundError:
+        await session.rollback()
+        raise HTTPException(status_code=404, detail="Not found")
     except ValueError as e:
         await session.rollback()
         raise HTTPException(status_code=400, detail=str(e))
@@ -1146,7 +1313,7 @@ async def list_deposits(
     svc = ManageDepositsService(repos["booking"], repos["deposit"])
     try:
         result = await svc.list_deposits(booking_id, company_id)
-        return [DepositResponse.model_validate(d, from_attributes=True) for d in result]
+        return [_deposit_response(d) for d in result]
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
 
@@ -1299,6 +1466,11 @@ async def delete_file(
     file_rec = await repos["file"].get_by_id(file_id)
     if file_rec is None or file_rec.booking_id != booking_id:
         raise HTTPException(status_code=404, detail="File not found")
+    # The bucket first: if it fails the record stays, and the file can be deleted again.
+    try:
+        await delete_booking_file(file_url=file_rec.file_url)
+    except Exception:
+        raise HTTPException(status_code=500, detail="Failed to delete file")
     await repos["file"].delete(file_id)
     await session.commit()
 
@@ -1379,7 +1551,7 @@ async def get_audit_log(
 # ---------- Gantt ----------
 
 
-def _build_gantt_response(result) -> GanttDataResponse:
+def _build_gantt_response(result, paid: dict[uuid.UUID, Decimal] | None = None) -> GanttDataResponse:
     return GanttDataResponse(
         properties=[
             GanttPropertyResponse(
@@ -1402,18 +1574,23 @@ def _build_gantt_response(result) -> GanttDataResponse:
                         adults_count=b.adults_count,
                         children_count=b.children_count,
                         total_price=b.total_price,
+                        paid_amount=float((paid or {}).get(b.id, 0)),
                         overbooking=b.overbooking,
                     )
                     for b in p.bookings
                 ],
                 blocks=[
                     GanttBlockResponse(
-                        id=b.id, start_date=b.start_date, end_date=b.end_date, reason=b.reason, clash=b.clash
+                        id=b.id, start_date=b.start_date, end_date=b.end_date, reason=b.reason, clash=b.clash,
+                        starts_at=b.starts_at, ends_at=b.ends_at,
                     )
                     for b in p.blocks
                 ],
                 rental_mode=p.rental_mode,
                 day_prices=[GanttDayPriceResponse(date=d.date, price=float(d.price)) for d in p.day_prices],
+                position=p.position,
+                check_in_hour=p.check_in_hour,
+                check_out_hour=p.check_out_hour,
             )
             for p in result.properties
         ]
@@ -1435,7 +1612,9 @@ async def get_gantt_data(
     repos = _repos(session)
     svc = GetGanttDataService(repos["property"], repos["booking"], repos["guest"], repos["day_price"])
     result = await svc.execute(company_id, start_date, end_date)
-    return _build_gantt_response(result)
+    # One aggregate query for every bar, as the booking list does.
+    paid = await repos["payment"].sum_paid_by_bookings([b.id for p in result.properties for b in p.bookings])
+    return _build_gantt_response(result, paid)
 
 
 # ---------- Guests ----------

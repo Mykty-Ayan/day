@@ -5,6 +5,7 @@ import { Pencil, Eye, X, ImageOff, ExternalLink, Download, GripVertical, Star } 
 import type { MappedPropertyData } from '../../types/ai-import'
 import apiClient from '../../api/client'
 import { useCurrency } from '../../hooks/useCurrency'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select'
 
 interface Props {
   data: MappedPropertyData
@@ -40,11 +41,11 @@ function FieldRow({
     <div className="flex flex-col gap-1">
       <label
         htmlFor={`field-${field}`}
-        className="flex min-h-[1.25rem] items-baseline gap-1.5 text-xs font-bold leading-5 text-gray-700"
+        className="flex min-h-[1.25rem] items-baseline gap-1.5 text-xs font-bold leading-5 text-ink"
       >
         <span>{label}</span>
         {isEmpty && (
-          <span className="shrink-0 whitespace-nowrap text-[10px] font-normal text-amber-500">
+          <span className="shrink-0 whitespace-nowrap text-[10px] font-normal text-warning">
             {t('aiImport.notExtracted')}
           </span>
         )}
@@ -56,8 +57,8 @@ function FieldRow({
             value={displayValue}
             onChange={(e) => onChange(field, e.target.value)}
             rows={3}
-            className={`w-full bg-gray-50 border rounded-xl p-3 outline-none focus:ring-2 focus:ring-black/10 text-gray-800 text-sm resize-none ${
-              isEmpty ? 'border-amber-200 bg-amber-50/30' : 'border-gray-200'
+            className={`w-full bg-surface-page border rounded-xl p-3 outline-none focus:border-accent text-ink text-sm resize-none ${
+              isEmpty ? 'border-warning/30 bg-warning-soft/30' : 'border-line'
             }`}
           />
         ) : (
@@ -67,10 +68,10 @@ function FieldRow({
             value={displayValue}
             onChange={(e) => onChange(field, e.target.value)}
             step={type === 'number' ? 'any' : undefined}
-            className={`w-full bg-gray-50 border rounded-xl p-3 outline-none focus:ring-2 focus:ring-black/10 text-gray-800 text-sm ${
+            className={`w-full bg-surface-page border rounded-xl p-3 outline-none focus:border-accent text-ink text-sm ${
               type === 'number' ? 'tabular-nums' : ''
             } ${
-              isEmpty ? 'border-amber-200 bg-amber-50/30' : 'border-gray-200'
+              isEmpty ? 'border-warning/30 bg-warning-soft/30' : 'border-line'
             }`}
           />
         )
@@ -80,8 +81,8 @@ function FieldRow({
             type === 'number' ? 'tabular-nums' : ''
           } ${
             isEmpty
-              ? 'border-amber-200 bg-amber-50/30 text-amber-400 italic'
-              : 'border-gray-200 bg-gray-50 text-gray-800'
+              ? 'border-warning/30 bg-warning-soft/30 text-warning italic'
+              : 'border-line bg-surface-page text-ink'
           }`}
         >
           {isEmpty ? t('aiImport.empty') : displayValue}
@@ -224,12 +225,12 @@ export default function PropertyPreviewForm({ data, onChange }: Props) {
     <div className="space-y-6">
       {/* Toggle edit/preview */}
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-bold text-gray-900">{t('aiImport.propertyDetails')}</h3>
+        <h3 className="text-sm font-bold text-ink">{t('aiImport.propertyDetails')}</h3>
         <motion.button
           whileTap={{ scale: 0.97 }}
           onClick={() => setEditing(!editing)}
           type="button"
-          className="flex items-center gap-1.5 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-xl px-3 py-1.5 text-xs font-bold text-gray-700 transition-colors"
+          className="flex items-center gap-1.5 bg-surface-page hover:bg-surface-page border border-line rounded-xl px-3 py-1.5 text-xs font-bold text-ink transition-colors"
         >
           {editing ? (
             <>
@@ -255,30 +256,30 @@ export default function PropertyPreviewForm({ data, onChange }: Props) {
         <div className="flex flex-col gap-1">
           <label
             htmlFor="field-type"
-            className="flex min-h-[1.25rem] items-baseline gap-1.5 text-xs font-bold leading-5 text-gray-700"
+            className="flex min-h-[1.25rem] items-baseline gap-1.5 text-xs font-bold leading-5 text-ink"
           >
             <span>{t('properties.form.type')}</span>
             {!data.type && (
-              <span className="shrink-0 whitespace-nowrap text-[10px] font-normal text-amber-500">
+              <span className="shrink-0 whitespace-nowrap text-[10px] font-normal text-warning">
                 {t('aiImport.notExtracted')}
               </span>
             )}
           </label>
           {editing ? (
-            <select
-              id="field-type"
-              value={data.type || 'apartment'}
-              onChange={(e) => handleTypeChange(e.target.value)}
-              className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 outline-none focus:ring-2 focus:ring-black/10 text-gray-800 text-sm"
-            >
-              {propertyTypes.map((pt) => (
-                <option key={pt} value={pt}>
-                  {pt === 'apartment' ? t('common.apartment') : pt === 'house' ? t('common.house') : t('common.room')}
-                </option>
-              ))}
-            </select>
+            <Select value={data.type || 'apartment'} onValueChange={handleTypeChange}>
+              <SelectTrigger id="field-type" className="h-auto bg-surface-page p-3">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {propertyTypes.map((pt) => (
+                  <SelectItem key={pt} value={pt}>
+                    {pt === 'apartment' ? t('common.apartment') : pt === 'house' ? t('common.house') : t('common.room')}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           ) : (
-            <div className={`w-full border rounded-xl p-3 text-sm ${data.type ? 'border-gray-200 bg-gray-50 text-gray-800' : 'border-amber-200 bg-amber-50/30 text-amber-400 italic'}`}>
+            <div className={`w-full border rounded-xl p-3 text-sm ${data.type ? 'border-line bg-surface-page text-ink' : 'border-warning/30 bg-warning-soft/30 text-warning italic'}`}>
               {data.type ? (data.type === 'apartment' ? t('common.apartment') : data.type === 'house' ? t('common.house') : t('common.room')) : t('aiImport.empty')}
             </div>
           )}
@@ -289,8 +290,8 @@ export default function PropertyPreviewForm({ data, onChange }: Props) {
       <FieldRow label={t('properties.form.description')} value={data.description} field="description" editing={editing} onChange={handleFieldChange} multiline />
 
       {/* Address & Location */}
-      <div className="border-t border-gray-100 pt-4">
-        <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">{t('aiImport.addressAndLocation')}</h4>
+      <div className="border-t border-line pt-4">
+        <h4 className="text-xs font-bold text-ink-muted mb-3">{t('aiImport.addressAndLocation')}</h4>
         <FieldRow label={t('properties.form.fullAddress')} value={data.address_full} field="address_full" editing={editing} onChange={handleFieldChange} />
         <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <FieldRow label={t('properties.form.latitude')} value={latitudeDisplay} field="latitude" editing={editing} onChange={handleFieldChange} type="number" />
@@ -300,8 +301,8 @@ export default function PropertyPreviewForm({ data, onChange }: Props) {
       </div>
 
       {/* Details */}
-      <div className="border-t border-gray-100 pt-4">
-        <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">{t('properties.details')}</h4>
+      <div className="border-t border-line pt-4">
+        <h4 className="text-xs font-bold text-ink-muted mb-3">{t('properties.details')}</h4>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <FieldRow label={t('properties.form.rooms')} value={data.rooms} field="rooms" editing={editing} onChange={handleFieldChange} type="number" />
           <FieldRow label={t('properties.form.beds')} value={data.beds} field="beds" editing={editing} onChange={handleFieldChange} type="number" />
@@ -311,8 +312,8 @@ export default function PropertyPreviewForm({ data, onChange }: Props) {
       </div>
 
       {/* Pricing */}
-      <div className="border-t border-gray-100 pt-4">
-        <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">{t('properties.pricing.title')}</h4>
+      <div className="border-t border-line pt-4">
+        <h4 className="text-xs font-bold text-ink-muted mb-3">{t('properties.pricing.title')}</h4>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div className="space-y-2">
             <FieldRow label={t('aiImport.basePricePerNight')} value={data.base_price} field="base_price" editing={editing} onChange={handleFieldChange} type="number" />
@@ -323,7 +324,7 @@ export default function PropertyPreviewForm({ data, onChange }: Props) {
                     key={preset}
                     type="button"
                     onClick={() => onChange({ ...data, base_price: preset })}
-                    className="px-3 py-1.5 rounded-full border border-gray-200 bg-white hover:bg-gray-900 hover:text-white text-xs font-semibold text-gray-700 transition-all"
+                    className="px-3 py-1.5 rounded-full border border-line bg-surface-card hover:bg-accent-hover hover:text-white text-xs font-semibold text-ink transition-all"
                   >
                     {formatCurrencyChip(preset)}
                   </button>
@@ -335,8 +336,8 @@ export default function PropertyPreviewForm({ data, onChange }: Props) {
       </div>
 
       {/* Rules */}
-      <div className="border-t border-gray-100 pt-4">
-        <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">{t('aiImport.rulesAndInstructions')}</h4>
+      <div className="border-t border-line pt-4">
+        <h4 className="text-xs font-bold text-ink-muted mb-3">{t('aiImport.rulesAndInstructions')}</h4>
         <div className="space-y-4">
           <FieldRow label={t('properties.form.checkInInstructions')} value={data.check_in_instructions} field="check_in_instructions" editing={editing} onChange={handleFieldChange} multiline />
           <FieldRow label={t('properties.form.checkOutInstructions')} value={data.check_out_instructions} field="check_out_instructions" editing={editing} onChange={handleFieldChange} multiline />
@@ -345,10 +346,10 @@ export default function PropertyPreviewForm({ data, onChange }: Props) {
       </div>
 
       {/* Amenities */}
-      <div className="border-t border-gray-100 pt-4">
-        <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">
+      <div className="border-t border-line pt-4">
+        <h4 className="text-xs font-bold text-ink-muted mb-3">
           {t('properties.amenities')}
-          <span className="ml-2 text-gray-400 normal-case tracking-normal font-normal">
+          <span className="ml-2 text-ink-muted normal-case tracking-normal font-normal">
             ({data.amenities.length})
           </span>
         </h4>
@@ -356,14 +357,14 @@ export default function PropertyPreviewForm({ data, onChange }: Props) {
           {data.amenities.map((amenity, i) => (
             <span
               key={`${amenity}-${i}`}
-              className="inline-flex items-center gap-1 bg-gray-100 text-gray-700 rounded-lg px-2.5 py-1 text-xs font-medium"
+              className="inline-flex items-center gap-1 bg-surface-page text-ink rounded-lg px-2.5 py-1 text-xs font-medium"
             >
               {amenity}
               {editing && (
                 <button
                   type="button"
                   onClick={() => handleRemoveAmenity(i)}
-                  className="text-gray-400 hover:text-red-500 transition-colors ml-0.5"
+                  className="text-ink-muted hover:text-danger transition-colors ml-0.5"
                   aria-label={`Remove ${amenity}`}
                 >
                   <X className="w-3 h-3" />
@@ -372,7 +373,7 @@ export default function PropertyPreviewForm({ data, onChange }: Props) {
             </span>
           ))}
           {data.amenities.length === 0 && (
-            <span className="text-xs text-gray-400 italic">{t('aiImport.noAmenitiesExtracted')}</span>
+            <span className="text-xs text-ink-muted italic">{t('aiImport.noAmenitiesExtracted')}</span>
           )}
         </div>
         {editing && (
@@ -380,7 +381,7 @@ export default function PropertyPreviewForm({ data, onChange }: Props) {
             <input
               type="text"
               placeholder={t('aiImport.typeAmenityHint')}
-              className="w-full max-w-xs bg-gray-50 border border-gray-200 rounded-xl p-2.5 outline-none focus:ring-2 focus:ring-black/10 text-gray-800 text-xs"
+              className="w-full max-w-xs bg-surface-page border border-line rounded-xl p-2.5 outline-none focus:border-accent text-ink text-xs"
               onKeyDown={(e) => {
                 if (e.key === 'Enter') {
                   e.preventDefault()
@@ -395,15 +396,15 @@ export default function PropertyPreviewForm({ data, onChange }: Props) {
       </div>
 
       {/* Photos */}
-      <div className="border-t border-gray-100 pt-4">
-        <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">
+      <div className="border-t border-line pt-4">
+        <h4 className="text-xs font-bold text-ink-muted mb-3">
           {t('cleaning.photos')}
-          <span className="ml-2 text-gray-400 normal-case tracking-normal font-normal">
+          <span className="ml-2 text-ink-muted normal-case tracking-normal font-normal">
             ({data.photos.length})
           </span>
         </h4>
         {editing && data.photos.length > 0 && (
-          <p className="text-[11px] text-gray-400 mb-3">
+          <p className="text-[11px] text-ink-muted mb-3">
             {t('aiImport.dragPhotosHint')}
           </p>
         )}
@@ -417,7 +418,7 @@ export default function PropertyPreviewForm({ data, onChange }: Props) {
                 onDragOver={(event) => handlePhotoDragOver(event, i)}
                 onDrop={(event) => handlePhotoDrop(event, i)}
                 onDragEnd={handlePhotoDragEnd}
-                className={`relative group aspect-[4/3] bg-gray-100 rounded-lg overflow-hidden border border-transparent transition-all ${
+                className={`relative group aspect-[4/3] bg-surface-page rounded-lg overflow-hidden border border-transparent transition-all ${
                   editing ? 'cursor-move' : ''
                 } ${
                   draggingPhotoIndex === i
@@ -425,7 +426,7 @@ export default function PropertyPreviewForm({ data, onChange }: Props) {
                     : ''
                 } ${
                   dragOverPhotoIndex === i && draggingPhotoIndex !== i
-                    ? 'ring-2 ring-gray-400 border-gray-300'
+                    ? 'ring-2 ring-accent border-line'
                     : ''
                 }`}
               >
@@ -433,12 +434,12 @@ export default function PropertyPreviewForm({ data, onChange }: Props) {
                   href={url}
                   target="_blank"
                   rel="noreferrer"
-                  title="Open full size"
+                  title={t('aiImport.photo.openFull')}
                   className="block w-full h-full"
                 >
                   <img
                     src={url}
-                    alt={`Property photo ${i + 1}`}
+                    alt={t('aiImport.photo.alt', { n: i + 1 })}
                     className="w-full h-full object-cover"
                     onError={(e) => {
                       const target = e.currentTarget
@@ -447,15 +448,18 @@ export default function PropertyPreviewForm({ data, onChange }: Props) {
                       if (parent && !parent.querySelector('.fallback-icon')) {
                         const fallback = document.createElement('div')
                         fallback.className = 'fallback-icon absolute inset-0 flex items-center justify-center'
-                        fallback.innerHTML = '<span class="text-xs text-gray-400">Failed to load</span>'
+                        const note = document.createElement('span')
+                        note.className = 'text-xs text-ink-muted'
+                        note.textContent = t('aiImport.photo.failed')
+                        fallback.appendChild(note)
                         parent.appendChild(fallback)
                       }
                     }}
                   />
                 </a>
                 {editing && (
-                  <div className="absolute top-1.5 left-1.5 rounded-lg border border-gray-200 bg-white/90 p-1 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100">
-                    <GripVertical className="w-3 h-3 text-gray-500" />
+                  <div className="absolute top-1.5 left-1.5 rounded-lg border border-line bg-white/90 p-1 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100">
+                    <GripVertical className="w-3 h-3 text-ink-muted" />
                   </div>
                 )}
                 <div className="absolute bottom-1.5 left-1.5 flex items-center gap-1 opacity-100 transition-opacity sm:opacity-0 sm:pointer-events-none sm:group-hover:opacity-100 sm:group-hover:pointer-events-auto sm:group-focus-within:opacity-100 sm:group-focus-within:pointer-events-auto">
@@ -463,11 +467,11 @@ export default function PropertyPreviewForm({ data, onChange }: Props) {
                     href={url}
                     target="_blank"
                     rel="noreferrer"
-                    className="bg-white/90 hover:bg-gray-50 border border-gray-200 rounded-lg p-1"
-                    aria-label={`Open photo ${i + 1}`}
-                    title="Open full size"
+                    className="bg-white/90 hover:bg-surface-page border border-line rounded-lg p-1"
+                    aria-label={t('aiImport.photo.open', { n: i + 1 })}
+                    title={t('aiImport.photo.openFull')}
                   >
-                    <ExternalLink className="w-3 h-3 text-gray-600" />
+                    <ExternalLink className="w-3 h-3 text-ink-muted" />
                   </a>
                   <button
                     type="button"
@@ -476,15 +480,15 @@ export default function PropertyPreviewForm({ data, onChange }: Props) {
                       event.stopPropagation()
                       void handleDownloadPhoto(url, i)
                     }}
-                    className="bg-white/90 hover:bg-gray-50 border border-gray-200 rounded-lg p-1"
-                    aria-label={`Download photo ${i + 1}`}
-                    title={`Download ${buildDownloadName(url, i)}`}
+                    className="bg-white/90 hover:bg-surface-page border border-line rounded-lg p-1"
+                    aria-label={t('aiImport.photo.download', { n: i + 1 })}
+                    title={t('aiImport.photo.downloadName', { name: buildDownloadName(url, i) })}
                   >
-                    <Download className="w-3 h-3 text-gray-600" />
+                    <Download className="w-3 h-3 text-ink-muted" />
                   </button>
                 </div>
                 {i === 0 && (
-                  <span className="absolute bottom-1.5 right-1.5 bg-amber-400 text-white text-[10px] font-bold uppercase px-2 py-0.5 rounded-md">
+                  <span className="absolute bottom-1.5 right-1.5 bg-warning text-white text-[10px] font-bold uppercase px-2 py-0.5 rounded-md">
                     {t('aiImport.mainPhoto')}
                   </span>
                 )}
@@ -495,21 +499,21 @@ export default function PropertyPreviewForm({ data, onChange }: Props) {
                       onClick={() => handleSetMainPhoto(i)}
                       className={`border rounded-lg p-1 ${
                         i === 0
-                          ? 'bg-amber-400 border-amber-400 text-white'
-                          : 'bg-white/90 hover:bg-amber-50 border-gray-200 text-gray-600 hover:text-amber-600'
+                          ? 'bg-warning border-warning text-white'
+                          : 'bg-white/90 hover:bg-warning-soft border-line text-ink-muted hover:text-warning'
                       }`}
-                      aria-label={`Set photo ${i + 1} as main`}
-                      title="Set as main photo"
+                      aria-label={t('aiImport.photo.setMain', { n: i + 1 })}
+                      title={t('aiImport.photo.setMainTitle')}
                     >
                       <Star className="w-3 h-3" />
                     </button>
                     <button
                       type="button"
                       onClick={() => handleRemovePhoto(i)}
-                      className="bg-white/90 hover:bg-red-50 border border-gray-200 rounded-lg p-1"
-                      aria-label={`Remove photo ${i + 1}`}
+                      className="bg-white/90 hover:bg-danger/10 border border-line rounded-lg p-1"
+                      aria-label={t('aiImport.photo.remove', { n: i + 1 })}
                     >
-                      <X className="w-3 h-3 text-gray-600 hover:text-red-500" />
+                      <X className="w-3 h-3 text-ink-muted hover:text-danger" />
                     </button>
                   </div>
                 )}
@@ -517,9 +521,9 @@ export default function PropertyPreviewForm({ data, onChange }: Props) {
             ))}
           </div>
         ) : (
-          <div className="flex flex-col items-center justify-center py-8 bg-gray-50 rounded-xl border border-gray-200">
-            <ImageOff className="w-6 h-6 text-gray-300 mb-2" />
-            <span className="text-xs text-gray-400">{t('aiImport.noPhotosExtracted')}</span>
+          <div className="flex flex-col items-center justify-center py-8 bg-surface-page rounded-xl border border-line">
+            <ImageOff className="w-6 h-6 text-ink-muted/60 mb-2" />
+            <span className="text-xs text-ink-muted">{t('aiImport.noPhotosExtracted')}</span>
           </div>
         )}
       </div>

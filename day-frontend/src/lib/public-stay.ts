@@ -3,6 +3,7 @@
 import { addDays, format, parseISO } from 'date-fns'
 import { isAxiosError } from 'axios'
 import type { PublicOffer } from '../api/public'
+import { lastOf } from './utils'
 
 export interface PublicNight {
   date: string
@@ -28,6 +29,20 @@ export function fromThisWeek(cells: (string | null)[], today: string): (string |
   return cells.slice(start)
 }
 
+/** The days a stay cannot take: the nights taken, and every day the page has not
+ *  loaded, up to `until` (the calendar's last cell). The first day past the loaded
+ *  nights is among them: it may end a stay, never begin one. */
+export function takenDays(nights: PublicNight[], until: string): Set<string> {
+  const set = new Set(nights.filter((n) => !n.free).map((n) => n.date))
+  const last = lastOf(nights)?.date
+  if (!last) return set
+  for (let day = addDays(parseISO(last), 1); format(day, 'yyyy-MM-dd') <= until; day = addDays(day, 1)) {
+    set.add(format(day, 'yyyy-MM-dd'))
+  }
+  set.add(format(addDays(parseISO(last), 1), 'yyyy-MM-dd'))
+  return set
+}
+
 /** The nights from check-in to the night before check-out: how many, what they
  *  cost, and whether every one is free. A night the page has not loaded is not free. */
 export function stayQuote(nights: PublicNight[], checkIn: string, checkOut: string) {
@@ -44,12 +59,18 @@ export function stayQuote(nights: PublicNight[], checkIn: string, checkOut: stri
   return { count, total, free }
 }
 
-/** "20–22 октября": a stay's dates as the guest's language says them. Safari before
- *  14.1 has no formatRange: there the two dates are joined by a dash. */
+/** Two dates as one range, «4–6 нояб.». Safari before 14.1 and some in-app browsers have no
+ *  formatRange, and a page calling it fails: there the dates are joined by a dash. */
+export function dateRange(format: Intl.DateTimeFormat, from: Date, to: Date): string {
+  // Safari writes «4—6 дек.» with an em dash, Chrome «4–6 дек.»: a range takes the en dash.
+  return typeof format.formatRange === 'function'
+    ? format.formatRange(from, to).replace(/—/g, '–')
+    : `${format.format(from)} – ${format.format(to)}`
+}
+
+/** "20–22 октября": a stay's dates as the guest's language says them. */
 export function stayDates(locale: string, checkIn: string, checkOut: string): string {
-  const day = new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'long' })
-  const [from, to] = [parseISO(checkIn), parseISO(checkOut)]
-  return typeof day.formatRange === 'function' ? day.formatRange(from, to) : `${day.format(from)} – ${day.format(to)}`
+  return dateRange(new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'long' }), parseISO(checkIn), parseISO(checkOut))
 }
 
 /** The link's stay as words: "20 октября, 15:00–18:00" by the hour, the dates by the night. */
@@ -75,8 +96,63 @@ export function isHourly(offer: PublicOffer): boolean {
   return offer.rental_mode === 'hourly'
 }
 
+// What a guest looks for first: comfort (Wi-Fi, air conditioning), the kitchen, the TV;
+// a step-free entrance or a grab bar matter to fewer guests, and are found under «all».
+const AMENITY_ORDER = ['comfort', 'kitchen', 'entertainment', 'bathroom', 'outdoor', 'safety', 'other', 'accessibility']
+
+/** A flat's amenities, the ones most guests look for first; the order within a kind kept. */
+export function amenitiesFirst<T extends { category?: string | null }>(amenities: T[]): T[] {
+  const rank = (a: T) => {
+    const at = AMENITY_ORDER.indexOf(a.category ?? 'other')
+    return at < 0 ? AMENITY_ORDER.indexOf('other') : at
+  }
+  return amenities.map((a, n) => ({ a, n })).sort((x, y) => rank(x.a) - rank(y.a) || x.n - y.n).map(({ a }) => a)
+}
+
+export type RuleKind = 'smoke' | 'quiet' | 'pets' | 'party' | 'other'
+
+/** House rules as short items, one per line or sentence, each with its kind for an icon.
+ *  Prose (a long sentence, or many) stays one text: null. */
+export function ruleItems(text: string): { text: string; kind: RuleKind }[] | null {
+  // No lookbehind in a pattern: Safari before 16.4 cannot read one, and the page would fail.
+  const lines = text.split(/\n+/).map((l) => l.trim()).filter(Boolean)
+  const parts = (lines.length > 1 ? lines : text.replace(/([.!;])\s+/g, '$1\n').split('\n')).map((p) => p.trim().replace(/[.;]$/, '')).filter(Boolean)
+  if (parts.length < 2 || parts.length > 8 || parts.some((p) => p.length > 60)) return null
+  const kind = (p: string): RuleKind =>
+    /кур|сигар|темекі|smok|vap|кальян/i.test(p) ? 'smoke'
+      : /тиш|шум|тынысты|quiet|noise/i.test(p) ? 'quiet'
+        : /живот|жануар|pet|собак|кошк/i.test(p) ? 'pets'
+          : /вечерин|тусов|кеш|party/i.test(p) ? 'party'
+            : 'other'
+  return parts.map((p) => ({ text: p, kind: kind(p) }))
+}
+
+/** The most nights a guest books from a public page (SITE_MAX_NIGHTS on the server):
+ *  a longer stay is the host's to agree. */
+export const SITE_MAX_NIGHTS = 30
+
 export function money(value: number, locale: string): string {
   return `${Math.round(value).toLocaleString(locale)}\u00a0₸`
+}
+
+/** The guest's dates and guests from the company's search (?in=&out=&guests=): the flat's page
+ *  opens with them picked. Dates a guest cannot pick here (past, reversed, past the nights
+ *  loaded up to `until`) are dropped. */
+export function stayFromUrl(search: string, today: string, until: string) {
+  const params = new URLSearchParams(search)
+  const day = (key: string) => {
+    const value = params.get(key) ?? ''
+    return /^\d{4}-\d{2}-\d{2}$/.test(value) && !Number.isNaN(Date.parse(value)) ? value : null
+  }
+  const checkIn = day('in')
+  const checkOut = day('out')
+  const dates = checkIn && checkOut && checkIn >= today && checkOut > checkIn && checkOut <= until
+  const guests = Number(params.get('guests'))
+  return {
+    checkIn: dates ? checkIn : null,
+    checkOut: dates ? checkOut : null,
+    guests: Number.isInteger(guests) && guests >= 1 && guests <= 50 ? guests : null,
+  }
 }
 
 /** A link that leads nowhere stays so: only a failed network is tried again. */

@@ -9,9 +9,9 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 
 from app.application.cleaning.create_task import clean_after_stay
-from app.domain.booking.entities import Booking
-from app.domain.booking.repositories import BookingRepository, GuestRepository
-from app.domain.booking.value_objects import BookingStatus
+from app.domain.booking.entities import Booking, BookingAuditLog
+from app.domain.booking.repositories import BookingAuditLogRepository, BookingRepository, GuestRepository
+from app.domain.booking.value_objects import BookingAuditAction, BookingStatus
 from app.domain.cleaning.repositories import CleaningTaskRepository
 from app.domain.property.repositories import PropertyRepository
 from app.domain.settings.entities import DEFAULT_TIME_ZONE
@@ -28,6 +28,12 @@ class GuestLeft:
     flat_name: str
     guest_name: str | None
     cleaning_created: bool
+    # The first time the guest says so: the host is told once, a second tap tells nobody.
+    first: bool = True
+
+
+# The booking's history keeps the guest's «I have left» under this field.
+GUEST_LEFT = "guest_left"
 
 
 class GuestCheckoutService:
@@ -38,7 +44,9 @@ class GuestCheckoutService:
         properties: PropertyRepository,
         tasks: CleaningTaskRepository,
         company_settings: CompanySettingsRepository,
+        audit: BookingAuditLogRepository | None = None,
     ) -> None:
+        self._audit = audit
         self._bookings = bookings
         self._guests = guests
         self._properties = properties
@@ -46,7 +54,10 @@ class GuestCheckoutService:
         self._settings = company_settings
 
     async def execute(self, code: str, now: datetime | None = None) -> GuestLeft:
-        booking = await self._bookings.get_by_guest_code(code) if len(code) == 16 else None
+        found = await self._bookings.get_by_guest_code(code) if len(code) == 16 else None
+        # The booking's row is held until the answer: two taps at once (two tabs) see one
+        # another, and only the first tells the host.
+        booking = await self._bookings.get_for_update(found.id) if found is not None else None
         if booking is None:
             raise LookupError("Not found")
         company = await self._settings.get_by_company(booking.company_id)
@@ -60,6 +71,14 @@ class GuestCheckoutService:
             raise NotStayingError("The stay is over")
         prop = await self._properties.get_by_id(booking.property_id)
         guest = await self._guests.get_by_id(booking.guest_id)
+        first = True
+        if self._audit is not None:
+            first = not await self._audit.has_field(booking.id, GUEST_LEFT)
+            if first:
+                await self._audit.create(BookingAuditLog(
+                    booking_id=booking.id, field_name=GUEST_LEFT, new_value=today.isoformat(),
+                    action=BookingAuditAction.UPDATE,
+                ))
         created = await clean_after_stay(
             self._tasks, self._properties, booking, today=today, notes="Гость отметил выезд на своей странице"
         )
@@ -68,4 +87,5 @@ class GuestCheckoutService:
             flat_name=prop.name if prop and prop.company_id == booking.company_id else "",
             guest_name=guest.name if guest and guest.company_id == booking.company_id else None,
             cleaning_created=created,
+            first=first,
         )

@@ -13,17 +13,17 @@ interface Props {
 }
 
 const statusIcons: Record<ImportJobStatus, { icon: typeof Clock; className: string }> = {
-  pending: { icon: Clock, className: 'text-gray-400' },
-  processing: { icon: Loader2, className: 'text-blue-500 animate-spin' },
-  completed: { icon: CheckCircle2, className: 'text-emerald-500' },
-  failed: { icon: XCircle, className: 'text-red-500' },
+  pending: { icon: Clock, className: 'text-ink-muted' },
+  processing: { icon: Loader2, className: 'text-accent animate-spin' },
+  completed: { icon: CheckCircle2, className: 'text-success' },
+  failed: { icon: XCircle, className: 'text-danger' },
 }
 
 const sourceStyles: Record<string, string> = {
-  booking: 'bg-blue-100 text-blue-700',
-  airbnb: 'bg-rose-100 text-rose-700',
-  krisha: 'bg-amber-100 text-amber-700',
-  other: 'bg-gray-100 text-gray-600',
+  booking: 'bg-accent-soft text-accent-ink',
+  airbnb: 'bg-danger-soft text-danger',
+  krisha: 'bg-warning-soft text-warning',
+  other: 'bg-surface-page text-ink-muted',
 }
 
 const sourceLabels: Record<string, string> = {
@@ -139,20 +139,20 @@ export default function ImportJobCard({ job, index, onClick }: Props) {
         }
       }}
       aria-label={`Import job: ${titleText}, status: ${statusLabel}`}
-      className={`bg-white border border-gray-200 rounded-xl p-4 shadow-sm transition-shadow ${
+      className={`bg-surface-card border border-line rounded-xl p-4 transition-shadow ${
         isClickable ? 'cursor-pointer hover:shadow-md' : ''
       }`}
     >
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-2 min-w-0">
           <StatusIcon className={`w-4 h-4 shrink-0 ${iconConfig.className}`} />
-          <span className="text-xs font-bold text-gray-500">{statusLabel}</span>
+          <span className="text-xs font-bold text-ink-muted">{statusLabel}</span>
         </div>
-        <span className="text-[10px] text-gray-400 shrink-0">{formatTime(job.created_at)}</span>
+        <span className="text-[10px] text-ink-muted shrink-0">{formatTime(job.created_at)}</span>
       </div>
 
       <p
-        className="text-sm text-gray-800 mt-2 line-clamp-2 leading-5 min-h-[40px]"
+        className="text-sm text-ink mt-2 line-clamp-2 leading-5 min-h-[40px]"
         title={listingTitle || job.source_url}
       >
         {titleText}
@@ -169,7 +169,7 @@ export default function ImportJobCard({ job, index, onClick }: Props) {
       </div>
 
       {job.error_message && (
-        <p className="text-xs text-red-500 mt-2 line-clamp-2">{importErrorText(job.error_message, t)}</p>
+        <p className="text-xs text-danger mt-2 line-clamp-2">{importErrorText(job.error_message, t)}</p>
       )}
     </motion.div>
   )

@@ -14,14 +14,17 @@ import {
   getPricing,
   createOrUpdatePricing,
   copyTariffsToAll,
+  copyNearby,
   listAmenities,
   getPropertyAuditLog,
   uploadPhotos,
   setPhotoCaption,
   deletePhoto,
   reorderPhotos,
+  setPhotoCover,
   linkAmenities,
   addSeasonalPrice,
+  updateSeasonalPrice,
   deleteSeasonalPrice,
   addDiscountRule,
   deleteDiscountRule,
@@ -30,7 +33,6 @@ import {
   createTag,
   deleteTag as deleteTagApi,
   getPropertyTags,
-  assignTags,
   listBlocks,
   createBlock,
   deleteBlock,
@@ -38,11 +40,12 @@ import {
   clearDayPrices,
   type DayPriceRange,
   listCalendarFeeds,
+  getPropertySetup,
   addCalendarFeed,
   syncCalendarFeed,
   removeCalendarFeed,
 } from '../api/properties'
-import type { SeasonalPriceInput, DiscountRuleInput, PhotoAudience } from '../types/property'
+import type { SeasonalPriceInput, DiscountRuleInput, PhotoAudience, MediaSection } from '../types/property'
 
 const PROPERTIES_KEY = 'properties'
 const PROPERTY_KEY = 'property'
@@ -108,6 +111,15 @@ export function useChangePropertyStatus(id: string) {
   })
 }
 
+export function usePropertySetup() {
+  return useQuery({
+    queryKey: [PROPERTIES_KEY, 'setup'],
+    queryFn: getPropertySetup,
+    // Prices and calendars change on the flat's page: read afresh each time the list opens.
+    staleTime: 0,
+  })
+}
+
 export function usePropertyPricing(propertyId: string) {
   return useQuery({
     queryKey: [PRICING_KEY, propertyId],
@@ -127,6 +139,17 @@ export function useCreateOrUpdatePricing(propertyId: string) {
   })
 }
 
+export function useCopyNearby(propertyId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (propertyIds: string[]) => copyNearby(propertyId, propertyIds),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: [PROPERTIES_KEY] })
+      qc.invalidateQueries({ queryKey: [PROPERTY_KEY] })
+    },
+  })
+}
+
 export function useCopyTariffsToAll(propertyId: string) {
   const qc = useQueryClient()
   return useMutation({
@@ -139,6 +162,16 @@ export function useAddSeasonalPrice(propertyId: string) {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (data: SeasonalPriceInput) => addSeasonalPrice(propertyId, data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: [PRICING_KEY, propertyId] })
+    },
+  })
+}
+
+export function useUpdateSeasonalPrice(propertyId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, ...data }: SeasonalPriceInput & { id: string }) => updateSeasonalPrice(propertyId, id, data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: [PRICING_KEY, propertyId] })
     },
@@ -187,12 +220,23 @@ export function useAmenities() {
 export function useUploadPhotos(propertyId: string) {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: ({ files, startAt, audience }: { files: File[]; startAt: number; audience?: PhotoAudience }) =>
+    mutationFn: ({
+      files,
+      startAt,
+      audience,
+      section,
+    }: {
+      files: File[]
+      startAt: number
+      audience?: PhotoAudience
+      section?: MediaSection
+    }) =>
       uploadPhotos(
         propertyId,
         files.map((file) => ({ file })),
         startAt,
         audience,
+        section,
       ),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: [PROPERTY_KEY, propertyId] })
@@ -231,6 +275,25 @@ export function useReorderPhotos(propertyId: string) {
   })
 }
 
+/** The listing photos in this order; the first one becomes the cover. */
+export function useArrangePhotos(propertyId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ ids, cover }: { ids: string[]; cover: string | undefined }) => {
+      await reorderPhotos(propertyId, ids)
+      if (ids[0] && ids[0] !== cover) await setPhotoCover(propertyId, ids[0])
+    },
+    // After a failure too: the order may have been saved without the cover.
+    // Awaited: the arrows stay off until the new order is shown, so the next
+    // move starts from it.
+    onSettled: () =>
+      Promise.all([
+        qc.invalidateQueries({ queryKey: [PROPERTY_KEY, propertyId] }),
+        qc.invalidateQueries({ queryKey: [AUDIT_LOG_KEY, propertyId] }),
+      ]),
+  })
+}
+
 export function useLinkAmenities(propertyId: string) {
   const qc = useQueryClient()
   return useMutation({
@@ -238,6 +301,21 @@ export function useLinkAmenities(propertyId: string) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: [PROPERTY_KEY, propertyId] })
     },
+  })
+}
+
+/** The flat's amenities set to exactly these: the server replaces the whole set, an empty one too. */
+export function useSetAmenities(propertyId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (ids: string[]) => linkAmenities(propertyId, ids),
+    // Awaited: the panel closes on the fresh flat, so opening it again starts
+    // from the saved set, not the one before (and the next save would drop it).
+    onSettled: () =>
+      Promise.all([
+        qc.invalidateQueries({ queryKey: [PROPERTY_KEY, propertyId] }),
+        qc.invalidateQueries({ queryKey: [AUDIT_LOG_KEY, propertyId] }),
+      ]),
   })
 }
 
@@ -298,17 +376,6 @@ export function usePropertyTags(propertyId: string) {
     queryKey: [PROPERTY_TAGS_KEY, propertyId],
     queryFn: () => getPropertyTags(propertyId),
     enabled: !!propertyId,
-  })
-}
-
-export function useAssignTags(propertyId: string) {
-  const qc = useQueryClient()
-  return useMutation({
-    mutationFn: (tagIds: string[]) => assignTags(propertyId, tagIds),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: [PROPERTY_TAGS_KEY, propertyId] })
-      qc.invalidateQueries({ queryKey: [PROPERTY_KEY, propertyId] })
-    },
   })
 }
 

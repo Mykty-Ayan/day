@@ -11,6 +11,8 @@ import { sessionGeneration, storeSession } from '../../api/client'
 import Button from '../../components/ui/Button'
 import { useSettings, useUpdateSettings } from '../../hooks/useSettings'
 import MinibarCard from './MinibarCard'
+import WeekendCard from './WeekendCard'
+import LoadError from '../../components/ui/LoadError'
 
 const LANGUAGES = [
   { code: 'ru', label: 'Русский', flag: 'RU' },
@@ -35,15 +37,15 @@ export default function SettingsPage() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4 }}
       >
-        <h1 className="text-xl font-bold text-gray-900 mb-6">{t('settings.title')}</h1>
+        <h1 className="text-xl font-bold text-ink mb-6">{t('settings.title')}</h1>
 
         {/* Language */}
-        <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
+        <div className="bg-surface-card border border-line rounded-xl p-5">
           <div className="flex items-center gap-2 mb-4">
-            <Globe className="w-4 h-4 text-gray-500" />
+            <Globe className="w-4 h-4 text-ink-muted" />
             <div>
-              <h2 className="text-sm font-bold text-gray-900">{t('settings.language')}</h2>
-              <p className="text-xs text-gray-500">{t('settings.languageDescription')}</p>
+              <h2 className="text-sm font-bold text-ink">{t('settings.language')}</h2>
+              <p className="text-xs text-ink-muted">{t('settings.languageDescription')}</p>
             </div>
           </div>
 
@@ -57,19 +59,19 @@ export default function SettingsPage() {
                   onClick={() => changeLanguage(lang.code)}
                   className={`w-full flex items-center justify-between gap-3 px-4 py-3 rounded-xl border transition-colors text-left ${
                     isActive
-                      ? 'border-black bg-gray-50'
-                      : 'border-gray-200 hover:bg-gray-50'
+                      ? 'border-accent bg-accent-soft'
+                      : 'border-line hover:bg-surface-page'
                   }`}
                 >
                   <div className="flex min-w-0 flex-1 items-center gap-3">
-                    <span className="w-8 h-8 rounded-lg bg-gray-100 flex shrink-0 items-center justify-center text-xs font-bold text-gray-600">
+                    <span className="w-8 h-8 rounded-lg bg-surface-page flex shrink-0 items-center justify-center text-xs font-bold text-ink-muted">
                       {lang.flag}
                     </span>
-                    <span className="min-w-0 break-words text-sm font-semibold leading-5 text-gray-900">
+                    <span className="min-w-0 break-words text-sm font-semibold leading-5 text-ink">
                       {lang.label}
                     </span>
                   </div>
-                  {isActive && <Check className="w-4 h-4 shrink-0 text-gray-900" />}
+                  {isActive && <Check className="w-4 h-4 shrink-0 text-ink" />}
                 </motion.button>
               )
             })}
@@ -79,22 +81,23 @@ export default function SettingsPage() {
         <PasswordCard />
         <TwoFactorCard />
         {currentUser?.role === 'owner' && <GuestPageCard />}
+        {currentUser?.role === 'owner' && <WeekendCard />}
         {currentUser?.role === 'owner' && <MinibarCard />}
 
         {/* Team and service keys live behind their own page — owner only. */}
         {currentUser?.role === 'owner' && (
           <Link
             to="/settings/team"
-            className="mt-4 flex min-h-[44px] items-center justify-between gap-3 rounded-xl border border-gray-200 bg-white p-5 shadow-sm transition-colors hover:bg-gray-50"
+            className="mt-4 flex min-h-[44px] items-center justify-between gap-3 rounded-xl border border-line bg-surface-card p-5 transition-colors hover:bg-surface-page"
           >
             <div className="flex min-w-0 items-center gap-2">
-              <Users className="h-4 w-4 shrink-0 text-gray-500" />
+              <Users className="h-4 w-4 shrink-0 text-ink-muted" />
               <div className="min-w-0">
-                <h2 className="text-sm font-bold text-gray-900">{t('team.title')}</h2>
-                <p className="text-xs text-gray-500">{t('team.settingsHint')}</p>
+                <h2 className="text-sm font-bold text-ink">{t('team.title')}</h2>
+                <p className="text-xs text-ink-muted">{t('team.settingsHint')}</p>
               </div>
             </div>
-            <ChevronRight className="h-4 w-4 shrink-0 text-gray-400" />
+            <ChevronRight className="h-4 w-4 shrink-0 text-ink-muted" />
           </Link>
         )}
       </motion.div>
@@ -137,33 +140,33 @@ function PasswordCard() {
     }
   }
 
-  const field = 'w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:border-black focus:outline-none'
+  const field = 'w-full rounded-xl border border-line px-3 py-2.5 text-sm focus:border-accent focus:outline-none'
   return (
-    <form onSubmit={submit} className="mt-4 bg-white border border-gray-200 rounded-xl p-5 shadow-sm space-y-3">
+    <form onSubmit={submit} className="mt-4 bg-surface-card border border-line rounded-xl p-5 space-y-3">
       <div className="flex items-center gap-2">
-        <KeyRound className="w-4 h-4 text-gray-500" />
+        <KeyRound className="w-4 h-4 text-ink-muted" />
         <div>
-          <h2 className="text-sm font-bold text-gray-900">{t('settings.password.title')}</h2>
-          <p className="text-xs text-gray-500">{t('settings.password.description')}</p>
+          <h2 className="text-sm font-bold text-ink">{t('settings.password.title')}</h2>
+          <p className="text-xs text-ink-muted">{t('settings.password.description')}</p>
         </div>
       </div>
-      <label className="block text-xs font-semibold text-gray-700">
+      <label className="block text-xs font-semibold text-ink">
         {t('settings.password.current')}
         <input id="current-password" type="password" autoComplete="current-password" required value={current}
           onChange={(e) => setCurrent(e.target.value)} className={`mt-1 ${field}`} />
       </label>
-      <label className="block text-xs font-semibold text-gray-700">
+      <label className="block text-xs font-semibold text-ink">
         {t('settings.password.new')}
         <input id="new-password" type="password" autoComplete="new-password" required value={next}
           onChange={(e) => setNext(e.target.value)} className={`mt-1 ${field}`} />
       </label>
-      <label className="block text-xs font-semibold text-gray-700">
+      <label className="block text-xs font-semibold text-ink">
         {t('settings.password.repeat')}
         <input id="repeat-password" type="password" autoComplete="new-password" required value={repeat}
           onChange={(e) => setRepeat(e.target.value)} className={`mt-1 ${field}`} />
       </label>
       {error && (
-        <p role="alert" className="text-xs text-red-600">
+        <p role="alert" className="text-xs text-danger">
           {error}
         </p>
       )}
@@ -203,21 +206,21 @@ function TwoFactorCard() {
 
   const blocked = !enabled && !user.telegram_linked
   return (
-    <form onSubmit={toggle} className="mt-4 bg-white border border-gray-200 rounded-xl p-5 shadow-sm space-y-3">
+    <form onSubmit={toggle} className="mt-4 bg-surface-card border border-line rounded-xl p-5 space-y-3">
       <div className="flex items-center gap-2">
-        <ShieldCheck className="w-4 h-4 text-gray-500" />
+        <ShieldCheck className="w-4 h-4 text-ink-muted" />
         <div>
-          <h2 className="text-sm font-bold text-gray-900">{t('auth.twoFactor.cardTitle')}</h2>
-          <p className="text-xs text-gray-500">
+          <h2 className="text-sm font-bold text-ink">{t('auth.twoFactor.cardTitle')}</h2>
+          <p className="text-xs text-ink-muted">
             {enabled ? t('auth.twoFactor.cardOn') : t('auth.twoFactor.cardOff')}
           </p>
         </div>
       </div>
       {blocked ? (
-        <p className="text-xs text-gray-600">{t('auth.twoFactor.needTelegram')}</p>
+        <p className="text-xs text-ink-muted">{t('auth.twoFactor.needTelegram')}</p>
       ) : (
         <>
-          <label className="block text-xs font-semibold text-gray-700">
+          <label className="block text-xs font-semibold text-ink">
             {t('auth.twoFactor.password')}
             <input
               id="two-factor-password"
@@ -226,11 +229,11 @@ function TwoFactorCard() {
               required
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:border-black focus:outline-none"
+              className="mt-1 w-full rounded-xl border border-line px-3 py-2.5 text-sm focus:border-accent focus:outline-none"
             />
           </label>
           {error && (
-            <p role="alert" className="text-xs text-red-600">
+            <p role="alert" className="text-xs text-danger">
               {error}
             </p>
           )}
@@ -247,16 +250,18 @@ function TwoFactorCard() {
  *  before check-in. The owner's, as the settings are. */
 function GuestPageCard() {
   const { t } = useTranslation()
-  const { data: settings } = useSettings()
+  const { data: settings, isSuccess: known, isError, refetch } = useSettings()
   const update = useUpdateSettings()
   const [daily, setDaily] = useState<string | null>(null)
   const [hourly, setHourly] = useState<string | null>(null)
-  const shownDaily = daily ?? String(settings?.secrets_lead_hours_daily ?? 24)
-  const shownHourly = hourly ?? String(settings?.secrets_lead_hours_hourly ?? 1)
+  // Locked until the company's own hours are read: a guessed 24 and 1 would be saved over them.
+  const shownDaily = daily ?? (known ? String(settings?.secrets_lead_hours_daily ?? 24) : '')
+  const shownHourly = hourly ?? (known ? String(settings?.secrets_lead_hours_hourly ?? 1) : '')
   const valid = (v: string) => /^\d{1,3}$/.test(v) && Number(v) <= 168
 
   async function save(event: React.FormEvent) {
     event.preventDefault()
+    if (!known) return
     if (!valid(shownDaily) || !valid(shownHourly)) {
       showToast('error', t('settings.guestPage.invalid'))
       return
@@ -271,27 +276,28 @@ function GuestPageCard() {
     }
   }
 
-  const input = 'mt-1.5 w-full rounded-xl border border-gray-200 bg-gray-50 p-3 text-sm text-gray-800'
+  const input = 'mt-1.5 w-full rounded-xl border border-line bg-surface-page p-3 text-sm text-ink'
   return (
-    <form onSubmit={save} className="mt-4 space-y-3 rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+    <form onSubmit={save} className="mt-4 space-y-3 rounded-xl border border-line bg-surface-card p-5">
       <div className="flex items-center gap-2">
-        <DoorOpen className="h-4 w-4 text-gray-500" />
+        <DoorOpen className="h-4 w-4 text-ink-muted" />
         <div>
-          <h2 className="text-sm font-bold text-gray-900">{t('settings.guestPage.title')}</h2>
-          <p className="text-xs text-gray-500">{t('settings.guestPage.description')}</p>
+          <h2 className="text-sm font-bold text-ink">{t('settings.guestPage.title')}</h2>
+          <p className="text-xs text-ink-muted">{t('settings.guestPage.description')}</p>
         </div>
       </div>
+      {isError && <LoadError message={t('settings.loadFailed')} onRetry={() => refetch()} />}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <label className="text-xs font-bold uppercase tracking-wider text-gray-400">
+        <label className="text-xs font-semibold text-ink-muted">
           {t('settings.guestPage.daily')}
-          <input id="lead-daily" inputMode="numeric" value={shownDaily} onChange={(e) => setDaily(e.target.value)} className={input} />
-        </label>
-        <label className="text-xs font-bold uppercase tracking-wider text-gray-400">
+          <input id="lead-daily" inputMode="numeric" disabled={!known} value={shownDaily} onChange={(e) => setDaily(e.target.value)} className={input} />
+ </label>
+        <label className="text-xs font-semibold text-ink-muted">
           {t('settings.guestPage.hourly')}
-          <input id="lead-hourly" inputMode="numeric" value={shownHourly} onChange={(e) => setHourly(e.target.value)} className={input} />
-        </label>
+          <input id="lead-hourly" inputMode="numeric" disabled={!known} value={shownHourly} onChange={(e) => setHourly(e.target.value)} className={input} />
+ </label>
       </div>
-      <Button type="submit" disabled={update.isPending}>
+      <Button type="submit" disabled={!known || update.isPending}>
         {t('settings.guestPage.save')}
       </Button>
     </form>

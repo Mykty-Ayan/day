@@ -12,8 +12,11 @@ from app.domain.property.repositories import (
     DayPriceRepository,
     DiscountRuleRepository,
     PricingConfigRepository,
+    PropertyRepository,
     SeasonalPriceRepository,
 )
+from app.domain.settings.entities import DEFAULT_WEEKEND_NIGHTS
+from app.domain.settings.repositories import CompanySettingsRepository
 
 
 @dataclass
@@ -50,12 +53,17 @@ class NightRate:
 
 
 def nightly_rates(
-    pricing: PricingConfig, seasonals: list, calendar: dict[date, Decimal], first: date, nights: int
+    pricing: PricingConfig,
+    seasonals: list,
+    calendar: dict[date, Decimal],
+    first: date,
+    nights: int,
+    weekend_nights: tuple[int, ...] = DEFAULT_WEEKEND_NIGHTS,
 ) -> list[NightRate]:
     """Each night's price, as a booking pays it before guests and discounts: a price
     set on the calendar for that night; else the season's or the base, plus the
-    weekend markup on Friday and Saturday nights. The booking total and the guest's
-    calendar both count from here."""
+    weekend markup on the company's weekend nights (Friday and Saturday unless it set
+    others). The booking total and the guest's calendar both count from here."""
     rates = []
     for offset in range(nights):
         night = first + timedelta(days=offset)
@@ -66,7 +74,11 @@ def nightly_rates(
             (s for s in seasonals if s.start_date and s.end_date and s.start_date <= night <= s.end_date), None
         )
         price = season.price_per_night if season else pricing.base_price
-        weekend = pricing.weekend_markup if night.weekday() in (4, 5) and pricing.weekend_markup > 0 else Decimal("0")
+        weekend = (
+            pricing.weekend_markup
+            if night.weekday() in weekend_nights and pricing.weekend_markup > 0
+            else Decimal("0")
+        )
         rates.append(NightRate(night, price + weekend, weekend))
     return rates
 
@@ -125,8 +137,13 @@ class PriceCalculatorService:
         seasonal_repo: SeasonalPriceRepository,
         discount_repo: DiscountRuleRepository,
         day_price_repo: DayPriceRepository,
+        property_repo: PropertyRepository | None = None,
+        settings_repo: CompanySettingsRepository | None = None,
     ) -> None:
         self._pricing_repo = pricing_repo
+        # The company's weekend nights; without these two, Friday and Saturday.
+        self._property_repo = property_repo
+        self._settings_repo = settings_repo
         self._seasonal_repo = seasonal_repo
         self._discount_repo = discount_repo
         self._day_price_repo = day_price_repo
@@ -143,15 +160,24 @@ class PriceCalculatorService:
         pricing = await self._pricing_repo.get_by_property(property_id)
         if pricing is None:
             raise ValueError("Property has no pricing configuration")
+        weekend = await self.weekend_nights(property_id)
 
         if rental_mode == RentalMode.HOURLY:
             if has_tariffs(pricing):
-                return await self._calculate_tariff(pricing, check_in, check_out, adults_count, children_count)
+                return await self._calculate_tariff(pricing, check_in, check_out, adults_count, children_count, weekend)
             return self._calculate_hourly(pricing, check_in, check_out)
 
         return await self._calculate_daily(
-            pricing, check_in, check_out, adults_count, children_count
+            pricing, check_in, check_out, adults_count, children_count, weekend
         )
+
+    async def weekend_nights(self, property_id: uuid.UUID) -> tuple[int, ...]:
+        """The nights (Monday 0) the flat's company counts as the weekend."""
+        if self._property_repo is None or self._settings_repo is None:
+            return DEFAULT_WEEKEND_NIGHTS
+        prop = await self._property_repo.get_by_id(property_id)
+        settings = await self._settings_repo.get_by_company(prop.company_id) if prop else None
+        return settings.weekend_nights if settings else DEFAULT_WEEKEND_NIGHTS
 
     def _calculate_hourly(
         self,
@@ -186,6 +212,7 @@ class PriceCalculatorService:
         check_out: datetime,
         adults_count: int,
         children_count: int,
+        weekend_nights: tuple[int, ...] = DEFAULT_WEEKEND_NIGHTS,
     ) -> PriceBreakdown:
         # The smallest tariff that covers the stay: 3 h or 6 h by day, the night once
         # the stay runs late, then whole days. A guest asking for 4 hours pays for 6,
@@ -196,7 +223,7 @@ class PriceCalculatorService:
         units = math.ceil(hours)
         evening = _late_evening(pricing, check_in, check_out)
         if evening is None:
-            weekend = check_in.weekday() in (4, 5)
+            weekend = check_in.weekday() in weekend_nights
             for name, limit, weekday_price, weekend_price in (
                 ("3h", 3, pricing.price_3h, pricing.price_3h_weekend),
                 ("6h", 6, pricing.price_6h, pricing.price_6h_weekend),
@@ -213,14 +240,16 @@ class PriceCalculatorService:
             # Late, hours are not sold: the night, if out by morning and not too long.
             morning = datetime.combine(evening + timedelta(days=1), pricing.night_to)
             if pricing.price_night > 0 and check_out <= morning and hours <= pricing.night_max_hours:
-                price = _tariff_price(pricing.price_night, pricing.price_night_weekend, evening.weekday() in (4, 5))
+                price = _tariff_price(
+                    pricing.price_night, pricing.price_night_weekend, evening.weekday() in weekend_nights
+                )
                 return _tariff_breakdown("night", units, price, "late", morning)
         if pricing.base_price > 0:
             days = math.ceil(hours / 24)
             # A check-in before 06:00 is the evening before's, for the day's price too.
             first = evening if evening is not None else check_in.date()
             day = await self._calculate_daily(
-                pricing, first, first + timedelta(days=days), adults_count, children_count
+                pricing, first, first + timedelta(days=days), adults_count, children_count, weekend_nights
             )
             day.units, day.unit_label, day.tariff = units, "hours", "day"
             day.tariff_reason = "late" if evening is not None and hours <= 24 else "longer"
@@ -234,6 +263,7 @@ class PriceCalculatorService:
         check_out: date | datetime,
         adults_count: int,
         children_count: int,
+        weekend_nights: tuple[int, ...] = DEFAULT_WEEKEND_NIGHTS,
     ) -> PriceBreakdown:
         seasonals = await self._seasonal_repo.list_by_pricing_config(pricing.id)
         discounts = await self._discount_repo.list_by_pricing_config(pricing.id)
@@ -261,7 +291,7 @@ class PriceCalculatorService:
 
         # The breakdown splits each night's price: the base, the weekend markup, and
         # the rest (a season, or a calendar price, which replaces both) as an adjustment.
-        for rate in nightly_rates(pricing, seasonals, calendar, check_in_date, nights):
+        for rate in nightly_rates(pricing, seasonals, calendar, check_in_date, nights, weekend_nights):
             base_total += pricing.base_price
             weekend_surcharge += rate.weekend
             seasonal_adjustment += rate.price - pricing.base_price - rate.weekend

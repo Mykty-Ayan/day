@@ -112,6 +112,17 @@ class FakeNotificationRepository(OutboundNotificationRepository):
             and (n.next_attempt_at is None or n.next_attempt_at <= now)
         ][:limit]
 
+    async def list_failed(self, company_id, since, limit=50):
+        found = [n for n in self.items if n.company_id == company_id and n.undelivered]
+        return found[:limit]
+
+    async def send_again(self, company_id, notification_id, now):
+        found = next((n for n in self.items if n.id == notification_id and n.company_id == company_id), None)
+        if found is None or not found.undelivered:
+            return False
+        found.send_again(now)
+        return True
+
 
 class StubProperty:
     def __init__(self, name: str, property_id: uuid.UUID | None = None) -> None:
@@ -941,6 +952,26 @@ class TestCleanerHearsOfANewCleaning:
 
         assert [(n.target, n.payload["user_id"]) for n in queued] == [("2", str(CLEANER.id))]
         assert await svc.notify_user(COMPANY_ID, uuid.uuid4(), NotificationEvent.CLEANING_ASSIGNED, {}) == []
+
+    @pytest.mark.asyncio
+    async def test_a_moved_cleaning_says_so_to_its_cleaner_alone(self):
+        repo = FakeNotificationRepository()
+        svc = NotificationService(repo, self._chats(), StubUsers([OWNER, CLEANER]))
+        await svc.notify_user(
+            COMPANY_ID,
+            CLEANER.id,
+            NotificationEvent.CLEANING_MOVED,
+            {"property_name": "Абая 28", "date": "02.11.2026", "time": None, "type": "post_checkout"},
+        )
+        provider = FakeProvider()
+        dispatcher = NotificationDispatcher(
+            repo, {Channel.TELEGRAM: provider}, identity_repo=self._chats(), user_repo=StubUsers([OWNER, CLEANER])
+        )
+
+        assert await dispatcher.dispatch_due() == 1
+        target, text = provider.sent[0][:2]
+        assert target == "2"
+        assert "Уборка перенесена" in text and "02.11.2026" in text
 
     @pytest.mark.asyncio
     async def test_the_notice_reaches_the_cleaner_with_a_button_to_their_cleanings(self):

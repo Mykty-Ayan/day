@@ -2,6 +2,7 @@ import apiClient from './client'
 import type {
   AnalyticsFilters,
   AnalyticsMetricsResponse,
+  PaymentsSummary,
   TimeSeriesResponse,
 } from '../types/analytics'
 
@@ -12,7 +13,7 @@ function buildAnalyticsParams(filters: AnalyticsFilters = {}) {
   if (filters.date_to) params.set('date_to', filters.date_to)
   if (filters.period) params.set('period', filters.period)
   if (filters.granularity) params.set('granularity', filters.granularity)
-  if (filters.source) params.set('source', filters.source)
+  for (const source of filters.source ?? []) params.append('source', source)
   if (filters.property_ids?.length) {
     for (const id of filters.property_ids) {
       params.append('property_id', id)
@@ -41,6 +42,13 @@ export async function getAnalyticsTimeSeries(
   const res = await apiClient.get('/analytics/time-series', {
     params: buildAnalyticsParams(filters),
   })
+  return res.data
+}
+
+// --- Payments ---
+
+export async function getAnalyticsPayments(filters: AnalyticsFilters = {}): Promise<PaymentsSummary> {
+  const res = await apiClient.get('/analytics/payments', { params: buildAnalyticsParams(filters) })
   return res.data
 }
 

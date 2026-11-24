@@ -4,7 +4,7 @@
  */
 
 import { expect, test } from '@playwright/test'
-import { fromThisWeek, guestLanguage, isHourly, monthCells, offerDates, onAccent, openedInFlat, stayDates, stayQuote } from '../../src/lib/public-stay'
+import { amenitiesFirst, dateRange, fromThisWeek, guestLanguage, isHourly, monthCells, offerDates, onAccent, openedInFlat, ruleItems, stayDates, stayFromUrl, stayQuote, takenDays } from '../../src/lib/public-stay'
 
 test('a month is laid out from Monday, with blanks before its first day', () => {
   // 1 October 2026 is a Thursday.
@@ -91,4 +91,64 @@ test("the calendar opens on this week: the month's weeks that are all past are l
   expect(shown.at(-1)).toBe('2026-10-31')
   // A month still ahead keeps every week, its leading blanks too.
   expect(fromThisWeek(monthCells(2026, 10), '2026-10-27')).toEqual(monthCells(2026, 10))
+})
+
+test('the company search hands the flat its dates and guests, and only ones a guest can pick', () => {
+  const today = '2026-11-22'
+  const until = '2027-03-21'
+  expect(stayFromUrl('?in=2026-11-24&out=2026-11-26&guests=3', today, until)).toEqual({ checkIn: '2026-11-24', checkOut: '2026-11-26', guests: 3 })
+  // Past, reversed, past the nights loaded, or not a date: no dates; the guests still count.
+  for (const q of ['?in=2026-11-21&out=2026-11-23', '?in=2026-11-26&out=2026-11-24', '?in=2027-03-20&out=2027-03-22', '?in=24.11&out=26.11'])
+    expect(stayFromUrl(`${q}&guests=2`, today, until)).toEqual({ checkIn: null, checkOut: null, guests: 2 })
+  expect(stayFromUrl('?guests=0', today, until).guests).toBeNull()
+  expect(stayFromUrl('?guests=2.5', today, until).guests).toBeNull()
+  expect(stayFromUrl('', today, until)).toEqual({ checkIn: null, checkOut: null, guests: null })
+})
+
+test('the calendar days past the loaded nights are taken: none of them begins a stay of unknown price', () => {
+  const nights = [
+    { date: '2027-03-20', price: 20000, free: true },
+    { date: '2027-03-21', price: 20000, free: false },
+  ]
+  // The calendar runs to Sunday 28 March; the nights stop on the 21st.
+  const taken = takenDays(nights, '2027-03-28')
+  expect([...taken].sort()).toEqual(['2027-03-21', '2027-03-22', '2027-03-23', '2027-03-24', '2027-03-25', '2027-03-26', '2027-03-27', '2027-03-28'])
+  expect(taken.has('2027-03-20')).toBe(false)
+  // A stay over an unloaded night is not free, so the page offers no booking for it.
+  expect(stayQuote(nights, '2027-03-22', '2027-03-24').free).toBe(false)
+})
+
+test('a range of dates without formatRange is joined by a dash, not a crash', () => {
+  const format = new Intl.DateTimeFormat('ru', { day: 'numeric', month: 'short' })
+  // An in-app browser without formatRange: only format.
+  const bare = { format: (d: Date) => format.format(d) } as unknown as Intl.DateTimeFormat
+  const [from, to] = [new Date(2026, 11, 4), new Date(2026, 11, 6)]
+  expect(dateRange(format, from, to)).toBe(format.formatRange(from, to))
+  expect(dateRange(bare, from, to)).toBe(`${format.format(from)} – ${format.format(to)}`)
+  // Safari's em dash becomes the en dash a range takes.
+  const safari = { formatRange: () => '4—6 дек.' } as unknown as Intl.DateTimeFormat
+  expect(dateRange(safari, from, to)).toBe('4–6 дек.')
+})
+
+test('the amenities most guests look for come first, a step-free entrance last', () => {
+  const list = [
+    { name: 'Вход без ступенек', category: 'accessibility' },
+    { name: 'Фен', category: 'bathroom' },
+    { name: 'Wi-Fi', category: 'comfort' },
+    { name: 'Кухня', category: 'kitchen' },
+    { name: 'Кондиционер', category: 'comfort' },
+  ]
+  expect(amenitiesFirst(list).map((a) => a.name)).toEqual(['Wi-Fi', 'Кондиционер', 'Кухня', 'Фен', 'Вход без ступенек'])
+})
+
+test('short house rules become items with their kind; prose stays one text', () => {
+  expect(ruleItems('Не курить. Тишина после 23:00.')).toEqual([
+    { text: 'Не курить', kind: 'smoke' },
+    { text: 'Тишина после 23:00', kind: 'quiet' },
+  ])
+  expect(ruleItems('Без животных\nБез вечеринок\nОбувь у двери')?.map((r) => r.kind)).toEqual(['pets', 'party', 'other'])
+  expect(ruleItems('Без обуви! Не курить; Тишина')?.map((r) => r.text)).toEqual(['Без обуви!', 'Не курить', 'Тишина'])
+  // One rule, or a long story, is read as written.
+  expect(ruleItems('Не курить.')).toBeNull()
+  expect(ruleItems('Пожалуйста, берегите мебель и технику: за поломки, которые случились по вашей вине, придётся заплатить. Спасибо.')).toBeNull()
 })

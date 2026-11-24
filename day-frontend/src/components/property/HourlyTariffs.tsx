@@ -26,7 +26,7 @@ const ROWS = [
   ['night', 'price_night', 'price_night_weekend'],
 ] as const
 
-const label = 'block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1'
+const label = 'mb-1.5 block text-xs font-semibold text-ink-muted'
 
 /** 3 hours, 6 hours and the night at fixed prices, and the hours after which only
  *  the night is sold. `propertyId` is set once the flat has saved prices: only
@@ -46,16 +46,15 @@ export default function HourlyTariffs({
   const set = (key: keyof TariffDraft) => (value: string) => onChange({ ...draft, [key]: value })
 
   return (
-    <div className="mt-5 border-t border-gray-100 pt-4">
-      <h3 className="text-sm font-bold text-gray-900">{t('tariffs.title')}</h3>
-      <p className="mt-1 mb-3 text-xs text-gray-500">{t('tariffs.hint')}</p>
+    <div>
+      <p className="mt-1 mb-3 text-xs text-ink-muted">{t('tariffs.hint')}</p>
       <div className="grid grid-cols-[1fr_1fr_1fr] gap-x-3 gap-y-2 items-end">
         <span />
         <span className={label}>{t('tariffs.weekdays')}</span>
         <span className={label}>{t('tariffs.weekend')}</span>
         {ROWS.map(([name, weekday, weekend]) => (
           <div key={name} className="contents">
-            <span className="pb-3 text-sm font-semibold text-gray-700">{t(`tariffs.${name}`)}</span>
+            <span className="pb-3 text-sm font-semibold text-ink">{t(`tariffs.${name}`)}</span>
             <NumberInput
               value={draft[weekday]}
               onChange={set(weekday)}
@@ -87,7 +86,7 @@ export default function HourlyTariffs({
           <NumberInput value={draft.night_max_hours} onChange={set('night_max_hours')} min={1} max={24} step={1} />
         </div>
       </div>
-      <p className="mt-2 text-xs text-gray-500">
+      <p className="mt-2 text-xs text-ink-muted">
         {t('tariffs.rule', { late: draft.late_from, morning: draft.night_to, hours: draft.night_max_hours })}
       </p>
       {propertyId && (
@@ -95,7 +94,7 @@ export default function HourlyTariffs({
           type="button"
           onClick={() => setConfirming(true)}
           disabled={copy.isPending}
-          className="mt-3 inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-gray-50 px-4 py-2 text-xs font-bold text-gray-700 hover:bg-gray-100 disabled:opacity-50"
+          className="mt-3 inline-flex min-h-[40px] items-center gap-2 rounded-lg border border-line px-3 text-xs font-bold text-ink transition-colors hover:bg-surface-page disabled:opacity-50"
         >
           {copy.isPending && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
           {t('tariffs.copyAll')}

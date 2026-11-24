@@ -1,5 +1,6 @@
 import { isAxiosError } from 'axios'
 import apiClient from './client'
+import { patiently } from '../lib/patiently'
 import type {
   Booking,
   BookingDetail,
@@ -40,6 +41,29 @@ export async function listBookings(
   filters: BookingFilters = {},
 ): Promise<PaginatedResponse<Booking>> {
   const res = await apiClient.get('/bookings', { params: filters })
+  return res.data
+}
+
+/** Every page of the bookings that match, one after another: all at once a long list would spend
+ *  the session's reads a minute, and a refused page waits for the limit and is asked again. */
+export async function listAllBookings(filters: Omit<BookingFilters, 'page' | 'per_page'> = {}): Promise<Booking[]> {
+  const items: Booking[] = []
+  for (let page = 1, pages = 1; page <= pages; page++) {
+    const data = await patiently(() => listBookings({ ...filters, per_page: 100, page }))
+    pages = data.pages
+    items.push(...data.items)
+  }
+  return items
+}
+
+/** Every booking the list finds with these filters, in one read on the server: put together from
+ *  pages, an export could repeat a stay or miss one while bookings change. Answers 422 past
+ *  10 000 bookings. */
+export async function exportBookings(
+  filters: Omit<BookingFilters, 'page' | 'per_page'>,
+  expectedCompany: string,
+): Promise<Booking[]> {
+  const res = await apiClient.get('/bookings/export', { params: filters, expectedCompany })
   return res.data
 }
 
@@ -157,6 +181,20 @@ export async function createDeposit(
   return res.data
 }
 
+/** A photo of what a hold is for: `url` goes back in the deduction, `preview_url` is shown now. */
+export async function uploadDepositPhoto(
+  bookingId: string,
+  depositId: string,
+  file: File,
+): Promise<{ url: string; preview_url: string }> {
+  const formData = new FormData()
+  formData.append('file', file)
+  const res = await apiClient.post(`/bookings/${bookingId}/deposits/${depositId}/photos`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  })
+  return res.data
+}
+
 export async function depositAction(
   bookingId: string,
   depositId: string,
@@ -206,11 +244,15 @@ export async function deleteFile(
 
 /** Files are guests' documents: the bucket is private, so they come through
  *  the API with the user's token, never by a bare link. */
-export async function downloadFile(bookingId: string, fileId: string, fileName: string): Promise<void> {
+export async function fileBlob(bookingId: string, fileId: string): Promise<Blob> {
   const res = await apiClient.get<Blob>(`/bookings/${bookingId}/files/${fileId}/download`, {
     responseType: 'blob',
   })
-  const url = URL.createObjectURL(res.data)
+  return res.data
+}
+
+export async function downloadFile(bookingId: string, fileId: string, fileName: string): Promise<void> {
+  const url = URL.createObjectURL(await fileBlob(bookingId, fileId))
   const link = document.createElement('a')
   link.href = url
   link.download = fileName

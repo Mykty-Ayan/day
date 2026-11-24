@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import re
-from datetime import datetime
+from datetime import date, datetime
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
@@ -13,6 +13,7 @@ class SiteUpdate(BaseModel):
     # The site's address: /c/<slug>.
     slug: str = Field(min_length=3, max_length=40)
     title: str = Field(min_length=1, max_length=120)
+    tagline: str | None = Field(default=None, max_length=120)
     about: str | None = Field(default=None, max_length=2000)
     logo_url: WebLink | None = None
     cover_url: WebLink | None = None
@@ -69,7 +70,7 @@ class SiteUpdate(BaseModel):
             raise ValueError("An Instagram name: letters, digits, dots and underscores")
         return handle
 
-    @field_validator("about")
+    @field_validator("tagline", "about")
     @classmethod
     def _about(cls, value: str | None) -> str | None:
         return value.strip() or None if value else None
@@ -80,6 +81,7 @@ class SiteResponse(BaseModel):
 
     slug: str
     title: str
+    tagline: str | None = None
     about: str | None = None
     logo_url: str | None = None
     cover_url: str | None = None
@@ -100,6 +102,15 @@ class PublicCompanyFlat(BaseModel):
     # By the kind of stay the flat takes; none when not let that way or not priced.
     night_price: float | None = None
     hour_price: float | None = None
+    # The first free night from today within FREE_AHEAD_DAYS, for a flat let by the night;
+    # None when it is taken all that time or let only by the hour.
+    free_from: date | None = None
+    # How many listing photos the flat's page has.
+    photos: int = 0
+    # Only when the guest asked for dates: free for all those nights (and as many as the flat
+    # takes at least), and what they cost together, as the flat's page counts them.
+    stay_free: bool | None = None
+    stay_total: float | None = None
 
 
 class PublicCompanyResponse(BaseModel):
@@ -107,6 +118,7 @@ class PublicCompanyResponse(BaseModel):
 
     slug: str
     title: str
+    tagline: str | None = None
     about: str | None = None
     logo_url: str | None = None
     cover_url: str | None = None
@@ -116,5 +128,7 @@ class PublicCompanyResponse(BaseModel):
     # The company's rules for anyone (pets, smoking, documents); never a rule for staying guests.
     rules: list[str] = []
     flats: list[PublicCompanyFlat] = []
+    # The company's own day: a flat free from it is free tonight.
+    today: date | None = None
 
 

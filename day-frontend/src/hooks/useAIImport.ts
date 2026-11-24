@@ -9,7 +9,6 @@ import {
   getImportJob,
   startImport,
   confirmImport,
-  deleteImportJob,
   startBatchImport,
 } from '../api/ai-import'
 
@@ -57,16 +56,6 @@ export function useConfirmImport(jobId: string) {
       qc.invalidateQueries({ queryKey: [IMPORT_JOBS_KEY] })
       qc.invalidateQueries({ queryKey: [IMPORT_JOB_KEY, jobId] })
       qc.invalidateQueries({ queryKey: [PROPERTIES_KEY] })
-    },
-  })
-}
-
-export function useDeleteImportJob() {
-  const qc = useQueryClient()
-  return useMutation({
-    mutationFn: (id: string) => deleteImportJob(id),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: [IMPORT_JOBS_KEY] })
     },
   })
 }

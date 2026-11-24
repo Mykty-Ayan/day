@@ -23,6 +23,17 @@ class SettingsUpdate(BaseModel):
     # The minibar's hours, local; both null: round the clock. Send both together.
     minibar_opens: time | None = None
     minibar_closes: time | None = None
+    # The weekend nights, Monday 0, among Friday (4), Saturday (5) and Sunday (6); [] for none.
+    weekend_nights: list[int] | None = None
+
+    @field_validator("weekend_nights")
+    @classmethod
+    def _weekend(cls, value: list[int] | None) -> list[int] | None:
+        if value is None:
+            return value
+        if not set(value) <= {4, 5, 6}:
+            raise ValueError("weekend_nights takes Friday (4), Saturday (5) and Sunday (6) only")
+        return sorted(set(value))
 
     @field_validator("time_zone")
     @classmethod
@@ -52,5 +63,6 @@ class SettingsResponse(BaseModel):
     minibar_on_booking: bool = False
     minibar_opens: time | None = None
     minibar_closes: time | None = None
+    weekend_nights: list[int] = [4, 5]
     created_at: datetime | None = None
     updated_at: datetime | None = None

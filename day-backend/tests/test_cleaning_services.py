@@ -1,13 +1,13 @@
 """Unit tests for cleaning application services."""
 
 import uuid
-from datetime import date, time
+from datetime import date, datetime, time
 
 import pytest
 
 from app.application.cleaning.assign_cleaner import AssignCleanerService
 from app.application.cleaning.change_task_status import ChangeCleaningTaskStatusService
-from app.application.cleaning.create_task import CreateCleaningTaskInput, CreateCleaningTaskService
+from app.application.cleaning.create_task import CreateCleaningTaskInput, CreateCleaningTaskService, follow_stay
 from app.application.cleaning.manage_checklists import (
     ChecklistItemInput,
     CreateChecklistTemplateInput,
@@ -20,6 +20,7 @@ from app.application.cleaning.submit_report import (
     SubmitReportInput,
     SubmitReportService,
 )
+from app.domain.booking.entities import Booking
 from app.domain.cleaning.entities import (
     CleanerRating,
     CleaningChecklistItem,
@@ -104,6 +105,7 @@ class FakeCleaningTaskRepository(CleaningTaskRepository):
         cleaner_id=None,
         date_from=None,
         date_to=None,
+        due_by=None,
     ):
         result = [t for t in self._tasks.values() if t.company_id == company_id]
         if status is not None:
@@ -119,6 +121,7 @@ class FakeCleaningTaskRepository(CleaningTaskRepository):
         cleaner_id=None,
         date_from=None,
         date_to=None,
+        due_by=None,
     ):
         result = [t for t in self._tasks.values() if t.company_id == company_id]
         if status is not None:
@@ -1269,3 +1272,70 @@ class TestRateCleanerService:
 
         assert result.task_id is None
         assert result.rated_by == USER_ID
+
+
+class TestFollowStay:
+    """A stay's end moved: hours and nights share one flat, so its cleaning goes by the
+    departure's time, not just its day."""
+
+    FLAT = uuid.uuid4()
+    COMPANY = uuid.uuid4()
+    LEFT_AT = datetime(2026, 11, 2, 14, 0)
+
+    def _stay(self, check_out=datetime(2026, 11, 4, 12, 0)):
+        return Booking(
+            company_id=self.COMPANY, property_id=self.FLAT, check_in=datetime(2026, 11, 1, 14), check_out=check_out
+        )
+
+    async def _task(self, repo, **fields):
+        fields = {"company_id": self.COMPANY, "property_id": self.FLAT, "scheduled_date": self.LEFT_AT.date(), **fields}
+        return await repo.create(CleaningTask(**fields))
+
+    async def test_a_stays_cleaning_goes_to_its_new_last_day(self):
+        repo = FakeCleaningTaskRepository()
+        stay = self._stay()
+        task = await self._task(repo, booking_id=stay.id)
+
+        assert await follow_stay(repo, stay, self.LEFT_AT) == [task]
+        assert task.scheduled_date == date(2026, 11, 4)
+
+    async def test_it_is_never_set_before_the_guest_is_out(self):
+        repo = FakeCleaningTaskRepository()
+        stay = self._stay(check_out=datetime(2026, 11, 2, 18, 0))
+        task = await self._task(repo, booking_id=stay.id, scheduled_time=time(15, 0))
+
+        await follow_stay(repo, stay, self.LEFT_AT)
+
+        assert task.scheduled_time == time(18, 0)
+
+    async def test_a_cleaning_set_for_an_earlier_guest_stays(self):
+        # A guest left at 12:00, the flat is cleaned at 13:00, an hourly guest came at
+        # 14:00 and stayed longer: the 13:00 cleaning was never theirs.
+        repo = FakeCleaningTaskRepository()
+        task = await self._task(repo, scheduled_time=time(13, 0))
+
+        assert await follow_stay(repo, self._stay(), self.LEFT_AT) == []
+        assert task.scheduled_date == self.LEFT_AT.date()
+
+    async def test_an_untied_cleaning_on_the_departure_goes_too(self):
+        repo = FakeCleaningTaskRepository()
+        task = await self._task(repo, scheduled_time=time(14, 30))
+
+        await follow_stay(repo, self._stay(), self.LEFT_AT)
+
+        assert task.scheduled_date == date(2026, 11, 4)
+
+    async def test_a_started_cleaning_and_another_company_stay(self):
+        repo = FakeCleaningTaskRepository()
+        stay = self._stay()
+        await self._task(repo, booking_id=stay.id, status=CleaningStatus.IN_PROGRESS)
+        await self._task(repo, company_id=uuid.uuid4())
+
+        assert await follow_stay(repo, stay, self.LEFT_AT) == []
+
+    async def test_a_cleaning_during_the_stay_stays(self):
+        repo = FakeCleaningTaskRepository()
+        stay = self._stay()
+        await self._task(repo, booking_id=stay.id, type=CleaningType.MID_STAY)
+
+        assert await follow_stay(repo, stay, self.LEFT_AT) == []
