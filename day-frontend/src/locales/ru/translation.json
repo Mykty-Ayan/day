@@ -1327,7 +1327,9 @@
     "propertiesCount_few": "{{count}} объекта",
     "propertiesCount_many": "{{count}} объектов",
     "propertiesCount_other": "{{count}} объекта",
-    "nightsTaken": "Занято ночей: {{nights}}"
+    "nightsTaken": "Занято ночей: {{nights}}",
+    "comparedWith": "Сравнение с {{range}}",
+    "wasBefore": "было {{value}}"
   },
   "cleaner": {
     "todaysTasks": "Уборки на сегодня",
