@@ -9,6 +9,7 @@ import {
   changedFields,
   clearsGuestsOnSale,
   formToUpdate,
+  is2gisLink,
   listingInBoth,
   listingLines,
   listingLinksValid,
@@ -197,4 +198,27 @@ test('a flat on sale may not lose its number of guests, and one without it still
   // On sale from before the rule with no number: changing the rooms is not clearing.
   const old = propertyToForm({ ...flat, max_guests: null } as Property)
   expect(clearsGuestsOnSale('active', { ...old, details: { ...old.details, rooms: '3' } }, old)).toBe(false)
+})
+
+test('the map link is kept with the address, and a cleared one goes out as null', () => {
+  const opened = propertyToForm(flat)
+  expect(opened.address.map_url).toBe('https://go.2gis.com/abc')
+  const form = propertyToForm(flat)
+  form.address.map_url = ''
+  form.address.latitude = '43.238286'
+  form.address.longitude = '76.945623'
+  expect(changedFields(form, opened)).toEqual({ map_url: null, latitude: 43.238286, longitude: 76.945623 })
+})
+
+test('a 2GIS link is told from other links', () => {
+  for (const link of [
+    'https://go.2gis.com/abcd',
+    'https://2gis.kz/almaty/geo/9430021605163017',
+    ' http://2gis.ru/moscow/firm/1 ',
+  ]) {
+    expect(is2gisLink(link)).toBe(true)
+  }
+  for (const link of ['https://yandex.kz/maps/?pt=76.9,43.2', 'https://evil.com/2gis.kz/', '2gis.kz/almaty', '']) {
+    expect(is2gisLink(link)).toBe(false)
+  }
 })

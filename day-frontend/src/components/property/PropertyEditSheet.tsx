@@ -64,6 +64,8 @@ function BlockForm({ property, block, onDone }: { property: Property; block: Pro
   const savedAmenities = property.amenities.map((a) => a.id)
   const [amenities, setAmenityIds] = useState<string[]>(savedAmenities)
   const [errors, setErrors] = useState<Record<string, string>>({})
+  // A 2GIS link whose point is still on its way: saving now would keep the old point.
+  const [locating, setLocating] = useState(false)
   const busy = update.isPending || setAmenities.isPending
 
   function validate(): boolean {
@@ -71,9 +73,12 @@ function BlockForm({ property, block, onDone }: { property: Property; block: Pro
     if (block === 'basic') {
       if (!form.basic.name.trim()) found.name = t('properties.validation.nameRequired')
       if (!form.basic.internal_name.trim()) found.internal_name = t('properties.validation.internalNameRequired')
-      for (const key of ['map_url', 'whatsapp_product_url', 'video_url'] as const) {
+      for (const key of ['whatsapp_product_url', 'video_url'] as const) {
         if (form.basic[key].trim() && !isWebLink(form.basic[key])) found[key] = t('properties.validation.webLink')
       }
+    }
+    if (block === 'address' && form.address.map_url.trim() && !isWebLink(form.address.map_url)) {
+      found.map_url = t('properties.validation.webLink')
     }
     if (block === 'listings') {
       if (!listingLinksValid(form.basic.listing_urls)) found.listing_urls = t('properties.validation.listingLinks')
@@ -125,7 +130,12 @@ function BlockForm({ property, block, onDone }: { property: Property; block: Pro
         <ListingLinksFields data={form.basic} onChange={(basic) => setForm((f) => ({ ...f, basic }))} errors={errors} />
       )}
       {block === 'address' && (
-        <PropertyFormStepAddress data={form.address} onChange={(address) => setForm((f) => ({ ...f, address }))} />
+        <PropertyFormStepAddress
+          data={form.address}
+          onChange={(address) => setForm((f) => ({ ...f, address }))}
+          errors={errors}
+          onLooking={setLocating}
+        />
       )}
       {block === 'details' && (
         <PropertyFormStepDetails data={form.details} onChange={(details) => setForm((f) => ({ ...f, details }))} errors={errors} />
@@ -137,7 +147,7 @@ function BlockForm({ property, block, onDone }: { property: Property; block: Pro
 
       {/* Stuck to the bottom of the panel: a long block keeps its save at hand. */}
       <div className="sticky bottom-0 -mx-5 -mb-5 flex gap-2 border-t border-line bg-surface-card px-5 py-3">
-        <Button onClick={save} disabled={busy}>
+        <Button onClick={save} disabled={busy || locating}>
           {busy && <Loader2 className="h-4 w-4 animate-spin" />}
           {t('common.save')}
         </Button>
