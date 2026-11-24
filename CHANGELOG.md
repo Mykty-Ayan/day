@@ -6,7 +6,7 @@ The new interface: every cabinet screen, the guest pages after the approved mock
 
 **Database:** migrations 060 (flat order), 061 (company weekend nights), 062 (site headline). Take the dump first.
 
-**API changes for the CRM:** a property goes on sale only with `max_guests`, and a property on sale cannot clear it (400); «not found» answers 404 instead of 400 on property routes and deposit actions; `POST /cleaning` refuses another company's booking; a guest hold from a flat's page is up to 30 nights; `guest_code` comes back after a public booking; new `GET /public/stays/{code}/quote`.
+**API changes for the CRM:** a property goes on sale only with `max_guests`, and a property on sale cannot clear it (400); «not found» answers 404 instead of 400 on property routes and deposit actions; `POST /cleaning` refuses another company's booking; a guest hold from a flat's page is up to 30 nights; `guest_code` comes back after a public booking; new `GET /public/stays/{code}/quote`; new `POST /properties/map-point` (a 2GIS link's point, nothing saved).
 
 ### Added
 - A side menu of seven sections with tabs, a Create button and search in the top bar (#270, #272)
@@ -28,6 +28,7 @@ The new interface: every cabinet screen, the guest pages after the approved mock
 - Today shows the Telegram notices the bot gave up on (a double sale, a guest's booking), with «Send again» (#355)
 - Maestro flows for the guest pages (#342); a check of every screen for stray scrolls, sideways pages and English (#348)
 - Ready sums under a booking's money: first night, 50% and the balance for a payment, half or all of a deposit to hold — on the web and in the Mini App (#361)
+- The map point fills in from a 2GIS link pasted in the object's address; the map link moved from the basics to the address (#364)
 
 ### Changed
 - A property goes on sale only with its number of guests: an unknown size was offered to any party; the new booking form says for how many guests nothing is free (#363)
