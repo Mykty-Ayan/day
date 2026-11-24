@@ -35,7 +35,7 @@ from app.config import settings
 from app.domain.auth.permissions import Permission
 from app.domain.booking.exceptions import BlockFromCalendarError, BlockOverlapsBookingError
 from app.domain.property.entities import TARIFF_FIELDS, DiscountRule, PropertyCosts, SeasonalPrice, whatsapp_product_id
-from app.domain.property.value_objects import FactAudience, FactSource, PropertyStatus
+from app.domain.property.value_objects import FactAudience, FactSource, GuestMediaSection, MediaKind, PropertyStatus
 from app.infrastructure.calendar_feeds import build_calendar_feeds
 from app.infrastructure.calendar_fetch import fetch_calendar
 from app.infrastructure.database import get_session
@@ -745,6 +745,22 @@ def _sniff_photo(head: bytes) -> str | None:
     return None
 
 
+# MP4 and MOV open with a "ftyp" box naming the brand; HEIC photos share the box, so brands are listed.
+_MP4_BRANDS = {b"isom", b"iso2", b"iso4", b"iso5", b"iso6", b"mp41", b"mp42", b"avc1", b"M4V ", b"MSNV"}
+
+
+def _sniff_video(head: bytes) -> str | None:
+    """The video format the bytes hold: what a phone records and a browser plays."""
+    if head[4:8] == b"ftyp":
+        if head[8:12] == b"qt  ":
+            return "video/quicktime"
+        if head[8:12] in _MP4_BRANDS:
+            return "video/mp4"
+    if head.startswith(b"\x1a\x45\xdf\xa3"):
+        return "video/webm"
+    return None
+
+
 @router.post(
     "/{property_id}/photos/upload",
     response_model=PropertyPhotoResponse,
@@ -758,14 +774,19 @@ async def upload_photo(
     is_cover: bool = Form(False),
     audience: FactAudience = Form(FactAudience.PUBLIC),
     caption: str | None = Form(None, max_length=500),
+    section: GuestMediaSection = Form(GuestMediaSection.PATH),
     session: AsyncSession = Depends(get_session),
     company_id: uuid.UUID = Depends(get_company_id),
     principal: Principal = Depends(get_principal),
 ):
-    """A photo from the owner's phone or computer. Linking by URL (imports, the CRM) stays on POST /photos."""
+    """A photo from the owner's phone or computer. Linking by URL (imports, the CRM) stays on POST /photos.
+
+    A check-in one may be a video and may stand beside the door code or in «how to use»."""
     _check_photo_audience(audience, principal)
     if is_cover and audience == FactAudience.GUEST:
         raise HTTPException(status_code=400, detail="A check-in photo cannot be the cover")
+    if section != GuestMediaSection.PATH and audience != FactAudience.GUEST:
+        raise HTTPException(status_code=400, detail="Only a check-in photo has a place on the guest's page")
     repos = _repos(session)
     prop = await repos["property"].get_by_id(property_id)
     if prop is None or prop.company_id != company_id:
@@ -773,17 +794,22 @@ async def upload_photo(
     head = file.file.read(16)
     file.file.seek(0)
     content_type = _sniff_photo(head)
+    kind = MediaKind.PHOTO
+    # A video never reaches the listing or the OTAs: only the guest's booking page plays it.
+    if content_type is None and audience == FactAudience.GUEST:
+        content_type, kind = _sniff_video(head), MediaKind.VIDEO
     if content_type is None:
-        raise HTTPException(status_code=415, detail="Only JPEG, PNG or WebP photos")
+        videos = ", or MP4, MOV or WebM videos" if audience == FactAudience.GUEST else ""
+        raise HTTPException(status_code=415, detail=f"Only JPEG, PNG or WebP photos{videos}")
     size = file.size
     if size is None:
         file.file.seek(0, 2)
         size = file.file.tell()
         file.file.seek(0)
-    if size > settings.S3_MAX_UPLOAD_BYTES:
-        raise HTTPException(
-            status_code=413, detail=f"Photo too large (max {settings.S3_MAX_UPLOAD_BYTES // (1024 * 1024)} MB)"
-        )
+    limit = settings.S3_MAX_VIDEO_BYTES if kind == MediaKind.VIDEO else settings.S3_MAX_UPLOAD_BYTES
+    if size > limit:
+        what = "Video" if kind == MediaKind.VIDEO else "Photo"
+        raise HTTPException(status_code=413, detail=f"{what} too large (max {limit // (1024 * 1024)} MB)")
 
     try:
         url = await upload_property_photo(
@@ -797,7 +823,15 @@ async def upload_photo(
 
     svc = ManagePhotosService(repos["property"], repos["photo"])
     result = await svc.add_photo(
-        property_id, company_id, url, sort_order=sort_order, is_cover=is_cover, caption=caption, audience=audience
+        property_id,
+        company_id,
+        url,
+        sort_order=sort_order,
+        is_cover=is_cover,
+        caption=caption,
+        audience=audience,
+        kind=kind,
+        section=section,
     )
     await session.commit()
     return _photo_response(result)

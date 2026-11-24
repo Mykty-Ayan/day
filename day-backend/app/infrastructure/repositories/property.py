@@ -43,6 +43,8 @@ from app.domain.property.value_objects import (
     CheckInMethod,
     FactAudience,
     FactSource,
+    GuestMediaSection,
+    MediaKind,
     PropertyStatus,
     PropertyType,
 )
@@ -171,6 +173,8 @@ def _model_to_photo(m: PropertyPhotoModel) -> PropertyPhoto:
         is_cover=m.is_cover,
         caption=m.caption,
         audience=FactAudience(m.audience),
+        kind=MediaKind(m.kind),
+        section=GuestMediaSection(m.section),
         created_at=m.created_at,
     )
 
@@ -409,6 +413,8 @@ class SqlPropertyPhotoRepository(PropertyPhotoRepository):
             is_cover=photo.is_cover,
             caption=photo.caption,
             audience=photo.audience.value,
+            kind=photo.kind.value,
+            section=photo.section.value,
         )
         self._session.add(model)
         await self._session.flush()

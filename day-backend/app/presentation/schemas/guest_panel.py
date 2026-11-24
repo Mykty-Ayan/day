@@ -10,6 +10,7 @@ from datetime import date, datetime, time
 from pydantic import BaseModel
 
 from app.application.booking.guest_panel import GuestPanel
+from app.domain.property.value_objects import MediaKind
 
 
 class GuestPanelCompany(BaseModel):
@@ -65,6 +66,7 @@ class GuestPanelFlat(BaseModel):
 class GuestPanelPhoto(BaseModel):
     url: str
     caption: str | None = None
+    kind: MediaKind = MediaKind.PHOTO
 
 
 class GuestPanelAccess(BaseModel):
@@ -72,8 +74,12 @@ class GuestPanelAccess(BaseModel):
     wifi_name: str | None = None
     wifi_password: str | None = None
     facts: list[str] = []
-    # The path to the door, step by step: the flat's check-in photos with the owner's words.
+    # The path to the door, step by step: the flat's check-in photos and videos with the owner's words.
     photos: list[GuestPanelPhoto] = []
+    # Beside the door code: how the lock opens.
+    door: list[GuestPanelPhoto] = []
+    # How to use the things in the flat, a video or a photo each.
+    howto: list[GuestPanelPhoto] = []
     entrance: str | None = None
     block: str | None = None
     apartment_number: str | None = None
@@ -207,12 +213,18 @@ class GuestPanelResponse(BaseModel):
             for o in panel.orders
         ]
         if (a := panel.access) is not None:
+
+            def media(items) -> list[GuestPanelPhoto]:
+                return [GuestPanelPhoto(url=sign(m.url), caption=m.caption, kind=m.kind) for m in items]
+
             page.access = GuestPanelAccess(
                 instructions=a.instructions,
                 wifi_name=a.wifi_name,
                 wifi_password=a.wifi_password,
                 facts=a.facts,
-                photos=[GuestPanelPhoto(url=sign(url), caption=caption) for url, caption in a.photos],
+                photos=media(a.photos),
+                door=media(a.door),
+                howto=media(a.howto),
                 entrance=a.entrance,
                 block=a.block,
                 apartment_number=a.apartment_number,

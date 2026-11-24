@@ -113,6 +113,8 @@ class ClonePropertyService:
                     is_cover=photo.is_cover,
                     caption=photo.caption,
                     audience=photo.audience,
+                    kind=photo.kind,
+                    section=photo.section,
                 )
             )
 

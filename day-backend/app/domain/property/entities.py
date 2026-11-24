@@ -14,6 +14,8 @@ from app.domain.property.value_objects import (
     CheckInMethod,
     FactAudience,
     FactSource,
+    GuestMediaSection,
+    MediaKind,
     PropertyStatus,
     PropertyType,
 )
@@ -139,6 +141,9 @@ class PropertyPhoto:
     # guest: a check-in instruction (the entrance, the lock): never in the
     # listing, only for those who hand codes to guests.
     audience: FactAudience = FactAudience.PUBLIC
+    # A check-in photo may be a video, and stands in one of the guest page's places.
+    kind: MediaKind = MediaKind.PHOTO
+    section: GuestMediaSection = GuestMediaSection.PATH
     created_at: datetime | None = None
 
 

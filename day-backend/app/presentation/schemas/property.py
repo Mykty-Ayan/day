@@ -14,6 +14,8 @@ from app.domain.property.value_objects import (
     CheckInMethod,
     FactAudience,
     FactSource,
+    GuestMediaSection,
+    MediaKind,
     PropertyStatus,
     PropertyType,
 )
@@ -242,6 +244,9 @@ class PropertyPhotoResponse(BaseModel):
     is_cover: bool
     caption: str | None = None
     audience: FactAudience = FactAudience.PUBLIC
+    # A check-in photo may be a video; where it stands on the guest's booking page.
+    kind: MediaKind = MediaKind.PHOTO
+    section: GuestMediaSection = GuestMediaSection.PATH
     created_at: datetime | None = None
 
 
