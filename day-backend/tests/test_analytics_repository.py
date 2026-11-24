@@ -441,9 +441,56 @@ async def test_a_kept_prepayment_stays_inside_its_company_and_source():
         by_source = await repo.get_property_metrics(company_id, DATE_FROM, DATE_TO, source="direct")
         no_source = await repo.get_property_metrics(company_id, DATE_FROM, DATE_TO, source="airbnb")
 
-        assert pm.revenue == Decimal("50")
-        assert [m.revenue for m in by_source] == [Decimal("50")]
+        # The stay's price (paid or not: the guests' debt is in the payments) and the money kept.
+        assert pm.revenue == Decimal("250")
+        assert [m.revenue for m in by_source] == [Decimal("250")]
         assert no_source == []  # a source with no stays lists no flat, kept money or not
+
+        await session.rollback()
+
+
+@pytestmark_integration
+@pytest.mark.asyncio
+async def test_a_stay_earns_its_price_night_by_night():
+    """A stay across the period's edge counts its nights in the period, not its whole price;
+    an unpaid stay counts its price as a paid one does. Two periods side by side add up to
+    the price, and the metrics agree with the time series."""
+    company_id = uuid.uuid4()
+    async with _fresh_session() as session:
+        guest = _guest(company_id)
+        prop = _property(company_id, f"nights-{uuid.uuid4().hex[:8]}", "daily")
+        # 4 nights, 28 June – 2 July: 3 in June (28, 29, 30), 1 in July. Paid in full.
+        across = _booking(
+            company_id, prop.id, guest.id, datetime(2025, 6, 28, 14), datetime(2025, 7, 2, 12), "400", "daily"
+        )
+        # 2 nights in June, nothing paid yet.
+        unpaid = _booking(
+            company_id, prop.id, guest.id, datetime(2025, 6, 10, 14), datetime(2025, 6, 12, 12), "300", "daily"
+        )
+        # Cancelled, 30 June – 2 July, 80 kept: 40 for June's night.
+        kept = _cancelled(_booking(
+            company_id, prop.id, guest.id, datetime(2025, 6, 30), datetime(2025, 7, 2), "200", "daily"
+        ))
+        session.add_all([guest, prop, across, unpaid, kept, _payment(across.id, "400"), _payment(kept.id, "80")])
+        await session.flush()
+        repo = SqlAnalyticsRepository(session)
+        june, july = (date(2025, 6, 1), date(2025, 7, 1)), (date(2025, 7, 1), date(2025, 8, 1))
+
+        [in_june] = await repo.get_property_metrics(company_id, *june, property_ids=[prop.id])
+        [in_july] = await repo.get_property_metrics(company_id, *july, property_ids=[prop.id])
+
+        assert in_june.revenue == Decimal("640")  # 300 of the stay across + 300 unpaid + 40 kept
+        assert in_july.revenue == Decimal("140")  # 100 + 40
+        assert in_june.revenue + in_july.revenue == Decimal("780")  # 400 + 300 + 80: nothing twice
+        assert in_june.retained_prepayments == Decimal("40")
+        # The price of a night is the stays' own: 600 for 5 nights, the kept money left out.
+        assert in_june.booked_nights == Decimal("5")
+        assert in_june.adr == Decimal("120")
+
+        series = await repo.get_time_series(company_id, *june, Granularity.MONTH, property_ids=[prop.id])
+        assert sum(point.revenue for point in series) == in_june.revenue
+        assert series[0].bookings_count == 2  # the cancelled booking is no stay
+        assert series[0].booked_nights == Decimal("5")
 
         await session.rollback()
 
