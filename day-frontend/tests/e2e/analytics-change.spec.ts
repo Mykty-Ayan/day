@@ -49,7 +49,7 @@ test('the numbers show how they changed since the period before', async ({ page 
 
   await page.goto('/analytics')
   const card = (name: string) => page.getByText(name, { exact: true }).locator('xpath=../..')
-  await expect(card('Revenue').getByTestId('analytics-change')).toHaveText('+20%, was 100,000.00 ₸')
+  await expect(card('Revenue').getByTestId('analytics-change')).toHaveText('+20%, was 100,000 ₸')
   await expect(card('Bookings').getByTestId('analytics-change')).toHaveText('-20%, was 5')
   // A loss that turned into a profit is up, not down.
   await expect(card('Profit').getByTestId('analytics-change')).toContainText('+150%')
