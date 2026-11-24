@@ -69,6 +69,12 @@ export async function changePropertyStatus(
   return res.data
 }
 
+/** The point of a 2GIS link, as the server finds it. Nothing is saved. */
+export async function findMapPoint(url: string): Promise<{ latitude: number; longitude: number }> {
+  const res = await apiClient.post('/properties/map-point', { url })
+  return res.data
+}
+
 // --- Photos ---
 
 /** One file per request: a failed photo does not take the others down with it. */

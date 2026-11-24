@@ -23,13 +23,13 @@ interface FormData {
     // Not asked here (the flat's page has them), but the Basics fields carry them.
     description: string
     source_url: string
-    map_url: string
     whatsapp_product_url: string
     video_url: string
     listing_urls: string
     hourly_listing_urls: string
   }
   address: {
+    map_url: string
     address_full: string
     apartment_number: string
     entrance: string
@@ -49,13 +49,13 @@ const initialForm: FormData = {
     type: 'apartment',
     description: '',
     source_url: '',
-    map_url: '',
     whatsapp_product_url: '',
     video_url: '',
     listing_urls: '',
     hourly_listing_urls: '',
   },
   address: {
+    map_url: '',
     address_full: '',
     apartment_number: '',
     entrance: '',
@@ -76,6 +76,8 @@ export default function CreatePropertyPage() {
   const [form, setForm] = useState<FormData>(initialForm)
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [direction, setDirection] = useState(1)
+  // A 2GIS link whose point is still on its way: creating now would leave the point out.
+  const [locating, setLocating] = useState(false)
   const current = STEPS[step]
   const isLast = step === STEPS.length - 1
 
@@ -123,6 +125,7 @@ export default function CreatePropertyPage() {
       floors_total: form.address.floors_total ? parseInt(form.address.floors_total) : undefined,
       latitude: form.address.latitude ? parseFloat(form.address.latitude) : undefined,
       longitude: form.address.longitude ? parseFloat(form.address.longitude) : undefined,
+      map_url: form.address.map_url.trim() || undefined,
       // Thirty minutes to clean between hourly stays is the usual turnover; the owner
       // may change or clear it in the flat's rules. Without it two stays touch.
       buffer_minutes: 30,
@@ -203,6 +206,7 @@ export default function CreatePropertyPage() {
                 <PropertyFormStepAddress
                   data={form.address}
                   onChange={(address) => setForm((f) => ({ ...f, address }))}
+                  onLooking={setLocating}
                 />
               )}
             </motion.div>
@@ -215,7 +219,7 @@ export default function CreatePropertyPage() {
             <ArrowLeft className="h-4 w-4" />
             {step === 0 ? t('common.cancel') : t('common.previous')}
           </Button>
-          <Button onClick={isLast ? handleSubmit : goNext} disabled={createProperty.isPending}>
+          <Button onClick={isLast ? handleSubmit : goNext} disabled={createProperty.isPending || (isLast && locating)}>
             {createProperty.isPending ? (
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : isLast ? (

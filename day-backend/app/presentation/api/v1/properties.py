@@ -39,6 +39,7 @@ from app.domain.property.value_objects import FactAudience, FactSource, Property
 from app.infrastructure.calendar_feeds import build_calendar_feeds
 from app.infrastructure.calendar_fetch import fetch_calendar
 from app.infrastructure.database import get_session
+from app.infrastructure.map_point import MapLinkError, find_point
 from app.infrastructure.repositories.auth import SqlUserRepository
 from app.infrastructure.repositories.booking import SqlBookingRepository, SqlCalendarFeedRepository
 from app.infrastructure.repositories.property import (
@@ -70,6 +71,8 @@ from app.presentation.schemas.property import (
     DayPriceSet,
     DiscountRuleCreate,
     DiscountRuleResponse,
+    MapLink,
+    MapPointResponse,
     PhotoCaption,
     PhotoCreate,
     PhotoReorder,
@@ -225,6 +228,20 @@ _NOT_FOUND = frozenset({"Property not found", "Photo not found", "Tag not found"
 def _refused(e: ValueError) -> HTTPException:
     """404 for a flat, photo or tag that is not the caller's; 400 for any other refusal."""
     return HTTPException(status_code=404 if str(e) in _NOT_FOUND else 400, detail=str(e))
+
+
+@router.post(
+    "/map-point",
+    response_model=MapPointResponse,
+    dependencies=[Depends(require(Permission.PROPERTIES_WRITE))],
+)
+async def map_point(body: MapLink):
+    """The point of a 2GIS link, for the address form to fill in. Nothing is saved."""
+    try:
+        point = await find_point(body.url)
+    except MapLinkError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    return MapPointResponse(latitude=point.latitude, longitude=point.longitude)
 
 
 @router.post(

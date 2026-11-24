@@ -53,6 +53,15 @@ class _TurnoverHours(BaseModel):
         return self
 
 
+class MapLink(BaseModel):
+    url: str = Field(min_length=1, max_length=1000)
+
+
+class MapPointResponse(BaseModel):
+    latitude: float
+    longitude: float
+
+
 class PropertyCreate(_TurnoverHours):
     name: str = Field(..., min_length=1, max_length=255)
     internal_name: str = Field(..., min_length=1, max_length=255)

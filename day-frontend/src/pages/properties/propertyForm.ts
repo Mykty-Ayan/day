@@ -9,7 +9,6 @@ export interface PropertyEditForm {
     type: PropertyType
     description: string
     source_url: string
-    map_url: string
     whatsapp_product_url: string
     video_url: string
     /** One link per line. */
@@ -17,6 +16,8 @@ export interface PropertyEditForm {
     hourly_listing_urls: string
   }
   address: {
+    /** A 2GIS link: the point below is taken from it. */
+    map_url: string
     address_full: string
     apartment_number: string
     entrance: string
@@ -62,13 +63,13 @@ export function propertyToForm(property: Property): PropertyEditForm {
       type: property.type || 'apartment',
       description: asText(property.description),
       source_url: asText(property.source_url),
-      map_url: asText(property.map_url),
       whatsapp_product_url: asText(property.whatsapp_product_url),
       video_url: asText(property.video_url),
       listing_urls: (property.listing_urls ?? []).join('\n'),
       hourly_listing_urls: (property.hourly_listing_urls ?? []).join('\n'),
     },
     address: {
+      map_url: asText(property.map_url),
       address_full: asText(property.address_full),
       apartment_number: asText(property.apartment_number),
       entrance: asText(property.entrance),
@@ -116,6 +117,11 @@ export function listingLines(value: string): string[] {
 const MAX_LISTING_LINKS = 20
 const MAX_LISTING_LINK_LENGTH = 500
 
+/** A 2GIS link, short or full: the server finds the point in it or on its page. */
+export function is2gisLink(value: string): boolean {
+  return /^https?:\/\/([\w-]+\.)*2gis\.[a-z]+\//i.test(value.trim())
+}
+
 /** As the server takes it: empty (no rule), or 15 to 1440 minutes in steps of 15. */
 export function bufferMinutesValid(value: string): boolean {
   if (value.trim() === '') return true
@@ -154,7 +160,7 @@ export function formToUpdate(form: PropertyEditForm, opened: PropertyEditForm): 
     type: form.basic.type,
     description: text(form.basic.description),
     source_url: text(form.basic.source_url),
-    map_url: text(form.basic.map_url),
+    map_url: text(form.address.map_url),
     whatsapp_product_url: text(form.basic.whatsapp_product_url),
     video_url: text(form.basic.video_url),
     // Always sent: an emptied field clears the links.
