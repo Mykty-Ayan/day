@@ -90,9 +90,10 @@ export default function SummaryCards({ summary, previous }: { summary: Analytics
           transition={{ duration: 0.3, delay: i * 0.05 }}
           className="flex flex-col rounded-xl border border-line bg-surface-card p-4"
         >
-          <div className="flex items-center gap-1.5 text-xs font-medium text-ink-muted">
+          {/* A long label wraps: «Средняя цена ночи» is cut on a phone otherwise. */}
+          <div className="flex items-start gap-1.5 text-xs font-medium leading-tight text-ink-muted">
             <card.icon className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-            <span className="truncate">{card.label}</span>
+            <span className="min-w-0 break-words">{card.label}</span>
           </div>
           <div className="mt-2 text-xl font-bold tracking-tight tabular-nums text-ink sm:text-2xl">{card.format(summary)}</div>
           {previous && 'value' in card && card.value && (
