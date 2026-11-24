@@ -219,6 +219,26 @@ test.describe('Property CRUD - E2E', () => {
     await expect(page.getByRole('dialog', { name: 'Amenities', exact: true })).toBeVisible()
   })
 
+  test('a missing photo or price brings its tab into view', async ({ page, request }) => {
+    const prop = await (await request.post(`${API_BASE}/properties`, { data: createTestProperty() })).json()
+    propertyIdsToCleanup.push(prop.id)
+    await request.post(`${API_BASE}/properties/${prop.id}/status`, { data: { status: 'active' } })
+
+    // A short screen, such as a laptop's with the browser's bars.
+    await page.setViewportSize({ width: 1280, height: 500 })
+    await page.goto(`/properties/${prop.id}?tab=prices`)
+    const ready = page.getByRole('region', { name: /^Property readiness/ })
+    const add = ready.getByRole('button', { name: /^\+ 3\+ photos/i })
+    const photosTab = page.getByRole('tab', { name: /^Photos/ })
+    // The button at the bottom of the screen, the tabs just below it: what the owner sees.
+    await add.evaluate((button) => button.scrollIntoView({ block: 'end' }))
+    await expect(photosTab).not.toBeInViewport()
+
+    await add.click()
+    await expect(photosTab).toHaveAttribute('aria-selected', 'true')
+    await expect(photosTab).toBeInViewport({ ratio: 1 })
+  })
+
   test('a guest kept past yesterday\'s checkout still lives in the flat', async ({ page, request }) => {
     const prop = await (await request.post(`${API_BASE}/properties`, { data: createTestProperty() })).json()
     propertyIdsToCleanup.push(prop.id)

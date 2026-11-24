@@ -407,7 +407,18 @@ export default function PropertyDetailPage() {
       {/* What the guest page and the CRM still lack, each a step to where it is filled in. */}
       <ReadinessCard
         items={readiness(property, pricing)}
-        onOpen={(place) => (place === 'prices' || place === 'photos' ? setTab(place) : setEditing(place))}
+        onOpen={(place) => {
+          if (place !== 'prices' && place !== 'photos') return setEditing(place)
+          setTab(place)
+          // The tabs are below the card and often below the screen: bring them up, or the
+          // tap seems to do nothing.
+          requestAnimationFrame(() =>
+            document.getElementById(`tab-${place}`)?.scrollIntoView({
+              block: 'start',
+              behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
+            }),
+          )
+        }}
       />
 
       {/* One part of the flat at a time, as a host's listing is kept on Airbnb. The grey line
