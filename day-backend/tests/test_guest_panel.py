@@ -18,7 +18,7 @@ from app.application.booking.guest_panel import GuestPanelService
 from app.domain.booking.entities import Booking, BookingDeposit, Guest, new_guest_code
 from app.domain.booking.value_objects import BookingStatus, DepositStatus
 from app.domain.property.entities import PropertyFact, PropertyPhoto
-from app.domain.property.value_objects import FactAudience
+from app.domain.property.value_objects import FactAudience, GuestMediaSection, MediaKind
 from app.domain.site.entities import CompanySite
 from app.presentation.schemas.guest_panel import GuestPanelResponse
 from tests.test_property_facts import flat  # noqa: F401  (a fixture)
@@ -173,6 +173,28 @@ async def test_the_way_in_shows_the_check_in_photos_in_order_with_their_words_on
     # Unpaid, the way in keeps them back like the code.
     unpaid = GuestPanelResponse.from_panel(await _setup(paid=Decimal("0"), photos=photos).execute(CODE, NOW))
     assert "yard.jpg" not in unpaid.model_dump_json() and "1590" not in unpaid.model_dump_json()
+
+
+async def test_the_lock_video_and_how_to_use_stand_in_their_own_places_once_paid():
+    def photos(flat_id):
+        def guest(url, section, sort_order, kind=MediaKind.VIDEO, caption=None):
+            return PropertyPhoto(property_id=flat_id, url=url, audience=FactAudience.GUEST, sort_order=sort_order,
+                                 kind=kind, section=section, caption=caption)
+
+        return [
+            guest("https://s3/stove.mp4", GuestMediaSection.HOWTO, 4, caption="Плита\nиндукционная"),
+            guest("https://s3/lock.mp4", GuestMediaSection.DOOR, 2),
+            guest("https://s3/yard.jpg", GuestMediaSection.PATH, 1, kind=MediaKind.PHOTO),
+            guest("https://s3/ac.mp4", GuestMediaSection.HOWTO, 3, caption="Кондиционер\nпульт в тумбочке"),
+        ]
+
+    page = GuestPanelResponse.from_panel(await _setup(photos=photos).execute(CODE, NOW), sign=lambda u: f"{u}?s=1")
+    assert [(p.url, p.kind) for p in page.access.door] == [("https://s3/lock.mp4?s=1", MediaKind.VIDEO)]
+    assert [(p.url, p.kind) for p in page.access.photos] == [("https://s3/yard.jpg?s=1", MediaKind.PHOTO)]
+    assert [p.caption for p in page.access.howto] == ["Кондиционер\nпульт в тумбочке", "Плита\nиндукционная"]
+    # Unpaid, the videos wait with the code.
+    unpaid = GuestPanelResponse.from_panel(await _setup(paid=Decimal("0"), photos=photos).execute(CODE, NOW))
+    assert ".mp4" not in unpaid.model_dump_json()
 
 
 async def test_the_flat_number_and_entrance_come_with_the_way_in_the_complex_and_floor_before():

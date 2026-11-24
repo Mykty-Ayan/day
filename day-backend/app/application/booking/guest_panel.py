@@ -27,7 +27,7 @@ from app.domain.inventory.entities import GuestOrder, OrderBilling, Product
 from app.domain.inventory.repositories import GuestOrderRepository, ProductRepository
 from app.domain.property.entities import Property
 from app.domain.property.repositories import PropertyFactRepository, PropertyPhotoRepository, PropertyRepository
-from app.domain.property.value_objects import FactAudience
+from app.domain.property.value_objects import FactAudience, GuestMediaSection, MediaKind
 from app.domain.settings.entities import DEFAULT_TIME_ZONE, CompanySettings
 from app.domain.settings.repositories import CompanySettingsRepository
 from app.domain.site.entities import CompanySite
@@ -42,6 +42,15 @@ _FREE_AHEAD_DAYS = 60
 
 
 @dataclass
+class GuestMedia:
+    """A check-in photo or video: the owner's words with it."""
+
+    url: str
+    caption: str | None
+    kind: MediaKind = MediaKind.PHOTO
+
+
+@dataclass
 class GuestAccess:
     """How to get in: only for a live stay paid in full."""
 
@@ -49,8 +58,12 @@ class GuestAccess:
     wifi_name: str | None
     wifi_password: str | None
     facts: list[str] = field(default_factory=list)
-    # The path to the door: the flat's check-in photos (url, the owner's words), in order.
-    photos: list[tuple[str, str | None]] = field(default_factory=list)
+    # The path to the door: the flat's check-in photos and videos, in order.
+    photos: list[GuestMedia] = field(default_factory=list)
+    # Beside the door code: how the lock opens.
+    door: list[GuestMedia] = field(default_factory=list)
+    # How to use the things in the flat: the air conditioner, the stove.
+    howto: list[GuestMedia] = field(default_factory=list)
     # Where exactly: the entrance, the block and the flat's number come with the code.
     entrance: str | None = None
     block: str | None = None
@@ -191,16 +204,19 @@ class GuestPanelService:
             and opens <= local_now < booking.check_out
         ):
             facts = await self._facts.list_by_property(panel.flat.id)
+            check_in = [p for p in sorted(pictures, key=lambda p: p.sort_order) if p.audience == FactAudience.GUEST]
+
+            def placed(section: GuestMediaSection) -> list[GuestMedia]:
+                return [GuestMedia(p.url, p.caption, p.kind) for p in check_in if p.section == section]
+
             panel.access = GuestAccess(
                 instructions=panel.flat.check_in_instructions,
                 wifi_name=panel.flat.wifi_name,
                 wifi_password=panel.flat.wifi_password,
                 facts=[f.text for f in facts if f.audience == FactAudience.GUEST],
-                photos=[
-                    (p.url, p.caption)
-                    for p in sorted(pictures, key=lambda p: p.sort_order)
-                    if p.audience == FactAudience.GUEST
-                ],
+                photos=placed(GuestMediaSection.PATH),
+                door=placed(GuestMediaSection.DOOR),
+                howto=placed(GuestMediaSection.HOWTO),
                 entrance=panel.flat.entrance,
                 block=panel.flat.block,
                 apartment_number=panel.flat.apartment_number,

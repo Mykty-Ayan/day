@@ -15,6 +15,8 @@ class Settings(BaseSettings):
     S3_PUBLIC_ENDPOINT: str | None = None
     S3_MAX_DOWNLOAD_BYTES: int = 25 * 1024 * 1024
     S3_MAX_UPLOAD_BYTES: int = 20 * 1024 * 1024
+    # A check-in video: a minute from a phone.
+    S3_MAX_VIDEO_BYTES: int = 50 * 1024 * 1024
     S3_ACCESS_KEY: str = ""
     S3_SECRET_KEY: str = ""
     S3_BUCKET: str = Field(

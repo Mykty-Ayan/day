@@ -149,7 +149,15 @@ async def upload_booking_file(
     return build_public_url(key)
 
 
-_PHOTO_EXTENSIONS = {"image/jpeg": ".jpg", "image/png": ".png", "image/webp": ".webp"}
+_PHOTO_EXTENSIONS = {
+    "image/jpeg": ".jpg",
+    "image/png": ".png",
+    "image/webp": ".webp",
+    # Check-in videos, kept under the private prefix like check-in photos.
+    "video/mp4": ".mp4",
+    "video/quicktime": ".mov",
+    "video/webm": ".webm",
+}
 
 
 async def upload_property_photo(*, property_id: uuid.UUID, file_obj, content_type: str, private: bool = False) -> str:
