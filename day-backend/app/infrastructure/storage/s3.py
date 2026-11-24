@@ -46,6 +46,9 @@ PROPERTY_PHOTOS_PREFIX = "properties/"
 # Check-in photos (the entrance, the lock): outside the public prefix, handed
 # out only as signed links to those who may see door codes.
 CHECKIN_PHOTOS_PREFIX = "checkin/"
+# What a deposit's hold is for (a broken glass): private, handed out as links that expire
+# to the owner and to the guest whose deposit it is.
+DEPOSIT_PHOTOS_PREFIX = "deposits/"
 # Minibar products: shown on the guest's panel, public as listing photos are.
 PRODUCT_PHOTOS_PREFIX = "products/"
 #: Long enough for the CRM to hand a link to WhatsApp, short enough that a
@@ -177,6 +180,23 @@ async def upload_property_photo(*, property_id: uuid.UUID, file_obj, content_typ
     return build_public_url(key)
 
 
+async def upload_deposit_photo(*, booking_id: uuid.UUID, file_obj, content_type: str) -> str:
+    """Store a photo of what a deposit's hold is for, under the booking's private prefix."""
+    client = _s3_client()
+    await asyncio.to_thread(_ensure_bucket, client)
+    await asyncio.to_thread(apply_read_policy, client)
+    key = f"{DEPOSIT_PHOTOS_PREFIX}{booking_id}/{uuid.uuid4()}{_PHOTO_EXTENSIONS.get(content_type, '')}"
+    await asyncio.to_thread(
+        client.upload_fileobj, file_obj, settings.S3_BUCKET, key, ExtraArgs={"ContentType": content_type}
+    )
+    return build_public_url(key)
+
+
+def deposit_photo_prefix(booking_id: uuid.UUID) -> str:
+    """Where a booking's deposit photos are stored: a hold links to these and no others."""
+    return build_public_url(f"{DEPOSIT_PHOTOS_PREFIX}{booking_id}/")
+
+
 async def upload_product_photo(*, company_id: uuid.UUID, file_obj, content_type: str) -> str:
     """Store a minibar product's picture under its public prefix."""
     client = _s3_client()
@@ -208,7 +228,7 @@ def signed_photo_url(url: str) -> str:
     Signing is local (no request to storage). A link the owner pasted from
     elsewhere is not ours to protect and passes through.
     """
-    if not url.startswith(build_public_url(CHECKIN_PHOTOS_PREFIX)):
+    if not url.startswith((build_public_url(CHECKIN_PHOTOS_PREFIX), build_public_url(DEPOSIT_PHOTOS_PREFIX))):
         return url
     return _signing_client().generate_presigned_url(
         "get_object",

@@ -133,7 +133,11 @@ class BookingDeposit:
     amount: Decimal = Decimal("0")
     status: DepositStatus = DepositStatus.PENDING
     held_amount: Decimal = Decimal("0")
+    # The owner's own note on a hold; the guest never reads it.
     reason: str | None = None
+    # What was kept, line by line, for the guest: {"amount": "5000.00", "reason": "Разбит бокал",
+    # "photos": [stored url, ...]}. Written once, with the hold; held_amount is their sum.
+    deductions: list[dict] = field(default_factory=list)
     created_at: datetime | None = None
     updated_at: datetime | None = None
 

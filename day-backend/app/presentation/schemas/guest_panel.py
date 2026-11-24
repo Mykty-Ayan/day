@@ -44,11 +44,19 @@ class GuestPanelLateCheckOut(BaseModel):
     price: float | None = None
 
 
+class GuestPanelDeduction(BaseModel):
+    # What was kept and why, as the owner wrote it for the guest, with the photos of it.
+    amount: float
+    reason: str
+    photos: list[str] = []
+
+
 class GuestPanelDeposit(BaseModel):
     amount: float
-    # pending, paid, returned, held, partially_held. Never the owner's reason.
+    # pending, paid, returned, held, partially_held. Never the owner's own note.
     status: str
     held: float = 0
+    deductions: list[GuestPanelDeduction] = []
 
 
 class GuestPanelFlat(BaseModel):
@@ -183,7 +191,17 @@ class GuestPanelResponse(BaseModel):
                 until_hour=hour, price=float(price) if price is not None else None
             )
         if (d := panel.deposit) is not None:
-            page.deposit = GuestPanelDeposit(amount=float(d.amount), status=d.status.value, held=float(d.held_amount))
+            page.deposit = GuestPanelDeposit(
+                amount=float(d.amount),
+                status=d.status.value,
+                held=float(d.held_amount),
+                deductions=[
+                    GuestPanelDeduction(
+                        amount=float(line["amount"]), reason=line["reason"], photos=[sign(u) for u in line["photos"]]
+                    )
+                    for line in d.deductions
+                ],
+            )
         if (p := panel.flat) is not None and panel.closed:
             # Its name for the messages and its page to book again; the address and the rules are for a live stay.
             page.flat = GuestPanelFlat(name=p.name, code=p.public_code)

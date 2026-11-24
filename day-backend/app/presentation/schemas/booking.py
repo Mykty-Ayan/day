@@ -13,6 +13,7 @@ from pydantic import (
     Field,
     computed_field,
     field_serializer,
+    field_validator,
     model_validator,
 )
 
@@ -295,10 +296,36 @@ class DepositCreate(BaseModel):
     unless_open: bool = False
 
 
+class DepositDeductionIn(BaseModel):
+    """One line of a hold, for the guest: what happened, how much, the photos of it."""
+
+    amount: Decimal = Field(..., gt=0, le=10_000_000, decimal_places=2)
+    reason: str = Field(..., min_length=1, max_length=200)
+    # Photos uploaded with POST /deposits/{id}/photos: this booking's own, at most three.
+    photos: list[str] = Field(default_factory=list, max_length=3)
+
+    @field_validator("reason")
+    @classmethod
+    def _said(cls, value: str) -> str:
+        if not value.strip():
+            raise ValueError("A deduction says what it is for")
+        return value.strip()
+
+
+class DepositDeductionResponse(BaseModel):
+    amount: Decimal
+    reason: str
+    # Links that expire within the hour.
+    photos: list[str] = []
+
+
 class DepositAction(BaseModel):
     action: str = Field(..., pattern="^(pay|return|hold|partial_hold)$")
     held_amount: Decimal | None = None
+    # The owner's own note; the guest never reads it.
     reason: str | None = None
+    # With a hold: what is kept, line by line, as the guest will read it; their sum is what is held.
+    deductions: list[DepositDeductionIn] | None = Field(default=None, max_length=10)
 
 
 class DepositResponse(BaseModel):
@@ -313,8 +340,16 @@ class DepositResponse(BaseModel):
     status: DepositStatus
     held_amount: Decimal
     reason: str | None = None
+    deductions: list[DepositDeductionResponse] = []
     created_at: datetime | None = None
     updated_at: datetime | None = None
+
+
+class DepositPhotoResponse(BaseModel):
+    # To send back in a deduction's photos.
+    url: str
+    # To show now: a link that expires.
+    preview_url: str
 
 
 # ---------- File ----------
