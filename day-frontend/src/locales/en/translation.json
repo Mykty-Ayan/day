@@ -579,7 +579,17 @@
       "failed": "Could not save the list",
       "invalid": "Each place needs a name and a time from 1 to 240 minutes",
       "most_one": "At most {{count}} place",
-      "most_other": "At most {{count}} places"
+      "most_other": "At most {{count}} places",
+      "copy": "Copy to other properties",
+      "copyTitle": "Copy the nearby list",
+      "copyHint": "This list replaces the nearby list of the properties you pick.",
+      "replaces_one": "Replaces {{count}} place",
+      "replaces_other": "Replaces {{count}} places",
+      "copySubmit_one": "Copy to {{count}} property",
+      "copySubmit_other": "Copy to {{count}} properties",
+      "copied_one": "The list is copied to {{count}} property",
+      "copied_other": "The list is copied to {{count}} properties",
+      "copyFailed": "Could not copy. No property changed, try again"
     },
     "lateCheckOutPaid": "late check-out until {{time}} · {{price}}",
     "lateCheckOutFree": "late check-out until {{time}} free"
