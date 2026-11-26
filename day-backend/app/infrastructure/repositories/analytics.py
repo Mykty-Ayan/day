@@ -6,7 +6,7 @@ import uuid
 from datetime import date, datetime, time, timedelta
 from decimal import Decimal
 
-from sqlalchemy import Integer, Numeric, and_, case, cast, func, select
+from sqlalchemy import Integer, Numeric, and_, case, cast, func, select, true
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.domain.analytics.entities import PaymentsSummary, PropertyMetrics, SourceTotals, TimeSeriesPoint
@@ -64,44 +64,31 @@ class SqlAnalyticsRepository(AnalyticsRepository):
         # Clamp booking nights to the analysis period.
         eff_check_in = func.greatest(BookingModel.check_in, date_from)
         eff_check_out = func.least(BookingModel.check_out, date_to)
-        # Occupancy unit = booked *days*. `check_in`/`check_out` are timestamps,
-        # so subtracting them yields an interval (which cannot cast to Integer).
-        # We take GREATEST of:
-        #   1. whole calendar nights  = date(out) - date(in)  -> matches the
-        #      pre-timestamp date-diff baseline exactly for daily/multi-day
-        #      stays and is insensitive to the backfilled 14:00/12:00 times, and
-        #   2. fractional days        = epoch(out - in) / 86400 -> gives a sane
-        #      non-zero value for sub-day hourly stays living inside one day.
-        # For daily bookings (1) dominates; for hourly ones (1) is 0 so (2)
-        # supplies the fractional-day occupancy.
-        # Guard the LEFT JOIN: a property with no matching booking produces a row
-        # with NULL check_in/check_out. Postgres greatest()/least() IGNORE NULLs,
-        # so eff_check_in/out would collapse to date_from/date_to and count the
-        # whole period as "booked" (occupancy 100% for empty properties). Force
-        # 0 when there is no booking.
+        # A stay of a night or more is its whole calendar nights in the period, however early or
+        # late it came and left: 01:00 to noon the next day is one night, not 35 hours, and a
+        # check-out at noon on the period's first day is no night of it. An hourly stay, or one
+        # inside a day, is its hours. The share below and the time series take the same units.
+        # `check_in`/`check_out` are timestamps: their difference is an interval, hence date()
+        # and epoch. A flat with no booking in the period comes out of the LEFT JOIN with NULLs,
+        # which greatest()/least() would read as the whole period: it is forced to 0.
+        stay_nights = cast(func.date(BookingModel.check_out) - func.date(BookingModel.check_in), Integer)
+        stay_seconds = func.extract("epoch", BookingModel.check_out - BookingModel.check_in)
+        # An hourly stay is sold by the hour: one from 22:00 to 02:00 is half in each day,
+        # though its dates make it look like a night.
+        hourly = BookingModel.rental_mode == "hourly"
         clamped_nights = case(
             (BookingModel.id.is_(None), 0.0),
-            # An hourly stay across midnight is its hours, not a night: as the time series has it.
             (
-                BookingModel.rental_mode == "hourly",
-                func.greatest(func.extract("epoch", eff_check_out - eff_check_in) / 86400.0, 0.0),
+                ~hourly & (stay_nights > 0),
+                func.greatest(cast(func.date(eff_check_out) - func.date(eff_check_in), Integer), 0.0),
             ),
-            else_=func.greatest(
-                cast(func.date(eff_check_out) - func.date(eff_check_in), Integer),
-                func.extract("epoch", eff_check_out - eff_check_in) / 86400.0,
-                0.0,
-            ),
+            else_=func.greatest(func.extract("epoch", eff_check_out - eff_check_in) / 86400.0, 0.0),
         )
 
         # The share of a stay that falls in the period, as the time series takes it: whole
         # calendar nights for a stay of a night or more, seconds for an hourly stay or one inside a day.
         # A stay's price is earned night by night: a week across a month end puts each month's
         # nights in its own month, and the two months add up to the price, not to twice it.
-        stay_nights = cast(func.date(BookingModel.check_out) - func.date(BookingModel.check_in), Integer)
-        stay_seconds = func.extract("epoch", BookingModel.check_out - BookingModel.check_in)
-        # An hourly stay is sold by the hour: one from 22:00 to 02:00 is half in each day,
-        # though its dates make it look like a night.
-        hourly = BookingModel.rental_mode == "hourly"
         share = case(
             (
                 ~hourly & (stay_nights > 0),
@@ -123,7 +110,8 @@ class SqlAnalyticsRepository(AnalyticsRepository):
                 PropertyModel.id.label("property_id"),
                 PropertyModel.name.label("property_name"),
                 PropertyModel.internal_name.label("property_internal_name"),
-                func.count(BookingModel.id).label("total_bookings"),
+                # A stay of the period has a night or an hour in it, not only its check-out morning.
+                func.count(case((clamped_nights > 0, BookingModel.id))).label("total_bookings"),
                 func.coalesce(func.sum(clamped_nights), 0).label("booked_nights"),
                 func.coalesce(
                     func.sum(cast(BookingModel.total_price, Numeric(12, 2))), 0
@@ -139,6 +127,9 @@ class SqlAnalyticsRepository(AnalyticsRepository):
                     BookingModel.status.notin_(["cancelled"]),
                     BookingModel.check_in < date_to,
                     BookingModel.check_out > date_from,
+                    # In the join, not the WHERE: a flat with no stay from the chosen sources is
+                    # still a flat whose nights were on offer, in the occupancy as on the chart.
+                    BookingModel.source.in_(source) if source is not None else true(),
                 ),
             )
             .where(PropertyModel.company_id == company_id)
@@ -147,8 +138,6 @@ class SqlAnalyticsRepository(AnalyticsRepository):
 
         if property_ids is not None:
             stmt = stmt.where(PropertyModel.id.in_(property_ids))
-        if source is not None:
-            stmt = stmt.where(BookingModel.source.in_(source))
 
         stmt = stmt.group_by(
             PropertyModel.id,
@@ -239,16 +228,16 @@ class SqlAnalyticsRepository(AnalyticsRepository):
             by.commission += kept_commission
 
         # Compute derived metrics
+        starts = await self._flat_starts(company_id, list(props_map))
         for pm in props_map.values():
+            available = Decimal(_days_on_offer(starts.get(pm.property_id), date_from, date_to))
             # Expenses and profit are not computed here. Rent, utilities and
             # cleaning live in property_costs, which this repository does not
             # read — the application service joins the two. Setting expenses to
             # the commission alone, as this did, produced a "profit" that was
             # revenue with the OTA cut taken off and everything a subletter
             # actually pays left in.
-            pm.vacancy_days = max(
-                Decimal("0"), Decimal(total_period_days) - pm.booked_nights
-            )
+            pm.vacancy_days = max(Decimal("0"), available - pm.booked_nights)
 
             # All denominators below are guarded; booked_nights is now a
             # (possibly fractional) Decimal, so `> 0` still holds for sub-day
@@ -258,15 +247,33 @@ class SqlAnalyticsRepository(AnalyticsRepository):
             stay_revenue = pm.revenue - pm.retained_prepayments
             if pm.booked_nights > 0:
                 pm.adr = stay_revenue / pm.booked_nights
-            if total_period_days > 0:
-                pm.revpar = stay_revenue / total_period_days
-                pm.occupancy_rate = (
-                    pm.booked_nights / Decimal(total_period_days) * 100
-                )
+            if available > 0:
+                pm.revpar = stay_revenue / available
+                pm.occupancy_rate = pm.booked_nights / available * 100
             if pm.total_bookings > 0:
                 pm.avg_stay_duration = pm.booked_nights / pm.total_bookings
 
         return sorted(props_map.values(), key=lambda p: p.revenue, reverse=True)
+
+    async def _flat_starts(self, company_id: uuid.UUID, property_ids: list[uuid.UUID]) -> dict[uuid.UUID, date]:
+        """The day each flat counts from in the occupancy: the day it came into Day, or its first
+        stay if one was written in for nights before that. A flat added in November has no empty
+        October nights. created_at is in UTC: a flat added late in the evening may start a day early."""
+        if not property_ids:
+            return {}
+        first_stay = (
+            select(BookingModel.property_id, func.min(BookingModel.check_in).label("first"))
+            .where(BookingModel.company_id == company_id, BookingModel.status.notin_(["cancelled"]))
+            .where(BookingModel.property_id.in_(property_ids))
+            .group_by(BookingModel.property_id)
+            .subquery("first_stay")
+        )
+        stmt = (
+            select(PropertyModel.id, func.least(func.date(PropertyModel.created_at), func.date(first_stay.c.first)))
+            .outerjoin(first_stay, first_stay.c.property_id == PropertyModel.id)
+            .where(PropertyModel.company_id == company_id, PropertyModel.id.in_(property_ids))
+        )
+        return {pid: start for pid, start in (await self._session.execute(stmt)).all()}
 
     async def get_payments_summary(
         self,
@@ -399,23 +406,20 @@ class SqlAnalyticsRepository(AnalyticsRepository):
 
         rows = (await self._session.execute(stmt)).all()
 
-        # Count active properties
-        prop_stmt = (
-            select(func.count(PropertyModel.id))
-            .where(
-                PropertyModel.company_id == company_id,
-                PropertyModel.status.notin_(["archived"]),
-            )
+        # The flats on offer, each from the day it came in: the metrics' flats.
+        flats_stmt = select(PropertyModel.id).where(
+            PropertyModel.company_id == company_id,
+            PropertyModel.status.notin_(["archived"]),
         )
         if property_ids is not None:
-            prop_stmt = prop_stmt.where(PropertyModel.id.in_(property_ids))
-        prop_count = (await self._session.scalar(prop_stmt)) or 1
+            flats_stmt = flats_stmt.where(PropertyModel.id.in_(property_ids))
+        flat_ids = list((await self._session.scalars(flats_stmt)).all())
+        starts = await self._flat_starts(company_id, flat_ids)
 
         # Fill buckets
         result: list[TimeSeriesPoint] = []
         for bucket_start, bucket_end, label in buckets:
-            bucket_days = (bucket_end - bucket_start).days
-            total_available = bucket_days * prop_count
+            total_available = sum(_days_on_offer(starts.get(pid), bucket_start, bucket_end) for pid in flat_ids)
             # datetime bounds of the bucket (buckets are calendar dates)
             bucket_start_dt = datetime.combine(bucket_start, time.min)
             bucket_end_dt = datetime.combine(bucket_end, time.min)
@@ -490,6 +494,12 @@ class SqlAnalyticsRepository(AnalyticsRepository):
             )
 
         return result
+
+
+def _days_on_offer(start: date | None, date_from: date, date_to: date) -> int:
+    """The days of [date_from, date_to) a flat was there to let, from its start on."""
+    first = max(date_from, start) if start is not None else date_from
+    return max((date_to - first).days, 0)
 
 
 def _generate_buckets(
