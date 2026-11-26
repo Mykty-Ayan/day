@@ -227,6 +227,8 @@ def _property(company_id: uuid.UUID, internal: str, mode: str) -> PropertyModel:
         type="apartment",
         status="active",
         rental_mode=mode,
+        # Long before any test's stays: a flat counts in occupancy from the day it came in.
+        created_at=datetime(2020, 1, 1),
     )
 
 
@@ -471,7 +473,9 @@ async def test_a_kept_prepayment_stays_inside_its_company_and_source():
         # The stay's price (paid or not: the guests' debt is in the payments) and the money kept.
         assert pm.revenue == Decimal("250")
         assert [m.revenue for m in by_source] == [Decimal("250")]
-        assert no_source == []  # a source with no stays lists no flat, kept money or not
+        # A source with no stays earns the flat nothing, kept money or not; the flat stays on the
+        # list, its nights on offer.
+        assert [(m.revenue, m.total_bookings) for m in no_source] == [(Decimal("0"), 0)]
 
         await session.rollback()
 
@@ -791,4 +795,136 @@ async def test_payments_by_method_what_guests_owe_and_deposits_on_hand():
         empty = await repo.get_payments_summary(company_id, DATE_FROM, DATE_TO, property_ids=[uuid.uuid4()])
         assert (empty.received_by_method, empty.owed, empty.deposits_on_hand) == ({}, 0, 0)
 
+        await session.rollback()
+
+
+# --- Occupancy and the count of stays: what a period holds, not what touches it ---
+
+
+@pytestmark_integration
+@pytest.mark.asyncio
+async def test_a_check_out_on_the_first_day_is_no_stay_of_the_period():
+    """A night before the period, left at noon on its first day, is neither a stay nor half a night."""
+    company_id = uuid.uuid4()
+    async with _fresh_session() as session:
+        guest = _guest(company_id)
+        prop = _property(company_id, f"edge-{uuid.uuid4().hex[:8]}", "daily")
+        before = _booking(
+            company_id, prop.id, guest.id, datetime(2025, 6, 9, 14), datetime(2025, 6, 10, 12), "100", "daily"
+        )
+        inside = _booking(
+            company_id, prop.id, guest.id, datetime(2025, 6, 12, 14), datetime(2025, 6, 14, 12), "200", "daily"
+        )
+        session.add_all([guest, prop, before, inside])
+        await session.flush()
+
+        repo = SqlAnalyticsRepository(session)
+        [pm] = await repo.get_property_metrics(company_id, date(2025, 6, 10), date(2025, 6, 20))
+
+        assert pm.total_bookings == 1
+        assert pm.booked_nights == Decimal("2")
+        assert pm.revenue == Decimal("200")
+        assert pm.adr == Decimal("100")
+        await session.rollback()
+
+
+@pytestmark_integration
+@pytest.mark.asyncio
+async def test_a_night_booked_from_one_in_the_morning_is_one_night():
+    """01:00 to noon the next day is sold as a night: one night of occupancy, not 35 hours of it."""
+    company_id = uuid.uuid4()
+    async with _fresh_session() as session:
+        guest = _guest(company_id)
+        prop = _property(company_id, f"late-{uuid.uuid4().hex[:8]}", "daily")
+        stay = _booking(
+            company_id, prop.id, guest.id, datetime(2025, 6, 11, 1), datetime(2025, 6, 12, 12), "100", "daily"
+        )
+        session.add_all([guest, prop, stay])
+        await session.flush()
+
+        repo = SqlAnalyticsRepository(session)
+        [pm] = await repo.get_property_metrics(company_id, DATE_FROM, DATE_TO)
+
+        assert pm.booked_nights == Decimal("1")
+        assert pm.adr == Decimal("100")
+        await session.rollback()
+
+
+@pytestmark_integration
+@pytest.mark.asyncio
+async def test_a_source_filter_keeps_every_flat_in_the_occupancy():
+    """Only Booking.com: a flat with no stay from it is still a flat whose nights were on offer."""
+    company_id = uuid.uuid4()
+    async with _fresh_session() as session:
+        guest = _guest(company_id)
+        a = _property(company_id, f"src-a-{uuid.uuid4().hex[:8]}", "daily")
+        b = _property(company_id, f"src-b-{uuid.uuid4().hex[:8]}", "daily")
+        from_booking = _booking(
+            company_id, a.id, guest.id, datetime(2025, 6, 2, 14), datetime(2025, 6, 4, 12), "200", "daily"
+        )
+        from_booking.source = "booking"
+        direct = _booking(
+            company_id, b.id, guest.id, datetime(2025, 6, 5, 14), datetime(2025, 6, 7, 12), "300", "daily"
+        )
+        session.add_all([guest, a, b, from_booking, direct])
+        await session.flush()
+
+        repo = SqlAnalyticsRepository(session)
+        metrics = await repo.get_property_metrics(
+            company_id, date(2025, 6, 1), date(2025, 6, 11), source=["booking"]
+        )
+        by_id = {pm.property_id: pm for pm in metrics}
+
+        assert set(by_id) == {a.id, b.id}
+        assert by_id[a.id].booked_nights == Decimal("2")
+        assert by_id[b.id].booked_nights == Decimal("0")
+        assert by_id[b.id].vacancy_days == Decimal("10")
+        assert by_id[b.id].revenue == Decimal("0")
+
+        # The chart takes the same two flats: on 2 June one of them is let from Booking.com.
+        points = await repo.get_time_series(
+            company_id, date(2025, 6, 1), date(2025, 6, 11), Granularity.DAY, source=["booking"]
+        )
+        by_day = {p.period_start: p for p in points}
+        assert by_day[date(2025, 6, 2)].occupancy_rate == Decimal("50.00")
+        assert by_day[date(2025, 6, 5)].occupancy_rate == Decimal("0.00")
+        await session.rollback()
+
+
+@pytestmark_integration
+@pytest.mark.asyncio
+async def test_a_flat_counts_from_the_day_it_came_in_or_its_first_stay():
+    """A flat added mid-period has no empty nights before it: from its creation, or from a stay
+    written in before it was created, whichever is earlier. The chart's days take the same flats."""
+    company_id = uuid.uuid4()
+    async with _fresh_session() as session:
+        guest = _guest(company_id)
+        old = _property(company_id, f"old-{uuid.uuid4().hex[:8]}", "daily")
+        new = _property(company_id, f"new-{uuid.uuid4().hex[:8]}", "daily")
+        new.created_at = datetime(2025, 6, 8, 9)
+        later = _property(company_id, f"later-{uuid.uuid4().hex[:8]}", "daily")
+        later.created_at = datetime(2025, 6, 9, 9)
+        # Written in after the flat came in, for nights before it.
+        early = _booking(
+            company_id, later.id, guest.id, datetime(2025, 6, 6, 14), datetime(2025, 6, 7, 12), "100", "daily"
+        )
+        session.add_all([guest, old, new, later, early])
+        await session.flush()
+
+        repo = SqlAnalyticsRepository(session)
+        period = (date(2025, 6, 1), date(2025, 6, 11))
+        by_id = {pm.property_id: pm for pm in await repo.get_property_metrics(company_id, *period)}
+
+        assert by_id[old.id].vacancy_days == Decimal("10")
+        assert by_id[new.id].vacancy_days == Decimal("3")  # 8, 9 and 10 June
+        assert by_id[later.id].booked_nights == Decimal("1")
+        assert by_id[later.id].vacancy_days == Decimal("4")  # 6 June booked; 7–10 June free
+        assert by_id[later.id].occupancy_rate == Decimal("20")
+
+        points = await repo.get_time_series(company_id, *period, Granularity.DAY)
+        by_day = {p.period_start: p for p in points}
+        # 6 June: the old flat is empty, the late one is let, the new one is not there yet.
+        assert by_day[date(2025, 6, 6)].occupancy_rate == Decimal("50.00")
+        # 2 June: only the old flat existed, and it was empty.
+        assert by_day[date(2025, 6, 2)].occupancy_rate == Decimal("0.00")
         await session.rollback()
