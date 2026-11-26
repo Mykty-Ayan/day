@@ -880,6 +880,14 @@ async def test_a_source_filter_keeps_every_flat_in_the_occupancy():
         assert by_id[b.id].booked_nights == Decimal("0")
         assert by_id[b.id].vacancy_days == Decimal("10")
         assert by_id[b.id].revenue == Decimal("0")
+
+        # The chart takes the same two flats: on 2 June one of them is let from Booking.com.
+        points = await repo.get_time_series(
+            company_id, date(2025, 6, 1), date(2025, 6, 11), Granularity.DAY, source=["booking"]
+        )
+        by_day = {p.period_start: p for p in points}
+        assert by_day[date(2025, 6, 2)].occupancy_rate == Decimal("50.00")
+        assert by_day[date(2025, 6, 5)].occupancy_rate == Decimal("0.00")
         await session.rollback()
 
 

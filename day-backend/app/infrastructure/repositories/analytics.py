@@ -258,7 +258,8 @@ class SqlAnalyticsRepository(AnalyticsRepository):
     async def _flat_starts(self, company_id: uuid.UUID, property_ids: list[uuid.UUID]) -> dict[uuid.UUID, date]:
         """The day each flat counts from in the occupancy: the day it came into Day, or its first
         stay if one was written in for nights before that. A flat added in November has no empty
-        October nights. created_at is in UTC: a flat added late in the evening may start a day early."""
+        October nights. created_at is in UTC: in Almaty (UTC+5) a flat added between midnight and
+        05:00 starts a day early."""
         if not property_ids:
             return {}
         first_stay = (
