@@ -478,6 +478,7 @@
     "now": {
       "label": "Сейчас",
       "living": "Живёт {{name}} до {{until}}",
+      "notCheckedOut": "Выезд не отмечен: {{name}}, до {{until}}",
       "free": "Свободен",
       "next": "Ближайший заезд",
       "none": "Нет",

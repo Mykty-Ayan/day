@@ -28,14 +28,16 @@ export function wallClock(at: Date, timeZone: string): string {
 }
 
 /** Who is in the flat now, and who comes next. `now` is the flat's wall clock, "YYYY-MM-DDTHH:mm:ss". */
-export function stayNow(stays: Stay[], now: string): { current: Stay | null; next: Stay | null } {
+export function stayNow(stays: Stay[], now: string): { current: Stay | null; next: Stay | null; unmarked: boolean } {
   const live = stays.filter((s) => LIVE.has(s.status))
   const current = live.find((s) => s.status === 'checked_in') ?? live.find((s) => s.check_in <= now && now < s.check_out) ?? null
   const next =
     live
       .filter((s) => s.id !== current?.id && s.check_in > now)
       .sort((a, b) => a.check_in.localeCompare(b.check_in))[0] ?? null
-  return { current, next }
+  // Still marked in after the check-out: nobody marked the guest out, as «Сегодня» and the list say.
+  const unmarked = current?.status === 'checked_in' && current.check_out < now
+  return { current, next, unmarked }
 }
 
 /** The share of the next `days` nights from `from` (YYYY-MM-DD) that daily stays take, 0..1. */

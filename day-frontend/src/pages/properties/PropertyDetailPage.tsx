@@ -845,7 +845,7 @@ function NowLine({ propertyId }: { propertyId: string }) {
   // No upper bound: the next arrival may be further than the 30 nights of the occupancy.
   const { data: stays } = useFlatStaysFrom(propertyId, today)
   if (!stays || settingsPending) return null
-  const { current, next } = stayNow(stays, now)
+  const { current, next, unmarked } = stayNow(stays, now)
   const share = Math.round(occupancy(stays, today, 30) * 100)
   const day = (iso: string) => format(parseISO(iso), i18n.language === 'en' ? 'MMM d' : 'd MMM', { locale: dateLocale(i18n.language) })
   const guest = (stay: { id: string; guest_name: string }, text: string) => (
@@ -857,7 +857,15 @@ function NowLine({ propertyId }: { propertyId: string }) {
     <div className="mt-3 grid grid-cols-1 gap-2 rounded-xl border border-line px-4 py-3 text-sm sm:grid-cols-3">
       <p>
         <span className="block text-xs text-ink-muted">{t('properties.now.label')}</span>
-        {current ? guest(current, t('properties.now.living', { name: current.guest_name, until: day(current.check_out) })) : (
+        {current ? (
+          unmarked ? (
+            <span className="text-warning">
+              {guest(current, t('properties.now.notCheckedOut', { name: current.guest_name, until: day(current.check_out) }))}
+            </span>
+          ) : (
+            guest(current, t('properties.now.living', { name: current.guest_name, until: day(current.check_out) }))
+          )
+        ) : (
           <span className="font-semibold text-success">{t('properties.now.free')}</span>
         )}
       </p>

@@ -472,6 +472,7 @@
     "now": {
       "label": "Қазір",
       "living": "{{name}} {{until}} дейін тұрады",
+      "notCheckedOut": "Шығу белгіленбеген: {{name}}, {{until}} дейін",
       "free": "Бос",
       "next": "Келесі кіру",
       "none": "Жоқ",
