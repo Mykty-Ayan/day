@@ -26,6 +26,8 @@ export interface PublicStay {
   check_out_hour: number | null
   check_in_method: string | null
   house_rules: string | null
+  /** Where a guest leaves the car, in the owner's words. */
+  parking?: string | null
   /** Shops, a park, the airport and how far: the place without the address. */
   nearby?: NearbyPlace[]
   min_nights: number | null
@@ -247,6 +249,8 @@ export interface GuestPanel {
     check_in_hour: number | null
     check_out_hour: number | null
     house_rules: string | null
+    /** Where a guest leaves the car, in the owner's words. */
+    parking?: string | null
     check_out_instructions: string | null
     nearby?: NearbyPlace[]
   } | null

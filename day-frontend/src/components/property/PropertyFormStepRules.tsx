@@ -16,6 +16,7 @@ interface RulesData {
   check_in_method: string
   check_in_instructions: string
   check_out_instructions: string
+  parking: string
   house_rules: string
   wifi_name: string
   wifi_password: string
@@ -208,6 +209,22 @@ export default function PropertyFormStepRules({ data, onChange, errors = {} }: P
           rows={4}
           className="w-full bg-surface-card border border-line rounded-xl p-3 outline-none focus:border-accent text-ink text-sm resize-none"
         />
+      </div>
+
+      <div>
+        <label htmlFor="property-parking" className="block text-xs font-semibold text-ink-muted mb-1.5">
+          {t('properties.form.parking')}
+        </label>
+        <textarea
+          id="property-parking"
+          value={data.parking}
+          onChange={(e) => update('parking', e.target.value)}
+          placeholder={t('properties.form.parkingPlaceholder')}
+          maxLength={500}
+          rows={2}
+          className="w-full bg-surface-card border border-line rounded-xl p-3 outline-none focus:border-accent text-ink text-sm resize-none"
+        />
+        <p className="mt-1 text-xs text-ink-muted">{t('properties.form.parkingHint')}</p>
       </div>
 
       <div>

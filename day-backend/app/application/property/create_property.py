@@ -82,6 +82,7 @@ class CreatePropertyInput:
     area_total: float | None = None
     check_in_instructions: str | None = None
     check_out_instructions: str | None = None
+    parking: str | None = None
     nearby: list[dict] = field(default_factory=list)
     late_check_out_hour: int | None = None
     late_check_out_price: Decimal | None = None
@@ -153,6 +154,7 @@ class CreatePropertyService:
             area_total=inp.area_total,
             check_in_instructions=inp.check_in_instructions,
             check_out_instructions=inp.check_out_instructions,
+            parking=inp.parking,
             nearby=list(inp.nearby),
             late_check_out_hour=inp.late_check_out_hour,
             late_check_out_price=inp.late_check_out_price,

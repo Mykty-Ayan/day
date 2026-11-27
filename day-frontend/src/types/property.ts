@@ -152,6 +152,7 @@ export interface Property {
   area_total: number | null
   check_in_instructions: string
   check_out_instructions: string
+  parking?: string | null
   house_rules: string
   nearby?: NearbyPlace[]
   wifi_name: string | null
@@ -203,6 +204,7 @@ export interface PropertyCreateInput {
   area_total?: number | null
   check_in_instructions?: string
   check_out_instructions?: string
+  parking?: string | null
   house_rules?: string
   nearby?: NearbyPlace[]
   wifi_name?: string

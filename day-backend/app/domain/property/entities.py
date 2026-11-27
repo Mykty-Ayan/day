@@ -114,6 +114,8 @@ class Property:
     # Rules
     check_in_instructions: str | None = None
     check_out_instructions: str | None = None
+    # Where a guest leaves the car, in the owner's words: on the flat's page and the booking's.
+    parking: str | None = None
     house_rules: str | None = None
     # Near the flat, for the guest: {"name": "Magnum, продукты 24/7", "minutes": 3, "by": "walk" | "car"}.
     nearby: list[dict] = field(default_factory=list)

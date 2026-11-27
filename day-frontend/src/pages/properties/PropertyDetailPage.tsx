@@ -258,6 +258,7 @@ export default function PropertyDetailPage() {
   const hasRules = Boolean(
     property.check_in_instructions ||
       property.check_out_instructions ||
+      property.parking ||
       property.house_rules ||
       property.check_in_hour != null ||
       property.check_out_hour != null ||
@@ -574,6 +575,7 @@ export default function PropertyDetailPage() {
               [
                 [property.check_in_instructions, 'properties.checkIn'],
                 [property.check_out_instructions, 'properties.checkOut'],
+                [property.parking, 'properties.form.parking'],
                 [property.house_rules, 'properties.houseRules'],
               ] as const
             ).map(([text, label]) =>

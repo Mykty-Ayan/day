@@ -565,3 +565,8 @@ test('once the address is open the hint is gone', async ({ page }) => {
   await expect(where).toContainText('Астана, Кабанбай батыра 11')
   await expect(where).not.toContainText('после оплаты залога')
 })
+
+test('the booking page says where to leave the car', async ({ page }) => {
+  await open(page, answer({ address_open: true, flat: { ...answer().flat, parking: 'Бесплатно во дворе' } }))
+  await expect(page.getByRole('region', { name: 'Адрес' })).toContainText('Парковка: Бесплатно во дворе')
+})

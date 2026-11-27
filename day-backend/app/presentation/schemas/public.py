@@ -85,6 +85,7 @@ class PublicStayResponse(BaseModel):
     check_out_hour: int | None = None
     check_in_method: str | None = None
     house_rules: str | None = None
+    parking: str | None = None
     # Shops, a park, the airport and how far: the place without the address.
     nearby: list[NearbyPlace] = []
     min_nights: int | None = None
@@ -136,6 +137,7 @@ class PublicStayResponse(BaseModel):
             check_out_hour=settings.DEFAULT_CHECK_OUT_HOUR if p.check_out_hour is None else p.check_out_hour,
             check_in_method=p.check_in_method.value if p.check_in_method else None,
             house_rules=p.house_rules,
+            parking=p.parking,
             nearby=p.nearby,
             min_nights=p.min_nights,
             photos=stay.photos,

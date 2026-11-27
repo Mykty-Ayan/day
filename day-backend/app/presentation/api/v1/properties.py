@@ -198,6 +198,7 @@ def _to_property_response(p, photos: list | None = None, *, sees_secrets: bool) 
         # How a guest gets in may hold a code: only for those who hand codes to guests.
         check_in_instructions=p.check_in_instructions if sees_secrets else None,
         check_out_instructions=p.check_out_instructions,
+        parking=p.parking,
         house_rules=p.house_rules,
         nearby=p.nearby,
         wifi_name=p.wifi_name,
@@ -304,6 +305,7 @@ async def create_property(
                 area_total=body.area_total,
                 check_in_instructions=body.check_in_instructions,
                 check_out_instructions=body.check_out_instructions,
+                parking=body.parking,
                 nearby=[place.model_dump() for place in body.nearby],
                 house_rules=body.house_rules,
                 wifi_name=body.wifi_name,

@@ -46,6 +46,7 @@
     "checkInHow": "{{method}}. Code oder Schlüssel schicken wir nach der Buchung.",
     "rules": "Hausregeln",
     "location": "Lage",
+    "parking": "Parken:",
     "addressAfter": "Die genaue Adresse und den Weg zum Haus schicken wir nach der Buchung.",
     "poweredBy": "Diese Seite läuft mit Day: Preise und freie Termine aktualisieren sich selbst.",
     "close": "Schließen",

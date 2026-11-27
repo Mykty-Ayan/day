@@ -2,7 +2,7 @@ import { useMemo, useState, type CSSProperties } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { addDays, format, parseISO } from 'date-fns'
-import { BedDouble, Building2, ChevronDown, ChevronLeft, CigaretteOff, Images, KeyRound, LayoutGrid, LogIn, LogOut, Map as MapIcon, MapPin, MapPinned, Moon, Navigation, PartyPopper, PawPrint, Ruler, ScrollText, Share2, Users, X } from 'lucide-react'
+import { BedDouble, Building2, ChevronDown, ChevronLeft, CigaretteOff, Images, KeyRound, LayoutGrid, LogIn, LogOut, Map as MapIcon, MapPin, MapPinned, Moon, Navigation, PartyPopper, PawPrint, Ruler, ScrollText, Share2, SquareParking, Users, X } from 'lucide-react'
 import { getPublicStay, type PublicOfferBooking, type PublicStay } from '../../api/public'
 import { amenityIcon } from '../../lib/amenity-icons'
 import { MASK } from '../../lib/clarity'
@@ -313,6 +313,14 @@ function StayView({ stay, locale, today, until }: { stay: PublicStay; locale: st
             </span>
           )}
           <p className={`text-sm ${MUTE}`}>{t('guest.addressAfter')}</p>
+          {stay.parking && (
+            <p dir="auto" className="flex items-start gap-2 text-[15px]">
+              <SquareParking className="mt-0.5 h-[18px] w-[18px] shrink-0" aria-hidden />
+              <span>
+                <span className="font-semibold">{t('guest.parking')}</span> {stay.parking}
+              </span>
+            </p>
+          )}
           {/* The complex by its name on the guest's map: the street and the flat stay for the booking page. */}
           {stay.complex_name && (
             <div className="grid grid-cols-3 gap-2">

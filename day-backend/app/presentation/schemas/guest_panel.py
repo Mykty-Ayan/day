@@ -75,6 +75,7 @@ class GuestPanelFlat(BaseModel):
     check_in_hour: int | None = None
     check_out_hour: int | None = None
     house_rules: str | None = None
+    parking: str | None = None
     check_out_instructions: str | None = None
     nearby: list[NearbyPlace] = []
 
@@ -223,6 +224,7 @@ class GuestPanelResponse(BaseModel):
                 check_in_hour=p.check_in_hour,
                 check_out_hour=p.check_out_hour,
                 house_rules=p.house_rules,
+                parking=p.parking,
                 check_out_instructions=p.check_out_instructions,
                 nearby=p.nearby,
             )

@@ -650,3 +650,12 @@ async def test_a_confirmed_stay_shows_the_address_even_paid_elsewhere():
 
     assert page.address_open is True
     assert page.flat.address == "Астана, Кабанбай батыра 11"
+
+
+async def test_the_booking_page_says_where_to_leave_the_car():
+    service = _setup()
+    next(iter(service._properties.rows.values())).parking = "Бесплатно во дворе, въезд с Кабанбай батыра"
+
+    page = GuestPanelResponse.from_panel(await service.execute(CODE, NOW))
+
+    assert page.flat.parking == "Бесплатно во дворе, въезд с Кабанбай батыра"
