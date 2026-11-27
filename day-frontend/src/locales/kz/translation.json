@@ -2337,6 +2337,7 @@
     "write": "WhatsApp-қа жазу",
     "rules": "Қонақтарға арналған ережелер",
     "ourFlats": "Біздің пәтерлер",
+    "flatsCount": "{{count}} пәтер",
     "flatsCount_one": "{{count}} пәтер",
     "flatsCount_other": "{{count}} пәтер",
     "nightFrom": "түні {{price}} бастап",
