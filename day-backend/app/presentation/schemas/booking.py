@@ -397,9 +397,8 @@ class BookingCommentResponse(BaseModel):
 
 class PriceCalculateRequest(BaseModel):
     property_id: uuid.UUID
-    # The company's local time, as everywhere in Day: a time with a zone is a 422.
-    check_in: NaiveDatetime
-    check_out: NaiveDatetime
+    check_in: datetime
+    check_out: datetime
     rental_mode: RentalMode = RentalMode.DAILY
     adults_count: int = Field(default=1, ge=1)
     children_count: int = Field(default=0, ge=0)

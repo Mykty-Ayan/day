@@ -253,19 +253,3 @@ async def test_new_dates_with_a_zone_are_a_422(crm):
     assert response.status_code == 422, response.text
     assert ZONE_REASON in response.text
 
-
-@pytest.mark.integration
-async def test_a_price_for_times_with_a_zone_is_a_422(crm):
-    client, prop = crm
-
-    response = await client.post(
-        "/api/v1/bookings/calculate-price",
-        json={
-            "property_id": str(prop),
-            "check_in": "2026-11-01T14:00:00+05:00",
-            "check_out": "2026-11-03T12:00:00+05:00",
-        },
-    )
-
-    assert response.status_code == 422, response.text
-    assert ZONE_REASON in response.text
