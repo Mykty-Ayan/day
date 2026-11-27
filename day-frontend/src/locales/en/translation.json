@@ -2654,6 +2654,7 @@
     "inWhatsApp": "on WhatsApp",
     "writeHost": "Write to the host",
     "doorAfterPay": "Door code once paid",
+    "addressAfterPay": "The exact address, floor and map appear here once the deposit is paid.",
     "entrance": "entrance {{n}}",
     "block": "block {{n}}",
     "floor": "floor {{n}}",

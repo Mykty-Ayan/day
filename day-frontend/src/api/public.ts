@@ -202,6 +202,8 @@ export type GuestMedia = { url: string; caption: string | null; kind?: 'photo' |
 
 export interface GuestPanel {
   closed: boolean
+  /** False until something is paid or the host confirms: the address, floor and map are left out. */
+  address_open?: boolean
   /** The company's own day, YYYY-MM-DD: which buttons fit the stay. */
   today: string
   /** The company's wall clock at the answer, no zone: the countdown runs on it. */

@@ -93,6 +93,9 @@ class GuestPanel:
     guest_name: str | None = None
     flat: Property | None = None
     paid: Decimal = Decimal("0")
+    # The address, the floor and the map: once something is paid or the host confirmed the stay
+    # (a listing's booking is paid there). Before that the guest sees the complex only.
+    address_open: bool = False
     # Minibar orders owed with the stay (the repository's one rule): on top of it.
     orders_due: Decimal = Decimal("0")
     access: GuestAccess | None = None
@@ -177,6 +180,7 @@ class GuestPanelService:
             guest_name=guest.name if guest and guest.company_id == booking.company_id else None,
             flat=prop if prop and prop.company_id == booking.company_id else None,
             paid=paid,
+            address_open=booking.status != BookingStatus.PENDING or paid > 0,
             lead_hours=lead_hours,
         )
         if self._orders is not None:

@@ -540,3 +540,28 @@ test.describe('a phone in another time zone', () => {
     await expect(page.getByRole('region', { name: 'Ваша поездка' })).toContainText(/Через (1 ч 0|0 ч 59) мин/)
   })
 })
+
+test('before anything is paid the guest sees the complex and when the address comes', async ({ page }) => {
+  await open(
+    page,
+    answer(
+      {
+        address_open: false,
+        flat: { ...answer().flat, address: null, latitude: null, longitude: null, complex_name: 'Auezov City' },
+      },
+      { status: 'pending', paid: 0, remaining: 40000 },
+    ),
+  )
+  const where = page.getByRole('region', { name: 'Адрес' })
+  await expect(where).toContainText('Auezov City')
+  await expect(where).toContainText('Точный адрес, этаж и карта появятся здесь после оплаты залога.')
+  await expect(where).not.toContainText('Кабанбай')
+  await expect(where.getByRole('link')).toHaveCount(0)
+})
+
+test('once the address is open the hint is gone', async ({ page }) => {
+  await open(page, answer({ address_open: true }))
+  const where = page.getByRole('region', { name: 'Адрес' })
+  await expect(where).toContainText('Астана, Кабанбай батыра 11')
+  await expect(where).not.toContainText('после оплаты залога')
+})

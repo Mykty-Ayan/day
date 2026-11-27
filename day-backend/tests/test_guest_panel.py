@@ -614,3 +614,39 @@ async def test_the_owner_sets_the_hours_and_the_guest_marks_leaving(flat):  # no
     items = tasks["items"] if isinstance(tasks, dict) else tasks
     assert [t["booking_id"] for t in items] == [booking]
     assert (await client.get(f"/api/v1/bookings/{booking}")).json()["booking"]["status"] == "confirmed"
+
+
+# ---------- the address before payment ----------
+# The owner's decision of 27 Nov 2026: before anything is paid the guest sees the complex only;
+# the address, the floor and the map open once the deposit is paid or the host confirms the stay.
+
+
+async def test_an_unpaid_site_booking_shows_the_complex_not_the_address():
+    service = _setup(status=BookingStatus.PENDING, paid=Decimal("0"))
+    flat_ = next(iter(service._properties.rows.values()))
+    flat_.complex_name, flat_.floor, flat_.map_url = "Auezov City", 10, "https://2gis.kz/astana/geo/1"
+    flat_.latitude, flat_.longitude = 51.12, 71.43
+
+    page = GuestPanelResponse.from_panel(await service.execute(CODE, NOW))
+
+    assert page.address_open is False
+    shown = page.flat
+    assert shown.complex_name == "Auezov City"
+    assert [shown.address, shown.floor, shown.latitude, shown.longitude, shown.map_url] == [None] * 5
+
+
+async def test_a_paid_deposit_opens_the_address():
+    service = _setup(status=BookingStatus.PENDING, paid=Decimal("10000"))
+
+    page = GuestPanelResponse.from_panel(await service.execute(CODE, NOW))
+
+    assert page.address_open is True
+    assert page.flat.address == "Астана, Кабанбай батыра 11"
+
+
+async def test_a_confirmed_stay_shows_the_address_even_paid_elsewhere():
+    # A stay from a listing's calendar: confirmed, paid on the listing, nothing paid in Day.
+    page = GuestPanelResponse.from_panel(await _setup(paid=Decimal("0")).execute(CODE, NOW))
+
+    assert page.address_open is True
+    assert page.flat.address == "Астана, Кабанбай батыра 11"

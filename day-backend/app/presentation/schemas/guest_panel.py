@@ -137,6 +137,8 @@ class GuestPanelOrder(BaseModel):
 class GuestPanelResponse(BaseModel):
     closed: bool
     today: date
+    # False until something is paid or the host confirms: the flat's address, floor and map are left out.
+    address_open: bool = False
     # The company's wall clock at the answer, no zone: check-in and check-out are read on it.
     now: datetime | None = None
     company: GuestPanelCompany | None = None
@@ -162,6 +164,7 @@ class GuestPanelResponse(BaseModel):
         site = panel.site
         page = cls(
             closed=panel.closed,
+            address_open=panel.address_open,
             today=panel.today,
             now=panel.now,
             lead_hours=panel.lead_hours,
@@ -206,16 +209,17 @@ class GuestPanelResponse(BaseModel):
             # Its name for the messages and its page to book again; the address and the rules are for a live stay.
             page.flat = GuestPanelFlat(name=p.name, code=p.public_code)
         elif p is not None:
+            where = panel.address_open
             page.flat = GuestPanelFlat(
                 name=p.name,
                 code=p.public_code,
                 photo_url=panel.photo_url,
-                address=p.address_full,
-                latitude=p.latitude,
-                longitude=p.longitude,
-                map_url=p.map_url,
+                address=p.address_full if where else None,
+                latitude=p.latitude if where else None,
+                longitude=p.longitude if where else None,
+                map_url=p.map_url if where else None,
                 complex_name=p.complex_name,
-                floor=p.floor,
+                floor=p.floor if where else None,
                 check_in_hour=p.check_in_hour,
                 check_out_hour=p.check_out_hour,
                 house_rules=p.house_rules,
