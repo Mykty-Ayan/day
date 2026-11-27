@@ -133,6 +133,7 @@ class PropertyCreate(_TurnoverHours):
     area_total: float | None = None
     check_in_instructions: str | None = None
     check_out_instructions: str | None = None
+    parking: str | None = Field(default=None, max_length=500)
     house_rules: str | None = None
     nearby: list[NearbyPlace] = Field(default_factory=list, max_length=12)
     wifi_name: str | None = Field(default=None, max_length=255)
@@ -178,6 +179,7 @@ class PropertyUpdate(_TurnoverHours):
     area_total: float | None = None
     check_in_instructions: str | None = None
     check_out_instructions: str | None = None
+    parking: str | None = Field(default=None, max_length=500)
     house_rules: str | None = None
     nearby: list[NearbyPlace] = Field(default_factory=list, max_length=12)
     wifi_name: str | None = Field(default=None, max_length=255)
@@ -231,6 +233,7 @@ class PropertyResponse(BaseModel):
     area_total: float | None = None
     check_in_instructions: str | None = None
     check_out_instructions: str | None = None
+    parking: str | None = Field(default=None, max_length=500)
     house_rules: str | None = None
     nearby: list[NearbyPlace] = []
     wifi_name: str | None = None

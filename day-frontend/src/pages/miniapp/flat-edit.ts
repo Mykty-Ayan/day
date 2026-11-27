@@ -14,6 +14,7 @@ export interface FlatForm {
   wifi_password: string
   check_in_instructions: string
   check_out_instructions: string
+  parking: string
   house_rules: string
 }
 
@@ -26,6 +27,7 @@ const TEXT_FIELDS = [
   'wifi_password',
   'check_in_instructions',
   'check_out_instructions',
+  'parking',
   'house_rules',
 ] as const
 
@@ -38,6 +40,7 @@ export function formFromFlat(flat: Property): FlatForm {
     wifi_password: flat.wifi_password ?? '',
     check_in_instructions: flat.check_in_instructions ?? '',
     check_out_instructions: flat.check_out_instructions ?? '',
+    parking: flat.parking ?? '',
     house_rules: flat.house_rules ?? '',
   }
 }

@@ -39,6 +39,7 @@
     "checkInHow": "{{method}}. Kodu veya anahtarı rezervasyondan sonra göndeririz.",
     "rules": "Ev kuralları",
     "location": "Konum",
+    "parking": "Otopark:",
     "addressAfter": "Tam adresi ve binayı nasıl bulacağınızı rezervasyondan sonra göndeririz.",
     "poweredBy": "Bu sayfa Day ile çalışır: fiyatlar ve boş tarihler kendiliğinden güncellenir.",
     "close": "Kapat",

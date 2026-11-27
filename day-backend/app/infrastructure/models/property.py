@@ -72,6 +72,7 @@ class PropertyModel(Base):
     # Rules
     check_in_instructions: Mapped[str | None] = mapped_column(Text, nullable=True)
     check_out_instructions: Mapped[str | None] = mapped_column(Text, nullable=True)
+    parking: Mapped[str | None] = mapped_column(String(500), nullable=True)
     nearby: Mapped[list] = mapped_column(JSON, nullable=False, default=list, server_default="[]")
     late_check_out_hour: Mapped[int | None] = mapped_column(Integer, nullable=True)
     late_check_out_price: Mapped[Decimal | None] = mapped_column(Numeric(12, 2), nullable=True)

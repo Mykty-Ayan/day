@@ -17,6 +17,7 @@ const flat = {
   wifi_password: null,
   check_in_instructions: 'Код 1234',
   check_out_instructions: '',
+  parking: '',
   house_rules: '',
 } as unknown as Property
 

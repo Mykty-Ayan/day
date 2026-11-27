@@ -90,6 +90,7 @@ export default function FlatEditSheet({ flat, onClose }: { flat: Property; onClo
           value={form.check_out_instructions}
           onChange={change('check_out_instructions')}
         />
+        <TextArea label={t('miniapp.flat.parking')} value={form.parking} onChange={change('parking')} />
         <TextArea label={t('miniapp.flat.houseRules')} value={form.house_rules} onChange={change('house_rules')} />
 
         {error && (

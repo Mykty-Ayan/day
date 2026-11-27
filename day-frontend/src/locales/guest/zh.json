@@ -39,6 +39,7 @@
     "checkInHow": "{{method}}。预订后我们会发送密码或钥匙信息。",
     "rules": "房屋规则",
     "location": "位置",
+    "parking": "停车：",
     "addressAfter": "预订后我们会发送详细地址和找到楼栋的方法。",
     "poweredBy": "本页面由 Day 提供：价格和空闲日期会自动更新。",
     "close": "关闭",

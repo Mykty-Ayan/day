@@ -44,6 +44,7 @@ export interface PropertyEditForm {
     check_in_method: string
     check_in_instructions: string
     check_out_instructions: string
+    parking: string
     house_rules: string
     wifi_name: string
     wifi_password: string
@@ -98,6 +99,7 @@ export function propertyToForm(property: Property): PropertyEditForm {
       check_in_method: asText(property.check_in_method),
       check_in_instructions: asText(property.check_in_instructions),
       check_out_instructions: asText(property.check_out_instructions),
+      parking: asText(property.parking),
       house_rules: asText(property.house_rules),
       wifi_name: asText(property.wifi_name),
       wifi_password: asText(property.wifi_password),
@@ -193,6 +195,7 @@ export function formToUpdate(form: PropertyEditForm, opened: PropertyEditForm): 
     check_in_method: form.rules.check_in_method ? (form.rules.check_in_method as CheckInMethod) : null,
     check_in_instructions: text(form.rules.check_in_instructions),
     check_out_instructions: text(form.rules.check_out_instructions),
+    parking: text(form.rules.parking),
     house_rules: text(form.rules.house_rules),
     wifi_name: exact(form.rules.wifi_name),
     min_nights: int(form.rules.min_nights),

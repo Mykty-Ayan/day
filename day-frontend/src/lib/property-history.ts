@@ -39,6 +39,7 @@ const FIELD_LABELS: Record<string, string> = {
   area_total: 'properties.form.totalArea',
   check_in_instructions: 'properties.form.checkInInstructions',
   check_out_instructions: 'properties.form.checkOutInstructions',
+  parking: 'properties.form.parking',
   house_rules: 'properties.form.houseRules',
   wifi_name: 'properties.form.wifiName',
   wifi_password: 'properties.form.wifiPassword',
