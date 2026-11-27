@@ -2,7 +2,7 @@ import { useMemo, useState, type CSSProperties } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { addDays, format, parseISO } from 'date-fns'
-import { BedDouble, Building2, ChevronLeft, CigaretteOff, Images, KeyRound, LayoutGrid, LogIn, LogOut, Map as MapIcon, MapPin, MapPinned, Moon, Navigation, PartyPopper, PawPrint, Ruler, ScrollText, Share2, SquareParking, Users, X } from 'lucide-react'
+import { BedDouble, Building2, ChevronDown, ChevronLeft, CigaretteOff, Images, KeyRound, LayoutGrid, LogIn, LogOut, Map as MapIcon, MapPin, MapPinned, Moon, Navigation, PartyPopper, PawPrint, Ruler, ScrollText, Share2, SquareParking, Users, X } from 'lucide-react'
 import { getPublicStay, type PublicOfferBooking, type PublicStay } from '../../api/public'
 import { amenityIcon } from '../../lib/amenity-icons'
 import { MASK } from '../../lib/clarity'
@@ -87,6 +87,18 @@ function StayView({ stay, locale, today, until }: { stay: PublicStay; locale: st
   }, [locale, stay.prices.weekend_nights])
   const short = !quote || stay.min_nights == null || quote.count >= stay.min_nights ? null : stay.min_nights
 
+  // The price card's short line and whether it has more to open (tariffs, hours, deposits, minimum nights).
+  const hourPrices = [...(stay.prices.tariffs ?? []).map((x) => x.price), ...(stay.prices.hour != null && stay.prices.night != null ? [stay.prices.hour] : [])]
+  const summary = [
+    stay.prices.night != null && hourPrices.length > 0 ? t('guest.hoursFrom', { price: money(Math.min(...hourPrices), locale) }) : null,
+    stay.prices.deposit != null ? t('guest.depositShort', { price: money(stay.prices.deposit, locale) }) : null,
+  ].filter(Boolean)
+  const hasDetails =
+    !!stay.prices.tariffs?.length ||
+    (stay.prices.night != null && stay.prices.hour != null) ||
+    (stay.prices.night != null && (stay.min_nights ?? 1) > 1) ||
+    stay.prices.deposit != null ||
+    stay.prices.hour_deposit != null
   // Three tiles as the mockup, a number over its word: who fits, the rooms, the size;
   // beds and the floor fill in for what the flat does not say.
   const tiles = [
@@ -184,36 +196,48 @@ function StayView({ stay, locale, today, until }: { stay: PublicStay; locale: st
                 <span className={`text-base ${MUTE}`}>{stay.prices.night != null ? t('guest.perNight') : t('guest.perHour')}</span>
               </div>
             )}
-            {!!stay.prices.tariffs?.length && (
-              <div className="flex flex-col gap-1">
-                <span className={`text-sm font-semibold ${MUTE}`}>{t('guest.tariffs')}</span>
-                {stay.prices.tariffs.map((tariff) => (
-                  <span key={tariff.name} className="text-base">
-                    {t(`guest.tariff_${tariff.name}`)} — {money(tariff.price, locale)}
-                    {tariff.weekend != null && (
-                      <span className={MUTE}>{` · ${t('guest.tariffWeekend', { days: weekendLabel, price: money(tariff.weekend, locale) })}`}</span>
-                    )}
-                  </span>
-                ))}
-                {stay.prices.late_from && (
-                  <span className={`text-sm ${MUTE}`}>{t('guest.lateRule', { late: stay.prices.late_from, morning: stay.prices.night_to })}</span>
-                )}
-              </div>
-            )}
-            {stay.prices.night != null && stay.prices.hour != null && (
-              <span className="text-base">{t('guest.hourly', { price: money(stay.prices.hour, locale) })}</span>
-            )}
-            {stay.prices.night != null && stay.min_nights != null && stay.min_nights > 1 && (
-              <span className={`text-sm ${MUTE}`}>{t('guest.minNights', { count: stay.min_nights })}</span>
-            )}
-            {stay.prices.deposit != null && (
-              <span className={`text-sm ${MUTE}`}>
-                {/* Next to the deposit for hours, the nightly one says which it is. */}
-                {t(stay.prices.hour_deposit != null ? 'guest.nightDeposit' : 'guest.deposit', { price: money(stay.prices.deposit, locale) })}
-              </span>
-            )}
-            {stay.prices.hour_deposit != null && (
-              <span className={`text-sm ${MUTE}`}>{t('guest.hourDeposit', { price: money(stay.prices.hour_deposit, locale) })}</span>
+            {/* One line under the price: the cheapest hours and the deposit; the rest opens on a tap. */}
+            {summary.length > 0 && <span className={`text-base ${MUTE}`}>{summary.join(' · ')}</span>}
+            {hasDetails && (
+              <details className="group mt-1">
+                <summary className="flex cursor-pointer list-none items-center gap-1 text-sm font-semibold text-[var(--accent)] [&::-webkit-details-marker]:hidden">
+                  {t('guest.allPrices')}
+                  <ChevronDown className="h-4 w-4 transition-transform group-open:rotate-180" aria-hidden />
+                </summary>
+                <div className="mt-2 flex flex-col gap-1">
+                  {!!stay.prices.tariffs?.length && (
+                    <div className="flex flex-col gap-1">
+                      <span className={`text-sm font-semibold ${MUTE}`}>{t('guest.tariffs')}</span>
+                      {stay.prices.tariffs.map((tariff) => (
+                        <span key={tariff.name} className="text-base">
+                          {t(`guest.tariff_${tariff.name}`)} — {money(tariff.price, locale)}
+                          {tariff.weekend != null && (
+                            <span className={MUTE}>{` · ${t('guest.tariffWeekend', { days: weekendLabel, price: money(tariff.weekend, locale) })}`}</span>
+                          )}
+                        </span>
+                      ))}
+                      {stay.prices.late_from && (
+                        <span className={`text-sm ${MUTE}`}>{t('guest.lateRule', { late: stay.prices.late_from, morning: stay.prices.night_to })}</span>
+                      )}
+                    </div>
+                  )}
+                  {stay.prices.night != null && stay.prices.hour != null && (
+                    <span className="text-base">{t('guest.hourly', { price: money(stay.prices.hour, locale) })}</span>
+                  )}
+                  {stay.prices.night != null && stay.min_nights != null && stay.min_nights > 1 && (
+                    <span className={`text-sm ${MUTE}`}>{t('guest.minNights', { count: stay.min_nights })}</span>
+                  )}
+                  {stay.prices.deposit != null && (
+                    <span className={`text-sm ${MUTE}`}>
+                      {/* Next to the deposit for hours, the nightly one says which it is. */}
+                      {t(stay.prices.hour_deposit != null ? 'guest.nightDeposit' : 'guest.deposit', { price: money(stay.prices.deposit, locale) })}
+                    </span>
+                  )}
+                  {stay.prices.hour_deposit != null && (
+                    <span className={`text-sm ${MUTE}`}>{t('guest.hourDeposit', { price: money(stay.prices.hour_deposit, locale) })}</span>
+                  )}
+                </div>
+              </details>
             )}
           </section>
         )}

@@ -174,8 +174,32 @@ test('a flat let by the night and by the hour shows the deposit of each, never o
   const guest = await browser.newContext({ locale: 'ru-RU', baseURL: test.info().project.use.baseURL })
   const page = await guest.newPage()
   await page.goto(`/s/${code}`)
+  // Under the price one short line; the deposits of each kind open on a tap.
+  const price = page.getByRole('region', { name: 'Цена' })
+  await expect(price).toContainText('по часам от 3 000 ₸ · залог 10 000 ₸')
+  await expect(page.getByText('Залог при почасовой аренде 7 000 ₸ — вернём в течение дня после выезда')).toBeHidden()
+  await price.getByText('Все цены и залоги').click()
   await expect(page.getByText('Залог при посуточной аренде 10 000 ₸ — вернём в течение дня после выезда')).toBeVisible()
   await expect(page.getByText('Залог при почасовой аренде 7 000 ₸ — вернём в течение дня после выезда')).toBeVisible()
+  await guest.close()
+})
+
+test('a flat by the night only has a short price card with nothing to open', async ({ browser, request }) => {
+  const { id } = await (await request.post(`${API_BASE}/properties`, {
+    data: createTestProperty({ name: 'Квартира только на ночь' }),
+  })).json()
+  await request.post(`${API_BASE}/properties/${id}/status`, { data: { target_status: 'active' } })
+  await request.put(`${API_BASE}/properties/${id}/pricing`, {
+    data: { base_price: 18000, hourly_price: 0, weekend_markup: 0, default_deposit: 0, extra_adult_price: 0, extra_child_price: 0, base_guests: 2 },
+  })
+  const code = (await (await request.get(`${API_BASE}/properties/${id}`)).json()).public_code as string
+
+  const guest = await browser.newContext({ locale: 'ru-RU', baseURL: test.info().project.use.baseURL })
+  const page = await guest.newPage()
+  await page.goto(`/s/${code}`)
+  const price = page.getByRole('region', { name: 'Цена' })
+  await expect(price).toContainText('18 000 ₸')
+  await expect(price.getByText('Все цены и залоги')).toHaveCount(0)
   await guest.close()
 })
 
