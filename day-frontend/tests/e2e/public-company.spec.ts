@@ -188,3 +188,29 @@ test('the owner gives the site a headline: it shows big, and the name moves by t
   await expect(site.getByText('Munar Apartments', { exact: true })).toBeVisible()
   await guest.close()
 })
+
+test('the site opens on its cover with the headline on it, and says what it offers in a line', async ({ browser, request }) => {
+  const slug = `site-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`
+  const cover = 'https://example.com/munar-cover.jpg'
+  const site = await request.put(`${API_BASE}/site`, {
+    data: { slug, title: 'Обложка', tagline: 'Квартиры у парка', about: 'Заселение по коду', logo_url: null, cover_url: cover, accent_color: null, whatsapp: null, instagram: null },
+  })
+  expect(site.ok(), await site.text()).toBeTruthy()
+  const { id } = await (await request.post(`${API_BASE}/properties`, { data: createTestProperty({ name: `Обложка ${Date.now().toString(36)}` }) })).json()
+  await request.post(`${API_BASE}/properties/${id}/status`, { data: { target_status: 'active' } })
+  await request.put(`${API_BASE}/properties/${id}/pricing`, {
+    data: { base_price: 9000, weekend_markup: 0, default_deposit: 0, extra_adult_price: 0, extra_child_price: 0, base_guests: 2 },
+  })
+
+  const guest = await browser.newContext({ locale: 'ru-RU', baseURL: test.info().project.use.baseURL })
+  const page = await guest.newPage()
+  await page.goto(`/c/${slug}`)
+  const headline = page.getByRole('heading', { level: 1 })
+  await expect(headline).toHaveText('Квартиры у парка')
+  // The headline stands on the cover: they share one frame.
+  await expect(headline.locator('xpath=..').locator(`img[src="${cover}"]`)).toHaveCount(1)
+  await expect(page.getByText('Заселение по коду')).toBeVisible()
+  // The company's active flats, the cheapest night among them.
+  await expect(page.getByText(/^\d+ квартир[аы]? · от [\d\s]+ ₸ за ночь$/)).toBeVisible()
+  await guest.close()
+})

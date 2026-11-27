@@ -6,6 +6,7 @@ import { Calendar, CircleCheck, Images, Instagram, LayoutGrid, MessageCircle, Mi
 import { getPublicCompany, type PublicCompany, type PublicCompanyFlat } from '../../api/public'
 import { dateRange, money, onAccent, retryNetwork } from '../../lib/public-stay'
 import { GuestFrame, LoadFailed } from './GuestFrame'
+import { CompanyHero } from './CompanyHero'
 import { Calendar as DayCalendar } from '../../components/ui/calendar'
 import { Popover, PopoverAnchor, PopoverContent } from '../../components/ui/popover'
 import { ar, de, enUS, kk, ko, ru, tr, uz, zhCN, type DayPickerLocale } from 'react-day-picker/locale'
@@ -81,23 +82,7 @@ function CompanyView({ company, locale }: { company: PublicCompany; locale: stri
 
   return (
     <main style={style} className="min-h-screen pb-10 text-[#111114]">
-      {/* The company by its logo and name; the language button floats at the row's end (GuestFrame). */}
-      <div className="flex h-[76px] items-center gap-2.5 px-4 pe-24">
-        {company.logo_url ? (
-          <img src={company.logo_url} alt="" className="h-11 w-11 shrink-0 rounded-full bg-white object-cover" />
-        ) : (
-          <span aria-hidden className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#111114] text-lg font-bold text-white">
-            {company.title.trim().charAt(0).toUpperCase()}
-          </span>
-        )}
-        {/* With a headline the name sits by the logo; without one the name is the headline. */}
-        {company.tagline && <span dir="auto" className="min-w-0 truncate text-base font-bold">{company.title}</span>}
-      </div>
-
-      <div className="px-5 pb-4 pt-2.5">
-        <h1 dir="auto" className="font-guest-display text-[40px] font-bold leading-[1.02] tracking-[-0.035em]">{company.tagline || company.title}</h1>
-        {company.about && <p dir="auto" className="mt-3 whitespace-pre-line text-base leading-relaxed text-[#6B6B74]">{company.about}</p>}
-      </div>
+      <CompanyHero company={company} locale={locale} />
 
       {company.flats.length > 0 && <SearchCard today={today} most={most} stay={stay} onSearch={setStay} palette={style} />}
 
