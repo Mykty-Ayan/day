@@ -5,6 +5,7 @@ import {
   API_BASE,
 } from '../fixtures/test-data'
 import { openBlock, pricingCard, priceField, wizardField as field } from '../fixtures/property-ui'
+import { inRussian } from '../fixtures/screen-checks'
 
 // The labels of the flat's forms are not tied to their inputs, so its fields are found by placeholder.
 const NAME_PLACEHOLDER = 'Cozy Downtown Studio'
@@ -40,6 +41,16 @@ test.describe('Property Edit - E2E', () => {
 
     await expect(page).toHaveURL(new RegExp(`/properties/${prop.id}$`))
     await expect(panel.getByPlaceholder(NAME_PLACEHOLDER)).toBeVisible()
+  })
+
+  test('the area under the name is in square metres in Russian letters', async ({ page, request }) => {
+    const prop = await createPropertyViaApi(request, { area_total: 40.5 })
+
+    await inRussian(page)
+    await page.goto(`/properties/${prop.id}`)
+
+    await expect(page.getByText('40,5 м²')).toBeVisible()
+    await expect(page.getByText('m²')).toHaveCount(0)
   })
 
   test('the old edit address leads to the flat page', async ({ page, request }) => {

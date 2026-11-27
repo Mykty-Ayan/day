@@ -246,7 +246,7 @@ export default function PropertyDetailPage() {
     { icon: Bed, label: t('properties.beds'), value: property.beds },
     { icon: Users, label: t('properties.form.maxGuests'), value: property.max_guests },
     { icon: Bath, label: t('properties.form.bathrooms'), value: property.bathrooms },
-    { icon: Ruler, label: t('properties.area'), value: property.area_total != null ? `${property.area_total} m²` : null },
+    { icon: Ruler, label: t('properties.area'), value: property.area_total != null ? t('guest.area', { area: property.area_total.toLocaleString('ru-RU') }) : null },
   ].filter((fact) => fact.value != null && fact.value !== '')
   const links = (
     [
