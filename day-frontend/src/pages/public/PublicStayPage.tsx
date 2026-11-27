@@ -200,7 +200,7 @@ function StayView({ stay, locale, today, until }: { stay: PublicStay; locale: st
             {summary.length > 0 && <span className={`text-base ${MUTE}`}>{summary.join(' · ')}</span>}
             {hasDetails && (
               <details className="group mt-1">
-                <summary className="flex cursor-pointer list-none items-center gap-1 text-sm font-semibold text-[#2F6BFF] [&::-webkit-details-marker]:hidden">
+                <summary className="flex cursor-pointer list-none items-center gap-1 text-sm font-semibold text-[var(--accent)] [&::-webkit-details-marker]:hidden">
                   {t('guest.allPrices')}
                   <ChevronDown className="h-4 w-4 transition-transform group-open:rotate-180" aria-hidden />
                 </summary>
