@@ -472,6 +472,7 @@
     "now": {
       "label": "Now",
       "living": "{{name}} stays till {{until}}",
+      "notCheckedOut": "Check-out not marked: {{name}}, till {{until}}",
       "free": "Free",
       "next": "Next check-in",
       "none": "None",

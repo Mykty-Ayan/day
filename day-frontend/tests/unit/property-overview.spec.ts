@@ -22,6 +22,15 @@ test('the guest in now, and the next one', () => {
   const { current, next } = stayNow(stays, '2026-11-05T10:00:00')
   expect([current?.id, next?.id]).toEqual(['in', 'soon'])
   expect(stayNow(stays.slice(2), '2026-11-05T10:00:00').current).toBeNull()
+  expect(stayNow(stays, '2026-11-05T10:00:00').unmarked).toBe(false)
+})
+
+test('a guest still marked in after the check-out is an unmarked check-out, not a stay', () => {
+  const stays = [stay('in', '2026-11-02T14:00:00', '2026-11-04T12:00:00', 'checked_in')]
+  expect(stayNow(stays, '2026-11-04T11:59:00')).toMatchObject({ current: { id: 'in' }, unmarked: false })
+  expect(stayNow(stays, '2026-11-27T10:00:00')).toMatchObject({ current: { id: 'in' }, unmarked: true })
+  // A confirmed stay past its dates is not anyone in the flat.
+  expect(stayNow([stay('c', '2026-11-02T14:00:00', '2026-11-04T12:00:00')], '2026-11-27T10:00:00').unmarked).toBe(false)
 })
 
 test('occupancy counts the nights of daily stays in the window, not hours or cancelled ones', () => {
