@@ -607,11 +607,13 @@ function PanelView({ code, panel, locale, receivedAt }: { code: string; panel: G
 
               {!!access?.door?.length && <MediaGrid title={t('guestPanel.door')} items={access.door} testId="door-media" />}
 
-              {flat && (flat.address || maps.length > 0 || where.length > 0) && (
+              {flat && (flat.address || maps.length > 0 || where.length > 0 || panel.address_open === false) && (
                 <section aria-label={t('guestPanel.address')} className={CARD}>
                   <h2 className={H2}>{t('guestPanel.address')}</h2>
                   {flat.address && <p dir="auto" className="text-[17px] font-semibold">{flat.address}</p>}
                   {where.length > 0 && <p dir="auto" className={`mt-0.5 text-sm ${MUTE}`}>{where.join(' · ')}</p>}
+                  {/* Before anything is paid the server sends the complex only: say when the rest comes. */}
+                  {panel.address_open === false && <p className={`mt-1 text-sm ${MUTE}`}>{t('guestPanel.addressAfterPay')}</p>}
                   {maps.length > 0 && (
                     <div className={`mt-3 grid gap-2 ${maps.length > 3 ? 'grid-cols-2' : 'grid-cols-3'}`}>
                       {maps.map((m) => (
