@@ -211,6 +211,6 @@ test('the site opens on its cover with the headline on it, and says what it offe
   await expect(headline.locator('xpath=..').locator(`img[src="${cover}"]`)).toHaveCount(1)
   await expect(page.getByText('Заселение по коду')).toBeVisible()
   // The company's active flats, the cheapest night among them.
-  await expect(page.getByText(/^\d+ квартир[аы]? · от [\d\s]+ ₸ за ночь$/)).toBeVisible()
+  await expect(page.getByText(/^\d+ квартир[аы]? · от [\d\s]+₸ за ночь$/)).toBeVisible()
   await guest.close()
 })
