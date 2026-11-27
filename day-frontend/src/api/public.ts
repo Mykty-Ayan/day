@@ -34,16 +34,12 @@ export interface PublicStay {
   photos: string[]
   amenities: { name: string; category: string }[]
   prices: {
+    /** Nights only: hours are sold by the host and the CRM's personal links. */
     night: number | null
-    hour: number | null
-    /** By the hour, when the flat sells by tariffs; the weekend price only where it differs. */
-    tariffs?: { name: '3h' | '6h' | 'night'; price: number; weekend: number | null }[]
-    /** Out after late_from only the night is sold, out by night_to. */
-    late_from?: string | null
-    night_to?: string | null
     /** The nights the weekend prices are for, Monday 0 (Friday 4, Saturday 5, Sunday 6). */
     weekend_nights?: number[]
     deposit: number | null
+    /** For a personal link by the hour (/o/), which shows the flat's hourly deposit. */
     hour_deposit: number | null
   }
   nights: PublicNight[]
@@ -136,7 +132,6 @@ export interface PublicCompanyFlat {
   area_total: number | null
   photo: string | null
   night_price: number | null
-  hour_price: number | null
   /** The first free night from today (60 days at most); null when taken all that time or let by the hour. */
   free_from?: string | null
   /** How many photos the flat's page has. */

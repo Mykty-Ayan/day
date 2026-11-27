@@ -12,7 +12,7 @@ from datetime import date, datetime, time, timedelta
 from decimal import Decimal
 
 from app.application.booking.ical_export import blocked_nights
-from app.application.booking.price_calculator import NightRate, has_tariffs, nightly_rates
+from app.application.booking.price_calculator import NightRate, nightly_rates
 from app.config import settings
 from app.domain.booking.repositories import BookingRepository
 from app.domain.booking.value_objects import BookingStatus, RentalMode
@@ -50,7 +50,6 @@ class PublicStay:
     nights: list[PublicNight]
     # The ways the flat is let and priced: by the night, by the hour.
     by_night: bool = False
-    by_hour: bool = False
     # The company's weekend nights (Monday 0): the weekend prices are for them.
     weekend_nights: tuple[int, ...] = DEFAULT_WEEKEND_NIGHTS
 
@@ -88,12 +87,9 @@ class GetPublicStayService:
             key=lambda p: (not p.is_cover, p.sort_order),
         )
         pricing = await self._pricing.get_by_property(prop.id)
+        # The guest pages sell nights only (the owner's decision of 27 Nov 2026): hours go
+        # through the host and the CRM's personal links, never a price on the flat's page.
         by_night = bool(pricing) and prop.rental_mode != RentalMode.HOURLY and pricing.base_price > 0
-        by_hour = (
-            bool(pricing)
-            and prop.rental_mode != RentalMode.DAILY
-            and (pricing.hourly_price > 0 or has_tariffs(pricing))
-        )
         company = await self._settings.get_by_company(prop.company_id) if self._settings else None
         weekend = company.weekend_nights if company else DEFAULT_WEEKEND_NIGHTS
         return PublicStay(
@@ -103,7 +99,6 @@ class GetPublicStayService:
             pricing=pricing,
             nights=await self._nights(prop, pricing, date_from, date_to, weekend) if by_night else [],
             by_night=by_night,
-            by_hour=by_hour,
             weekend_nights=weekend,
         )
 

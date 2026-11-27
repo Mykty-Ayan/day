@@ -101,7 +101,6 @@ class PublicCompanyFlat(BaseModel):
     photo: str | None = None
     # By the kind of stay the flat takes; none when not let that way or not priced.
     night_price: float | None = None
-    hour_price: float | None = None
     # The first free night from today within FREE_AHEAD_DAYS, for a flat let by the night;
     # None when it is taken all that time or let only by the hour.
     free_from: date | None = None

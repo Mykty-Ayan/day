@@ -208,7 +208,7 @@ function FlatTile({ flat, locale, first, today, stay }: { flat: PublicCompanyFla
     flat.rooms ? { icon: LayoutGrid, text: t('guest.rooms', { count: flat.rooms }) } : null,
     flat.area_total ? { icon: Ruler, text: t('guest.area', { area: flat.area_total.toLocaleString(locale) }) } : null,
   ].filter(Boolean) as { icon: typeof Users; text: string }[]
-  const price = flat.night_price ?? flat.hour_price
+  const price = flat.night_price
   const dayLabel = new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'long' })
   // The guest's dates go along: the flat's page opens with them picked.
   const href = stay ? `/s/${flat.code}?in=${stay.checkIn}&out=${stay.checkOut}&guests=${stay.guests}` : `/s/${flat.code}`
@@ -260,7 +260,7 @@ function FlatTile({ flat, locale, first, today, stay }: { flat: PublicCompanyFla
           ) : price != null ? (
             <p className="flex items-baseline gap-1.5">
               <b className="text-[22px] tracking-[-0.02em]">{money(price, locale)}</b>
-              <span className="text-sm text-[#6B6B74]">{flat.night_price != null ? t('guest.perNight') : t('guest.perHour')}</span>
+              <span className="text-sm text-[#6B6B74]">{t('guest.perNight')}</span>
             </p>
           ) : (
             <span />

@@ -208,17 +208,14 @@ async def book_from_offer(code: str, body: PublicOfferBook, session: AsyncSessio
 
 @public_router.post("/stays/{code}/book", response_model=PublicOfferBooking, status_code=201)
 async def book_from_stay(code: str, body: PublicStayBook, session: AsyncSession = Depends(get_session)):
-    """The guest books the flat from its own page: the nights or hours are held for
-    30 minutes and the host is asked for the Kaspi invoice. 409 when the dates were
-    taken meanwhile or this phone holds a booking from a flat's page already."""
+    """The guest books the flat from its own page: the nights are held for 30 minutes and
+    the host is asked for the Kaspi invoice. 409 when the dates were taken meanwhile or
+    this phone holds a booking from a flat's page already."""
     try:
         held = await _holds(session).book_stay(
             code,
-            rental_mode=RentalMode(body.rental_mode),
             check_in=body.check_in,
             check_out=body.check_out,
-            starts_at=body.starts_at,
-            ends_at=body.ends_at,
             guests=body.guests,
             name=body.name,
             phone=body.phone,
