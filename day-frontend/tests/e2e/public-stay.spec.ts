@@ -160,7 +160,7 @@ test('a guest whose phone speaks Chinese reads the page in Chinese, and can pick
 
 test('a flat let by the night and by the hour shows only the night: hours are the host\'s to sell', async ({ browser, request }) => {
   const { id } = await (await request.post(`${API_BASE}/properties`, {
-    data: { ...createTestProperty({ name: 'Квартира на сутки и часы' }), rental_mode: 'both' },
+    data: { ...createTestProperty({ name: 'Квартира и так и так' }), rental_mode: 'both' },
   })).json()
   await request.post(`${API_BASE}/properties/${id}/status`, { data: { target_status: 'active' } })
   await request.put(`${API_BASE}/properties/${id}/pricing`, {
