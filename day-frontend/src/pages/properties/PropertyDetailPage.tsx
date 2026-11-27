@@ -848,8 +848,8 @@ function NowLine({ propertyId }: { propertyId: string }) {
   const { current, next, unmarked } = stayNow(stays, now)
   const share = Math.round(occupancy(stays, today, 30) * 100)
   const day = (iso: string) => format(parseISO(iso), i18n.language === 'en' ? 'MMM d' : 'd MMM', { locale: dateLocale(i18n.language) })
-  const guest = (stay: { id: string; guest_name: string }, text: string) => (
-    <Link to="/bookings/$bookingId" params={{ bookingId: stay.id }} className="font-semibold text-accent-ink hover:underline">
+  const guest = (stay: { id: string; guest_name: string }, text: string, tone = 'text-accent-ink') => (
+    <Link to="/bookings/$bookingId" params={{ bookingId: stay.id }} className={`font-semibold ${tone} hover:underline`}>
       {text}
     </Link>
   )
@@ -859,9 +859,7 @@ function NowLine({ propertyId }: { propertyId: string }) {
         <span className="block text-xs text-ink-muted">{t('properties.now.label')}</span>
         {current ? (
           unmarked ? (
-            <span className="text-warning">
-              {guest(current, t('properties.now.notCheckedOut', { name: current.guest_name, until: day(current.check_out) }))}
-            </span>
+            guest(current, t('properties.now.notCheckedOut', { name: current.guest_name, until: day(current.check_out) }), 'text-warning')
           ) : (
             guest(current, t('properties.now.living', { name: current.guest_name, until: day(current.check_out) }))
           )
