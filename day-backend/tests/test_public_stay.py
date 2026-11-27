@@ -115,7 +115,7 @@ async def test_a_guest_sees_the_flat_and_none_of_its_secrets():
     )
     assert shown.photos == [listing_photo]
     assert [a.name for a in shown.amenities] == ["Wi-Fi", "Кондиционер"]
-    assert (shown.prices.night, shown.prices.hour, shown.prices.deposit) == (25000.0, 3000.0, 10000.0)
+    assert (shown.prices.night, shown.prices.deposit) == (25000.0, 10000.0)
 
 
 async def test_each_night_shows_its_price_and_whether_it_is_free():
@@ -156,22 +156,27 @@ async def test_each_night_shows_its_price_and_whether_it_is_free():
     ]
 
 
-async def test_a_flat_shows_only_the_prices_it_takes():
+async def test_a_flat_page_sells_nights_only_hours_stay_with_the_host():
+    # The owner's decision of 27 Nov 2026: no price of an hour or tariff on the guest pages.
+    from app.presentation.schemas.public import PublicStayResponse
+
     s = Stay()
-    by_hour = await s.flat(hourly_price=Decimal("3000"))
+    by_hour = await s.flat(hourly_price=Decimal("3000"), price_3h=Decimal("8000"))
     by_hour.rental_mode = RentalMode.HOURLY
     await s.props.save(by_hour)
     found = await s.service().execute(by_hour.public_code, date(2030, 10, 1), date(2030, 10, 3))
     stay = PublicStayResponse.from_stay(found)
-    assert (stay.prices.night, stay.prices.hour, stay.nights) == (None, 3000.0, [])
+    assert (stay.prices.night, stay.nights) == (None, [])
+    assert "8000" not in stay.model_dump_json() and "3000" not in stay.model_dump_json()
 
-    by_night = await s.flat(hourly_price=Decimal("3000"))
-    by_night.rental_mode = RentalMode.DAILY
-    await s.props.save(by_night)
-    found = await s.service().execute(by_night.public_code, date(2030, 10, 1), date(2030, 10, 3))
+    both = await s.flat(hourly_price=Decimal("3000"), price_3h=Decimal("8000"), price_night=Decimal("15000"))
+    both.rental_mode = RentalMode.BOTH
+    await s.props.save(both)
+    found = await s.service().execute(both.public_code, date(2030, 10, 1), date(2030, 10, 3))
     stay = PublicStayResponse.from_stay(found)
-    assert (stay.prices.night, stay.prices.hour, len(stay.nights)) == (25000.0, None, 2)
-
+    assert (stay.prices.night, len(stay.nights)) == (25000.0, 2)
+    assert not {"hour", "tariffs", "late_from", "night_to"} & set(stay.prices.model_dump())
+    assert "8000" not in stay.model_dump_json()
 
 async def test_a_flat_with_no_hours_of_its_own_shows_the_ones_a_booking_keeps():
     s = Stay()
@@ -256,7 +261,3 @@ async def test_the_page_prices_the_company_weekend():
     assert [(n.date.day, int(n.price)) for n in stay.nights] == [(4, 25000), (5, 27000), (6, 27000)]
     assert PublicStayResponse.from_stay(stay).prices.weekend_nights == [5, 6]
 
-    # No weekend at all: no weekend tariff price is promised.
-    await settings.save(CompanySettings(company_id=COMPANY_ID, weekend_nights=()))
-    page = PublicStayResponse.from_stay(await service.execute(prop.public_code, date(2030, 10, 4), date(2030, 10, 7)))
-    assert [t.weekend for t in page.prices.tariffs] == [None]

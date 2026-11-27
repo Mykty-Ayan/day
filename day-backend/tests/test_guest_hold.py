@@ -417,7 +417,7 @@ async def test_an_hourly_link_is_not_booked_once_its_hours_began():
 
 
 async def _site(h, unit, **kw):
-    base = dict(rental_mode=RentalMode.DAILY, check_in=date(2030, 10, 20), check_out=date(2030, 10, 22),
+    base = dict(check_in=date(2030, 10, 20), check_out=date(2030, 10, 22),
                 guests=2, name="Айгерим", phone="+7 701 555 44 33")
     return await h.service.book_stay(unit.public_code, **{**base, **kw})
 
@@ -489,15 +489,16 @@ async def test_a_blacklisted_guest_is_refused_like_any_other():
 async def test_a_flats_page_books_only_what_the_flat_takes():
     h = Holds()
     unit = await h.flat()
-    with pytest.raises(ValueError, match="by the night only"):
-        await _site(h, unit, rental_mode=RentalMode.HOURLY, check_in=None, check_out=None,
-                    starts_at=datetime(2030, 10, 20, 15), ends_at=datetime(2030, 10, 20, 18))
+    unit.rental_mode = RentalMode.HOURLY
+    with pytest.raises(ValueError, match="by the hour only: write to the host"):
+        await _site(h, unit)
+    unit.rental_mode = RentalMode.BOTH
     with pytest.raises(ValueError, match="past"):
         await _site(h, unit, check_in=date(2030, 9, 1), check_out=date(2030, 9, 2))
     with pytest.raises(ValueError, match="up to 3 guests"):
         await _site(h, unit, guests=4)
     with pytest.raises(ValueError, match="Not found"):
-        await h.service.book_stay("nosuch", rental_mode=RentalMode.DAILY, check_in=date(2030, 10, 20),
+        await h.service.book_stay("nosuch", check_in=date(2030, 10, 20),
                                   check_out=date(2030, 10, 21), guests=1, name="x", phone="+77010000000")
 
 
@@ -528,6 +529,10 @@ async def test_booking_from_a_flats_page_through_the_api(flat):  # noqa: F811  (
     await client.put("/api/v1/site", json={"slug": f"t-{uuid.uuid4().hex[:8]}", "title": "Munar"})
     use()
     assert (await client.post(f"/api/v1/public/stays/{code}/book", json={**stay, "phone": "12"})).status_code == 422
+    # Hours are the host's to sell: the flat's page books nights only.
+    hours = {**stay, "rental_mode": "hourly", "check_in": None, "check_out": None,
+             "starts_at": f"{day}T15:00:00", "ends_at": f"{day}T18:00:00"}
+    assert (await client.post(f"/api/v1/public/stays/{code}/book", json=hours)).status_code == 422
     month = {**stay, "check_out": (day + timedelta(days=31)).isoformat()}
     too_long = await client.post(f"/api/v1/public/stays/{code}/book", json=month)
     assert (too_long.status_code, too_long.json()["detail"]) == (422, "A stay is up to 30 nights, within two years")

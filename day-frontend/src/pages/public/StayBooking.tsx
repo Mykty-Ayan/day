@@ -51,17 +51,10 @@ export function BookBar({
                 {dates} · {t('guest.nights', { count: quote.count })}
               </span>
             </>
-          ) : stay.prices.night != null || stay.prices.hour != null ? (
+          ) : stay.prices.night != null ? (
             <>
-              <span className="block text-lg font-bold leading-tight">{money((stay.prices.night ?? stay.prices.hour)!, locale)}</span>
-              <span className="block text-[13px] text-[#6B6B74]">
-                {stay.prices.night != null ? t('guest.perNight') : t('guest.perHour')}
-              </span>
-            </>
-          ) : stay.prices.tariffs?.length ? (
-            <>
-              <span className="block text-lg font-bold leading-tight">{money(stay.prices.tariffs[0].price, locale)}</span>
-              <span className="block text-[13px] text-[#6B6B74]">{t(`guest.tariff_${stay.prices.tariffs[0].name}`)}</span>
+              <span className="block text-lg font-bold leading-tight">{money(stay.prices.night, locale)}</span>
+              <span className="block text-[13px] text-[#6B6B74]">{t('guest.perNight')}</span>
             </>
           ) : null}
         </div>

@@ -78,8 +78,9 @@ async def test_the_owner_sets_up_the_site_and_a_guest_opens_it(flat):  # noqa: F
     assert (body["title"], body["tagline"], body["whatsapp"], body["accent_color"], body["rules"]) == (
         "Munar", "Квартиры у парка", "77012345678", "#0e7a5f", ["Без животных"]
     )
-    cards = [(f["code"], f["rooms"], f["night_price"], f["hour_price"]) for f in body["flats"]]
-    assert cards == [(code, 2, 20000.0, None)]
+    cards = [(f["code"], f["rooms"], f["night_price"]) for f in body["flats"]]
+    assert cards == [(code, 2, 20000.0)]
+    assert "hour_price" not in body["flats"][0]
     assert "9090" not in page.text
     # Nothing booked: free tonight; no photo yet.
     assert (body["flats"][0]["free_from"], body["flats"][0]["photos"]) == (body["today"], 0)
@@ -193,3 +194,25 @@ async def test_a_guest_searches_the_site_by_dates(flat):  # noqa: F811  (the imp
     for first, last in ((-1, 1), (3, 3), (4, 2), (0, 31), (118, 120)):
         assert (await search(first, last)).status_code == 422, (first, last)
     assert (await client.get(f"/api/v1/public/companies/{slug}", params={"check_in": str(today)})).status_code == 422
+
+
+@pytest.mark.integration
+async def test_the_site_lists_no_flat_let_by_the_hour_alone(flat):  # noqa: F811  (the imported fixture)
+    """Hours are the host's to sell (the owner's decision of 27 Nov 2026): a flat let only
+    by the hour has nothing to book on the site, so it is not listed."""
+    client, prop, use = flat
+    slug = f"h-{uuid.uuid4().hex[:8]}"
+    use(Permission.SETTINGS_WRITE, Permission.PROPERTIES_READ, Permission.PROPERTIES_WRITE)
+    assert (await client.put("/api/v1/site", json={"slug": slug, "title": "Munar"})).status_code == 200
+    await client.put(f"/api/v1/properties/{prop}/pricing", json={"base_price": 20000, "hourly_price": 3000})
+    await client.post(f"/api/v1/properties/{prop}/status", json={"target_status": "active"})
+    assert (await client.patch(f"/api/v1/properties/{prop}", json={"rental_mode": "hourly"})).status_code == 200
+
+    use()  # a guest
+    assert (await client.get(f"/api/v1/public/companies/{slug}")).json()["flats"] == []
+
+    use(Permission.PROPERTIES_WRITE)
+    assert (await client.patch(f"/api/v1/properties/{prop}", json={"rental_mode": "both"})).status_code == 200
+    use()
+    [card] = (await client.get(f"/api/v1/public/companies/{slug}")).json()["flats"]
+    assert card["night_price"] == 20000.0 and "hour_price" not in card

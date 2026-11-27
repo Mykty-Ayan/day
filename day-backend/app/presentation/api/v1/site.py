@@ -9,7 +9,6 @@ from zoneinfo import ZoneInfo
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.application.booking.price_calculator import has_tariffs
 from app.application.property.public_stay import public_nights, taken_nights
 from app.domain.auth.permissions import Permission
 from app.domain.booking.value_objects import RentalMode
@@ -115,20 +114,21 @@ async def public_company(
     flats = []
     # A few queries a flat; a company has a handful of them.
     for prop in await properties.list_by_company(site.company_id, status=PropertyStatus.ACTIVE, limit=MAX_FLATS):
+        # The site sells nights only: a flat let by the hour alone is the host's to offer.
+        if prop.rental_mode == RentalMode.HOURLY:
+            continue
         shown = sorted(
             (p for p in await photos.list_by_property(prop.id) if p.audience == FactAudience.PUBLIC),
             key=lambda p: (not p.is_cover, p.sort_order),
         )
         price = await pricing.get_by_property(prop.id)
-        free_from = None
-        if prop.rental_mode != RentalMode.HOURLY:
-            taken = await taken_nights(bookings, prop, today, today + timedelta(days=FREE_AHEAD_DAYS))
-            free_from = next((d for d in _days(today, FREE_AHEAD_DAYS) if d not in taken), None)
+        taken = await taken_nights(bookings, prop, today, today + timedelta(days=FREE_AHEAD_DAYS))
+        free_from = next((d for d in _days(today, FREE_AHEAD_DAYS) if d not in taken), None)
         stay_free, stay_total = None, None
         if check_in and check_out:
             # Free for the dates: every night free, as many nights as the flat takes, priced by the night.
             stay_free = False
-            if prop.rental_mode != RentalMode.HOURLY and price and price.base_price > 0:
+            if price and price.base_price > 0:
                 nights = await public_nights(prop, price, seasonals, day_prices, bookings, check_in, check_out, weekend)
                 fits = (prop.min_nights is None or len(nights) >= prop.min_nights) and (
                     prop.max_nights is None or len(nights) <= prop.max_nights
@@ -151,13 +151,7 @@ async def public_company(
                 free_from=free_from,
                 stay_free=stay_free,
                 stay_total=stay_total,
-                night_price=float(price.base_price)
-                if price and prop.rental_mode != RentalMode.HOURLY and price.base_price > 0
-                else None,
-                # Tariffs replace the price of an hour: an hourly price left over would be wrong.
-                hour_price=float(price.hourly_price)
-                if price and prop.rental_mode != RentalMode.DAILY and price.hourly_price > 0 and not has_tariffs(price)
-                else None,
+                night_price=float(price.base_price) if price and price.base_price > 0 else None,
             )
         )
     rules = [

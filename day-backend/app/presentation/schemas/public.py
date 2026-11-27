@@ -7,7 +7,7 @@ import math
 from datetime import date, datetime, timezone
 from typing import Literal
 
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, Field, field_validator
 
 from app.application.booking.guest_hold import OfferBooking
 from app.application.booking.guest_offers import PublicOffer, greeting, mask_phone
@@ -28,22 +28,11 @@ def _set(amount) -> float | None:
     return float(amount) if amount > 0 else None
 
 
-class PublicTariff(BaseModel):
-    name: str  # "3h", "6h" or "night"
-    price: float
-    # On the company's weekend (PublicPrices.weekend_nights), when it differs from the price.
-    weekend: float | None = None
-
-
 class PublicPrices(BaseModel):
+    # Nights only: hours are sold by the host and the CRM's personal links, not on the page.
     night: float | None = None
-    # By the hour: the price of an hour, or the tariffs when the flat sells by them.
-    hour: float | None = None
-    tariffs: list[PublicTariff] = []
-    # Out after late_from only the night is sold, out by night_to ("HH:MM").
-    late_from: str | None = None
-    night_to: str | None = None
-    # The deposit of a stay by the night and by the hour, each only where the flat takes it.
+    # The deposit of a stay by the night and by the hour, each only where the flat takes it:
+    # a personal link by the hour (/o/) reads the hourly one here.
     deposit: float | None = None
     hour_deposit: float | None = None
     # The nights the weekend prices are for, Monday 0 (Friday 4, Saturday 5, Sunday 6).
@@ -100,24 +89,6 @@ class PublicStayResponse(BaseModel):
     @classmethod
     def from_stay(cls, stay: PublicStay) -> PublicStayResponse:
         p, pricing = stay.property, stay.pricing
-        tariffs = (
-            [
-                PublicTariff(
-                    name=name,
-                    price=float(price),
-                    # No weekend at all: no weekend price to promise.
-                    weekend=float(weekend) if stay.weekend_nights and 0 < weekend != price else None,
-                )
-                for name, price, weekend in (
-                    ("3h", pricing.price_3h, pricing.price_3h_weekend),
-                    ("6h", pricing.price_6h, pricing.price_6h_weekend),
-                    ("night", pricing.price_night, pricing.price_night_weekend),
-                )
-                if price > 0
-            ]
-            if stay.by_hour and pricing
-            else []
-        )
         return cls(
             code=p.public_code,
             name=p.name,
@@ -142,14 +113,9 @@ class PublicStayResponse(BaseModel):
             min_nights=p.min_nights,
             photos=stay.photos,
             amenities=[PublicAmenity(name=a.name, category=a.category.value) for a in stay.amenities],
-            # Only the prices the flat takes: no night for one let by the hour, no hour
-            # for one let by the night.
+            # The night's price only, for a flat that takes nights.
             prices=PublicPrices(
                 night=float(pricing.base_price) if stay.by_night and pricing else None,
-                hour=float(pricing.hourly_price) if stay.by_hour and not tariffs else None,
-                tariffs=tariffs,
-                late_from=pricing.late_from.strftime("%H:%M") if tariffs else None,
-                night_to=pricing.night_to.strftime("%H:%M") if tariffs else None,
                 # By the kind of stay the flat takes, not by its price: a flat priced by its
                 # calendar alone still takes the nightly deposit when booked by a link.
                 deposit=_set(pricing.default_deposit) if pricing and p.rental_mode != RentalMode.HOURLY else None,
@@ -209,14 +175,12 @@ class PublicStayQuote(BaseModel):
 
 
 class PublicStayBook(BaseModel):
-    """A guest books the flat from its own page: by the night (check_in, check_out) or
-    by the hour (starts_at, ends_at, the company's local time without a zone)."""
+    """A guest books the flat from its own page, by the night: hours are the host's to sell
+    (the owner's decision of 27 Nov 2026), so "hourly" is refused here."""
 
-    rental_mode: Literal["daily", "hourly"] = "daily"
-    check_in: date | None = None
-    check_out: date | None = None
-    starts_at: datetime | None = None
-    ends_at: datetime | None = None
+    rental_mode: Literal["daily"] = "daily"
+    check_in: date
+    check_out: date
     guests: int = Field(ge=1, le=50)
     name: str = Field(min_length=1, max_length=255)
     phone: str = Field(min_length=5, max_length=50)
@@ -226,21 +190,6 @@ class PublicStayBook(BaseModel):
     def _a_phone_number(cls, value: str) -> str:
         return full_phone(value)
 
-    @model_validator(mode="after")
-    def _the_stay_of_its_kind(self):
-        if self.rental_mode == "hourly":
-            if self.check_in is not None or self.check_out is not None:
-                raise ValueError("An hourly stay takes starts_at and ends_at")
-            if self.starts_at is None or self.ends_at is None:
-                raise ValueError("An hourly stay needs starts_at and ends_at")
-            if self.starts_at.tzinfo is not None or self.ends_at.tzinfo is not None:
-                raise ValueError("starts_at and ends_at are the company's local time, without a zone")
-        else:
-            if self.starts_at is not None or self.ends_at is not None:
-                raise ValueError("A nightly stay takes check_in and check_out")
-            if self.check_in is None or self.check_out is None:
-                raise ValueError("A nightly stay needs check_in and check_out")
-        return self
 
 
 class PublicOfferBooking(BaseModel):
