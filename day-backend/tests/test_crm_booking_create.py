@@ -219,3 +219,37 @@ async def test_an_over_long_key_is_refused(crm):
     client, prop = crm
     response = await client.post("/api/v1/bookings", json=_body(prop), headers={"Idempotency-Key": "k" * 256})
     assert response.status_code == 422
+
+
+# ---------- a time with a zone ----------
+# check_in and check_out are the company's local time, as everywhere in Day. A time
+# with a zone used to reach the database and answer 500; now it is a 422 that says why.
+
+ZONE_REASON = "Input should not have timezone info"
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize("check_in", ["2026-11-01T14:00:00+05:00", "2026-11-01T09:00:00Z"])
+async def test_a_booking_time_with_a_zone_is_a_422(crm, check_in):
+    client, prop = crm
+
+    response = await client.post("/api/v1/bookings", json=_body(prop, check_in=check_in))
+
+    assert response.status_code == 422, response.text
+    assert ZONE_REASON in response.text
+
+
+@pytest.mark.integration
+async def test_new_dates_with_a_zone_are_a_422(crm):
+    client, prop = crm
+    created = await client.post("/api/v1/bookings", json=_body(prop))
+    assert created.status_code == 201, created.text
+
+    response = await client.patch(
+        f"/api/v1/bookings/{created.json()['id']}",
+        json={"check_in": "2026-11-01T14:00:00+05:00", "check_out": "2026-11-04T12:00:00+05:00"},
+    )
+
+    assert response.status_code == 422, response.text
+    assert ZONE_REASON in response.text
+

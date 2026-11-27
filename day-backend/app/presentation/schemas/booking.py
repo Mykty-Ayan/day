@@ -11,6 +11,7 @@ from pydantic import (
     BaseModel,
     ConfigDict,
     Field,
+    NaiveDatetime,
     computed_field,
     field_serializer,
     field_validator,
@@ -81,8 +82,9 @@ class BookingCreate(BaseModel):
     guest_name: str = Field(..., min_length=1, max_length=255)
     guest_phone: str | None = None
     guest_email: str | None = None
-    check_in: datetime
-    check_out: datetime
+    # The company's local time, as everywhere in Day: a time with a zone is a 422.
+    check_in: NaiveDatetime
+    check_out: NaiveDatetime
     rental_mode: RentalMode = RentalMode.DAILY
     source: BookingSource = BookingSource.DIRECT
     adults_count: int = Field(default=1, ge=1)
@@ -106,8 +108,9 @@ class BookingUpdate(BaseModel):
     agent_id: uuid.UUID | None = None
     # Another flat of the company, saved together with any new dates.
     property_id: uuid.UUID | None = None
-    check_in: datetime | None = None
-    check_out: datetime | None = None
+    # The company's local time, as everywhere in Day: a time with a zone is a 422.
+    check_in: NaiveDatetime | None = None
+    check_out: NaiveDatetime | None = None
     rental_mode: RentalMode | None = None
     source: BookingSource | None = None
     gantt_color: str | None = None
