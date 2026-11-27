@@ -162,6 +162,8 @@
     "write": "WhatsApp으로 문의",
     "rules": "게스트 이용 규칙",
     "ourFlats": "저희 숙소",
+    "flatsCount_other": "아파트 {{count}}채",
+    "nightFrom": "1박 {{price}}부터",
     "all": "전체",
     "byRooms": "방 개수별",
     "view": "보기",

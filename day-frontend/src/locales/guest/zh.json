@@ -162,6 +162,8 @@
     "write": "通过 WhatsApp 联系",
     "rules": "住客须知",
     "ourFlats": "我们的公寓",
+    "flatsCount_other": "{{count}} 套公寓",
+    "nightFrom": "每晚 {{price}} 起",
     "all": "全部",
     "byRooms": "按房间数",
     "view": "查看",
